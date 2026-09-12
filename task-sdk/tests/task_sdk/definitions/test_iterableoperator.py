@@ -1,0 +1,939 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from __future__ import annotations
+
+import asyncio
+import copy
+from datetime import timedelta
+from typing import TYPE_CHECKING, Any
+
+try:
+    # Python 3.11+
+    BaseExceptionGroup
+except NameError:
+    from exceptiongroup import BaseExceptionGroup
+
+import pytest
+
+from airflow.sdk import DAG, BaseAsyncOperator, BaseOperator, BaseXCom, TaskInstanceState, get_current_context
+from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_RETRIES
+from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput, ListOfDictsExpandInput
+from airflow.sdk.definitions.iterableoperator import IterableOperator
+from airflow.sdk.exceptions import (
+    AirflowFailException,
+    AirflowRescheduleException,
+    AirflowSkipException,
+    DagRunTriggerException,
+    DownstreamTasksSkipped,
+    TaskDeferred,
+)
+from airflow.sdk.execution_time.comms import DeadlockImminentError
+from airflow.sdk.execution_time.task_runner import IndexedTaskState
+from airflow.sdk.execution_time.xcom import XCom
+
+from tests_common.test_utils.mock_context import mock_context as _mock_context_base
+
+if TYPE_CHECKING:
+    from airflow.sdk.definitions._internal.expandinput import ExpandInput
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
+
+    from tests_common.test_utils.compat import Context
+
+
+class MockTaskStateStoreAccessor:
+    """Minimal in-memory stand-in for ``TaskStateStoreAccessor``, exposing only the async
+    ``aget``/``aset`` methods used by ``IterableOperator`` to checkpoint per-index sub-task
+    progress (see ``IterableOperator._run_task``), plus ``clear`` used to drop all checkpoints
+    once every sub-task has succeeded (see ``IterableOperator._run_tasks``)."""
+
+    def __init__(self):
+        self._data: dict[str, Any] = {}
+
+    async def aget(self, key: str, default: Any = None) -> Any:
+        return self._data.get(key, default)
+
+    async def aset(self, key: str, value: Any, **kwargs) -> None:
+        self._data[key] = value
+
+    def clear(self) -> None:
+        self._data.clear()
+
+    def __contains__(self, key: str) -> bool:
+        return key in self._data
+
+    def __getitem__(self, key: str) -> Any:
+        return self._data[key]
+
+
+def mock_context(task, run_id: str | None = None) -> Context:
+    """Wrap the shared ``mock_context`` helper with a ``task_state_store``, since
+    ``IterableOperator`` checkpoints per-index sub-task progress via ``context["task_state_store"]``."""
+    context = _mock_context_base(task=task, run_id=run_id)
+    context["task_state_store"] = MockTaskStateStoreAccessor()  # type: ignore[typeddict-item]
+    return context
+
+
+class MockOperator(BaseOperator):
+    """Mock operator for testing IterableOperator expansion."""
+
+    def __init__(
+        self,
+        arg1=None,
+        arg2=None,
+        arg3=None,
+        fail_on_first_attempt=False,
+        raise_exception: BaseException | None = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.arg1 = arg1
+        self.arg2 = arg2
+        self.arg3 = arg3
+        self.fail_on_first_attempt = fail_on_first_attempt
+        self.raise_exception = raise_exception
+
+    def execute(self, context):
+        """Execute the operator and return passed arguments as tuple if do_xcom_push is True."""
+        expected = copy.deepcopy(context)
+
+        if self.raise_exception is not None:
+            raise self.raise_exception
+        if self.fail_on_first_attempt:
+            self.fail_on_first_attempt = False
+            raise RuntimeError
+        if not self.do_xcom_push:
+            return None
+        result = self.arg1, self.arg2, self.arg3
+
+        assert context == expected, "Context was unexpectedly mutated during task execution"
+        return result
+
+
+class MockDeferredOperator(BaseOperator):
+    """Operator that immediately defers on execute, simulating a deferrable operator."""
+
+    template_fields = ()
+
+    def execute(self, context):
+        raise TaskDeferred(trigger=None, method_name="execute_complete")  # type: ignore[arg-type]
+
+
+class MockRescheduleSensor(BaseOperator):
+    """Operator that raises AirflowRescheduleException on execute, simulating a reschedule-mode sensor."""
+
+    template_fields = ()
+
+    def execute(self, context):
+        from datetime import timedelta
+
+        from airflow.sdk import timezone
+
+        raise AirflowRescheduleException(timezone.utcnow() + timedelta(seconds=60))
+
+
+class MockSlowAsyncOperator(BaseAsyncOperator):
+    """Async operator that sleeps longer than any reasonable execution_timeout."""
+
+    template_fields = ()
+
+    async def aexecute(self, context):
+        await asyncio.sleep(60)
+        return "should_not_reach"
+
+
+@pytest.fixture
+def mock_xcom_get_one(monkeypatch: pytest.MonkeyPatch):
+    """
+    Fixture that mocks XCom.get_one using monkeypatch for proper cleanup.
+
+    Captures values pushed via context["ti"].xcom_push in the order they arrive,
+    then serves them back by index when XComIterable calls
+    XCom.get_one(key=f"{task_id}_{idx}", ...).
+    """
+
+    def _mock_xcom(context: Context):
+        pushed_values: list = []
+
+        original_push = context["ti"].xcom_push
+
+        def capturing_push(key: str, value, **kwargs) -> None:
+            pushed_values.append(value)
+            original_push(key=key, value=value, **kwargs)
+
+        monkeypatch.setattr(context["ti"], "xcom_push", capturing_push)
+
+        task_id = context["ti"].task_id
+
+        def mock_get_one(**kwargs):
+            key = kwargs.get("key", "")
+            prefix = f"{task_id}_"
+            if key.startswith(prefix):
+                try:
+                    idx = int(key[len(prefix) :])
+                    if 0 <= idx < len(pushed_values):
+                        return pushed_values[idx]
+                except (ValueError, TypeError):
+                    pass
+            return None
+
+        monkeypatch.setattr(XCom, "get_one", mock_get_one)
+
+    return _mock_xcom
+
+
+def create_mapped_operator(
+    dag: DAG,
+    expand_input: ExpandInput,
+    task_id: str = "my_task",
+    retries: int = DEFAULT_RETRIES,
+    do_xcom_push: bool = True,
+    task_concurrency: int | None = None,
+    execution_timeout: timedelta | None = None,
+) -> MappedOperator:
+    """
+    Create a MappedOperator and assign it to a DAG.
+
+    :param expand_input: The input to expand
+    :param dag: The DAG to assign the operator to
+    :param task_id: Task ID for the operator
+    :param do_xcom_push: Whether to push XCom (default True)
+    """
+    return MockOperator.partial(
+        task_id=task_id,
+        dag=dag,
+        retries=retries,
+        task_concurrency=task_concurrency,
+        do_xcom_push=do_xcom_push,
+        execution_timeout=execution_timeout,
+    )._expand(
+        expand_input,
+        strict=True,
+        register_with_dag=False,
+    )
+
+
+def create_iterable_operator(
+    dag: DAG,
+    expand_input: ExpandInput,
+    task_id: str = "my_task",
+    task_concurrency: int | None = None,
+    retries: int = DEFAULT_RETRIES,
+    do_xcom_push: bool = True,
+) -> IterableOperator:
+    """Create an IterableOperator with a MappedOperator and ExpandInput."""
+    mapped_op = create_mapped_operator(
+        dag=dag,
+        expand_input=expand_input,
+        task_id=task_id,
+        retries=retries,
+        do_xcom_push=do_xcom_push,
+        task_concurrency=task_concurrency,
+    )
+    return IterableOperator(
+        operator=mapped_op,
+        expand_input=expand_input,
+        dag=dag,
+    )
+
+
+class TestIterableOperator:
+    @pytest.mark.parametrize(
+        ("actual", "expected"),
+        [
+            ([{"a": 1}, {"a": 2}], [{"a": 1}, {"a": 2}]),
+            ([{"a": 1, "b": 2}], [{"a": 1, "b": 2}]),
+            ([], []),
+        ],
+    )
+    def test_list_of_dicts_expand_input_iter_values(self, actual, expected):
+        """Test IterableOperator with ListOfDictsExpandInput expand_input."""
+        if not actual:
+            pytest.skip("Empty list case tested separately")
+
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput(actual)
+            iterable_op = create_iterable_operator(dag, expand_input)
+
+            result = list(iterable_op.expand_input.iter_values({}))
+            assert result == expected
+
+    def test_list_of_dicts_empty(self):
+        """Test IterableOperator with empty list."""
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([])
+            iterable_op = create_iterable_operator(dag, expand_input)
+
+            result = list(iterable_op.expand_input.iter_values({}))
+            assert result == []
+
+    @pytest.mark.parametrize(
+        ("actual", "expected"),
+        [
+            ({"a": 1}, [{"a": 1}]),
+            ({"a": [1, 2, 3]}, [{"a": 1}, {"a": 2}, {"a": 3}]),
+            ({"a": "hello"}, [{"a": "hello"}]),
+            (
+                {"a": [1, 2], "b": [10, 20]},
+                [{"a": 1, "b": 10}, {"a": 1, "b": 20}, {"a": 2, "b": 10}, {"a": 2, "b": 20}],
+            ),
+            ({"a": [1, 2]}, [{"a": 1}, {"a": 2}]),
+        ],
+    )
+    def test_dict_of_lists_expand_input_iter_values(self, actual, expected):
+        """Test IterableOperator with DictOfListsExpandInput expand_input."""
+        with DAG("test_dag") as dag:
+            expand_input = DictOfListsExpandInput(actual)
+            iterable_op = create_iterable_operator(dag, expand_input)
+
+            result = list(iterable_op.expand_input.iter_values({}))
+            assert result == expected
+
+    def test_task_type(self):
+        """Test that IterableOperator correctly reports task_type."""
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"a": 1}])
+            iterable_op = create_iterable_operator(dag, expand_input)
+
+            assert isinstance(iterable_op, IterableOperator)
+            assert iterable_op.task_type == "MappedOperator"
+
+    def test_task_retries(self):
+        """Test that IterableOperator inherits retries from the wrapped operator, since
+        the whole IterableOperator is now retried via Airflow's standard retry mechanism."""
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"a": 1}])
+            iterable_op = create_iterable_operator(dag, expand_input, retries=3)
+
+            assert isinstance(iterable_op, IterableOperator)
+            assert iterable_op.retries == 3
+            assert iterable_op.task_retries == 3
+
+    def test_task_id(self):
+        """Test that IterableOperator inherits task_id from operator."""
+        with DAG("test_dag") as dag:
+            task_id = "my_task"
+            expand_input = ListOfDictsExpandInput([{"a": 1}])
+            iterable_op = create_iterable_operator(dag, expand_input, task_id=task_id)
+
+            assert iterable_op.task_id == task_id
+
+    def test_with_task_concurrency(self):
+        """Test that IterableOperator respects task_concurrency parameter."""
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"a": 1}])
+            iterable_op = create_iterable_operator(dag, expand_input, task_concurrency=4)
+
+            assert iterable_op.max_workers == 4
+
+    @pytest.mark.parametrize("invalid_value", [0, -1, -10])
+    def test_task_concurrency_validation_rejects_non_positive_values(self, invalid_value):
+        """Test that IterableOperator raises ValueError for task_concurrency < 1."""
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"a": 1}])
+            with pytest.raises(ValueError, match=f"task_concurrency must be at least 1, got {invalid_value}"):
+                create_iterable_operator(dag, expand_input, task_concurrency=invalid_value)
+
+    def test_partial_kwargs_not_mutated(self):
+        """Test that creating IterableOperator does not mutate the original MappedOperator's partial_kwargs."""
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"a": 1}])
+            mapped_op = create_mapped_operator(dag, expand_input, task_concurrency=4)
+            original_partial_kwargs = mapped_op.partial_kwargs.copy()
+
+            IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+            # Verify that mapped_op.partial_kwargs was not mutated
+            assert mapped_op.partial_kwargs == original_partial_kwargs
+            assert "task_concurrency" in mapped_op.partial_kwargs
+
+    def test_expand_input_stored(self):
+        """Test that IterableOperator stores expand_input correctly."""
+        with DAG("test_dag") as dag:
+            expand_input_data = ListOfDictsExpandInput([{"a": 1}, {"a": 2}])
+            iterable_op = create_iterable_operator(dag, expand_input_data)
+
+            assert iterable_op.expand_input is expand_input_data
+            assert isinstance(iterable_op.expand_input, (ListOfDictsExpandInput, DictOfListsExpandInput))
+
+    def test_partial_kwargs_stored(self):
+        """Test that IterableOperator stores partial_kwargs from operator."""
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"a": 1}])
+            iterable_op = create_iterable_operator(dag, expand_input)
+
+            assert hasattr(iterable_op, "partial_kwargs")
+            assert isinstance(iterable_op.partial_kwargs, dict)
+
+    def test_xcom_push_delegates_to_task_when_not_pushed(self):
+        """_xcom_push delegates to task.xcom_push only when xcom_pushed is False."""
+        from unittest import mock
+
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"arg1": 1}])
+            iterable_op = create_iterable_operator(dag, expand_input)
+
+        task = mock.MagicMock()
+        task.xcom_pushed = False
+        task.task_id = "my_task"
+        task.index = 0
+
+        iterable_op._xcom_push(task=task, value="result_value")
+
+        task.xcom_push.assert_called_once_with(key=BaseXCom.XCOM_RETURN_KEY, value="result_value")
+
+    def test_xcom_push_skips_when_already_pushed(self):
+        """_xcom_push skips pushing when xcom_pushed is already True."""
+        from unittest import mock
+
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"arg1": 1}])
+            iterable_op = create_iterable_operator(dag, expand_input)
+
+        task = mock.MagicMock()
+        task.xcom_pushed = True
+        task.task_id = "my_task"
+        task.index = 0
+
+        iterable_op._xcom_push(task=task, value="result_value")
+
+        task.xcom_push.assert_not_called()
+
+    def test_execute_list_of_dicts(self, mock_xcom_get_one):
+        """Test executing IterableOperator with ListOfDictsExpandInput."""
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}])
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="exec_list_of_dicts")
+
+            context = mock_context(task=iterable_op)
+            mock_xcom_get_one(context)
+            result = iterable_op.execute(context=context)
+            materialized = list(result)
+            assert materialized == [(1, None, None), (2, None, None)]
+
+    def test_execute_clears_checkpoints_once_every_index_succeeds(self, mock_xcom_get_one):
+        """
+        Regression test: once every sub-task index has succeeded, ``_run_tasks`` must drop all
+        per-index checkpoints from the task_state_store. A manual clear does not reset the parent
+        TI's ``try_number`` (see ``clear_task_instances``), so leftover ``SUCCESS`` checkpoints would
+        make the next attempt skip every index and replay the previous run's stale XCom results
+        instead of actually re-running anything.
+        """
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}])
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="exec_clears_checkpoints")
+
+            context = mock_context(task=iterable_op)
+            mock_xcom_get_one(context)
+            store = context["task_state_store"]
+            # Simulate leftover checkpoints from a previous run.
+            store._data["stale_key"] = {"status": "success"}
+
+            list(iterable_op.execute(context=context))
+
+            assert store._data == {}
+
+    def test_execute_does_not_leak_unmapped_operator_into_parent_context(self, mock_xcom_get_one):
+        """
+        Regression test: unmapping a sub-task must not mutate the parent context's own `ti`.
+
+        ``context_update_for_unmapped`` sets ``context["ti"].task = task`` in place. Since
+        ``context.copy()`` is only a shallow copy, ``context["ti"]`` in the copy is the *same*
+        object as the parent's. If ``_create_task`` rendered the unmapped sub-operator against a
+        context still carrying the parent's `ti`, the parent's `ti.task` would end up pointing at
+        whichever sub-task was unmapped last, corrupting anything the runner reads off `ti.task`
+        after `execute()` returns (e.g. `do_xcom_push`/`multiple_outputs` in `_push_xcom_if_needed`).
+        """
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}, {"arg1": 3}])
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="exec_no_leak")
+
+            context = mock_context(task=iterable_op)
+            mock_xcom_get_one(context)
+            result = iterable_op.execute(context=context)
+            list(result)
+
+            assert context["ti"].task is iterable_op
+            assert context["task"] is iterable_op
+
+    def test_execute_dict_of_lists(self, mock_xcom_get_one):
+        """Test executing IterableOperator with DictOfListsExpandInput."""
+        with DAG("test_dag") as dag:
+            expand_input = DictOfListsExpandInput({"arg1": [1, 2, 3]})
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="exec_dict_of_lists")
+
+            context = mock_context(task=iterable_op)
+            mock_xcom_get_one(context)
+            result = iterable_op.execute(context=context)
+            materialized = list(result)
+            assert materialized == [(1, None, None), (2, None, None), (3, None, None)]
+
+    def test_execute_empty_list_of_dicts(self, mock_xcom_get_one):
+        """Test executing IterableOperator with empty ListOfDictsExpandInput."""
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([])
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="exec_empty")
+
+            context = mock_context(task=iterable_op)
+            mock_xcom_get_one(context)
+            result = iterable_op.execute(context=context)
+            materialized = list(result)
+            assert materialized == []
+
+    def test_execute_multiple_key_dict_of_lists(self, mock_xcom_get_one):
+        """Test executing IterableOperator with multiple keys in DictOfListsExpandInput."""
+        with DAG("test_dag") as dag:
+            expand_input = DictOfListsExpandInput({"arg1": [1, 2], "arg2": [10, 20], "arg3": ["x", "y"]})
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="exec_multi_key")
+
+            context = mock_context(task=iterable_op)
+            mock_xcom_get_one(context)
+            result = iterable_op.execute(context=context)
+            materialized = list(result)
+            # Cartesian product expected order:
+            # (1,10,'x'), (1,10,'y'), (1,20,'x'), (1,20,'y'),
+            # (2,10,'x'), (2,10,'y'), (2,20,'x'), (2,20,'y')
+            assert materialized == [
+                (1, 10, "x"),
+                (1, 10, "y"),
+                (1, 20, "x"),
+                (1, 20, "y"),
+                (2, 10, "x"),
+                (2, 10, "y"),
+                (2, 20, "x"),
+                (2, 20, "y"),
+            ]
+
+    def test_execute_with_task_concurrency_setting(self, mock_xcom_get_one):
+        """Test executing IterableOperator with task_concurrency parameter."""
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}, {"arg1": 3}])
+            iterable_op = create_iterable_operator(
+                dag, expand_input, task_id="exec_concurrency", task_concurrency=2
+            )
+
+            context = mock_context(task=iterable_op)
+            mock_xcom_get_one(context)
+            result = iterable_op.execute(context=context)
+            materialized = list(result)
+            assert materialized == [(1, None, None), (2, None, None), (3, None, None)]
+            assert iterable_op.max_workers == 2
+
+    def test_execute_all_parameters(self, mock_xcom_get_one):
+        """Test executing IterableOperator with all arg1, arg2, arg3 parameters."""
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput(
+                [
+                    {"arg1": 1, "arg2": 10, "arg3": 100},
+                    {"arg1": 2, "arg2": 20, "arg3": 200},
+                ]
+            )
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="exec_all_args")
+
+            context = mock_context(task=iterable_op)
+            mock_xcom_get_one(context)
+            result = iterable_op.execute(context=context)
+            materialized = list(result)
+            assert materialized == [(1, 10, 100), (2, 20, 200)]
+
+    def test_execute_with_do_xcom_push_false(self):
+        """Test executing IterableOperator when do_xcom_push is False."""
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}])
+            iterable_op = create_iterable_operator(
+                dag, expand_input, task_id="no_xcom_push", do_xcom_push=False
+            )
+
+            context = mock_context(task=iterable_op)
+            result = iterable_op.execute(context=context)
+
+            assert result is None
+
+    def test_execute_with_failed_tasks_raises_regardless_of_retries(self, mock_xcom_get_one):
+        """
+        Test executing IterableOperator where a sub-task fails.
+
+        This test verifies that:
+        1. Tasks with fail_on_first_attempt=True raise an exception on first attempt
+        2. IterableOperator no longer retries failed sub-tasks in-process — retries (if any) are
+           handled by Airflow retrying the whole IterableOperator task instance
+        3. The BaseExceptionGroup is raised containing the task failure, regardless of whether the
+           wrapped operator has retries configured
+        """
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput(
+                [
+                    {"arg1": 1, "arg2": 10},
+                    {"arg1": 2, "arg2": 20, "fail_on_first_attempt": True},
+                    {"arg1": 3, "arg2": 30},
+                ]
+            )
+            iterable_op = create_iterable_operator(
+                dag,
+                expand_input,
+                task_id="exec_with_failures",
+                retries=1,
+            )
+
+            context = mock_context(task=iterable_op)
+            mock_xcom_get_one(context)
+            with pytest.raises(BaseExceptionGroup):
+                iterable_op.execute(context=context)
+
+    def test_execute_all_sub_tasks_skipped_raises_single_skip_exception(self, mock_xcom_get_one):
+        """When every sub-task raises AirflowSkipException, IterableOperator must re-raise a single
+        AirflowSkipException so the runner marks it SKIPPED instead of a retryable failure."""
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput(
+                [
+                    {"raise_exception": AirflowSkipException("skip 1")},
+                    {"raise_exception": AirflowSkipException("skip 2")},
+                ]
+            )
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="all_skipped")
+
+            context = mock_context(task=iterable_op)
+            mock_xcom_get_one(context)
+
+            with pytest.raises(AirflowSkipException):
+                iterable_op.execute(context=context)
+
+    def test_execute_partial_skip_still_raises_exception_group(self, mock_xcom_get_one):
+        """A partial skip (not every sub-task skipped) is not special-cased and is still aggregated
+        into a BaseExceptionGroup, since only some sub-tasks raised AirflowSkipException."""
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput(
+                [
+                    {"raise_exception": AirflowSkipException("skip 1")},
+                    {"raise_exception": RuntimeError("boom")},
+                ]
+            )
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="partial_skip")
+
+            context = mock_context(task=iterable_op)
+            mock_xcom_get_one(context)
+
+            with pytest.raises(BaseExceptionGroup):
+                iterable_op.execute(context=context)
+
+    def test_execute_fail_exception_re_raised_directly_without_retry(self, mock_xcom_get_one):
+        """A sub-task that raises AirflowFailException must be re-raised directly (not wrapped in a
+        BaseExceptionGroup) so the IterableOperator fails without being retried."""
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput(
+                [
+                    {"arg1": 1},
+                    {"raise_exception": AirflowFailException("boom")},
+                ]
+            )
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="fail_exception", retries=3)
+
+            context = mock_context(task=iterable_op)
+            mock_xcom_get_one(context)
+
+            with pytest.raises(AirflowFailException, match="boom"):
+                iterable_op.execute(context=context)
+
+    @pytest.mark.parametrize(
+        "raised_exception",
+        [
+            DagRunTriggerException(
+                trigger_dag_id="triggered_dag",
+                dag_run_id="triggered_run",
+                conf={},
+                reset_dag_run=False,
+                skip_when_already_exists=False,
+                wait_for_completion=False,
+                allowed_states=["success"],
+                failed_states=["failed"],
+                poke_interval=1,
+                deferrable=False,
+            ),
+            DownstreamTasksSkipped(tasks=["downstream_task"]),
+        ],
+        ids=["DagRunTriggerException", "DownstreamTasksSkipped"],
+    )
+    def test_execute_rejects_trigger_and_downstream_skip_exceptions(
+        self, mock_xcom_get_one, raised_exception
+    ):
+        """TriggerDagRunOperator (DagRunTriggerException) and downstream-skip operators like
+        ShortCircuitOperator (DownstreamTasksSkipped) are not supported inside IterableOperator: a
+        sub-task index has no DAG run or downstream tasks of its own for the trigger/skip to apply
+        to, so this must fail the whole IterableOperator immediately with a clear error."""
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"raise_exception": raised_exception}])
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="unsupported_exception")
+
+            context = mock_context(task=iterable_op)
+            mock_xcom_get_one(context)
+
+            with pytest.raises(AirflowFailException, match="not supported inside IterableOperator"):
+                iterable_op.execute(context=context)
+
+    @pytest.mark.asyncio
+    async def test_run_task_skips_sub_task_already_checkpointed_as_succeeded(self):
+        """
+        When the task_state_store already records a sub-task index as succeeded (e.g. because
+        Airflow retried the whole IterableOperator after a previous partial failure), ``_run_task``
+        must skip re-executing that sub-task entirely.
+        """
+        from unittest import mock
+
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"arg1": 1, "arg2": 10}])
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="checkpoint_skip")
+
+            context = mock_context(task=iterable_op)
+            jinja_env = iterable_op.get_template_env(dag=dag)
+            task = iterable_op._create_task(
+                context=context, index=0, mapped_kwargs={"arg1": 1, "arg2": 10}, jinja_env=jinja_env
+            )
+            task.try_number = 2  # checkpoint is only consulted from the second attempt onwards
+            await context["task_state_store"].aset(
+                task.xcom_key,
+                IndexedTaskState(status=TaskInstanceState.SUCCESS, try_number=2).serialize(),
+            )
+
+            executor = mock.MagicMock()
+            _, result, raised = await iterable_op._run_task(executor, context, task)
+
+            assert result is None
+            assert raised is None
+            executor.run_sync.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_run_task_reruns_and_checkpoints_success_after_up_for_retry_state(self, mock_xcom_get_one):
+        """
+        A sub-task whose checkpoint records ``UP_FOR_RETRY`` (left behind by a previous failed or
+        crashed attempt) is re-executed rather than skipped — only a ``SUCCESS`` checkpoint causes
+        ``_run_task`` to skip re-execution — and a new ``SUCCESS`` checkpoint recording its result is
+        stored once it completes.
+        """
+        from airflow.sdk.bases.operator import event_loop
+        from airflow.sdk.execution_time.executor import AsyncAwareExecutor
+
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"arg1": 1, "arg2": 10}])
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="checkpoint_pending")
+
+            context = mock_context(task=iterable_op)
+            mock_xcom_get_one(context)
+            jinja_env = iterable_op.get_template_env(dag=dag)
+            task = iterable_op._create_task(
+                context=context, index=0, mapped_kwargs={"arg1": 1, "arg2": 10}, jinja_env=jinja_env
+            )
+            task.try_number = 2  # checkpoint is only consulted from the second attempt onwards
+            await context["task_state_store"].aset(
+                task.xcom_key,
+                IndexedTaskState(status=TaskInstanceState.UP_FOR_RETRY, try_number=2).serialize(),
+            )
+
+            with event_loop() as loop:
+                with AsyncAwareExecutor(loop=loop, max_workers=1) as executor:
+                    result_task, result, raised = await iterable_op._run_task(executor, context, task)
+
+        assert raised is None
+        assert result == (1, 10, None)
+        assert result_task.try_number == 2  # try_number is inherited from the parent TI, never mutated
+        store = context["task_state_store"]
+        assert (
+            store[task.xcom_key]
+            == IndexedTaskState(status=TaskInstanceState.SUCCESS, try_number=2, result=result).serialize()
+        )
+
+    def test_iterable_execution_timeout_is_none_wrapped_operator_retains_it(self):
+        """IterableOperator.execution_timeout is None (not propagated to the outer TI);
+        the wrapped operator retains its own execution_timeout for per-task enforcement.
+        A UserWarning is emitted when the wrapped operator is sync, since TimeoutPosix won't fire
+        in worker threads."""
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"a": 1}])
+            execution_timeout = timedelta(seconds=7)
+            mapped_op = create_mapped_operator(
+                dag, expand_input, task_id="timeout_task", execution_timeout=execution_timeout
+            )
+
+            with pytest.warns(UserWarning, match="execution_timeout"):
+                iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+            assert iterable_op._operator.execution_timeout == execution_timeout
+            assert iterable_op.execution_timeout is None
+
+    @pytest.mark.parametrize(
+        "base_exception",
+        [
+            SystemExit(1),
+            KeyboardInterrupt(),
+            GeneratorExit(),
+        ],
+        ids=["SystemExit", "KeyboardInterrupt", "GeneratorExit"],
+    )
+    def test_base_exception_not_retried_raises_airflow_fail_exception(
+        self, mock_xcom_get_one, base_exception
+    ):
+        """
+        BaseException subclasses (e.g., SystemExit, KeyboardInterrupt) must never
+        be retried—they signal conditions where continuing iteration is meaningless.
+        They should raise AirflowFailException immediately.
+        """
+        with DAG("test_dag") as dag:
+            # Create a mapped operator that raises a BaseException
+            expand_input = ListOfDictsExpandInput([{"raise_exception": base_exception}])
+            mapped_op = MockOperator.partial(
+                task_id="base_exception_task",
+                dag=dag,
+                retries=3,  # Has retries available, but should NOT use them
+            )._expand(
+                expand_input,
+                strict=True,
+                register_with_dag=False,
+            )
+            iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+            context = mock_context(task=iterable_op)
+            mock_xcom_get_one(context)
+
+            with pytest.raises(AirflowFailException):
+                iterable_op.execute(context=context)
+
+    def test_deadlock_imminent_error_raises_actionable_airflow_fail_exception(self, mock_xcom_get_one):
+        """A sub-task that raises DeadlockImminentError (a sync SDK call made from an async
+        sub-task) must never be retried and must surface an actionable error pointing at async-safe
+        SDK alternatives, rather than the generic non-Exception BaseException message."""
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput(
+                [{"raise_exception": DeadlockImminentError("simulated sync SDK call")}]
+            )
+            mapped_op = MockOperator.partial(
+                task_id="deadlock_task",
+                dag=dag,
+                retries=3,  # Has retries available, but should NOT use them
+            )._expand(
+                expand_input,
+                strict=True,
+                register_with_dag=False,
+            )
+            iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+            context = mock_context(task=iterable_op)
+            mock_xcom_get_one(context)
+
+            with pytest.raises(AirflowFailException, match="synchronous SDK call"):
+                iterable_op.execute(context=context)
+
+    def test_deferred_operator_raises_airflow_fail_exception(self, mock_xcom_get_one):
+        """A sub-task that raises TaskDeferred must cause IterableOperator to raise AirflowFailException."""
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{}, {}])
+            mapped_op = MockDeferredOperator.partial(task_id="deferred_task", dag=dag)._expand(
+                expand_input,
+                strict=True,
+                register_with_dag=False,
+            )
+            iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+        context = mock_context(task=iterable_op)
+        mock_xcom_get_one(context)
+
+        with pytest.raises(AirflowFailException, match="attempted to defer"):
+            iterable_op.execute(context=context)
+
+    def test_reschedule_mode_sensor_raises_base_exception_group(self, mock_xcom_get_one):
+        """A sub-task that raises AirflowRescheduleException is no longer special-cased: it is treated
+        like any other sub-task failure and surfaces via BaseExceptionGroup. The requested
+        reschedule_date is not honored inside IterableOperator — Airflow's standard retry mechanism
+        (via the IterableOperator's own retries/retry_delay) takes over instead."""
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{}, {}])
+            mapped_op = MockRescheduleSensor.partial(task_id="reschedule_sensor", dag=dag)._expand(
+                expand_input,
+                strict=True,
+                register_with_dag=False,
+            )
+            iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+        context = mock_context(task=iterable_op)
+        mock_xcom_get_one(context)
+
+        with pytest.raises(BaseExceptionGroup):
+            iterable_op.execute(context=context)
+
+
+class TestIterableOperatorContextIsolation:
+    """
+    Verify that each sub-task run by IterableOperator sees its own indexed
+    context via get_current_context(), not the parent's.
+    """
+
+    def test_subtask_sees_its_own_context(self, mock_xcom_get_one):
+        """Each sub-task's get_current_context() must return its own indexed ti, not the parent's."""
+        captured: dict[int, object] = {}
+
+        class ContextCapturingOperator(BaseOperator):
+            def __init__(self, index: int, **kwargs):
+                super().__init__(**kwargs)
+                self.index = index
+
+            def execute(self, context):
+                ctx = get_current_context()
+                captured[self.index] = ctx["ti"]
+                return self.index
+
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"index": 0}, {"index": 1}, {"index": 2}])
+            mapped_op = ContextCapturingOperator.partial(task_id="ctx_task", dag=dag)._expand(
+                expand_input, strict=True, register_with_dag=False
+            )
+            iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+        parent_context = mock_context(task=iterable_op)
+        mock_xcom_get_one(parent_context)
+        iterable_op.execute(context=parent_context)
+
+        parent_ti = parent_context["ti"]
+        for idx, sub_ti in captured.items():
+            # Each sub-task must have seen its own IndexedTaskInstance, not the parent TI.
+            assert sub_ti is not parent_ti, f"Sub-task {idx} observed the parent context"
+            assert sub_ti.index == idx, f"Sub-task {idx} observed wrong index {sub_ti.index}"
+
+    def test_async_subtask_execution_timeout_is_enforced(self):
+        """execution_timeout is enforced for async sub-tasks via asyncio.wait_for."""
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"arg1": 1}])
+            mapped_op = MockSlowAsyncOperator.partial(
+                task_id="slow_async_task",
+                dag=dag,
+                execution_timeout=timedelta(milliseconds=50),
+            )._expand(expand_input, strict=True, register_with_dag=False)
+            iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+        context = mock_context(task=iterable_op)
+        with pytest.raises(BaseExceptionGroup, match="Multiple sub-task failures"):
+            iterable_op.execute(context=context)
+
+    def test_sync_subtask_with_execution_timeout_emits_warning(self):
+        """A sync operator with execution_timeout warns that the timeout won't be enforced."""
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"arg1": 1}])
+            mapped_op = create_mapped_operator(
+                dag, expand_input, task_id="sync_timeout_task", execution_timeout=timedelta(seconds=5)
+            )
+            with pytest.warns(UserWarning, match="TimeoutPosix") as warning_list:
+                IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+        assert len(warning_list) == 1
+        assert "sync" in str(warning_list[0].message).lower()

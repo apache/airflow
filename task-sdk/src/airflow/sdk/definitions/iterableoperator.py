@@ -1,0 +1,560 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from __future__ import annotations
+
+import copy
+import os
+import warnings
+from collections.abc import Iterable, Mapping, Sequence
+from itertools import repeat
+from typing import TYPE_CHECKING, Any
+from uuid import UUID
+
+try:
+    # Python 3.11+
+    BaseExceptionGroup
+except NameError:
+    from exceptiongroup import BaseExceptionGroup
+
+from airflow.sdk import BaseXCom, TaskInstanceState
+from airflow.sdk.bases.operator import BaseAsyncOperator, BaseOperator, event_loop
+from airflow.sdk.bases.xcom import XComIterable
+from airflow.sdk.definitions._internal.expandinput import BatchedExpandInput
+from airflow.sdk.definitions.context import clone_context
+from airflow.sdk.definitions.mappedoperator import MappedOperator
+from airflow.sdk.definitions.xcom_arg import XComArg
+from airflow.sdk.exceptions import (
+    AirflowFailException,
+    AirflowSkipException,
+    DagRunTriggerException,
+    DownstreamTasksSkipped,
+    TaskDeferred,
+)
+from airflow.sdk.execution_time.comms import DeadlockImminentError
+from airflow.sdk.execution_time.context import context_update_for_unmapped
+from airflow.sdk.execution_time.executor import AsyncAwareExecutor, TaskExecutor
+from airflow.sdk.execution_time.task_runner import IndexedTaskInstance, IndexedTaskState
+
+if TYPE_CHECKING:
+    import jinja2
+
+    from airflow.sdk.definitions._internal.expandinput import ExpandInput
+    from airflow.sdk.definitions.context import Context
+
+
+class IterableOperator(BaseOperator):
+    """
+    Operator used for Task Iteration (TI) that runs a mapped operator over an iterable input.
+
+    The IterableOperator wraps a :class:`MappedOperator` together with an
+    :class:`ExpandInput` and is responsible for creating and running the
+    per-index runtime task instances. The IterableOperator itself participates
+    in Airflow's native retry mechanism — its ``retries`` and ``retry_delay``
+    are inherited from the wrapped operator so that when any sub-task needs
+    a retry the whole IterableOperator is retried by Airflow. Already-succeeded
+    sub-tasks are skipped on each retry attempt because their state is
+    checkpointed in the ``task_state_store``.
+
+    The IterableOperator executes the mapped operator instances using a
+    concurrent executor with a configurable number of workers. By default
+    the worker count is taken from the mapped operator's ``partial_kwargs``
+    (``task_concurrency``) if present, otherwise falls back to
+    ``os.cpu_count()`` and finally to ``1``.
+
+    **Crash recovery:** When the worker crashes mid-iteration and the task is re-run (e.g. via a
+    manual clear), already-succeeded sub-tasks are skipped and only the pending/failed ones are
+    executed again. Every sub-task inherits its ``try_number`` from the IterableOperator's own task
+    instance, so the attempt count reported to a sub-task matches the attempt Airflow is currently
+    running. The checkpoint is only consulted from the second attempt onwards, and solely to decide
+    whether an index already succeeded. Once every index has succeeded, all checkpoints are dropped
+    so that a *subsequent* manual clear (which does not reset ``try_number``) re-runs every index
+    from scratch instead of replaying the previous run's stale results.
+
+    :param operator: The :class:`MappedOperator` to unmap and execute for
+        each element of ``expand_input``. Each indexed runtime receives a
+        deep copy/unmapped instance of this operator.
+
+    :param expand_input: Provider of the values (or batches) to iterate
+        over. Its ``iter_values(context)`` method is used to produce the
+        per-index ``mapped_kwargs`` used to unmap the operator.
+
+    :param kwargs: Additional keyword arguments forwarded to
+        :class:`BaseOperator` when instantiating the IterableOperator
+        (e.g. ``dag``, ``start_date``).
+
+    :returns: An :class:`XComIterable` if the mapped operator pushes XComs, otherwise ``None``.
+
+    .. note::
+        Deferred operators (those that raise :class:`~airflow.sdk.exceptions.TaskDeferred`) are not
+        supported yet inside IterableOperator. A ``TaskDeferred`` exception raised by an indexed task
+        instance will propagate as an error rather than pausing and resuming the task.
+
+        Reschedule-mode sensors (those that raise :class:`~airflow.sdk.exceptions.AirflowRescheduleException`)
+        are also not supported. A reschedule raised by an indexed task instance will fail the whole
+        IterableOperator immediately with a clear error rather than being silently mishandled.
+
+        Triggering DAG runs (:class:`~airflow.sdk.exceptions.DagRunTriggerException`, raised by
+        ``TriggerDagRunOperator``) and skipping downstream tasks
+        (:class:`~airflow.sdk.exceptions.DownstreamTasksSkipped`, raised e.g. by
+        ``ShortCircuitOperator``) are not supported either: a sub-task index has no DAG run or
+        downstream tasks of its own for the trigger/skip to apply to. Either exception raised by a
+        sub-task fails the whole IterableOperator immediately with a clear error rather than silently
+        doing nothing.
+
+        Sub-task outcomes are classified before being aggregated: if any sub-task raises
+        :class:`~airflow.sdk.exceptions.AirflowFailException`, that exception is re-raised directly so
+        the IterableOperator fails without retrying. If *every* sub-task raises
+        :class:`~airflow.sdk.exceptions.AirflowSkipException`, a single ``AirflowSkipException`` is
+        re-raised so the IterableOperator is marked ``SKIPPED`` instead of ``UP_FOR_RETRY``. Any other
+        mix of sub-task exceptions (including a partial skip alongside other failures) is aggregated
+        into a :class:`BaseExceptionGroup` and treated as a regular retryable failure.
+
+    .. warning::
+        **Async sub-tasks must only make async SDK calls.**
+
+        IterableOperator runs multiple async sub-tasks concurrently on the same event loop, each
+        making async SDK calls of its own (checkpointing, XCom push). If an async sub-task's
+        ``aexecute()`` — or a hook/callback it calls — issues a *synchronous* SDK call instead (e.g.
+        ``Variable.get``, ``BaseHook.get_connection``/``get_hook``, ``ti.xcom_pull``, or a sync
+        ``on_success_callback``/``pre_execute``), it can collide with another sub-task's async SDK
+        call that is concurrently holding the communication lock, which is detected and raised
+        eagerly as a non-retryable failure rather than silently deadlocking. Use the async-safe
+        equivalents inside async operators: :meth:`~airflow.sdk.bases.hook.BaseHook.aget_connection`/
+        ``aget_hook``, ``ti.axcom_pull``. ``Variable`` has no async equivalent yet.
+
+    .. warning::
+        **``execution_timeout`` is only enforced for async sub-tasks.**
+
+        Async sub-tasks (instances of :class:`~airflow.sdk.bases.operator.BaseAsyncOperator`) respect
+        ``execution_timeout`` via ``asyncio.wait_for``. Sync sub-tasks run in worker threads and rely on
+        :class:`~airflow.sdk.execution_time.timeout.TimeoutPosix`, which requires ``signal.SIGALRM`` and
+        only works in the main thread. Because sync sub-tasks execute in a thread pool, ``SIGALRM`` cannot
+        be delivered to them, so their ``execution_timeout`` is silently ignored. Use
+        :class:`~airflow.sdk.bases.operator.BaseAsyncOperator` if per-sub-task time limits are required.
+    """
+
+    _operator: MappedOperator
+    expand_input: ExpandInput
+    partial_kwargs: dict[str, Any]
+    shallow_copy_attrs: Sequence[str] = (
+        "_operator",
+        "expand_input",
+        "partial_kwargs",
+        "_log",
+    )
+
+    def __init__(
+        self,
+        *,
+        operator: MappedOperator,
+        expand_input: ExpandInput,
+        **kwargs,
+    ):
+        super().__init__(
+            **{
+                **kwargs,
+                "task_id": operator.task_id,
+                "owner": operator.owner,
+                "email": operator.email,
+                "email_on_retry": operator.email_on_retry,
+                "email_on_failure": operator.email_on_failure,
+                "retries": operator.retries,
+                "retry_delay": operator.retry_delay,
+                "retry_exponential_backoff": operator.retry_exponential_backoff,
+                "max_retry_delay": operator.max_retry_delay,
+                "start_date": operator.start_date,
+                "end_date": operator.end_date,
+                "depends_on_past": operator.depends_on_past,
+                "ignore_first_depends_on_past": operator.ignore_first_depends_on_past,
+                "wait_for_past_depends_before_skipping": operator.wait_for_past_depends_before_skipping,
+                "wait_for_downstream": operator.wait_for_downstream,
+                "dag": operator.dag,
+                "priority_weight": operator.priority_weight,
+                "queue": operator.queue,
+                "pool": operator.pool,
+                "pool_slots": operator.pool_slots,
+                "execution_timeout": None,
+                "trigger_rule": operator.trigger_rule,
+                "resources": operator.resources,
+                "run_as_user": operator.run_as_user,
+                "map_index_template": operator.map_index_template,
+                "max_active_tis_per_dag": operator.max_active_tis_per_dag,
+                "max_active_tis_per_dagrun": operator.max_active_tis_per_dagrun,
+                "executor": operator.executor,
+                "executor_config": operator.executor_config,
+                "inlets": operator.inlets,
+                "outlets": operator.outlets,
+                "task_group": operator.task_group,
+                "doc": operator.doc,
+                "doc_md": operator.doc_md,
+                "doc_json": operator.doc_json,
+                "doc_yaml": operator.doc_yaml,
+                "doc_rst": operator.doc_rst,
+                "task_display_name": operator.task_display_name,
+                "allow_nested_operators": operator.allow_nested_operators,
+            }
+        )
+        self._operator = operator
+        self.expand_input = expand_input
+        self.partial_kwargs = dict(operator.partial_kwargs) if operator.partial_kwargs else {}
+        task_concurrency = self.partial_kwargs.pop("task_concurrency", None)
+        if task_concurrency is not None and task_concurrency < 1:
+            raise ValueError(f"task_concurrency must be at least 1, got {task_concurrency}")
+        # Known v1 limitation: pool_slots is reserved once by the scheduler for this IterableOperator TI,
+        # but up to max_workers sub-tasks run concurrently inside it. Operators that set pool_slots > 1 to
+        # protect a shared resource (e.g. a DB connection pool) will be under-accounted — the pool sees one
+        # reservation while max_workers connections can be active simultaneously. A proper fix requires the
+        # scheduler to reserve pool_slots * max_workers slots, which needs scheduler-side changes.
+        self.max_workers = task_concurrency if task_concurrency is not None else (os.cpu_count() or 1)
+        if operator.execution_timeout and not issubclass(operator.operator_class, BaseAsyncOperator):
+            warnings.warn(
+                f"Operator {operator.task_id!r} has execution_timeout set, but sync operators run in "
+                "worker threads where TimeoutPosix (SIGALRM) cannot be delivered. "
+                "The execution_timeout will not be enforced for sync sub-tasks inside IterableOperator. "
+                "Use BaseAsyncOperator if per-sub-task time limits are required.",
+                UserWarning,
+                stacklevel=2,
+            )
+        XComArg.apply_upstream_relationship(self, self.expand_input.value)
+
+    @property
+    def returns_dag_result(self) -> bool:
+        return self._operator.returns_dag_result
+
+    @returns_dag_result.setter
+    def returns_dag_result(self, value: bool) -> None:
+        self._operator.returns_dag_result = value
+
+    @property
+    def task_type(self) -> str:
+        return self._operator.__class__.__name__
+
+    @property
+    def task_retries(self) -> int:
+        return self._operator.retries or 0
+
+    def _do_render_template_fields(
+        self,
+        parent: Any,
+        template_fields: Iterable[str],
+        context: Context,
+        jinja_env: jinja2.Environment,
+        seen_oids: set[int],
+    ) -> None:
+        # IterableOperator doesn't need to render template fields as the actual operator's template fields
+        # will be rendered in the TaskExecutor when running each mapped task instance.
+        pass
+
+    def _get_specified_expand_input(self) -> ExpandInput:
+        return self.expand_input
+
+    def _render_unmapped_operator(
+        self, context: Context, unmapped_task: BaseOperator, jinja_env: jinja2.Environment
+    ) -> None:
+        context_update_for_unmapped(context, unmapped_task)
+
+        unmapped_task._do_render_template_fields(
+            parent=unmapped_task,
+            template_fields=self._operator.template_fields,
+            context=context,
+            jinja_env=jinja_env,
+            seen_oids=set(),
+        )
+
+    async def _xcom_push(self, task: IndexedTaskInstance, value: Any) -> None:
+        await task.axcom_push(key=BaseXCom.XCOM_RETURN_KEY, value=value)
+
+    def _run_tasks(
+        self,
+        context: Context,
+        tasks: Iterable[IndexedTaskInstance],
+    ) -> XComIterable | None:
+        exceptions: list[Exception] = []
+        total = 0
+        do_xcom_push = True
+
+        self.log.info("Running tasks with %d workers", self.max_workers)
+
+        with event_loop() as loop:
+            with AsyncAwareExecutor(loop=loop, max_workers=self.max_workers) as executor:
+                for task, _result, raised in executor.map(
+                    self._run_task,
+                    repeat(executor),
+                    repeat(context),
+                    tasks,
+                ):
+                    total += 1
+                    do_xcom_push = task.do_xcom_push
+
+                    if raised is None:
+                        continue
+
+                    if isinstance(raised, TaskDeferred):
+                        raise AirflowFailException(
+                            f"Sub-task {task.task_id}[{task.index}] attempted to defer. "
+                            "Deferrable operators are not supported inside IterableOperator."
+                        )
+
+                    if isinstance(raised, (DagRunTriggerException, DownstreamTasksSkipped)):
+                        raise AirflowFailException(
+                            f"Sub-task {task.task_id}[{task.index}] raised "
+                            f"{type(raised).__name__}. Triggering DAG runs "
+                            "(TriggerDagRunOperator) and skipping downstream tasks "
+                            "(ShortCircuitOperator and similar) are not supported inside "
+                            "IterableOperator: the sub-task's index has no downstream "
+                            "tasks or DAG run of its own for the effect to apply to."
+                        ) from raised
+
+                    # Non-Exception BaseExceptions (e.g. DeadlockImminentError,
+                    # KeyboardInterrupt, SystemExit) must never be swallowed: they
+                    # signal conditions where continuing iteration is meaningless
+                    # because every subsequent task would fail for the same reason.
+                    # Re-raise immediately to stop all task iteration.
+                    if isinstance(raised, DeadlockImminentError):
+                        raise AirflowFailException(
+                            f"Sub-task {task.task_id}[{task.index}] made a synchronous SDK call "
+                            "(e.g. Variable.get, BaseHook.get_connection/get_hook, ti.xcom_pull, or a "
+                            "sync callback) from an async sub-task. Synchronous SDK calls are not safe "
+                            "inside an async operator's aexecute(): they can collide with another "
+                            "concurrently running sub-task's async SDK call and deadlock the event "
+                            "loop, so this is detected and raised eagerly instead. Use the async-safe "
+                            "equivalents (e.g. Variable.aget/aset, Hook.aget_connection/aget_hook, ti.axcom_pull) inside "
+                            "async operators."
+                        ) from raised
+                    if not isinstance(raised, Exception):
+                        raise AirflowFailException(
+                            f"Sub-task {task.task_id}[{task.index}] raised a non-Exception BaseException: "
+                            f"{type(raised).__name__}: {raised}"
+                        ) from raised
+
+                    self.log.exception(
+                        "An exception occurred for task_id %s with index %s",
+                        task.task_id,
+                        task.index,
+                        exc_info=raised,
+                    )
+                    exceptions.append(raised)
+
+        if exceptions:
+            # An AirflowFailException means the task must not be retried — propagate the first one
+            # directly rather than burying it in a BaseExceptionGroup, which _run_task_and_map_outcome
+            # would otherwise dispatch to the generic BaseException branch (i.e. eligible for retry).
+            for exc in exceptions:
+                if isinstance(exc, AirflowFailException):
+                    raise exc
+            # If every sub-task was skipped, propagate a single AirflowSkipException so the runner
+            # marks the whole IterableOperator SKIPPED instead of UP_FOR_RETRY.
+            if len(exceptions) == total and all(isinstance(exc, AirflowSkipException) for exc in exceptions):
+                raise exceptions[0]
+            raise BaseExceptionGroup("Multiple sub-task failures", exceptions)
+        # Every index succeeded: drop the checkpoints. A manual clear does not reset try_number
+        # (models.taskinstance.clear_task_instances only raises max_tries), so leaving these behind
+        # would make the next attempt's try_number > 1, causing _run_task to treat every index as
+        # already-succeeded and replay stale results instead of re-running anything.
+        context["task_state_store"].clear()
+        if do_xcom_push:
+            return XComIterable(
+                task_id=self.task_id,
+                dag_id=self.dag_id,
+                run_id=context["run_id"],
+                length=len(self.expand_input),
+                map_index=context["ti"].map_index,
+            )
+        return None
+
+    async def _run_task(
+        self,
+        executor: AsyncAwareExecutor,
+        context: Context,
+        task: IndexedTaskInstance,
+    ) -> tuple[IndexedTaskInstance, Any | None, BaseException | None]:
+        indexed_task_state = await task.aget_state()
+        # We only rely on task state if it's not the first attempt
+        if (
+            indexed_task_state is not None
+            and task.try_number > 1
+            and indexed_task_state.status == TaskInstanceState.SUCCESS
+        ):
+            self.log.info(
+                "Skipping task instance %s for %s which already finished successfully after %s attempts",
+                task.index,
+                task.task_id,
+                indexed_task_state.try_number,
+            )
+            await self._xcom_push(task, indexed_task_state.result)
+            return task, None, None
+
+        try:
+            if task.is_async:
+                result = await self._run_async_operator(context, task)
+            else:
+                result = await executor.run_sync(self._run_operator, context, task)
+
+            indexed_task_state = IndexedTaskState(
+                status=TaskInstanceState.SUCCESS, try_number=task.try_number
+            )
+            if result is not None and task.do_xcom_push:
+                indexed_task_state.result = result
+            await task.aset_state(indexed_task_state)
+            await self._xcom_push(task, indexed_task_state.result)
+            return task, result, None
+        except BaseException as e:
+            await task.aset_state(
+                IndexedTaskState(
+                    status=TaskInstanceState.UP_FOR_RETRY,
+                    try_number=task.try_number,
+                )
+            )
+            return task, None, e
+
+    def _run_operator(self, context: Context, task_instance: IndexedTaskInstance):
+        with TaskExecutor(task_instance=task_instance) as executor:
+            return executor.run(
+                context={
+                    **clone_context(context),
+                    **{
+                        "ti": task_instance,
+                        "task_instance": task_instance,
+                    },
+                }
+            )
+
+    async def _run_async_operator(self, context: Context, task_instance: IndexedTaskInstance):
+        with TaskExecutor(task_instance=task_instance) as executor:
+            return await executor.arun(
+                context={
+                    **clone_context(context),
+                    **{
+                        "ti": task_instance,
+                        "task_instance": task_instance,
+                    },
+                }
+            )
+
+    def _create_task(
+        self,
+        context: Context,
+        index: int,
+        mapped_kwargs: Context,
+        jinja_env: jinja2.Environment,
+    ) -> IndexedTaskInstance:
+        unmapped_task = self._operator.unmap(mapped_kwargs)
+        # Make sure deferred operators will always raise a DeferredTask exception when executed
+        unmapped_task.start_from_trigger = False
+
+        indexed_ti = self._create_mapped_task(
+            id=context["ti"].id,
+            run_id=context["ti"].run_id,
+            map_index=context["ti"].map_index,
+            try_number=context["ti"].try_number,
+            index=index,
+            operator=unmapped_task,
+        )
+
+        # Render against a copy of the context whose `ti`/`task_instance` are the new sub-task's
+        # IndexedTaskInstance, not the parent IterableOperator's own (shared) ti — otherwise
+        # context_update_for_unmapped() would mutate the parent's ti.task in place (context.copy()
+        # is only a shallow copy).
+        self._render_unmapped_operator(
+            {**context, "ti": indexed_ti, "task_instance": indexed_ti}, unmapped_task, jinja_env
+        )
+        return indexed_ti
+
+    def _create_mapped_task(
+        self,
+        id: UUID,
+        run_id: str,
+        map_index: int | None,
+        index: int,
+        try_number: int,
+        operator: BaseOperator,
+    ) -> IndexedTaskInstance:
+        return IndexedTaskInstance.model_construct(
+            id=id,
+            task_id=operator.task_id,
+            dag_id=operator.dag_id,
+            run_id=run_id,
+            map_index=map_index,
+            index=index,
+            max_tries=operator.retries,
+            start_date=self.start_date,
+            state=TaskInstanceState.SCHEDULED.value,
+            is_mapped=True,
+            task=operator,
+            try_number=try_number,
+            xcom_pushed=False,
+        )
+
+    def execute(self, context: Context):
+        jinja_env = self.get_template_env(dag=self.dag)
+        tasks = (
+            self._create_task(
+                context=context,
+                index=index,
+                mapped_kwargs=value,
+                jinja_env=jinja_env,
+            )
+            for index, value in enumerate(self.expand_input.iter_values(context=context))
+        )
+        return self._run_tasks(context=context, tasks=tasks)
+
+
+class MappedIterableOperator(MappedOperator):
+    """A thin wrapper around an existing MappedOperator that unmaps an MappedOperator within an IterableOperator."""
+
+    def __init__(
+        self,
+        mapped_operator: MappedOperator,
+        expand_input: ExpandInput,
+        batch_size: int,
+    ):
+        self.delegate = mapped_operator
+        self.delegate.partial_kwargs["batch_size"] = batch_size
+        self.expand_input = expand_input
+        self._register_with_dag = True
+        self.__attrs_post_init__()
+
+    def __getattr__(self, name):
+        if name.startswith("__") and name.endswith("__"):
+            raise AttributeError(f"{type(self).__name__!r} object has no attribute {name!r}")
+        return getattr(self.delegate, name)
+
+    def prepare_for_execution(self) -> MappedOperator:
+        return self
+
+    @property
+    def batch_size(self) -> int:
+        return self.delegate.batch_size
+
+    @property
+    def retries(self) -> int:
+        return self.delegate.retries
+
+    @retries.setter
+    def retries(self, value: int) -> None:
+        self.delegate.retries = value
+
+    def __repr__(self):
+        return f"<MappedIterable({self.task_type}): {self.task_id}>"
+
+    def unmap(self, resolve: Mapping[str, Any]) -> BaseOperator:
+        return IterableOperator(
+            operator=copy.deepcopy(self.delegate),
+            expand_input=BatchedExpandInput(self.expand_input, self.batch_size),
+            _airflow_from_mapped=True,
+        )

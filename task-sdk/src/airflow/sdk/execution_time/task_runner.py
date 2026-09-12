@@ -26,8 +26,10 @@ import os
 import sys
 import time
 from collections.abc import Callable, Iterable, Iterator, Mapping
-from contextlib import ExitStack, contextmanager, suppress
+from contextlib import AbstractContextManager, ExitStack, contextmanager, nullcontext, suppress
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from functools import cached_property
 from itertools import product
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Literal
@@ -135,6 +137,7 @@ from airflow.sdk.execution_time.context import (
     TriggeringAssetEventsAccessor,
     VariableAccessor,
     _get_worker_state_store_backend,
+    airflow_context_vars_context,
     context_get_outlet_events,
     context_to_airflow_vars,
     get_previous_dagrun_success,
@@ -293,6 +296,26 @@ class RuntimeTaskInstance(TaskInstance):
 
     __rich_repr__.angular = True  # type: ignore[attr-defined]
 
+    @cached_property
+    def logical_date(self) -> datetime | None:
+        if self._ti_context_from_server:
+            dag_run = self._ti_context_from_server.dag_run
+
+            return dag_run.logical_date
+        return None
+
+    @cached_property
+    def task_state_store(self) -> TaskStateStoreAccessor:
+        return TaskStateStoreAccessor(
+            ti_id=self.id,
+            scope=TaskScope(
+                dag_id=self.dag_id,
+                run_id=self.run_id,
+                task_id=self.task_id,
+                map_index=self.map_index if self.map_index is not None else -1,
+            ),
+        )
+
     @detail_span("get_template_context")
     def get_template_context(self) -> Context:
         # TODO: Move this to `airflow.sdk.execution_time.context`
@@ -331,15 +354,7 @@ class RuntimeTaskInstance(TaskInstance):
                     "value": VariableAccessor(deserialize_json=False),
                 },
                 "conn": ConnectionAccessor(),
-                "task_state_store": TaskStateStoreAccessor(
-                    ti_id=self.id,
-                    scope=TaskScope(
-                        dag_id=self.dag_id,
-                        run_id=self.run_id,
-                        task_id=self.task_id,
-                        map_index=self.map_index if self.map_index is not None else -1,
-                    ),
-                ),
+                "task_state_store": self.task_state_store,
             }
             _asset_types = (Asset, AssetNameRef, AssetUriRef, AssetAlias)
             if any(isinstance(i, _asset_types) for i in self.task.inlets + self.task.outlets):
@@ -373,7 +388,7 @@ class RuntimeTaskInstance(TaskInstance):
             }
             self._cached_template_context.update(context_from_server)
 
-            if logical_date := coerce_datetime(dag_run.logical_date):
+            if logical_date := coerce_datetime(self.logical_date):
                 if TYPE_CHECKING:
                     assert isinstance(logical_date, DateTime)
                 ds = logical_date.strftime("%Y-%m-%d")
@@ -889,6 +904,77 @@ class RuntimeTaskInstance(TaskInstance):
     def mark_success_url(self) -> str:
         """URL to mark TI success."""
         return self.log_url
+
+
+@dataclass
+class IndexedTaskState:
+    status: TaskInstanceState
+    try_number: int
+    result: Any | None = None
+
+    def serialize(self) -> dict[str, Any]:
+        data: dict[str, Any] = {"status": self.status.value, "try_number": self.try_number}
+        if self.result is not None:
+            data["result"] = self.result
+        return data
+
+    @classmethod
+    def deserialize(cls, raw: Any) -> IndexedTaskState | None:
+        if not isinstance(raw, Mapping):
+            return None
+        return cls(
+            status=TaskInstanceState(raw["status"]),
+            try_number=raw["try_number"],
+            result=raw.get("result"),
+        )
+
+
+class IndexedTaskInstance(RuntimeTaskInstance):
+    """Indexed task instance to run a mapped operator."""
+
+    index: int
+
+    def __init__(self, /, **data: Any):
+        super().__init__(**data)
+
+        if self.index is None or self.index < 0:
+            raise ValueError("IndexedTaskInstance requires index >= 0")
+
+    def xcom_push(
+        self,
+        key: str,
+        value: Any,
+    ):
+        super().xcom_push(key=f"{key}_{self.index}", value=value)
+
+    async def axcom_push(
+        self,
+        key: str,
+        value: Any,
+    ):
+        await super().axcom_push(key=f"{key}_{self.index}", value=value)
+
+    async def aget_state(self) -> IndexedTaskState | None:
+        return IndexedTaskState.deserialize(await self.task_state_store.aget(self.xcom_key))
+
+    async def aset_state(self, state: IndexedTaskState) -> None:
+        await self.task_state_store.aset(self.xcom_key, state.serialize())
+
+    @property
+    def is_async(self) -> bool:
+        return self.task.is_async
+
+    @property
+    def next_try_number(self) -> int:
+        return self.try_number + 1
+
+    @property
+    def xcom_key(self) -> str:
+        return f"{self.task_id}_{self.index}"
+
+    @property
+    def do_xcom_push(self) -> bool:
+        return self.task.do_xcom_push
 
 
 def _xcom_push(
@@ -2228,27 +2314,37 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
             assert isinstance(kwargs, dict)
         execute = functools.partial(task.resume_execution, next_method=next_method, next_kwargs=kwargs)
 
-    # Export context in os.environ to make it available for operators to use.
+    # Indexed sub-tasks run concurrently (each in its own thread) within the same process via
+    # AsyncAwareExecutor, so mutating shared os.environ would race across tasks. Scope
+    # AIRFLOW_CTX_* to this thread instead via a context var; get_airflow_context_var() reads
+    # it back for callers that would otherwise read os.environ directly.
     airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
-    os.environ.update(airflow_context_vars)
+    env_context: AbstractContextManager[None]
+    if isinstance(ti, IndexedTaskInstance):
+        env_context = airflow_context_vars_context(airflow_context_vars)
+    else:
+        # Export context in os.environ to make it available for operators to use.
+        os.environ.update(airflow_context_vars)
+        env_context = nullcontext()
 
-    outlet_events = context_get_outlet_events(context)
+    with env_context:
+        outlet_events = context_get_outlet_events(context)
 
-    if (pre_execute_hook := task._pre_execute_hook) is not None:
-        create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
-    if getattr(pre_execute_hook := task.pre_execute, "__func__", None) is not BaseOperator.pre_execute:
-        create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
+        if (pre_execute_hook := task._pre_execute_hook) is not None:
+            create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
+        if getattr(pre_execute_hook := task.pre_execute, "__func__", None) is not BaseOperator.pre_execute:
+            create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
 
-    _run_task_state_change_callbacks(task, "on_execute_callback", context, log)
+        _run_task_state_change_callbacks(task, "on_execute_callback", context, log)
 
-    log.info("::endgroup::")
+        log.info("::endgroup::")
 
-    result = _run_execute_callable(context, execute, task)
+        result = _run_execute_callable(context, execute, task)
 
-    if (post_execute_hook := task._post_execute_hook) is not None:
-        create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)
-    if getattr(post_execute_hook := task.post_execute, "__func__", None) is not BaseOperator.post_execute:
-        create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context)
+        if (post_execute_hook := task._post_execute_hook) is not None:
+            create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)
+        if getattr(post_execute_hook := task.post_execute, "__func__", None) is not BaseOperator.post_execute:
+            create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context)
 
     return result
 
