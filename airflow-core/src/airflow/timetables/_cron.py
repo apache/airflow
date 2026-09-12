@@ -25,6 +25,7 @@ from croniter import CroniterBadCronError, CroniterBadDateError, croniter
 from airflow._shared.timezones.timezone import convert_to_utc, make_aware, make_naive, parse_timezone
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.utils.dates import cron_presets
+from airflow.utils.hashlib_wrapper import md5
 
 if TYPE_CHECKING:
     from pendulum import DateTime
@@ -61,14 +62,53 @@ def _covers_every_hour(cron: croniter) -> bool:
 
 
 class CronMixin:
-    """Mixin to provide interface to work with croniter."""
+    """
+    Mixin to provide interface to work with croniter.
 
-    def __init__(self, cron: str, timezone: str | Timezone | FixedTimezone) -> None:
+    Optionally applies a deterministic, per-DAG jitter to every scheduled time.
+    When ``max_jitter`` is set, each cron boundary is shifted by a fixed offset
+    derived from ``seed`` and spread across ``[0, max_jitter)``. This spreads out
+    DAGs that share a cron expression (e.g. every ``@daily`` DAG firing at
+    midnight) so they no longer all fire at the same instant. The offset is stable
+    for a given seed, so runs stay predictable across scheduler restarts and
+    serialization.
+
+    The offset shifts every cron-derived time uniformly. For data-interval
+    timetables this means the whole interval moves by the offset (the window keeps
+    its length and consecutive intervals stay contiguous), not just the fire time.
+
+    :param cron: cron expression (or a preset such as ``@daily``) defining the schedule.
+    :param timezone: timezone used to interpret the cron expression.
+    :param seed: stable, unique-per-DAG string the offset is derived from; the DAG id
+        is a natural choice. Must be non-empty whenever ``max_jitter`` is set.
+    :param max_jitter: upper bound of the jitter window; the offset falls in
+        ``[0, max_jitter)``. Defaults to zero, i.e. no jitter. Keep it small relative
+        to the gap between cron boundaries.
+    """
+
+    def __init__(
+        self,
+        cron: str,
+        timezone: str | Timezone | FixedTimezone,
+        *,
+        seed: str = "",
+        max_jitter: datetime.timedelta = datetime.timedelta(),
+    ) -> None:
         self._expression = cron_presets.get(cron, cron)
 
         if isinstance(timezone, str):
             timezone = parse_timezone(timezone)
         self._timezone = timezone
+
+        if max_jitter > datetime.timedelta(0) and not seed:
+            raise ValueError("seed must be a non-empty, unique-per-DAG string when max_jitter > 0")
+        h = int(md5(seed.encode()).hexdigest(), 16)
+        max_jitter_us = max_jitter // datetime.timedelta(microseconds=1)
+        self._offset = (
+            datetime.timedelta(microseconds=h % max_jitter_us) if max_jitter_us > 0 else datetime.timedelta(0)
+        )
+        self._seed = seed
+        self._max_jitter = max_jitter
 
         try:
             # checking for more than 5 parameters in Cron and avoiding evaluation for now,
@@ -80,6 +120,14 @@ class CronMixin:
 
         except (CroniterBadCronError, FormatException, MissingFieldException):
             self.description = ""
+
+    def _apply(self, t: DateTime) -> DateTime:
+        """Shift a cron-aligned time forward by this timetable's jitter offset."""
+        return t + self._offset
+
+    def _strip(self, t: DateTime) -> DateTime:
+        """Remove the jitter offset, mapping a jittered time back onto the plain cron timeline."""
+        return t - self._offset
 
     def _describe_with_dom_dow_fix(self, expression: str) -> str:
         """
@@ -120,7 +168,10 @@ class CronMixin:
 
     def __eq__(self, other: object) -> bool:
         """
-        Both expression and timezone should match.
+        Expression, timezone and jitter settings (``seed`` and ``max_jitter``) should all match.
+
+        Two timetables that share a cron expression and timezone but differ in jitter
+        produce different schedules, so they are not considered equal.
 
         This is only for testing purposes and should not be relied on otherwise.
         """
@@ -128,10 +179,15 @@ class CronMixin:
 
         if not isinstance(other := coerce_to_core_timetable(other), type(self)):
             return NotImplemented
-        return self._expression == other._expression and self._timezone == other._timezone
+        return (
+            self._expression == other._expression
+            and self._timezone == other._timezone
+            and self._seed == other._seed
+            and self._max_jitter == other._max_jitter
+        )
 
     def __hash__(self):
-        return hash((self._expression, self._timezone))
+        return hash((self._expression, str(self._timezone), self._seed, self._max_jitter))
 
     @property
     def summary(self) -> str:
@@ -154,7 +210,22 @@ class CronMixin:
         return convert_to_utc(make_aware(dt.replace(tzinfo=None), self._timezone))
 
     def _get_next(self, current: DateTime) -> DateTime:
-        """Get the first schedule after specified time, with DST fixed."""
+        """
+        Get the first (jittered) schedule after the specified time.
+
+        ``current`` may already carry the jitter offset, so it is stripped back onto
+        the plain cron timeline before the next boundary is found, and the offset is
+        applied once to the result. This keeps the shift from compounding when
+        results are fed back in (e.g. by ``_align_to_next``).
+        """
+        return self._apply(self._get_next_cron(self._strip(current)))
+
+    def _get_prev(self, current: DateTime) -> DateTime:
+        """Get the first (jittered) schedule strictly before the specified time; see ``_get_next``."""
+        return self._apply(self._get_prev_cron(self._strip(current)))
+
+    def _get_next_cron(self, current: DateTime) -> DateTime:
+        """Get the first schedule after specified time on the plain cron timeline (no jitter), with DST fixed."""
         naive = make_naive(current, self._timezone)
         cron = croniter(self._expression, start_time=naive)
         scheduled = cron.get_next(datetime.datetime)
@@ -165,8 +236,8 @@ class CronMixin:
         delta = scheduled - naive
         return convert_to_utc(current.in_timezone(self._timezone) + delta)
 
-    def _get_prev(self, current: DateTime) -> DateTime:
-        """Get the first schedule strictly before specified time, with DST fixed."""
+    def _get_prev_cron(self, current: DateTime) -> DateTime:
+        """Get the first schedule strictly before specified time on the plain cron timeline (no jitter), with DST fixed."""
         naive = make_naive(current, self._timezone)
         cron = croniter(self._expression, start_time=naive)
         scheduled = cron.get_prev(datetime.datetime)

@@ -152,6 +152,56 @@ must be a :class:`datetime.timedelta` or ``dateutil.relativedelta.relativedelta`
         pass
 
 
+Jittering cron-based schedules
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Every Dag scheduled with the same cron expression fires at the same instant: all ``@daily`` Dags, for
+example, start at exactly midnight. In larger deployments this "thundering herd" can overload the
+scheduler and workers at that boundary. All cron-based timetables (CronTriggerTimetable_,
+MultipleCronTriggerTimetable_, CronDataIntervalTimetable_ and ``CronPartitionTimetable``) accept two
+optional arguments to spread these runs out:
+
+* ``seed``: a stable, unique-per-Dag string (the Dag id is a natural choice).
+* ``max_jitter``: a :class:`datetime.timedelta` upper bound for the shift.
+
+Each run is then shifted by a fixed offset derived from the seed and spread across ``[0, max_jitter)``.
+The offset is deterministic, so runs stay predictable across scheduler restarts and serialization, and
+different seeds land in different slots. With ``max_jitter`` left at its default of zero the timetable
+behaves exactly as before.
+
+.. code-block:: python
+
+    from datetime import timedelta
+
+    from airflow.timetables.trigger import CronTriggerTimetable
+
+
+    # Fires daily, shifted by a fixed amount in [0, 1h) that is unique to this Dag.
+    @dag(
+        schedule=CronTriggerTimetable(
+            "0 0 * * *",
+            timezone="UTC",
+            seed="example_dag",
+            max_jitter=timedelta(hours=1),
+        ),
+        ...,
+    )
+    def example_dag():
+        pass
+
+A few things to keep in mind:
+
+* ``seed`` must be non-empty whenever ``max_jitter`` is set; otherwise every Dag would receive the
+  same offset and the herd would simply move instead of spreading out.
+* The offset shifts the fire time and, with it, the run's ``logical_date`` and ``data_interval``. For
+  CronDataIntervalTimetable_ this means the whole data interval moves by the offset: it keeps its
+  length and consecutive runs stay contiguous, but it no longer starts exactly on the cron time
+  (e.g. 00:35 to 00:35 instead of 00:00 to 00:00). Keep ``max_jitter`` well within the gap between
+  cron boundaries.
+* MultipleCronTriggerTimetable_ applies one common offset to all of its cron expressions, so the
+  Dag's fire times keep their relative spacing.
+
+
 .. _MultipleCronTriggerTimetable:
 
 MultipleCronTriggerTimetable
@@ -226,6 +276,7 @@ trigger points, and triggers a Dag run at the end of each data interval. You can
 
 .. seealso:: `Differences between "trigger" and "data interval" timetables`_
 .. seealso:: `Differences between the cron and delta data interval timetables`_
+.. seealso:: `Jittering cron-based schedules`_
 
 .. code-block:: python
 
