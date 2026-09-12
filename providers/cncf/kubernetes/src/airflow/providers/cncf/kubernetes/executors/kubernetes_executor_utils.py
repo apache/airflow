@@ -44,6 +44,7 @@ from airflow.providers.cncf.kubernetes.kube_client import get_async_kube_client,
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     annotations_for_logging_task_metadata,
     annotations_to_key,
+    connection_api_retry,
     create_unique_id,
 )
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, workload_to_command_args
@@ -500,6 +501,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             self.kube_config.pod_creation_max_concurrency or self.kube_config.worker_pods_creation_batch_size
         )
 
+    @connection_api_retry
     def run_pod_async(self, pod: k8s.V1Pod, **kwargs):
         """Run POD asynchronously."""
         sanitized_pod = self.kube_client.api_client.sanitize_for_serialization(pod)
@@ -689,6 +691,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         semaphore = asyncio.Semaphore(self.pod_creation_max_concurrency)
         request_kwargs: dict[str, Any] = self.kube_config.kube_client_request_args or {}
 
+        @connection_api_retry
         async def _create(pod: k8s.V1Pod) -> None:
             # Sanitize with the sync client (identical to run_pod_async) to guarantee the
             # request body matches the sequential path exactly.

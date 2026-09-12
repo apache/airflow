@@ -29,6 +29,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     KubernetesApiException,
     WaitRetryAfterOrExponential,
     _should_retry_api,
+    connection_api_retry,
     create_unique_id,
 )
 
@@ -60,6 +61,31 @@ def test_should_retry_api():
 
     exc = AsyncApiException(status=404)
     assert not _should_retry_api(exc)
+
+
+def test_connection_api_retry_retries_connection_errors_only():
+    calls = {"n": 0}
+
+    @connection_api_retry
+    def flaky():
+        calls["n"] += 1
+        if calls["n"] < 3:
+            raise HTTPError("blip")
+        return "ok"
+
+    assert flaky() == "ok"
+    assert calls["n"] == 3
+
+    calls["n"] = 0
+
+    @connection_api_retry
+    def api_error():
+        calls["n"] += 1
+        raise SyncApiException(status=500)
+
+    with pytest.raises(SyncApiException):
+        api_error()
+    assert calls["n"] == 1
 
 
 class TestWaitRetryAfterOrExponential:
