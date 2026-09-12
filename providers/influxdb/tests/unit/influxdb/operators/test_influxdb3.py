@@ -20,7 +20,9 @@ from unittest import mock
 
 import pytest
 
+from airflow.exceptions import TaskDeferred
 from airflow.providers.influxdb.operators.influxdb3 import InfluxDB3Operator
+from airflow.providers.influxdb.triggers.influxdb3 import InfluxDB3QueryTrigger
 
 
 class TestInfluxDB3Operator:
@@ -36,8 +38,9 @@ class TestInfluxDB3Operator:
         assert self.operator.sql == 'SELECT "duration" FROM "pyexample"'
         assert self.operator.influxdb3_conn_id == "influxdb3_default"
         assert "sql" in self.operator.template_fields
+        assert self.operator.deferrable is False
 
-    @mock.patch("airflow.providers.influxdb.operators.influxdb3.InfluxDB3Hook")
+    @mock.patch("airflow.providers.influxdb.operators.influxdb3.InfluxDB3Hook", autospec=True)
     def test_execute(self, mock_hook_class):
         """Test operator execution."""
 
@@ -57,3 +60,64 @@ class TestInfluxDB3Operator:
         assert isinstance(result[0], dict)
         assert "col1" in result[0]
         assert "col2" in result[0]
+
+    @mock.patch("airflow.providers.influxdb.operators.influxdb3.InfluxDB3Hook", autospec=True)
+    def test_execute_deferrable_defers(self, mock_hook_class):
+        """In deferrable mode the operator defers instead of running the query on the worker."""
+        operator = InfluxDB3Operator(
+            task_id="test_task_deferrable",
+            sql='SELECT "duration" FROM "pyexample"',
+            influxdb3_conn_id="influxdb3_default",
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(context={})
+
+        assert isinstance(exc.value.trigger, InfluxDB3QueryTrigger)
+        assert exc.value.trigger.sql == 'SELECT "duration" FROM "pyexample"'
+        assert exc.value.trigger.influxdb3_conn_id == "influxdb3_default"
+        assert exc.value.method_name == "execute_complete"
+        mock_hook_class.assert_not_called()
+
+    def test_execute_complete_success(self):
+        """execute_complete returns the records carried by the trigger event."""
+        operator = InfluxDB3Operator(
+            task_id="test_task_complete",
+            sql='SELECT "duration" FROM "pyexample"',
+            deferrable=True,
+        )
+        records = [{"col1": 1, "col2": 3}]
+
+        result = operator.execute_complete(context={}, event={"status": "success", "records": records})
+
+        assert result == records
+
+    def test_execute_complete_error(self):
+        """execute_complete surfaces a failed query as a runtime error."""
+        operator = InfluxDB3Operator(
+            task_id="test_task_complete_error",
+            sql='SELECT "duration" FROM "pyexample"',
+            deferrable=True,
+        )
+
+        with pytest.raises(RuntimeError, match="boom"):
+            operator.execute_complete(context={}, event={"status": "error", "message": "boom"})
+
+    @pytest.mark.parametrize(
+        ("event", "match"),
+        [
+            (None, "did not return an event"),
+            ({"status": "cancelled"}, "unexpected status"),
+        ],
+    )
+    def test_execute_complete_invalid_event(self, event, match):
+        """execute_complete rejects missing or unexpected trigger events."""
+        operator = InfluxDB3Operator(
+            task_id="test_task_complete_invalid_event",
+            sql='SELECT "duration" FROM "pyexample"',
+            deferrable=True,
+        )
+
+        with pytest.raises(RuntimeError, match=match):
+            operator.execute_complete(context={}, event=event)

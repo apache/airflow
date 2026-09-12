@@ -57,6 +57,15 @@ query_task = InfluxDB3Operator(
 )
 # [END howto_operator_influxdb3]
 
+# [START howto_operator_influxdb3_deferrable]
+deferrable_query_task = InfluxDB3Operator(
+    task_id="query_data_deferrable",
+    sql="""SELECT * FROM "temperature" WHERE time > now() - INTERVAL '1 hour'""",
+    influxdb3_conn_id="influxdb3_default",
+    deferrable=True,
+)
+# [END howto_operator_influxdb3_deferrable]
+
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "influxdb3_example_dag"
 
@@ -68,7 +77,7 @@ with DAG(
     tags=["example", "influxdb3"],
 ) as dag:
     write_task = write_to_influxdb3()
-    write_task >> query_task
+    write_task >> [query_task, deferrable_query_task]
 
     from tests_common.test_utils.watcher import watcher
 
