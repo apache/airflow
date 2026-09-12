@@ -66,11 +66,11 @@ else:
 
 from airflow.providers.common.compat.sdk import timezone
 
+logger = logging.getLogger(__name__)
+
 USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
 TASK_LOG_FIELDS = ["timestamp", "event", "level", "chan", "logger", "error_detail", "message", "levelname"]
-
-logger = logging.getLogger(__name__)
 
 
 def _format_error_detail(error_detail: Any) -> str | None:
