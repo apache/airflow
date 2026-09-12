@@ -34,6 +34,7 @@ def get_provider_info():
                 "how-to-guide": [
                     "/docs/apache-airflow-providers-amazon/operators/athena/athena_boto.rst",
                     "/docs/apache-airflow-providers-amazon/operators/athena/athena_sql.rst",
+                    "/docs/apache-airflow-providers-amazon/operators/athena/athena_spark.rst",
                 ],
                 "tags": ["aws"],
             },
@@ -391,7 +392,10 @@ def get_provider_info():
         "operators": [
             {
                 "integration-name": "Amazon Athena",
-                "python-modules": ["airflow.providers.amazon.aws.operators.athena"],
+                "python-modules": [
+                    "airflow.providers.amazon.aws.operators.athena",
+                    "airflow.providers.amazon.aws.operators.athena_spark",
+                ],
             },
             {
                 "integration-name": "Amazon Web Services",
@@ -558,7 +562,10 @@ def get_provider_info():
         "sensors": [
             {
                 "integration-name": "Amazon Athena",
-                "python-modules": ["airflow.providers.amazon.aws.sensors.athena"],
+                "python-modules": [
+                    "airflow.providers.amazon.aws.sensors.athena",
+                    "airflow.providers.amazon.aws.sensors.athena_spark",
+                ],
             },
             {
                 "integration-name": "Amazon Web Services",
