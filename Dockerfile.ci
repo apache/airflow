@@ -197,7 +197,8 @@ function restore_debian_base_files() {
     # The hardened base images ship a minimal /etc, but Debian maintainer scripts assume the files
     # a stock Debian has: sasl2-bin chowns its run directory to the "sasl" group from base-passwd,
     # and tmux registers its shell with add-shell, which reads /etc/shells. The base-passwd package
-    # only ships the master account files - update-passwd is what merges them into /etc.
+    # only ships the reference copies of the account files - update-passwd is what merges them
+    # into /etc.
     # libpam-runtime generates the /etc/pam.d/common-* files that the PAM configs already in the
     # image "@include" - without them "adduser --gecos" aborts with a PAM error from chfn.
     # Debian Policy lets a maintainer script rely on any essential package without declaring it, and
