@@ -62,11 +62,14 @@ on the Responses API, so this operator has no cost cap. For a monetary limit, us
 fail the request: the response comes back with ``status="incomplete"``, so ``return_value`` will
 not raise -- but it is not guaranteed to be truncated text either. A reasoning model can spend
 the entire ceiling on reasoning tokens and return an empty ``output_text``, in which case
-``return_value`` is an empty string.
+``return_value`` is an empty string. Hitting ``max_tool_calls`` is different: the OpenAI API
+silently drops any tool calls beyond the ceiling without changing ``status`` or setting
+``incomplete_details`` -- there is no log warning and no signal in ``return_value``, so a run
+truncated by ``max_tool_calls`` looks identical to a clean run.
 
 A rendered ``max_output_tokens`` or ``max_tool_calls`` that is blank or whitespace-only -- for
-example ``max_output_tokens="{{ params.tokens or '' }}"`` when ``params.tokens`` is unset -- is
-treated as "no ceiling for this run" rather than raising. This only applies when the same run does
+example ``max_output_tokens="{{ params.tokens | default('', true) }}"`` when ``params.tokens`` is
+unset -- is treated as "no ceiling for this run" rather than raising. This only applies when the same run does
 not also set the corresponding key in ``response_kwargs``: the mutually-exclusive-with-``response_kwargs``
 check happens at task definition (Dag-parse) time and fires regardless of what the template later
 renders to.
