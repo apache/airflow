@@ -547,6 +547,7 @@ class LivyAsyncHook(HttpAsyncHook):
         self.log.info("Fetching info for batch session %s", session_id)
         result = await self.run_method(
             endpoint=f"{self.endpoint_prefix}/batches/{session_id}/state",
+            method="GET",
             headers=self.extra_headers,
         )
         if result["status"] == "error":
@@ -586,6 +587,7 @@ class LivyAsyncHook(HttpAsyncHook):
         result = await self.run_method(
             endpoint=f"{self.endpoint_prefix}/batches/{session_id}/log",
             data=log_params,
+            method="GET",
             headers=self.extra_headers,
         )
         if result["status"] == "error":
