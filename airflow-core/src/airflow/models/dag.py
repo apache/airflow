@@ -36,6 +36,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    and_,
     case,
     func,
     inspect as sa_inspect,
@@ -776,9 +777,13 @@ class DagModel(Base):
                 cls.is_paused == expression.false(),
                 cls.is_stale == expression.false(),
                 cls.has_import_errors == expression.false(),
-                cls.exceeds_max_non_backfill == expression.false(),
+                # The cached flag is timetable-only. Asset leftovers stay selectable
+                # here; the live QUEUED+RUNNING count above already deferred Dags at cap.
                 or_(
-                    cls.next_dagrun_create_after <= func.now(),
+                    and_(
+                        cls.exceeds_max_non_backfill == expression.false(),
+                        cls.next_dagrun_create_after <= func.now(),
+                    ),
                     cls.dag_id.in_(asset_triggered_dag_ids),
                 ),
             )
