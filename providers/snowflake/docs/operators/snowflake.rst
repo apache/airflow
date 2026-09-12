@@ -218,3 +218,39 @@ already tracks the statement handles across the wait, so deferrable mode takes p
 Durable execution requires Airflow 3.3 or newer, since it relies on the task state store. Below
 3.3, ``durable`` has no effect either way: setting it explicitly only emits a warning, and the
 operator always submits fresh SQL on retry, exactly as before this feature existed.
+
+
+SnowflakeNotebookOperator
+=========================
+
+Use the :class:`SnowflakeNotebookOperator <airflow.providers.snowflake.operators.snowflake.SnowflakeNotebookOperator>`
+to execute a `Snowflake Notebook <https://docs.snowflake.com/en/sql-reference/sql/execute-notebook>`__
+via the Snowflake SQL API.
+
+This operator builds an ``EXECUTE NOTEBOOK`` statement and delegates execution to
+:class:`SnowflakeSqlApiOperator <airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiOperator>`.
+
+Using the Operator
+^^^^^^^^^^^^^^^^^^
+
+.. exampleinclude:: /../../snowflake/tests/system/snowflake/example_snowflake_notebook.py
+    :language: python
+    :start-after: [START howto_operator_snowflake_notebook]
+    :end-before: [END howto_operator_snowflake_notebook]
+    :dedent: 4
+
+You can pass parameters to the notebook:
+
+.. exampleinclude:: /../../snowflake/tests/system/snowflake/example_snowflake_notebook.py
+    :language: python
+    :start-after: [START howto_operator_snowflake_notebook_with_params]
+    :end-before: [END howto_operator_snowflake_notebook_with_params]
+    :dedent: 4
+
+You can also run the operator in deferrable mode:
+
+.. exampleinclude:: /../../snowflake/tests/system/snowflake/example_snowflake_notebook.py
+    :language: python
+    :start-after: [START howto_operator_snowflake_notebook_deferrable]
+    :end-before: [END howto_operator_snowflake_notebook_deferrable]
+    :dedent: 4
