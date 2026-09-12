@@ -27,6 +27,8 @@ Create Date: 2026-05-28 17:36:56.837243
 
 from __future__ import annotations
 
+import json
+
 import sqlalchemy as sa
 from alembic import context, op
 
@@ -151,6 +153,33 @@ def upgrade():
             """)
 
 
+def _find_non_timedelta_intervals(conn, table_name: str = "deadline_alert") -> list[tuple]:
+    """
+    Return ``(id, classname)`` for rows whose interval cannot become a float again.
+
+    The pre-upgrade column is FLOAT NOT NULL, so only plain numbers and serialized
+    ``datetime.timedelta`` values can be converted back. Other serialized intervals, such as
+    ``VariableInterval``, have no float representation; converting them would either violate
+    the NOT NULL constraint (Postgres), corrupt the value before a failing retype (MySQL), or
+    silently become ``0.0`` (SQLite). The table holds one row per deadline alert definition,
+    so reading it entirely is cheap and works identically on every backend.
+    """
+    interval_col = conn.dialect.identifier_preparer.quote("interval")
+    offenders = []
+    for row_id, raw in conn.execute(sa.text(f"SELECT id, {interval_col} FROM {table_name}")):
+        value = raw.decode() if isinstance(raw, (bytes, bytearray)) else raw
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except (TypeError, ValueError):
+                continue
+        if isinstance(value, dict):
+            classname = value.get("__classname__")
+            if classname and classname != "datetime.timedelta":
+                offenders.append((row_id, classname))
+    return offenders
+
+
 def downgrade():
     """Revert deadline interval back to float."""
     conn = op.get_bind()
@@ -223,9 +252,23 @@ def downgrade():
 
             Step 2: SQLite does not support ALTER COLUMN TYPE.
             Recreate the table with interval as REAL and copy data.
+
+            Both variants require that no row holds a serialized interval other than
+            datetime.timedelta (for example VariableInterval); delete those deadline
+            alerts or change their interval to a timedelta first.
             """
         )
         return
+
+    offenders = _find_non_timedelta_intervals(conn)
+    if offenders:
+        details = ", ".join(f"id={row_id} ({classname})" for row_id, classname in offenders)
+        raise RuntimeError(
+            f"Cannot downgrade: {len(offenders)} deadline alert(s) use a serialized interval "
+            f"with no float representation: {details}. The previous schema stores intervals as "
+            "float seconds. Delete these deadline alerts or change their interval to a "
+            "timedelta, then re-run the downgrade."
+        )
 
     if dialect == "postgresql":
         op.execute("""
@@ -243,10 +286,8 @@ def downgrade():
     elif dialect == "mysql":
         op.execute(_mysql_downgrade_interval_value_sql())
 
-    # Serialized VariableInterval objects do not contain a numeric "__data__" field
-    # and therefore cannot be converted back to a float representation.
-    # During downgrade, only timedelta-style serialized values are converted.
-    # Other serialized interval types (e.g. VariableInterval) will cast as null.
+    # Only plain numbers and serialized timedelta values reach this point; the guard above
+    # rejects any other serialized interval type before data is touched.
     else:
         # Detect availability of SQLite JSON functions (JSON1 extension).
         json_functions_available = False
