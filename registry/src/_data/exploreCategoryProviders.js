@@ -19,18 +19,15 @@
 
 const providersData = require("./providers.json");
 const exploreCategories = require("./exploreCategories");
-const { providerMatchesKeyword } = require("./providerKeywordMatch");
+const { categoryMatchesProvider } = require("./providerKeywordMatch");
 
 module.exports = function () {
   const map = {};
   for (const category of exploreCategories) {
     const matched = [];
     for (const provider of providersData.providers) {
-      for (const keyword of category.keywords) {
-        if (providerMatchesKeyword(provider, keyword)) {
-          matched.push(provider);
-          break;
-        }
+      if (categoryMatchesProvider(category, provider)) {
+        matched.push(provider);
       }
     }
     // explore.njk shows only the first six as badges, so rank before slicing
