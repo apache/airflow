@@ -52,6 +52,20 @@ Single-prompt tasks
    * - :doc:`operators/llm_sql`
      - ``@task.llm_sql`` generating SQL from a natural-language question.
 
+Batch processing
+-----------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Guide
+     - What it shows
+   * - :doc:`operators/llm_batch`
+     - ``@task.llm_batch`` submitting many prompts as one OpenAI/Anthropic batch job, with
+       structured output and manifest-based results
+       (`example_llm_batch.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_llm_batch.py>`__).
+
 Agents & tools
 --------------
 

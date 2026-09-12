@@ -4589,6 +4589,7 @@ dependencies = [
 
 [package.optional-dependencies]
 anthropic = [
+    { name = "anthropic" },
     { name = "pydantic-ai-slim", extra = ["anthropic"] },
 ]
 avro = [
@@ -4625,6 +4626,7 @@ mcp = [
     { name = "pydantic-ai-slim", extra = ["mcp"] },
 ]
 openai = [
+    { name = "openai" },
     { name = "pydantic-ai-slim", extra = ["openai"] },
 ]
 parquet = [
@@ -4647,6 +4649,7 @@ sql = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "anthropic" },
     { name = "apache-airflow" },
     { name = "apache-airflow-devel-common" },
     { name = "apache-airflow-providers-common-compat" },
@@ -4658,6 +4661,7 @@ dev = [
     { name = "llama-index-core" },
     { name = "llama-index-embeddings-openai" },
     { name = "llama-index-llms-openai" },
+    { name = "openai" },
     { name = "pydantic-ai-skills" },
     { name = "pydantic-ai-slim", extra = ["mcp"] },
     { name = "sqlglot" },
@@ -4668,6 +4672,7 @@ docs = [
 
 [package.metadata]
 requires-dist = [
+    { name = "anthropic", marker = "extra == 'anthropic'", specifier = ">=1.0.0" },
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", marker = "extra == 'common-sql'", editable = "providers/common/sql" },
@@ -4682,6 +4687,7 @@ requires-dist = [
     { name = "llama-index-core", marker = "extra == 'llamaindex'", specifier = ">=0.13.0" },
     { name = "llama-index-embeddings-openai", marker = "extra == 'llamaindex'", specifier = ">=0.6.0" },
     { name = "llama-index-llms-openai", marker = "extra == 'llamaindex'", specifier = ">=0.6.0" },
+    { name = "openai", marker = "extra == 'openai'", specifier = ">=2.37.0" },
     { name = "pyarrow", marker = "python_full_version >= '3.14' and extra == 'parquet'", specifier = ">=22.0.0" },
     { name = "pyarrow", marker = "python_full_version < '3.14' and extra == 'parquet'", specifier = ">=18.0.0" },
     { name = "pydantic-ai-harness", extras = ["codemode"], marker = "extra == 'code-mode'", specifier = ">=0.3.0" },
@@ -4701,6 +4707,7 @@ provides-extras = ["anthropic", "bedrock", "google", "openai", "mcp", "code-mode
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "anthropic", specifier = ">=1.0.0" },
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
@@ -4713,6 +4720,7 @@ dev = [
     { name = "llama-index-core", specifier = ">=0.13.0" },
     { name = "llama-index-embeddings-openai", specifier = ">=0.6.0" },
     { name = "llama-index-llms-openai", specifier = ">=0.6.0" },
+    { name = "openai", specifier = ">=2.37.0" },
     { name = "pydantic-ai-skills", specifier = ">=1.2.0" },
     { name = "pydantic-ai-slim", extras = ["mcp"], specifier = ">=2.0.0" },
     { name = "sqlglot", specifier = ">=30.0.0" },
