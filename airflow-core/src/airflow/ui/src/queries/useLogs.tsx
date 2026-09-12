@@ -53,6 +53,7 @@ export type ParsedLogEntry = {
 type GetLogLineTextOptions = {
   logLevelFilters?: Array<string>;
   logMessage: string | StructuredLogMessage;
+  showLogLevel?: boolean;
   showSource?: boolean;
   showTimestamp?: boolean;
   sourceFilters?: Array<string>;
@@ -67,6 +68,7 @@ type GetLogLineTextOptions = {
 export const getLogLineText = ({
   logLevelFilters,
   logMessage,
+  showLogLevel,
   showSource,
   showTimestamp,
   sourceFilters,
@@ -79,6 +81,7 @@ export const getLogLineText = ({
       logLink: "",
       logMessage,
       renderingMode: "text",
+      showLogLevel,
       showSource,
       showTimestamp,
       sourceFilters,
@@ -91,6 +94,7 @@ type Props = {
   dagId: string;
   limit?: number;
   logLevelFilters?: Array<string>;
+  showLogLevel?: boolean;
   showSource?: boolean;
   showTimestamp?: boolean;
   sourceFilters?: Array<string>;
@@ -101,6 +105,7 @@ type Props = {
 type ParseLogsProps = {
   data: TaskInstancesLogResponse["content"];
   logLevelFilters?: Array<string>;
+  showLogLevel?: boolean;
   showSource?: boolean;
   showTimestamp?: boolean;
   sourceFilters?: Array<string>;
@@ -112,6 +117,7 @@ type ParseLogsProps = {
 const parseLogs = ({
   data,
   logLevelFilters,
+  showLogLevel,
   showSource,
   showTimestamp,
   sourceFilters,
@@ -157,6 +163,7 @@ const parseLogs = ({
             logLink,
             logMessage: datum,
             renderingMode: "jsx",
+            showLogLevel,
             showSource,
             showTimestamp,
             sourceFilters,
@@ -186,7 +193,15 @@ const parseLogs = ({
     parsedLines.forEach(({ element, lineNumber, logMessage }) => {
       const text = innerText(element);
       const getPlainText = () =>
-        getLogLineText({ logLevelFilters, logMessage, showSource, showTimestamp, sourceFilters, translate });
+        getLogLineText({
+          logLevelFilters,
+          logMessage,
+          showLogLevel,
+          showSource,
+          showTimestamp,
+          sourceFilters,
+          translate,
+        });
 
       if (text.includes("::group::")) {
         const groupName = text.split("::group::")[1] as string;
@@ -294,6 +309,7 @@ export const useLogs = (
     dagId,
     limit,
     logLevelFilters,
+    showLogLevel,
     showSource,
     showTimestamp,
     sourceFilters,
@@ -329,6 +345,7 @@ export const useLogs = (
   const parsedData = parseLogs({
     data: parseStreamingLogContent(truncateData(data, limit)),
     logLevelFilters,
+    showLogLevel,
     showSource,
     showTimestamp,
     sourceFilters,

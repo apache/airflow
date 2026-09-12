@@ -76,6 +76,39 @@ describe("renderStructuredLog — traceback frame highlighting", () => {
   });
 });
 
+describe("renderStructuredLog — log level visibility", () => {
+  const renderWithLevel = (showLogLevel: boolean) => {
+    const result = renderStructuredLog({
+      index: 0,
+      logLink: "",
+      logMessage: {
+        event: "Task started",
+        level: "info",
+        timestamp: "2026-01-01T00:00:00Z",
+      },
+      renderingMode: "jsx",
+      showLogLevel,
+      translate: translate as never,
+    });
+
+    return render(<Wrapper>{result}</Wrapper>);
+  };
+
+  it("renders the level when showLogLevel is true", () => {
+    renderWithLevel(true);
+
+    expect(screen.getByText("INFO")).toBeInTheDocument();
+    expect(screen.getByText("Task started")).toBeInTheDocument();
+  });
+
+  it("omits the level when showLogLevel is false", () => {
+    renderWithLevel(false);
+
+    expect(screen.queryByText("INFO")).toBeNull();
+    expect(screen.getByText("Task started")).toBeInTheDocument();
+  });
+});
+
 describe("renderStructuredLog — TI context field stripping", () => {
   it("does not render TI context fields as per-line structured attributes", () => {
     const result = renderStructuredLog({

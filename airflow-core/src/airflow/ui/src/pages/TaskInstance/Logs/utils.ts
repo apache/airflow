@@ -34,6 +34,7 @@ export const getGroupHeaderMarker = (isExpanded: boolean): string => (isExpanded
 type GetDownloadTextOptions = {
   fetchedData: TaskInstancesLogResponse | undefined;
   logLevelFilters: Array<string>;
+  showLogLevel: boolean;
   showSource: boolean;
   showTimestamp: boolean;
   sourceFilters: Array<string>;
@@ -48,6 +49,7 @@ type GetDownloadTextOptions = {
 export const getDownloadText = ({
   fetchedData,
   logLevelFilters,
+  showLogLevel,
   showSource,
   showTimestamp,
   sourceFilters,
@@ -63,6 +65,7 @@ export const getDownloadText = ({
       logLink: "",
       logMessage: line,
       renderingMode: "text",
+      showLogLevel,
       showSource,
       showTimestamp,
       sourceFilters,
