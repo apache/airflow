@@ -41,10 +41,12 @@ There are three main types of cluster policy:
   ``task_instance_mutation_hook`` applies not to a task but to the instance of a task that
   relates to a particular DagRun. It is executed scheduler-side while task instances are created or
   reconciled (not in the Dag file processor, and not on the worker). The policy is only applied to the
-  currently executed run (i.e. instance) of that task. The ``dag_run`` argument lets the policy route on
-  run configuration (``dag_run.conf``); it may be ``None`` in early task-instance construction, and a hook
-  that only declares ``task_instance`` keeps working unchanged. Note that ``dag_run.conf`` is only populated
-  for manually triggered or API-triggered runs; scheduled runs carry an empty ``conf``.
+  currently executed run (i.e. instance) of that task. It may fire more than once for a given task
+  instance -- at creation and on each retry transition, where the next attempt gets a fresh
+  ``task_instance.id`` -- so implementations should be idempotent. The ``dag_run`` argument lets the policy
+  route on run configuration (``dag_run.conf``); it may be ``None`` in early task-instance construction, and
+  a hook that only declares ``task_instance`` keeps working unchanged. Note that ``dag_run.conf`` is only
+  populated for manually triggered or API-triggered runs; scheduled runs carry an empty ``conf``.
 
 .. warning::
 
