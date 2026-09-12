@@ -22,7 +22,7 @@ import threading
 from unittest import mock
 from uuid import UUID
 
-import httpx
+import httpx2
 import pytest
 from fastapi import Request, status
 from fastapi.params import Security as SecurityParam
@@ -158,9 +158,17 @@ def test_routes_with_task_instance_id_param_enforce_ti_self(client):
 def test_in_process_execution_api_runs_without_jwt_secret():
     """The in-process API must not require ``api_auth/jwt_secret`` to be configured."""
     api = InProcessExecutionAPI()
-    with httpx.Client(transport=api.transport) as client:
+    transport = api.transport
+    assert isinstance(transport, httpx2.WSGITransport)
+    with httpx2.Client(transport=transport) as client:
         response = client.get("http://localhost/health")
     assert response.status_code == 200
+
+
+def test_in_process_execution_api_uses_httpx2_async_transport():
+    api = InProcessExecutionAPI()
+    transport = api.atransport
+    assert isinstance(transport, httpx2.ASGITransport)
 
 
 def test_in_process_execution_api_transport_lifecycle():
