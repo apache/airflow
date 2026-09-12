@@ -1136,6 +1136,111 @@ export type DAGWarningResponse = {
 };
 
 /**
+ * Dag bundle collection response.
+ */
+export type DagBundleCollectionResponse = {
+    dag_bundles: Array<DagBundleResponse>;
+    total_entries: number;
+};
+
+/**
+ * Dag bundle serializer for the single-bundle response.
+ */
+export type DagBundleDetailResponse = {
+    name: string;
+    /**
+     * Whether the bundle is still present in this deployment's configuration.
+     */
+    active: boolean | null;
+    /**
+     * The latest version Airflow has seen for the bundle. Null when the bundle does not support versioning, or when no Dag processor has refreshed it successfully yet.
+     */
+    version: string | null;
+    /**
+     * When a Dag processor last successfully refreshed the bundle. It advances even when the version did not change, and a failed refresh leaves it untouched.
+     */
+    last_refreshed: string | null;
+    /**
+     * A link to view the bundle at ``version``, when one is configured and the caller may read Dag versions.
+     */
+    bundle_url: string | null;
+    /**
+     * The team owning the bundle, in a multi-team deployment.
+     */
+    team_name: string | null;
+    /**
+     * Number of Dag import errors recorded against this bundle that the caller is permitted to see, counted on the same terms as ``GET /importErrors``. Null when the caller may not read import errors.
+     */
+    import_error_count: number | null;
+    /**
+     * Number of live Dags recorded against the bundle that the caller is permitted to see, counted on the same terms as ``GET /dags``.
+     */
+    dag_count: number;
+};
+
+/**
+ * Dag bundle file collection response.
+ */
+export type DagBundleFileCollectionResponse = {
+    dag_bundle_files: Array<DagBundleFileResponse>;
+    total_entries: number;
+};
+
+/**
+ * A file in a Dag bundle, as the Dag processor last saw it.
+ */
+export type DagBundleFileResponse = {
+    relative_fileloc: string;
+    /**
+     * Number of live Dags the file defines that the caller may read.
+     */
+    dag_count: number;
+    /**
+     * When the file was last parsed, or null if it has never parsed successfully.
+     */
+    last_parsed_time: string | null;
+    /**
+     * How long the last successful parse of the file took, in seconds.
+     */
+    last_parse_duration: number | null;
+    /**
+     * Number of import errors recorded against the file, which is at most one. Null when the caller may not read import errors -- deliberately not zero, which would read as a file with nothing wrong.
+     */
+    import_error_count: number | null;
+};
+
+/**
+ * Dag bundle serializer for responses.
+ */
+export type DagBundleResponse = {
+    name: string;
+    /**
+     * Whether the bundle is still present in this deployment's configuration.
+     */
+    active: boolean | null;
+    /**
+     * The latest version Airflow has seen for the bundle. Null when the bundle does not support versioning, or when no Dag processor has refreshed it successfully yet.
+     */
+    version: string | null;
+    /**
+     * When a Dag processor last successfully refreshed the bundle. It advances even when the version did not change, and a failed refresh leaves it untouched.
+     */
+    last_refreshed: string | null;
+    /**
+     * A link to view the bundle at ``version``, when one is configured and the caller may read Dag versions.
+     */
+    bundle_url: string | null;
+    /**
+     * The team owning the bundle, in a multi-team deployment.
+     */
+    team_name: string | null;
+    /**
+     * Number of Dag import errors recorded against this bundle that the caller is permitted to see, counted on the same terms as ``GET /importErrors``. Null when the caller may not read import errors.
+     */
+    import_error_count: number | null;
+};
+
+/**
  * DagProcessor info serializer for responses.
  */
 export type DagProcessorInfoResponse = {
@@ -2683,7 +2788,7 @@ export type LightGridTaskInstanceSummary = {
 /**
  * Define all menu items defined in the menu.
  */
-export type MenuItem = 'Required Actions' | 'Assets' | 'Audit Log' | 'Config' | 'Connections' | 'Dags' | 'Deadlines' | 'Docs' | 'Jobs' | 'Plugins' | 'Pools' | 'Providers' | 'Variables' | 'XComs';
+export type MenuItem = 'Required Actions' | 'Assets' | 'Audit Log' | 'Config' | 'Connections' | 'Dags' | 'Dag Bundles' | 'Deadlines' | 'Docs' | 'Jobs' | 'Plugins' | 'Pools' | 'Providers' | 'Variables' | 'XComs';
 
 /**
  * Menu Item Collection serializer for responses.
@@ -3473,6 +3578,31 @@ export type GetDagSourceData = {
 };
 
 export type GetDagSourceResponse = DAGSourceResponse;
+
+export type GetDagBundlesData = {
+    limit?: number;
+    offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `name, version, last_refreshed, active`
+     */
+    orderBy?: Array<(string)>;
+};
+
+export type GetDagBundlesResponse = DagBundleCollectionResponse;
+
+export type GetDagBundleData = {
+    bundleName: string;
+};
+
+export type GetDagBundleResponse = DagBundleDetailResponse;
+
+export type GetDagBundleFilesData = {
+    bundleName: string;
+    limit?: number;
+    offset?: number;
+};
+
+export type GetDagBundleFilesResponse = DagBundleFileCollectionResponse;
 
 export type GetDagStatsData = {
     dagIds?: Array<(string)>;
@@ -6209,6 +6339,83 @@ export type $OpenApiTs = {
                  * Not Acceptable
                  */
                 406: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dagBundles': {
+        get: {
+            req: GetDagBundlesData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DagBundleCollectionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dagBundles/{bundle_name}': {
+        get: {
+            req: GetDagBundleData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DagBundleDetailResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dagBundles/{bundle_name}/files': {
+        get: {
+            req: GetDagBundleFilesData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DagBundleFileCollectionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

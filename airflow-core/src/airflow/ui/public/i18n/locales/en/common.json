@@ -27,6 +27,7 @@
   "breadcrumb": "Breadcrumb",
   "browse": {
     "auditLog": "Audit Log",
+    "dagBundles": "Dag Bundles",
     "deadlines": "Deadlines",
     "jobs": "Jobs",
     "requiredActions": "Required Actions",
@@ -39,6 +40,8 @@
   "createdAssetEvent_other": "Created $t(common:assetEvent_other)",
   "dag_one": "Dag",
   "dag_other": "Dags",
+  "dagBundle_one": "Dag Bundle",
+  "dagBundle_other": "Dag Bundles",
   "dagDetails": {
     "activeRuns": "Active Runs",
     "catchup": "Catchup",

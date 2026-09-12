@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { type QueryClient } from "@tanstack/react-query";
-import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagBundleService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagWarningType, ReprocessBehavior } from "../requests/types.gen";
 import * as Common from "./common";
 /**
@@ -560,6 +560,67 @@ export const ensureUseDagSourceServiceGetDagSourceData = (queryClient: QueryClie
   dagId: string;
   versionNumber?: number;
 }) => queryClient.ensureQueryData({ queryKey: Common.UseDagSourceServiceGetDagSourceKeyFn({ accept, dagId, versionNumber }), queryFn: () => DagSourceService.getDagSource({ accept, dagId, versionNumber }) });
+/**
+* Get Dag Bundles
+* List the Dag bundles Airflow knows about.
+*
+* Reports the version of each bundle Airflow currently holds and when a Dag processor last
+* refreshed it, so whoever deployed the code can tell whether it has been picked up yet.
+*
+* A bundle is visible to a user who can read at least one Dag recorded against it, so one from
+* which no Dag has ever parsed successfully is not listed at all.
+* @param data The data for the request.
+* @param data.limit
+* @param data.offset
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `name, version, last_refreshed, active`
+* @returns DagBundleCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseDagBundleServiceGetDagBundlesData = (queryClient: QueryClient, { limit, offset, orderBy }: {
+  limit?: number;
+  offset?: number;
+  orderBy?: string[];
+} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseDagBundleServiceGetDagBundlesKeyFn({ limit, offset, orderBy }), queryFn: () => DagBundleService.getDagBundles({ limit, offset, orderBy }) });
+/**
+* Get Dag Bundle
+* Get a Dag bundle.
+* @param data The data for the request.
+* @param data.bundleName
+* @returns DagBundleDetailResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseDagBundleServiceGetDagBundleData = (queryClient: QueryClient, { bundleName }: {
+  bundleName: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseDagBundleServiceGetDagBundleKeyFn({ bundleName }), queryFn: () => DagBundleService.getDagBundle({ bundleName }) });
+/**
+* Get Dag Bundle Files
+* List the files in a Dag bundle, ordered by path.
+*
+* A file is listed when the caller can read at least one Dag it defines. A file that recorded an
+* import error without registering any Dag is listed too, on the same admin-by-default terms as
+* ``GET /importErrors`` -- a file that fails before defining a Dag has no Dag to authorize on,
+* and it is the case this page most needs to show.
+*
+* ``dag_count`` counts live Dags only. Dag rows are never deleted: a file that fails to import
+* has every Dag in it marked stale, and so does a file dropped from the bundle. A file therefore
+* stays listed on the strength of a live Dag *or* an import error, so a file that has just broken
+* does not vanish from the page someone opened to find out why, while a file deleted long ago
+* drops out instead of lingering forever.
+*
+* Parse times come from the Dags in the file rather than the file itself, which is the only
+* record Airflow keeps: a file whose every Dag was removed keeps no parse time of its own.
+* @param data The data for the request.
+* @param data.bundleName
+* @param data.limit
+* @param data.offset
+* @returns DagBundleFileCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseDagBundleServiceGetDagBundleFilesData = (queryClient: QueryClient, { bundleName, limit, offset }: {
+  bundleName: string;
+  limit?: number;
+  offset?: number;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseDagBundleServiceGetDagBundleFilesKeyFn({ bundleName, limit, offset }), queryFn: () => DagBundleService.getDagBundleFiles({ bundleName, limit, offset }) });
 /**
 * Get Dag Stats
 * Get Dag statistics.

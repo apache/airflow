@@ -369,8 +369,9 @@ def test_bundle_model_render_url(clear_db, session):
 
         url = bundle_model.render_url(version="main")
         assert url == "https://github.com/example/repo/tree/main/dags"
-        url = bundle_model.render_url()
-        assert url == "https://github.com/example/repo/tree/None/dags"
+        # With no version there is nothing to interpolate, and rendering anyway would put the
+        # literal string "None" in the url.
+        assert bundle_model.render_url() is None
 
 
 @pytest.mark.db_test

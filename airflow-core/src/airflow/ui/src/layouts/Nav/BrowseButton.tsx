@@ -36,6 +36,12 @@ const links = [
     title: "Audit Log",
   },
   {
+    href: "/dag_bundles",
+    key: "dagBundles",
+    // Must stay byte-identical to MenuItem.DAG_BUNDLES: the filter below matches on this string.
+    title: "Dag Bundles",
+  },
+  {
     href: "/deadlines",
     key: "deadlines",
     title: "Deadlines",

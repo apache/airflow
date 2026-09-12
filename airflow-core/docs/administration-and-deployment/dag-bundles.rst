@@ -226,6 +226,39 @@ Starting Airflow 3.0.2 git is pre installed in the base image. However, if you a
   ENV GIT_PYTHON_REFRESH=quiet
 
 
+Monitoring Dag bundles
+----------------------
+
+The **Dag Bundles** page under *Browse* shows, for each bundle, the version Airflow currently holds,
+when a Dag processor last refreshed it, its import-error count, and whether it is still configured
+-- so you can tell whether a commit has been picked up without reading the Dag source. The page
+refreshes itself while open, and the same data is available at ``GET /api/v2/dagBundles`` for a
+deployment pipeline to poll.
+
+``version`` is whatever the bundle reports; for a Git Dag bundle it is the commit SHA of the tracking
+ref. Bundles that do not support versioning, such as ``LocalDagBundle``, report ``null``.
+
+``last_refreshed`` is the last *successful* refresh and advances whether or not the version changed.
+The cadence is the bundle's :ref:`config:dag_processor__refresh_interval`, checked every
+:ref:`config:dag_processor__bundle_refresh_check_interval`.
+
+Some caveats:
+
+* A failing refresh looks like one that is not due, since a refresh that raises is logged and leaves
+  ``last_refreshed`` at its last success. Check the Dag processor logs, and
+  ``/api/v2/jobs?job_type=DagProcessorJob`` for a live processor.
+* A new version does not mean the new Dags are running, because bundles are refreshed before their
+  Dags are parsed -- read the import-error count alongside it.
+* With several Dag processors the row reflects whichever refreshed last, as they share one row per
+  bundle.
+* A bundle is listed for users who can read at least one Dag recorded against it, so a bundle from
+  which no Dag has ever parsed does not appear at all.
+
+``active`` is false when the bundle was missing from the configuration of whatever last ran a full
+sync, which also means processors that disagree about ``dag_bundle_config_list`` will deactivate
+each other's bundles. An inactive bundle keeps its last version and timestamp, frozen rather than
+current.
+
 Using DAG Bundles with User Impersonation
 -----------------------------------------
 
