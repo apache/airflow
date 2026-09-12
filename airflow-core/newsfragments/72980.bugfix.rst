@@ -1,0 +1,1 @@
+Fix the 3.1 to 3.2 upgrade destroying team bindings when it runs after a downgrade to 3.1
