@@ -22,7 +22,7 @@ import re
 import sys
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch, sentinel
+from unittest.mock import MagicMock, PropertyMock, call, patch, sentinel
 
 import pytest
 from pydantic_ai import Embedder
@@ -124,6 +124,49 @@ class TestPydanticAIHookInit:
     def test_vertex_hook_uses_own_default_conn_name(self):
         hook = PydanticAIVertexHook()
         assert hook.llm_conn_id == "pydanticai_vertex_default"
+
+
+class TestGetUiFieldBehaviour:
+    def test_shape(self):
+        behaviour = PydanticAIHook.get_ui_field_behaviour()
+        assert behaviour["hidden_fields"] == ["schema", "port", "login"]
+        assert behaviour["relabeling"] == {"password": "API Key"}
+        assert "host" in behaviour["placeholders"]
+        assert "model" in behaviour["placeholders"]["extra"]
+        assert "embed_model" in behaviour["placeholders"]["extra"]
+
+
+class TestPydanticAIHookConnectionCache:
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    def test_extra_dejson_is_cached_for_repeated_connection_id(self, mock_infer_model):
+        hook = PydanticAIHook(llm_conn_id="test_conn")
+        conn = MagicMock(spec=Connection)
+        conn.conn_id = "test_conn"
+        conn.password = None
+        conn.host = None
+        extra_dejson = PropertyMock(return_value={"model": "openai:gpt-5.6-sol"})
+        type(conn).extra_dejson = extra_dejson
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook._get_conn_if_model_configured()
+
+        extra_dejson.assert_called_once_with()
+        mock_infer_model.assert_called_once_with("openai:gpt-5.6-sol")
+
+    def test_extra_dejson_is_cached_separately_for_different_connection_ids(self):
+        hook = PydanticAIHook()
+        llm_conn = MagicMock(spec=Connection)
+        llm_conn.extra_dejson = {"model": "openai:gpt-5.6-sol"}
+        embed_conn = MagicMock(spec=Connection)
+        embed_conn.extra_dejson = {"embed_model": "openai:text-embedding-3-small"}
+
+        with patch.object(hook, "get_connection", side_effect=[llm_conn, embed_conn]) as get_connection:
+            llm_extra = hook._get_cached_connection_extra_dejson("llm_conn")
+            embed_extra = hook._get_cached_connection_extra_dejson("embed_conn")
+
+        assert llm_extra == {"model": "openai:gpt-5.6-sol"}
+        assert embed_extra == {"embed_model": "openai:text-embedding-3-small"}
+        assert get_connection.call_args_list == [call("llm_conn"), call("embed_conn")]
 
 
 class TestPydanticAIHookGetConn:
