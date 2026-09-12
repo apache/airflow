@@ -1815,6 +1815,8 @@ def _evaluate_retry_policy(
             context=context,
         )
         if decision.reason:
+            # Close the group so the retry policy decision is not hidden inside "Post Execute".
+            log.info("::endgroup::")
             log.info("Retry policy decision", action=decision.action.value, reason=decision.reason)
         return decision
     except Exception:
