@@ -45,8 +45,10 @@ concurrency:
 jobs:
   registry-tests:
     name: "Registry extraction tests"
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+    runs-on: ubuntu-slim
+    # ubuntu-slim is single-core, so the uv sync plus the suite need more headroom than
+    # the 5 minutes that sufficed on a 2-core runner.
+    timeout-minutes: 10
     steps:
       - name: "Checkout repository"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1

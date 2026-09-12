@@ -83,6 +83,11 @@ if TYPE_CHECKING:
 
 log = structlog.get_logger(__name__)
 
+_DAGRUN_REFERENCE_REQUIRED_COLUMNS = {
+    SerializedReferenceModels.DagRunLogicalDateDeadline: "logical_date",
+    SerializedReferenceModels.DagRunQueuedAtDeadline: "queued_at",
+}
+
 
 # TODO (GH-52141): Share definition with SDK?
 class EdgeInfoType(TypedDict):
@@ -788,6 +793,17 @@ class SerializedDAG:
                     stats.incr(
                         "deadline_alerts.deadline_created",
                         tags=prune_dict({"dag_id": self.dag_id, "team_name": team_name}),
+                    )
+                elif required_dagrun_column := _DAGRUN_REFERENCE_REQUIRED_COLUMNS.get(
+                    type(deserialized_deadline_alert.reference)
+                ):
+                    log.warning(
+                        "skipping deadline alert because the deadline reference evaluated to None",
+                        dag_id=self.dag_id,
+                        run_id=orm_dagrun.run_id,
+                        deadline_alert_id=deadline_alert.id,
+                        reference_type=deserialized_deadline_alert.reference.reference_name,
+                        required_dagrun_column=required_dagrun_column,
                     )
 
     @provide_session

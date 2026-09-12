@@ -26,16 +26,9 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-import requests
-
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 
-try:
-    from airflow.sdk import task
-except ImportError:
-    # Airflow 2 path
-    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 try:
     from airflow.sdk import TriggerRule
 except ImportError:
@@ -47,59 +40,28 @@ from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gen_ai import (
     GenAISupervisedFineTuningTrainOperator,
 )
-from airflow.providers.google.common.utils.get_secret import get_secret
 
-
-def _get_actual_model(key) -> str:
-    source_model: str | None = None
-    try:
-        response = requests.get("https://generativelanguage.googleapis.com/v1/models", {"key": key})
-        response.raise_for_status()
-        available_models = response.json()
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching models from API: {e}")
-        return ""
-    for model in available_models.get("models", []):
-        try:
-            model_name = model["name"].split("/")[-1]
-            splited_model_name = model_name.split("-")
-            if not source_model and "flash" in model_name:
-                source_model = model_name
-            elif (
-                source_model
-                and "flash" in model_name
-                and float(source_model.split("-")[1]) < float(splited_model_name[1])
-            ):
-                source_model = model_name
-            elif (
-                source_model
-                and "flash" in model_name
-                and (
-                    float(source_model.split("-")[1]) == float(splited_model_name[1])
-                    and int(splited_model_name[-1]) > int(source_model.split("-")[-1])
-                )
-            ):
-                source_model = model_name
-        except (ValueError, IndexError) as e:
-            print(f"Could not parse model name '{model.get('name')}'. Skipping. Error: {e}")
-            continue
-    if not source_model:
-        raise ValueError("Source model not found")
-    return source_model
-
+from system.google.cloud.gen_ai import llm_models
 
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 DAG_ID = "gen_ai_generative_model_tuning_dag"
 REGION = "us-central1"
-GEMINI_API_KEY = "api_key"
-SOURCE_MODEL = "{{ task_instance.xcom_pull('get_actual_model') }}"
+SOURCE_MODEL = llm_models.get_sft_enabled_gemini_model()
 TRAIN_DATASET = TuningDataset(
     gcs_uri="gs://cloud-samples-data/ai-platform/generative_ai/gemini-1_5/text/sft_train_data.jsonl",
 )
 TUNED_MODEL_DISPLAY_NAME = "my_tuned_gemini_model"
-TUNING_JOB_CONFIG = {"tuned_model_display_name": TUNED_MODEL_DISPLAY_NAME}
+TUNING_JOB_CONFIG = {
+    "tuned_model_display_name": TUNED_MODEL_DISPLAY_NAME,
+    "epoch_count": 1,
+    "export_last_checkpoint_only": True,
+}
 TUNED_VIDEO_MODEL_DISPLAY_NAME = "my_tuned_gemini_video_model"
-TUNING_JOB_VIDEO_MODEL_CONFIG = {"tuned_model_display_name": TUNED_VIDEO_MODEL_DISPLAY_NAME}
+TUNING_JOB_VIDEO_MODEL_CONFIG = {
+    "tuned_model_display_name": TUNED_VIDEO_MODEL_DISPLAY_NAME,
+    "epoch_count": 1,
+    "export_last_checkpoint_only": True,
+}
 
 BUCKET_NAME = f"bucket_tuning_dag_{PROJECT_ID}"
 FILE_NAME = "video_tuning_dataset.jsonl"
@@ -116,19 +78,6 @@ with DAG(
     tags=["example", "vertex_ai", "generative_model"],
     render_template_as_native_obj=True,
 ) as dag:
-
-    @task
-    def get_gemini_api_key():
-        return get_secret(GEMINI_API_KEY)
-
-    get_gemini_api_key_task = get_gemini_api_key()
-
-    @task
-    def get_actual_model(key):
-        return _get_actual_model(key)
-
-    get_actual_model_task = get_actual_model(get_gemini_api_key_task)
-
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket",
         bucket_name=BUCKET_NAME,
@@ -168,14 +117,7 @@ with DAG(
 
     delete_bucket.trigger_rule = TriggerRule.ALL_DONE
 
-    (
-        get_gemini_api_key_task
-        >> get_actual_model_task
-        >> create_bucket
-        >> upload_file
-        >> [sft_train_task, sft_video_task]
-        >> delete_bucket
-    )
+    (create_bucket >> upload_file >> [sft_train_task, sft_video_task] >> delete_bucket)
 
     from tests_common.test_utils.watcher import watcher
 

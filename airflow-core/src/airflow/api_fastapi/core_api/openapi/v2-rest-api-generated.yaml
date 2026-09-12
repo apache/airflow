@@ -10999,6 +10999,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
 components:
   schemas:
     AppBuilderMenuItemResponse:
