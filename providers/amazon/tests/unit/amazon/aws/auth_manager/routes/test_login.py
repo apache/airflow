@@ -29,6 +29,7 @@ from fastapi.testclient import TestClient
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX, create_app
 
+
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
 
@@ -38,6 +39,10 @@ from tests_common.test_utils.mock_plugins import mock_plugin_manager
 OneLogin_Saml2_IdPMetadataParser = pytest.importorskip(
     "onelogin.saml2.idp_metadata_parser"
 ).OneLogin_Saml2_IdPMetadataParser
+
+# Imported after the importorskip above: this module raises ImportError when python3-saml
+# is absent, and the lowest-dependency check deliberately runs without it.
+from airflow.providers.amazon.aws.auth_manager.routes.login import COOKIE_NAME_LOGIN_STATE
 
 SAML_METADATA_URL = "/saml/metadata"
 SAML_METADATA_PARSED = {
@@ -56,6 +61,9 @@ SAML_METADATA_PARSED = {
     "security": {"authnRequestsSigned": False},
     "sp": {"NameIDFormat": "urn:oasis:names:tc:SAML:2.0:nameid-format:transient"},
 }
+
+
+EXPECTED_REQUEST_ID = "ONELOGIN_authn_request_id"
 
 
 @pytest.fixture
@@ -80,7 +88,19 @@ def test_client():
             yield TestClient(create_app())
 
 
-def get_login_callback_response(relay_state: str, *, base_url: str = "http://testserver"):
+def get_login_callback_response(
+    relay_state: str,
+    *,
+    base_url: str = "http://testserver",
+    login_state: str | None = None,
+    return_auth_mock: bool = False,
+):
+    """Post a SAML response to the callback.
+
+    ``login_state`` is the value of the browser's login-state cookie. It defaults to a
+    state matching ``relay_state``, i.e. a browser that really did start this login.
+    Pass ``None`` explicitly via ``login_state=""`` to simulate a browser that did not.
+    """
     with conf_vars(
         {
             (
@@ -113,11 +133,17 @@ def get_login_callback_response(relay_state: str, *, base_url: str = "http://tes
             }
             mock_init_saml_auth.return_value = auth
             client = TestClient(create_app(), base_url=base_url)
-            return client.post(
+            state = f"{EXPECTED_REQUEST_ID}:{relay_state}" if login_state is None else login_state
+            if state:
+                client.cookies.set(COOKIE_NAME_LOGIN_STATE, state)
+            response = client.post(
                 AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login_callback",
                 follow_redirects=False,
                 data={"RelayState": relay_state},
             )
+            if return_auth_mock:
+                return response, auth
+            return response
 
 
 @mock_plugin_manager(plugins=[])
@@ -153,7 +179,65 @@ class TestLoginRouter:
 
     def test_login_callback_with_invalid_relay_state(self):
         response = get_login_callback_response("dummy")
-        assert response.status_code == 500
+        assert response.status_code == 401
+
+    # ------------------------------------------------------------------
+    # Binding the SAML response to the browser that started the login
+    # ------------------------------------------------------------------
+
+    def test_login_sets_a_login_state_cookie(self, test_client):
+        """The AuthnRequest id must be remembered so the response can be tied to it."""
+        response = test_client.get(AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login", follow_redirects=False)
+        assert COOKIE_NAME_LOGIN_STATE in response.cookies
+        set_cookie = response.headers["set-cookie"]
+        assert "HttpOnly" in set_cookie
+        assert "Lax" in set_cookie
+
+    def test_login_callback_rejects_a_browser_that_started_no_login(self):
+        """The core of the attack: an assertion replayed into an uninvolved browser.
+
+        The assertion here is valid and authenticates successfully -- the mock returns an
+        authenticated user. What must stop it is the absence of any login this browser
+        began, so the caller is not logged in as the assertion's subject.
+        """
+        response = get_login_callback_response("login-redirect", login_state="")
+        assert response.status_code == 401
+        assert "_token" not in response.cookies
+
+    def test_login_callback_enforces_in_response_to(self):
+        """python3-saml only validates InResponseTo when it is given the request id."""
+        response, auth = get_login_callback_response("login-redirect", return_auth_mock=True)
+        assert response.status_code == 303
+        auth.process_response.assert_called_once_with(request_id=EXPECTED_REQUEST_ID)
+
+    def test_login_callback_rejects_a_relay_state_the_browser_did_not_ask_for(self):
+        """The return mode is fixed when the flow starts, not chosen by the response."""
+        response = get_login_callback_response(
+            "login-token", login_state=f"{EXPECTED_REQUEST_ID}:login-redirect"
+        )
+        assert response.status_code == 401
+
+    def test_login_callback_clears_the_login_state_on_the_token_path(self):
+        """A consumed request id must not stay usable after a token login either.
+
+        Left set, the same assertion could be reposted within the cookie's lifetime to
+        mint further API tokens.
+        """
+        response = get_login_callback_response("login-token")
+        assert response.status_code == 200
+        cleared = [
+            c for c in response.headers.get_list("set-cookie") if c.startswith(f"{COOKIE_NAME_LOGIN_STATE}=")
+        ]
+        assert cleared, "login state cookie was not cleared on the token path"
+
+    def test_login_callback_clears_the_login_state_on_success(self):
+        """A consumed request id must not stay usable for a second response."""
+        response = get_login_callback_response("login-redirect")
+        assert response.status_code == 303
+        cookies = response.headers.get_list("set-cookie")
+        cleared = [c for c in cookies if c.startswith(f"{COOKIE_NAME_LOGIN_STATE}=")]
+        assert cleared, "login state cookie was not cleared"
+        assert "Max-Age=0" in cleared[0] or '""' in cleared[0] or "expires=" in cleared[0].lower()
 
     def test_login_callback_unsuccessful(self):
         with conf_vars(
