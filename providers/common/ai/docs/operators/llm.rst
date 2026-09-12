@@ -205,6 +205,12 @@ approving with ``allow_modifications=True``, and set a deadline with
     :start-after: [START howto_operator_llm_approval]
     :end-before: [END howto_operator_llm_approval]
 
+By default any user with the permission can answer the review.  Pass
+``approval_assigned_users=[{"id": "<user-id>", "name": "<user-name>"}]`` to
+restrict it to named reviewers, the way
+:class:`~airflow.providers.standard.operators.hitl.HITLOperator` does with
+``assigned_users``.  This needs Airflow 3.1+.
+
 Parameters
 ----------
 
@@ -225,6 +231,9 @@ Parameters
   means wait indefinitely.  Default ``None``.
 - ``allow_modifications``: If ``True``, the reviewer can edit the output before
   approving.  Default ``False``.
+- ``approval_assigned_users``: Users allowed to answer the review, as
+  ``{"id": ..., "name": ...}`` dicts.  ``None`` (default) lets any user with the
+  permission respond.  Needs Airflow 3.1+.
 
 Logging
 -------

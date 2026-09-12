@@ -132,8 +132,9 @@ expire, fails the task:
 returning a ``Sequence[UserContent]`` raises ``TypeError`` before the LLM
 call.
 
-``approval_timeout``, ``allow_modifications``, and the rest of the approval
-behaviour are inherited from :ref:`LLMOperator <howto/operator:llm>`.
+``approval_timeout``, ``allow_modifications``, ``approval_assigned_users``, and
+the rest of the approval behaviour are inherited from
+:ref:`LLMOperator <howto/operator:llm>`.
 
 Conditional ETL Based on Schema Compatibility
 ----------------------------------------------
@@ -193,6 +194,8 @@ Parameters
   means wait indefinitely.  Default ``None``.
 - ``allow_modifications``: If ``True``, the reviewer can edit the result JSON
   before approving.  Default ``False``.
+- ``approval_assigned_users``: Users allowed to answer the review.  ``None``
+  (default) lets any user with the permission respond.  Needs Airflow 3.1+.
 
 Logging
 -------
