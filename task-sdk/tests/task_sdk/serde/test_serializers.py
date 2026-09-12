@@ -165,6 +165,29 @@ class TestSerializers:
         assert nested["moment"].timestamp() == moment.timestamp()
 
     @pytest.mark.parametrize(
+        "data",
+        [
+            pytest.param(2700, id="int"),
+            pytest.param(2700.0, id="float"),
+            pytest.param("2700", id="str"),
+        ],
+    )
+    def test_deserialize_timedelta_seconds(self, data):
+        """A timedelta payload carrying whole seconds may arrive as an int.
+
+        ``serialize`` writes ``total_seconds()`` as a float, but a producer that
+        drops the trailing ``.0`` yields a bare int, which used to raise
+        ``TypeError: unknown date/time format datetime.timedelta``.
+        """
+        serialized = {
+            "__classname__": "datetime.timedelta",
+            "__version__": 2,
+            "__data__": data,
+        }
+
+        assert deserialize(serialized) == datetime.timedelta(minutes=45)
+
+    @pytest.mark.parametrize(
         ("expr", "expected"),
         [("1", "1"), ("52e4", "520000"), ("2e0", "2"), ("12e-2", "0.12"), ("12.34", "12.34")],
     )
