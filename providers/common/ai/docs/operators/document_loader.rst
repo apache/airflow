@@ -32,8 +32,8 @@ LangChain, or any other AI framework.
 Basic usage
 -----------
 
-``.txt``, ``.md``, ``.csv``, and ``.json`` are handled with zero extra
-dependencies:
+``.txt``, ``.md``, ``.csv``, ``.json``, and ``.jsonl`` are handled with zero
+extra dependencies:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_document_loader.py
     :language: python
@@ -45,6 +45,9 @@ with a top-level array produce one document per element; a single JSON object
 produces one document. By default each dict is flattened into ``"key: value,
 key: value"`` text so the embedding sees content tokens rather than JSON
 syntax (see the ``json_text_field`` section below for the structured variant).
+JSON Lines files produce one document per non-empty line. A JSON array on a
+single line remains one document rather than being expanded, and
+``json_text_field`` applies to each line just as it does to JSON records.
 
 PDF parsing
 -----------
@@ -153,8 +156,8 @@ Format coverage roadmap
 -----------------------
 
 The current built-in dispatch covers ``.txt``, ``.md``, ``.csv``, ``.json``,
-``.pdf``, ``.docx``. Additional formats are deferred to follow-ups, each
-gated behind its own extra so users only install what they need:
+``.jsonl``, ``.pdf``, ``.docx``. Additional formats are deferred to follow-ups,
+each gated behind its own extra so users only install what they need:
 
 - ``.pptx`` via ``python-pptx``
 - ``.epub`` via ``ebooklib``
@@ -233,13 +236,13 @@ download-then-parse pattern still works:
 Non-UTF-8 inputs
 ----------------
 
-The text parsers (``.txt`` / ``.md`` / ``.csv`` / ``.json``) and the bytes
-path default to UTF-8. To handle Windows-1252 CSVs, files with a leading
-``utf-8-sig`` byte-order mark, or any other encoding, set the ``encoding``
-parameter on the operator (and optionally ``encoding_errors="replace"`` to
-tolerate mixed-encoding sources at the cost of some character loss). A
-failed decode includes the offending file path in the error so
-directory-mode runs are easy to diagnose.
+The text parsers (``.txt`` / ``.md`` / ``.csv`` / ``.json`` / ``.jsonl``) and
+the bytes path default to UTF-8. To handle Windows-1252 CSVs, files with a
+leading ``utf-8-sig`` byte-order mark, or any other encoding, set the
+``encoding`` parameter on the operator (and optionally
+``encoding_errors="replace"`` to tolerate mixed-encoding sources at the cost
+of some character loss). A failed decode includes the offending file path in
+the error so directory-mode runs are easy to diagnose.
 
 Metadata precedence
 -------------------
@@ -287,12 +290,12 @@ Parameters
        not override auto-extracted keys.
    * - ``encoding``
      - Text encoding for the bytes path and ``.txt`` / ``.md`` / ``.csv`` /
-       ``.json`` files. Defaults to ``"utf-8"``.
+       ``.json`` / ``.jsonl`` files. Defaults to ``"utf-8"``.
    * - ``encoding_errors``
      - How decode errors are handled (``"strict"`` / ``"replace"`` /
        ``"ignore"``). Defaults to ``"strict"``.
    * - ``json_text_field``
-     - When parsing JSON, treat this key as the embedding text; every other
-       key on the same item lands in ``metadata``. When unset, dicts are
-       flattened to ``"k: v, k: v"`` so the embedding sees content tokens
-       rather than JSON syntax.
+     - When parsing JSON or JSON Lines, treat this key as the embedding text;
+       every other key on the same item lands in ``metadata``. When unset,
+       dicts are flattened to ``"k: v, k: v"`` so the embedding sees content
+       tokens rather than JSON syntax.
