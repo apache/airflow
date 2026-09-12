@@ -2148,6 +2148,32 @@ def reset_team_name_cache():
 
 
 @pytest.fixture(autouse=True)
+def reset_dag_bundle_config_cache():
+    """Reset the per-process Dag bundle configuration cache between tests.
+
+    The configuration is parsed once per process, so a test that sets a different
+    ``[dag_processor] dag_bundle_config_list`` would otherwise be served the previous
+    test's bundles. ``conf_vars`` clears it too, for tests that switch config midway.
+    """
+    if importlib.util.find_spec("airflow") is None:
+        yield
+        return
+
+    try:
+        from airflow.dag_processing.bundles.manager import _load_bundle_config_snapshot
+    except ImportError:
+        # compat for airflow versions without the snapshot cache
+        yield
+        return
+
+    _load_bundle_config_snapshot.cache_clear()
+    try:
+        yield
+    finally:
+        _load_bundle_config_snapshot.cache_clear()
+
+
+@pytest.fixture(autouse=True)
 def refuse_to_run_test_from_wrongly_named_files(request: pytest.FixtureRequest):
     filepath = request.node.path
     is_system_test: bool = "tests/system/" in os.fspath(filepath)

@@ -16,13 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+import functools
 import importlib
 import logging
 import os
 import warnings
 from collections import defaultdict
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 from itsdangerous import URLSafeSerializer
 from pydantic import BaseModel, ValidationError
@@ -104,6 +105,34 @@ class _InternalBundleConfig(BaseModel):
 def _bundle_item_exc(msg):
     return AirflowConfigException(
         "Invalid config for section `dag_processor` key `dag_bundle_config_list`. " + msg
+    )
+
+
+class _BundleConfigSnapshot(NamedTuple):
+    """The configured Dag bundles, as names only and as full configs."""
+
+    configs: tuple[_ExternalBundleConfig, ...]
+    names: frozenset[str]
+
+
+@functools.cache
+def _load_bundle_config_snapshot() -> _BundleConfigSnapshot:
+    """Read and validate the configured Dag bundles, without importing their classes."""
+    config_list = conf.getjson("dag_processor", "dag_bundle_config_list")
+    if not config_list:
+        return _BundleConfigSnapshot(configs=(), names=frozenset())
+    if not isinstance(config_list, list):
+        raise AirflowConfigException(
+            "Section `dag_processor` key `dag_bundle_config_list` "
+            f"must be list but got {config_list.__class__}"
+        )
+    bundle_config_list = _parse_bundle_config(config_list)
+    if conf.getboolean("core", "LOAD_EXAMPLES"):
+        _add_example_dag_bundle(bundle_config_list)
+        _add_provider_example_dags_to_bundle(bundle_config_list)
+    return _BundleConfigSnapshot(
+        configs=tuple(bundle_config_list),
+        names=frozenset(cfg.name for cfg in bundle_config_list),
     )
 
 
@@ -274,18 +303,9 @@ class DagBundlesManager(LoggingMixin):
         if self._bundle_config:
             return
 
-        config_list = conf.getjson("dag_processor", "dag_bundle_config_list")
-        if not config_list:
+        bundle_config_list = _load_bundle_config_snapshot().configs
+        if not bundle_config_list:
             return
-        if not isinstance(config_list, list):
-            raise AirflowConfigException(
-                "Section `dag_processor` key `dag_bundle_config_list` "
-                f"must be list but got {config_list.__class__}"
-            )
-        bundle_config_list = _parse_bundle_config(config_list)
-        if conf.getboolean("core", "LOAD_EXAMPLES"):
-            _add_example_dag_bundle(bundle_config_list)
-            _add_provider_example_dags_to_bundle(bundle_config_list)
 
         for bundle_config in bundle_config_list:
             if bundle_config.team_name and not conf.getboolean("core", "multi_team"):
@@ -652,6 +672,16 @@ class DagBundlesManager(LoggingMixin):
         return cfg_bundle.bundle_class(
             name=name, version=version, version_data=version_data, **cfg_bundle.kwargs
         )
+
+    @classmethod
+    def is_bundle_configured(cls, name: str) -> bool:
+        """
+        Return whether *name* is a configured Dag bundle.
+
+        Deliberately reads configured names only: a caller validating a bundle name
+        must not depend on every *other* configured bundle's class being importable.
+        """
+        return name in _load_bundle_config_snapshot().names
 
     def get_all_dag_bundles(self) -> Iterable[BaseDagBundle]:
         """

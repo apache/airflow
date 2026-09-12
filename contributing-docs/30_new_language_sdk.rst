@@ -120,6 +120,12 @@ The method returns a ``(command, subprocess_schema_version)`` pair:
   subprocess understands, used by the supervisor to negotiate message formats
   across SDK versions. See `Supervisor Schema`_ below.
 
+Call ``self._get_scan_roots()`` to retrieve the artifact directories the base
+class has already resolved from the coordinator's configured source — an
+explicit filesystem root, a named Dag bundle (``dag_bundle_name``), or the
+task's own bundle. Subclasses should scan those roots rather than reading the
+configured root directly.
+
 Supervisor Schema
 ~~~~~~~~~~~~~~~~~
 
