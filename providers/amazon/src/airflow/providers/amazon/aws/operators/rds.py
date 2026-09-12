@@ -649,6 +649,8 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     region_name=self.region_name,
                     # ignoring type because create_db_instance is a dict
                     response=create_db_instance,  # type: ignore[arg-type]
@@ -739,6 +741,8 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     region_name=self.region_name,
                     # ignoring type because delete_db_instance is a dict
                     response=delete_db_instance,  # type: ignore[arg-type]
@@ -823,6 +827,8 @@ class RdsStartDbOperator(RdsBaseOperator):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     region_name=self.region_name,
                     response=start_db_response,
                     db_type=self.db_type,
@@ -927,6 +933,8 @@ class RdsStopDbOperator(RdsBaseOperator):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     region_name=self.region_name,
                     response=stop_db_response,
                     db_type=self.db_type,

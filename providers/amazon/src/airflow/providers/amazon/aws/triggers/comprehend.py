@@ -16,11 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
-
 from airflow.providers.amazon.aws.hooks.comprehend import ComprehendHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 
@@ -33,7 +28,14 @@ class ComprehendPiiEntitiesDetectionJobCompletedTrigger(AwsBaseWaiterTrigger):
     :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 120)
     :param waiter_max_attempts: The maximum number of attempts to be made. (default: 75)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param region_name: The AWS region where the resources to watch are.
+    :param verify: Whether or not to verify SSL certificates.
+        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
+
+    aws_hook_class = ComprehendHook
 
     def __init__(
         self,
@@ -42,6 +44,9 @@ class ComprehendPiiEntitiesDetectionJobCompletedTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int = 120,
         waiter_max_attempts: int = 75,
         aws_conn_id: str | None = "aws_default",
+        region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
     ) -> None:
         super().__init__(
             serialized_fields={"job_id": job_id},
@@ -55,10 +60,10 @@ class ComprehendPiiEntitiesDetectionJobCompletedTrigger(AwsBaseWaiterTrigger):
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
+            region_name=region_name,
+            verify=verify,
+            botocore_config=botocore_config,
         )
-
-    def hook(self) -> AwsGenericHook:
-        return ComprehendHook(aws_conn_id=self.aws_conn_id)
 
 
 class ComprehendCreateDocumentClassifierCompletedTrigger(AwsBaseWaiterTrigger):
@@ -69,7 +74,14 @@ class ComprehendCreateDocumentClassifierCompletedTrigger(AwsBaseWaiterTrigger):
     :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 120)
     :param waiter_max_attempts: The maximum number of attempts to be made. (default: 75)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param region_name: The AWS region where the resources to watch are.
+    :param verify: Whether or not to verify SSL certificates.
+        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
+
+    aws_hook_class = ComprehendHook
 
     def __init__(
         self,
@@ -78,6 +90,9 @@ class ComprehendCreateDocumentClassifierCompletedTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int = 120,
         waiter_max_attempts: int = 75,
         aws_conn_id: str | None = "aws_default",
+        region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
     ) -> None:
         super().__init__(
             serialized_fields={"document_classifier_arn": document_classifier_arn},
@@ -91,7 +106,7 @@ class ComprehendCreateDocumentClassifierCompletedTrigger(AwsBaseWaiterTrigger):
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
+            region_name=region_name,
+            verify=verify,
+            botocore_config=botocore_config,
         )
-
-    def hook(self) -> AwsGenericHook:
-        return ComprehendHook(aws_conn_id=self.aws_conn_id)

@@ -52,6 +52,9 @@ SECURITY_GROUP_IDS = ["sg-1", "sg-2"]
 ENDPOINT_ID = "vpce-12345"
 SOURCE_S3_URI = "s3://my-bucket/my-data/"
 ROLE_ARN = "arn:aws:iam::123456789012:role/NeptuneImportRole"
+REGION_NAME = "eu-west-2"
+VERIFY = False
+BOTOCORE_CONFIG = {"read_timeout": 42}
 
 
 class TestNeptuneCreateGraphOperator:
@@ -218,6 +221,35 @@ class TestNeptuneCreateGraphOperator:
         trigger = exc_info.value.trigger
         assert isinstance(trigger, NeptuneGraphAvailableTrigger)
         assert exc_info.value.method_name == "execute_complete"
+
+    @mock.patch("airflow.providers.amazon.aws.operators.neptune_analytics.NeptuneGraphLink.persist")
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_deferred_trigger_receives_hook_configuration(self, mock_conn, mock_persist):
+        mock_conn.create_graph.return_value = {"id": GRAPH_ID, "status": "CREATING"}
+
+        operator = NeptuneCreateGraphOperator(
+            task_id="test_task",
+            graph_name=GRAPH_NAME,
+            vector_search_config={"test": 123},
+            provisioned_memory=16,
+            deferrable=True,
+            region_name=REGION_NAME,
+            verify=VERIFY,
+            botocore_config=BOTOCORE_CONFIG,
+        )
+
+        with pytest.raises(TaskDeferred) as exc_info:
+            operator.execute(None)
+
+        assert exc_info.value.trigger.serialize()[1] == {
+            "waiter_delay": 30,
+            "waiter_max_attempts": 60,
+            "aws_conn_id": "aws_default",
+            "graph_id": GRAPH_ID,
+            "region_name": REGION_NAME,
+            "verify": VERIFY,
+            "botocore_config": BOTOCORE_CONFIG,
+        }
 
 
 class TestNeptuneCreatePrivateGraphEndpointOperator:
@@ -417,6 +449,40 @@ class TestNeptuneCreatePrivateGraphEndpointOperator:
         )
         assert result == {"vpc_endpoint_id": ENDPOINT_ID, "graph_id": GRAPH_ID, "vpc_id": VPC_ID}
 
+    @mock.patch("airflow.providers.amazon.aws.operators.neptune_analytics.VpcEndpointLink.persist")
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_deferred_trigger_receives_hook_configuration(self, mock_conn, mock_persist):
+        mock_conn.create_private_graph_endpoint.return_value = {
+            "status": "CREATING",
+            "vpcEndpointId": ENDPOINT_ID,
+            "vpcId": VPC_ID,
+        }
+        mock_conn.get_private_graph_endpoint.return_value = {"vpcEndpointId": ENDPOINT_ID}
+
+        operator = NeptuneCreatePrivateGraphEndpointOperator(
+            task_id="test_task",
+            graph_identifier=GRAPH_ID,
+            vpc_id=VPC_ID,
+            deferrable=True,
+            region_name=REGION_NAME,
+            verify=VERIFY,
+            botocore_config=BOTOCORE_CONFIG,
+        )
+
+        with pytest.raises(TaskDeferred) as exc_info:
+            operator.execute(None)
+
+        assert exc_info.value.trigger.serialize()[1] == {
+            "waiter_delay": 30,
+            "waiter_max_attempts": 60,
+            "aws_conn_id": "aws_default",
+            "graph_id": GRAPH_ID,
+            "vpc_id": VPC_ID,
+            "region_name": REGION_NAME,
+            "verify": VERIFY,
+            "botocore_config": BOTOCORE_CONFIG,
+        }
+
 
 class TestNeptuneDeletePrivateGraphEndpointOperator:
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
@@ -547,6 +613,39 @@ class TestNeptuneDeletePrivateGraphEndpointOperator:
         operator.execute_complete(None, event)
 
         # Verify the method completes without error and logs the endpoint_id
+
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_deferred_trigger_receives_hook_configuration(self, mock_conn):
+        mock_conn.delete_private_graph_endpoint.return_value = {
+            "status": "DELETING",
+            "vpcEndpointId": ENDPOINT_ID,
+            "vpcId": VPC_ID,
+        }
+
+        operator = NeptuneDeletePrivateGraphEndpointOperator(
+            task_id="test_task",
+            graph_identifier=GRAPH_ID,
+            vpc_id=VPC_ID,
+            deferrable=True,
+            region_name=REGION_NAME,
+            verify=VERIFY,
+            botocore_config=BOTOCORE_CONFIG,
+        )
+
+        with pytest.raises(TaskDeferred) as exc_info:
+            operator.execute(None)
+
+        assert exc_info.value.trigger.serialize()[1] == {
+            "waiter_delay": 30,
+            "waiter_max_attempts": 60,
+            "aws_conn_id": "aws_default",
+            "graph_id": GRAPH_ID,
+            "vpc_id": VPC_ID,
+            "endpoint_id": ENDPOINT_ID,
+            "region_name": REGION_NAME,
+            "verify": VERIFY,
+            "botocore_config": BOTOCORE_CONFIG,
+        }
 
 
 class TestNeptuneDeleteGraphOperator:
@@ -703,6 +802,37 @@ class TestNeptuneDeleteGraphOperator:
         # Should raise NeptuneGraphDeletionFailedError for non-ResourceNotFoundException errors
         with pytest.raises(NeptuneGraphDeletionFailedError):
             operator.execute(None)
+
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_deferred_trigger_receives_hook_configuration(self, mock_conn):
+        mock_conn.delete_graph.return_value = {
+            "id": GRAPH_ID,
+            "name": GRAPH_NAME,
+            "status": "DELETING",
+        }
+
+        operator = NeptuneDeleteGraphOperator(
+            task_id="test_task",
+            graph_id=GRAPH_ID,
+            skip_snapshot=True,
+            deferrable=True,
+            region_name=REGION_NAME,
+            verify=VERIFY,
+            botocore_config=BOTOCORE_CONFIG,
+        )
+
+        with pytest.raises(TaskDeferred) as exc_info:
+            operator.execute(None)
+
+        assert exc_info.value.trigger.serialize()[1] == {
+            "waiter_delay": 30,
+            "waiter_max_attempts": 60,
+            "aws_conn_id": "aws_default",
+            "graph_id": GRAPH_ID,
+            "region_name": REGION_NAME,
+            "verify": VERIFY,
+            "botocore_config": BOTOCORE_CONFIG,
+        }
 
 
 class TestNeptuneCreateGraphWithImportOperator:
@@ -971,6 +1101,69 @@ class TestNeptuneCreateGraphWithImportOperator:
         assert exc_info.value.method_name == "defer_wait_for_task"
         assert exc_info.value.kwargs == {"import_task_id": self.IMPORT_TASK_ID}
 
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_deferred_trigger_receives_hook_configuration(self, mock_conn):
+        mock_conn.create_graph_using_import_task.return_value = {
+            "graphId": GRAPH_ID,
+            "taskId": self.IMPORT_TASK_ID,
+            "status": "IMPORTING",
+        }
+
+        operator = NeptuneCreateGraphWithImportOperator(
+            task_id="test_task",
+            graph_name=GRAPH_NAME,
+            vector_search_config={"dimension": 128},
+            source=SOURCE_S3_URI,
+            role_arn=ROLE_ARN,
+            deferrable=True,
+            region_name=REGION_NAME,
+            verify=VERIFY,
+            botocore_config=BOTOCORE_CONFIG,
+        )
+
+        with pytest.raises(TaskDeferred) as exc_info:
+            operator.execute(None)
+
+        assert exc_info.value.trigger.serialize()[1] == {
+            "waiter_delay": 30,
+            "waiter_max_attempts": 60,
+            "aws_conn_id": "aws_default",
+            "graph_id": GRAPH_ID,
+            "region_name": REGION_NAME,
+            "verify": VERIFY,
+            "botocore_config": BOTOCORE_CONFIG,
+        }
+
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_defer_wait_for_task_trigger_receives_hook_configuration(self, mock_conn):
+        operator = NeptuneCreateGraphWithImportOperator(
+            task_id="test_task",
+            graph_name=GRAPH_NAME,
+            vector_search_config={"dimension": 128},
+            source=SOURCE_S3_URI,
+            role_arn=ROLE_ARN,
+            region_name=REGION_NAME,
+            verify=VERIFY,
+            botocore_config=BOTOCORE_CONFIG,
+        )
+
+        with pytest.raises(TaskDeferred) as exc_info:
+            operator.defer_wait_for_task(
+                import_task_id=self.IMPORT_TASK_ID,
+                context=None,
+                event={"status": "success"},
+            )
+
+        assert exc_info.value.trigger.serialize()[1] == {
+            "waiter_delay": 30,
+            "waiter_max_attempts": 60,
+            "aws_conn_id": "aws_default",
+            "import_task_id": self.IMPORT_TASK_ID,
+            "region_name": REGION_NAME,
+            "verify": VERIFY,
+            "botocore_config": BOTOCORE_CONFIG,
+        }
+
 
 TASK_ID = "import-task-id-12345"
 
@@ -1184,6 +1377,39 @@ class TestNeptuneStartImportTaskOperator:
 
         assert result == {"graph_id": GRAPH_ID, "import_task_id": TASK_ID}
 
+    @mock.patch("airflow.providers.amazon.aws.operators.neptune_analytics.NeptuneImportTaskLink.persist")
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_deferred_trigger_receives_hook_configuration(self, mock_conn, mock_persist):
+        mock_conn.start_import_task.return_value = {
+            "taskId": TASK_ID,
+            "graphId": GRAPH_ID,
+            "status": "IMPORTING",
+        }
+
+        operator = NeptuneStartImportTaskOperator(
+            task_id="test_task",
+            graph_identifier=GRAPH_ID,
+            role_arn=ROLE_ARN,
+            source=SOURCE_S3_URI,
+            deferrable=True,
+            region_name=REGION_NAME,
+            verify=VERIFY,
+            botocore_config=BOTOCORE_CONFIG,
+        )
+
+        with pytest.raises(TaskDeferred) as exc_info:
+            operator.execute(None)
+
+        assert exc_info.value.trigger.serialize()[1] == {
+            "waiter_delay": 30,
+            "waiter_max_attempts": 60,
+            "aws_conn_id": "aws_default",
+            "import_task_id": TASK_ID,
+            "region_name": REGION_NAME,
+            "verify": VERIFY,
+            "botocore_config": BOTOCORE_CONFIG,
+        }
+
 
 class TestNeptuneCancelImportTaskOperator:
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
@@ -1275,3 +1501,33 @@ class TestNeptuneCancelImportTaskOperator:
         result = operator.execute_complete(None, event)
 
         assert result == {"import_task_id": TASK_ID}
+
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_deferred_trigger_receives_hook_configuration(self, mock_conn):
+        mock_conn.cancel_import_task.return_value = {
+            "taskId": TASK_ID,
+            "graphId": GRAPH_ID,
+            "status": "CANCELLING",
+        }
+
+        operator = NeptuneCancelImportTaskOperator(
+            task_id="test_task",
+            import_task_id=TASK_ID,
+            deferrable=True,
+            region_name=REGION_NAME,
+            verify=VERIFY,
+            botocore_config=BOTOCORE_CONFIG,
+        )
+
+        with pytest.raises(TaskDeferred) as exc_info:
+            operator.execute(None)
+
+        assert exc_info.value.trigger.serialize()[1] == {
+            "waiter_delay": 30,
+            "waiter_max_attempts": 60,
+            "aws_conn_id": "aws_default",
+            "task_identifier": TASK_ID,
+            "region_name": REGION_NAME,
+            "verify": VERIFY,
+            "botocore_config": BOTOCORE_CONFIG,
+        }
