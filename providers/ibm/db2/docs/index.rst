@@ -102,7 +102,7 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
-``ibm-db``                                  ``>=3.2.0; platform_machine != "aarch64"``
+``ibm-db``                                  ``>=3.2.8; platform_machine != "aarch64"``
 ``ibm-db-sa``                               ``>=0.4.0; platform_machine != "aarch64"``
 ``methodtools``                             ``>=0.4.7``
 ==========================================  ==========================================

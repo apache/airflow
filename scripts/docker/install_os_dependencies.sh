@@ -50,8 +50,23 @@ else
     exit 1
 fi
 
+function get_debian_version() {
+    # Get debian version without installing lsb_release
+    # shellcheck disable=SC1091
+    . /etc/os-release
+    printf '%s\n' "${VERSION_CODENAME}"
+}
+
 function get_dev_apt_deps() {
     if [[ "${DEV_APT_DEPS=}" == "" ]]; then
+        local debian_version
+        local debian_version_apt_deps=""
+        debian_version="$(get_debian_version)"
+        if [[ "${debian_version}" == "bookworm" ]]; then
+            debian_version_apt_deps="\
+lzma-dev \
+"
+        fi
         DEV_APT_DEPS="\
 apt-transport-https \
 apt-utils \
@@ -63,7 +78,6 @@ git \
 graphviz \
 graphviz-dev \
 krb5-user \
-lcov \
 ldap-utils \
 libbluetooth-dev \
 libbz2-dev \
@@ -93,7 +107,7 @@ libzstd-dev \
 locales \
 lsb-release \
 lzma \
-lzma-dev \
+${debian_version_apt_deps}\
 openssh-client \
 openssl \
 pkg-config \
@@ -114,21 +128,40 @@ zlib1g-dev \
     fi
 }
 
+function get_post_python_dev_apt_deps() {
+    if [[ "${POST_PYTHON_DEV_APT_DEPS=}" == "" ]]; then
+        POST_PYTHON_DEV_APT_DEPS="\
+lcov \
+"
+        export POST_PYTHON_DEV_APT_DEPS
+    fi
+}
+
 function get_runtime_apt_deps() {
     local debian_version
     local debian_version_apt_deps
-    # Get debian version without installing lsb_release
-    # shellcheck disable=SC1091
-    debian_version=$(. /etc/os-release;   printf '%s\n' "$VERSION_CODENAME";)
+    debian_version="$(get_debian_version)"
     echo
     echo "DEBIAN CODENAME: ${debian_version}"
     echo
-    debian_version_apt_deps="\
+    if [[ "${debian_version}" == "bookworm" ]]; then
+        debian_version_apt_deps="\
 libffi8 \
 libldap-2.5-0 \
 libssl3 \
 netcat-openbsd\
 "
+    elif [[ "${debian_version}" == "trixie" ]]; then
+        debian_version_apt_deps="\
+libffi8 \
+libldap2 \
+libssl3t64 \
+netcat-openbsd\
+"
+    else
+        echo "ERROR! Unsupported Debian version: ${debian_version}."
+        exit 1
+    fi
     echo
     echo "APPLIED INSTALLATION CONFIGURATION FOR DEBIAN VERSION: ${debian_version}"
     echo
@@ -194,10 +227,7 @@ function install_debian_dev_dependencies() {
     fi
     apt-get update
     local debian_version
-    local debian_version_apt_deps
-    # Get debian version without installing lsb_release
-    # shellcheck disable=SC1091
-    debian_version=$(. /etc/os-release;   printf '%s\n' "$VERSION_CODENAME";)
+    debian_version="$(get_debian_version)"
     echo
     echo "DEBIAN CODENAME: ${debian_version}"
     echo
@@ -209,6 +239,13 @@ function install_additional_dev_dependencies() {
     if [[ "${ADDITIONAL_DEV_APT_DEPS=}" != "" ]]; then
         # shellcheck disable=SC2086
         apt-get install -y --no-install-recommends ${ADDITIONAL_DEV_APT_DEPS}
+    fi
+}
+
+function install_post_python_dev_dependencies() {
+    if [[ "${POST_PYTHON_DEV_APT_DEPS=}" != "" ]]; then
+        # shellcheck disable=SC2086
+        apt-get install -y --no-install-recommends ${POST_PYTHON_DEV_APT_DEPS}
     fi
 }
 
@@ -282,20 +319,27 @@ function install_cosign() {
 }
 
 function install_python() {
-    # If system python (3.11 in bookworm) is installed (via automatic installation of some dependencies for example), we need
-    # to fail and make sure that it is not there, because there can be strange interactions if we install
-    # newer version and system libraries are installed, because
-    # when you create a virtualenv part of the shared libraries of Python can be taken from the system
-    # Installation leading to weird errors when you want to install some modules - for example when you install ssl:
-    # /usr/python/lib/python3.11/lib-dynload/_ssl.cpython-311-aarch64-linux-gnu.so: undefined symbol: _PyModule_Add
-    if dpkg -l | grep '^ii' | grep '^ii  libpython' >/dev/null; then
+    # Airflow images build and use their own Python under /usr/python. If Debian's system Python
+    # is installed before that custom Python is built, native extensions can accidentally link
+    # against a mix of system Python libraries and /usr/python libraries. That can produce hard to
+    # diagnose import/linker errors later.
+    local installed_libpython_packages
+    installed_libpython_packages="$(
+        dpkg-query -W -f='${db:Status-Abbrev} ${binary:Package}\n' 'libpython*' 2>/dev/null \
+            | awk '$1 ~ /^ii/ {print $2}' \
+            | sort || true
+    )"
+    if [[ "${installed_libpython_packages}" != "" ]]; then
         echo
         echo "ERROR! System python is installed by one of the previous steps"
         echo
-        echo "Please make sure that no python packages are installed by default. Displaying the reason why libpython3.11 is installed:"
+        echo "Please make sure that no python packages are installed by default. Displaying why these packages are installed:"
+        echo "${installed_libpython_packages}"
         echo
         apt-get install -yqq aptitude >/dev/null
-        aptitude why libpython3.11
+        while read -r libpython_package; do
+            aptitude why "${libpython_package}" || true
+        done <<< "${installed_libpython_packages}"
         echo
         exit 1
     else
@@ -495,8 +539,10 @@ if [[ "${INSTALLATION_TYPE}" == "RUNTIME" ]]; then
     apt_clean
 else
     get_dev_apt_deps
+    get_post_python_dev_apt_deps
     install_debian_dev_dependencies
     install_python
+    install_post_python_dev_dependencies
     install_additional_dev_dependencies
     install_rustup
     if [[ "${INSTALLATION_TYPE}" == "CI" ]]; then

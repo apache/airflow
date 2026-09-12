@@ -59,4 +59,4 @@ While we recommend a minimum of 4GB of memory for Airflow, the actual requiremen
   but it is not a high priority. You should only use Linux-based distributions as "Production environment"
   as this is the only environment that is supported. The only distribution that is used in our CI tests and that
   is used in the `Community managed DockerHub image <https://hub.docker.com/p/apache/airflow>`__ is
-  ``Debian Bookworm``.
+  ``Debian Trixie``.

@@ -155,12 +155,12 @@ You have four options:
 2. Wait for a new version of Airflow and upgrade to it. Airflow images are updated to latest "non-conflicting"
    dependencies and use latest "base" image at release time, so what you have in the reference images
    at the moment we publish the image / release the version is what is "latest and greatest"
-   available at the moment with the base platform we use (Debian Bookworm is the reference image we use).
+   available at the moment with the base platform we use (Debian Trixie is the reference image we use).
    This is one of good strategies you can take - build a process to upgrade your Airflow version regularly
    - quickly after it has been released by the community, this will help you to keep up with the latest
    security fixes in the dependencies.
 
-3. If the base platform we use (currently Debian Bookworm) does not contain the latest versions you want
+3. If the base platform we use (currently Debian Trixie) does not contain the latest versions you want
    and you want to use other base images, you can take a look at what system dependencies are installed
    and scripts in the latest ``Dockerfile`` of Airflow and take inspiration from it and build your own image
    or copy it and modify it to your needs. See the

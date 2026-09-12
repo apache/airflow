@@ -19,12 +19,15 @@
 # can spawn JVM subprocesses for @task.stub tasks.
 #
 # Pin Java 17 (rather than default-jre-headless): the Scala Spark example runs
-# Apache Spark 3.5.x, which supports Java 8/11/17 but not Java 21.
+# Apache Spark 3.5.x, which supports Java 8/11/17 but not Java 21. Debian Trixie
+# no longer ships openjdk-17-jre-headless, so copy the Temurin JRE instead.
 ARG DOCKER_IMAGE
+FROM eclipse-temurin:17-jre AS jre
+
 FROM ${DOCKER_IMAGE}
 
 USER root
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends openjdk-17-jre-headless \
-    && rm -rf /var/lib/apt/lists/*
+COPY --from=jre /opt/java/openjdk /opt/java/openjdk
 USER airflow
+ENV JAVA_HOME=/opt/java/openjdk
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
