@@ -635,6 +635,15 @@ class TestCli:
         assert e.value.code == 2
         assert "unrecognized arguments: --output json" in stderr.getvalue()
 
+    @pytest.mark.parametrize("bad_value", ["abc", "-1"])
+    def test_dags_list_jobs_rejects_invalid_limit(self, bad_value):
+        with contextlib.redirect_stderr(StringIO()) as stderr:
+            parser = cli_parser.get_parser()
+            with pytest.raises(SystemExit) as e:
+                parser.parse_args(["dags", "list-jobs", "--limit", bad_value])
+        assert e.value.code == 2
+        assert f"argument --limit: invalid positive int value: '{bad_value}'" in stderr.getvalue()
+
     @pytest.mark.parametrize(
         "action_cmd",
         [
