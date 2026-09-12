@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import re
+
 import jmespath
 import pytest
 from chart_utils.helm_template_generator import render_chart
@@ -1145,6 +1147,20 @@ class TestSchedulerService:
             ("KubernetesExecutor", "KubernetesExecutor"),
             ("LocalKubernetesExecutor", "LocalKubernetesExecutor"),
             ("CeleryExecutor,KubernetesExecutor", "CeleryExecutor-KubernetesExecutor"),
+            (
+                "CeleryExecutor,harvest_exec:KubernetesExecutor",
+                "CeleryExecutor-harvest_exec-KubernetesExecutor",
+            ),
+            ("LocalExecutor;team_a=CeleryExecutor", "LocalExecutor-team_a-CeleryExecutor"),
+            (
+                "LocalExecutor;team_a=CeleryExecutor;team_b=KubernetesExecutor",
+                "LocalExecutor-team_a-CeleryExecutor-team_b-KubernetesExecutor",
+            ),
+            (
+                "airflow.providers.edge3.executors.EdgeExecutor;"
+                "team_b=airflow.providers.edge3.executors.EdgeExecutor",
+                "airflow.providers.edge3.executors.EdgeExecutor-team_b-airflow.p",
+            ),
         ],
     )
     def test_should_add_executor_labels(self, executor, expected_label):
@@ -1155,8 +1171,11 @@ class TestSchedulerService:
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        assert "executor" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["executor"] == expected_label
+        label = jmespath.search("metadata.labels", docs[0])["executor"]
+        assert label == expected_label
+        assert re.fullmatch(r"[A-Za-z0-9]([-A-Za-z0-9_.]{0,61}[A-Za-z0-9])?", label), (
+            f"{label!r} is not a valid Kubernetes label value"
+        )
 
 
 class TestSchedulerServiceAccount:
