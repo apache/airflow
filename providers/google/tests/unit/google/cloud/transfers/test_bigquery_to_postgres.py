@@ -129,6 +129,46 @@ class TestBigQueryToPostgresOperator:
         )
 
     @pytest.mark.parametrize(
+        ("selected_fields", "expected_fields"),
+        [
+            ("col_1,col_2", ["col_1", "col_2"]),
+            (" col_1 , col_2 , ", ["col_1", "col_2"]),
+            (["col_1", "col_2"], ["col_1", "col_2"]),
+        ],
+    )
+    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_postgres.bigquery_get_data")
+    @mock.patch.object(BigQueryToPostgresOperator, "bigquery_hook", new_callable=mock.PropertyMock)
+    @mock.patch.object(BigQueryToPostgresOperator, "postgres_hook", new_callable=mock.PropertyMock)
+    def test_execute_passes_selected_fields_as_list_of_columns(
+        self,
+        mock_pg_hook,
+        mock_bq_hook,
+        mock_bigquery_get_data,
+        selected_fields,
+        expected_fields,
+    ):
+        operator = BigQueryToPostgresOperator(
+            task_id=TASK_ID,
+            dataset_table=f"{TEST_DATASET}.{TEST_TABLE_ID}",
+            target_table_name=TEST_DESTINATION_TABLE,
+            replace=True,
+            selected_fields=selected_fields,
+            replace_index=["col_1"],
+        )
+
+        mock_bigquery_get_data.return_value = [[("only_row", "val")]]
+        mock_pg = mock.MagicMock()
+        mock_pg_hook.return_value = mock_pg
+        mock_bq = mock.MagicMock()
+        mock_bq.project_id = TEST_PROJECT
+        mock_bq_hook.return_value = mock_bq
+
+        operator.execute(context=mock.MagicMock())
+
+        assert mock_pg.insert_rows.call_args.kwargs["target_fields"] == expected_fields
+        assert mock_bigquery_get_data.call_args.args[-1] == expected_fields
+
+    @pytest.mark.parametrize(
         ("selected_fields", "replace_index"),
         [(None, None), (["col_1, col_2"], None), (None, ["col_1"])],
     )
