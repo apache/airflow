@@ -432,6 +432,7 @@ class TestTaskInstanceOperations:
                 assert actual_body["end_date"] == "2024-10-31T12:00:00Z"
                 assert actual_body["state"] == state
                 assert actual_body["rendered_map_index"] == "test"
+                assert actual_body["retry_reason"] == "auth error, do not retry"
                 return httpx.Response(
                     status_code=204,
                 )
@@ -439,7 +440,11 @@ class TestTaskInstanceOperations:
 
         client = make_client(transport=httpx.MockTransport(handle_request))
         client.task_instances.finish(
-            ti_id, state=state, when="2024-10-31T12:00:00Z", rendered_map_index="test"
+            ti_id,
+            state=state,
+            when="2024-10-31T12:00:00Z",
+            rendered_map_index="test",
+            retry_reason="auth error, do not retry",
         )
 
     def test_task_instance_heartbeat(self):

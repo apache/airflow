@@ -3705,6 +3705,28 @@ class TestHandleRequest:
         watched_subprocess.client.task_instances.finish.assert_not_called()
         watched_subprocess.client.task_instances.succeed.assert_not_called()
 
+    def test_task_state_retry_reason_forwarded_to_finish(self, watched_subprocess, mocker):
+        """A TaskState message's retry_reason must reach the deferred finish() call."""
+        watched_subprocess, _ = watched_subprocess
+        watched_subprocess._exit_code = 0
+
+        msg = TaskState(
+            state=TaskInstanceState.FAILED,
+            end_date=timezone.parse("2024-10-31T12:00:00Z"),
+            retry_reason="auth error, do not retry",
+        )
+        watched_subprocess._handle_request(msg, mocker.Mock(), req_id=1)
+
+        watched_subprocess.update_task_state_if_needed()
+
+        watched_subprocess.client.task_instances.finish.assert_called_once_with(
+            id=watched_subprocess.id,
+            state=TaskInstanceState.FAILED,
+            when=mocker.ANY,
+            rendered_map_index=None,
+            retry_reason="auth error, do not retry",
+        )
+
 
 class TestSetSupervisorComms:
     class DummyComms:

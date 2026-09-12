@@ -1861,6 +1861,7 @@ export type TaskInstanceHistoryResponse = {
     executor: string | null;
     executor_config: string;
     dag_version: DagVersionResponse | null;
+    retry_reason?: string | null;
 };
 
 /**
@@ -1904,6 +1905,7 @@ export type TaskInstanceResponse = {
     triggerer_job: JobResponse | null;
     dag_version: DagVersionResponse | null;
     team_name?: string | null;
+    retry_reason?: string | null;
 };
 
 /**

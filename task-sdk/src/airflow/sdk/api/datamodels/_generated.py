@@ -724,6 +724,7 @@ class TITerminalStatePayload(BaseModel):
     state: TerminalStateNonSuccess
     end_date: Annotated[AwareDatetime, Field(title="End Date")]
     rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
+    retry_reason: Annotated[str | None, Field(title="Retry Reason")] = None
 
 
 class XComArgBinding(BaseModel):

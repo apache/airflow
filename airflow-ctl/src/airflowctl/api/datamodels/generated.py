@@ -2158,6 +2158,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     executor: Annotated[str | None, Field(title="Executor")]
     executor_config: Annotated[str, Field(title="Executor Config")]
     dag_version: DagVersionResponse | None
+    retry_reason: Annotated[str | None, Field(title="Retry Reason")] = None
 
 
 class TaskInstanceResponse(BaseModel):
@@ -2200,6 +2201,7 @@ class TaskInstanceResponse(BaseModel):
     triggerer_job: JobResponse | None
     dag_version: DagVersionResponse | None
     team_name: Annotated[str | None, Field(title="Team Name")] = None
+    retry_reason: Annotated[str | None, Field(title="Retry Reason")] = None
 
 
 class TaskResponse(BaseModel):

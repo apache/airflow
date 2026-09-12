@@ -15835,6 +15835,11 @@ components:
           anyOf:
           - $ref: '#/components/schemas/DagVersionResponse'
           - type: 'null'
+        retry_reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Retry Reason
       type: object
       required:
       - task_id
@@ -16018,6 +16023,11 @@ components:
           - type: string
           - type: 'null'
           title: Team Name
+        retry_reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Retry Reason
       type: object
       required:
       - id

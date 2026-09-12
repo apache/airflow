@@ -26,7 +26,7 @@ from cadwyn import (
     schema,
 )
 
-from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext, TITerminalStatePayload
 
 
 class AddArgBindingsToTIRunContext(VersionChangeWithSideEffects):
@@ -51,4 +51,14 @@ class AddCallbackRunEndpoint(VersionChange):
 
     instructions_to_migrate_to_previous_version = (
         endpoint("/callbacks/{callback_id}/run", ["PATCH"]).didnt_exist,
+    )
+
+
+class AddTerminalStateRetryReasonField(VersionChange):
+    """Add the `retry_reason` field to TITerminalStatePayload for failed retry-policy decisions."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TITerminalStatePayload).field("retry_reason").didnt_exist,
     )
