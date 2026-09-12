@@ -183,6 +183,21 @@ metadata:
                 {"mountPath": "/opt/airflow/dags/custom", "persistence": {"enabled": True}},
                 "/opt/airflow/dags/custom",
             ),
+            (
+                # Test custom link name with default mountPath
+                {"gitSync": {"enabled": True, "link": "myrepo"}},
+                "/opt/airflow/dags/myrepo/tests/dags",
+            ),
+            (
+                # Test custom link with custom mountPath
+                {"mountPath": "/opt/airflow/dags/custom", "gitSync": {"enabled": True, "link": "customrepo"}},
+                "/opt/airflow/dags/custom/customrepo/tests/dags",
+            ),
+            (
+                # Test custom link with subPath
+                {"gitSync": {"enabled": True, "link": "myrepo", "subPath": "mysubPath"}},
+                "/opt/airflow/dags/myrepo/mysubPath",
+            ),
         ],
     )
     def test_expected_default_dag_folder(self, dag_values, expected_default_dag_folder):
