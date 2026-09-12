@@ -22,6 +22,8 @@ import collections.abc
 import copy
 from typing import TYPE_CHECKING, Any, Literal
 
+import attrs
+
 from airflow.exceptions import ParamValidationError
 from airflow.serialization.definitions.notset import NOTSET, is_arg_set
 
@@ -80,6 +82,15 @@ class SerializedParam:
             "description": self.description,
             "source": self.source,
         }
+
+
+@attrs.define(kw_only=True)
+class SerializedDagParam:
+    """Scheduler-side DagParam: a late-bound name, not a schema Param."""
+
+    dag_id: str
+    name: str
+    default: Any = NOTSET
 
 
 def _coerce_param(v: Any) -> SerializedParam:
