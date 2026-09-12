@@ -776,6 +776,10 @@ if not AIRFLOW_V_3_0_PLUS:
 def safe_getattr(obj: Any, attr: str, default: Any = None) -> Any:
     """Get attribute from object, returning default if DetachedInstanceError is raised."""
     try:
+        from sqlalchemy.orm.exc import DetachedInstanceError
+    except ImportError:
+        return getattr(obj, attr, default)
+    try:
         return getattr(obj, attr, default)
     except DetachedInstanceError:
         return default
