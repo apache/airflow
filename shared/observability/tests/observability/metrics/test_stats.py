@@ -34,6 +34,7 @@ from airflow_shared.observability.exceptions import InvalidStatsNameException
 from airflow_shared.observability.metrics import datadog_logger, statsd_logger
 from airflow_shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow_shared.observability.metrics.datadog_logger import SafeDogStatsdLogger
+from airflow_shared.observability.metrics.protocols import BackendTimerProtocol, Timer
 from airflow_shared.observability.metrics.stats import build_dag_metric_tags
 from airflow_shared.observability.metrics.statsd_logger import SafeStatsdLogger
 from airflow_shared.observability.metrics.validators import (
@@ -42,6 +43,31 @@ from airflow_shared.observability.metrics.validators import (
 )
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+
+
+class TestTimer:
+    """Cover the un-started states of the shared ``Timer``."""
+
+    def test_attributes_are_initialized_before_start(self):
+        timer = Timer()
+
+        assert timer.duration is None
+        assert timer._start_time is None
+
+    def test_stop_without_start_does_not_record_duration(self):
+        timer = Timer()
+
+        timer.stop(send=False)
+
+        assert timer.duration is None
+
+    @pytest.mark.parametrize("send", [True, False])
+    def test_stop_without_start_still_forwards_to_backend_timer(self, send):
+        real_timer = Mock(spec=BackendTimerProtocol)
+
+        Timer(real_timer).stop(send=send)
+
+        assert real_timer.stop.called is send
 
 
 class CustomStatsd(statsd.StatsClient):
