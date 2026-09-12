@@ -123,6 +123,7 @@
       "checkbox": "Check to include deferred tasks when calculating open pool slots",
       "description": "Description",
       "includeDeferred": "Include Deferred",
+      "includeDeferredFixedHelperText": "This option is fixed to \"{{value}}\" for all pools by the cluster-level configuration and cannot be changed per pool.",
       "nameMaxLength": "Name can contain a maximum of 256 characters",
       "nameRequired": "Name is required",
       "slots": "Slots",

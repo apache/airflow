@@ -41,6 +41,7 @@ class ConfigResponse(BaseModel):
     theme: Theme | None
     multi_team: bool
     rerun_with_latest_version: bool | None = None
+    pool_include_deferred: bool | None = None
 
     @field_serializer("theme")
     def serialize_theme(self, theme: Theme | None) -> dict | None:

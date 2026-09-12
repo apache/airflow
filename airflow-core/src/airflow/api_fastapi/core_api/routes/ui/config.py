@@ -27,6 +27,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.config import ConfigResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_authenticated
 from airflow.configuration import conf
+from airflow.models.pool import Pool
 from airflow.settings import DASHBOARD_UIALERTS
 from airflow.utils.log.log_reader import TaskLogReader
 
@@ -69,6 +70,8 @@ def get_configs() -> ConfigResponse:
             if conf.has_option("core", "rerun_with_latest_version")
             else None
         ),
+        # None means the flag is chosen per pool; a boolean means it is fixed cluster-wide.
+        "pool_include_deferred": Pool.get_include_deferred_override(),
     }
 
     config.update({key: value for key, value in additional_config.items()})

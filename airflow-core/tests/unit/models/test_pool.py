@@ -29,8 +29,9 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.pool import Pool, normalize_pool_name_for_stats
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.session import create_session
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_dags,
     clear_db_pools,
@@ -341,6 +342,87 @@ class TestPool:
             "pool1": "testing",
             "pool2": None,
         }
+
+
+class TestPoolIncludeDeferredOverride:
+    @staticmethod
+    def clean_db():
+        clear_db_dags()
+        clear_db_runs()
+        clear_db_pools()
+
+    def setup_method(self):
+        self.clean_db()
+
+    def teardown_method(self):
+        self.clean_db()
+
+    @pytest.mark.parametrize(
+        ("conf_value", "expected"),
+        [("", None), ("True", True), ("False", False)],
+    )
+    def test_get_include_deferred_override(self, conf_value, expected):
+        with conf_vars({("core", "pool_include_deferred"): conf_value}):
+            assert Pool.get_include_deferred_override() is expected
+
+    @pytest.mark.parametrize(
+        ("pool_value", "conf_value", "expected"),
+        [(False, "", False), (True, "", True), (False, "True", True), (True, "False", False)],
+    )
+    def test_effective_include_deferred(self, pool_value, conf_value, expected):
+        pool = Pool(pool="test_pool", slots=5, include_deferred=pool_value)
+        with conf_vars({("core", "pool_include_deferred"): conf_value}):
+            assert pool.effective_include_deferred is expected
+
+    @pytest.mark.parametrize(
+        ("pool_value", "conf_value", "deferred_is_occupied"),
+        [(False, "True", True), (True, "False", False)],
+    )
+    def test_get_occupied_states_uses_override(self, pool_value, conf_value, deferred_is_occupied):
+        pool = Pool(pool="test_pool", slots=5, include_deferred=pool_value)
+        with conf_vars({("core", "pool_include_deferred"): conf_value}):
+            assert (TaskInstanceState.DEFERRED in pool.get_occupied_states()) is deferred_is_occupied
+
+    @conf_vars({("core", "pool_include_deferred"): "True"})
+    def test_slots_stats_use_override(self, dag_maker):
+        pool = Pool(pool="test_pool", slots=5, include_deferred=False)
+        with dag_maker(
+            dag_id="test_slots_stats_use_override",
+            start_date=DEFAULT_DATE,
+        ):
+            op1 = EmptyOperator(task_id="dummy1", pool="test_pool")
+            op2 = EmptyOperator(task_id="dummy2", pool="test_pool")
+
+        dr = dag_maker.create_dagrun()
+
+        ti1 = dr.get_task_instance(task_id=op1.task_id)
+        ti2 = dr.get_task_instance(task_id=op2.task_id)
+        ti1.state = State.RUNNING
+        ti2.state = State.DEFERRED
+
+        session = settings.Session()
+        session.add(pool)
+        session.merge(ti1)
+        session.merge(ti2)
+        session.commit()
+        session.close()
+
+        # deferred slots count as occupied even though the pool row says include_deferred=False
+        assert pool.occupied_slots() == 2
+        assert pool.open_slots() == 3
+        assert Pool.slots_stats()["test_pool"] == {
+            "open": 3,
+            "queued": 0,
+            "running": 1,
+            "deferred": 1,
+            "scheduled": 0,
+            "total": 5,
+        }
+
+    @conf_vars({("core", "pool_include_deferred"): "True"})
+    def test_create_or_update_pool_stores_override(self, session):
+        pool = Pool.create_or_update_pool(name="foo", slots=5, description="", include_deferred=False)
+        assert pool.include_deferred is True
 
 
 @pytest.mark.parametrize(
