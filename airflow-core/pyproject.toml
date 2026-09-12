@@ -102,6 +102,9 @@ dependencies = [
     "uvicorn>=0.37.0",
     "starlette>=1.0.1",
     "httpx>=0.25.0",
+    # Only for InProcessExecutionAPI's transports, which feed httpx2-based Task SDK clients.
+    # The rest of airflow-core is still on httpx; tracked at https://github.com/apache/airflow/issues/70522
+    "httpx2>=2.0.0",
     'importlib_metadata>=6.5;python_version<"3.12"',
     'importlib_metadata>=7.0;python_version>="3.12"',
     "itsdangerous>=2.0",
