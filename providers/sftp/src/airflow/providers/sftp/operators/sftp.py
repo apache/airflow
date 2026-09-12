@@ -47,7 +47,7 @@ class SFTPOperator(BaseOperator):
     This operator uses sftp_hook to open sftp transport channel that serve as basis for file transfer.
 
     :param ssh_conn_id: :ref:`ssh connection id<howto/connection:ssh>`
-        from airflow Connections.
+        from airflow Connections. (templated)
     :param sftp_hook: predefined SFTPHook to use
         Either `sftp_hook` or `ssh_conn_id` needs to be provided.
     :param remote_host: remote host to connect (templated)
@@ -80,7 +80,7 @@ class SFTPOperator(BaseOperator):
 
     """
 
-    template_fields: Sequence[str] = ("local_filepath", "remote_filepath", "remote_host")
+    template_fields: Sequence[str] = ("local_filepath", "remote_filepath", "remote_host", "ssh_conn_id")
 
     def __init__(
         self,

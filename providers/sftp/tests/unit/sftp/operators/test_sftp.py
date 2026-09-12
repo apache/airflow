@@ -673,3 +673,14 @@ class TestSFTPOperator:
 
         assert lineage.inputs == expected[0]
         assert lineage.outputs == expected[1]
+
+    def test_ssh_conn_id_is_templated(self):
+        operator = SFTPOperator(
+            task_id="test_sftp_op",
+            ssh_conn_id="{{ conn_id }}",
+            local_filepath="/tmp/local.txt",
+            remote_filepath="/tmp/remote.txt",
+        )
+        assert "ssh_conn_id" in operator.template_fields
+        operator.render_template_fields({"conn_id": "sftp_staging"})
+        assert operator.ssh_conn_id == "sftp_staging"
