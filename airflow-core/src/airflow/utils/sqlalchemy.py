@@ -580,7 +580,7 @@ def lock_rows(query: Select, session: Session) -> Generator[None, None, None]:
 
     :meta private:
     """
-    locked_rows = with_row_locks(query, session)
+    locked_rows = session.execute(with_row_locks(query, session)).all()
     yield
     del locked_rows
 
