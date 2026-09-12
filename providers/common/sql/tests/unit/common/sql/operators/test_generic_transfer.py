@@ -26,7 +26,7 @@ from unittest.mock import MagicMock
 import pytest
 from more_itertools import flatten
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.providers.common.compat.sdk import timezone
@@ -214,6 +214,10 @@ class TestGenericTransfer:
         # Reset mock states before each test
         self.mocked_source_hook.reset_mock()
         self.mocked_destination_hook.reset_mock()
+        # The deferred trigger falls back to `DbApiHook.run` for hooks without a real async
+        # driver -- a generic mocked hook stands in for the vast majority of DB-specific hooks.
+        self.mocked_source_hook.supports_async_execution.return_value = False
+        self.mocked_source_hook.descriptions = []
 
         # Set up the side effect for paginated read
         records = [
@@ -229,6 +233,7 @@ class TestGenericTransfer:
             return []
 
         self.mocked_source_hook.get_records.side_effect = get_records_side_effect
+        self.mocked_source_hook.run.side_effect = lambda sql, **kwargs: get_records_side_effect(sql)
 
     def test_templated_fields(self):
         dag = DAG(
@@ -433,19 +438,23 @@ class TestGenericTransfer:
 
         with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection", side_effect=self.get_connection):
             with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_hook", side_effect=self.get_hook):
-                operator = GenericTransfer(
-                    task_id="transfer_table",
-                    source_conn_id="my_source_conn_id",
-                    destination_conn_id="my_destination_conn_id",
-                    sql="SELECT * FROM HR.EMPLOYEES",
-                    destination_table="NEW_HR.EMPLOYEES",
-                    page_size=1000,  # Fetch data in chunks of 1000 rows for pagination
-                    insert_args=INSERT_ARGS,
-                    execution_timeout=timedelta(hours=1),
-                    deferrable=True,
-                )
+                with mock.patch(
+                    "airflow.providers.common.sql.triggers.sql.get_async_hook",
+                    new=mock.AsyncMock(side_effect=self.get_hook),
+                ):
+                    operator = GenericTransfer(
+                        task_id="transfer_table",
+                        source_conn_id="my_source_conn_id",
+                        destination_conn_id="my_destination_conn_id",
+                        sql="SELECT * FROM HR.EMPLOYEES",
+                        destination_table="NEW_HR.EMPLOYEES",
+                        page_size=1000,  # Fetch data in chunks of 1000 rows for pagination
+                        insert_args=INSERT_ARGS,
+                        execution_timeout=timedelta(hours=1),
+                        deferrable=True,
+                    )
 
-                results, events = execute_operator(operator)
+                    results, events = execute_operator(operator)
 
                 assert not results
                 assert len(events) == 3
@@ -453,17 +462,17 @@ class TestGenericTransfer:
                 assert events[1].payload["results"] == [[3, 4], [13, 14]]
                 assert not events[2].payload["results"]
 
-        assert self.mocked_source_hook.get_records.call_count == 3
+        assert self.mocked_source_hook.run.call_count == 3
         assert (
-            self.mocked_source_hook.get_records.call_args_list[0].args[0]
+            self.mocked_source_hook.run.call_args_list[0].kwargs["sql"]
             == "SELECT * FROM HR.EMPLOYEES LIMIT 1000 OFFSET 0"
         )
         assert (
-            self.mocked_source_hook.get_records.call_args_list[1].args[0]
+            self.mocked_source_hook.run.call_args_list[1].kwargs["sql"]
             == "SELECT * FROM HR.EMPLOYEES LIMIT 1000 OFFSET 1000"
         )
         assert (
-            self.mocked_source_hook.get_records.call_args_list[2].args[0]
+            self.mocked_source_hook.run.call_args_list[2].kwargs["sql"]
             == "SELECT * FROM HR.EMPLOYEES LIMIT 1000 OFFSET 2000"
         )
         assert self.mocked_destination_hook.insert_rows.call_count == 2
@@ -475,6 +484,29 @@ class TestGenericTransfer:
             **INSERT_ARGS,
             **{"rows": [[3, 4], [13, 14]], "table": "NEW_HR.EMPLOYEES"},
         }
+
+    def test_deferred_paginated_read_raises_on_error_event(self):
+        self.mocked_source_hook.run.side_effect = Exception("boom")
+        with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection", side_effect=self.get_connection):
+            with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_hook", side_effect=self.get_hook):
+                with mock.patch(
+                    "airflow.providers.common.sql.triggers.sql.get_async_hook",
+                    new=mock.AsyncMock(side_effect=self.get_hook),
+                ):
+                    operator = GenericTransfer(
+                        task_id="transfer_table",
+                        source_conn_id="my_source_conn_id",
+                        destination_conn_id="my_destination_conn_id",
+                        sql="SELECT * FROM HR.EMPLOYEES",
+                        destination_table="NEW_HR.EMPLOYEES",
+                        page_size=1000,
+                        insert_args=INSERT_ARGS,
+                        execution_timeout=timedelta(hours=1),
+                        deferrable=True,
+                    )
+
+                    with pytest.raises(AirflowException, match="boom"):
+                        execute_operator(operator)
 
     def test_when_provider_min_airflow_version_is_3_0_or_higher_remove_obsolete_method(self):
         """

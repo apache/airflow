@@ -42,6 +42,7 @@ def get_provider_info():
                     "airflow.providers.common.sql.operators.sql",
                     "airflow.providers.common.sql.operators.generic_transfer",
                     "airflow.providers.common.sql.operators.analytics",
+                    "airflow.providers.common.sql.operators.read_only_guard",
                 ],
             }
         ],

@@ -166,9 +166,13 @@ class GenericTransfer(BaseOperator):
             if self.deferrable:
                 self.defer(
                     trigger=SQLExecuteQueryTrigger(
+                        sql=self.get_paginated_sql(0),
                         conn_id=self.source_conn_id,
                         hook_params=self.source_hook_params,
-                        sql=self.get_paginated_sql(0),
+                        autocommit=False,
+                        split_statements=False,
+                        return_last=True,
+                        fetch_results=True,
                     ),
                     method_name=self.execute_complete.__name__,
                 )
@@ -206,7 +210,7 @@ class GenericTransfer(BaseOperator):
         event: dict[Any, Any] | None = None,
     ) -> Any:
         if event:
-            if event.get("status") == "failure":
+            if event.get("status") == "error":
                 raise AirflowException(event.get("message"))
 
             rows = event.get("results")
@@ -231,9 +235,13 @@ class GenericTransfer(BaseOperator):
 
                 self.defer(
                     trigger=SQLExecuteQueryTrigger(
+                        sql=self.get_paginated_sql(offset),
                         conn_id=self.source_conn_id,
                         hook_params=self.source_hook_params,
-                        sql=self.get_paginated_sql(offset),
+                        autocommit=False,
+                        split_statements=False,
+                        return_last=True,
+                        fetch_results=True,
                     ),
                     method_name=self.execute_complete.__name__,
                 )
