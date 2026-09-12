@@ -58,6 +58,7 @@ from airflow.sdk.api.datamodels._generated import (
     TIRunContext,
 )
 from airflow.sdk.bases.operator import BaseOperator, ExecutorSafeguard
+from airflow.sdk.bases.skipmixin import XCOM_SKIPMIXIN_KEY
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
@@ -902,6 +903,14 @@ def _xcom_push(
     # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
     # consumers
 
+    if key == XCOM_SKIPMIXIN_KEY:
+        # The scheduler's NotPreviouslySkippedDep reads this control-plane key straight from
+        # the metadata DB, never through a configured XCom backend. Serializing it through one
+        # here would leave the scheduler with an opaque pointer -- or a credentials error --
+        # instead of the real skip decision, so this key always bypasses the backend.
+        _xcom_push_to_db(ti, key=key, value=value)
+        return
+
     XCom.set(
         key=key,
         value=value,
@@ -925,6 +934,11 @@ async def _axcom_push(
     # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
     # consumers
 
+    if key == XCOM_SKIPMIXIN_KEY:
+        # See _xcom_push: this control-plane key must always bypass the configured backend.
+        await _axcom_push_to_db(ti, key=key, value=value)
+        return
+
     await XCom.aset(
         key=key,
         value=value,
@@ -940,6 +954,18 @@ async def _axcom_push(
 def _xcom_push_to_db(ti: RuntimeTaskInstance, key: str, value: Any) -> None:
     """Push a XCom directly to metadata DB, bypassing custom xcom_backend."""
     XCom._set_xcom_in_db(
+        key=key,
+        value=value,
+        dag_id=ti.dag_id,
+        task_id=ti.task_id,
+        run_id=ti.run_id,
+        map_index=ti.map_index,
+    )
+
+
+async def _axcom_push_to_db(ti: RuntimeTaskInstance, key: str, value: Any) -> None:
+    """Async version of :func:`_xcom_push_to_db`; see that function for full documentation."""
+    await XCom._aset_xcom_in_db(
         key=key,
         value=value,
         dag_id=ti.dag_id,

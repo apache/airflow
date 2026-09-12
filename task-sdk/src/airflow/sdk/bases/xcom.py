@@ -181,6 +181,31 @@ class BaseXCom:
         )
 
     @classmethod
+    async def _aset_xcom_in_db(
+        cls,
+        key: str,
+        value: Any,
+        *,
+        dag_id: str,
+        task_id: str,
+        run_id: str,
+        map_index: int = -1,
+    ) -> None:
+        """Async version of :meth:`_set_xcom_in_db`; see that method for full documentation."""
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        await SUPERVISOR_COMMS.asend(
+            SetXCom(
+                key=key,
+                value=value,
+                dag_id=dag_id,
+                task_id=task_id,
+                run_id=run_id,
+                map_index=map_index,
+            ),
+        )
+
+    @classmethod
     def get_value(
         cls,
         *,
