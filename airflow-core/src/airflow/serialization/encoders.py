@@ -119,7 +119,8 @@ def encode_expand_input(var: ExpandInput) -> dict[str, Any]:
 
 def encode_relativedelta(var: relativedelta) -> dict[str, Any]:
     """Encode a relativedelta object."""
-    encoded = {k: v for k, v in var.__dict__.items() if not k.startswith("_") and v}
+    defaults = type(var)().__dict__
+    encoded = {k: v for k, v in var.__dict__.items() if not k.startswith("_") and v != defaults[k]}
     if var.weekday and var.weekday.n:
         # Every n'th Friday for example
         encoded["weekday"] = [var.weekday.weekday, var.weekday.n]
