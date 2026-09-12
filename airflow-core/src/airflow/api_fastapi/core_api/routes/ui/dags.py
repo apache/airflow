@@ -61,7 +61,9 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.dags import DAG_ALIAS_MAPPING, DAGResponse
 from airflow.api_fastapi.core_api.datamodels.ui.dag_runs import DAGRunLightResponse
 from airflow.api_fastapi.core_api.datamodels.ui.dags import (
+    DAGLatestRunTaskInstanceStateCountsResponse,
     DAGRunStateCountsResponse,
+    DAGsLatestRunTaskInstanceStateCountsCollectionResponse,
     DAGsRunStateCountsCollectionResponse,
     DagTimetableTypeCollectionResponse,
     DAGWithLatestDagRunsCollectionResponse,
@@ -407,3 +409,73 @@ def get_dag_run_state_counts(
         ],
         state_count_limit=STATE_COUNT_CAP,
     )
+
+
+@dags_router.get(
+    "/latest_run_task_instance_state_counts",
+    dependencies=[
+        Depends(requires_access_dag(method="GET")),
+        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE)),
+    ],
+    operation_id="get_latest_run_task_instance_state_counts_ui",
+)
+def get_latest_run_task_instance_state_counts(
+    session: SessionDep,
+    readable_dags_filter: ReadableDagsFilterDep,
+    dag_run_ids: Annotated[
+        list[int], Query(min_length=1, max_length=conf.getint("api", "maximum_page_limit"))
+    ],
+) -> DAGsLatestRunTaskInstanceStateCountsCollectionResponse:
+    """
+    Return task-instance state counts for the given Dag runs, for the Dag list page.
+
+    The Dag list response already carries the latest run of each Dag, so the caller passes
+    those run ids straight in. Deriving the latest run again here would mean an
+    ``ORDER BY run_after DESC LIMIT 1`` per Dag, which has no supporting index and degrades
+    badly once a Dag has many runs. Runs the caller may not read are dropped.
+    """
+    permitted_dag_ids = readable_dags_filter.value or set()
+
+    dags: list[DAGLatestRunTaskInstanceStateCountsResponse] = []
+    if not permitted_dag_ids:
+        return DAGsLatestRunTaskInstanceStateCountsCollectionResponse(dags=dags)
+
+    # Ascending run_after: if two runs of one Dag are passed, the newer one wins below.
+    requested_runs = session.execute(
+        select(DagRun.dag_id, DagRun.run_id)
+        .where(DagRun.id.in_(set(dag_run_ids)), DagRun.dag_id.in_(permitted_dag_ids))
+        .order_by(DagRun.run_after)
+    ).all()
+    latest_run_id_by_dag: dict[str, str] = {row.dag_id: row.run_id for row in requested_runs}
+
+    if latest_run_id_by_dag:
+        # Each branch filters on (dag_id, run_id) equality, which the ti_dag_run index
+        # covers. A run's task instances are bounded by the Dag's task structure, so the
+        # per-state counts are exact (no cap needed here, unlike the cross-run counts in
+        # get_dag_run_state_counts).
+        ti_branches = [
+            select(literal(dag_id).label("dag_id"), TaskInstance.state.label("state"))
+            .where(TaskInstance.dag_id == dag_id, TaskInstance.run_id == run_id)
+            .subquery()
+            for dag_id, run_id in latest_run_id_by_dag.items()
+        ]
+        tis_union = union_all(*(select(branch) for branch in ti_branches)).subquery()
+        counts_by_dag: dict[str, dict[str, int]] = {dag_id: {} for dag_id in latest_run_id_by_dag}
+        for row in session.execute(
+            select(tis_union.c.dag_id, tis_union.c.state, func.count().label("cnt")).group_by(
+                tis_union.c.dag_id, tis_union.c.state
+            )
+        ):
+            state_key = row.state if row.state is not None else "no_status"
+            counts_by_dag[row.dag_id][state_key] = row.cnt
+
+        dags = [
+            DAGLatestRunTaskInstanceStateCountsResponse(
+                dag_id=dag_id,
+                run_id=run_id,
+                state_counts=counts_by_dag[dag_id],
+            )
+            for dag_id, run_id in sorted(latest_run_id_by_dag.items())
+        ]
+
+    return DAGsLatestRunTaskInstanceStateCountsCollectionResponse(dags=dags)
