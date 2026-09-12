@@ -20,15 +20,19 @@ import json
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, event, func, select, update
+from sqlalchemy.orm import Session
 
 from airflow import settings
 from airflow.cli import cli_parser
+from airflow.cli.commands import dag_command
 from airflow.cli.commands.dag_command import dag_reserialize
+from airflow.dag_processing.bundles.local import LocalDagBundle
 from airflow.models import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.serialized_dag import SerializedDagModel
@@ -40,6 +44,8 @@ from tests_common.test_utils.db import clear_db_dags
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
     from contextlib import AbstractContextManager
+
+    from pytest_mock import MockerFixture
 
 pytestmark = pytest.mark.db_test
 
@@ -178,6 +184,94 @@ def test_only_missing_uses_current_bundle_path(
         assert session.scalar(select(DagModel.fileloc).where(DagModel.dag_id == "repair_a")) == str(
             relocated / "repair.py"
         )
+
+
+@pytest.mark.parametrize("has_missing", [False, True])
+def test_only_missing_initializes_needed_bundles(
+    bundle_files: dict[str, Path], mocker: MockerFixture, has_missing: bool
+) -> None:
+    if has_missing:
+        with create_session() as session:
+            session.execute(delete(SerializedDagModel).where(SerializedDagModel.dag_id == "repair_a"))
+    initialize = mocker.spy(LocalDagBundle, "initialize")
+
+    dag_reserialize(cli_parser.get_parser().parse_args(["dags", "reserialize", "--only-missing"]))
+
+    assert [call.args[0].name for call in initialize.call_args_list] == (["first"] if has_missing else [])
+
+
+@pytest.mark.parametrize("bundle_files", [64], indirect=True)
+def test_only_missing_batches_after_first_file(bundle_files: dict[str, Path], mocker: MockerFixture) -> None:
+    missing_ids = {f"extra_{index}" for index in range(64)}
+    with create_session() as session:
+        session.execute(delete(SerializedDagModel).where(SerializedDagModel.dag_id.in_(missing_ids)))
+    sync = mocker.spy(dag_command, "sync_bag_to_db")
+
+    dag_reserialize(cli_parser.get_parser().parse_args(["dags", "reserialize", "--only-missing"]))
+
+    assert sync.call_count == 3
+    assert len(sync.call_args_list[0].kwargs["dagbag"].file_last_changed) == 1
+    assert max(len(call.kwargs["dagbag"].file_last_changed) for call in sync.call_args_list) == 32
+    with create_session() as session:
+        assert missing_ids <= set(session.scalars(select(SerializedDagModel.dag_id)))
+
+
+@pytest.mark.parametrize("bundle_files", [64], indirect=True)
+def test_only_missing_exposes_committed_progress(bundle_files: dict[str, Path]) -> None:
+    missing_ids = {f"extra_{index}" for index in range(64)}
+    with create_session() as session:
+        session.execute(delete(SerializedDagModel).where(SerializedDagModel.dag_id.in_(missing_ids)))
+    engine = settings.engine
+    assert engine is not None
+    milestones: list[tuple[int, float]] = []
+    args = cli_parser.get_parser().parse_args(["dags", "reserialize", "--only-missing"])
+    started = time.monotonic()
+
+    def record_commit(_session: Session) -> None:
+        with engine.connect() as connection:
+            count: int = connection.execute(
+                select(func.count())
+                .select_from(SerializedDagModel)
+                .where(SerializedDagModel.dag_id.in_(missing_ids))
+            ).scalar_one()
+        if count and (not milestones or milestones[-1][0] != count):
+            milestones.append((count, time.monotonic() - started))
+
+    event.listen(target=Session, identifier="after_commit", fn=record_commit)
+    try:
+        dag_reserialize(args)
+    finally:
+        event.remove(target=Session, identifier="after_commit", fn=record_commit)
+
+    print(
+        json.dumps(
+            {
+                "recovery_commits": len(milestones),
+                "first_committed_dags": milestones[0][0] if milestones else 0,
+                "first_visible_seconds": round(milestones[0][1], 3) if milestones else None,
+                "recovery_seconds": round(time.monotonic() - started, 3),
+            }
+        )
+    )
+    assert [count for count, _ in milestones] == [1, 33, 64]
+
+
+@pytest.mark.parametrize("bundle_files", [4], indirect=True)
+def test_only_missing_reports_an_import_error_in_a_batch(bundle_files: dict[str, Path]) -> None:
+    missing_ids = {f"extra_{index}" for index in range(4)}
+    with create_session() as session:
+        session.execute(delete(SerializedDagModel).where(SerializedDagModel.dag_id.in_(missing_ids)))
+    (bundle_files["first"] / "healthy_1.py").write_text(
+        "from airflow.sdk import DAG\nraise RuntimeError('unavailable dependency')\n"
+    )
+
+    with pytest.raises(SystemExit, match="Failed to reserialize 1 Dag file"):
+        dag_reserialize(cli_parser.get_parser().parse_args(["dags", "reserialize", "--only-missing"]))
+
+    with create_session() as session:
+        restored_ids = set(session.scalars(select(SerializedDagModel.dag_id)))
+    assert missing_ids - {"extra_1"} <= restored_ids
+    assert "extra_1" not in restored_ids
 
 
 @pytest.mark.parametrize("bundle_kind", ["file", "zip"])

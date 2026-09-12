@@ -28,7 +28,9 @@ import operator
 import re
 import subprocess
 import sys
+from collections import defaultdict
 from contextlib import nullcontext
+from itertools import islice
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
@@ -39,6 +41,7 @@ from airflow.api.client import get_current_api_client
 from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import deprecated_for_airflowctl, fetch_dag_run_from_run_id_or_logical_date_string
+from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import unpack_bundle_version
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag, sync_bag_to_db
@@ -73,6 +76,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow import DAG
+    from airflow.dag_processing.bundles.base import BaseDagBundle
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.timetables.base import DagRunInfo
 
@@ -82,6 +86,7 @@ log = logging.getLogger(__name__)
 
 # Chunk size for bulk delete.
 _RUN_CHUNK_SIZE = 500
+_RESERIALIZE_BATCH_SIZE: int = 32
 
 
 @deprecated_for_airflowctl("airflowctl dags trigger")
@@ -881,45 +886,71 @@ def dag_reserialize(args: Namespace, *, session: Session = NEW_SESSION) -> None:
     manager.sync_bundles_to_db(session=session)
     session.commit()
 
-    all_bundles = list(manager.get_all_dag_bundles())
     if args.bundle_name:
         validate_dag_bundle_arg(args.bundle_name)
         bundles_to_reserialize = set(args.bundle_name)
     else:
-        bundles_to_reserialize = {b.name for b in all_bundles}
+        bundles_to_reserialize = set(manager.get_all_bundle_names())
 
+    missing_files: defaultdict[str, set[str]] = defaultdict(set)
+    bundles: Iterable[BaseDagBundle]
+    if args.only_missing:
+        with create_session(scoped=False) as query_session:
+            for bundle_name, fileloc in query_session.execute(
+                select(DagModel.bundle_name, DagModel.relative_fileloc)
+                .where(
+                    DagModel.bundle_name.in_(bundles_to_reserialize),
+                    DagModel.is_stale.is_(False),
+                    DagModel.relative_fileloc.is_not(None),
+                    ~select(SerializedDagModel.dag_id)
+                    .where(SerializedDagModel.dag_id == DagModel.dag_id)
+                    .exists(),
+                )
+                .distinct()
+            ):
+                if fileloc is not None:
+                    missing_files[bundle_name].add(fileloc)
+        if not missing_files:
+            log.info("No active Dags have missing serialized metadata in the selected bundles")
+        bundles = (manager.get_bundle(name=name) for name in sorted(missing_files))
+    else:
+        bundles = list(manager.get_all_dag_bundles())
+
+    safe_mode: bool = conf.getboolean("core", "dag_discovery_safe_mode")
     failed_files = 0
-    for bundle in all_bundles:
+    for bundle in bundles:
         if bundle.name not in bundles_to_reserialize:
             continue
         bundle.initialize()
         paths: set[Path] = {bundle.path}
         if args.only_missing:
-            with create_session(scoped=False) as query_session:
-                paths = {
-                    Path(correct_maybe_zipped(bundle.path / fileloc))
-                    for fileloc in query_session.scalars(
-                        select(DagModel.relative_fileloc)
-                        .where(
-                            DagModel.bundle_name == bundle.name,
-                            DagModel.is_stale.is_(False),
-                            DagModel.relative_fileloc.is_not(None),
-                            ~DagModel.dag_id.in_(select(SerializedDagModel.dag_id)),
-                        )
-                        .distinct()
-                    )
-                    if fileloc is not None
-                }
+            paths = {
+                Path(correct_maybe_zipped(bundle.path / fileloc)) for fileloc in missing_files[bundle.name]
+            }
             log.info(
                 "Found %s Dag files with missing serialized metadata in bundle %s", len(paths), bundle.name
             )
         version, version_data = unpack_bundle_version(bundle.get_current_version(), bundle)
-        for path in sorted(paths):
-            if args.only_missing and not path.is_file():
-                log.error("Dag file is unavailable: %s", path)
-                failed_files += 1
+        remaining_paths = iter(sorted(paths))
+        batch_size = 1
+        while batch := list(islice(remaining_paths, batch_size)):
+            dag_bag = BundleDagBag(
+                dag_folder=bundle.path,
+                bundle_path=bundle.path,
+                bundle_name=bundle.name,
+                collect_dags=False,
+            )
+            for path in batch:
+                if args.only_missing and not path.is_file():
+                    log.error("Dag file is unavailable: %s", path)
+                    failed_files += 1
+                    continue
+                error_count = len(dag_bag.import_errors)
+                dag_bag.collect_dags(dag_folder=path, safe_mode=safe_mode)
+                if args.only_missing and len(dag_bag.import_errors) > error_count:
+                    failed_files += 1
+            if args.only_missing and not dag_bag.file_last_changed and not dag_bag.import_errors:
                 continue
-            dag_bag = BundleDagBag(dag_folder=path, bundle_path=bundle.path, bundle_name=bundle.name)
             with create_session(scoped=False) if args.only_missing else nullcontext(session) as sync_session:
                 sync_bag_to_db(
                     dagbag=dag_bag,
@@ -928,7 +959,7 @@ def dag_reserialize(args: Namespace, *, session: Session = NEW_SESSION) -> None:
                     version_data=version_data,
                     session=sync_session,
                 )
-            if args.only_missing and dag_bag.import_errors:
-                failed_files += 1
+            if args.only_missing and dag_bag.dags:
+                batch_size = _RESERIALIZE_BATCH_SIZE
     if failed_files:
         raise SystemExit(f"Failed to reserialize {failed_files} Dag file(s); see the errors above.")

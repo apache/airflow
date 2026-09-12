@@ -358,16 +358,20 @@ file in a bundle:
     airflow dags reserialize --only-missing --bundle-name dags-folder
 
 This option selects recorded source files for active Dags that have no serialized
-version. It parses each selected file once and commits that file independently, so
-restored Dags become available before the command finishes. Existing serialized
-rows and versions are preserved. A selected file can define several Dags, which
-all follow the normal synchronization path.
+version and initializes only bundles that contain those files. It parses each
+selected file once. The first file containing Dags is committed immediately;
+remaining files are committed in batches of up to 32 files within each bundle.
+This makes initial recovery available quickly while reducing database round trips
+for larger recoveries. Existing serialized rows and versions are preserved. A
+selected file can define several Dags, which all follow the normal synchronization
+path.
 
 The option does not discover unregistered Dags or reconstruct missing historical
 versions. Use ``dags reserialize`` without this option to refresh existing
 definitions. Files that are unavailable or fail to parse produce an error exit
-after the remaining files are processed; successfully restored files remain
-committed. Normal Dag processing remains responsible for detecting removals.
+after the remaining files are processed; successfully committed batches remain
+available. A database failure can roll back the current batch, but not earlier
+batches. Normal Dag processing remains responsible for detecting removals.
 
 .. note::
 
