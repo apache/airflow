@@ -1,0 +1,1 @@
+Fix missing ``airflow`` CLI commands from executors and auth managers that are configured by module path without being packaged as a provider.
