@@ -149,16 +149,20 @@ class TestCliTeams:
         with pytest.raises(SystemExit, match="Team with name 'duplicate-team' already exists"):
             team_command.team_create(self.parser.parse_args(["teams", "create", "duplicate-team"]))
 
-    def test_team_list_empty(self, stdout_capture):
-        """Test listing teams when none exist."""
+    @pytest.mark.parametrize(
+        ("output", "expected"),
+        [
+            ("json", "[]"),
+            ("yaml", "[]"),
+            ("table", "No data found"),
+            ("plain", "No data found"),
+        ],
+    )
+    def test_team_list_empty(self, stdout_capture, output, expected):
         with stdout_capture as stdout:
-            team_command.team_list(self.parser.parse_args(["teams", "list"]))
+            team_command.team_list(self.parser.parse_args(["teams", "list", "--output", output]))
 
-        # Should not error, just show empty result
-        output = stdout.getvalue()
-        # The exact output format depends on the AirflowConsole implementation
-        # but it should not contain any team names
-        assert team_command.NO_TEAMS_LIST_MSG in output
+        assert stdout.getvalue().strip() == expected
 
     def test_team_list_with_teams(self, stdout_capture):
         """Test listing teams when teams exist."""

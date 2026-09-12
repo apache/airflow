@@ -221,7 +221,7 @@ class BackfillDagRun(Base):
     backfill_id: Mapped[int] = mapped_column(Integer, nullable=False)
     dag_run_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     exception_reason: Mapped[str | None] = mapped_column(StringID(), nullable=True)
-    logical_date: Mapped[datetime] = mapped_column(UtcDateTime, nullable=True)
+    logical_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     sort_ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
 

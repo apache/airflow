@@ -144,14 +144,15 @@ USER_INJECTED_BY_TRUSTED_MIDDLEWARE = object()
 
 async def get_user(
     request: Request,
-    oauth_token: str | None = Depends(oauth2_scheme),
+    # Kept for the OpenAPI security spec so ``/docs`` still renders the OAuth2 password
+    # login form. It resolves to the same ``Authorization: Bearer`` header
+    # ``bearer_scheme`` reads, so the value is unused at runtime.
+    _oauth_token: str | None = Depends(oauth2_scheme),
     bearer_credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> BaseUser:
     # An explicitly supplied credential always wins over the ambient session cookie.
     if bearer_credentials and bearer_credentials.scheme.lower() == "bearer":
         return await resolve_user_from_token(bearer_credentials.credentials)
-    if oauth_token:
-        return await resolve_user_from_token(oauth_token)
 
     # No explicit credential on this request, so the cookie is the caller's identity.
     # A user might have been already built by a trusted in-tree middleware (currently
@@ -164,6 +165,31 @@ async def get_user(
     if user and trust_marker is USER_INJECTED_BY_TRUSTED_MIDDLEWARE:
         return user
     return await resolve_user_from_token(request.cookies.get(COOKIE_NAME_JWT_TOKEN))
+
+
+def collect_request_tokens(
+    request: Request,
+    bearer_credentials: HTTPAuthorizationCredentials | None,
+) -> list[str]:
+    """
+    Return every distinct credential presented on this request, in precedence order.
+
+    Logout uses this rather than reproducing the single-credential choice
+    :func:`get_user` makes. Revoking only the precedence-selected credential would leave
+    any other one the caller presented still valid after they asked to be logged out,
+    and which credential "wins" is a question about *authentication* that should not
+    decide what a logout terminates.
+    """
+    candidates: list[str | None] = []
+    if bearer_credentials and bearer_credentials.scheme.lower() == "bearer":
+        candidates.append(bearer_credentials.credentials)
+    candidates.append(request.cookies.get(COOKIE_NAME_JWT_TOKEN))
+
+    tokens: list[str] = []
+    for candidate in candidates:
+        if candidate and candidate not in tokens:
+            tokens.append(candidate)
+    return tokens
 
 
 GetUserDep = Annotated[BaseUser, Depends(get_user)]
