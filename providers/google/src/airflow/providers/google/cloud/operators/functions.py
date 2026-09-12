@@ -171,12 +171,9 @@ class CloudFunctionDeployFunctionOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self.zip_path = zip_path
-        self.zip_path_preprocessor = ZipPathPreprocessor(body, zip_path)
+        self.validate_body = validate_body
         self._field_validator: GcpBodyFieldValidator | None = None
         self.impersonation_chain = impersonation_chain
-        if validate_body:
-            self._field_validator = GcpBodyFieldValidator(CLOUD_FUNCTION_VALIDATION, api_version=api_version)
-        self._validate_inputs()
         super().__init__(**kwargs)
 
     def _validate_inputs(self) -> None:
@@ -227,6 +224,12 @@ class CloudFunctionDeployFunctionOperator(GoogleCloudBaseOperator):
         }
 
     def execute(self, context: Context):
+        self.zip_path_preprocessor = ZipPathPreprocessor(self.body, self.zip_path)
+        if self.validate_body:
+            self._field_validator = GcpBodyFieldValidator(
+                CLOUD_FUNCTION_VALIDATION, api_version=self.api_version
+            )
+        self._validate_inputs()
         hook = CloudFunctionsHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
