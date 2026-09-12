@@ -285,7 +285,7 @@ If the worker process crashes, the task instance is retried. Task store data wri
 Deferrable tasks
 ~~~~~~~~~~~~~~~~
 
-Once a task defers, the Triggerer handles continuity across poke cycles. Use task state store in deferrable tasks only when you need to survive an operator-initiated clear, not for normal poke continuity.
+Once a task defers, the Triggerer handles continuity across poke cycles, and a cleared task's trigger is cancelled via ``on_kill`` before the next attempt starts. Most durable operators implement ``on_kill`` to cancel the external job there too, so the next attempt finds nothing left to reconnect to either way. The state store still matters for the small set of triggers that don't implement ``on_kill`` (for example ``GlueJobCompleteTrigger`` and ``LivyTrigger``): for those, keep task state (``keep_task_state``) when clearing so the next attempt reconnects to the job still running instead of submitting a duplicate.
 
 
 Mapped tasks

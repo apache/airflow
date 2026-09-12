@@ -79,6 +79,7 @@
       "downstream": "Downstream",
       "existingTasks": "Clear existing tasks",
       "future": "Future",
+      "keepTaskState": "Keep task state and resume",
       "onlyFailed": "Clear only failed tasks",
       "past": "Past",
       "preventRunningTasks": "Prevent rerun if task is running",

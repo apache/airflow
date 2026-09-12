@@ -42,16 +42,19 @@ const BulkClearTaskInstancesButton = ({ clearSelections, selectedTaskInstances }
   const { onClose, onOpen, open } = useDisclosure();
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(["downstream"]);
   const [note, setNote] = useState<string | null>(null);
+  const [keepTaskState, setKeepTaskState] = useState(false);
   const [preventRunningTask, setPreventRunningTask] = useState(true);
-  const { bulkClear, error, isPending } = useBulkClearTaskInstances({
-    clearSelections,
-    onSuccessConfirm: onClose,
-  });
 
   const handleClose = () => {
     setNote(null);
+    setKeepTaskState(false);
     onClose();
   };
+
+  const { bulkClear, error, isPending } = useBulkClearTaskInstances({
+    clearSelections,
+    onSuccessConfirm: handleClose,
+  });
 
   const past = selectedOptions.includes("past");
   const future = selectedOptions.includes("future");
@@ -117,12 +120,20 @@ const BulkClearTaskInstancesButton = ({ clearSelections, selectedTaskInstances }
         <ActionAccordion affectedTasks={affectedTasks} groupByRunId note={note} setNote={setNote} />
         <ErrorAlert error={error} />
         <Flex alignItems="center" justifyContent="space-between" mt={3}>
-          <Checkbox
-            checked={preventRunningTask}
-            onCheckedChange={(event) => setPreventRunningTask(Boolean(event.checked))}
-          >
-            {translate("dags:runAndTaskActions.options.preventRunningTasks")}
-          </Checkbox>
+          <Flex alignItems="center" gap={4}>
+            <Checkbox
+              checked={preventRunningTask}
+              onCheckedChange={(event) => setPreventRunningTask(Boolean(event.checked))}
+            >
+              {translate("dags:runAndTaskActions.options.preventRunningTasks")}
+            </Checkbox>
+            <Checkbox
+              checked={keepTaskState}
+              onCheckedChange={(event) => setKeepTaskState(Boolean(event.checked))}
+            >
+              {translate("dags:runAndTaskActions.options.keepTaskState")}
+            </Checkbox>
+          </Flex>
           <Button
             disabled={affectedTasks.total_entries === 0}
             loading={isPending || isFetching}
@@ -133,6 +144,7 @@ const BulkClearTaskInstancesButton = ({ clearSelections, selectedTaskInstances }
                 includeOnlyFailed: onlyFailed,
                 includePast: past,
                 includeUpstream: upstream,
+                keepTaskState,
                 note,
                 preventRunningTask,
               });
