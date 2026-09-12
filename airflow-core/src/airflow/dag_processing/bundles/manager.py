@@ -16,13 +16,15 @@
 # under the License.
 from __future__ import annotations
 
+import functools
 import importlib
+import json
 import logging
 import os
 import warnings
 from collections import defaultdict
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 from itsdangerous import URLSafeSerializer
 from pydantic import BaseModel, ValidationError
@@ -86,6 +88,7 @@ class _ExternalBundleConfig(BaseModel):
     classpath: str
     kwargs: dict
     team_name: str | None = None
+    importers: list[dict[str, Any]] | None = None
 
 
 class _InternalBundleConfig(BaseModel):
@@ -200,6 +203,62 @@ def _add_provider_example_dags_to_bundle(bundle_config_list: list[_ExternalBundl
             )
 
 
+class _BundleConfigSnapshot(NamedTuple):
+    """The configured Dag bundles, as names only and as full configs."""
+
+    configs: tuple[_ExternalBundleConfig, ...]
+    names: frozenset[str]
+
+
+_EMPTY_BUNDLE_CONFIG_SNAPSHOT = _BundleConfigSnapshot(configs=(), names=frozenset())
+
+
+@functools.cache
+def _parse_bundle_config_snapshot(config_json: str, load_examples: bool) -> _BundleConfigSnapshot:
+    """
+    Build the snapshot for one configuration, without importing any bundle class.
+
+    Keyed on the configuration rather than cached outright, so every reader of the
+    same configuration shares one snapshot while a configuration change is still
+    picked up.
+    """
+    bundle_config_list = _parse_bundle_config(json.loads(config_json))
+    if load_examples:
+        _add_example_dag_bundle(bundle_config_list)
+        _add_provider_example_dags_to_bundle(bundle_config_list)
+    return _BundleConfigSnapshot(
+        configs=tuple(bundle_config_list),
+        names=frozenset(cfg.name for cfg in bundle_config_list),
+    )
+
+
+def load_bundle_config_snapshot() -> _BundleConfigSnapshot:
+    """
+    Read and validate the configured Dag bundles, without importing their classes.
+
+    Shared by :meth:`DagBundlesManager.parse_config`, which goes on to import each
+    bundle class, and by callers that only need the names/configs.
+    """
+    config_list = conf.getjson("dag_processor", "dag_bundle_config_list")
+    if not config_list:
+        return _EMPTY_BUNDLE_CONFIG_SNAPSHOT
+    if not isinstance(config_list, list):
+        raise AirflowConfigException(
+            "Section `dag_processor` key `dag_bundle_config_list` "
+            f"must be list but got {config_list.__class__}"
+        )
+    return _parse_bundle_config_snapshot(
+        json.dumps(config_list, sort_keys=True), conf.getboolean("core", "LOAD_EXAMPLES")
+    )
+
+
+def _clear_bundle_config_snapshot_cache() -> None:
+    _parse_bundle_config_snapshot.cache_clear()
+
+
+load_bundle_config_snapshot.cache_clear = _clear_bundle_config_snapshot_cache  # type: ignore[attr-defined]
+
+
 def _is_safe_bundle_url(url: str) -> bool:
     """
     Check if a bundle URL is safe to use.
@@ -274,18 +333,9 @@ class DagBundlesManager(LoggingMixin):
         if self._bundle_config:
             return
 
-        config_list = conf.getjson("dag_processor", "dag_bundle_config_list")
-        if not config_list:
+        bundle_config_list = load_bundle_config_snapshot().configs
+        if not bundle_config_list:
             return
-        if not isinstance(config_list, list):
-            raise AirflowConfigException(
-                "Section `dag_processor` key `dag_bundle_config_list` "
-                f"must be list but got {config_list.__class__}"
-            )
-        bundle_config_list = _parse_bundle_config(config_list)
-        if conf.getboolean("core", "LOAD_EXAMPLES"):
-            _add_example_dag_bundle(bundle_config_list)
-            _add_provider_example_dags_to_bundle(bundle_config_list)
 
         for bundle_config in bundle_config_list:
             if bundle_config.team_name and not conf.getboolean("core", "multi_team"):
@@ -650,7 +700,10 @@ class DagBundlesManager(LoggingMixin):
         if not cfg_bundle:
             raise ValueError(f"Requested bundle '{name}' is not configured.")
         return cfg_bundle.bundle_class(
-            name=name, version=version, version_data=version_data, **cfg_bundle.kwargs
+            name=name,
+            version=version,
+            version_data=version_data,
+            **cfg_bundle.kwargs,
         )
 
     def get_all_dag_bundles(self) -> Iterable[BaseDagBundle]:

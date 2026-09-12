@@ -98,6 +98,7 @@ def conf_vars(overrides):
 
     if "airflow.configuration" in sys.modules:
         settings.configure_vars()
+    _clear_dag_bundle_and_importer_caches()
 
     try:
         yield
@@ -116,6 +117,25 @@ def conf_vars(overrides):
 
         if "airflow.configuration" in sys.modules:
             settings.configure_vars()
+        _clear_dag_bundle_and_importer_caches()
+
+
+def _clear_dag_bundle_and_importer_caches() -> None:
+    """Drop cached Dag bundle snapshot and importer registry so new config is read."""
+    import sys
+
+    importers = sys.modules.get("airflow.dag_processing.importers.base")
+    if importers is not None:
+        reset_fn = getattr(importers, "reset_importer_registry", None)
+        if reset_fn is not None:
+            reset_fn()
+            return
+
+    manager = sys.modules.get("airflow.dag_processing.bundles.manager")
+    if manager is not None:
+        cache = getattr(manager, "load_bundle_config_snapshot", None)
+        if cache is not None:
+            cache.cache_clear()
 
 
 @overload

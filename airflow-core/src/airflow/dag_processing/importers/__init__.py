@@ -25,6 +25,7 @@ from airflow.dag_processing.importers.base import (
     DagImportResult,
     DagImportWarning,
     get_importer_registry,
+    reset_importer_registry,
 )
 from airflow.dag_processing.importers.python_importer import PythonDagImporter
 
@@ -36,4 +37,5 @@ __all__ = [
     "DagImportWarning",
     "PythonDagImporter",
     "get_importer_registry",
+    "reset_importer_registry",
 ]

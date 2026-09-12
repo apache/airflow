@@ -29,7 +29,11 @@ import pytest
 from sqlalchemy import func, select, update
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
-from airflow.dag_processing.bundles.manager import DagBundlesManager, _guess_best_bundle_for_fileloc
+from airflow.dag_processing.bundles.manager import (
+    DagBundlesManager,
+    _guess_best_bundle_for_fileloc,
+    load_bundle_config_snapshot,
+)
 from airflow.exceptions import AirflowConfigException
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
@@ -1791,3 +1795,37 @@ class TestSkippedRowLifecycle:
         assert restored.is_stale is False
         assert restored.bundle_name == "configured-bundle"
         assert restored.relative_fileloc == "legacy.py"
+
+
+class TestBundleConfigSnapshot:
+    """Tests for load_bundle_config_snapshot."""
+
+    def test_load_bundle_config_snapshot_includes_importers(self) -> None:
+        bundle_config = [
+            {
+                "name": "custom-bundle",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": "/tmp/test"},
+                "importers": [
+                    {
+                        "classpath": "airflow.dag_processing.importers.python_importer.PythonDagImporter",
+                        "extensions": [".py"],
+                    }
+                ],
+            }
+        ]
+        with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config)}):
+            snapshot = load_bundle_config_snapshot()
+            assert "custom-bundle" in snapshot.names
+            cfg = next(c for c in snapshot.configs if c.name == "custom-bundle")
+            assert cfg.importers == [
+                {
+                    "classpath": "airflow.dag_processing.importers.python_importer.PythonDagImporter",
+                    "extensions": [".py"],
+                }
+            ]
+
+    def test_load_bundle_config_snapshot_is_cached(self) -> None:
+        snapshot1 = load_bundle_config_snapshot()
+        snapshot2 = load_bundle_config_snapshot()
+        assert snapshot1 is snapshot2
