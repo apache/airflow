@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import json
+import subprocess
 import sys
 from copy import deepcopy
 from pathlib import Path
@@ -53,7 +55,7 @@ from moto.eks.models import (
     NODEGROUP_NOT_FOUND_MSG,
 )
 
-from airflow.providers.amazon.aws.hooks.eks import EksHook
+from airflow.providers.amazon.aws.hooks.eks import COMMAND, EksHook
 
 from unit.amazon.aws.utils.eks_test_constants import (
     DEFAULT_CONN_ID,
@@ -1285,6 +1287,36 @@ class TestEksHook:
         assert '2>"$stderr_file"' in COMMAND
         assert 'cat "$stderr_file" >&2' in COMMAND
         assert "2>/dev/null" not in COMMAND
+
+    def test_command_template_uses_last_stdout_line_with_posix_shell(self, tmp_path):
+        credentials_file = tmp_path / "credentials"
+        credentials_file.write_text(
+            "export AWS_ACCESS_KEY_ID='test-access-key'\nexport AWS_SECRET_ACCESS_KEY='test-secret-key'\n"
+        )
+        token_helper = tmp_path / "token-helper"
+        token_helper.write_text(
+            "#!/bin/sh\n"
+            "printf '%s\\n' '2026-09-04T17:50:59Z [info] Found credentials in environment variables.'\n"
+            "printf '%s\\n' 'expirationTimestamp: 2026-09-04T18:04:59Z, token: test-token'\n"
+        )
+        token_helper.chmod(0o700)
+        command = COMMAND.format(
+            credentials_file=credentials_file,
+            sts_url="https://sts.us-east-1.amazonaws.com",
+            python_executable=token_helper,
+            eks_cluster_name="test-cluster",
+            args="",
+            authentication_api_version="client.authentication.k8s.io/v1",
+        )
+
+        result = subprocess.run(["sh", "-c", command], capture_output=True, text=True, check=True)
+
+        assert json.loads(result.stdout) == {
+            "kind": "ExecCredential",
+            "apiVersion": "client.authentication.k8s.io/v1",
+            "spec": {},
+            "status": {"expirationTimestamp": "2026-09-04T18:04:59Z", "token": "test-token"},
+        }
 
     def test_command_template_does_not_print_token_output_on_error(self):
         """Verify the error path does not echo stdout, which can contain a token."""
