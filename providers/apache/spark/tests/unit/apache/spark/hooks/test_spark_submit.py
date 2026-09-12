@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import base64
 import os
+import time
 from io import StringIO
 from pathlib import Path
 from types import ModuleType
@@ -1302,6 +1303,46 @@ class TestSparkSubmitHook:
                 ("spark-submit",),
                 "spark-submit",
             ),
+            (
+                ("spark-submit", "foo", "--secret", "topsecret", "--bar"),
+                "spark-submit foo --secret ****** --bar",
+            ),
+            (
+                ("spark-submit", "--conf", "spark.mySecret=abc"),
+                "spark-submit --conf spark.mySecret=******",
+            ),
+            (
+                ("spark-submit", "--PASSWORD=abc"),
+                "spark-submit --PASSWORD=******",
+            ),
+            (
+                ("spark-submit", "--conf", "HivePassword='multi word pass'", "--after"),
+                "spark-submit --conf HivePassword='******' --after",
+            ),
+            (
+                ("spark-submit", "--password", "'multi word pass'", "--bar", "baz"),
+                "spark-submit --password '******' --bar baz",
+            ),
+            (
+                ("spark-submit", "--password"),
+                "spark-submit --password",
+            ),
+            (
+                ("spark-submit", "--password", "", "hunter2"),
+                "spark-submit --password  ******",
+            ),
+            (
+                ("Using  password  hunter2",),
+                "Using  password  ******",
+            ),
+            (
+                ("spark-submit --password\thunter2",),
+                "spark-submit --password\t******",
+            ),
+            (
+                ("spark-submit\t--conf\tHivePassword='abc'",),
+                "spark-submit\t--conf\tHivePassword='******'",
+            ),
         ],
     )
     @pytest.mark.db_test
@@ -1314,6 +1355,48 @@ class TestSparkSubmitHook:
 
         # Then
         assert command_masked == expected
+
+    @pytest.mark.db_test
+    def test_masks_passwords_stays_fast_on_large_input(self) -> None:
+        # The previous pattern retried at every offset on long inputs, taking tens of
+        # seconds for this payload and blocking the worker slot. The trailing space is
+        # deliberate: it makes 25,000 separate tokens, which is what exercises the
+        # per-offset retry rather than a single very long token.
+        hook = SparkSubmitHook()
+        payload = ["spark-submit", "--arg", "x " * 25_000]
+
+        start = time.monotonic()
+        command_masked = hook._mask_cmd(payload)
+        elapsed = time.monotonic() - start
+
+        assert command_masked == " ".join(payload)
+        assert elapsed < 5
+
+    @pytest.mark.db_test
+    def test_masks_passwords_does_not_swallow_following_lines(self) -> None:
+        # An unterminated quote must not consume the log lines after it: the value
+        # ends at the newline, so the rest of the captured output survives masking.
+        hook = SparkSubmitHook()
+        command = 'spark-submit --conf password="abc\nERROR: job failed\n--other=1 "tail'
+
+        command_masked = hook._mask_cmd([command])
+
+        assert command_masked == 'spark-submit --conf password=******\nERROR: job failed\n--other=1 "tail'
+
+    @pytest.mark.db_test
+    def test_masks_passwords_stays_fast_on_repeated_keywords(self) -> None:
+        # A token packing many sensitive keywords is the worst remaining case: it still
+        # backtracks, so this only guards against regressing to the previous pattern,
+        # which needed minutes for an input of this size.
+        hook = SparkSubmitHook()
+        payload = ["spark-submit", "--arg", "secret" * 2000]
+
+        start = time.monotonic()
+        command_masked = hook._mask_cmd(payload)
+        elapsed = time.monotonic() - start
+
+        assert command_masked.startswith("spark-submit --arg secret")
+        assert elapsed < 5
 
     @pytest.mark.db_test
     def test_submit_log_tail_empty_when_no_lines_captured(self) -> None:
