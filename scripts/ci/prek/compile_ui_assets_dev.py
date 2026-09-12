@@ -17,9 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import os
-import signal
 import subprocess
+import sys
+import time
 
 from common_prek_utils import AIRFLOW_CORE_SOURCES_PATH, AIRFLOW_ROOT_PATH
 
@@ -52,6 +54,8 @@ SIMPLE_AUTH_MANAGER_UI_ASSET_OUT_DEV_MODE_FILE = (
     UI_CACHE_DIR / "simple_auth_manager_asset_compile_dev_mode.out"
 )
 
+DEV_SERVER_POLL_INTERVAL_SECONDS = 1.0
+
 if __name__ == "__main__":
     UI_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -77,7 +81,7 @@ if __name__ == "__main__":
             stderr=subprocess.STDOUT,
         )
 
-    subprocess.Popen(
+    ui_dev_server = subprocess.Popen(
         ["pnpm", "dev"],
         cwd=os.fspath(UI_DIRECTORY),
         env=env,
@@ -94,7 +98,7 @@ if __name__ == "__main__":
             stderr=subprocess.STDOUT,
         )
 
-    subprocess.Popen(
+    simple_auth_manager_ui_dev_server = subprocess.Popen(
         ["pnpm", "dev"],
         cwd=os.fspath(SIMPLE_AUTH_MANAGER_UI_DIRECTORY),
         env=env,
@@ -102,6 +106,43 @@ if __name__ == "__main__":
         stderr=subprocess.STDOUT,
     )
 
+    dev_servers = {
+        "airflow-ui": (ui_dev_server, UI_ASSET_OUT_DEV_MODE_FILE),
+        "simple-auth-manager-ui": (
+            simple_auth_manager_ui_dev_server,
+            SIMPLE_AUTH_MANAGER_UI_ASSET_OUT_DEV_MODE_FILE,
+        ),
+    }
+
     # Keep script alive so child processes stay in the same process group.
     # When breeze exits, kill_process_group() will terminate all processes together.
-    signal.pause()
+    try:
+        exited_server_name = None
+        while exited_server_name is None:
+            for server_name, (dev_server, _) in dev_servers.items():
+                if dev_server.poll() is not None:
+                    exited_server_name = server_name
+                    break
+            else:
+                time.sleep(DEV_SERVER_POLL_INTERVAL_SECONDS)
+    except KeyboardInterrupt:
+        for dev_server, _ in dev_servers.values():
+            with contextlib.suppress(OSError):
+                dev_server.terminate()
+        raise SystemExit(130)
+
+    exited_server, exited_server_out_file = dev_servers[exited_server_name]
+    print(
+        f"\nThe {exited_server_name} dev server exited unexpectedly "
+        f"with code {exited_server.returncode}. "
+        f"Check {exited_server_out_file} for details. "
+        "Terminating the remaining UI dev servers.",
+        file=sys.stderr,
+        flush=True,
+    )
+    for server_name, (dev_server, _) in dev_servers.items():
+        if server_name != exited_server_name and dev_server.poll() is None:
+            dev_server.terminate()
+            with contextlib.suppress(subprocess.TimeoutExpired):
+                dev_server.wait(timeout=5)
+    raise SystemExit(1)

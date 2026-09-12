@@ -29,6 +29,19 @@
 Changelog
 ---------
 
+3.12.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Show the deprecated Neo4jOperator sql query in Rendered Templates (#70373)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fail Neo4jOperator argument mistakes at Dag parse time (#70508)``
+   * ``Fix Neo4jOperator templated query validation (#70348)``
+
 3.12.0
 ......
 

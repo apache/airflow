@@ -124,12 +124,12 @@ def test_get_removed_providers():
 
 def test_get_suspended_provider_ids():
     # Modify it every time we suspend/resume provider
-    assert get_suspended_provider_ids() == ["apache.beam"]
+    assert get_suspended_provider_ids() == []
 
 
 def test_get_suspended_provider_folders():
     # Modify it every time we suspend/resume provider
-    assert get_suspended_provider_folders() == ["apache/beam"]
+    assert get_suspended_provider_folders() == []
 
 
 @pytest.mark.parametrize(
@@ -376,6 +376,7 @@ def test_get_provider_info_dict():
     assert len(provider_info_dict["connection-types"]) > 3
     assert len(provider_info_dict["notifications"]) > 2
     assert len(provider_info_dict["secrets-backends"]) > 1
+    assert len(provider_info_dict["email-backends"]) > 0
     assert len(provider_info_dict["logging"]) > 1
     assert len(provider_info_dict["config"].keys()) > 1
     assert len(provider_info_dict["executors"]) > 0

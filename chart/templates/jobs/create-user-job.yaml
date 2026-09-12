@@ -73,7 +73,9 @@ spec:
         {{- end }}
       {{- end }}
     spec:
+      {{- if $securityContext }}
       securityContext: {{ $securityContext | nindent 8 }}
+      {{- end }}
       restartPolicy: {{ .Values.createUserJob.restartPolicy }}
       {{- if .Values.createUserJob.priorityClassName }}
       priorityClassName: {{ .Values.createUserJob.priorityClassName }}
@@ -96,7 +98,9 @@ spec:
         - name: create-user
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          {{- if $containerSecurityContext }}
           securityContext: {{ $containerSecurityContext | nindent 12 }}
+          {{- end }}
           {{- if $containerLifecycleHooks  }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
           {{- end }}

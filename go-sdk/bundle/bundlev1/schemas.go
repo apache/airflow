@@ -15,21 +15,17 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Package bundlev1 defines the types and interfaces needed to implement v1 of the Bundle Plugin
+// Package bundlev1 defines the types and interfaces needed to implement a v1 bundle.
 package bundlev1
 
 import (
-	"github.com/apache/airflow/go-sdk/pkg/api"
+	"github.com/apache/airflow/go-sdk/sdk"
 )
 
 // BundleProvider is the single interface a bundle author implements. Construct
 // one in main and pass it to bundlev1server.Serve; the runtime calls
-// GetBundleVersion to identify the bundle and RegisterDags to load its tasks.
+// RegisterDags to discover and load its tasks.
 type BundleProvider interface {
-	// GetBundleVersion returns upfront information about the bundle name and version without needing to load
-	// the full dag and task information, which could be memory intensive.
-	GetBundleVersion() BundleInfo
-
 	// RegisterDags declares every dag and task in this bundle on the supplied
 	// Registry, for example:
 	//
@@ -45,33 +41,6 @@ type BundleProvider interface {
 	RegisterDags(Registry) error
 }
 
-// BundleInfo identifies a bundle by name and version. It is returned by
-// BundleProvider.GetBundleVersion and tells Airflow which bundle to run a task
-// with.
-type BundleInfo = api.BundleInfo
-
-// TaskInstance identifies the running task by dag_id, run_id, task_id, and
-// map_index. It is an alias for the Execution-API type and is what
-// XComClient.PushXCom takes.
-type TaskInstance = api.TaskInstance
-
-// GetMetadataResponse is the runtime reply that carries a bundle's BundleInfo
-// back over the go-plugin transport. It is plumbing between the worker and the
-// bundle, not something authors construct.
-type GetMetadataResponse struct {
-	Bundle BundleInfo
-}
-
-// ExecuteTaskWorkload is the runtime payload describing one task to run: its
-// TaskInstance, the bundle to load, and an optional log path. The worker
-// delivers it to the bundle; authors do not build it themselves.
-type ExecuteTaskWorkload struct {
-	Token string `json:"token"`
-
-	// TODO: I have a feeling that including fields from API in here might be a problem long term for
-	// code-level compatibility
-
-	TI         api.TaskInstance `json:"ti"`
-	BundleInfo api.BundleInfo   `json:"bundle_info"`
-	LogPath    *string          `json:"log_path,omitempty"`
-}
+// TaskInstance is the task identity exposed by the SDK runtime context and
+// accepted by XComClient.PushXCom.
+type TaskInstance = sdk.TaskInstance

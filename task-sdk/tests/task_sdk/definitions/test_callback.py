@@ -16,11 +16,15 @@
 # under the License.
 from __future__ import annotations
 
+import importlib
+import sys
+from pathlib import Path
 from typing import cast
 
 import pytest
 
 from airflow.sdk._shared.module_loading import qualname
+from airflow.sdk._shared.serialization import DATA
 from airflow.sdk.definitions.callback import AsyncCallback, Callback, SyncCallback
 from airflow.sdk.serde import deserialize, serialize
 
@@ -38,6 +42,45 @@ def empty_sync_callback_for_deadline_tests():
 TEST_CALLBACK_PATH = qualname(empty_async_callback_for_deadline_tests)
 TEST_CALLBACK_KWARGS = {"arg1": "value1"}
 UNIMPORTABLE_DOT_PATH = "valid.but.nonexistent.path"
+
+# A module which leaves a trace when its body is executed, so that a test can tell whether
+# it was imported. Written to a temporary directory by the `callback_module` fixture below.
+CALLBACK_MODULE_SOURCE = '''
+from pathlib import Path
+
+Path(__file__).with_suffix(".imported").touch()
+
+
+def sync_callback():
+    """A callback which can be reached by dot path once this module is importable."""
+
+
+async def async_callback():
+    """An awaitable callback which can be reached by dot path once this module is importable."""
+'''
+
+
+@pytest.fixture
+def callback_module(tmp_path, monkeypatch):
+    """
+    Provide a factory which makes a named module importable for the duration of a test.
+
+    The factory returns the module name and the path of a marker file which the module
+    creates when it is imported; the marker only exists if the module body has been run.
+    """
+    monkeypatch.syspath_prepend(str(tmp_path))
+    created: list[str] = []
+
+    def _create(module_name: str) -> tuple[str, Path]:
+        (tmp_path / f"{module_name}.py").write_text(CALLBACK_MODULE_SOURCE)
+        importlib.invalidate_caches()
+        created.append(module_name)
+        return module_name, tmp_path / f"{module_name}.imported"
+
+    yield _create
+
+    for module_name in created:
+        sys.modules.pop(module_name, None)
 
 
 class TestCallback:
@@ -197,11 +240,27 @@ class TestAsyncCallback:
         with pytest.raises(AttributeError, match="is not awaitable."):
             AsyncCallback(empty_sync_callback_for_deadline_tests)
 
+    @pytest.mark.parametrize(
+        "queue",
+        [pytest.param("custom-queue", id="with_queue"), pytest.param(None, id="without_queue")],
+    )
+    def test_init_queue(self, queue):
+        callback = AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS, queue=queue)
+        assert callback.queue == queue
+
     def test_serialize_deserialize(self):
         callback = AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS)
         serialized = serialize(callback)
         deserialized = cast("Callback", deserialize(serialized.copy()))
         assert callback == deserialized
+
+    def test_serialize_deserialize_round_trip_keeps_queue(self):
+        callback = AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS, queue="custom-queue")
+
+        deserialized = cast("AsyncCallback", deserialize(serialize(callback)))
+
+        assert deserialized == callback
+        assert deserialized.queue == "custom-queue"
 
 
 class TestSyncCallback:
@@ -227,6 +286,90 @@ class TestSyncCallback:
         serialized = serialize(callback)
         deserialized = cast("Callback", deserialize(serialized.copy()))
         assert callback == deserialized
+
+
+class TestCallbackPathHandling:
+    """Cover how a callback path is treated when it is supplied, versus read back from storage."""
+
+    def test_init_imports_the_module_named_by_the_path(self, callback_module):
+        """A Callback created from a dot path resolves it, so its author gets feedback on it."""
+        module_name, marker = callback_module("callback_module_resolved_on_creation")
+        path = f"{module_name}.sync_callback"
+
+        callback = SyncCallback(path)
+
+        assert marker.exists(), "the module named by the path should have been imported"
+        assert callback.path == path
+
+    def test_deserialize_does_not_import_the_module_named_by_the_stored_path(self, callback_module):
+        """Rebuilding a Callback keeps the stored path without resolving it again."""
+        module_name, marker = callback_module("callback_module_not_resolved_on_deserialize")
+        path = f"{module_name}.sync_callback"
+
+        callback = SyncCallback.deserialize({"path": path, "kwargs": {}, "executor": None}, 0)
+
+        assert not marker.exists(), "the module named by the stored path should not have been imported"
+        assert module_name not in sys.modules
+        assert callback.path == path
+        assert type(callback.path) is str
+
+    def test_deserialize_async_does_not_import_the_module_named_by_the_stored_path(self, callback_module):
+        module_name, marker = callback_module("async_callback_module_not_resolved_on_deserialize")
+        path = f"{module_name}.async_callback"
+
+        callback = AsyncCallback.deserialize({"path": path, "kwargs": {}}, 0)
+
+        assert not marker.exists(), "the module named by the stored path should not have been imported"
+        assert module_name not in sys.modules
+        assert callback.path == path
+
+    def test_serde_deserialize_does_not_import_the_module_named_by_the_stored_path(self, callback_module):
+        """The same holds when the Callback is rebuilt through serde, as it is from stored data."""
+        module_name, marker = callback_module("callback_module_not_resolved_through_serde")
+        path = f"{module_name}.sync_callback"
+
+        serialized = serialize(SyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS))
+        serialized[DATA]["path"] = path
+
+        deserialized = cast("Callback", deserialize(serialized))
+
+        assert not marker.exists(), "the module named by the stored path should not have been imported"
+        assert module_name not in sys.modules
+        assert deserialized.path == path
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            pytest.param("not a dot path", id="not_a_dot_path"),
+            pytest.param("", id="empty_string"),
+            pytest.param(None, id="none"),
+            pytest.param(42, id="not_a_string"),
+        ],
+    )
+    def test_deserialize_rejects_a_path_which_is_not_a_dot_path(self, path):
+        """A stored value which is not shaped like a dot path is still rejected."""
+        with pytest.raises(ImportError, match="doesn't look like a valid dot path."):
+            SyncCallback.deserialize({"path": path, "kwargs": {}, "executor": None}, 0)
+
+    def test_deserialize_keeps_a_stored_path_which_no_longer_points_at_a_callable(self):
+        """
+        The stored path is taken as it was stored.
+
+        Unlike a path handed to the constructor, it is not checked against what it currently
+        resolves to; that check belongs to the moment the Callback is created.
+        """
+        callback = SyncCallback.deserialize({"path": "os.path", "kwargs": {}, "executor": None}, 0)
+
+        assert callback.path == "os.path"
+
+    def test_deserialize_round_trip_keeps_kwargs_and_executor(self):
+        callback = SyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS, executor="local")
+
+        deserialized = cast("SyncCallback", deserialize(serialize(callback)))
+
+        assert deserialized == callback
+        assert deserialized.kwargs == TEST_CALLBACK_KWARGS
+        assert deserialized.executor == "local"
 
 
 # While DeadlineReference lives in the SDK package, the unit tests to confirm it

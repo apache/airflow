@@ -1,0 +1,1 @@
+Reject deferred-task trigger classpaths that do not resolve to a ``BaseTrigger`` subclass before the class is instantiated in the triggerer, so a deferred task cannot cause an arbitrary importable callable to be invoked in the triggerer process.

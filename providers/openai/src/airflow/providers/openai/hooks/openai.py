@@ -55,7 +55,11 @@ if TYPE_CHECKING:
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import BaseHook
-from airflow.providers.openai.exceptions import OpenAIBatchJobException, OpenAIBatchTimeout
+from airflow.providers.openai.exceptions import (
+    OpenAIBatchJobException,
+    OpenAIBatchTimeout,
+    OpenAITriggerEventError,
+)
 
 #: The OpenAI Assistants API (``beta.assistants``/``beta.threads``) is deprecated by OpenAI. The hook
 #: methods wrapping it warn and point at the Responses and Conversations APIs (``create_response`` /
@@ -86,6 +90,26 @@ class BatchStatus(str, Enum):
     def is_in_progress(cls, status: str) -> bool:
         """Check if the batch status is in progress."""
         return status in (cls.VALIDATING, cls.IN_PROGRESS, cls.FINALIZING)
+
+
+#: Statuses the provider's trigger emits in its terminal event.
+TRIGGER_EVENT_STATUSES = frozenset({"success", "error", "cancelled"})
+
+
+def validate_execute_complete_event(event: dict[str, Any] | None = None) -> dict[str, Any]:
+    """
+    Validate the event a deferred task resumes with, returning it if well-formed.
+
+    The event crosses the triggerer/worker boundary through the metadata DB, so a
+    resuming task can receive ``None`` or a status its handler does not recognize
+    (version skew, a custom trigger). Both must fail loudly instead of crashing
+    opaquely or being misread as an outcome.
+    """
+    if event is None:
+        raise OpenAITriggerEventError("Trigger error: event is None")
+    if event.get("status") not in TRIGGER_EVENT_STATUSES:
+        raise OpenAITriggerEventError(f"Unexpected trigger event status {event.get('status')!r}: {event!r}")
+    return event
 
 
 class OpenAIHook(BaseHook):

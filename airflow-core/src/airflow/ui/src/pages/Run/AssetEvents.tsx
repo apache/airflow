@@ -19,7 +19,9 @@
 import { useParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRun, useDagRunServiceGetUpstreamAssetEvents } from "openapi/queries";
+
 import { AssetEvents as AssetEventsTable } from "src/components/Assets/AssetEvents";
+
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 export const AssetEvents = () => {

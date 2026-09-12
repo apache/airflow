@@ -29,7 +29,7 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta
 from shutil import copyfile
 
-import airflow
+from airflow.sdk import timezone
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
@@ -80,9 +80,7 @@ def add_perf_start_date_env_to_conf(performance_dag_conf: dict[str, str]) -> Non
     if "PERF_START_DATE" not in performance_dag_conf:
         start_ago = get_performance_dag_environment_variable(performance_dag_conf, "PERF_START_AGO")
 
-        perf_start_date = airflow.utils.timezone.utcnow - check_and_parse_time_delta(
-            "PERF_START_AGO", start_ago
-        )
+        perf_start_date = timezone.utcnow() - check_and_parse_time_delta("PERF_START_AGO", start_ago)
 
         performance_dag_conf["PERF_START_DATE"] = str(perf_start_date)
 

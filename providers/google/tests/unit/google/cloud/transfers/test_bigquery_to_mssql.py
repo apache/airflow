@@ -199,6 +199,9 @@ class TestBigQueryToMsSqlOperator:
         output_ds = result.outputs[0]
         assert output_ds.namespace == "mssql://localhost:1433"
         assert output_ds.name == "mydb.dbo.destination"
+        output_schema_fields = output_ds.facets["schema"].fields
+        assert {field.name for field in output_schema_fields} == {"id", "name", "value"}
+        assert all(field.type is None for field in output_schema_fields)
 
         assert "columnLineage" in output_ds.facets
         col_lineage = output_ds.facets["columnLineage"]
@@ -239,11 +242,14 @@ class TestBigQueryToMsSqlOperator:
         assert "schema" in input_ds.facets
 
         schema_fields = [f.name for f in input_ds.facets["schema"].fields]
-        assert set(schema_fields) == {"id", "name"}
+        assert set(schema_fields) == {"id", "name", "value"}
 
         output_ds = result.outputs[0]
         assert output_ds.namespace == "mssql://server.example:1433"
         assert output_ds.name == "mydb.dbo.destination"
+        output_schema_fields = output_ds.facets["schema"].fields
+        assert {field.name for field in output_schema_fields} == {"id", "name"}
+        assert all(field.type is None for field in output_schema_fields)
 
         assert "columnLineage" in output_ds.facets
         col_lineage = output_ds.facets["columnLineage"]

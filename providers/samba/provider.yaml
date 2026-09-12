@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1780425054
+source-date-epoch: 1787011200
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 4.13.0
   - 4.12.6
   - 4.12.5
   - 4.12.4
@@ -98,6 +99,20 @@ connection-types:
         description: >-
           The share OS type (`posix` or `windows`).
           Used to determine the formatting of file and folder paths.
+      auth_protocol:
+        label: Auth Protocol
+        schema:
+          type:
+            - string
+            - 'null'
+          default: negotiate
+          enum:
+            - negotiate
+            - ntlm
+            - kerberos
+        description: >-
+          Must be one of: negotiate, ntlm, kerberos. With `kerberos`, the system's
+          ticket cache is used and login/password are optional.
     ui-field-behaviour:
       hidden-fields: []
       relabeling:

@@ -21,7 +21,7 @@ import asyncio
 import time
 from typing import Any
 
-from airflow.providers.databricks.hooks.databricks import DatabricksHook
+from airflow.providers.databricks.hooks.databricks import DatabricksHook, WarehouseState
 from airflow.providers.databricks.utils.databricks import extract_failed_task_errors_async
 from airflow.providers.databricks.utils.retry import validate_deferrable_databricks_retry_args
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -43,6 +43,9 @@ class DatabricksExecutionTrigger(BaseTrigger):
     :param run_page_url: The run page url.
     :param repair_run: Repair the databricks run in case of failure.
     :param caller: The name of the operator that is calling the hook.
+    :param workflow_run_id: Parent workflow run ID for task-level monitoring.
+    :param databricks_task_key: Task key to monitor within ``workflow_run_id``.
+    :param max_retries: Resolved Databricks-native ``max_retries`` for task-level monitoring.
     """
 
     def __init__(
@@ -56,6 +59,9 @@ class DatabricksExecutionTrigger(BaseTrigger):
         run_page_url: str | None = None,
         repair_run: bool = False,
         caller: str = "DatabricksExecutionTrigger",
+        workflow_run_id: int | None = None,
+        databricks_task_key: str | None = None,
+        max_retries: int | None = None,
     ) -> None:
         super().__init__()
         # Trigger kwargs cross Airflow's serialization boundary, so fail before storing invalid
@@ -70,6 +76,9 @@ class DatabricksExecutionTrigger(BaseTrigger):
         self.run_page_url = run_page_url
         self.repair_run = repair_run
         self.caller = caller
+        self.workflow_run_id = workflow_run_id
+        self.databricks_task_key = databricks_task_key
+        self.max_retries = max_retries
         self.hook = DatabricksHook(
             databricks_conn_id,
             retry_limit=self.retry_limit,
@@ -91,19 +100,40 @@ class DatabricksExecutionTrigger(BaseTrigger):
                 "run_page_url": self.run_page_url,
                 "repair_run": self.repair_run,
                 "caller": self.caller,
+                "workflow_run_id": self.workflow_run_id,
+                "databricks_task_key": self.databricks_task_key,
+                "max_retries": self.max_retries,
             },
         )
 
     async def on_kill(self) -> None:
         """Cancel the Databricks run when the trigger is cancelled by a user action."""
-        if self.run_id:
-            from asgiref.sync import sync_to_async
+        from asgiref.sync import sync_to_async
 
-            self.log.info("Cancelling Databricks run %s.", self.run_id)
-            await sync_to_async(self.hook.cancel_run)(self.run_id)
+        run_id = self.run_id
+        if self.workflow_run_id is not None and self.databricks_task_key is not None:
+            # self.run_id may be an earlier, now-terminal attempt; cancel the task's latest attempt
+            # so a retry/repair launched under the same task_key is not left running.
+            tasks = await sync_to_async(self.hook.get_run_tasks)(self.workflow_run_id)
+            attempt = {
+                task["task_key"]: task for task in sorted(tasks, key=lambda task: task["start_time"])
+            }.get(self.databricks_task_key)
+            if attempt:
+                run_id = attempt["run_id"]
+        if run_id:
+            self.log.info("Cancelling Databricks run %s.", run_id)
+            await sync_to_async(self.hook.cancel_run)(run_id)
+
+    def _monitors_workflow_task(self) -> bool:
+        """Whether this trigger follows one task inside a shared workflow run (see ``workflow_run_id``)."""
+        return bool(self.workflow_run_id and self.databricks_task_key)
 
     async def run(self):
         async with self.hook:
+            if self._monitors_workflow_task():
+                async for event in self._run_workflow_task():
+                    yield event
+                return
             while True:
                 run_state = await self.hook.a_get_run_state(self.run_id)
                 if not run_state.is_terminal:
@@ -128,6 +158,69 @@ class DatabricksExecutionTrigger(BaseTrigger):
                     }
                 )
                 return
+
+    async def _run_workflow_task(self):
+        """Monitor one task in a workflow run, tolerating in-flight retries/repairs."""
+        from asgiref.sync import sync_to_async
+
+        while True:
+            tasks = await sync_to_async(self.hook.get_run_tasks)(self.workflow_run_id)
+            sorted_task_runs = sorted(tasks, key=lambda task: task["start_time"])
+            attempt = {task["task_key"]: task for task in sorted_task_runs}.get(self.databricks_task_key)
+
+            if attempt is not None:
+                attempt_run_id = attempt["run_id"]
+                attempt_state = await self.hook.a_get_run_state(attempt_run_id)
+
+                if attempt_state.is_terminal:
+                    if attempt_state.is_successful:
+                        yield TriggerEvent(
+                            {
+                                "run_id": attempt_run_id,
+                                "run_page_url": self.run_page_url,
+                                "run_state": attempt_state.to_json(),
+                                "repair_run": self.repair_run,
+                                "errors": [],
+                            }
+                        )
+                        return
+                    # A failed attempt is final once finite retries are exhausted; otherwise wait
+                    # for the parent run because another attempt may still appear.
+                    attempt_number = attempt.get("attempt_number")
+                    retries_exhausted = (
+                        self.max_retries is not None
+                        and self.max_retries != -1
+                        and attempt_number is not None
+                        and attempt_number >= self.max_retries
+                    )
+                    if (
+                        retries_exhausted
+                        or (await self.hook.a_get_run_state(self.workflow_run_id)).is_terminal
+                    ):
+                        run_info = await self.hook.a_get_run(attempt_run_id)
+                        failed_tasks = await extract_failed_task_errors_async(
+                            self.hook, run_info, attempt_state
+                        )
+                        yield TriggerEvent(
+                            {
+                                "run_id": attempt_run_id,
+                                "run_page_url": self.run_page_url,
+                                "run_state": attempt_state.to_json(),
+                                "repair_run": self.repair_run,
+                                "errors": failed_tasks,
+                            }
+                        )
+                        return
+
+            # attempt is None when the task has not yet surfaced in the run (e.g. just after launch);
+            # keep polling rather than crashing on a missing task_key.
+            self.log.info(
+                "databricks task %s not yet conclusive in run %s. sleeping for %s seconds",
+                self.databricks_task_key,
+                self.workflow_run_id,
+                self.polling_period_seconds,
+            )
+            await asyncio.sleep(self.polling_period_seconds)
 
 
 class DatabricksSQLStatementExecutionTrigger(BaseTrigger):
@@ -241,5 +334,125 @@ class DatabricksSQLStatementExecutionTrigger(BaseTrigger):
                         "error_message": f"Statement ID {self.statement_id} timed out after set end time {self.end_time}",
                     },
                 }
+            )
+            return
+
+
+class DatabricksWarehouseStateTrigger(BaseTrigger):
+    """
+    Poll a Databricks SQL warehouse until it reaches a target lifecycle state.
+
+    Databricks has no cancel API for warehouse start or stop, so this trigger does
+    not override ``on_kill``. Clearing a deferred wait leaves warehouse state unchanged.
+
+    :param warehouse_id: ID of the Databricks SQL warehouse.
+    :param target_state: Lifecycle state to wait for (``RUNNING`` or ``STOPPED``).
+    :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
+    :param end_time: Absolute Unix timestamp when the wait must stop. The operator
+        sets this from ``timeout`` before deferring so a triggerer restart or HA
+        rebalance does not reset the deadline.
+    :param polling_period_seconds: Controls the rate of the poll for the warehouse state.
+        By default, the trigger will poll every 30 seconds.
+    :param retry_limit: The number of times to retry the connection in case of service outages.
+    :param retry_delay: Minimum wait in seconds between retryable attempts when using the
+        default retry strategy. The wait uses exponential backoff (doubling after each
+        failure, capped at ``2 ** retry_limit`` seconds). May be a floating point number.
+    :param retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
+    :param caller: The name of the operator that is calling the hook.
+    """
+
+    def __init__(
+        self,
+        warehouse_id: str,
+        target_state: str,
+        databricks_conn_id: str,
+        end_time: float,
+        polling_period_seconds: int = 30,
+        retry_limit: int = 3,
+        retry_delay: int = 10,
+        retry_args: dict[Any, Any] | None = None,
+        caller: str = "DatabricksWarehouseStateTrigger",
+    ) -> None:
+        super().__init__()
+        # Trigger kwargs cross Airflow's serialization boundary, so fail before storing invalid
+        # trigger state or surfacing a generic serializer error without Databricks-specific guidance.
+        validate_deferrable_databricks_retry_args(retry_args, owner=caller)
+        self.warehouse_id = warehouse_id
+        self.target_state = target_state
+        self.databricks_conn_id = databricks_conn_id
+        self.end_time = end_time
+        self.polling_period_seconds = polling_period_seconds
+        self.retry_limit = retry_limit
+        self.retry_delay = retry_delay
+        self.retry_args = retry_args
+        self.caller = caller
+        self.hook = DatabricksHook(
+            databricks_conn_id,
+            retry_limit=self.retry_limit,
+            retry_delay=self.retry_delay,
+            retry_args=retry_args,
+            caller=caller,
+        )
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            "airflow.providers.databricks.triggers.databricks.DatabricksWarehouseStateTrigger",
+            {
+                "warehouse_id": self.warehouse_id,
+                "target_state": self.target_state,
+                "databricks_conn_id": self.databricks_conn_id,
+                "end_time": self.end_time,
+                "polling_period_seconds": self.polling_period_seconds,
+                "retry_limit": self.retry_limit,
+                "retry_delay": self.retry_delay,
+                "retry_args": self.retry_args,
+                "caller": self.caller,
+            },
+        )
+
+    def _build_trigger_event(
+        self, *, status: str, last_state: str, state: WarehouseState | None = None
+    ) -> TriggerEvent:
+        payload: dict[str, Any] = {
+            "status": status,
+            "warehouse_id": self.warehouse_id,
+            "target_state": self.target_state,
+            "last_state": last_state,
+        }
+        if state is not None:
+            # Same typed JSON payload as RunState / SQLStatementState triggers.
+            payload["state"] = state.to_json()
+        return TriggerEvent(payload)
+
+    async def run(self):
+        async with self.hook:
+            last_state = "unknown"
+            last_warehouse_state: WarehouseState | None = None
+            while time.time() < self.end_time:
+                warehouse_state = await self.hook.a_get_warehouse_state(self.warehouse_id)
+                last_warehouse_state = warehouse_state
+                last_state = warehouse_state.state
+                now = time.time()
+                if warehouse_state.state == self.target_state:
+                    yield self._build_trigger_event(
+                        status="success", last_state=last_state, state=warehouse_state
+                    )
+                    return
+                if warehouse_state.is_deleted:
+                    yield self._build_trigger_event(
+                        status="deleted", last_state=last_state, state=warehouse_state
+                    )
+                    return
+                if now >= self.end_time:
+                    break
+                self.log.info(
+                    "Databricks SQL warehouse %s is %s; waiting for %s.",
+                    self.warehouse_id,
+                    warehouse_state.state,
+                    self.target_state,
+                )
+                await asyncio.sleep(min(self.polling_period_seconds, self.end_time - now))
+            yield self._build_trigger_event(
+                status="timeout", last_state=last_state, state=last_warehouse_state
             )
             return

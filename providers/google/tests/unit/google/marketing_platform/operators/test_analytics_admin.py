@@ -117,6 +117,31 @@ class TestGoogleAnalyticsAdminCreatePropertyOperator:
         property_to_dict_mock.assert_called_once_with(property_returned)
         assert property_created == property_serialized
 
+    @pytest.mark.parametrize(
+        ("property_name", "expected_property_id"),
+        [
+            (TEST_PROPERTY_NAME, TEST_PROPERTY_ID),
+            # Stripping a character set instead of the literal prefix would also eat the leading "s".
+            ("properties/s123", "s123"),
+        ],
+    )
+    @mock.patch(f"{ANALYTICS_PATH}.GoogleAnalyticsPropertyLink")
+    @mock.patch(f"{ANALYTICS_PATH}.GoogleAnalyticsAdminHook")
+    @mock.patch(f"{ANALYTICS_PATH}.Property.to_dict")
+    def test_execute_persists_link_with_property_id(
+        self, _, hook_mock, property_link_mock, property_name, expected_property_id
+    ):
+        hook_mock.return_value.create_property.return_value.name = property_name
+
+        GoogleAnalyticsAdminCreatePropertyOperator(
+            task_id="test_task",
+            analytics_property=mock.MagicMock(),
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        ).execute(context=None)
+
+        property_link_mock.persist.assert_called_once_with(context=None, property_id=expected_property_id)
+
 
 class TestGoogleAnalyticsAdminDeletePropertyOperator:
     @mock.patch(f"{ANALYTICS_PATH}.GoogleAnalyticsAdminHook")

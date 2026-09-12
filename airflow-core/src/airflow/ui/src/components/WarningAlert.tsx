@@ -18,7 +18,7 @@
  */
 import { Flex } from "@chakra-ui/react";
 
-import { Alert } from "./ui";
+import { Alert } from "src/system-components";
 
 type Props = {
   readonly warning?: {

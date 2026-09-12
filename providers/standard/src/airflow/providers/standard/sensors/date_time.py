@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import dataclasses
 import datetime
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, NoReturn
@@ -115,9 +116,15 @@ class DateTimeSensorAsync(DateTimeSensor):
 
         self.start_from_trigger = start_from_trigger
         if self.start_from_trigger:
-            self.start_trigger_args.trigger_kwargs = dict(
-                moment=self._moment,
-                end_from_trigger=self.end_from_trigger,
+            # Replaced rather than mutated: ``start_trigger_args`` is a class attribute, so
+            # assigning through it would overwrite the arguments of every other task built
+            # from this operator.
+            self.start_trigger_args = dataclasses.replace(
+                self.start_trigger_args,
+                trigger_kwargs=dict(
+                    moment=self._moment,
+                    end_from_trigger=self.end_from_trigger,
+                ),
             )
 
     def execute(self, context: Context) -> NoReturn:

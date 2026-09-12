@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Heading, Input, Text, VStack } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
+
+import { Box, Button, Input, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -26,8 +27,11 @@ import {
   useAssetStateStoreServiceListAssetStateStoreKey,
   useAssetStateStoreServiceSetAssetStateStore,
 } from "openapi/queries";
+
+import { Modal, ProgressBar } from "src/system-components";
+
 import { JsonEditor } from "src/components/JsonEditor";
-import { Dialog, ProgressBar } from "src/components/ui";
+
 import { useStoreMutation } from "src/queries/useStoreMutation";
 
 type Props = {
@@ -92,50 +96,45 @@ export const AssetStateStoreModal = ({ assetId, isOpen, mode, onClose, storeKey 
   };
 
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={isOpen} unmountOnExit>
-      <Dialog.Content backdrop>
-        <Dialog.Header>
-          <Heading size="lg">{translate(`assets:assetStateStore.${mode}`)}</Heading>
-        </Dialog.Header>
-        <Dialog.CloseTrigger />
-        <Dialog.Body>
-          {isFetchingExisting ? (
-            <ProgressBar size="xs" />
-          ) : (
-            <VStack gap={4}>
-              <Box width="100%">
-                <Text fontWeight="bold" mb={2}>
-                  {translate("common:key")}
-                </Text>
-                {isEditMode ? (
-                  <Text>{storeKey}</Text>
-                ) : (
-                  <Input onChange={(event) => setKey(event.target.value)} value={key} />
-                )}
-              </Box>
+    <Modal
+      footerActions={
+        <Button
+          disabled={isFetchingExisting || !isValueValid || (!isEditMode && key === "")}
+          loading={isPending}
+          onClick={onSave}
+        >
+          {translate("common:modal.save")}
+        </Button>
+      }
+      lazyMount
+      onOpenChange={onClose}
+      open={isOpen}
+      title={translate(`assets:assetStateStore.${mode}`)}
+      unmountOnExit
+    >
+      {isFetchingExisting ? (
+        <ProgressBar size="xs" />
+      ) : (
+        <VStack gap={4}>
+          <Box width="100%">
+            <Text fontWeight="bold" mb={2}>
+              {translate("common:key")}
+            </Text>
+            {isEditMode ? (
+              <Text>{storeKey}</Text>
+            ) : (
+              <Input onChange={(event) => setKey(event.target.value)} value={key} />
+            )}
+          </Box>
 
-              <Box width="100%">
-                <Text fontWeight="bold" mb={2}>
-                  {translate("common:value")}
-                </Text>
-                <JsonEditor onChange={setValue} value={value} />
-              </Box>
-            </VStack>
-          )}
-        </Dialog.Body>
-        <Dialog.Footer>
-          <Button onClick={onClose} variant="outline">
-            {translate("common:modal.cancel")}
-          </Button>
-          <Button
-            disabled={isFetchingExisting || !isValueValid || (!isEditMode && key === "")}
-            loading={isPending}
-            onClick={onSave}
-          >
-            {translate("common:modal.save")}
-          </Button>
-        </Dialog.Footer>
-      </Dialog.Content>
-    </Dialog.Root>
+          <Box width="100%">
+            <Text fontWeight="bold" mb={2}>
+              {translate("common:value")}
+            </Text>
+            <JsonEditor onChange={setValue} value={value} />
+          </Box>
+        </VStack>
+      )}
+    </Modal>
   );
 };

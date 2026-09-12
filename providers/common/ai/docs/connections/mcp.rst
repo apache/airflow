@@ -67,6 +67,12 @@ Environment (Extra field)
 
     Examples: ``{"MY_SERVER_MODE": "readonly"}``
 
+Timeout (Extra field)
+    Connection init timeout in seconds for the ``stdio`` transport. Ignored
+    for ``http``/``sse``. Default: ``10``.
+
+    Examples: ``30``
+
 Examples
 --------
 

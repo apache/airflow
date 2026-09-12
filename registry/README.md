@@ -256,11 +256,15 @@ The Explore page and provider filtering use categories defined in
 
 - `id` — URL-safe identifier (e.g., `cloud`, `databases`, `ai-ml`)
 - `name` — Display name
-- `keywords` — List of substrings matched against `provider.id`
+- `keywords` — List of substrings matched against `provider.id` and the provider's
+  declared integration names (`provider.categories[].name`)
 - `icon`, `color`, `description` — Visual properties
 
 Providers are assigned to categories at build time by checking if any keyword in a
-category matches (substring) the provider's ID. A provider can belong to multiple
+category is a substring of the provider's ID or of one of its declared integration
+names, compared case-insensitively after collapsing runs of `-`, `_` and whitespace to
+a single space (so `pydantic-ai` matches the integration named "Pydantic AI"). The
+matcher lives in `src/_data/providerKeywordMatch.js`. A provider can belong to multiple
 categories.
 
 ### Homepage "New Providers" Section

@@ -43,7 +43,7 @@ if TYPE_CHECKING:
 class NotepadOperator(BaseOperator):
     """Example Operator Implementation which starts a ``Notepad.exe`` on Windows."""
 
-    template_fields: Sequence[str] = "text"
+    template_fields: Sequence[str] = ("text",)
 
     def __init__(self, text: str, **kwargs):
         self.text = text

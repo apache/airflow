@@ -26,7 +26,7 @@ COLOR_YELLOW=$'\e[33m'
 COLOR_BLUE=$'\e[34m'
 COLOR_RESET=$'\e[0m'
 
-UV_VERSION="0.11.29"
+UV_VERSION="0.12.10"
 
 SHIM_DIR="${HOME}/.local/bin"
 SHIM_PATH="${SHIM_DIR}/breeze"
@@ -41,11 +41,13 @@ SHIM_MARKER="# Apache Airflow breeze shim — managed by scripts/tools/setup_bre
 # into the installed shim; if the installed shim is older it warns the user to
 # re-run this script. See warn_if_shim_outdated() in
 # dev/breeze/src/airflow_breeze/utils/path_utils.py.
-SHIM_VERSION="1"
+SHIM_VERSION="2"
 
-# The shim itself. Runs breeze via 'uvx' against the dev/breeze folder of the
+# The shim itself. Runs breeze via 'uv run' against the dev/breeze folder of the
 # *current* git worktree, so multiple checkouts / agentic worktrees never
-# share a single global install. See ADR 0017.
+# share a single global install. '--locked' pins every dependency to the
+# committed dev/breeze/uv.lock, so a fresh third-party release cannot change
+# what breeze runs with until that lock is upgraded. See ADR 0017.
 #
 # When invoked outside any Airflow worktree (e.g. from an SVN release checkout
 # such as asf-dist during a provider release), the shim falls back to, in order:
@@ -55,9 +57,9 @@ read -r -d '' BREEZE_SHIM_BODY <<BREEZE_SHIM || true
 #!/usr/bin/env bash
 ${SHIM_MARKER}
 # breeze-shim-version: ${SHIM_VERSION}
-# Runs breeze from the dev/breeze folder of the current git worktree via 'uvx',
-# so each worktree (e.g. parallel agentic runs) gets its own ephemerally-installed
-# breeze tied to that worktree's source.
+# Runs breeze from the dev/breeze folder of the current git worktree via 'uv run',
+# so each worktree (e.g. parallel agentic runs) gets its own environment tied to
+# that worktree's source, with dependencies resolved from dev/breeze/uv.lock.
 #
 # Resolution order for the Airflow sources breeze runs from:
 #   1. the current git worktree (per-worktree isolation — see ADR 0017);
@@ -83,7 +85,7 @@ else
     exit 1
 fi
 exec env AIRFLOW_ROOT_PATH="\${breeze_root}" SKIP_BREEZE_SELF_UPGRADE_CHECK=1 \\
-    uvx --from "\${breeze_root}/dev/breeze" --quiet breeze "\$@"
+    uv run --project "\${breeze_root}/dev/breeze" --locked --quiet breeze "\$@"
 BREEZE_SHIM
 
 function manual_instructions() {
@@ -125,9 +127,18 @@ function fail_on_legacy_global_install() {
     # and our shim want to live at ~/.local/bin/breeze. Refuse to proceed until
     # the user removes the legacy install — silent overwrite would corrupt uv's
     # tool state and confuse later upgrades.
-    local legacy_uv=0 legacy_pipx=0
+    local legacy_uv=0 legacy_pipx=0 uv_tool_dir=""
     if uv tool list 2>/dev/null | grep -q '^apache-airflow-breeze\b'; then
         legacy_uv=1
+    else
+        # A tool whose environment is corrupted is dropped from `uv tool list` output entirely
+        # (uv only mentions it in a stderr warning), while its directory and the breeze entry
+        # point it owns both survive. Ask uv where its tools live so such an install is still
+        # reported here, instead of surfacing later as an unexplained refusal to install.
+        uv_tool_dir=$(uv tool dir 2>/dev/null) || uv_tool_dir=""
+        if [[ -n "${uv_tool_dir}" && -d "${uv_tool_dir}/apache-airflow-breeze" ]]; then
+            legacy_uv=1
+        fi
     fi
     if command -v pipx >/dev/null 2>&1 && pipx list --short 2>/dev/null | grep -q '^apache-airflow-breeze\b'; then
         legacy_pipx=1
@@ -166,6 +177,26 @@ function check_shim_dir_on_path() {
 
 function install_breeze_shim() {
     mkdir -p "${SHIM_DIR}"
+
+    # A dangling symlink is invisible to the checks below (-e and -f both follow symlinks) and
+    # would send our write to the link's target instead of ${SHIM_PATH}.
+    if [[ -L "${SHIM_PATH}" && ! -e "${SHIM_PATH}" ]]; then
+        local link_target uv_tool_dir=""
+        link_target=$(readlink "${SHIM_PATH}")
+        uv_tool_dir=$(uv tool dir 2>/dev/null) || uv_tool_dir=""
+        if [[ -n "${uv_tool_dir}" && "${link_target}" == "${uv_tool_dir}/"* ]]; then
+            # `uv tool uninstall` cannot retract an entry point once it has lost the tool
+            # metadata recording it, so a corrupted install leaves this behind for us to reclaim.
+            rm -f "${SHIM_PATH}"
+            echo "${COLOR_YELLOW}Removed the dangling ${SHIM_PATH} left behind by uv.${COLOR_RESET}"
+        else
+            echo
+            echo "${COLOR_RED}${SHIM_PATH} is a broken symlink to ${link_target}.${COLOR_RESET}"
+            echo "${COLOR_YELLOW}Inspect it; if it is safe to replace, remove it and re-run this script.${COLOR_RESET}"
+            echo
+            exit 1
+        fi
+    fi
 
     # If something exists at SHIM_PATH that we did not write, do not overwrite it
     # silently — it could be the user's own script.

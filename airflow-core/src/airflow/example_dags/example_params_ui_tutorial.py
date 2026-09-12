@@ -23,11 +23,22 @@ to the DAG and which are used to render a trigger form.
 
 from __future__ import annotations
 
+import configparser
 import datetime
 import json
 from pathlib import Path
 
 from airflow.sdk import DAG, Param, task
+
+
+def _get_script_interfaces_from_config() -> list[str]:
+    config = configparser.ConfigParser()
+    config.read(Path(__file__).with_name("example_params_ui_interfaces.ini"))
+
+    return [section for section in config.sections() if config[section].get("TYPE") == "Script"]
+
+
+SCRIPT_INTERFACES = _get_script_interfaces_from_config()
 
 with DAG(
     dag_id=Path(__file__).stem,
@@ -74,6 +85,19 @@ with DAG(
             description="You can use JSON schema enum's to generate drop down selection boxes.",
             enum=[f"value {i}" for i in range(16, 64)],
             section="Typed parameters with Param object",
+        ),
+        "script_interface": Param(
+            SCRIPT_INTERFACES[0],
+            description="Choices are generated from example_params_ui_interfaces.ini at Dag parse time.",
+            schema={
+                "type": "string",
+                "title": "Script interface",
+                "enum": SCRIPT_INTERFACES,
+                "values_display": {
+                    name: name.replace("Interface", "Interface ") for name in SCRIPT_INTERFACES
+                },
+                "section": "Typed parameters with Param object",
+            },
         ),
         # [END section_1]
         # Boolean as proper parameter with description
@@ -292,8 +316,7 @@ with DAG(
 ) as dag:
     # [START section_3]
     @task(task_display_name="Show used parameters")
-    def show_params(**kwargs) -> None:
-        params = kwargs["params"]
+    def show_params(params=None) -> None:
         print(f"This DAG was triggered with the following parameters:\n\n{json.dumps(params, indent=4)}\n")
 
     show_params()

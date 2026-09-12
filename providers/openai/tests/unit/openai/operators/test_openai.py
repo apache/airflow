@@ -23,6 +23,7 @@ from openai.types.batch import Batch
 from openai.types.responses import Response
 
 from airflow.providers.common.compat.sdk import Context, TaskDeferred
+from airflow.providers.openai.exceptions import OpenAIBatchJobException, OpenAITriggerEventError
 from airflow.providers.openai.hooks.openai import OpenAIHook
 from airflow.providers.openai.operators.openai import (
     OpenAIEmbeddingOperator,
@@ -147,3 +148,42 @@ def test_openai_trigger_batch_operator_with_deferred(mock_batch, wait_for_comple
     else:
         batch_id = operator.execute(context)
         assert batch_id == BATCH_ID
+
+
+class TestOpenAITriggerBatchOperatorExecuteComplete:
+    def _operator(self):
+        return OpenAITriggerBatchOperator(
+            task_id=TASK_ID,
+            conn_id=CONN_ID,
+            file_id=FILE_ID,
+            endpoint=BATCH_ENDPOINT,
+        )
+
+    def test_success_returns_batch_id(self):
+        event = {"status": "success", "message": "done", "batch_id": BATCH_ID}
+        assert self._operator().execute_complete(Context(), event) == BATCH_ID
+
+    @pytest.mark.parametrize(
+        "event",
+        [
+            pytest.param({"status": "error", "message": "boom", "batch_id": BATCH_ID}, id="error"),
+            pytest.param(
+                {"status": "cancelled", "message": "Batch has been cancelled.", "batch_id": BATCH_ID},
+                id="cancelled",
+            ),
+        ],
+    )
+    def test_failed_event_raises(self, event):
+        with pytest.raises(OpenAIBatchJobException, match=event["message"]):
+            self._operator().execute_complete(Context(), event)
+
+    @pytest.mark.parametrize(
+        "event",
+        [
+            pytest.param(None, id="none"),
+            pytest.param({"status": "expired", "batch_id": BATCH_ID}, id="unknown-status"),
+        ],
+    )
+    def test_invalid_event_raises_instead_of_succeeding(self, event):
+        with pytest.raises(OpenAITriggerEventError):
+            self._operator().execute_complete(Context(), event)

@@ -64,15 +64,13 @@ def tutorial_objectstorage():
 
     # [START get_air_quality_data]
     @task
-    def get_air_quality_data(**kwargs) -> ObjectStoragePath:
+    def get_air_quality_data(logical_date=None) -> ObjectStoragePath:
         """
         #### Get Air Quality Data
         This task gets air quality data from the Finnish Meteorological Institute's
         open data API. The data is saved as parquet.
         """
         import pandas as pd
-
-        logical_date = kwargs["logical_date"]
 
         latitude = 28.6139
         longitude = 77.2090

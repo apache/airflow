@@ -24,17 +24,19 @@
   let currentResults = [];
   let searchId = 0;
 
-  // Type labels loaded from types.json (injected via base.njk)
+  // Type labels/icons loaded from types.json (injected via base.njk)
   const typeLabels = {};
+  const typeIcons = {};
   try {
     const typesEl = document.getElementById('types-data');
     if (typesEl) {
       for (const t of JSON.parse(typesEl.textContent)) {
         typeLabels[t.id] = t.label;
+        typeIcons[t.id] = t.icon;
       }
     }
   } catch (_) {
-    // Fallback: empty object — badges will show raw type name
+    // Fallback: empty objects — badges show raw type name, icons fall back to first letter
   }
 
   function escapeHtml(str) {
@@ -105,12 +107,12 @@
       const providerName = result.meta.providerName || '';
       const description = result.meta.description || result.excerpt;
       const moduleType = result.meta.moduleType || '';
-      const icon = type === 'provider' ? 'P' : (moduleType ? moduleType[0].toUpperCase() : 'M');
+      const icon = type === 'provider' ? 'P' : (moduleType ? (typeIcons[moduleType] || moduleType[0].toUpperCase()) : 'M');
       const resultType = type === 'provider' ? 'provider' : moduleType;
 
       return `
         <a href="${escapeHtml(result.url)}" class="${escapeHtml(resultType)}${index === selectedIndex ? ' selected' : ''}" data-index="${index}">
-          <span>${icon}</span>
+          <span>${escapeHtml(icon)}</span>
           <div>
             <div>
               ${escapeHtml(name)}

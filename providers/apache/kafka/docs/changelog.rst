@@ -27,6 +27,58 @@
 Changelog
 ---------
 
+2.0.0
+.....
+
+.. note::
+  ``librdkafka`` callbacks given as dotted-path strings on a Kafka connection extra (``error_cb``,
+  ``throttle_cb``, ``stats_cb``, ``log_cb``, ``oauth_cb``, ``on_commit``) are no longer imported
+  unless the full importable path of the callback is listed in the new ``[apache_kafka]
+  callback_allowlist`` option, which is empty by default. A connection that relies on such a
+  callback now raises ``ValueError`` until its path is added to the allowlist. Callbacks passed as
+  actual callables, and managed authentication (Amazon MSK IAM, Google Managed Kafka), are unaffected.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Add an allowlist config option for Kafka connection string callbacks (#72208)``
+
+Doc-only
+~~~~~~~~
+
+* ``Improve documentation for the KafkaEventProducer plugin (#71085)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.16.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'return_apply_function_results' to ConsumeFromTopicOperator to return apply_function results (#69740)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+
+1.15.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Kafka consumer not being closed on error in ConsumeFromTopicOperator (#69641)``
+* ``Fix AwaitMessageTrigger crash on tombstone messages when apply_function is unset (#69665)``
+* ``Fix KafkaBaseHook.test_connection missing oauth_cb for managed Kafka (#69507)``
+* ``Fix AwaitMessageTriggerFunctionSensor not honoring timeout (#69639)``
+* ``Validate ProduceToTopicOperator topic after rendering (#70333)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.15.0
 ......
 

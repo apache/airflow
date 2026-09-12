@@ -60,7 +60,7 @@ in your Helm command or in the ``values.yaml`` like:
 
 After installation, the KEDA ``ScaledObject`` and an ``HPA`` will be created in the Airflow namespace.
 
-In the default configuration, KEDA will derive the desired number of Celery workers by querying Airflow metadata database with following SQL statement:
+In the default configuration, KEDA will derive the desired number of Celery workers by querying Airflow metadata database with the following SQL statement:
 
 .. code-block:: none
 
@@ -109,7 +109,7 @@ Metrics
 -------
 
 The HPA controller, refreshes metrics defined in triggers every ``--horizontal-pod-autoscaler-sync-period`` and the values are routed to
-KEDA Metrics Server directly. To reduce the load on the KEDA Scaler, you can set ``useCachedMetrics`` to true, to enabling reading metrics
+KEDA Metrics Server directly. To reduce the load on the KEDA Scaler, you can set ``useCachedMetrics`` to true, to enable reading metrics
 from cache first. Cache is updated periodically every ``pollingInterval``.
 
 .. note::

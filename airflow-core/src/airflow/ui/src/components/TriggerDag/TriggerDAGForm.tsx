@@ -16,12 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useEffect, useState } from "react";
+
 import { Button, Box, Spacer, HStack, Field, Stack, Text, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
-import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { FiPlay } from "react-icons/fi";
+
+import { Checkbox, RadioCardItem, RadioCardRoot } from "src/system-components";
 
 import { useDagParams } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
@@ -31,8 +34,6 @@ import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
 import ConfigForm from "../ConfigForm";
 import { DateTimeInput } from "../DateTimeInput";
 import { ErrorAlert, type ExpandedApiError } from "../ErrorAlert";
-import { Checkbox } from "../ui/Checkbox";
-import { RadioCardItem, RadioCardRoot } from "../ui/RadioCard";
 import TriggerDAGAdvancedOptions from "./TriggerDAGAdvancedOptions";
 import { dataIntervalModeOptions, type DagRunTriggerParams } from "./types";
 

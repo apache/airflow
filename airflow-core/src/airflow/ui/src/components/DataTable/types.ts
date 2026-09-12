@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { JSX, ReactNode } from "react";
+
 import type { SimpleGridProps } from "@chakra-ui/react";
 import type { ColumnDef, PaginationState, SortingState, VisibilityState } from "@tanstack/react-table";
-import type { JSX, ReactNode } from "react";
 
 export type TableState = {
   columnVisibility?: VisibilityState;

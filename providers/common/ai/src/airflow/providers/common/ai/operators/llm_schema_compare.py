@@ -19,11 +19,12 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
 from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.utils.logging import log_run_summary
@@ -106,6 +107,13 @@ class LLMSchemaCompareOperator(LLMOperator):
     :param context_strategy: ``"basic"`` for column names and types only;
         ``"full"`` to include primary keys, foreign keys, and indexes.
         Default ``"full"``.
+
+    Human-in-the-Loop approval parameters are inherited from
+    :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
+    (``require_approval``, ``approval_timeout``, ``allow_modifications``).
+    The task pauses after the comparison and only returns the result once a
+    reviewer approves. The review body shows the compatibility verdict, a
+    mismatch severity summary, and the full result JSON.
     """
 
     template_fields: Sequence[str] = (
@@ -126,9 +134,9 @@ class LLMSchemaCompareOperator(LLMOperator):
         system_prompt: str = DEFAULT_SYSTEM_PROMPT,
         **kwargs: Any,
     ) -> None:
-        kwargs.pop("output_type", None)
-        if kwargs.get("require_approval"):
-            raise ValueError("require_approval=True is not supported by LLMSchemaCompareOperator.")
+        kwargs["output_type"] = SchemaCompareResult
+        # execute() always returns a dict, so the approval resume path must too
+        kwargs["serialize_output"] = True
         super().__init__(**kwargs)
         self.data_sources = data_sources or []
         self.db_conn_ids = db_conn_ids or []
@@ -299,6 +307,9 @@ class LLMSchemaCompareOperator(LLMOperator):
         return "".join(parts)
 
     def execute(self, context: Context) -> dict[str, Any]:
+        if self.require_approval:
+            self.validate_approval_prompt()  # type: ignore[misc]
+
         schema_context = self._build_schema_context()
 
         self.log.info("Schema comparison context:\n%s", schema_context)
@@ -313,8 +324,32 @@ class LLMSchemaCompareOperator(LLMOperator):
         self.log.info("Running LLM schema comparison...")
         result = agent.run_sync(self.prompt, usage_limits=self.usage_limits)
         log_run_summary(self.log, result)
+        output = result.output
 
-        output_result = result.output.model_dump()
+        output_result = output.model_dump()
         self.log.info("Schema comparison result: \n %s", json.dumps(output_result, indent=2))
 
+        if self.require_approval:
+            severity_counts = Counter(mismatch.severity for mismatch in output.mismatches)
+            summary = ", ".join(
+                f"{severity_counts[severity]} {severity}"
+                for severity in ("critical", "warning", "info")
+                if severity_counts[severity]
+            )
+            body = (
+                f"Compatible: {output.compatible}"
+                + (f" (mismatches: {summary})" if summary else "")
+                + f"\n\n```\nPrompt: {self.prompt}\n\n{output.model_dump_json(indent=2)}\n```"
+            )
+            self.defer_for_approval(context, output, body=body)  # type: ignore[misc]
+
         return output_result
+
+    def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> Any:
+        output = super().execute_complete(context, generated_output, event)
+        if isinstance(output, dict):
+            return output
+        try:
+            return SchemaCompareResult.model_validate_json(output).model_dump()
+        except ValidationError as e:
+            raise ValueError(f"Reviewed output is not a valid SchemaCompareResult: {e}") from e

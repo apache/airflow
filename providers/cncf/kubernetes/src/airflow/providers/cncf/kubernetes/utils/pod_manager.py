@@ -162,7 +162,6 @@ async def await_pod_start(
     :param schedule_timeout: Maximum time (in seconds) to wait for the pod to be scheduled.
     :param startup_timeout: Maximum time (in seconds) to wait for the pod to start running after being scheduled.
     :param check_interval: Interval (in seconds) between status checks.
-    :param is_async: Set to True if called in an async context; otherwise, False.
     """
     pod_manager.log.info("::group::Waiting up to %ss to get the POD scheduled...", schedule_timeout)
     pod_was_scheduled = False

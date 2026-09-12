@@ -26,6 +26,18 @@
 Changelog
 ---------
 
+3.12.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Reject mixed-separator path traversal in imap attachment names (#70665)``
+* ``Check imap attachment symlink on the resolved destination path (#69194)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.12.0
 ......
 
@@ -247,7 +259,7 @@ Misc
 .....
 
 .. note::
-  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+  This version contains no code changes. It was released to replace a previous version that was yanked due to a packaging issue.
 
 3.8.1
 .....

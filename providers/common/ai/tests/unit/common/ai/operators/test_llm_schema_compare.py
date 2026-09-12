@@ -16,19 +16,35 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest import mock
 from unittest.mock import MagicMock
+from uuid import uuid4
 
 import pytest
 
 from airflow.providers.common.ai.operators.llm_schema_compare import (
     LLMSchemaCompareOperator,
     SchemaCompareResult,
+    SchemaMismatch,
 )
-from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, TaskDeferred
 from airflow.providers.common.sql.config import DataSourceConfig
 from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
+
+if AIRFLOW_V_3_3_PLUS:
+    from airflow.sdk.exceptions import TaskAwaitingInput
+else:
+    TaskAwaitingInput = TaskDeferred  # type: ignore[assignment, misc]
+
+
+def _make_context():
+    ti = MagicMock()
+    ti.id = uuid4()
+    return MagicMock(**{"__getitem__": lambda self, key: {"task_instance": ti}[key]})
 
 
 def _make_mock_run_result(output):
@@ -96,11 +112,6 @@ class TestLLMSchemaCompareOperator:
                 {"data_sources": [_make_ds_config()]},
                 "at-least two combinations",
                 id="one_datasource_only",
-            ),
-            pytest.param(
-                {"require_approval": True},
-                "require_approval=True is not supported",
-                id="require_approval",
             ),
         ],
     )
@@ -558,3 +569,103 @@ class TestLLMSchemaCompareOperator:
 
         with pytest.raises(AirflowOptionalProviderFeatureException):
             op._introspect_schema_from_datafusion(ds)
+
+
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+)
+class TestLLMSchemaCompareOperatorApproval:
+    """Tests for LLMSchemaCompareOperator with require_approval=True."""
+
+    _APPROVAL_KWARGS = dict(
+        db_conn_ids=["postgres_default", "snowflake_default"],
+        table_names=["orders"],
+        require_approval=True,
+    )
+
+    def test_require_approval_accepted(self):
+        op = LLMSchemaCompareOperator(**_BASE_KWARGS, **self._APPROVAL_KWARGS)
+        assert op.require_approval is True
+        assert op.output_type is SchemaCompareResult
+
+    @mock.patch(
+        "airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator._build_schema_context"
+    )
+    @mock.patch(
+        "airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator._build_system_prompt"
+    )
+    @mock.patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
+    @mock.patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
+    def test_execute_with_approval_pauses_with_summary_body(
+        self, mock_upsert, mock_trigger_cls, mock_build_system_prompt, mock_build_schema_context, caplog
+    ):
+        mock_build_schema_context.return_value = "schema_context"
+        mock_build_system_prompt.return_value = "system_prompt"
+        result = SchemaCompareResult(
+            compatible=False,
+            mismatches=[
+                SchemaMismatch(
+                    source="pg.orders",
+                    target="sf.orders",
+                    column="total",
+                    source_type="numeric(10,2)",
+                    target_type="NUMBER(5,0)",
+                    severity="critical",
+                    description="Precision loss",
+                    suggested_action="Widen target column",
+                    migration_query="ALTER TABLE orders ...",
+                )
+            ],
+            summary="One critical mismatch",
+        )
+
+        op = LLMSchemaCompareOperator(**_BASE_KWARGS, **self._APPROVAL_KWARGS)
+        mock_agent = mock.Mock()
+        mock_agent.run_sync.return_value = _make_mock_run_result(result)
+        op.llm_hook = mock.Mock(create_agent=mock.Mock(return_value=mock_agent))
+
+        with pytest.raises(TaskAwaitingInput) as exc_info:
+            op.execute(context=_make_context())
+
+        assert exc_info.value.kwargs["generated_output"] == result.model_dump_json()
+        body = mock_upsert.call_args.kwargs["body"]
+        assert body.startswith("Compatible: False (mismatches: 1 critical)")
+        assert "Precision loss" in body
+        assert f"Schema comparison result: \n {json.dumps(result.model_dump(), indent=2)}" in caplog
+
+    def test_execute_complete_approved_returns_dict(self):
+        result = SchemaCompareResult(compatible=True, mismatches=[], summary="All good")
+        op = LLMSchemaCompareOperator(**_BASE_KWARGS, **self._APPROVAL_KWARGS)
+        event = {"chosen_options": ["Approve"], "responded_by_user": "admin"}
+
+        resumed = op.execute_complete({}, generated_output=result.model_dump_json(), event=event)
+
+        assert resumed == result.model_dump()
+
+    @pytest.mark.parametrize(
+        "modified",
+        ['{"compatible": true, "mismatches": []}', "looks fine to me"],
+        ids=["missing-summary", "not-json"],
+    )
+    def test_execute_complete_rejects_invalid_modified_output(self, modified):
+        result = SchemaCompareResult(compatible=True, mismatches=[], summary="All good")
+        op = LLMSchemaCompareOperator(**_BASE_KWARGS, **self._APPROVAL_KWARGS, allow_modifications=True)
+        event = {
+            "chosen_options": ["Approve"],
+            "responded_by_user": "admin",
+            "params_input": {"output": modified},
+        }
+
+        with pytest.raises(ValueError, match="not a valid SchemaCompareResult"):
+            op.execute_complete({}, generated_output=result.model_dump_json(), event=event)
+
+    def test_execute_rejects_sequence_prompt_with_require_approval(self):
+        op = LLMSchemaCompareOperator(
+            task_id="test_task",
+            prompt=["describe", b"bytes"],  # type: ignore[arg-type]
+            llm_conn_id="llm_conn",
+            **self._APPROVAL_KWARGS,
+        )
+
+        with pytest.raises(TypeError, match="require_approval=True"):
+            op.execute(context=_make_context())

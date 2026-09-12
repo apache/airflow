@@ -83,16 +83,17 @@ class BuilderTest {
          import java.util.Optional;
          import org.apache.airflow.sdk.Client;
          import org.apache.airflow.sdk.Context;
-         import org.apache.airflow.sdk.Dag;
+         import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.MissingXComException;
          import org.apache.airflow.sdk.Task;
+         import org.apache.airflow.sdk.TaskDef;
 
          public final class TestExampleBuilder {
-           public static Dag build() {
-             var dag = new Dag("TestExample");
-             dag.addTask("t1", T1.class);
-             dag.addTask("t2", T2.class);
-             dag.addTask("t3", T3.class);
+           public static DagDef build() {
+             var dag = new DagDef("TestExample");
+             dag.addTask(new TaskDef("t1", T1.class));
+             dag.addTask(new TaskDef("t2", T2.class));
+             dag.addTask(new TaskDef("t3", T3.class));
              return dag;
            }
            public static final class T1 implements Task {
@@ -157,14 +158,15 @@ class BuilderTest {
          import java.util.Optional;
          import org.apache.airflow.sdk.Client;
          import org.apache.airflow.sdk.Context;
-         import org.apache.airflow.sdk.Dag;
+         import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.MissingXComException;
          import org.apache.airflow.sdk.Task;
+         import org.apache.airflow.sdk.TaskDef;
 
          public final class TestExampleBuilder {
-           public static Dag build() {
-             var dag = new Dag("TestExample");
-             dag.addTask("t", T.class);
+           public static DagDef build() {
+             var dag = new DagDef("TestExample");
+             dag.addTask(new TaskDef("t", T.class));
              return dag;
            }
            public static final class T implements Task {
@@ -220,14 +222,15 @@ class BuilderTest {
          import java.util.Optional;
          import org.apache.airflow.sdk.Client;
          import org.apache.airflow.sdk.Context;
-         import org.apache.airflow.sdk.Dag;
+         import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.MissingXComException;
          import org.apache.airflow.sdk.Task;
+         import org.apache.airflow.sdk.TaskDef;
 
          public final class TestExampleBuilder {
-           public static Dag build() {
-             var dag = new Dag("TestExample");
-             dag.addTask("t", T.class);
+           public static DagDef build() {
+             var dag = new DagDef("TestExample");
+             dag.addTask(new TaskDef("t", T.class));
              return dag;
            }
            public static final class T implements Task {
@@ -261,8 +264,8 @@ class BuilderTest {
         "org.apache.airflow.example.TestExampleBuilder",
         """
          package org.apache.airflow.example;
-         import org.apache.airflow.sdk.Dag;
-         public final class TestExampleBuilder { public static Dag build() { var dag = new Dag("foo"); return dag; } }
+         import org.apache.airflow.sdk.DagDef;
+         public final class TestExampleBuilder { public static DagDef build() { var dag = new DagDef("foo"); return dag; } }
         """,
       )
   }
@@ -284,8 +287,8 @@ class BuilderTest {
         "org.apache.airflow.example.Foo",
         """
          package org.apache.airflow.example;
-         import org.apache.airflow.sdk.Dag;
-         public final class Foo { public static Dag build() { var dag = new Dag("TestExample"); return dag; } }
+         import org.apache.airflow.sdk.DagDef;
+         public final class Foo { public static DagDef build() { var dag = new DagDef("TestExample"); return dag; } }
         """,
       )
   }
@@ -313,12 +316,13 @@ class BuilderTest {
          import java.lang.Override;
          import org.apache.airflow.sdk.Client;
          import org.apache.airflow.sdk.Context;
-         import org.apache.airflow.sdk.Dag;
+         import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
+         import org.apache.airflow.sdk.TaskDef;
          public final class TestExampleBuilder {
-           public static Dag build() {
-             var dag = new Dag("TestExample");
-             dag.addTask("foo", T1.class);
+           public static DagDef build() {
+             var dag = new DagDef("TestExample");
+             dag.addTask(new TaskDef("foo", T1.class));
              return dag;
            }
            public static final class T1 implements Task {

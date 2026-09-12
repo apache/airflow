@@ -32,8 +32,27 @@ entire polling duration, and if the worker process is restarted or the host is p
 retries from scratch, losing all the progress made. Depending on the operator, that means the external
 job is submitted again, creating a duplicate run in context of the external system.
 
-Airflow recommends three approaches for handling long-running external work. Understanding the trade-offs
-between them helps you choose the right one for your situation.
+.. _concepts-durable-execution:
+
+Durable execution
+-----------------
+
+Surviving that failure mode is what **durable execution** means: a task outlives the loss of the
+process running it and can continue / re-attach from where it stopped, rather than repeating work
+already done or submitting a duplicate job to an external system.
+
+The :doc:`task state store <task-state-store>` is the mechanism Airflow provides to achieve it. It
+is the only per-task-instance storage that outlives a worker crash and is still readable by the
+next attempt, which is what lets a retry recover a checkpoint or an external job identifier written
+by the attempt before it. Durable execution is the outcome; the task state store is how you get it.
+
+Operator documentation across the provider ecosystem uses the same term for the operator-level
+feature built on this mechanism, normally exposed as a ``durable`` parameter. Spark, Kubernetes,
+Databricks, Snowflake, BigQuery, Redshift and Glue operators each have a "Durable execution"
+section describing what they persist and how they reconnect on retry.
+
+Airflow recommends three approaches for achieving this with long-running external work.
+Understanding the trade-offs between them helps you choose the right one for your situation.
 
 .. _concepts-resumable-tasks-deferrable:
 
@@ -125,6 +144,27 @@ solves this by persisting the external job identifier before polling starts, and
 existing job on retry instead of submitting a new one.
 
 For more details and a working example, see :class:`~airflow.sdk.ResumableJobMixin`.
+
+**Clearing a task is treated the same as a retry**
+
+Clearing a task instance does not delete its ``task_state_store`` rows -- they are only removed
+when the ``dag_run`` itself is deleted, or by :ref:`airflow state-store clean
+<task-and-asset-state-store-cleanup>`. For a checkpointed task this is usually what you want:
+clearing resumes from the last checkpoint rather than starting over.
+
+For an operator with durable execution, it means clearing a task whose external job already
+succeeded reads that stored result back and returns immediately, without resubmitting the job. If
+you want clearing to always resubmit regardless of a prior success, set
+``[state_store] clear_on_success = True``, which deletes a task's state store rows automatically
+when it moves to ``SUCCESS`` (see :doc:`/administration-and-deployment/task-and-asset-state-store`).
+
+This does not guarantee the external job is still there to reconnect to, though. Clearing a task
+that is actively running (``deferrable=False``) stops the worker process, which runs the
+operator's ``on_kill``. Most operators with durable execution cancel the external job there by
+default, so the next attempt finds it already stopped instead of still running -- an operator that
+leaves the job running by default on kill is the exception, check its own docs. Deferred tasks
+(``deferrable=True``) don't have this problem: there is no actively polling worker process for the
+clear to interrupt.
 
 .. _concepts-resumable-tasks-async:
 

@@ -16,16 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, Link } from "@chakra-ui/react";
+import { Box, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 
 import { useProviderServiceGetProviders } from "openapi/queries";
 import type { ProviderResponse } from "openapi/requests/types.gen";
+
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+
 import { urlRegex } from "src/constants/urlRegex";
 import { useDocumentTitle } from "src/utils";
 
@@ -93,16 +95,14 @@ export const Providers = () => {
   });
 
   return (
-    <Box p={2}>
-      <Heading>{translate("common:admin.Providers")}</Heading>
+    <Box px={2}>
       <DataTable
         columns={columns}
         data={data?.providers ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
-        modelName="common:admin.Providers"
+        modelName="admin:providers.provider"
         onStateChange={setTableURLState}
-        showRowCountHeading={false}
         total={data?.total_entries}
       />
     </Box>

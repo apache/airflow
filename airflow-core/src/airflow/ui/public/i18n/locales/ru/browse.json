@@ -8,8 +8,27 @@
     },
     "filters": {
       "eventType": "Тип события"
+    }
+  },
+  "deadlines": {
+    "columns": {
+      "alertName": "Название оповещения",
+      "deadlineTime": "Время крайнего срока",
+      "status": "Статус"
     },
-    "title": "Журнал аудита"
+    "deadline_few": "Крайних срока",
+    "deadline_many": "Крайних сроков",
+    "deadline_one": "Крайний срок",
+    "deadline_other": "Крайних сроков",
+    "filters": {
+      "status": "Статус",
+      "statusOptions": {
+        "all": "Все",
+        "missed": "Пропущенные",
+        "pending": "Ожидающие"
+      }
+    },
+    "title": "Крайние сроки"
   },
   "xcom": {
     "add": {

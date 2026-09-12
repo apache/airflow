@@ -20,11 +20,14 @@ import { Badge, Box, Flex } from "@chakra-ui/react";
 import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+
 import { StateIcon } from "src/components/StateIcon";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
+
+import { useColorMode } from "src/context/colorMode";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
-import { NOTE_GRADIENT } from "./constants";
+import { NOTE_GRADIENT, SELECTED_TASK_OUTLINE_COLOR } from "./constants";
 
 type Props = {
   readonly dagId: string;
@@ -48,19 +51,23 @@ export const GridTI = ({
   runId,
   taskId,
 }: Props) => {
-  const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
+  const { groupId: selectedGroupId, runId: selectedRunId, taskId: selectedTaskId } = useParams();
+  const { colorMode = "light" } = useColorMode();
   const location = useLocation();
 
   const [searchParams] = useSearchParams();
 
-  const taskUrl = buildTaskInstanceUrl({
-    currentPathname: location.pathname,
-    dagId,
-    isGroup,
-    isMapped: Boolean(isMapped),
-    runId,
-    taskId,
-  });
+  const hasTaskInstance = instance.dag_version_number !== null && instance.dag_version_number !== undefined;
+  const taskUrl = hasTaskInstance
+    ? buildTaskInstanceUrl({
+        currentPathname: location.pathname,
+        dagId,
+        isGroup,
+        isMapped: Boolean(isMapped),
+        runId,
+        taskId,
+      })
+    : `/dags/${dagId}/tasks/${isGroup ? "group/" : ""}${taskId}`;
 
   // Remove try_number query param when navigating to reset to the
   // latest try of the task instance and avoid issues with invalid try numbers:
@@ -68,14 +75,16 @@ export const GridTI = ({
   searchParams.delete("try_number");
   const redirectionSearch = searchParams.toString();
 
-  const isSelected = selectedTaskId === taskId || selectedGroupId === taskId;
+  const isSelectedRow = selectedTaskId === taskId || selectedGroupId === taskId;
+  const isSelectedTaskInstance = selectedRunId === runId && isSelectedRow;
+  const selectedOutlineColor = SELECTED_TASK_OUTLINE_COLOR[colorMode];
 
   return (
     <Flex
       alignItems="center"
-      bg={isSelected ? "brand.emphasized" : undefined}
+      bg={isSelectedRow ? "brand.emphasized" : undefined}
       data-run-id={runId}
-      data-selected={isSelected}
+      data-selected={isSelectedRow}
       data-task-id={taskId}
       height="20px"
       id={`task-${taskId.replaceAll(".", "-")}`}
@@ -107,13 +116,19 @@ export const GridTI = ({
               alignItems="center"
               borderRadius={4}
               colorPalette={instance.state ?? "none"}
+              data-selected={isSelectedTaskInstance || undefined}
               data-testid="task-state-badge"
               display="flex"
               height="14px"
               justifyContent="center"
               minH={0}
+              outlineColor={isSelectedTaskInstance ? selectedOutlineColor : undefined}
+              outlineOffset="1px"
+              outlineStyle={isSelectedTaskInstance ? "solid" : undefined}
+              outlineWidth={isSelectedTaskInstance ? "2px" : undefined}
               p={0}
               style={hasNote ? { background: NOTE_GRADIENT } : undefined}
+              transition="outline-color 0.2s"
               variant="solid"
               width="14px"
             >

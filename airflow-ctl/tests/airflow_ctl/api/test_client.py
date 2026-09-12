@@ -20,6 +20,8 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import subprocess
+import sys
 import tempfile
 from unittest.mock import MagicMock, patch
 
@@ -51,6 +53,22 @@ def make_client_w_responses(responses: list[httpx.Response]) -> Client:
         return responses.pop(0)
 
     return Client(base_url="", token="", mounts={"'http://": httpx.MockTransport(handle_request)})
+
+
+def make_unread_json_response(status_code: int, payload: dict, **kwargs) -> httpx.Response:
+    """
+    Build a JSON response whose body has not been read yet.
+
+    ``httpx.Response(json=...)`` eagerly loads the body, which hides the fact that response
+    event hooks run before httpx reads a real server's body. Passing an iterator keeps the
+    body streaming, matching what the hooks see against a live API server.
+    """
+    return httpx.Response(
+        status_code,
+        headers={"content-type": "application/json"},
+        content=iter([json.dumps(payload).encode()]),
+        **kwargs,
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -106,6 +124,23 @@ class TestClient:
         with pytest.raises(ServerResponseError) as err:
             client.get("http://error")
         assert err.value.args == ("Client error message: {'detail': 'Not found'}",)
+
+    @pytest.mark.parametrize(
+        ("status_code", "expected_message"),
+        [
+            pytest.param(404, "Client error message: {'detail': 'boom'}", id="client-error"),
+            pytest.param(500, "Server error message: {'detail': 'boom'}", id="server-error"),
+        ],
+    )
+    def test_error_parsing_with_unread_body(self, status_code, expected_message):
+        response = make_unread_json_response(
+            status_code, {"detail": "boom"}, request=httpx.Request("GET", "http://error")
+        )
+
+        with pytest.raises(ServerResponseError) as err:
+            get_json_error(response)
+
+        assert err.value.args == (expected_message,)
 
     @pytest.mark.parametrize(
         ("suppress_error_log", "expected_warning_count"),
@@ -181,7 +216,27 @@ class TestCredentials:
         mock_keyring.set_password.side_effect = NoKeyringError("no backend")
 
         with pytest.raises(AirflowCtlKeyringException, match="Keyring backend is not available"):
-            Credentials(client_kind=cli_client).save()
+            Credentials(client_kind=cli_client, api_token="TEST_TOKEN").save()
+
+    @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_SAVE_KEYRING_TYPE_ERROR"})
+    @patch("airflowctl.api.client.keyring")
+    def test_save_propagates_unexpected_keyring_error(self, mock_keyring):
+        mock_keyring.set_password.side_effect = TypeError("password must be a string")
+
+        with pytest.raises(TypeError, match="password must be a string"):
+            Credentials(
+                api_url="http://localhost:8080",
+                api_token="TEST_TOKEN",
+                client_kind=ClientKind.AUTH,
+            ).save()
+
+    @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_SAVE_NO_TOKEN"})
+    @patch("airflowctl.api.client.keyring")
+    def test_save_without_token(self, mock_keyring):
+        with pytest.raises(AirflowCtlCredentialNotFoundException, match="No API token found"):
+            Credentials(api_url="http://localhost:8080", client_kind=ClientKind.AUTH).save()
+
+        mock_keyring.set_password.assert_not_called()
 
     @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_SAVE_SKIP_KEYRING"})
     @patch("airflowctl.api.client.keyring")
@@ -407,6 +462,19 @@ class TestSaveKeyringPatching:
             assert response.status_code == 200
             assert len(responses) == 1
 
+    def test_retry_handling_server_error_with_unread_body(self):
+        with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
+            responses: list[httpx.Response] = [
+                make_unread_json_response(500, {"detail": "boom"}),
+                httpx.Response(200, json={"detail": "Recovered from error"}),
+                httpx.Response(400, json={"detail": "Should not get here"}),
+            ]
+            client = make_client_w_responses(responses)
+
+            response = client.get("http://error")
+            assert response.status_code == 200
+            assert len(responses) == 1
+
     def test_retry_handling_non_retry_error(self):
         with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
             responses: list[httpx.Response] = [
@@ -477,3 +545,49 @@ def test_credentials_rejects_unsafe_env_from_environment_variable(monkeypatch, a
     monkeypatch.setenv("AIRFLOW_CLI_ENVIRONMENT", api_environment)
     with pytest.raises(AirflowCtlException, match="environment"):
         Credentials(client_kind=ClientKind.CLI)
+
+
+class TestRetryConfigurationEnvVars:
+    """The knobs are read at import time, so a bad value used to take down even ``--help``."""
+
+    @staticmethod
+    def _import_with(**env: str) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            [sys.executable, "-c", "import airflowctl.api.client as c; print(c.API_RETRIES)"],
+            env={**os.environ, **env},
+            check=False,
+            text=True,
+            capture_output=True,
+        )
+
+    @pytest.mark.parametrize(
+        ("value", "expected", "warns"),
+        [
+            pytest.param("7", "7", False, id="integer-is-used"),
+            pytest.param("", "3", False, id="empty-means-unset"),
+            pytest.param("abc", "3", True, id="typo-falls-back"),
+            pytest.param("-5", "3", True, id="negative-falls-back"),
+            pytest.param("0", "3", True, id="zero-would-disable-retries"),
+        ],
+    )
+    def test_retries_env_var(self, value, expected, warns):
+        result = self._import_with(AIRFLOW_CLI_API_RETRIES=value)
+
+        assert result.returncode == 0, result.stderr
+        # An exact match also pins that the warning never reaches stdout.
+        assert result.stdout.strip() == expected
+        assert ("AIRFLOW_CLI_API_RETRIES" in result.stderr) is warns
+
+    def test_zero_wait_is_allowed(self):
+        """Only the retry count needs a floor of 1; waiting 0 seconds between retries is valid."""
+        result = subprocess.run(
+            [sys.executable, "-c", "import airflowctl.api.client as c; print(c.API_RETRY_WAIT_MIN)"],
+            env={**os.environ, "AIRFLOW_CLI_API_RETRY_WAIT_MIN": "0"},
+            check=False,
+            text=True,
+            capture_output=True,
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.strip() == "0"
+        assert result.stderr == ""

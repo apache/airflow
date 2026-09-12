@@ -76,7 +76,7 @@ export class CommChannel {
     // tick as construction, before the event loop can deliver a
     // read, and as the only reader — loses nothing, double-reads
     // nothing.
-    sock.on("data", (chunk) => this.handleData(chunk));
+    sock.on("data", (chunk: Buffer) => this.handleData(chunk));
     sock.on("close", () => this.handleClose(null));
     sock.on("error", (err) => this.handleClose(err));
   }

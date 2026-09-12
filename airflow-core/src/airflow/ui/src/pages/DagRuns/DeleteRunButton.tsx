@@ -16,21 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ButtonProps } from "@chakra-ui/react";
 import { useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
+
+import { IconButton } from "src/system-components";
+
 import DeleteDialog from "src/components/DeleteDialog";
-import { IconButton } from "src/components/ui";
+
 import { useDeleteDagRun } from "src/queries/useDeleteDagRun";
 
 type DeleteRunButtonProps = {
   readonly dagRun: DAGRunResponse;
-};
+} & ButtonProps;
 
-const DeleteRunButton = ({ dagRun }: DeleteRunButtonProps) => {
+const DeleteRunButton = ({ dagRun, ...rest }: DeleteRunButtonProps) => {
   const { onClose, onOpen, open } = useDisclosure();
   const navigate = useNavigate();
   const location = useLocation();
@@ -55,6 +59,7 @@ const DeleteRunButton = ({ dagRun }: DeleteRunButtonProps) => {
         colorPalette="danger"
         label={translate("dags:runAndTaskActions.delete.button", { type: translate("dagRun_one") })}
         onClick={onOpen}
+        {...rest}
       >
         <FiTrash2 />
       </IconButton>

@@ -27,6 +27,42 @@
 Changelog
 ---------
 
+9.6.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use parameterized queries in HiveStatsCollectionOperator (#66751)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable ruff B023 (function-uses-loop-variable) and fix violations (#70640)``
+   * ``Use common.compat.sdk for the remaining provider timezone imports (#71209)``
+   * ``Fix typos across contributor and provider documentation (#71884)``
+   * ``Collect the test classes pytest silently skipped (#71643)``
+   * ``Prepare providers release 2026-08-18 (#71794)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Update changelog with better wording (#71161)``
+
+9.6.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Move template-field checks out of __init__ in Hive sensors (#70334)``
+
+Misc
+~~~~
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+   * ``Limit pandas to < 3 for DataFrame XComs (#70791)``
+   * ``Revert "Limit pandas to < 3 for DataFrame XComs (#70791)" (#71100)``
+
 9.6.0
 .....
 
@@ -375,7 +411,7 @@ Misc
 .....
 
 .. note::
-  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+  This version contains no code changes. It was released to replace a previous version that was yanked due to a packaging issue.
 
 9.0.1
 .....

@@ -28,7 +28,7 @@ import pytest
 from airflow import DAG
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, timezone
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.common.sql.operators.sql import (
@@ -47,7 +47,6 @@ from airflow.providers.common.sql.operators.sql import (
 )
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils import timezone  # type: ignore[attr-defined]
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
@@ -1720,6 +1719,36 @@ class TestSQLColumnCheckOperatorBuildCheckResults:
     def test_get_match_tolerance_handles_negative_thresholds(self, check_values, record, tolerance, expected):
         op = self._make_operator({"col": {"min": {"geq_to": 1}}})
         assert op._get_match(check_values, record, tolerance) == expected
+
+    @pytest.mark.parametrize(
+        ("check_values", "record", "expected"),
+        [
+            ({"geq_to": "2020-01-01"}, "2021-06-30", True),
+            ({"geq_to": "2020-01-01"}, "2019-12-31", False),
+            ({"greater_than": "2020-01-01"}, "2020-01-01", False),
+            ({"leq_to": "2020-01-01"}, "2019-12-31", True),
+            ({"less_than": "2020-01-01"}, "2020-01-01", False),
+            ({"equal_to": "abc"}, "abc", True),
+            ({"equal_to": "abc"}, "abcd", False),
+            (
+                {"geq_to": datetime.date(2020, 1, 1), "leq_to": datetime.date(2020, 12, 31)},
+                datetime.date(2020, 6, 30),
+                True,
+            ),
+            (
+                {"geq_to": datetime.date(2020, 1, 1), "leq_to": datetime.date(2020, 12, 31)},
+                datetime.date(2021, 1, 1),
+                False,
+            ),
+        ],
+    )
+    def test_get_match_compares_non_numeric_bounds_without_tolerance(self, check_values, record, expected):
+        op = self._make_operator({"col": {"min": {"geq_to": 1}}})
+        assert op._get_match(check_values, record) == expected
+
+    def test_get_match_equal_to_fails_cleanly_on_none_record(self):
+        op = self._make_operator({"col": {"null_check": {"equal_to": 0}}}, accept_none=False)
+        assert op._get_match({"equal_to": 0}, None) is False
 
     def test_multiple_checks_correct_names_and_order(self):
         op = self._make_operator(

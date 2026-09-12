@@ -20,7 +20,7 @@ import json
 from unittest import mock
 
 import pytest
-from hvac.exceptions import InvalidPath, VaultError
+from hvac.exceptions import Forbidden, InvalidPath, VaultError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.hashicorp.secrets.vault import VaultBackend
@@ -587,7 +587,7 @@ class TestVaultSecrets:
     def test_auth_failure_raises_error(self, mock_hvac):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
-        mock_client.is_authenticated.return_value = False
+        mock_client.secrets.kv.v2.read_secret_version.side_effect = Forbidden("permission denied")
 
         kwargs = {
             "connections_path": "connections",

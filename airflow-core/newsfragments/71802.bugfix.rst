@@ -1,0 +1,1 @@
+Fixed ``VariableInterval`` deadline intervals to allow zero and negative offsets, matching the existing ``timedelta`` interval semantics. ``VariableInterval`` is now converted to the core-side ``SerializedVariableInterval`` representation during deadline deserialization and resolved during deadline evaluation.

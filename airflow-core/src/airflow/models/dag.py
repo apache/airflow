@@ -36,9 +36,9 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
-    and_,
     case,
     func,
+    inspect as sa_inspect,
     or_,
     select,
 )
@@ -60,7 +60,7 @@ from airflow._shared.timezones import timezone
 from airflow.assets.evaluation import AssetEvaluator
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException
-from airflow.models.asset import AssetDagRunQueue, AssetModel
+from airflow.models.asset import AssetDagRunQueue
 from airflow.models.base import Base, StringID
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
@@ -80,6 +80,7 @@ if TYPE_CHECKING:
     from typing import TypeAlias
 
     from dateutil.relativedelta import relativedelta
+    from sqlalchemy.orm.state import InstanceState
 
     from airflow.sdk import Context
     from airflow.serialization.definitions.assets import (
@@ -263,47 +264,6 @@ def get_last_dagrun(dag_id: str, session: Session, include_manually_triggered: b
     return session.scalar(query.limit(1))
 
 
-def get_asset_triggered_next_run_info(
-    dag_ids: list[str], *, session: Session
-) -> dict[str, dict[str, int | str]]:
-    """
-    Get next run info for a list of dag_ids.
-
-    Given a list of dag_ids, get string representing how close any that are asset triggered are to
-    their next run, e.g. "1 of 2 assets updated".
-    """
-    from airflow.models.asset import AssetDagRunQueue as ADRQ, DagScheduleAssetReference
-
-    return {
-        x.dag_id: {
-            "uri": x.uri,
-            "ready": x.ready,
-            "total": x.total,
-        }
-        for x in session.execute(
-            select(
-                DagScheduleAssetReference.dag_id,
-                # This is a dirty hack to workaround group by requiring an aggregate,
-                # since grouping by asset is not what we want to do here...but it works
-                case((func.count() == 1, func.max(AssetModel.uri)), else_="").label("uri"),
-                func.count().label("total"),
-                func.sum(case((ADRQ.target_dag_id.is_not(None), 1), else_=0)).label("ready"),
-            )
-            .join(
-                ADRQ,
-                and_(
-                    ADRQ.asset_id == DagScheduleAssetReference.asset_id,
-                    ADRQ.target_dag_id == DagScheduleAssetReference.dag_id,
-                ),
-                isouter=True,
-            )
-            .join(AssetModel, AssetModel.id == DagScheduleAssetReference.asset_id)
-            .group_by(DagScheduleAssetReference.dag_id)
-            .where(DagScheduleAssetReference.dag_id.in_(dag_ids))
-        ).all()
-    }
-
-
 class DagTag(Base):
     """A tag name per dag, to allow quick filtering in the DAG view."""
 
@@ -482,6 +442,28 @@ class DagModel(Base):
     dag_versions = relationship(
         "DagVersion", back_populates="dag_model", cascade="all, delete, delete-orphan"
     )
+    # Path from a Dag to its owning team, used by ``team_name`` below. ``lazy="raise"`` keeps the
+    # traversal opt-in so a caller that forgets eager_load_teams() cannot emit a silent N+1.
+    bundle = relationship("DagBundleModel", viewonly=True, lazy="raise")
+
+    @property
+    def team_name(self) -> str | None:
+        """Name of the team owning this Dag, or ``None`` when it is not team-owned."""
+        if not airflow_conf.getboolean("core", "multi_team"):
+            return None
+
+        state: InstanceState = sa_inspect(self)
+        if "bundle" in state.unloaded:
+            # Serialization paths that fetch a Dag by primary key cannot apply loader options
+            # (e.g. Deadline.handle_miss, asset materialization), so fall back to the cached
+            # resolver rather than tripping ``lazy="raise"``. Reuse this instance's own session:
+            # ``get_team_name`` is ``@provide_session``, and the session it would otherwise open
+            # is the *same* scoped session the caller holds, so closing it on exit would detach
+            # every object still in use.
+            if state.session is not None:
+                return DagModel.get_team_name(self.dag_id, session=state.session)
+            return DagModel.get_team_name(self.dag_id)
+        return self.bundle.team_name if self.bundle else None
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -854,17 +836,6 @@ class DagModel(Base):
             next_dagrun_partition_key=self.next_dagrun_partition_key,
             next_dagrun_partition_date=str(self.next_dagrun_partition_date),
         )
-
-    @provide_session
-    def get_asset_triggered_next_run_info(
-        self, *, session: Session = NEW_SESSION
-    ) -> dict[str, int | str] | None:
-        if self.asset_expression is None:
-            return None
-
-        # When an asset alias does not resolve into assets, get_asset_triggered_next_run_info returns
-        # an empty dict as there's no asset info to get. This method should thus return None.
-        return get_asset_triggered_next_run_info([self.dag_id], session=session).get(self.dag_id, None)
 
     @staticmethod
     @cached(_team_name_cache, key=lambda dag_id, **_: dag_id, lock=_team_name_cache_lock)

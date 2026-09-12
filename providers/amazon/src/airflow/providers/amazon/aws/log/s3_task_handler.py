@@ -44,6 +44,7 @@ class S3RemoteLogIO(LoggingMixin):  # noqa: D101
     remote_base: str
     base_log_folder: pathlib.Path = attrs.field(converter=pathlib.Path)
     delete_local_copy: bool
+    acl_policy: str | None = None
 
     processors = ()
 
@@ -68,6 +69,7 @@ class S3RemoteLogIO(LoggingMixin):  # noqa: D101
                 "base_log_folder": os.path.expanduser(conf.get_mandatory_value("logging", "base_log_folder")),
                 "remote_base": conf.get_mandatory_value("logging", "remote_base_log_folder"),
                 "delete_local_copy": conf.getboolean("logging", "delete_local_logs"),
+                "acl_policy": conf.get("aws", "s3_task_handler_acl_policy", fallback=None) or None,
             }
             | io_kwargs,
         )
@@ -161,6 +163,8 @@ class S3RemoteLogIO(LoggingMixin):  # noqa: D101
         extra_args = {}
         if conf.getboolean("logging", "ENCRYPT_S3_LOGS"):
             extra_args["ServerSideEncryption"] = "AES256"
+        if self.acl_policy:
+            extra_args["ACL"] = self.acl_policy
 
         # Default to a single retry attempt because s3 upload failures are
         # rare but occasionally occur.  Multiple retry attempts are unlikely
@@ -234,6 +238,9 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
             base_log_folder=base_log_folder,
             delete_local_copy=kwargs.get(
                 "delete_local_copy", conf.getboolean("logging", "delete_local_logs")
+            ),
+            acl_policy=kwargs.get(
+                "acl_policy", conf.get("aws", "s3_task_handler_acl_policy", fallback=None) or None
             ),
         )
 

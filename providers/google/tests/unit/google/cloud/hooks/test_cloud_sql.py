@@ -1918,6 +1918,31 @@ class TestCloudSqlProxyRunner:
         with pytest.raises(ValueError, match="The sql_proxy_version should match the regular expression"):
             runner._get_sql_proxy_download_url()
 
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.httpx2.get")
+    def test_download_sql_proxy_follows_redirects(self, mock_get, tmp_path):
+        """The download URL redirects, so the request must opt in to following them."""
+        mock_get.return_value = mock.Mock(status_code=200, content=b"binary")
+        runner = CloudSqlProxyRunner(
+            path_prefix=str(tmp_path / "12345678"),
+            instance_specification="project:us-east-1:instance",
+        )
+
+        runner._download_sql_proxy_if_needed()
+
+        mock_get.assert_called_once_with(runner._get_sql_proxy_download_url(), follow_redirects=True)
+        assert runner.sql_proxy_was_downloaded is True
+
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.httpx2.get")
+    def test_download_sql_proxy_raises_on_error_status(self, mock_get, tmp_path):
+        mock_get.return_value = mock.Mock(status_code=404, content=b"", reason_phrase="Not Found")
+        runner = CloudSqlProxyRunner(
+            path_prefix=str(tmp_path / "12345678"),
+            instance_specification="project:us-east-1:instance",
+        )
+
+        with pytest.raises(AirflowException, match="Status code = 404. Reason = Not Found"):
+            runner._download_sql_proxy_if_needed()
+
     def test_cloud_sql_proxy_runner_adds_enable_iam_login_flag(self):
         runner = CloudSqlProxyRunner(
             path_prefix="12345678",

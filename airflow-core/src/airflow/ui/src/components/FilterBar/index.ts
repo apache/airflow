@@ -19,7 +19,11 @@
 export { FilterBar } from "./FilterBar";
 export { FilterPill, type FilterPillInputProps } from "./FilterPill";
 export { defaultFilterIcons, getDefaultFilterIcon } from "./defaultIcons";
+export { BooleanFilter } from "./filters/BooleanFilter";
 export { DateFilter } from "./filters/DateFilter";
+export { MultiSelectFilter } from "./filters/MultiSelectFilter";
 export { NumberFilter } from "./filters/NumberFilter";
+export { TagsFilter } from "./filters/TagsFilter";
 export { TextSearchFilter } from "./filters/TextSearchFilter";
+export { TimetableTypeFilter } from "./filters/TimetableTypeFilter";
 export type * from "./types";

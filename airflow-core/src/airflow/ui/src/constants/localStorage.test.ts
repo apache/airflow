@@ -18,7 +18,11 @@
  */
 import { afterEach, describe, expect, it } from "vitest";
 
-import { pruneLegacyDependencyKeys, SHOW_ALL_DEPENDENCIES_KEY } from "./localStorage";
+import {
+  pruneLegacyDependencyKeys,
+  pruneLegacyTagFilterKeys,
+  SHOW_ALL_DEPENDENCIES_KEY,
+} from "./localStorage";
 
 describe("pruneLegacyDependencyKeys", () => {
   afterEach(() => {
@@ -46,6 +50,32 @@ describe("pruneLegacyDependencyKeys", () => {
     pruneLegacyDependencyKeys();
 
     expect(globalThis.localStorage.getItem(SHOW_ALL_DEPENDENCIES_KEY)).toBe("false");
+    expect(globalThis.localStorage.length).toBe(1);
+  });
+});
+
+describe("pruneLegacyTagFilterKeys", () => {
+  afterEach(() => {
+    globalThis.localStorage.clear();
+  });
+
+  it("removes the legacy tag-filter keys, leaving everything else intact", () => {
+    globalThis.localStorage.setItem("tags", JSON.stringify(["a", "b"]));
+    globalThis.localStorage.setItem("tags_match_mode", JSON.stringify("all"));
+    globalThis.localStorage.setItem(SHOW_ALL_DEPENDENCIES_KEY, "true");
+
+    pruneLegacyTagFilterKeys();
+
+    expect(globalThis.localStorage.getItem("tags")).toBeNull();
+    expect(globalThis.localStorage.getItem("tags_match_mode")).toBeNull();
+    expect(globalThis.localStorage.getItem(SHOW_ALL_DEPENDENCIES_KEY)).toBe("true");
+  });
+
+  it("is a no-op when there are no legacy keys", () => {
+    globalThis.localStorage.setItem(SHOW_ALL_DEPENDENCIES_KEY, "false");
+
+    pruneLegacyTagFilterKeys();
+
     expect(globalThis.localStorage.length).toBe(1);
   });
 });

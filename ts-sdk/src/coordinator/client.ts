@@ -22,7 +22,7 @@ import type { LogChannel } from "./log-channel.js";
 import type { TaskContext } from "../sdk/task.js";
 import type { TaskClient } from "../sdk/client.js";
 import type { ConnectionResult, GetXComOpts, SetXComOpts } from "../sdk/client-types.js";
-import { VariableNotFoundError } from "../sdk/client.js";
+import { ConnectionNotFoundError, VariableNotFoundError } from "../sdk/client.js";
 import type {
   GetVariable,
   GetXCom,
@@ -137,6 +137,12 @@ export function createCoordinatorClient(
       return rpc("GetConnection", "ConnectionResult", msg, (body) =>
         fromWireConnection(body as unknown as WireConnectionResult),
       );
+    },
+
+    async getConnectionOrThrow(connId: string): Promise<ConnectionResult> {
+      const connection = await client.getConnection(connId);
+      if (connection == null) throw new ConnectionNotFoundError(connId);
+      return connection;
     },
   };
   return client;

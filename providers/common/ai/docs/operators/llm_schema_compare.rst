@@ -114,6 +114,27 @@ The callable may also return a non-empty ``Sequence[UserContent]`` for
 multimodal inputs -- see
 :ref:`@task.agent multimodal prompts <howto/operator:agent-multimodal>`.
 
+Human-in-the-Loop Approval
+--------------------------
+
+Set ``require_approval=True`` to pause the task after the comparison and wait
+for a human reviewer to approve the result before it is returned. The review
+body shows the compatibility verdict, a mismatch severity summary, and the
+full result JSON. Rejecting the review, or letting ``approval_timeout``
+expire, fails the task:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_schema_compare.py
+    :language: python
+    :start-after: [START howto_operator_llm_schema_compare_approval]
+    :end-before: [END howto_operator_llm_schema_compare_approval]
+
+``require_approval=True`` requires a string prompt: a decorated callable
+returning a ``Sequence[UserContent]`` raises ``TypeError`` before the LLM
+call.
+
+``approval_timeout``, ``allow_modifications``, and the rest of the approval
+behaviour are inherited from :ref:`LLMOperator <howto/operator:llm>`.
+
 Conditional ETL Based on Schema Compatibility
 ----------------------------------------------
 
@@ -166,6 +187,12 @@ Parameters
   catalog-managed sources.
 - ``context_strategy``: To fetch primary keys, foreign keys, and indexes.``full`` or ``basic``,
   strongly recommended for cross-system comparisons. default is ``full``
+- ``require_approval``: If ``True``, the task pauses after the comparison and
+  waits for human review before returning the result.  Default ``False``.
+- ``approval_timeout``: Maximum time to wait for a review (``timedelta``).  ``None``
+  means wait indefinitely.  Default ``None``.
+- ``allow_modifications``: If ``True``, the reviewer can edit the result JSON
+  before approving.  Default ``False``.
 
 Logging
 -------

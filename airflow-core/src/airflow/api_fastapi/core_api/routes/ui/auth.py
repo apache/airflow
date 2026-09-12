@@ -22,6 +22,7 @@ import logging
 from fastapi import Depends
 
 from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.auth import (
     AuthenticatedMeResponse,
@@ -55,11 +56,17 @@ def get_auth_menus(
 @auth_router.get("/auth/me")
 def get_current_user_info(
     user: GetUserDep,
+    session: SessionDep,
 ) -> AuthenticatedMeResponse:
     """Convienently get the current authenticated user information."""
+    teams = None
+    if conf.getboolean("core", "multi_team"):
+        teams = sorted(get_auth_manager().get_authorized_teams(user=user, session=session))
+
     return AuthenticatedMeResponse(
         id=user.get_id(),
         username=user.get_name(),
+        teams=teams,
     )
 
 

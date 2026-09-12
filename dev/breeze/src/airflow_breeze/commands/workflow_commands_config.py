@@ -18,7 +18,7 @@ from __future__ import annotations
 
 WORKFLOW_RUN_COMMANDS: dict[str, str | list[str]] = {
     "name": "Airflow github actions workflow commands",
-    "commands": ["publish-docs"],
+    "commands": ["publish-docs", "release-constraints"],
 }
 
 WORKFLOW_RUN_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
@@ -55,3 +55,13 @@ WORKFLOW_RUN_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         },
     ],
 }
+WORKFLOW_RUN_PARAMETERS["breeze workflow-run release-constraints"] = [
+    {
+        "name": "Constraints to resolve",
+        "options": [
+            "--version",
+            "--ref",
+            "--workflow-branch",
+        ],
+    },
+]

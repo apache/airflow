@@ -21,12 +21,14 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { UIAlert } from "openapi/requests/types.gen";
+
 import { Wrapper } from "src/utils/Wrapper";
 
 import { AlertContent } from "./AlertContent";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
+    i18n: { language: "en" },
     // eslint-disable-next-line id-length
     t: (key: string) =>
       key === "alerts.seeMoreContext" ? "See more" : key === "alerts.seeLessContext" ? "See less" : key,

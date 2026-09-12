@@ -27,6 +27,42 @@
 Changelog
 ---------
 
+6.9.1
+.....
+
+Misc
+~~~~
+
+* ``Use common.compat.sdk for the remaining provider timezone imports (#71209)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare providers release 2026-08-18 (#71794)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Update changelog with better wording (#71161)``
+
+6.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add ElasticsearchRemoteLogIO.from_config and register elasticsearch scheme (#70525)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Do not show @timestamp in logs in UI (#70790)``
+
+Doc-only
+~~~~~~~~
+
+* ``Clarify Elasticsearch remote-logging scheme needs Airflow 3.3.0+ (#70920)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+
 6.8.1
 .....
 
@@ -445,7 +481,7 @@ Misc
 .....
 
 .. note::
-  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+  This version contains no code changes. It was released to replace a previous version that was yanked due to a packaging issue.
 
 
 6.1.0

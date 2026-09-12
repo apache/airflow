@@ -25,7 +25,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/apache/airflow/go-sdk/pkg/api"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
@@ -42,7 +41,7 @@ func newMockXComClient() *mockXComClient {
 
 func (m *mockXComClient) PushXCom(
 	ctx context.Context,
-	ti api.TaskInstance,
+	ti sdk.TaskInstance,
 	key string,
 	value any,
 ) error {

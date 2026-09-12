@@ -154,7 +154,7 @@ def create_dag_runs(dag, num_runs, session):
     """
     Create  `num_runs` of dag runs for sub-sequent schedules
     """
-    from airflow.utils import timezone
+    from airflow.sdk import timezone
     from airflow.utils.state import DagRunState
 
     try:

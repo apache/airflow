@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { PropsWithChildren } from "react";
+
 import "@testing-library/jest-dom/vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import i18n from "i18next";
 import type { DagTagResponse, DAGWithLatestDagRunsResponse } from "openapi-gen/requests/types.gen";
-import type { PropsWithChildren } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, it, vi, expect, beforeAll } from "vitest";
 

@@ -54,7 +54,13 @@ from pathlib import Path
 import yaml
 from extract_metadata import fetch_provider_inventory, read_inventory
 from registry_contract_models import validate_modules_catalog, validate_provider_parameters
-from registry_tools.types import BASE_CLASS_IMPORTS, CLASS_LEVEL_SECTIONS, MODULE_LEVEL_SECTIONS
+from registry_tools.types import (
+    BASE_CLASS_IMPORTS,
+    CLASS_LEVEL_CATEGORY_OVERRIDES,
+    CLASS_LEVEL_SECTIONS,
+    DICT_SHAPED_CLASS_LEVEL_SECTIONS,
+    MODULE_LEVEL_SECTIONS,
+)
 
 AIRFLOW_ROOT = Path(__file__).parent.parent.parent
 SCRIPT_DIR = Path(__file__).parent
@@ -354,9 +360,9 @@ def _should_skip_class(name: str) -> bool:
     return False
 
 
-def _get_first_docstring_line(cls: type) -> str | None:
+def _get_first_docstring_line(obj: object) -> str | None:
     """Return the first non-empty line of a class docstring, or None."""
-    doc = getattr(cls, "__doc__", None)
+    doc = getattr(obj, "__doc__", None)
     if not doc:
         return None
     for line in doc.strip().splitlines():
@@ -424,6 +430,27 @@ def is_durable_capable(cls: type, resumable_mixin: type | None) -> bool:
         return False
 
     return "execute_resumable" in source
+
+
+def _resolve_dotted_path(class_path: str) -> tuple[str, str, object] | None:
+    """Split a dotted ``module.name`` path and import ``name`` from that module.
+
+    Returns ``None`` (without logging) if ``class_path`` has no dot, or ``None``
+    (after logging a warning) if the module import fails. Otherwise returns
+    ``(module_path, name, obj)``, where ``obj`` may be ``None`` if the module
+    has no such attribute — callers decide how to treat a missing attribute.
+    """
+    parts = class_path.rsplit(".", 1)
+    if len(parts) != 2:
+        return None
+    module_path, name = parts
+    try:
+        mod = importlib.import_module(module_path)
+        obj = getattr(mod, name, None)
+    except Exception:
+        log.warning("Could not import %s", class_path)
+        return None
+    return module_path, name, obj
 
 
 def discover_classes_from_provider(
@@ -583,28 +610,13 @@ def discover_classes_from_provider(
         for class_path in provider_yaml.get(section_name, []):
             if not class_path or not isinstance(class_path, str):
                 continue
-            parts = class_path.rsplit(".", 1)
-            if len(parts) != 2:
+            if (resolved := _resolve_dotted_path(class_path)) is None:
                 continue
-            module_path, class_name = parts
-            try:
-                mod = importlib.import_module(module_path)
-                candidate = getattr(mod, class_name, None)
-            except Exception:
-                log.warning("Could not import %s", class_path)
-                continue
+            module_path, class_name, candidate = resolved
             if candidate is None or not inspect.isclass(candidate):
                 log.warning("%s is not a class", class_path)
                 continue
             cls = candidate
-
-            # Use section name as category for class-level entries
-            category_map = {
-                "notifications": "notifications",
-                "secrets-backends": "secrets",
-                "logging": "logging",
-                "executors": "executors",
-            }
 
             discovered.append(
                 make_entry(
@@ -613,29 +625,52 @@ def discover_classes_from_provider(
                     module_type,
                     class_path,
                     module_path,
-                    category=category_map.get(section_name, section_name),
+                    category=CLASS_LEVEL_CATEGORY_OVERRIDES.get(section_name, section_name),
+                )
+            )
+
+    # --- Dict-shaped class-level sections (plugins, dialects; each entry is a
+    # dict carrying an integration-name field plus a class-path field, see types.py) ---
+    for section_name, (
+        module_type,
+        class_field,
+        integration_field,
+    ) in DICT_SHAPED_CLASS_LEVEL_SECTIONS.items():
+        for entry in provider_yaml.get(section_name, []):
+            if not isinstance(entry, dict):
+                continue
+            if not (class_path := entry.get(class_field, "")):
+                continue
+            if (resolved := _resolve_dotted_path(class_path)) is None:
+                continue
+            module_path, class_name, candidate = resolved
+            if candidate is None or not inspect.isclass(candidate):
+                log.warning("%s is not a class", class_path)
+                continue
+
+            discovered.append(
+                make_entry(
+                    candidate,
+                    class_name,
+                    module_type,
+                    class_path,
+                    module_path,
+                    integration=entry.get(integration_field, ""),
+                    category=CLASS_LEVEL_CATEGORY_OVERRIDES.get(section_name, section_name),
                 )
             )
 
     # --- Task decorators (class-name key in each entry) ---
     for decorator in provider_yaml.get("task-decorators", []):
-        class_path = decorator.get("class-name", "")
-        decorator_name = decorator.get("name", "")
-        if not class_path:
+        if not (class_path := decorator.get("class-name", "")):
             continue
-        parts = class_path.rsplit(".", 1)
-        if len(parts) != 2:
+        if (resolved := _resolve_dotted_path(class_path)) is None:
             continue
-        module_path, func_name = parts
-        try:
-            mod = importlib.import_module(module_path)
-            obj = getattr(mod, func_name, None)
-        except Exception:
-            log.warning("Could not import %s", class_path)
-            continue
+        module_path, func_name, obj = resolved
         if obj is None:
             continue
 
+        decorator_name = decorator.get("name", "")
         display_name = f"@task.{decorator_name}" if decorator_name else func_name
         docstring = _get_first_docstring_line(obj) if hasattr(obj, "__doc__") else None
         short_desc = docstring or f"Task decorator for {decorator_name or func_name}"

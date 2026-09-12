@@ -17,6 +17,7 @@
  * under the License.
  */
 import { testConfig } from "playwright.config";
+
 import { expect } from "tests/e2e/fixtures";
 import { test } from "tests/e2e/fixtures/dashboard-data";
 
