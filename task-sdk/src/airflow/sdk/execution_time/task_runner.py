@@ -359,7 +359,7 @@ class RuntimeTaskInstance(TaskInstance):
                 "partition_key": dag_run.partition_key,
                 "partition_date": coerce_datetime(dag_run.partition_date),
                 "triggering_asset_events": TriggeringAssetEventsAccessor.build(
-                    AssetEventDagRunReferenceResult.from_asset_event_dag_run_reference(event)
+                    AssetEventDagRunReferenceResult.from_api_response(event)
                     for event in dag_run.consumed_asset_events
                 ),
                 "task_instance_key_str": f"{self.task.dag_id}__{self.task.task_id}__{dag_run.run_id}",

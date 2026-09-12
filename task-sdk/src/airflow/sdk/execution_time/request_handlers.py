@@ -104,7 +104,7 @@ def handle_get_variable(client: Client, msg: GetVariable) -> tuple[BaseModel | N
     if isinstance(var, VariableResponse):
         if var.value:
             mask_secret(var.value, var.key)
-        return VariableResult.from_variable_response(var), {"exclude_unset": True}
+        return VariableResult.from_api_response(var), {"exclude_unset": True}
     return var, {}
 
 
@@ -234,7 +234,7 @@ def handle_get_prev_successful_dag_run(
 ) -> tuple[BaseModel | None, dict[str, bool]]:
     """Fetch the previous successful dag run using the caller's current id."""
     dagrun_resp = client.task_instances.get_previous_successful_dagrun(subprocess_id)
-    dagrun_result = PrevSuccessfulDagRunResult.from_dagrun_response(dagrun_resp)
+    dagrun_result = PrevSuccessfulDagRunResult.from_api_response(dagrun_resp)
     return dagrun_result, {"exclude_unset": True}
 
 
@@ -279,7 +279,7 @@ def handle_get_xcom(client: Client, msg: GetXCom) -> tuple[BaseModel | None, dic
         msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index, msg.include_prior_dates
     )
     if isinstance(xcom, XComResponse):
-        xcom_result = XComResult.from_xcom_response(xcom)
+        xcom_result = XComResult.from_api_response(xcom)
         return xcom_result, {"exclude_unset": True}
     return xcom, {}
 
@@ -293,7 +293,7 @@ def handle_get_asset_state_store_by_name(
     )
 
     if isinstance(asset_state, AssetStateStoreResponse):
-        return AssetStateStoreResult.from_asset_state_store_response(asset_state), {}
+        return AssetStateStoreResult.from_api_response(asset_state), {}
 
     return asset_state, {}
 
@@ -307,7 +307,7 @@ def handle_get_asset_state_store_by_uri(
     )
 
     if isinstance(asset_state, AssetStateStoreResponse):
-        return AssetStateStoreResult.from_asset_state_store_response(asset_state), {}
+        return AssetStateStoreResult.from_api_response(asset_state), {}
 
     return asset_state, {}
 
