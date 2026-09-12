@@ -1,0 +1,1 @@
+Recover Triggerer triggers that the supervisor tracked as running but for which the runner had no live coroutine. Their task instances previously stayed in ``deferred`` indefinitely; the trigger is now re-created on the next sync so the task can resume. A new ``triggers.state_mismatch`` counter is emitted when this is detected.
