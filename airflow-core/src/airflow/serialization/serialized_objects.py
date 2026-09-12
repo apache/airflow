@@ -611,7 +611,7 @@ class BaseSerialization:
             return cls._encode(cls._serialize_param(var), type_=DAT.PARAM)
         elif isinstance(var, XComArg):
             return cls._encode(serialize_xcom_arg(var), type_=DAT.XCOM_REF)
-        elif isinstance(var, (DagParam, SerializedDagParam)):
+        elif isinstance(var, DagParam):
             payload = var.serialize()
             payload["default"] = cls.serialize(payload["default"], strict=strict)
             return cls._encode(payload, type_=DAT.DAG_PARAM)
@@ -1110,10 +1110,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                     )
                 value = getattr(op, template_field, None)
                 if not cls._is_excluded(value, template_field, op):
-                    if isinstance(value, (DagParam, SerializedDagParam)):
-                        serialize_op[template_field] = cls.serialize(value)
-                    else:
-                        serialize_op[template_field] = serialize_template_field(value, template_field)
+                    serialize_op[template_field] = serialize_template_field(value, template_field)
 
         if op.params:
             serialize_op["params"] = cls._serialize_params_dict(op.params)
@@ -1173,8 +1170,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
             v = v_in  # surpass PLW2901
             # Use centralized field deserialization logic
             if k in encoded_op.get("template_fields", []):
-                if isinstance(v, dict) and v.get(Encoding.TYPE) == DAT.DAG_PARAM and Encoding.VAR in v:
-                    v = cls.deserialize(v)
+                pass  # Template fields are handled separately
             elif k == "_operator_extra_links":
                 if cls._load_operator_extra_links:
                     op_predefined_extra_links = cls._deserialize_operator_extra_links(v)

@@ -19,9 +19,10 @@
 from __future__ import annotations
 
 import collections.abc
-import contextlib
 import copy
 from typing import TYPE_CHECKING, Any, Literal
+
+import attrs
 
 from airflow.exceptions import ParamValidationError
 from airflow.serialization.definitions.notset import NOTSET, is_arg_set
@@ -83,42 +84,13 @@ class SerializedParam:
         }
 
 
+@attrs.define(kw_only=True)
 class SerializedDagParam:
-    """
-    Scheduler-side DagParam: a late-bound name, not a schema Param.
+    """Scheduler-side DagParam: a late-bound name, not a schema Param."""
 
-    ``resolve()`` matches SDK ``DagParam.resolve``: ``dag_run.conf``, then the
-    serialized default, then ``context["params"]``.
-    """
-
-    def __init__(self, *, dag_id: str, name: str, default: Any = NOTSET):
-        self.dag_id = dag_id
-        self.name = name
-        self.default = default
-
-    def iter_references(self):
-        return ()
-
-    def resolve(self, context: Mapping[str, Any]) -> Any:
-        """Pull the DagParam value from Dag run context."""
-        with contextlib.suppress(KeyError):
-            if context["dag_run"].conf:
-                return context["dag_run"].conf[self.name]
-        if self.default is not NOTSET:
-            return self.default
-        with contextlib.suppress(KeyError):
-            return context["params"][self.name]
-        raise RuntimeError(f"No value could be resolved for parameter {self.name}")
-
-    def serialize(self) -> dict[str, Any]:
-        return {
-            "dag_id": self.dag_id,
-            "name": self.name,
-            "default": self.default,
-        }
-
-    def __repr__(self) -> str:
-        return f"SerializedDagParam(dag_id={self.dag_id!r}, name={self.name!r})"
+    dag_id: str
+    name: str
+    default: Any = NOTSET
 
 
 def _coerce_param(v: Any) -> SerializedParam:

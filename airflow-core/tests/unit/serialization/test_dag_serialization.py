@@ -5133,8 +5133,7 @@ class TestWeightRule:
 def _encoded_dag_params(obj):
     found = []
     if isinstance(obj, dict):
-        type_ = obj.get(Encoding.TYPE, obj.get("__type"))
-        if type_ in (DagAttributeTypes.DAG_PARAM, "dag_param"):
+        if obj.get(Encoding.TYPE) == DagAttributeTypes.DAG_PARAM:
             found.append(obj)
         for value in obj.values():
             found.extend(_encoded_dag_params(value))
@@ -5196,19 +5195,6 @@ def test_dagparam_in_mapped_operator_partial():
     assert arg1.default == "from_partial"
 
 
-def test_dagparam_in_non_mapped_operator_field():
-    with DAG("test-dagparam-plain", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
-        MockOperator(task_id="t", arg1=dag.param("subject", "Hi from Airflow!"))
-
-    serialized = DagSerialization.to_dict(dag)
-    assert "object at 0x" not in json.dumps(serialized).lower()
-    restored = DagSerialization.from_dict(serialized)
-    arg1 = restored.task_dict["t"].arg1
-    assert isinstance(arg1, SerializedDagParam)
-    assert arg1.name == "subject"
-    assert arg1.default == "Hi from Airflow!"
-
-
 def test_dagparam_notset_default_is_not_stringified():
     with DAG("test-dagparam-notset", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
         param = dag.param("p")
@@ -5252,48 +5238,3 @@ def test_two_dagparams_in_one_partial():
     assert isinstance(op_kwargs["right"], SerializedDagParam)
     assert op_kwargs["left"].name == "left"
     assert op_kwargs["right"].name == "right"
-
-
-def test_serialized_dagparam_resolve_prefers_dag_run_conf():
-    param = SerializedDagParam(dag_id="d", name="p", default="from_default")
-    context = {
-        "dag_run": type("DR", (), {"conf": {"p": "from_conf"}})(),
-        "params": {"p": "from_params"},
-    }
-    assert param.resolve(context) == "from_conf"
-    context["dag_run"].conf = {}
-    assert param.resolve(context) == "from_default"
-    param_notset = SerializedDagParam(dag_id="d", name="p")
-    assert param_notset.resolve(
-        {"dag_run": type("DR", (), {"conf": {}})(), "params": {"p": "from_params"}}
-    ) == ("from_params")
-
-
-def test_serialized_dagparam_resolve_skips_conf_when_name_missing():
-    param = SerializedDagParam(dag_id="d", name="p", default="from_default")
-    context = {
-        "dag_run": type("DR", (), {"conf": {"other": "x"}})(),
-        "params": {"p": "from_params"},
-    }
-    assert param.resolve(context) == "from_default"
-
-
-def test_serialized_dagparam_resolve_raises_when_unresolved():
-    param = SerializedDagParam(dag_id="d", name="p")
-    with pytest.raises(RuntimeError, match="No value could be resolved for parameter p"):
-        param.resolve({"dag_run": type("DR", (), {"conf": {}})(), "params": {}})
-
-
-def test_dagparam_nested_in_taskflow_call_is_address_stable():
-    from airflow.sdk import task
-
-    with DAG("test-dagparam-nested-call", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
-
-        @task
-        def do(something):
-            return something
-
-        do(dag.param("some", "some_default_val"))
-
-    blob = json.dumps(DagSerialization.to_dict(dag))
-    assert "object at 0x" not in blob.lower()
