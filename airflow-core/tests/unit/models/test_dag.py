@@ -1221,8 +1221,8 @@ class TestDag:
             )
 
             # should not raise any exception
-        dag_run.execute_dag_callbacks(dag=dag, success=False)
-        dag_run.execute_dag_callbacks(dag=dag, success=True)
+            dag_run.execute_dag_callbacks(dag=dag, success=False, session=session)
+            dag_run.execute_dag_callbacks(dag=dag, success=True, session=session)
 
         mock_incr.assert_called_with(
             "dag.callback_exceptions",
@@ -1262,8 +1262,8 @@ class TestDag:
             assert dag_run.get_task_instance(task_removed.task_id).state == TaskInstanceState.REMOVED
 
             # should not raise any exception
-            dag_run.execute_dag_callbacks(dag=dag, success=False)
-            dag_run.execute_dag_callbacks(dag=dag, success=True)
+            dag_run.execute_dag_callbacks(dag=dag, success=False, session=session)
+            dag_run.execute_dag_callbacks(dag=dag, success=True, session=session)
 
     @time_machine.travel(timezone.datetime(2025, 11, 11))
     @pytest.mark.parametrize(

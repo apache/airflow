@@ -3002,6 +3002,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 relevant_ti=last_unfinished_ti,
                 reason="timed_out",
                 execute=False,
+                session=session,
             )
 
             # Team name should be added before listeners are called in notify_dagrun_state_changed()
