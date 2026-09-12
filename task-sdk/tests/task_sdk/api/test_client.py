@@ -1213,6 +1213,7 @@ class TestAssetEventOperations:
                         "run_id": "queued_run",
                         "logical_date": "2023-01-01T00:00:00Z",
                         "start_date": None,
+                        "run_after": "2023-01-01T00:00:00Z",
                         "end_date": None,
                         "state": "queued",
                         "data_interval_start": None,

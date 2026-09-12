@@ -1,0 +1,1 @@
+Task SDK clients no longer fail reading ``inlet_events`` when an asset event created a Dag run that has not started yet. The Execution API returned a null ``start_date`` for such a run at every negotiated API version, which every released Task SDK rejects. Older versions now receive a non-null value again.

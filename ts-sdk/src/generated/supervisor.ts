@@ -38,6 +38,7 @@ export type RunId = string;
 export type DagId = string;
 export type LogicalDate = string | null;
 export type StartDate = string | null;
+export type RunAfter = string;
 export type EndDate = string | null;
 export type State = string;
 export type DataIntervalStart = string | null;
@@ -132,7 +133,7 @@ export type RunId2 = string;
 export type LogicalDate1 = string | null;
 export type DataIntervalStart1 = string | null;
 export type DataIntervalEnd1 = string | null;
-export type RunAfter = string;
+export type RunAfter1 = string;
 export type StartDate1 = string | null;
 export type EndDate1 = string | null;
 export type ClearNumber = number;
@@ -291,7 +292,7 @@ export type RunId4 = string;
 export type LogicalDate2 = string | null;
 export type DataIntervalStart2 = string | null;
 export type DataIntervalEnd2 = string | null;
-export type RunAfter1 = string;
+export type RunAfter2 = string;
 export type StartDate3 = string | null;
 export type EndDate2 = string | null;
 export type ClearNumber1 = number | null;
@@ -600,7 +601,7 @@ export type RenderedMapIndex5 = string | null;
 export type Type79 = "TaskStateStoreResult";
 export type Type80 = "TaskStatesResult";
 export type LogicalDate6 = string | null;
-export type RunAfter2 = string | null;
+export type RunAfter3 = string | null;
 export type Conf2 = {
   [k: string]: unknown;
 } | null;
@@ -686,6 +687,7 @@ export interface DagRunAssetReference {
   dag_id: DagId;
   logical_date: LogicalDate;
   start_date: StartDate;
+  run_after: RunAfter;
   end_date: EndDate;
   state: State;
   data_interval_start: DataIntervalStart;
@@ -912,7 +914,7 @@ export interface DagRun {
   logical_date: LogicalDate1;
   data_interval_start: DataIntervalStart1;
   data_interval_end: DataIntervalEnd1;
-  run_after: RunAfter;
+  run_after: RunAfter1;
   start_date: StartDate1;
   end_date: EndDate1;
   clear_number?: ClearNumber;
@@ -1149,7 +1151,7 @@ export interface DagRunResult {
   logical_date: LogicalDate2;
   data_interval_start: DataIntervalStart2;
   data_interval_end: DataIntervalEnd2;
-  run_after: RunAfter1;
+  run_after: RunAfter2;
   start_date: StartDate3;
   end_date: EndDate2;
   clear_number?: ClearNumber1;
@@ -1853,7 +1855,7 @@ export interface TaskStates {
  */
 export interface TriggerDagRun {
   logical_date?: LogicalDate6;
-  run_after?: RunAfter2;
+  run_after?: RunAfter3;
   conf?: Conf2;
   reset_dag_run?: ResetDagRun;
   partition_key?: PartitionKey7;
