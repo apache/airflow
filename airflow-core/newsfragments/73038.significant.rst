@@ -6,6 +6,11 @@ build (the OS dependency layer of the production image went from roughly 210s to
 cache-disabled build). Python still lives in ``/usr/python``, which is now a symlink to the ``/opt/python``
 location the base image uses, so paths inside the image are unchanged.
 
+The hardened images ship the standard library without any ``.pyc`` files, so the image build compiles it.
+Without that, every standard library import would miss the bytecode cache and be unable to populate it -
+the standard library is owned by root and the image runs as ``airflow`` - and each miss leaks a negative
+dentry, which is the memory growth that was fixed for the previous images in #58944.
+
 The ``BASE_IMAGE`` build argument now defaults to ``ghcr.io/apache/airflow/base/python:<version>-debian12-dev``,
 Airflow's public mirror of the upstream ``dhi.io/python`` image - building an image needs no registry
 credentials. Anyone overriding ``BASE_IMAGE`` with a plain ``debian:bookworm-slim`` image has to switch to

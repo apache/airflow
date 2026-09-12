@@ -338,6 +338,21 @@ function link_python() {
     ldconfig
 }
 
+function compile_python_stdlib() {
+    # The hardened base images ship the standard library with no .pyc files at all. Python then misses
+    # the bytecode cache on every stdlib import, and in a read-only or non-writable directory it cannot
+    # create one - each miss leaves a negative dentry in the kernel, which grows without bound in a
+    # long-running container and can exhaust memory on the host. Compiling the standard library here
+    # restores what the previously compiled-in-image Python shipped.
+    # See https://github.com/apache/airflow/pull/58944 and https://lwn.net/Articles/814535/
+    local stdlib
+    stdlib="$(/usr/python/bin/python -c 'import sysconfig; print(sysconfig.get_paths()["stdlib"])')"
+    echo "Compiling Python standard library in ${stdlib}"
+    # compileall exits non-zero when any file fails to compile, and the standard library ships files
+    # that are meant not to compile (deliberately broken syntax used by the test suite).
+    /usr/python/bin/python -m compileall -q -j "$(nproc)" -o 0 -o 1 -o 2 "${stdlib}" || true
+}
+
 function check_no_system_python() {
     # Python comes from the hardened base image (in /opt/python) and must stay the only Python in the
     # image. A system Python pulled in as a dependency of an apt package shares its shared libraries
@@ -380,6 +395,7 @@ function install_debian_runtime_dependencies() {
     apt-get clean
     check_no_system_python
     link_python
+    compile_python_stdlib
     rm -rf /var/lib/apt/lists/* /var/log/*
 }
 
@@ -478,6 +494,7 @@ else
     install_debian_dev_dependencies
     check_no_system_python
     link_python
+    compile_python_stdlib
     install_additional_dev_dependencies
     install_rustup
     if [[ "${INSTALLATION_TYPE}" == "CI" ]]; then
