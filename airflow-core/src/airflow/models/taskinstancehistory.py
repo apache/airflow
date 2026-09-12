@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Collection
 from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
@@ -33,8 +34,8 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     Uuid,
-    func,
     select,
+    tuple_,
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.mutable import MutableDict
@@ -44,6 +45,7 @@ from airflow._shared.timezones import timezone
 from airflow.models.base import Base, StringID
 from airflow.models.hitl import HITLDetail
 from airflow.models.hitl_history import HITLDetailHistory
+from airflow.utils.helpers import chunks
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import (
     ExecutorConfigType,
@@ -193,31 +195,61 @@ class TaskInstanceHistory(Base):
     @provide_session
     def record_ti(ti: TaskInstance, *, session: Session = NEW_SESSION) -> None:
         """Record a TaskInstance to TaskInstanceHistory."""
-        exists_q = session.scalar(
-            select(func.count(TaskInstanceHistory.task_id)).where(
-                TaskInstanceHistory.dag_id == ti.dag_id,
-                TaskInstanceHistory.task_id == ti.task_id,
-                TaskInstanceHistory.run_id == ti.run_id,
-                TaskInstanceHistory.map_index == ti.map_index,
-                TaskInstanceHistory.try_number == ti.try_number,
-            )
-        )
-        if exists_q:
-            return
-        ti_history_state = ti.state
-        if ti.state not in State.finished:
-            ti_history_state = TaskInstanceState.FAILED
-            # Callers that know when the try actually ended (e.g. the Execution API
-            # retry path) pre-set end_date and duration; only stamp archive time when unset.
-            if ti.end_date is None:
-                ti.end_date = timezone.utcnow()
-                ti.set_duration()
-        ti_history = TaskInstanceHistory(ti, state=ti_history_state)
-        session.add(ti_history)
+        TaskInstanceHistory.record_tis([ti], session=session)
 
-        ti_hitl_detail = session.scalar(select(HITLDetail).where(HITLDetail.ti_id == ti.id))
-        if ti_hitl_detail is not None:
-            session.add(HITLDetailHistory(ti_hitl_detail))
+    @staticmethod
+    @provide_session
+    def record_tis(tis: Collection[TaskInstance], *, session: Session = NEW_SESSION) -> None:
+        """
+        Record TaskInstances to TaskInstanceHistory, skipping the tries already archived.
+
+        The tries already archived and the HITL details are looked up in bulk (chunked),
+        so recording many task instances at once costs a few queries, not two per task
+        instance -- and recording a single one costs the same two it always did.
+        """
+        archived_keys: set[tuple[str, str, str, int, int]] = set()
+        hitl_details: dict[UUID, HITLDetail] = {}
+        for chunk in chunks(list(tis), 1000):
+            archived_keys.update(
+                session.execute(
+                    select(
+                        TaskInstanceHistory.dag_id,
+                        TaskInstanceHistory.run_id,
+                        TaskInstanceHistory.task_id,
+                        TaskInstanceHistory.map_index,
+                        TaskInstanceHistory.try_number,
+                    ).where(
+                        tuple_(
+                            TaskInstanceHistory.dag_id,
+                            TaskInstanceHistory.run_id,
+                            TaskInstanceHistory.task_id,
+                            TaskInstanceHistory.map_index,
+                            TaskInstanceHistory.try_number,
+                        ).in_(
+                            [(ti.dag_id, ti.run_id, ti.task_id, ti.map_index, ti.try_number) for ti in chunk]
+                        )
+                    )
+                ).all()
+            )
+            for hitl_detail in session.scalars(
+                select(HITLDetail).where(HITLDetail.ti_id.in_([ti.id for ti in chunk]))
+            ):
+                hitl_details[hitl_detail.ti_id] = hitl_detail
+
+        for ti in tis:
+            if (ti.dag_id, ti.run_id, ti.task_id, ti.map_index, ti.try_number) in archived_keys:
+                continue
+            ti_history_state = ti.state
+            if ti.state not in State.finished:
+                ti_history_state = TaskInstanceState.FAILED
+                # Callers that know when the try actually ended (e.g. the Execution API
+                # retry path) pre-set end_date and duration; only stamp archive time when unset.
+                if ti.end_date is None:
+                    ti.end_date = timezone.utcnow()
+                    ti.set_duration()
+            session.add(TaskInstanceHistory(ti, state=ti_history_state))
+            if (hitl_detail := hitl_details.get(ti.id)) is not None:
+                session.add(HITLDetailHistory(hitl_detail))
 
     @provide_session
     def get_dagrun(self, *, session: Session = NEW_SESSION) -> DagRun:

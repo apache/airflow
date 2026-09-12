@@ -100,6 +100,7 @@ from airflow.task.priority_strategy import validate_and_load_priority_weight_str
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
+from airflow.utils.helpers import chunks
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
@@ -373,6 +374,22 @@ def _pin_versionless_tis_to_run_version(dag_run: DagRun, dag_version_id: UUID, s
     )
 
 
+def _prepare_db_for_next_try(tis: Collection[TaskInstance], session: Session) -> None:
+    """
+    Archive the current try of each task instance, drop its reschedules and give it a fresh id.
+
+    The lookups and the delete are done in bulk (chunked), so clearing many task instances
+    costs a few statements, not three per task instance.
+    """
+    from airflow.models.taskinstancehistory import TaskInstanceHistory
+
+    TaskInstanceHistory.record_tis(tis, session=session)
+    for ti_ids in chunks([ti.id for ti in tis], 1000):
+        session.execute(delete(TaskReschedule).where(TaskReschedule.ti_id.in_(ti_ids)))
+    for ti in tis:
+        ti.id = uuid7()
+
+
 def clear_task_instances(
     tis: list[TaskInstance],
     session: Session,
@@ -403,9 +420,34 @@ def clear_task_instances(
     from airflow.models.dagbag import DBDagBag
 
     scheduler_dagbag = DBDagBag(load_op_links=False)
-    for ti in tis:
-        ti.prepare_db_for_next_try(session)
 
+    # What varies per task instance is looked up in bulk; what is shared by every task
+    # instance of a dag (or of a run) is resolved once. Fetching and deserializing the
+    # serialized dag for each task instance was the bulk of the cost of clearing a wide
+    # mapped task.
+    latest_dags: dict[str, SerializedDAG | None] = {}
+    latest_dag_versions: dict[str, DagVersion | None] = {}
+    dags_for_run: dict[tuple[str, str], SerializedDAG | None] = {}
+
+    def _latest_dag(dag_id: str) -> SerializedDAG | None:
+        if dag_id not in latest_dags:
+            latest_dags[dag_id] = scheduler_dagbag.get_latest_version_of_dag(dag_id, session=session)
+        return latest_dags[dag_id]
+
+    def _latest_dag_version(dag_id: str) -> DagVersion | None:
+        if dag_id not in latest_dag_versions:
+            latest_dag_versions[dag_id] = DagVersion.get_latest_version(dag_id, session=session)
+        return latest_dag_versions[dag_id]
+
+    def _dag_for_run(dag_run: DagRun) -> SerializedDAG | None:
+        key = (dag_run.dag_id, dag_run.run_id)
+        if key not in dags_for_run:
+            dags_for_run[key] = scheduler_dagbag.get_dag_for_run(dag_run=dag_run, session=session)
+        return dags_for_run[key]
+
+    _prepare_db_for_next_try(tis, session)
+
+    for ti in tis:
         if ti.state == TaskInstanceState.RUNNING:
             if prevent_running_task:
                 raise AirflowClearRunningTaskException(
@@ -423,9 +465,9 @@ def clear_task_instances(
             # run loop below moves it there.
             use_latest_version = run_on_latest_version or dr.created_dag_version_id is None
             if use_latest_version:
-                ti_dag = scheduler_dagbag.get_latest_version_of_dag(ti.dag_id, session=session)
+                ti_dag = _latest_dag(ti.dag_id)
             else:
-                ti_dag = scheduler_dagbag.get_dag_for_run(dag_run=dr, session=session)
+                ti_dag = _dag_for_run(dr)
             if not ti_dag:
                 log.warning("No serialized dag found for dag '%s'", dr.dag_id)
             task_id = ti.task_id
@@ -446,7 +488,7 @@ def clear_task_instances(
             ti.clear_next_method_args()
             # Match DagVersion to latest serialized DAG when running on the latest version.
             if use_latest_version:
-                latest_dag_version = DagVersion.get_latest_version(ti.dag_id, session=session)
+                latest_dag_version = _latest_dag_version(ti.dag_id)
                 if latest_dag_version is not None:
                     ti.dag_version_id = latest_dag_version.id
             elif ti.dag_version_id is None:
@@ -499,8 +541,8 @@ def clear_task_instances(
                 dr.state = dag_run_state
                 dr.start_date = timezone.utcnow()
                 if use_latest_version:
-                    dr_dag = scheduler_dagbag.get_latest_version_of_dag(dr.dag_id, session=session)
-                    dag_version = DagVersion.get_latest_version(dr.dag_id, session=session)
+                    dr_dag = _latest_dag(dr.dag_id)
+                    dag_version = _latest_dag_version(dr.dag_id)
                     if dag_version:
                         # Change the dr.created_dag_version_id so the scheduler doesn't reject this
                         # version when it sets the dag_run.dag
@@ -509,7 +551,7 @@ def clear_task_instances(
                         dr.verify_integrity(session=session, dag_version_id=dag_version.id)
                         # Only cleared TIs get latest dag_version_id above; do not rewrite others.
                 else:
-                    dr_dag = scheduler_dagbag.get_dag_for_run(dag_run=dr, session=session)
+                    dr_dag = _dag_for_run(dr)
                 if not dr_dag:
                     log.warning("No serialized dag found for dag '%s'", dr.dag_id)
                 if dr_dag and not dr_dag.disable_bundle_versioning and use_latest_version:
@@ -521,9 +563,9 @@ def clear_task_instances(
                     dr.start_date = None
             elif use_latest_version:
                 # Queued/running DagRun: update DR to latest version/bundle for workloads that use it.
-                dag_version = DagVersion.get_latest_version(dr.dag_id, session=session)
+                dag_version = _latest_dag_version(dr.dag_id)
                 if dag_version and dr.created_dag_version_id != dag_version.id:
-                    dr_dag = scheduler_dagbag.get_latest_version_of_dag(dr.dag_id, session=session)
+                    dr_dag = _latest_dag(dr.dag_id)
                     if not dr_dag:
                         log.warning("No serialized dag found for dag '%s'", dr.dag_id)
                     else:
@@ -1069,11 +1111,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
 
     def prepare_db_for_next_try(self, session: Session):
         """Update the metadata with all the records needed to put this TI in queued for the next try."""
-        from airflow.models.taskinstancehistory import TaskInstanceHistory
-
-        TaskInstanceHistory.record_ti(self, session=session)
-        session.execute(delete(TaskReschedule).filter_by(ti_id=self.id))
-        self.id = uuid7()
+        _prepare_db_for_next_try([self], session)
 
     @provide_session
     def are_dependents_done(self, *, session: Session = NEW_SESSION) -> bool:
