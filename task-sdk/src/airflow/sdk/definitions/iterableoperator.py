@@ -166,6 +166,9 @@ class IterableOperator(BaseOperator):
         expand_input: ExpandInput,
         **kwargs,
     ):
+        if operator.get_closest_mapped_task_group() is not None:
+            raise NotImplementedError("operator expansion in an expanded task group is not yet supported")
+
         super().__init__(
             **{
                 **kwargs,
@@ -178,6 +181,7 @@ class IterableOperator(BaseOperator):
                 "retry_delay": operator.retry_delay,
                 "retry_exponential_backoff": operator.retry_exponential_backoff,
                 "max_retry_delay": operator.max_retry_delay,
+                "retry_policy": operator.retry_policy,
                 "start_date": operator.start_date,
                 "end_date": operator.end_date,
                 "depends_on_past": operator.depends_on_past,
@@ -185,7 +189,9 @@ class IterableOperator(BaseOperator):
                 "wait_for_past_depends_before_skipping": operator.wait_for_past_depends_before_skipping,
                 "wait_for_downstream": operator.wait_for_downstream,
                 "dag": operator.dag,
+                "params": operator.params,
                 "priority_weight": operator.priority_weight,
+                "weight_rule": operator.weight_rule,
                 "queue": operator.queue,
                 "pool": operator.pool,
                 "pool_slots": operator.pool_slots,
@@ -198,6 +204,7 @@ class IterableOperator(BaseOperator):
                 "max_active_tis_per_dagrun": operator.max_active_tis_per_dagrun,
                 "executor": operator.executor,
                 "executor_config": operator.executor_config,
+                "do_xcom_push": operator.partial_kwargs.get("do_xcom_push", True),
                 "inlets": operator.inlets,
                 "outlets": operator.outlets,
                 "task_group": operator.task_group,
@@ -231,7 +238,22 @@ class IterableOperator(BaseOperator):
                 UserWarning,
                 stacklevel=2,
             )
+        # unmap() would normally apply these three flags to each generated sub-operator, and
+        # __attrs_post_init__ would apply them (plus the upstream-relationship wiring below) to the
+        # MappedOperator itself; since IterableOperator skips __attrs_post_init__ entirely (it isn't a
+        # MappedOperator), it must reproduce that part of the contract for its own single DAG node.
+        self.is_setup = bool(self.partial_kwargs.get("is_setup", False))
+        self.is_teardown = bool(self.partial_kwargs.get("is_teardown", False))
+        on_failure_fail_dagrun = self.partial_kwargs.get("on_failure_fail_dagrun", False)
+        if on_failure_fail_dagrun:
+            self.on_failure_fail_dagrun = on_failure_fail_dagrun
         XComArg.apply_upstream_relationship(self, self.expand_input.value)
+        # Mirrors MappedOperator.__attrs_post_init__: partial kwargs corresponding to the wrapped
+        # operator's own template fields may themselves be XComArgs (e.g. `.partial(some_field=xcom)`),
+        # and those upstream edges must be recorded too, not just the ones from expand_input.
+        for key, value in self.partial_kwargs.items():
+            if key in self._operator.template_fields:
+                XComArg.apply_upstream_relationship(self, value)
 
     @property
     def returns_dag_result(self) -> bool:

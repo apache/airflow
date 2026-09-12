@@ -91,6 +91,8 @@ def mock_context(task, run_id: str | None = None) -> Context:
 class MockOperator(BaseOperator):
     """Mock operator for testing IterableOperator expansion."""
 
+    template_fields = ("arg1",)
+
     def __init__(
         self,
         arg1=None,
@@ -312,6 +314,92 @@ class TestIterableOperator:
 
             assert isinstance(iterable_op, IterableOperator)
             assert iterable_op.task_type == "MockOperator"
+
+    def test_forwards_params_weight_rule_and_retry_policy(self):
+        """Test that IterableOperator forwards params, weight_rule, and retry_policy from the
+        wrapped operator onto its own DAG node, not just onto the generated sub-tasks."""
+        from airflow.sdk import WeightRule
+        from airflow.sdk.definitions.retry_policy import ExceptionRetryPolicy
+
+        retry_policy = ExceptionRetryPolicy(rules=[])
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"a": 1}])
+            mapped_op = MockOperator.partial(
+                task_id="my_task",
+                dag=dag,
+                params={"p": 1},
+                weight_rule=WeightRule.UPSTREAM,
+                retry_policy=retry_policy,
+            )._expand(expand_input, strict=True, register_with_dag=False)
+            iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+            assert iterable_op.params["p"] == 1
+            assert iterable_op.weight_rule == WeightRule.UPSTREAM
+            assert iterable_op.retry_policy is retry_policy
+
+    def test_forwards_do_xcom_push(self):
+        """Test that IterableOperator forwards do_xcom_push from the wrapped operator's
+        partial_kwargs onto its own DAG node."""
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"a": 1}])
+            iterable_op = create_iterable_operator(dag, expand_input, do_xcom_push=False)
+
+            assert iterable_op.do_xcom_push is False
+
+    def test_forwards_is_setup_is_teardown_and_on_failure_fail_dagrun(self):
+        """Test that IterableOperator forwards is_setup/is_teardown/on_failure_fail_dagrun from
+        the wrapped operator's partial_kwargs, mirroring what unmap() reads (via
+        ``_get_unmap_kwargs``) to apply the same flags to each generated sub-task."""
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"a": 1}])
+            mapped_op = create_mapped_operator(dag, expand_input)
+            # unmap() only ever applies these three flags to sub-tasks by reading them off
+            # partial_kwargs (see MappedOperator._get_unmap_kwargs), so that's the only place
+            # IterableOperator needs to source them from too.
+            mapped_op.partial_kwargs["is_teardown"] = True
+            mapped_op.partial_kwargs["on_failure_fail_dagrun"] = True
+            iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+            assert iterable_op.is_setup is False
+            assert iterable_op.is_teardown is True
+            assert iterable_op.on_failure_fail_dagrun is True
+
+    def test_applies_upstream_relationship_for_partial_kwargs_template_fields(self):
+        """Test that an XComArg passed via a partial kwarg matching the wrapped operator's own
+        template_fields is wired as an upstream dependency of the IterableOperator, mirroring what
+        MappedOperator.__attrs_post_init__ does for a normal mapped task."""
+        with DAG("test_dag") as dag:
+            upstream = MockOperator(task_id="upstream", dag=dag)
+            expand_input = ListOfDictsExpandInput([{"a": 1}])
+            mapped_op = MockOperator.partial(
+                task_id="my_task",
+                dag=dag,
+                arg1=upstream.output,
+            )._expand(expand_input, strict=True, register_with_dag=False)
+            iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+            assert upstream.task_id in iterable_op.upstream_task_ids
+
+    def test_iterate_inside_mapped_task_group_raises_not_implemented_error(self):
+        """Test that wrapping an operator expanded inside a mapped task group with IterableOperator
+        raises NotImplementedError, since operator expansion in an expanded task group is not
+        supported (mirrors MappedOperator's own guard for the analogous .expand() case)."""
+        from airflow.decorators import task_group
+
+        with DAG("test_dag") as dag:
+
+            @task_group
+            def tg(va):
+                expand_input = ListOfDictsExpandInput([{"a": 1}])
+                mapped_op = MockOperator.partial(
+                    task_id="my_task",
+                    dag=dag,
+                )._expand(expand_input, strict=True, register_with_dag=False)
+
+                with pytest.raises(NotImplementedError, match="operator expansion in an expanded task group"):
+                    IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+            tg.expand(va=[["a", "b"], [4]])
 
     def test_task_retries(self):
         """Test that IterableOperator inherits retries from the wrapped operator, since
