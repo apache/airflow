@@ -666,6 +666,11 @@ GOLANG_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
 
 AIRFLOW_IMAGE_PYTHON_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
     (re.compile(r"(AIRFLOW_PYTHON_VERSION=)(\"[0-9.abrc]+\")"), Quoting.DOUBLE_QUOTED),
+    # Base image tags pin the same Python patchlevel as AIRFLOW_PYTHON_VERSION and have to move with it
+    (
+        re.compile(r"((?:dhi\.io|ghcr\.io/apache/airflow/base)/python:)([0-9]+\.[0-9]+\.[0-9.abrc]+)"),
+        Quoting.UNQUOTED,
+    ),
     (
         re.compile(r"(\| ``AIRFLOW_PYTHON_VERSION`` *\| )(``[0-9.abrc]+``)( *\|)"),
         Quoting.REVERSE_DOUBLE_QUOTED,
