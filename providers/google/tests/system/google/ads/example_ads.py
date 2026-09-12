@@ -38,8 +38,6 @@ import logging
 import os
 from datetime import datetime
 
-from google.cloud.exceptions import NotFound
-
 try:
     from airflow.sdk import task
 except ImportError:
@@ -48,8 +46,8 @@ except ImportError:
 from airflow.models.dag import DAG
 from airflow.providers.google.ads.operators.ads import GoogleAdsListAccountsOperator
 from airflow.providers.google.ads.transfers.ads_to_gcs import GoogleAdsToGcsOperator
-from airflow.providers.google.cloud.hooks.secret_manager import GoogleCloudSecretManagerHook
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.providers.google.common.utils.get_secret import get_secret
 
 try:
     from airflow.sdk import TriggerRule
@@ -112,13 +110,6 @@ FIELDS_TO_EXTRACT = [
 # [END howto_google_ads_env_variables]
 
 log = logging.getLogger(__name__)
-
-
-def get_secret(secret_id: str) -> str:
-    hook = GoogleCloudSecretManagerHook()
-    if hook.secret_exists(secret_id=secret_id):
-        return hook.access_secret(secret_id=secret_id).payload.data.decode()
-    raise NotFound("The secret '%s' not found", secret_id)
 
 
 with DAG(
