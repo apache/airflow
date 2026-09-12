@@ -27,7 +27,11 @@ from sqlalchemy.orm import joinedload, subqueryload
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.app import get_auth_manager
-from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
+from airflow.api_fastapi.auth.managers.models.resource_details import (
+    AssetDetails,
+    DagAccessEntity,
+    DagDetails,
+)
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.assets import eager_load_asset_reference_teams
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
@@ -407,6 +411,18 @@ def create_asset_event(
     asset_model = session.scalar(select(AssetModel).where(AssetModel.id == body.asset_id).limit(1))
     if not asset_model:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Asset with ID: `{body.asset_id}` was not found")
+    # The asset is named in the body, which the route dependency cannot read, so it only checked the
+    # generic asset POST permission. Authorize on the resolved asset here so an auth manager can scope
+    # by id, name, or uri.
+    if not get_auth_manager().is_authorized_asset(
+        method="POST",
+        details=AssetDetails(id=str(asset_model.id), name=asset_model.name, uri=asset_model.uri),
+        user=user,
+    ):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            f"User is not authorized to create events for asset with ID: `{body.asset_id}`",
+        )
     timestamp = timezone.utcnow()
 
     api_user_teams: set[str] = set()
