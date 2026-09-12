@@ -39,7 +39,6 @@ providers/alibaba/src/airflow/providers/alibaba/cloud/hooks/oss.py::11
 providers/alibaba/src/airflow/providers/alibaba/cloud/operators/analyticdb_spark.py::1
 providers/alibaba/src/airflow/providers/alibaba/cloud/sensors/oss_key.py::2
 providers/amazon/src/airflow/providers/amazon/aws/auth_manager/avp/facade.py::3
-providers/amazon/src/airflow/providers/amazon/aws/bundles/s3.py::5
 providers/amazon/src/airflow/providers/amazon/aws/executors/aws_lambda/lambda_executor.py::2
 providers/amazon/src/airflow/providers/amazon/aws/executors/batch/batch_executor.py::1
 providers/amazon/src/airflow/providers/amazon/aws/executors/ecs/ecs_executor.py::1

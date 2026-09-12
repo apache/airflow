@@ -703,9 +703,8 @@ class SerializedDagModel(Base):
 
         if serialized_dag_hash == new_dag_hash and dag_version and dag_version.bundle_name == bundle_name:
             # Serialized content is unchanged, so we don't create a new DagVersion.
-            # But if the bundle advanced, refresh the latest version's pointer in place — tasks resolve
-            # their code from ``ti.dag_version.bundle_version`` at run time, so a stale
-            # pointer makes runs execute an outdated commit.
+            # If the bundle advanced, refresh the latest DagVersion in place for future runs. Existing
+            # DagRuns keep their copied ``bundle_version`` and continue to resolve the source they started with.
             bundle_metadata_changed = (
                 dag_version.bundle_version != bundle_version or dag_version.version_data != version_data
             )

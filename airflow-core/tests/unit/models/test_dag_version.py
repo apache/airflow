@@ -230,13 +230,19 @@ class TestResolveVersionData:
         ("dag_version", "bundle_version", "expected"),
         [
             pytest.param(
-                mock.Mock(version_data={"schema_version": 1}),
+                mock.Mock(bundle_version="abc123", version_data={"schema_version": 1}),
                 "abc123",
                 {"schema_version": 1},
                 id="pinned-with-data",
             ),
             pytest.param(
-                mock.Mock(version_data={"schema_version": 1}),
+                mock.Mock(bundle_version="abc123", version_data={"schema_version": 1}),
+                "different-version",
+                None,
+                id="mismatched-version-suppresses-data",
+            ),
+            pytest.param(
+                mock.Mock(bundle_version="abc123", version_data={"schema_version": 1}),
                 None,
                 None,
                 id="unpinned-suppresses-present-data",

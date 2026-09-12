@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from cadwyn import VersionChange, schema
 
+from airflow.dag_processing.processor import DagFileParseRequest  # noqa: SDK002
 from airflow.sdk.api.datamodels._generated import TIRunContext
 
 
@@ -34,3 +35,13 @@ class AddArgBindingsToSupervisorTIRunContext(VersionChange):
     description = __doc__
 
     instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("arg_bindings").didnt_exist,)
+
+
+class AddBundleVersionToDagFileParseRequest(VersionChange):
+    """Add the immutable bundle version to Dag file parse requests."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(DagFileParseRequest).field("bundle_version").didnt_exist,
+    )

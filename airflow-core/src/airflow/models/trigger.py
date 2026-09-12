@@ -676,22 +676,14 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
                 raise RuntimeError("relative_fileloc should not be None for a finished task")
             from airflow.models.dag_version import _resolve_version_data
 
-            # Derive bundle identity from the TI's dag_version (falling back to dag_run/dag_model
-            # for legacy/unpinned runs), mirroring the other callback sites so bundle_version and
-            # version_data always describe the same version.
+            # The DagRun's bundle version is the immutable source identifier used by task execution.
             bundle_name = (
                 task_instance.dag_version.bundle_name
                 if task_instance.dag_version
                 else task_instance.dag_model.bundle_name
             )
-            bundle_version = (
-                task_instance.dag_version.bundle_version
-                if task_instance.dag_version and task_instance.dag_run.bundle_version is not None
-                else task_instance.dag_run.bundle_version
-            )
-            version_data = _resolve_version_data(
-                task_instance.dag_version, task_instance.dag_run.bundle_version
-            )
+            bundle_version = task_instance.dag_run.bundle_version
+            version_data = _resolve_version_data(task_instance.dag_version, bundle_version)
             request = TaskCallbackRequest(
                 filepath=task_instance.dag_model.relative_fileloc,
                 ti=task_instance,
