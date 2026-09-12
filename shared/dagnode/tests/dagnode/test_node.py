@@ -22,7 +22,7 @@ from unittest import mock
 
 import pytest
 
-from airflow_shared.dagnode.node import GenericDAGNode
+from airflow_shared.dagnode.node import GenericDAGNode, sort_projected_indices
 
 
 class Task:
@@ -81,3 +81,14 @@ class TestDAGNode:
         assert node.label == "test_group_id.test_node_id"
         node.task_group = TaskGroup(prefix_group_id)
         assert node.label == expected_label
+
+
+@pytest.mark.parametrize(
+    ("projected", "expected"),
+    [
+        ([(1,), (0,)], [0, 1]),
+        ([(1,), (2,), (1,)], [1, 2, 0]),
+    ],
+)
+def test_sort_projected_indices(projected, expected):
+    assert sort_projected_indices(projected) == expected

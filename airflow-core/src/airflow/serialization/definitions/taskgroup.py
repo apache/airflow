@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING
 import attrs
 import methodtools
 
-from airflow._shared.dagnode.node import TaskGroupMixin
+from airflow._shared.dagnode.node import TaskGroupMixin, has_task_cycle, sort_projected_indices
 from airflow.serialization.definitions.node import DAGNode
 
 if TYPE_CHECKING:
@@ -236,10 +236,10 @@ class SerializedTaskGroup(TaskGroupMixin, DAGNode):
         """
         Sort children topologically — a task always comes after its upstream dependencies.
 
-        See ``TaskGroup.topological_sort`` in task-sdk for the algorithm. Cycles are
-        treated as corrupt input: ``DAG.check_cycle`` rejects cyclic Dags before
-        serialization, so a cycle reaching this code indicates malformed serialized data,
-        and we raise ``ValueError`` rather than silently looping forever.
+        See ``TaskGroup.topological_sort`` in task-sdk for the algorithm. The sibling
+        projection can contain cycles when independent task-level dependencies cross
+        between TaskGroups in both directions. Those components preserve child insertion
+        order; actual task-level cycles are rejected before serialization.
         """
         children = self.children
         if not children:
@@ -329,7 +329,7 @@ class SerializedTaskGroup(TaskGroupMixin, DAGNode):
                 emitted[i] = 1
                 order_append(nodes[i])
             if len(next_pending) == len(pending):
-                raise ValueError(f"A cyclic dependency occurred in dag: {self.dag_id}")
+                return self._sort_cyclic_projection(nodes, projected)
             pending = next_pending
         return order
 
@@ -364,10 +364,20 @@ class SerializedTaskGroup(TaskGroupMixin, DAGNode):
                     queue.append(s)
 
         if processed != n:
-            raise ValueError(f"A cyclic dependency occurred in dag: {self.dag_id}")
+            return self._sort_cyclic_projection(nodes, projected)
 
         sorted_indices = sorted(range(n), key=lambda i: (pass_of[i], i))
         return [nodes[i] for i in sorted_indices]
+
+    def _sort_cyclic_projection(
+        self, nodes: list[DAGNode], projected: list[tuple[int, ...]]
+    ) -> list[DAGNode]:
+        downstream_ids_by_task = {
+            task_id: task.downstream_task_ids for task_id, task in self.dag.task_dict.items()
+        }
+        if has_task_cycle(downstream_ids_by_task):
+            raise ValueError(f"A cyclic dependency occurred in dag: {self.dag_id}")
+        return [nodes[i] for i in sort_projected_indices(projected)]
 
     def add(self, node: DAGNode) -> DAGNode:
         # Set the TG first, as setting it might change the return value of node_id!

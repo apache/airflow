@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Any
 import attrs
 
 from airflow.sdk import TriggerRule
-from airflow.sdk._shared.dagnode.node import TaskGroupMixin
+from airflow.sdk._shared.dagnode.node import TaskGroupMixin, has_task_cycle, sort_projected_indices
 from airflow.sdk.definitions._internal.node import DAGNode, validate_group_key
 from airflow.sdk.exceptions import (
     AirflowDagCycleException,
@@ -561,7 +561,9 @@ class TaskGroup(TaskGroupMixin, DAGNode):
           traversal, O((V + E) log V), avoids the O(N²) blowup the sweep would hit.
 
         Both branches produce the same emission order: level-by-legacy-pass, ties broken by
-        children insertion order.
+        children insertion order. If task-level edges produce a cyclic sibling projection,
+        strongly connected children retain insertion order while dependencies between those
+        components are still respected.
         """
         children = self.children
         if not children:
@@ -657,7 +659,7 @@ class TaskGroup(TaskGroupMixin, DAGNode):
                 emitted[i] = 1
                 order_append(nodes[i])
             if len(next_pending) == len(pending):
-                raise AirflowDagCycleException(f"A cyclic dependency occurred in dag: {self.dag_id}")
+                return self._sort_cyclic_projection(nodes, projected)
             pending = next_pending
         return order
 
@@ -697,10 +699,20 @@ class TaskGroup(TaskGroupMixin, DAGNode):
                     queue.append(s)
 
         if processed != n:
-            raise AirflowDagCycleException(f"A cyclic dependency occurred in dag: {self.dag_id}")
+            return self._sort_cyclic_projection(nodes, projected)
 
         sorted_indices = sorted(range(n), key=lambda i: (pass_of[i], i))
         return [nodes[i] for i in sorted_indices]
+
+    def _sort_cyclic_projection(
+        self, nodes: list[DAGNode], projected: list[tuple[int, ...]]
+    ) -> list[DAGNode]:
+        downstream_ids_by_task = {
+            task_id: task.downstream_task_ids for task_id, task in self.dag.task_dict.items()
+        }
+        if has_task_cycle(downstream_ids_by_task):
+            raise AirflowDagCycleException(f"A cyclic dependency occurred in dag: {self.dag_id}")
+        return [nodes[i] for i in sort_projected_indices(projected)]
 
     def iter_mapped_task_groups(self) -> Iterator[MappedTaskGroup]:
         """
