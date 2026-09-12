@@ -33,6 +33,7 @@ import kubernetes
 import pytest
 import pytest_asyncio
 import yaml
+from aiohttp import ClientResponse
 from kubernetes.client import V1Deployment, V1DeploymentStatus
 from kubernetes.client.rest import ApiException
 from kubernetes.config import ConfigException
@@ -41,9 +42,9 @@ from kubernetes_asyncio import client as async_client
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiPermissionError
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import (
+    _LOG_STREAM_YIELD_EVERY_LINES,
     AsyncKubernetesHook,
     KubernetesHook,
-    _split_log_bytes,
     _TimeoutAsyncK8sApiClient,
     _TimeoutK8sApiClient,
 )
@@ -1098,6 +1099,22 @@ class TestAsyncKubernetesHook:
         f.set_result(return_value)
         return f
 
+    @staticmethod
+    def mock_log_response(*chunks: bytes, record_pulls: list[bytes] | None = None, status: int = 200):
+        """Stand in for the streamed ``ClientResponse``: ``MagicMock``, since ``close()`` is sync."""
+
+        async def iter_chunked(_chunk_size):
+            for chunk in chunks:
+                if record_pulls is not None:
+                    record_pulls.append(chunk)
+                yield chunk
+
+        resp = MagicMock(spec=ClientResponse)
+        resp.content.iter_chunked = iter_chunked
+        # A real int: ``stream_logs`` range-checks it, which a MagicMock cannot satisfy.
+        resp.status = status
+        return resp
+
     @pytest_asyncio.fixture
     async def kube_config_loader(self):
         with mock.patch(self.KUBE_LOADER_CONFIG) as kube_config_loader:
@@ -1907,8 +1924,7 @@ class TestAsyncKubernetesHook:
     @pytest.mark.asyncio
     @mock.patch(KUBE_API.format("read_namespaced_pod_log"))
     async def test_read_logs(self, lib_method, kube_config_loader, hook):
-        mock_raw_resp = mock.AsyncMock()
-        mock_raw_resp.read = mock.AsyncMock(return_value=b"2023-01-11 Some string logs...")
+        mock_raw_resp = self.mock_log_response(b"2023-01-11 Some string logs...")
         lib_method.return_value = self.mock_await_result(mock_raw_resp)
 
         logs = await hook.read_logs(
@@ -1927,18 +1943,21 @@ class TestAsyncKubernetesHook:
             timestamps=True,
             since_seconds=10,
             _preload_content=False,
+            _request_timeout=(API_TIMEOUT, API_TIMEOUT),
         )
         assert len(logs) == 1
         assert "2023-01-11 Some string logs..." in logs
+        # The whole window is never materialised in one buffer.
+        mock_raw_resp.read.assert_not_awaited()
 
     @pytest.mark.asyncio
     @mock.patch(KUBE_API.format("read_namespaced_pod_log"))
     async def test_read_logs_handles_non_utf8_bytes(self, lib_method, kube_config_loader, hook):
         """Non-UTF-8 bytes in pod logs are replaced instead of raising UnicodeDecodeError."""
-        raw_bytes = b"2023-01-11 valid line\n2023-01-11 broken \x80\x81 bytes"
-
-        mock_raw_resp = mock.AsyncMock()
-        mock_raw_resp.read = mock.AsyncMock(return_value=raw_bytes)
+        # Deliberately split mid-line so the carry buffer is exercised as well.
+        mock_raw_resp = self.mock_log_response(
+            b"2023-01-11 first \x80 line\r\n2023-01-11 bro", b"ken \x80\x81 bytes\r"
+        )
         lib_method.return_value = self.mock_await_result(mock_raw_resp)
 
         logs = await hook.read_logs(
@@ -1947,30 +1966,119 @@ class TestAsyncKubernetesHook:
             container_name=CONTAINER_NAME,
         )
 
-        assert len(logs) == 2
-        assert "valid line" in logs[0]
-        # Non-UTF-8 bytes replaced with U+FFFD
-        assert "\ufffd" in logs[1]
+        assert logs == ["2023-01-11 first \ufffd line", "2023-01-11 broken \ufffd\ufffd bytes"]
         lib_method.assert_called_once()
         assert lib_method.call_args.kwargs.get("_preload_content") is False
 
     @pytest.mark.asyncio
-    @mock.patch("asyncio.to_thread", new_callable=mock.AsyncMock)
+    @pytest.mark.parametrize(
+        ("status", "expected_exception"),
+        [
+            pytest.param(403, KubernetesApiPermissionError, id="403_permission_error"),
+            pytest.param(500, async_client.ApiException, id="500_api_exception"),
+        ],
+    )
     @mock.patch(KUBE_API.format("read_namespaced_pod_log"))
-    async def test_read_logs_decodes_off_the_event_loop(
-        self, lib_method, mock_to_thread, kube_config_loader, hook
+    async def test_stream_logs_raises_on_error_status(
+        self, lib_method, status, expected_exception, kube_config_loader, hook
     ):
-        """The CPU-bound decode/splitlines is offloaded to a worker thread, not run on the loop."""
-        raw_bytes = b"2023-01-11 Some string logs..."
-        mock_raw_resp = mock.AsyncMock()
-        mock_raw_resp.read = mock.AsyncMock(return_value=raw_bytes)
+        """``_preload_content=False`` skips the client's own status check, so the stream must do it."""
+        mock_raw_resp = self.mock_log_response(b"Forbidden\n", status=status)
         lib_method.return_value = self.mock_await_result(mock_raw_resp)
-        mock_to_thread.return_value = ["decoded line"]
 
-        logs = await hook.read_logs(name=POD_NAME, namespace=NAMESPACE, container_name=CONTAINER_NAME)
+        with pytest.raises(expected_exception):
+            await hook.stream_logs(name=POD_NAME, namespace=NAMESPACE).__anext__()
 
-        assert logs == ["decoded line"]
-        mock_to_thread.assert_awaited_once_with(_split_log_bytes, raw_bytes)
+        mock_raw_resp.close.assert_called_once()
+
+    @pytest.mark.asyncio
+    @mock.patch(KUBE_API.format("read_namespaced_pod_log"))
+    async def test_stream_logs_closes_response_when_consumer_stops_early(
+        self, lib_method, kube_config_loader, hook
+    ):
+        pulled: list[bytes] = []
+        mock_raw_resp = self.mock_log_response(
+            b"line one\n", b"line two\n", b"line three\n", record_pulls=pulled
+        )
+        lib_method.return_value = self.mock_await_result(mock_raw_resp)
+
+        stream = hook.stream_logs(name=POD_NAME, namespace=NAMESPACE)
+        first_line = await stream.__anext__()
+        await stream.aclose()
+
+        assert first_line == "line one"
+        mock_raw_resp.close.assert_called_once()
+        assert pulled == [b"line one\n"], "remaining chunks should never be fetched"
+
+    @pytest.mark.asyncio
+    @mock.patch(KUBE_API.format("read_namespaced_pod_log"))
+    async def test_stream_logs_interleaves_with_the_event_loop(self, lib_method, kube_config_loader, hook):
+        """Every chunk yields control, so log reading cannot monopolise the triggerer event loop."""
+        chunk_count = 30
+        lib_method.return_value = self.mock_await_result(
+            self.mock_log_response(*([b"a log line\n"] * chunk_count))
+        )
+        turns = 0
+        streaming = True
+
+        async def heartbeat():
+            nonlocal turns
+            while streaming:
+                turns += 1
+                await asyncio.sleep(0)
+
+        # Start counting only once chunks are already flowing, so the awaits in get_conn() during
+        # connection setup are excluded and what remains is attributable to the chunk loop.
+        beat = None
+        async for _ in hook.stream_logs(name=POD_NAME, namespace=NAMESPACE):
+            if beat is None:
+                beat = asyncio.create_task(heartbeat())
+        streaming = False
+        await beat
+
+        # The fake response awaits nothing, so every turn here comes from stream_logs' own
+        # per-chunk yield.
+        assert turns >= chunk_count // 2
+
+    @pytest.mark.asyncio
+    @mock.patch(KUBE_API.format("read_namespaced_pod_log"))
+    async def test_stream_logs_bounds_lines_emitted_between_loop_turns(
+        self, lib_method, kube_config_loader, hook
+    ):
+        line_count = _LOG_STREAM_YIELD_EVERY_LINES * 8
+        lib_method.return_value = self.mock_await_result(self.mock_log_response(b"\n" * line_count))
+        emitted = 0
+        seen_at = []
+        streaming = True
+
+        async def heartbeat():
+            while streaming:
+                seen_at.append(emitted)
+                await asyncio.sleep(0)
+
+        beat = asyncio.create_task(heartbeat())
+        await asyncio.sleep(0)
+        async for _ in hook.stream_logs(name=POD_NAME, namespace=NAMESPACE):
+            emitted += 1
+        streaming = False
+        await beat
+
+        assert emitted == line_count
+        gaps = [after - before for before, after in zip(seen_at, seen_at[1:])]
+        assert max(gaps) <= _LOG_STREAM_YIELD_EVERY_LINES
+
+    @pytest.mark.asyncio
+    @mock.patch(KUBE_API.format("read_namespaced_pod_log"))
+    async def test_stream_logs_reassembles_a_line_split_across_chunks(
+        self, lib_method, kube_config_loader, hook
+    ):
+        fragments = [b"x" * 1024 for _ in range(50)]
+        lib_method.return_value = self.mock_await_result(
+            self.mock_log_response(*fragments, b"tail\nsecond line\n")
+        )
+        logs = [line async for line in hook.stream_logs(name=POD_NAME, namespace=NAMESPACE)]
+
+        assert logs == ["x" * (50 * 1024) + "tail", "second line"]
 
     # The async hook talks to kubernetes_asyncio, whose ApiException does not derive from urllib3's
     # HTTPError, so these statuses only reach the handlers through the async exception type.
