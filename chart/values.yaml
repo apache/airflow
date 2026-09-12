@@ -420,6 +420,36 @@ extraConfigMaps: {}
 #       AIRFLOW_VAR_HELLO_MESSAGE: "Hi!"
 #       AIRFLOW_VAR_KUBERNETES_NAMESPACE: "{{ .Release.Namespace }}"
 
+# Extra Kubernetes objects that will be managed by the chart.
+# Each item is either a mapping holding a full manifest or a string
+# holding a rendered manifest. Both forms are templated.
+# Useful for resources the chart does not model, for example a ServiceMonitor,
+# a VirtualService or a CronJob, without wrapping the chart in an umbrella chart.
+extraObjects: []
+# extraObjects:
+#   - apiVersion: batch/v1
+#     kind: CronJob
+#     metadata:
+#       name: '{{ .Release.Name }}-my-cronjob'
+#     spec:
+#       schedule: "*/5 * * * *"
+#       jobTemplate:
+#         spec:
+#           template:
+#             spec:
+#               restartPolicy: OnFailure
+#               containers:
+#                 - name: my-cronjob
+#                   image: '{{ .Values.defaultAirflowRepository }}:{{ .Values.defaultAirflowTag }}'
+#                   command: ["airflow", "version"]
+#   - |
+#     apiVersion: v1
+#     kind: ConfigMap
+#     metadata:
+#       name: {{ .Release.Name }}-my-configmap
+#     data:
+#       MY_KEY: "my_value"
+
 # Extra env 'items' that will be added to the definition of Airflow containers
 # a string is expected (templated).
 # TODO: difference from `env`? This is a templated string. Probably should template `env` and remove this.

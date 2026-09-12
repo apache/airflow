@@ -1315,6 +1315,31 @@
                 }
             ]
         },
+        "extraObjects": {
+            "description": "Extra Kubernetes objects that will be managed by the chart (templated). Each item is either a mapping holding a full manifest or a string holding a rendered manifest.",
+            "type": "array",
+            "x-docsSection": "Kubernetes",
+            "default": [],
+            "items": {
+                "type": [
+                    "object",
+                    "string"
+                ]
+            },
+            "examples": [
+                {
+                    "apiVersion": "v1",
+                    "kind": "ConfigMap",
+                    "metadata": {
+                        "name": "{{ .Release.Name }}-my-configmap"
+                    },
+                    "data": {
+                        "MY_KEY": "my_value"
+                    }
+                },
+                "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: {{ .Release.Name }}-my-configmap\ndata:\n  MY_KEY: 'my_value'"
+            ]
+        },
         "data": {
             "description": "Airflow database & redis configuration.",
             "type": "object",

@@ -113,7 +113,7 @@ def create_validator(api_version, kind, kubernetes_version):
 
 def validate_k8s_object(instance, kubernetes_version):
     # Skip PostgreSQL chart
-    labels = jmespath.search("metadata.labels", instance)
+    labels = jmespath.search("metadata.labels", instance) or {}
     if "helm.sh/chart" in labels:
         chart = labels["helm.sh/chart"]
     else:
