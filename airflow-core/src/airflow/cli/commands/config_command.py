@@ -471,7 +471,9 @@ CONFIGS_CHANGES = [
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "access_logfile"),
-        renamed_to=ConfigParameter("api", "access_logfile"),
+        suggestion="API server access logs are part of its regular log output. Do not move this value to the "
+        "`log_config` setting in the `api` section. That setting expects a path to a uvicorn logging "
+        "configuration file.",
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "grid_view_sorting_order"),
@@ -656,6 +658,12 @@ CONFIGS_CHANGES = [
     ConfigChange(
         config=ConfigParameter("api", "page_size"),
         renamed_to=ConfigParameter("api", "fallback_page_limit"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("api", "access_logfile"),
+        suggestion="API server access logs are part of its regular log output. Do not move this value to the "
+        "`log_config` setting in the `api` section. That setting expects a path to a uvicorn logging "
+        "configuration file.",
     ),
     ConfigChange(
         config=ConfigParameter("api", "expose_config"),
