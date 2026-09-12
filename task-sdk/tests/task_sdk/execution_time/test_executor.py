@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 import time
 from unittest import mock
 
@@ -110,7 +111,7 @@ class TestAsyncAwareExecutor:
         assert concurrency_high_watermark <= max_workers
 
     def test_exit_shuts_down_thread_pool(self):
-        """__exit__ calls shutdown on the thread pool."""
+        """__exit__ calls shutdown on the thread pool without blocking indefinitely on it."""
         with event_loop() as loop:
             executor = AsyncAwareExecutor(loop=loop, max_workers=2)
             with mock.patch.object(
@@ -118,7 +119,9 @@ class TestAsyncAwareExecutor:
             ) as shutdown_mock:
                 with executor:
                     pass
-                shutdown_mock.assert_called_once_with(wait=True, cancel_futures=False)
+                # wait=False: the executor itself bounds how long it waits on worker
+                # threads afterwards instead of delegating an unbounded wait to the pool.
+                shutdown_mock.assert_called_once_with(wait=False, cancel_futures=False)
 
     def test_context_manager_returns_self(self):
         """__enter__ returns the executor instance itself."""
@@ -214,6 +217,25 @@ class TestAsyncAwareExecutor:
         assert task.done()
         assert not task.cancelled()
         assert task.result() == "done"
+
+    def test_shutdown_does_not_block_forever_on_stuck_worker_thread(self):
+        """shutdown(wait=True) must be bounded by shutdown_timeout, not hang on a stuck thread."""
+        release = threading.Event()
+
+        def blocking_fn():
+            release.wait(timeout=5)
+            return "done"
+
+        with event_loop() as loop:
+            executor = AsyncAwareExecutor(loop=loop, max_workers=1, shutdown_timeout=0.05)
+            executor.submit(blocking_fn)
+
+            started = time.monotonic()
+            executor.shutdown(wait=True)
+            elapsed = time.monotonic() - started
+
+        release.set()
+        assert elapsed < 1.0
 
 
 class TestTaskExecutor:
