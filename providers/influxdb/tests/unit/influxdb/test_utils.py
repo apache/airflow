@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.providers.influxdb._utils import _convert_dataframe_to_records
+from airflow.providers.influxdb.utils import _convert_dataframe_to_records
 
 
 def test_convert_dataframe_to_records_serializes_rows_and_timestamps():

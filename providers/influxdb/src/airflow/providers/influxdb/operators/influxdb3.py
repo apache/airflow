@@ -23,9 +23,9 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.sdk import BaseOperator, conf
-from airflow.providers.influxdb._utils import _convert_dataframe_to_records
 from airflow.providers.influxdb.hooks.influxdb3 import InfluxDB3Hook
 from airflow.providers.influxdb.triggers.influxdb3 import InfluxDB3QueryTrigger
+from airflow.providers.influxdb.utils import _convert_dataframe_to_records
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
@@ -61,12 +61,12 @@ class InfluxDB3Operator(BaseOperator):
         self.sql = sql
         self.deferrable = deferrable
 
-    def execute(self, context: Context) -> list[dict[str, Any]] | None:
+    def execute(self, context: Context) -> list[dict[str, Any]]:
         """
         Execute SQL query and return results as JSON-serializable list of dictionaries.
 
         :param context: Airflow context
-        :return: List of dictionaries representing query results, or ``None`` when deferring
+        :return: List of dictionaries representing query results
         """
         self.log.info("Executing SQL query: %s", self.sql)
 
