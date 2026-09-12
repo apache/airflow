@@ -25,6 +25,7 @@ from sqlalchemy import func, select, update
 
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
+from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import TaskInstance, TaskInstance as TI, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskreschedule import TaskReschedule
@@ -97,6 +98,113 @@ class TestClearTasks:
         assert ti1.state is None
         assert ti1.try_number == 1
         assert ti1.max_tries == 3
+
+    def test_clear_task_instances_removes_task_state_store_rows(self, dag_maker, session):
+        """Clearing a task must wipe its task state store rows so a re-run never inherits stale positionally-keyed state."""
+        with dag_maker("test_clear_task_state_store", start_date=DEFAULT_DATE):
+            EmptyOperator(task_id="task0")
+
+        dr = dag_maker.create_dagrun(state=State.RUNNING, run_type=DagRunType.SCHEDULED)
+        ti = dr.task_instances[0]
+        ti.state = State.SUCCESS
+        session.flush()
+
+        session.add(
+            TaskStateStoreModel(
+                dag_run_id=dr.id,
+                dag_id=ti.dag_id,
+                run_id=ti.run_id,
+                task_id=ti.task_id,
+                map_index=-1,
+                key="remote_job_id",
+                value="application_1234",
+            )
+        )
+        session.flush()
+
+        assert (
+            session.scalar(
+                select(TaskStateStoreModel).where(
+                    TaskStateStoreModel.dag_id == ti.dag_id,
+                    TaskStateStoreModel.run_id == ti.run_id,
+                    TaskStateStoreModel.task_id == ti.task_id,
+                )
+            )
+            is not None
+        )
+
+        session.merge(ti)
+        clear_task_instances([ti], session=session)
+        session.flush()
+
+        assert (
+            session.scalar(
+                select(TaskStateStoreModel).where(
+                    TaskStateStoreModel.dag_id == ti.dag_id,
+                    TaskStateStoreModel.run_id == ti.run_id,
+                    TaskStateStoreModel.task_id == ti.task_id,
+                )
+            )
+            is None
+        )
+
+    def test_clear_task_instances_removes_mapped_task_state_store_rows(self, dag_maker, session):
+        """Clearing a mapped task wipes state for each cleared map index so a re-expanded list never inherits stale checkpoints."""
+        with dag_maker("test_clear_mapped_task_state_store", start_date=DEFAULT_DATE) as dag:
+            EmptyOperator(task_id="mapped")
+
+        dr = dag_maker.create_dagrun(state=State.RUNNING, run_type=DagRunType.SCHEDULED)
+        task = dag.task_dict["mapped"]
+        dag_version = DagVersion.get_latest_version(dr.dag_id)
+
+        cleared_tis = []
+        for index in (0, 1, 2):
+            ti = TaskInstance(
+                task,
+                run_id=dr.run_id,
+                map_index=index,
+                state=TaskInstanceState.SUCCESS,
+                dag_version_id=dag_version.id,
+            )
+            session.add(ti)
+            cleared_tis.append(ti)
+            session.add(
+                TaskStateStoreModel(
+                    dag_run_id=dr.id,
+                    dag_id=dr.dag_id,
+                    run_id=dr.run_id,
+                    task_id="mapped",
+                    map_index=index,
+                    key="checkpoint",
+                    value=f"item_{index}",
+                )
+            )
+        session.flush()
+
+        assert (
+            session.scalar(
+                select(func.count(TaskStateStoreModel.id)).where(
+                    TaskStateStoreModel.dag_id == dr.dag_id,
+                    TaskStateStoreModel.run_id == dr.run_id,
+                    TaskStateStoreModel.task_id == "mapped",
+                )
+            )
+            == 3
+        )
+
+        clear_task_instances(cleared_tis, session=session)
+        session.flush()
+
+        assert (
+            session.scalar(
+                select(func.count(TaskStateStoreModel.id)).where(
+                    TaskStateStoreModel.dag_id == dr.dag_id,
+                    TaskStateStoreModel.run_id == dr.run_id,
+                    TaskStateStoreModel.task_id == "mapped",
+                )
+            )
+            == 0
+        )
 
     def test_clear_task_instances_external_executor_id(self, dag_maker):
         with dag_maker(
