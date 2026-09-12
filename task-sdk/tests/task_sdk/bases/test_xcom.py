@@ -466,3 +466,48 @@ class TestXComIterable:
     def test_flatten_on_empty_iterable_yields_nothing(self):
         iterable = self.make_iterable(length=0)
         assert list(iterable.flatten()) == []
+
+    # ------------------------------------------------------------------
+    # FlattenedXComIterable __len__ / __getitem__
+    # ------------------------------------------------------------------
+
+    @patch.object(XCom, "get_one")
+    def test_flatten_len_counts_flattened_items_not_pages(self, mock_get_one):
+        """len() of a flattened iterable must count individual flattened items, not the raw
+        pages XComIterable stores — a page can expand to any number of items."""
+        mock_get_one.side_effect = [["a", "b"], ["c", "d", "e"]]
+        flattened = self.make_iterable(length=2).flatten()
+        assert len(flattened) == 5
+
+    @patch.object(XCom, "get_one")
+    def test_flatten_getitem_indexes_flattened_items_not_pages(self, mock_get_one):
+        """Indexing a flattened iterable must address individual flattened items, not the raw
+        pages XComIterable stores."""
+        mock_get_one.side_effect = [["a", "b"], ["c", "d", "e"]]
+        flattened = self.make_iterable(length=2).flatten()
+        assert [flattened[i] for i in range(len(flattened))] == ["a", "b", "c", "d", "e"]
+        assert flattened[-1] == "e"
+
+    @patch.object(XCom, "get_one")
+    def test_flatten_getitem_slice_returns_flattened_items(self, mock_get_one):
+        mock_get_one.side_effect = [["a", "b"], ["c", "d", "e"]]
+        flattened = self.make_iterable(length=2).flatten()
+        assert flattened[1:4] == ["b", "c", "d"]
+
+    @patch.object(XCom, "get_one")
+    def test_flatten_getitem_out_of_range_raises_index_error(self, mock_get_one):
+        mock_get_one.side_effect = [["a", "b"]]
+        flattened = self.make_iterable(length=1).flatten()
+        with pytest.raises(IndexError):
+            flattened[5]
+
+    @patch.object(XCom, "get_one")
+    def test_flatten_len_and_getitem_only_fetch_pages_once(self, mock_get_one):
+        """The flattened stream is cached on first random-access use, so repeated len()/getitem()
+        calls do not re-fetch every page from XCom each time."""
+        mock_get_one.side_effect = [["a", "b"], ["c", "d", "e"]]
+        flattened = self.make_iterable(length=2).flatten()
+        assert len(flattened) == 5
+        assert len(flattened) == 5
+        assert flattened[0] == "a"
+        assert mock_get_one.call_count == 2
