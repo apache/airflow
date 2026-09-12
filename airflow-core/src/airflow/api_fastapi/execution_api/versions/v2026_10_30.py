@@ -52,3 +52,13 @@ class AddCallbackRunEndpoint(VersionChange):
     instructions_to_migrate_to_previous_version = (
         endpoint("/callbacks/{callback_id}/run", ["PATCH"]).didnt_exist,
     )
+
+
+class AddFirstTaskRescheduleStartDateField(VersionChange):
+    """Add the ``first_task_reschedule_start_date`` field to TIRunContext."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TIRunContext).field("first_task_reschedule_start_date").didnt_exist,
+    )
