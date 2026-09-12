@@ -37,7 +37,7 @@ from airflow.providers.edge3.models.types import is_callback_execute
 from airflow.utils.db import DBLocks, create_global_lock
 from airflow.utils.helpers import prune_dict
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import TaskInstanceState
+from airflow.sdk import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
