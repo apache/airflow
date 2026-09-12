@@ -71,7 +71,7 @@ API Key (Password field)
 
 Azure Endpoint (Host field)
     The Azure OpenAI resource endpoint, e.g.
-    ``https://<resource>.openai.azure.com/``.
+    ``https://<resource>.openai.azure.com``.
 
 API Version (Extra field)
     Azure OpenAI API version (e.g. ``2024-07-01-preview``). Falls back to the
