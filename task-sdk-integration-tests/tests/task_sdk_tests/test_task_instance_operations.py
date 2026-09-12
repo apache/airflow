@@ -177,7 +177,7 @@ def test_ti_state_transitions(sdk_client, task_instance_id):
     Test task instance state transition to terminal state.
     """
     console.print("[yellow]Testing state transition: RUNNING → FAILED...")
-    sdk_client.task_instances.finish(
+    sdk_client.task_instances.set_terminal_state(
         id=task_instance_id, state=TerminalStateNonSuccess.FAILED, when=utcnow(), rendered_map_index="-1"
     )
 
