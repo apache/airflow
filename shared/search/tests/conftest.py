@@ -16,24 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.opensearch._shared.search.response import (
-    AttributeDict,
-    AttributeList,
-    Hit,
-    HitMeta,
-    SearchResponse,
-    resolve_nested,
-)
+import os
 
-__all__ = [
-    "AttributeDict",
-    "AttributeList",
-    "Hit",
-    "HitMeta",
-    "OpensearchResponse",
-    "resolve_nested",
-]
-
-
-class OpensearchResponse(SearchResponse):
-    """Search response wrapper for OpenSearch, preserving the existing import path."""
+os.environ["_AIRFLOW__AS_LIBRARY"] = "true"
