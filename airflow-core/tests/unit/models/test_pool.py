@@ -178,6 +178,94 @@ class TestPool:
             },
         }
 
+    def test_open_slots_including_deferred_counts_post_deferral_scheduled(self, dag_maker):
+        """Scheduled TIs resuming after deferral (next_method set) occupy slots when include_deferred."""
+        pool = Pool(pool="test_pool", slots=5, include_deferred=True)
+        with dag_maker(
+            dag_id="test_open_slots_post_deferral_scheduled",
+            start_date=DEFAULT_DATE,
+        ):
+            op1 = EmptyOperator(task_id="dummy1", pool="test_pool")
+            op2 = EmptyOperator(task_id="dummy2", pool="test_pool")
+            op3 = EmptyOperator(task_id="dummy3", pool="test_pool")
+
+        dr = dag_maker.create_dagrun()
+
+        ti1 = dr.get_task_instance(task_id=op1.task_id)
+        ti2 = dr.get_task_instance(task_id=op2.task_id)
+        ti3 = dr.get_task_instance(task_id=op3.task_id)
+        ti1.state = State.RUNNING
+        # Post-deferral resume: scheduled with next_method set.
+        ti2.state = State.SCHEDULED
+        ti2.next_method = "execute_complete"
+        # First-lifetime scheduled: must not occupy a slot.
+        ti3.state = State.SCHEDULED
+        ti3.next_method = None
+
+        session = settings.Session()
+        session.add(pool)
+        session.merge(ti1)
+        session.merge(ti2)
+        session.merge(ti3)
+        session.commit()
+        session.close()
+
+        assert pool.open_slots() == 3
+        assert pool.running_slots() == 1
+        assert pool.scheduled_slots() == 2
+        assert pool.occupied_slots() == 2
+        assert pool.task_instance_occupies_slot(ti2) is True
+        assert pool.task_instance_occupies_slot(ti3) is False
+        assert pool.slots_stats() == {
+            "default_pool": {
+                "open": 128,
+                "queued": 0,
+                "total": 128,
+                "running": 0,
+                "scheduled": 0,
+                "deferred": 0,
+            },
+            "test_pool": {
+                "open": 3,
+                "queued": 0,
+                "running": 1,
+                "deferred": 0,
+                "scheduled": 2,
+                "total": 5,
+            },
+        }
+
+    def test_open_slots_excluding_deferred_ignores_post_deferral_scheduled(self, dag_maker):
+        """Without include_deferred, post-deferral scheduled TIs do not occupy slots."""
+        pool = Pool(pool="test_pool", slots=5, include_deferred=False)
+        with dag_maker(
+            dag_id="test_open_slots_exclude_post_deferral_scheduled",
+            start_date=DEFAULT_DATE,
+        ):
+            op1 = EmptyOperator(task_id="dummy1", pool="test_pool")
+            op2 = EmptyOperator(task_id="dummy2", pool="test_pool")
+
+        dr = dag_maker.create_dagrun()
+
+        ti1 = dr.get_task_instance(task_id=op1.task_id)
+        ti2 = dr.get_task_instance(task_id=op2.task_id)
+        ti1.state = State.RUNNING
+        ti2.state = State.SCHEDULED
+        ti2.next_method = "execute_complete"
+
+        session = settings.Session()
+        session.add(pool)
+        session.merge(ti1)
+        session.merge(ti2)
+        session.commit()
+        session.close()
+
+        assert pool.open_slots() == 4
+        assert pool.occupied_slots() == 1
+        assert pool.task_instance_occupies_slot(ti2) is False
+        assert pool.slots_stats()["test_pool"]["open"] == 4
+        assert pool.slots_stats()["test_pool"]["scheduled"] == 1
+
     def test_infinite_slots(self, dag_maker):
         pool = Pool(pool="test_pool", slots=-1, include_deferred=False)
         with dag_maker(
