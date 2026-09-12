@@ -20,9 +20,11 @@ import asyncio
 import contextlib
 import logging
 from asyncio import CancelledError, Future, sleep
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
+from google.api_core.exceptions import AlreadyExists, NotFound
 from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, Job, JobStatus
 from google.protobuf.any_pb2 import Any
 from google.rpc.status_pb2 import Status
@@ -159,6 +161,19 @@ def submit_job_direct_trigger():
         polling_interval_seconds=TEST_POLL_INTERVAL,
         cancel_on_kill=True,
     )
+
+
+def attach_trigger_identity(trigger, trigger_id=42, **task_instance_overrides):
+    """Give the trigger the row id and task instance the triggerer attaches before running it."""
+    task_instance = {
+        "dag_id": "test-dag",
+        "task_id": "test-task",
+        "run_id": "test-run",
+        "map_index": -1,
+        "try_number": 1,
+    }
+    trigger.trigger_id = trigger_id
+    trigger.task_instance = SimpleNamespace(**{**task_instance, **task_instance_overrides})
 
 
 @pytest.fixture
@@ -908,3 +923,164 @@ class TestDataprocSubmitJobDirectTrigger:
             mock_sync_hook.cancel_job.assert_not_called()
 
         await async_gen.aclose()
+
+    @pytest.mark.parametrize(
+        "identity",
+        [
+            {"task_instance": None},
+            {"trigger_id": None},
+            {"job": {**TEST_JOB, "reference": {"job_id": "caller-job-id"}}},
+        ],
+    )
+    def test_build_assigned_job_id_leaves_the_job_unnamed(self, submit_job_direct_trigger, identity):
+        attach_trigger_identity(submit_job_direct_trigger)
+        for attribute, value in identity.items():
+            setattr(submit_job_direct_trigger, attribute, value)
+
+        assert submit_job_direct_trigger.build_assigned_job_id() is None
+
+    @pytest.mark.parametrize(
+        "difference",
+        [
+            {"trigger_id": 43},
+            {"dag_id": "other-dag"},
+            {"task_id": "other-task"},
+            {"run_id": "other-run"},
+            {"map_index": 0},
+            {"try_number": 2},
+        ],
+    )
+    def test_build_assigned_job_id_identifies_one_deferral(self, submit_job_direct_trigger, difference):
+        attach_trigger_identity(submit_job_direct_trigger)
+        job_id = submit_job_direct_trigger.build_assigned_job_id()
+
+        attach_trigger_identity(submit_job_direct_trigger)
+        assert submit_job_direct_trigger.build_assigned_job_id() == job_id
+
+        attach_trigger_identity(submit_job_direct_trigger, **difference)
+        assert submit_job_direct_trigger.build_assigned_job_id() != job_id
+
+    @pytest.mark.asyncio
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobDirectTrigger.get_async_hook"
+    )
+    async def test_run_names_the_job_before_submitting_it(
+        self, mock_get_async_hook, submit_job_direct_trigger
+    ):
+        attach_trigger_identity(submit_job_direct_trigger)
+        expected_job_id = submit_job_direct_trigger.build_assigned_job_id()
+        submitted = {}
+
+        def submit_job(**kwargs):
+            submitted["job_id_known_by_trigger"] = submit_job_direct_trigger.job_id
+            submitted["job"] = kwargs["job"]
+            submitted["request_id"] = kwargs["request_id"]
+            future = asyncio.Future()
+            future.set_result(Job(reference={"job_id": expected_job_id}))
+            return future
+
+        mock_hook = mock_get_async_hook.return_value
+        mock_hook.submit_job.side_effect = submit_job
+        get_future = asyncio.Future()
+        get_future.set_result(Job(status=JobStatus(state=JobStatus.State.DONE)))
+        mock_hook.get_job.return_value = get_future
+
+        await submit_job_direct_trigger.run().asend(None)
+
+        assert submitted["job_id_known_by_trigger"] == expected_job_id
+        assert submitted["job"]["reference"] == {"job_id": expected_job_id}
+        assert submitted["request_id"] == TEST_REQUEST_ID
+        assert submit_job_direct_trigger.job == TEST_JOB
+
+    @pytest.mark.asyncio
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobDirectTrigger.get_async_hook"
+    )
+    async def test_run_defaults_the_request_id_to_the_assigned_job_id(self, mock_get_async_hook):
+        trigger = DataprocSubmitJobDirectTrigger(
+            job=TEST_JOB,
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            polling_interval_seconds=TEST_POLL_INTERVAL,
+        )
+        attach_trigger_identity(trigger)
+        mock_hook = mock_get_async_hook.return_value
+        submit_future = asyncio.Future()
+        submit_future.set_result(Job(reference={"job_id": TEST_JOB_ID}))
+        mock_hook.submit_job.return_value = submit_future
+        get_future = asyncio.Future()
+        get_future.set_result(Job(status=JobStatus(state=JobStatus.State.DONE)))
+        mock_hook.get_job.return_value = get_future
+
+        await trigger.run().asend(None)
+
+        assert mock_hook.submit_job.call_args.kwargs["request_id"] == trigger.build_assigned_job_id()
+
+    @pytest.mark.asyncio
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobDirectTrigger.get_async_hook"
+    )
+    async def test_run_polls_the_job_it_already_submitted(
+        self, mock_get_async_hook, submit_job_direct_trigger
+    ):
+        attach_trigger_identity(submit_job_direct_trigger)
+        expected_job_id = submit_job_direct_trigger.build_assigned_job_id()
+        mock_hook = mock_get_async_hook.return_value
+        mock_hook.submit_job.side_effect = AlreadyExists("job already exists")
+        get_future = asyncio.Future()
+        get_future.set_result(Job(status=JobStatus(state=JobStatus.State.DONE)))
+        mock_hook.get_job.return_value = get_future
+
+        event = await submit_job_direct_trigger.run().asend(None)
+
+        assert event.payload["job_id"] == expected_job_id
+        mock_hook.get_job.assert_called_once_with(
+            project_id=TEST_PROJECT_ID, region=TEST_REGION, job_id=expected_job_id
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobDirectTrigger.get_sync_hook"
+    )
+    async def test_on_kill_tolerates_a_job_dataproc_never_received(
+        self, mock_get_sync_hook, submit_job_direct_trigger
+    ):
+        submit_job_direct_trigger.job_id = TEST_JOB_ID
+        mock_get_sync_hook.return_value.cancel_job.side_effect = NotFound("no such job")
+
+        await submit_job_direct_trigger.on_kill()
+
+        mock_get_sync_hook.return_value.cancel_job.assert_called_once()
+
+    @pytest.mark.asyncio
+    @pytest.mark.skipif(AIRFLOW_V_3_3_PLUS, reason="on_kill() handles cancellation for Airflow 3.3.0+")
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobDirectTrigger.get_async_hook"
+    )
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobDirectTrigger.get_sync_hook"
+    )
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobDirectTrigger.safe_to_cancel"
+    )
+    async def test_run_cancelled_tolerates_a_job_dataproc_never_received(
+        self,
+        mock_safe_to_cancel,
+        mock_get_sync_hook,
+        mock_get_async_hook,
+        submit_job_direct_trigger,
+    ):
+        mock_safe_to_cancel.return_value = True
+        mock_hook = mock_get_async_hook.return_value
+        submit_future = asyncio.Future()
+        submit_future.set_result(Job(reference={"job_id": TEST_JOB_ID}))
+        mock_hook.submit_job.return_value = submit_future
+        mock_hook.get_job.side_effect = asyncio.CancelledError
+        mock_get_sync_hook.return_value.cancel_job.side_effect = NotFound("no such job")
+
+        async_gen = submit_job_direct_trigger.run()
+        with contextlib.suppress(asyncio.CancelledError, StopAsyncIteration):
+            await async_gen.asend(None)
+
+        mock_get_sync_hook.return_value.cancel_job.assert_called_once()

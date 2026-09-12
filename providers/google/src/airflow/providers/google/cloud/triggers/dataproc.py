@@ -20,13 +20,14 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import re
 import time
 from collections.abc import AsyncIterator, Sequence
 from typing import TYPE_CHECKING, Any
 
 from asgiref.sync import sync_to_async
-from google.api_core.exceptions import NotFound
+from google.api_core.exceptions import AlreadyExists, NotFound
 from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, Job, JobStatus
 
 from airflow.providers.common.compat.sdk import AirflowException
@@ -245,6 +246,10 @@ class DataprocSubmitJobDirectTrigger(DataprocBaseTrigger):
     Used for direct-to-triggerer functionality where job submission and polling
     are handled entirely by the triggerer without requiring a worker.
 
+    Unless the job resource already names the job, the trigger assigns a job id of its own before
+    submitting, so the job stays identifiable when the trigger is torn down or re-created while the
+    submit call is in flight.
+
     :param job: The job resource dict to submit.
     :param project_id: Google Cloud Project where the job is running.
     :param region: The Cloud Dataproc region in which to handle the request.
@@ -252,7 +257,8 @@ class DataprocSubmitJobDirectTrigger(DataprocBaseTrigger):
     :param impersonation_chain: Optional service account to impersonate using short-term credentials.
     :param polling_interval_seconds: Polling period in seconds to check for the status.
     :param cancel_on_kill: Flag indicating whether to cancel the job when on_kill is called.
-    :param request_id: Optional unique id used to identify the request.
+    :param request_id: Optional unique id used to identify the request. Defaults to the job id the
+        trigger assigns, which makes a re-submission by a restarted triggerer a no-op.
     """
 
     def __init__(
@@ -281,13 +287,29 @@ class DataprocSubmitJobDirectTrigger(DataprocBaseTrigger):
             },
         )
 
+    def build_assigned_job_id(self) -> str | None:
+        """Derive the job id to assign for this deferral, or None when the trigger should not name it."""
+        ti = self.task_instance
+        if ti is None or self.trigger_id is None or (self.job.get("reference") or {}).get("job_id"):
+            return None
+        # The trigger row id pins one deferral: it outlives triggerer restarts and a retry gets a new
+        # row. The task identity is mixed in because a database may reuse the id of a deleted row.
+        identity = f"{self.trigger_id}:{ti.dag_id}:{ti.task_id}:{ti.run_id}:{ti.map_index}:{ti.try_number}"
+        return f"airflow-{hashlib.sha256(identity.encode()).hexdigest()[:24]}"
+
     async def on_kill(self) -> None:
         """Cancel the Dataproc job when the task is killed by a user action."""
         if self.job_id and self.cancel_on_kill:
             self.log.info("Cancelling Dataproc job: %s.", self.job_id)
-            await sync_to_async(self.get_sync_hook().cancel_job)(
-                job_id=self.job_id, project_id=self.project_id, region=self.region
-            )
+            try:
+                await sync_to_async(self.get_sync_hook().cancel_job)(
+                    job_id=self.job_id, project_id=self.project_id, region=self.region
+                )
+            except NotFound:
+                # The kill can arrive while the submit call is in flight, so the job the trigger
+                # named may never have reached Dataproc.
+                self.log.info("Dataproc job: %s does not exist, nothing to cancel.", self.job_id)
+                return
             self.log.info("Job: %s is cancelled.", self.job_id)
 
     if not AIRFLOW_V_3_3_PLUS:
@@ -361,15 +383,31 @@ class DataprocSubmitJobDirectTrigger(DataprocBaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         try:
             hook = self.get_async_hook()
+            job_to_submit = self.job
+            assigned_job_id = self.build_assigned_job_id()
+            if assigned_job_id is not None:
+                # Naming the job up front keeps its id known when the submit call is interrupted, and
+                # sends a re-submission by a restarted triggerer back to the job already running.
+                reference = {**(self.job.get("reference") or {}), "job_id": assigned_job_id}
+                job_to_submit = {**self.job, "reference": reference}
+                self.job_id = assigned_job_id
             self.log.info("Submitting Dataproc job.")
-            job_object = await hook.submit_job(
-                project_id=self.project_id,
-                region=self.region,
-                job=self.job,
-                request_id=self.request_id,
-            )
-            self.job_id = job_object.reference.job_id
-            self.log.info("Dataproc job %s submitted successfully.", self.job_id)
+            try:
+                job_object = await hook.submit_job(
+                    project_id=self.project_id,
+                    region=self.region,
+                    job=job_to_submit,
+                    request_id=self.request_id or assigned_job_id,
+                )
+            except AlreadyExists:
+                # Only a job this trigger named can be assumed to be its own earlier submission; a
+                # job id the caller chose is theirs to keep unique.
+                if self.job_id is None:
+                    raise
+                self.log.info("Dataproc job %s was already submitted, resuming polling.", self.job_id)
+            else:
+                self.job_id = job_object.reference.job_id
+                self.log.info("Dataproc job %s submitted successfully.", self.job_id)
 
             while True:
                 job = await hook.get_job(project_id=self.project_id, region=self.region, job_id=self.job_id)
@@ -398,6 +436,8 @@ class DataprocSubmitJobDirectTrigger(DataprocBaseTrigger):
                                 "job_state": ClusterStatus.State.DELETING.name,  # type: ignore[attr-defined]
                             }
                         )
+                except NotFound:
+                    self.log.info("Dataproc job: %s does not exist, nothing to cancel.", self.job_id)
                 except Exception as e:
                     self.log.error("Failed to cancel the job: %s with error : %s", self.job_id, str(e))
                     raise e
