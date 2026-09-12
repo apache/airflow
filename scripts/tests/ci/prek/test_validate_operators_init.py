@@ -128,8 +128,7 @@ class TestConstructorFieldLogic:
                 id="provision-check-passed-to-a-helper",
             ),
             pytest.param(
-                "self.foo = foo\n"
-                "self.start_trigger_args = StartTriggerArgs(trigger_kwargs={'foo': self.foo}, timeout=foo)",
+                "self.foo = foo\nself.start_trigger_args = StartTriggerArgs(trigger_kwargs={'foo': self.foo})",
                 0,
                 id="verbatim-copy-into-start-trigger-args",
             ),
@@ -140,10 +139,29 @@ class TestConstructorFieldLogic:
                 id="verbatim-copy-via-replace-of-start-trigger-args",
             ),
             pytest.param(
-                "self.foo = foo\n"
-                "self.start_trigger_args = StartTriggerArgs(trigger_kwargs={'foo': self.foo.upper()})",
+                "self.foo = foo\nself.start_trigger_args = StartTriggerArgs(trigger_kwargs={'foo': self.foo.upper()})",
                 1,
-                id="transformation-inside-start-trigger-args",
+                id="transformation-inside-trigger-kwargs",
+            ),
+            pytest.param(
+                "self.foo = foo\nself.start_trigger_args = StartTriggerArgs(trigger_kwargs={'bar': self.foo})",
+                1,
+                id="trigger-kwargs-key-differs-from-field-name",
+            ),
+            pytest.param(
+                "self.foo = foo\nself.start_trigger_args = StartTriggerArgs(trigger_kwargs={**self.foo})",
+                1,
+                id="trigger-kwargs-unpacking",
+            ),
+            pytest.param(
+                "self.foo = foo\nself.start_trigger_args = StartTriggerArgs(trigger_kwargs={}, timeout=foo)",
+                1,
+                id="other-start-trigger-args-fields-are-not-rendered",
+            ),
+            pytest.param(
+                "self.foo = foo\nunused = StartTriggerArgs(trigger_kwargs={'foo': self.foo})",
+                1,
+                id="start-trigger-args-not-assigned-to-self",
             ),
             pytest.param(
                 "self.foo = foo\nself.other = dataclasses.replace(self.other, foo=self.foo)",

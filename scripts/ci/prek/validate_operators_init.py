@@ -335,6 +335,13 @@ def _collect_sanctioned_uses(ctor: ast.FunctionDef, template_fields: list[str]) 
                 name = _target_name(target)
                 if name is not None and name in template_fields:
                     mark(value, name)
+                elif isinstance(value, ast.Call) and _is_start_trigger_args_assignment(target, value):
+                    # The triggerer renders only the trigger_kwargs entries whose key is both an
+                    # operator template field and a trigger attribute (airflow/triggers/base.py),
+                    # so only a verbatim copy under the field's own name is safe un-rendered.
+                    for key, item in _iter_trigger_kwargs_items(value):
+                        if key in template_fields and _target_name(item) == key:
+                            sanctioned.add(id(item))
         elif isinstance(node, ast.Call) and _is_super_init_call(node):
             for keyword in node.keywords:
                 if keyword.arg is not None and keyword.arg in template_fields:
@@ -342,46 +349,56 @@ def _collect_sanctioned_uses(ctor: ast.FunctionDef, template_fields: list[str]) 
         elif isinstance(node, ast.Compare) and _is_none_check(node):
             # Reads whether the argument was passed, not its value — only __init__ can see that.
             sanctioned.add(id(node.left))
-        elif isinstance(node, ast.Call) and _is_start_trigger_args_call(node):
-            # start_from_trigger hands trigger_kwargs to the triggerer, which renders the template
-            # fields itself, so copying them un-rendered at construct time is the intended flow.
-            for value in _iter_direct_call_values(node):
-                if _target_name(value) in template_fields:
-                    sanctioned.add(id(value))
     return sanctioned
 
 
-def _is_start_trigger_args_call(node: ast.Call) -> bool:
+def _is_start_trigger_args_assignment(target: ast.expr, value: ast.Call) -> bool:
     """
-    Check whether a call builds the operator's ``start_trigger_args``.
+    Check whether an assignment rebuilds ``self.start_trigger_args``.
 
-    Matches ``StartTriggerArgs(...)`` and ``dataclasses.replace(self.start_trigger_args, ...)``.
+    Matches ``self.start_trigger_args = StartTriggerArgs(...)`` and
+    ``self.start_trigger_args = dataclasses.replace(self.start_trigger_args, ...)``. Aliased
+    imports and positional ``StartTriggerArgs`` arguments are deliberately not matched.
 
-    :param node: The call node.
-    :return: True if the call constructs or copies ``StartTriggerArgs``.
+    :param target: The assignment target.
+    :param value: The assigned call.
+    :return: True if the assignment constructs or copies ``StartTriggerArgs``.
     """
-    name = _resolve_base_name(node.func)
+    if not (isinstance(target, ast.Attribute) and _target_name(target) == "start_trigger_args"):
+        return False
+    name = _resolve_base_name(value.func)
     if name == "StartTriggerArgs":
         return True
-    return name == "replace" and bool(node.args) and _target_name(node.args[0]) == "start_trigger_args"
+    return (
+        name == "replace"
+        and bool(value.args)
+        and isinstance(value.args[0], ast.Attribute)
+        and _target_name(value.args[0]) == "start_trigger_args"
+    )
 
 
-def _iter_direct_call_values(call: ast.Call) -> Iterator[ast.expr]:
+def _iter_trigger_kwargs_items(call: ast.Call) -> Iterator[tuple[str | None, ast.expr]]:
     """
-    Yield the keyword values of a call, descending one level into ``{...}`` and ``dict(...)``.
+    Yield the ``(key, value)`` pairs of a call's ``trigger_kwargs=`` argument.
 
-    Only values passed through verbatim are yielded; anything nested deeper is a transformation
-    and stays subject to the regular check.
+    Supports a ``{...}`` literal and a ``dict(...)`` call; ``**`` unpacking yields a None key.
+    Other keywords (``timeout``, ``next_kwargs``, ...) are never rendered and are not inspected.
 
     :param call: The call node.
-    :return: Iterator over the directly passed value expressions.
+    :return: Iterator over the key/value pairs passed as ``trigger_kwargs``.
     """
     for keyword in call.keywords:
-        yield keyword.value
+        if keyword.arg != "trigger_kwargs":
+            continue
         if isinstance(keyword.value, ast.Dict):
-            yield from keyword.value.values
+            for key, item in zip(keyword.value.keys, keyword.value.values):
+                yield (
+                    (key.value if isinstance(key, ast.Constant) and isinstance(key.value, str) else None),
+                    item,
+                )
         elif isinstance(keyword.value, ast.Call) and _resolve_base_name(keyword.value.func) == "dict":
-            yield from (inner.value for inner in keyword.value.keywords)
+            for inner in keyword.value.keywords:
+                yield inner.arg, inner.value
 
 
 def _check_constructor_field_logic(
