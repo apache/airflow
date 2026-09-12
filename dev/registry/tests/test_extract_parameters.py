@@ -37,6 +37,7 @@ from extract_parameters import (
     get_category,
     is_durable_capable,
     load_resumable_job_mixin,
+    supports_deferrable,
 )
 
 
@@ -244,6 +245,60 @@ class ManuallyDurableSubclass(ManuallyDurableOperator):
         return "something else entirely"
 
 
+class ManuallyDurableSubclassNoOverride(ManuallyDurableOperator):
+    """Adds no execute() override at all. Mirrors GKEStartPodOperator, which relies
+    entirely on KubernetesPodOperator.execute(). Must still qualify."""
+
+    def some_other_method(self):
+        return None
+
+
+class ManuallyDurableSubclassDelegating(ManuallyDurableOperator):
+    """Overrides execute() but delegates back via super().execute(). Mirrors
+    EksPodOperator/SparkKubernetesOperator's non-deferrable path. Must still qualify."""
+
+    def execute(self, context):
+        self.log_something()
+        return super().execute(context)
+
+    def log_something(self):
+        return None
+
+
+class ManuallyDurableSubclassDelegatingMultiHop(ManuallyDurableSubclassDelegating):
+    """A second layer of super().execute() delegation on top of ManuallyDurableSubclassDelegating.
+    Must still qualify."""
+
+    def execute(self, context):
+        return super().execute(context)
+
+
+class DecoratorMixin:
+    """Mirrors DecoratedOperator: a mixin whose own MRO has no relationship to the marker class."""
+
+    def execute(self, context):
+        return super().execute(context)
+
+
+class DecoratedDurableSubclass(DecoratorMixin, ManuallyDurableOperator):
+    """Combines DecoratorMixin with the marker class via multiple inheritance (e.g. @task.kubernetes)."""
+
+    def execute(self, context):
+        return super().execute(context)
+
+
+class DecoratedDurableSubclassNoOwnExecute(DecoratorMixin, ManuallyDurableOperator):
+    """Same combined MRO as above, but inherits DecoratorMixin's execute() unchanged."""
+
+
+class ExplicitParentDelegatingSubclass(ManuallyDurableOperator):
+    """Mirrors @task.agent's _AgentDecoratedOperator: names the parent class directly instead
+    of using super(). Must still qualify."""
+
+    def execute(self, context):
+        return ManuallyDurableOperator.execute(self, context)
+
+
 class TestIsDurableCapable:
     def test_fully_implemented_and_wired_qualifies(self):
         assert is_durable_capable(FullyImplementedResumableOperator, FakeResumableJobMixin) is True
@@ -266,12 +321,255 @@ class TestIsDurableCapable:
     def test_subclass_not_redeclaring_marker_disqualifies(self):
         assert is_durable_capable(ManuallyDurableSubclass, FakeResumableJobMixin) is False
 
+    def test_subclass_with_no_execute_override_inherits_marker(self):
+        assert is_durable_capable(ManuallyDurableSubclassNoOverride, FakeResumableJobMixin) is True
+
+    def test_subclass_delegating_via_super_execute_qualifies(self):
+        assert is_durable_capable(ManuallyDurableSubclassDelegating, FakeResumableJobMixin) is True
+
+    def test_subclass_delegating_via_super_execute_multi_hop_qualifies(self):
+        assert is_durable_capable(ManuallyDurableSubclassDelegatingMultiHop, FakeResumableJobMixin) is True
+
+    def test_multiple_inheritance_decorator_mixin_qualifies(self):
+        assert is_durable_capable(DecoratedDurableSubclass, FakeResumableJobMixin) is True
+
+    def test_multiple_inheritance_no_own_execute_qualifies(self):
+        assert is_durable_capable(DecoratedDurableSubclassNoOwnExecute, FakeResumableJobMixin) is True
+
+    def test_mixin_subclass_delegating_via_super_execute_qualifies(self):
+        class MixinSubclassDelegating(FullyImplementedResumableOperator):
+            def execute(self, context):
+                return super().execute(context)
+
+        assert is_durable_capable(MixinSubclassDelegating, FakeResumableJobMixin) is True
+
+    def test_explicit_parent_class_delegation_qualifies(self):
+        assert is_durable_capable(ExplicitParentDelegatingSubclass, FakeResumableJobMixin) is True
+
+    def test_mixin_subclass_delegating_via_explicit_parent_call_qualifies(self):
+        class MixinSubclassExplicitDelegating(FullyImplementedResumableOperator):
+            def execute(self, context):
+                return FullyImplementedResumableOperator.execute(self, context)
+
+        assert is_durable_capable(MixinSubclassExplicitDelegating, FakeResumableJobMixin) is True
+
+    def test_declaring_class_with_leading_underscore_is_found(self):
+        """Python strips leading underscores from the class name when mangling, so the
+        lookup must too, or a declaring class like `_FooOperator` is never found."""
+
+        class _UnderscoreOperator:
+            __supports_durable_execution = True
+
+            def execute(self, context):
+                return None
+
+        assert is_durable_capable(_UnderscoreOperator, FakeResumableJobMixin) is True
+
+
+# ---------------------------------------------------------------------------
+# supports_deferrable
+# ---------------------------------------------------------------------------
+class DeferrableOperator:
+    """Mirrors HttpOperator: reads self.deferrable directly in its own execute()."""
+
+    def __init__(self, *, deferrable: bool = False):
+        self.deferrable = deferrable
+
+    def execute(self, context):
+        if self.deferrable:
+            return self.execute_async(context)
+        return self.execute_sync(context)
+
+    def execute_async(self, context):
+        return None
+
+    def execute_sync(self, context):
+        return None
+
+
+class NonDeferrableOperator:
+    def __init__(self, *, some_other_param: str = ""):
+        self.some_other_param = some_other_param
+
+    def execute(self, context):
+        return None
+
+
+class OverridesExecuteWithoutDeferring(DeferrableOperator):
+    """Mirrors DiscordWebhookOperator: inherits the deferrable param but overrides
+    execute() with synchronous code that never reads it -- an inherited, dead knob."""
+
+    def execute(self, context):
+        return self.hook_call(context)
+
+    def hook_call(self, context):
+        return None
+
+
+class InheritsDeferringExecute(DeferrableOperator):
+    """Mirrors TimeDeltaSensorAsync: doesn't override execute() at all -- still
+    defers because the inherited method is what actually runs."""
+
+
+class AlwaysDeferringOperator:
+    """Mirrors DateTimeSensorAsync: defers unconditionally, no toggle to find."""
+
+    def execute(self, context):
+        self.defer()
+
+    def defer(self, *args, **kwargs):
+        return None
+
+
+class DefersThroughHelperMethod:
+    """Mirrors TriggerDagRunOperator: execute() delegates to a same class helper
+    that is the one actually calling self.defer()."""
+
+    def execute(self, context):
+        return self._trigger_dag_af_2(context)
+
+    def _trigger_dag_af_2(self, context):
+        return self.defer()
+
+    def defer(self, *args, **kwargs):
+        return None
+
+
+class DefersThroughUnrelatedHelperMethod:
+    """The helper the walk follows doesn't defer at all."""
+
+    def execute(self, context):
+        return self._do_the_thing(context)
+
+    def _do_the_thing(self, context):
+        return None
+
+
+class BaseWithDeferringExecute:
+    """Mirrors KubernetesPodOperator: its own execute() calls self.defer()."""
+
+    def execute(self, context):
+        if self.pod is None:
+            self.defer()
+        return None
+
+    def defer(self, *args, **kwargs):
+        return None
+
+
+class SubclassDelegatingToSuperExecute(BaseWithDeferringExecute):
+    """Mirrors EksPodOperator: overrides execute() to do setup, then calls
+    super().execute(), which is where the actual self.defer() call lives."""
+
+    def execute(self, context):
+        self.setup(context)
+        return super().execute(context)
+
+    def setup(self, context):
+        return None
+
+
+class SubclassDelegatingToExplicitParentExecute(BaseWithDeferringExecute):
+    """Mirrors @task.agent's _AgentDecoratedOperator: names the parent class directly
+    instead of using super()."""
+
+    def execute(self, context):
+        return BaseWithDeferringExecute.execute(self, context)
+
+
+class DeferringDecoratorMixin:
+    """Mirrors DecoratedOperator: a mixin whose own MRO has no relationship to BaseWithDeferringExecute."""
+
+    def execute(self, context):
+        return super().execute(context)
+
+
+class DecoratedDeferringSubclass(DeferringDecoratorMixin, BaseWithDeferringExecute):
+    """Combines DeferringDecoratorMixin with the deferring class via multiple inheritance."""
+
+    def execute(self, context):
+        return super().execute(context)
+
+
+class RaisesTaskDeferredDirectly:
+    """Mirrors VespaIngestOperator: raises TaskDeferred directly, with no
+    self.defer()/self.deferrable reference anywhere in the call chain."""
+
+    def execute(self, context):
+        raise TaskDeferred(trigger=None, method_name="execute_complete")
+
+
+class TaskDeferred(Exception):
+    """Placeholder for actual TaskDeferred exception."""
+
+    def __init__(self, *, trigger, method_name):
+        self.trigger = trigger
+        self.method_name = method_name
+
+
+class DefersForApprovalOnly:
+    def execute(self, context):
+        return self.defer_for_approval(context)
+
+    def defer_for_approval(self, context):
+        return None
+
+
+class TestSupportsDeferrable:
+    def test_reads_deferrable_directly_qualifies(self):
+        assert supports_deferrable(DeferrableOperator) is True
+
+    def test_no_deferral_reference_disqualifies(self):
+        assert supports_deferrable(NonDeferrableOperator) is False
+
+    def test_inherited_param_but_overridden_execute_disqualifies(self):
+        """The Discord regression case: an inherited deferrable knob that the
+        subclass's own execute() never reads must not count as deferrable."""
+        assert supports_deferrable(OverridesExecuteWithoutDeferring) is False
+
+    def test_inherited_unmodified_execute_qualifies(self):
+        assert supports_deferrable(InheritsDeferringExecute) is True
+
+    def test_unconditional_defer_with_no_param_qualifies(self):
+        assert supports_deferrable(AlwaysDeferringOperator) is True
+
+    def test_defers_through_helper_method_qualifies(self):
+        """The TriggerDagRunOperator case: found by walking into the helper the
+        exception list used to hardcode, without needing a class-name lookup."""
+        assert supports_deferrable(DefersThroughHelperMethod) is True
+
+    def test_helper_method_without_deferral_disqualifies(self):
+        assert supports_deferrable(DefersThroughUnrelatedHelperMethod) is False
+
+    def test_defers_through_super_execute_qualifies(self):
+        """The EksPodOperator case: the override calls super().execute(), and the
+        actual self.defer() call lives in the parent's execute()."""
+        assert supports_deferrable(SubclassDelegatingToSuperExecute) is True
+
+    def test_defers_through_super_execute_with_multiple_inheritance_qualifies(self):
+        """A @task.kubernetes-shaped case: the chain must resolve against the subclass's MRO."""
+        assert supports_deferrable(DecoratedDeferringSubclass) is True
+
+    def test_defers_through_explicit_parent_class_call_qualifies(self):
+        """A @task.agent-shaped case: delegation names the parent class instead of super()."""
+        assert supports_deferrable(SubclassDelegatingToExplicitParentExecute) is True
+
+    def test_raises_task_deferred_directly_qualifies(self):
+        """The VespaIngestOperator case: no self.defer()/self.deferrable anywhere,
+        just a direct TaskDeferred raise."""
+        assert supports_deferrable(RaisesTaskDeferredDirectly) is True
+
+    def test_defer_for_approval_does_not_false_match(self):
+        """self.defer_for_approval(...) is HITL approval, not deferral; the old
+        substring check on "self.defer" matched it by accident."""
+        assert supports_deferrable(DefersForApprovalOnly) is False
+
 
 # ---------------------------------------------------------------------------
 # Module dataclass
 # ---------------------------------------------------------------------------
 class TestModuleDataclass:
-    def test_has_all_12_fields(self):
+    def test_has_all_13_fields(self):
         m = Module(
             id="amazon-s3-S3Hook",
             name="S3Hook",
@@ -285,6 +583,7 @@ class TestModuleDataclass:
             provider_id="amazon",
             provider_name="Amazon",
             supports_durable_execution=False,
+            supports_deferrable=False,
         )
         assert m.id == "amazon-s3-S3Hook"
         assert m.provider_name == "Amazon"
@@ -619,8 +918,8 @@ class TestDiscoverClassesFromProvider:
         operators = [r for r in result if r["type"] == "operator"]
         assert operators[0]["short_description"] == "Copy objects in S3."
 
-    def test_all_11_fields_present(self, provider_yaml_path, base_classes):
-        """Every discovered entry has all 11 Module fields."""
+    def test_all_13_fields_present(self, provider_yaml_path, base_classes):
+        """Every discovered entry has all 13 Module fields."""
         with (
             patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
             patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
@@ -639,6 +938,8 @@ class TestDiscoverClassesFromProvider:
             "category",
             "provider_id",
             "provider_name",
+            "supports_durable_execution",
+            "supports_deferrable",
         ]
         for entry in result:
             missing = [f for f in required_fields if f not in entry]
@@ -848,6 +1149,48 @@ class TestDiscoverClassesFromProviderDurableExecution:
             result = discover_classes_from_provider(yaml_path, base_classes={})
 
         assert result[0]["supports_durable_execution"] is False
+
+
+class TestDiscoverClassesFromProviderDeferrable:
+    def test_marks_deferrable_and_plain_operators(self, tmp_path):
+        class DeferrableProviderOperator(DeferrableOperator):
+            __module__ = "airflow.providers.test.operators.spark"
+
+        class PlainProviderOperator(PlainOperator):
+            __module__ = "airflow.providers.test.operators.spark"
+
+        provider_yaml = {
+            "package-name": "apache-airflow-providers-test",
+            "name": "Test",
+            "operators": [
+                {
+                    "integration-name": "Test",
+                    "python-modules": ["airflow.providers.test.operators.spark"],
+                },
+            ],
+        }
+        provider_dir = tmp_path / "test"
+        provider_dir.mkdir()
+        yaml_path = provider_dir / "provider.yaml"
+        yaml_path.write_text(yaml.dump(provider_yaml))
+
+        mod = _make_module(
+            "airflow.providers.test.operators.spark",
+            {
+                "DeferrableProviderOperator": DeferrableProviderOperator,
+                "PlainProviderOperator": PlainProviderOperator,
+            },
+        )
+
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", tmp_path),
+            patch("extract_parameters.importlib.import_module", return_value=mod),
+        ):
+            result = discover_classes_from_provider(yaml_path, base_classes={})
+
+        by_name = {r["name"]: r for r in result}
+        assert by_name["DeferrableProviderOperator"]["supports_deferrable"] is True
+        assert by_name["PlainProviderOperator"]["supports_deferrable"] is False
 
 
 # ---------------------------------------------------------------------------
