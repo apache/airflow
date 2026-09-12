@@ -241,6 +241,16 @@ class TestXComGet:
         ).first()
         assert XComModel.deserialize_value(stored_value) == {"key": "value"}
 
+    def test_xcommodel_get_value(self, task_instance, push_simple_json_xcom):
+        push_simple_json_xcom(ti=task_instance, key="xcom_1", value={"key": "value"})
+
+        value = XComModel.get_value(
+            ti_key=task_instance.key,
+            key="xcom_1",
+        )
+
+        assert value == {"key": "value"}
+
     @pytest.fixture
     def tis_for_xcom_get_one_from_prior_date(self, task_instance_factory, push_simple_json_xcom):
         date1 = timezone.datetime(2021, 12, 3, 4, 56)
