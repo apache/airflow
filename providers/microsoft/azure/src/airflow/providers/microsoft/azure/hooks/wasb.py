@@ -26,6 +26,7 @@ field (see connection `wasb_default` for an example).
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 from typing import TYPE_CHECKING, Any, cast
@@ -261,6 +262,56 @@ class WasbHook(BaseHook):
         except ResourceNotFoundError:
             return False
         return True
+
+    def get_blob_properties(self, container_name: str, blob_name: str, **kwargs) -> BlobProperties:
+        """
+        Return the properties of a blob, including its blob type and current size.
+
+        :param container_name: Name of the container.
+        :param blob_name: Name of the blob.
+        :param kwargs: Optional keyword arguments that ``BlobClient.get_blob_properties()`` takes.
+        """
+        return cast(
+            "BlobProperties", self._get_blob_client(container_name, blob_name).get_blob_properties(**kwargs)
+        )
+
+    def create_append_blob(self, container_name: str, blob_name: str, **kwargs) -> None:
+        """
+        Create an empty append blob. No-op if a blob already exists at this location.
+
+        :param container_name: Name of the container.
+        :param blob_name: Name of the blob.
+        :param kwargs: Optional keyword arguments that ``BlobClient.create_append_blob()`` takes.
+        """
+        blob_client = self._get_blob_client(container_name, blob_name)
+        with contextlib.suppress(ResourceExistsError):
+            blob_client.create_append_blob(**kwargs)
+
+    def append_block(
+        self,
+        container_name: str,
+        blob_name: str,
+        data: bytes,
+        offset: int,
+        **kwargs,
+    ) -> None:
+        """
+        Commit a new block of data to the end of an existing append blob.
+
+        Guards against double-appending a block the service already committed but whose response
+        was lost to a retried connection error: the append only succeeds if the blob's current
+        length still matches ``offset``. Otherwise ``azure.core.exceptions.ResourceModifiedError``
+        is raised, so callers fail safely instead of silently writing at the wrong position.
+
+        :param container_name: Name of the container.
+        :param blob_name: Name of the blob.
+        :param data: The bytes to append. Must be no larger than the service's per-block limit
+            for append blobs; split larger payloads into multiple calls.
+        :param offset: The expected current length of the blob, used as the append-position guard.
+        :param kwargs: Optional keyword arguments that ``BlobClient.append_block()`` takes.
+        """
+        blob_client = self._get_blob_client(container_name, blob_name)
+        blob_client.append_block(data, length=len(data), appendpos_condition=offset, **kwargs)
 
     def check_for_prefix(self, container_name: str, prefix: str, **kwargs) -> bool:
         """
