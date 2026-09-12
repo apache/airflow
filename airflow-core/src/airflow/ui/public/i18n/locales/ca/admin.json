@@ -143,8 +143,8 @@
       "packageName": "Nom del paquet",
       "version": "Versió"
     },
-    "provider_one": "Provider",
-    "provider_other": "Providers"
+    "provider_one": "Proveïdor",
+    "provider_other": "Proveïdors"
   },
   "variables": {
     "add": "Afegir variable",

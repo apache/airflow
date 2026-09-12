@@ -157,7 +157,7 @@
     "time": "Hora"
   },
   "fullscreen": {
-    "tooltip": "Prem {{hotkey}} per activar la pantalla completa"
+    "tooltip": "Prem {{hotkey}} per a activar la pantalla completa"
   },
   "generateToken": "Generar token",
   "includedIn": "Inclòs a",
@@ -221,7 +221,7 @@
       "storage": "Els filtres predefinits s'emmagatzemen en aquest navegador."
     },
     "namePlaceholder": "Nom del filtre predefinit",
-    "nothingToSave": "No hi ha res per desar. Apliqueu filtres o un ordre per a ndesar un filtre predefinit.",
+    "nothingToSave": "No hi ha res per desar. Apliqueu filtres o un ordre per a desar un filtre predefinit.",
     "save": "Desar",
     "setDefault": "Establir com a predeterminat",
     "title": "Filtres predefinits",
@@ -302,7 +302,7 @@
     },
     "taskInstance": {
       "defaultTab": {
-        "helper": "Pestanya que es mostra primer en obrir una instància de tasca. Els enllaços a una pestanya específica continuen obrint-la.",
+        "helper": "Pestanya que es mostra primer en obrir una instància de tasca. Els enllaços a una pestanya específica continuen obrint aquella pestanya.",
         "label": "Pestanya predeterminada de la instància de tasca"
       },
       "title": "Instància de tasca"
