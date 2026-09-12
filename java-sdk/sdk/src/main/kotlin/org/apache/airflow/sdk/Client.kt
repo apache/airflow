@@ -96,6 +96,31 @@ class Client internal constructor(
   fun getVariable(key: String): Any? = impl.getVariable(key).value
 
   /**
+   * Stores an Airflow variable, replacing any existing value.
+   *
+   * The value is stored as-is. Serialize structured data (for example to
+   * JSON) before storing it.
+   *
+   * @param key Variable key.
+   * @param value Value to store.
+   * @param description Description of the variable.
+   * @throws ApiError if the API call fails.
+   */
+  @JvmOverloads fun setVariable(
+    key: String,
+    value: String,
+    description: String? = null,
+  ) = impl.setVariable(key = key, value = value, description = description)
+
+  /**
+   * Deletes an Airflow variable.
+   *
+   * @param key Variable key.
+   * @throws ApiError if the API call fails.
+   */
+  fun deleteVariable(key: String) = impl.deleteVariable(key)
+
+  /**
    * Reads an XCom value pushed by another task.
    *
    * The current Dag run's [dagId][TaskInstance.dagId] and
