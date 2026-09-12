@@ -99,7 +99,7 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         self.retry = retry
         self.request_timeout = request_timeout
         self.metadata = metadata
-        self.expected_statuses = self._normalize_state_list(expected_statuses)
+        self.expected_statuses = expected_statuses
         self.project_id = project_id
         self.gcp_cloud_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
@@ -144,4 +144,4 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         if run.state in (TransferState.FAILED, TransferState.CANCELLED):
             message = f"Transfer {self.run_id} did not succeed"
             raise AirflowException(message)
-        return run.state in self.expected_statuses
+        return run.state in self._normalize_state_list(self.expected_statuses)
