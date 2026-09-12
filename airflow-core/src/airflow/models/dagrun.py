@@ -63,6 +63,7 @@ from sqlalchemy.orm import (
     joinedload,
     mapped_column,
     relationship,
+    selectinload,
     synonym,
     validates,
 )
@@ -1248,6 +1249,42 @@ class DagRun(Base, LoggingMixin):
             span.set_status(status_code)
             span.end()
 
+    def _handle_missed_deadlines(self, *, session: Session) -> None:
+        """Handle pending deadlines that opt in to firing when their DagRun fails."""
+        deadline_query = (
+            select(Deadline)
+            .join(DeadlineAlertModel, Deadline.deadline_alert_id == DeadlineAlertModel.id)
+            .where(Deadline.dagrun_id == self.id)
+            .where(~Deadline.missed)
+            .where(DeadlineAlertModel.fire_on_failure.is_(True))
+            .options(
+                selectinload(Deadline.callback),
+                selectinload(Deadline.dagrun),
+                selectinload(Deadline.deadline_alert),
+            )
+        )
+        for deadline in session.scalars(
+            with_row_locks(
+                deadline_query,
+                of=Deadline,
+                session=session,
+                skip_locked=True,
+                key_share=False,
+            )
+        ):
+            deadline_id = deadline.id
+            try:
+                deadline.handle_miss(session)
+            except SQLAlchemyError:
+                raise
+            except Exception:
+                self.log.warning(
+                    "Failed to handle missed deadline %s for %s",
+                    deadline_id,
+                    self,
+                    exc_info=True,
+                )
+
     @provide_session
     def update_state(
         self, *, session: Session = NEW_SESSION, execute_callbacks: bool = True
@@ -1348,6 +1385,9 @@ class DagRun(Base, LoggingMixin):
                 )
                 self._check_last_n_dagruns_failed(dag.dag_id, dag.max_consecutive_failed_dag_runs, session)
 
+            if dag.deadline:
+                self._handle_missed_deadlines(session=session)
+
         # if all leaves succeeded and no unfinished tasks, the run succeeded
         elif not unfinished.tis and all(x.state in State.success_states for x in tis_for_dagrun_state):
             self.log.info("Marking run %s successful", self)
@@ -1404,6 +1444,9 @@ class DagRun(Base, LoggingMixin):
                     reason="all_tasks_deadlocked",
                     execute=execute_callbacks,
                 )
+
+            if dag.deadline:
+                self._handle_missed_deadlines(session=session)
 
         # finally, if the leaves aren't done, the dag is still running
         else:

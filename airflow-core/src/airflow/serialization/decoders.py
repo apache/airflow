@@ -227,6 +227,7 @@ def decode_deadline_alert(encoded_data: dict):
         interval=interval,
         callback=deserialize(data[DeadlineAlertFields.CALLBACK]),
         name=data.get(DeadlineAlertFields.NAME),
+        fire_on_failure=data.get(DeadlineAlertFields.FIRE_ON_FAILURE, False),
     )
 
 

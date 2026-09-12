@@ -45,6 +45,10 @@ Creating a Deadline Alert requires three mandatory parameters:
 * Interval: How far before or after the reference point to trigger the alert (either a timedelta or a dynamic interval such as VariableInterval)
 * Callback: A Callback object which contains a path to a callable and optional kwargs to pass to it if the deadline is exceeded
 
+It also supports this optional parameter:
+
+* Fire on failure: Optional. If set to ``True``, a pending Dag run deadline alert fires immediately when the scheduler marks the Dag run failed. Manual UI/API mark-failed paths are unchanged. The default is ``False``.
+
 Here is how Deadlines are calculated:
 
 ::
