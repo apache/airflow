@@ -763,7 +763,7 @@ class SerializedDAG:
             interval = deserialized_deadline_alert.interval
 
             if isinstance(interval, SerializedVariableInterval):
-                interval = interval.resolve()
+                interval = interval.resolve(session=session)
 
             if isinstance(deserialized_deadline_alert.reference, SerializedReferenceModels.TYPES.DAGRUN):
                 deadline_time = deserialized_deadline_alert.reference.evaluate_with(

@@ -388,10 +388,14 @@ class SerializedVariableInterval:
 
     key: str
 
-    def resolve(self) -> timedelta:
+    def resolve(self, *, session: Session | None = None) -> timedelta:
+        """
+        Get the Airflow Variable and return it as a ``timedelta``.
 
+        :param session: Existing SQLAlchemy Session. Callers holding an open transaction must pass it.
+        """
         try:
-            value = Variable.get(self.key)
+            value = Variable.get(self.key, session=session)
         except KeyError as e:
             raise ValueError(f"VariableInterval '{self.key}' not found") from e
 
