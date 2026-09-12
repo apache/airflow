@@ -163,6 +163,39 @@ def test_in_process_execution_api_runs_without_jwt_secret():
     assert response.status_code == 200
 
 
+def test_in_process_execution_api_does_not_reenter_task_sdk(session):
+    """A request served in-process must not route back out through the Task SDK.
+
+    Under ``dag.test()`` the API server and the task share one process, so ``SUPERVISOR_COMMS`` is
+    visible to the route handler too. Without a request-scoped server context the handler reads it,
+    decides it is client-side, and issues another Execution API request -- looping until the caller
+    is killed. No env var is set here on purpose: ``dag.test()`` from a script sets none, so the
+    ContextVar is the only thing preventing re-entry.
+    """
+    from airflow.models.variable import Variable
+
+    # Patched below, not by decorator: this setup must run before ``SUPERVISOR_COMMS`` is visible.
+    Variable.set(key="inproc_key", value="VALUE", session=session)
+    session.commit()
+
+    api = InProcessExecutionAPI()
+    with (
+        mock.patch.dict(
+            "sys.modules",
+            {"airflow.sdk.execution_time.task_runner": mock.Mock(spec=["SUPERVISOR_COMMS"])},
+        ),
+        mock.patch(
+            "airflow.sdk.Variable.get",
+            side_effect=AssertionError("in-process Execution API re-entered the Task SDK path"),
+        ),
+        httpx.Client(transport=api.transport) as client,
+    ):
+        response = client.get("http://localhost/variables/inproc_key")
+
+    assert response.status_code == 200
+    assert response.json() == {"key": "inproc_key", "value": "VALUE"}
+
+
 def test_in_process_execution_api_transport_lifecycle():
     """The background loop + thread lifecycle is tied to the ``.transport``, not the factory instance.
 
