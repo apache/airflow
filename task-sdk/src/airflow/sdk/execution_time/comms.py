@@ -869,6 +869,7 @@ class TaskState(BaseModel):
     end_date: datetime | None = None
     type: Literal["TaskState"] = "TaskState"
     rendered_map_index: str | None = None
+    retry_reason: str | None = None
 
 
 class SucceedTask(TISuccessStatePayload):

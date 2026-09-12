@@ -1407,6 +1407,7 @@ class ActivitySubprocess(WatchedSubprocess):
 
     _terminal_state: str | None = attrs.field(default=None, init=False)
     _final_state: str | None = attrs.field(default=None, init=False)
+    _retry_reason: str | None = attrs.field(default=None, init=False)
     # The terminal-state message currently being processed by `_handle_request`,
     # captured BEFORE the dedicated API call (succeed / retry / defer /
     # reschedule). If the API call raises (network blip, server 5xx, etc.),
@@ -1567,6 +1568,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 state=self.final_state,
                 when=datetime.now(tz=timezone.utc),
                 rendered_map_index=self._rendered_map_index,
+                retry_reason=self._retry_reason,
             )
 
     def _send_terminal_state_msg(
@@ -1803,6 +1805,7 @@ class ActivitySubprocess(WatchedSubprocess):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
             self._rendered_map_index = msg.rendered_map_index
+            self._retry_reason = msg.retry_reason
         elif isinstance(msg, SucceedTask):
             self._task_end_time_monotonic = time.monotonic()
             self._rendered_map_index = msg.rendered_map_index
