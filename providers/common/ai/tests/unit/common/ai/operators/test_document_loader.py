@@ -23,28 +23,26 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow.providers.common.ai.operators.document_loader import DocumentLoaderOperator
+from airflow.sdk import DAG
 
 
 class TestDocumentLoaderInit:
     def test_template_fields_render_source_path_and_metadata(self):
-        """
-        Behavioral check that the templated fields actually get rendered.
-        Replaces the previous tautological assertion that just round-tripped
-        the class attribute.
-        """
+        """The templated fields are substituted by render_template_fields, not merely listed."""
         op = DocumentLoaderOperator(
             task_id="test",
             source_path="/data/{{ ds }}/*.pdf",
-            file_type="{{ var.value.preferred_ext }}",
+            file_type="{{ params.preferred_ext }}",
             metadata_fields={"run_id": "{{ run_id }}"},
         )
-        # Make sure each one is in template_fields so render_template_fields
-        # would substitute them.
-        assert "source_path" in op.template_fields
-        assert "file_type" in op.template_fields
-        assert "file_extensions" in op.template_fields
-        assert "parser" in op.template_fields
-        assert "metadata_fields" in op.template_fields
+
+        op.render_template_fields(
+            context={"ds": "2026-01-01", "run_id": "manual__1", "params": {"preferred_ext": ".pdf"}}
+        )
+
+        assert op.source_path == "/data/2026-01-01/*.pdf"
+        assert op.file_type == ".pdf"
+        assert op.metadata_fields == {"run_id": "manual__1"}
         # source_bytes intentionally not templated -- Jinja stringifies bytes
         # to their repr, which would break binary parsing.
         assert "source_bytes" not in op.template_fields
@@ -58,23 +56,40 @@ class TestDocumentLoaderInit:
         with pytest.raises(ValueError, match="Provide exactly one"):
             DocumentLoaderOperator(task_id="test")
 
-    def test_source_bytes_without_file_type_raises(self):
-        # file_type is a template field, so this check only fires at execute() time.
-        op = DocumentLoaderOperator(task_id="test", source_bytes=b"hello")
-        with pytest.raises(ValueError, match="file_type"):
+    def test_source_bytes_without_file_type_raises_at_construction(self):
+        # Whether file_type was supplied at all is knowable without rendering, so it is a
+        # Dag-parse-time error like the source_path/source_bytes pair above it.
+        with pytest.raises(ValueError, match="'file_type' is required"):
+            DocumentLoaderOperator(task_id="test", source_bytes=b"hello")
+
+    def test_empty_bytes_without_file_type_raises_at_construction(self):
+        with pytest.raises(ValueError, match="'file_type' is required"):
+            DocumentLoaderOperator(task_id="test", source_bytes=b"")
+
+    def test_source_path_rendering_to_none_raises(self):
+        """A supplied source_path that renders to None raises ValueError, not TypeError.
+
+        Driven through real templating rather than by assigning the attribute, so the test
+        fails if the field ever stops being rendered.
+        """
+        with DAG(dag_id="native", schedule=None, render_template_as_native_obj=True):
+            op = DocumentLoaderOperator(task_id="test", source_path="{{ none }}")
+
+        op.render_template_fields(context={})
+        assert op.source_path is None
+
+        with pytest.raises(ValueError, match="'source_path' was supplied but rendered to None"):
             op.execute(context={})
 
-    def test_empty_bytes_without_file_type_raises(self):
-        op = DocumentLoaderOperator(task_id="test", source_bytes=b"")
-        with pytest.raises(ValueError, match="file_type"):
-            op.execute(context={})
+    def test_file_type_rendering_to_none_raises(self):
+        """file_type passes the __init__ guard when supplied, then renders away to None."""
+        with DAG(dag_id="native", schedule=None, render_template_as_native_obj=True):
+            op = DocumentLoaderOperator(task_id="test", source_bytes=b"hello", file_type="{{ none }}")
 
-    def test_source_path_none_after_render_raises(self):
-        # source_path can render to None even when supplied -- must raise ValueError,
-        # not a TypeError from _resolve_files.
-        op = DocumentLoaderOperator(task_id="test", source_path="{{ none }}")
-        op.source_path = None  # simulate the rendered value, bypassing real templating
-        with pytest.raises(ValueError, match="Provide exactly one"):
+        op.render_template_fields(context={})
+        assert op.file_type is None
+
+        with pytest.raises(ValueError, match="'file_type' was supplied but rendered to None"):
             op.execute(context={})
 
 
