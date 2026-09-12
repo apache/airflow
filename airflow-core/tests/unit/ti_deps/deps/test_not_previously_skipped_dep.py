@@ -214,3 +214,93 @@ def test_unmapped_parent_skip_mapped_downstream(session, dag_maker):
     assert len(list(dep.get_dep_statuses(tis["op2"], DepContext(), session=session))) == 1
     assert not dep.is_met(tis["op2"], session=session)
     assert tis["op2"].state == State.SKIPPED
+
+
+def test_hostile_skipmixin_xcom_is_not_deserialized(session, dag_maker):
+    """
+    A serde envelope stored under the skipmixin key must not be instantiated.
+
+    XCom bytes are written by task code, and the Execution API stores the caller's
+    value verbatim. The scheduler evaluates this dep in-process, so a value reaching
+    it must never be able to import a class or construct an object -- the security
+    model reserves the scheduler for code the Deployment Manager installed.
+    """
+    start_date = pendulum.datetime(2020, 1, 1)
+    with dag_maker(
+        "test_hostile_skipmixin_xcom_dag",
+        schedule=None,
+        start_date=start_date,
+        session=session,
+    ):
+        op1 = BranchPythonOperator(task_id="op1", python_callable=lambda: "op2")
+        op2 = EmptyOperator(task_id="op2")
+        op1 >> op2
+
+    dagrun = dag_maker.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING)
+    ti, ti2 = dagrun.task_instances
+    run_task_instance(ti, op1)
+
+    # Overwrite the parent's skipmixin XCom with a serialization envelope, the shape
+    # `XComDecoder.object_hook` would hand to `deserialize(..., full=True)`.
+    session.execute(delete(XComModel).where(XComModel.key == XCOM_SKIPMIXIN_KEY))
+    # `serialize=False` with a pre-serialized string is exactly what the Execution API
+    # does with a caller-supplied value -- it stores the task's bytes verbatim.
+    XComModel.set(
+        key=XCOM_SKIPMIXIN_KEY,
+        value='{"__classname__": "builtins.dict", "__version__": 1, "__data__": {}}',
+        serialize=False,
+        task_id=ti.task_id,
+        dag_id=ti.dag_id,
+        run_id=ti.run_id,
+        map_index=ti.map_index,
+        session=session,
+    )
+    session.commit()
+
+    dep = NotPreviouslySkippedDep()
+
+    # The envelope is read as an inert mapping. It carries neither "followed" nor
+    # "skipped", so it yields no skip decision and the dep passes.
+    assert len(list(dep.get_dep_statuses(ti2, DepContext(), session=session))) == 0
+    assert dep.is_met(ti2, session=session)
+    assert ti2.state != State.SKIPPED
+
+
+def test_non_mapping_skipmixin_xcom_is_ignored(session, dag_maker):
+    """
+    A skipmixin XCom that is not a mapping is ignored rather than crashing the scheduler.
+
+    Without the shape check the membership test runs against whatever the task wrote, so
+    a scalar raises TypeError inside dependency evaluation.
+    """
+    start_date = pendulum.datetime(2020, 1, 1)
+    with dag_maker(
+        "test_non_mapping_skipmixin_xcom_dag",
+        schedule=None,
+        start_date=start_date,
+        session=session,
+    ):
+        op1 = BranchPythonOperator(task_id="op1", python_callable=lambda: "op2")
+        op2 = EmptyOperator(task_id="op2")
+        op1 >> op2
+
+    dagrun = dag_maker.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING)
+    ti, ti2 = dagrun.task_instances
+    run_task_instance(ti, op1)
+
+    session.execute(delete(XComModel).where(XComModel.key == XCOM_SKIPMIXIN_KEY))
+    XComModel.set(
+        key=XCOM_SKIPMIXIN_KEY,
+        value="5",  # a bare scalar: `"followed" in 5` raises TypeError
+        serialize=False,
+        task_id=ti.task_id,
+        dag_id=ti.dag_id,
+        run_id=ti.run_id,
+        map_index=ti.map_index,
+        session=session,
+    )
+    session.commit()
+
+    dep = NotPreviouslySkippedDep()
+    assert len(list(dep.get_dep_statuses(ti2, DepContext(), session=session))) == 0
+    assert ti2.state != State.SKIPPED

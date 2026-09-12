@@ -328,7 +328,11 @@ class TriggerRuleDep(BaseTIDep):
                     and dep_context.wait_for_past_depends_before_skipping
                 ):
                     past_depends_met = ti.xcom_pull(
-                        task_ids=ti.task_id, key=PAST_DEPENDS_MET, session=session, default=False
+                        task_ids=ti.task_id,
+                        key=PAST_DEPENDS_MET,
+                        session=session,
+                        default=False,
+                        full=False,
                     )
                     if not past_depends_met:
                         yield (
@@ -492,7 +496,11 @@ class TriggerRuleDep(BaseTIDep):
                     and dep_context.wait_for_past_depends_before_skipping
                 ):
                     past_depends_met = ti.xcom_pull(
-                        task_ids=ti.task_id, key=PAST_DEPENDS_MET, session=session, default=False
+                        task_ids=ti.task_id,
+                        key=PAST_DEPENDS_MET,
+                        session=session,
+                        default=False,
+                        full=False,
                     )
                     if not past_depends_met:
                         yield self._failing_status(
