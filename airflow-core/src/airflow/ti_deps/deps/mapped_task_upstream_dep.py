@@ -22,6 +22,7 @@ from collections.abc import Iterator
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select
+from sqlalchemy.orm import lazyload
 
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.state import State, TaskInstanceState
@@ -71,7 +72,11 @@ class MappedTaskUpstreamDep(BaseTIDep):
         # to know for the purposes of this check.
         mapped_dependency_tis = (
             session.scalars(
-                select(TaskInstance).where(
+                # Runs once per schedulable task instance and reads only the upstream states,
+                # so skip the dag_run join -- see DagRun.fetch_task_instances.
+                select(TaskInstance)
+                .options(lazyload(TaskInstance.dag_run))
+                .where(
                     TaskInstance.task_id.in_(operator.task_id for operator in mapped_dependencies),
                     TaskInstance.dag_id == ti.dag_id,
                     TaskInstance.run_id == ti.run_id,

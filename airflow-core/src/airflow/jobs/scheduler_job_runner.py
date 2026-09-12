@@ -823,8 +823,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # the run's pinned bundle_version. Lazy loads on transient objects silently return
                 # None instead of raising DetachedInstanceError. Scope the SELECT to version_data
                 # (the PK is auto-included) so we read two columns rather than the full row.
+                # Queueing never reads the run conf, which on a transient TI would read as None
+                # anyway -- see DagRun.fetch_task_instances.
                 .options(
                     joinedload(TI.dag_run)
+                    .defer(DagRun.conf)
                     .selectinload(DagRun.created_dag_version)
                     .load_only(DagVersion.version_data)
                 )
