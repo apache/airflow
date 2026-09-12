@@ -29,6 +29,7 @@ import uuid
 import warnings
 from collections.abc import Callable, Generator, Sequence
 from copy import deepcopy
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from google.cloud.dataflow_v1beta3 import (
@@ -80,6 +81,9 @@ if TYPE_CHECKING:
 # This is the default location
 # https://cloud.google.com/dataflow/pipelines/specifying-exec-params
 DEFAULT_DATAFLOW_LOCATION = "us-central1"
+
+# Sorts before every real timestamp, for jobs the API returned without one.
+UNKNOWN_JOB_TIMESTAMP = datetime.min.replace(tzinfo=timezone.utc)
 
 
 JOB_ID_PATTERN = re.compile(
@@ -461,6 +465,36 @@ class _DataflowJobsController(DataflowJobTerminalStateHelper):
         jobs = self._fetch_all_jobs()
         jobs = [job for job in jobs if job["name"].startswith(prefix_name)]
         return jobs
+
+    @staticmethod
+    def _job_recency_key(job: dict) -> tuple[str, bool]:
+        """
+        Build the key that decides which of several jobs sharing a name is the current one.
+
+        ``jobs.list`` promises only the summary view, which documents a start time
+        but not a create time, so neither field can be assumed present. Prefer
+        ``createTime``, fall back to ``startTime``, and when a job carries neither
+        prefer the one that has not reached a terminal state: only one active job
+        with a given name can exist in a project within one region at a time.
+        """
+        timestamp = job.get("createTime") or job.get("startTime") or ""
+        return timestamp, job.get("currentState") not in DataflowJobStatus.TERMINAL_STATES
+
+    def fetch_latest_job_by_name(self, name: str) -> dict | None:
+        """
+        Fetch the most recently created job with the specified name.
+
+        Dataflow job names are not unique over time, so the most recent job with
+        that name is returned. See :meth:`_job_recency_key` for how the most
+        recent one is picked.
+
+        :param name: Name of the job that needs to be fetched.
+        :return: Dictionary containing the Job's data, or None if no job has that name.
+        """
+        jobs = [job for job in self._fetch_all_jobs() if job["name"] == name]
+        if not jobs:
+            return None
+        return max(jobs, key=self._job_recency_key)
 
     def _refresh_jobs(self) -> None:
         """
@@ -1174,6 +1208,33 @@ class DataflowHook(GoogleBaseHook):
         return jobs_controller.fetch_job_by_id(job_id)
 
     @GoogleBaseHook.fallback_to_default_project_id
+    def get_latest_job_by_name(
+        self,
+        job_name: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        location: str = DEFAULT_DATAFLOW_LOCATION,
+    ) -> dict | None:
+        """
+        Get the most recently created job with the specified name.
+
+        Dataflow job names are not unique over time, so the most recent job with
+        that name is returned.
+
+        :param job_name: Name of the job to get.
+        :param project_id: Optional, the Google Cloud project ID in which to look for the job.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
+        :param location: The location of the Dataflow job (for example europe-west1). See:
+            https://cloud.google.com/dataflow/docs/concepts/regional-endpoints
+        :return: the Job, or None if no job has that name.
+        """
+        jobs_controller = _DataflowJobsController(
+            dataflow=self.get_conn(),
+            project_number=project_id,
+            location=location,
+        )
+        return jobs_controller.fetch_latest_job_by_name(job_name)
+
+    @GoogleBaseHook.fallback_to_default_project_id
     def fetch_job_metrics_by_id(
         self,
         job_id: str,
@@ -1548,6 +1609,45 @@ class AsyncDataflowHook(GoogleBaseAsyncHook, DataflowJobTerminalStateHelper):
         )
         page_result: ListJobsAsyncPager = await client.list_jobs(request=request)
         return page_result
+
+    @staticmethod
+    def _job_recency_key(job: Job) -> tuple[datetime, bool]:
+        """
+        Build the key that decides which of several jobs sharing a name is the current one.
+
+        The same reasoning as :meth:`_DataflowJobsController._job_recency_key`, over
+        the proto representation, where an unset timestamp reads as ``None`` rather
+        than being absent.
+        """
+        # proto-plus surfaces a Timestamp field as a datetime, or as None when it is unset.
+        timestamp = cast("datetime | None", job.create_time) or cast("datetime | None", job.start_time)
+        return timestamp or UNKNOWN_JOB_TIMESTAMP, (
+            job.current_state.name not in DataflowJobStatus.TERMINAL_STATES
+        )
+
+    async def get_latest_job_by_name(
+        self,
+        job_name: str,
+        project_id: str | None = PROVIDE_PROJECT_ID,
+        location: str | None = DEFAULT_DATAFLOW_LOCATION,
+    ) -> Job | None:
+        """
+        Get the most recently created job with the specified name.
+
+        Dataflow job names are not unique over time, so the most recent job with
+        that name is returned.
+
+        :param job_name: Name of the job to get.
+        :param project_id: Optional. The Google Cloud project ID in which to look for the job.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
+        :param location: Optional. The location of the Dataflow job (for example europe-west1).
+        :return: the Job, or None if no job has that name.
+        """
+        jobs_pager = await self.list_jobs(project_id=project_id, location=location)
+        jobs = [job async for job in jobs_pager if job.name == job_name]
+        if not jobs:
+            return None
+        return max(jobs, key=self._job_recency_key)
 
     async def list_job_messages(
         self,
