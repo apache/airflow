@@ -31,6 +31,7 @@ import operator
 import time
 from collections import Counter
 from concurrent.futures import ProcessPoolExecutor
+from functools import cached_property
 from multiprocessing import cpu_count
 from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias, cast
 
@@ -238,25 +239,66 @@ class CeleryExecutor(BaseExecutor):
                 # which point we don't need the ID anymore anyway.
                 self.event_buffer[key] = (TaskInstanceState.QUEUED, result.task_id)
 
+    @cached_property
+    def _broker_supports_pipelined_publish(self) -> bool:
+        from airflow.providers.celery.executors.celery_executor_utils import (
+            broker_supports_pipelined_publish,
+        )
+
+        return self.conf.getboolean(
+            "celery", "redis_pipelined_publish_enabled", fallback=True
+        ) and broker_supports_pipelined_publish(self.celery_app)
+
     def _send_workloads_to_celery(self, workload_tuples_to_send: Sequence[WorkloadInCelery]):
-        from airflow.providers.celery.executors.celery_executor_utils import send_workload_to_executor
+        if not workload_tuples_to_send:
+            return []
+
+        if not self._broker_supports_pipelined_publish:
+            return self._send_workload_batches(workload_tuples_to_send, use_pipelining=False)
+
+        from airflow.models.taskinstancekey import TaskInstanceKey
+
+        task_workloads = [
+            workload_tuple
+            for workload_tuple in workload_tuples_to_send
+            if isinstance(workload_tuple[0], TaskInstanceKey)
+        ]
+        other_workloads = [
+            workload_tuple
+            for workload_tuple in workload_tuples_to_send
+            if not isinstance(workload_tuple[0], TaskInstanceKey)
+        ]
+        results = [
+            *self._send_workload_batches(task_workloads, use_pipelining=True),
+            *self._send_workload_batches(other_workloads, use_pipelining=False),
+        ]
+        results_by_key = {result[0]: result for result in results}
+        return [results_by_key[workload_tuple[0]] for workload_tuple in workload_tuples_to_send]
+
+    def _send_workload_batches(
+        self, workload_tuples_to_send: Sequence[WorkloadInCelery], *, use_pipelining: bool
+    ):
+        from airflow.providers.celery.executors.celery_executor_utils import (
+            send_workload_to_executor,
+            send_workloads_to_executor,
+        )
+
+        if not workload_tuples_to_send:
+            return []
+
+        if use_pipelining:
+            return send_workloads_to_executor(workload_tuples_to_send, use_pipelining=True)
 
         if len(workload_tuples_to_send) == 1 or self._sync_parallelism == 1:
-            # One tuple, or max one process -> send it in the main thread.
             return list(map(send_workload_to_executor, workload_tuples_to_send))
 
-        # Use chunks instead of a work queue to reduce context switching
-        # since workloads are roughly uniform in size.
+        # Preserve the original one-workload publication path for non-Redis brokers and opt-out.
         chunksize = self._num_workloads_per_send_process(len(workload_tuples_to_send))
         num_processes = min(len(workload_tuples_to_send), self._sync_parallelism)
-
-        # Use ProcessPoolExecutor with team_name instead of workload objects to avoid pickling issues.
-        # Subprocesses reconstruct the team-specific Celery app from the team name and existing config.
         with ProcessPoolExecutor(max_workers=num_processes) as send_pool:
-            key_and_async_results = list(
+            return list(
                 send_pool.map(send_workload_to_executor, workload_tuples_to_send, chunksize=chunksize)
             )
-        return key_and_async_results
 
     def sync(self) -> None:
         if not self.workloads:
