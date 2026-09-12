@@ -149,6 +149,7 @@ def get_assets(
 )
 def next_run_assets(
     dag_id: str,
+    readable_assets_filter: ReadableAssetsFilterDep,
     session: SessionDep,
 ) -> NextRunAssetsResponse:
     dag_model = DagModel.get_dagmodel(dag_id, session=session)
@@ -217,6 +218,7 @@ def next_run_assets(
         .group_by(AssetModel.id, AssetModel.uri, AssetModel.name, AssetActive.name)
         .order_by(AssetModel.uri)
     )
+    query = readable_assets_filter.to_orm(query)
 
     if not is_partitioned:
         query = query.join(
