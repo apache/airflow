@@ -360,6 +360,42 @@ class TestActionLoggingTeamName:
         assert logged.team_name is None
 
 
+class TestActionLoggingMapIndex:
+    """The map index a request names is recorded on the Log row, so the row can be matched to the
+    task instance the request acted on."""
+
+    @staticmethod
+    def _log_action(scope):
+        request = Request({"type": "http", "method": "PATCH", "headers": [], "query_string": b"", **scope})
+        session = MagicMock(spec=Session)
+
+        asyncio.run(action_logging(event="patch_task_instance")(request=request, session=session, user=None))
+
+        (logged,) = session.add.call_args.args
+        return logged
+
+    @pytest.mark.parametrize(
+        ("scope", "expected_map_index"),
+        [
+            pytest.param({"path_params": {"map_index": "2"}}, 2, id="path"),
+            pytest.param({"query_string": b"map_index=-1"}, -1, id="query"),
+        ],
+    )
+    def test_map_index_is_taken_from_the_request(self, scope, expected_map_index):
+        assert self._log_action(scope).map_index == expected_map_index
+
+    @pytest.mark.parametrize(
+        "query_string",
+        [
+            pytest.param(b"map_index=first", id="not-an-integer"),
+            pytest.param(b"map_index=-2", id="below-an-unmapped-task"),
+            pytest.param(b"map_index=2147483648", id="larger-than-the-column"),
+        ],
+    )
+    def test_a_value_no_task_instance_can_have_is_not_recorded(self, query_string):
+        assert self._log_action({"query_string": query_string}).map_index is None
+
+
 @pytest.mark.db_test
 class TestActionLoggingResourceTeamName:
     """An action that names no team -- a deletion, or a patch leaving ``team_name`` out -- takes the

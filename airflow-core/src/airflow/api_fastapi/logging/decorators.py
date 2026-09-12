@@ -181,6 +181,20 @@ def _resolve_team_name(params: dict, *, session: Session) -> str | None:
     return None
 
 
+def _extract_map_index(params: dict) -> int | None:
+    """
+    Return the map index named in the request, or ``None`` if it is missing or invalid.
+
+    ``action_logging`` commits the audit row before the endpoint validates the request, so this
+    function has to reject bad values.
+    """
+    try:
+        map_index = int(params["map_index"])
+    except (KeyError, TypeError, ValueError):
+        return None
+    return map_index if -1 <= map_index < 2**31 else None
+
+
 def action_logging(event: str | None = None):
     async def log_action(
         request: Request,
@@ -261,6 +275,7 @@ def action_logging(event: str | None = None):
             task_id=params.get("task_id"),
             dag_id=params.get("dag_id"),
             run_id=params.get("run_id") or params.get("dag_run_id"),
+            map_index=_extract_map_index(params),
             team_name=_resolve_team_name(params, session=session),
         )
 
