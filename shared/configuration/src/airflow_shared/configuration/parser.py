@@ -80,6 +80,8 @@ ENV_VAR_PREFIX = "AIRFLOW__"
 # Separates the team name from the base section name in a team scoped config file section.
 TEAM_SECTION_SEPARATOR = "="
 
+FALLBACK_SUFFIXES = ("_cmd", "_file", "_secret")
+
 
 def team_section_name(team_name: str, section: str) -> str:
     """
@@ -302,6 +304,7 @@ class AirflowConfigParser(ConfigParser):
         lookup_methods = [
             self._get_environment_variables,
             self._get_option_from_config_file,
+            self._get_option_from_file,
             self._get_option_from_commands,
             self._get_option_from_secrets,
             self._get_option_from_defaults,
@@ -557,6 +560,7 @@ class AirflowConfigParser(ConfigParser):
         """Invalidate caches related to provider configuration flags."""
         self.__dict__.pop("configuration_description", None)
         self.__dict__.pop("sensitive_config_values", None)
+        self.__dict__.pop("file_config_values", None)
 
     @functools.cached_property
     def inversed_deprecated_options(self):
@@ -569,6 +573,26 @@ class AirflowConfigParser(ConfigParser):
         return {
             old_section: new_section for new_section, (old_section, ver) in self.deprecated_sections.items()
         }
+
+    @functools.cached_property
+    def file_config_values(self) -> set[tuple[str, str]]:
+        """Get set of config values that should be loaded from files."""
+        flattened = {
+            (s, k): item
+            for s, s_c in self.configuration_description.items()
+            for k, item in s_c.get("options", {}).items()
+        }
+        file_values = {
+            (section.lower(), key.lower())
+            for (section, key), v in flattened.items()
+            if v.get("from_file") is True
+        }
+        depr_option = {self.deprecated_options[x][:-1] for x in file_values if x in self.deprecated_options}
+        depr_section = {
+            (self.deprecated_sections[s][0], k) for s, k in file_values if s in self.deprecated_sections
+        }
+        file_values.update(depr_section, depr_option)
+        return file_values
 
     @functools.cached_property
     def sensitive_config_values(self) -> set[tuple[str, str]]:
@@ -612,7 +636,12 @@ class AirflowConfigParser(ConfigParser):
             return False
         for section, key in self.sensitive_config_values:
             option_tail = self._env_var_name(section, key).removeprefix(ENV_VAR_PREFIX)
-            for tail in (f"___{option_tail}", f"___{option_tail}_CMD", f"___{option_tail}_SECRET"):
+            for tail in (
+                f"___{option_tail}",
+                f"___{option_tail}_CMD",
+                f"__{option_tail}_FILE",
+                f"___{option_tail}_SECRET",
+            ):
                 # The team name sits between the prefix and the tail, so it must not be empty.
                 if env_var.endswith(tail) and len(env_var) > len(ENV_VAR_PREFIX) + len(tail):
                     return True
@@ -643,7 +672,7 @@ class AirflowConfigParser(ConfigParser):
                 return True
             # A team scoped ``_cmd`` / ``_secret`` fallback is not resolved into its value, so it
             # stays in the output as configured and has to be recognised on its own.
-            for fallback_suffix in ("_cmd", "_secret"):
+            for fallback_suffix in FALLBACK_SUFFIXES:
                 if not key.endswith(fallback_suffix):
                     continue
                 if (base_section, key.removesuffix(fallback_suffix)) in self.sensitive_config_values:
@@ -716,6 +745,19 @@ class AirflowConfigParser(ConfigParser):
         if raw and isinstance(value, str):
             return value.replace("%", "%%")
         return value
+
+    def _get_config_value_from_file(self, file_path: str):
+        try:
+            if os.path.exists(file_path):
+                with open(file_path) as f:
+                    return f.read()
+        except Exception as e:
+            raise AirflowConfigException(
+                f"Cannot retrieve config from file {file_path}. "
+                "Make sure that the file exists and"
+                "is accessible.\n"
+                f"{e}"
+            )
 
     def _get_custom_secret_backend(self, worker_mode: bool = False) -> Any | None:
         """
@@ -799,6 +841,24 @@ class AirflowConfigParser(ConfigParser):
                     return run_command(command)
         return None
 
+    def _get_file_option_from_config_sources(
+        self, config_sources: ConfigSourcesType, section: str, key: str
+    ) -> str | None:
+        fallback_key = key + "_file"
+        if (section, key) in self.file_config_values:
+            section_dict = config_sources.get(section)
+            if section_dict is not None:
+                file_value = section_dict.get(fallback_key)
+                if file_value is not None:
+                    if isinstance(file_value, str):
+                        file_path = file_value
+                    else:
+                        file_path = file_value[0]
+                    if os.path.exists(file_path):
+                        with open(file_path) as f:
+                            return f.read()
+        return None
+
     def _get_secret_option_from_config_sources(
         self, config_sources: ConfigSourcesType, section: str, key: str
     ) -> str | None:
@@ -835,6 +895,28 @@ class AirflowConfigParser(ConfigParser):
                     opt = value
                 config_sources.setdefault(section, {}).update({key: opt})
                 del config_sources[section][key + "_secret"]
+
+    def _include_file(
+        self,
+        config_sources: ConfigSourcesType,
+        display_sensitive: bool,
+        display_source: bool,
+        raw: bool,
+    ):
+        for section, key in self.file_config_values:
+            opt = self._get_file_option_from_config_sources(config_sources, section, key)
+            if opt:
+                opt_to_set: str | tuple[str, str] | None = opt
+                if (section, key) in self.sensitive_config_values and not display_sensitive:
+                    opt_to_set = "< hidden >"
+                if display_source:
+                    opt_to_set = (str(opt_to_set), "file")
+                elif raw:
+                    opt_to_set = str(opt_to_set).replace("%", "%%")
+                if opt_to_set is not None:
+                    dict_to_update: dict[str, str | tuple[str, str]] = {key: opt_to_set}
+                    config_sources.setdefault(section, {}).update(dict_to_update)
+                    del config_sources[section][key + "_file"]
 
     def _include_commands(
         self,
@@ -881,8 +963,8 @@ class AirflowConfigParser(ConfigParser):
                 if self._names_sensitive_team_env_var(env_var):
                     # Covers the cmd/secret variants too; see is_sensitive_option.
                     opt = "< hidden >"
-                # Don't hide cmd/secret values here
-                elif not env_var.lower().endswith(("cmd", "secret")):
+                # Don't hide cmd/file/secret values here
+                elif not env_var.lower().endswith(("cmd", "file", "secret")):
                     if (section, key) in self.sensitive_config_values:
                         opt = "< hidden >"
             elif raw:
@@ -981,6 +1063,23 @@ class AirflowConfigParser(ConfigParser):
         )
 
     @staticmethod
+    def _deprecated_file_is_set_in_config(
+        deprecated_section: str,
+        deprecated_key: str,
+        configs: Iterable[tuple[str, ConfigParser]],
+    ):
+        return AirflowConfigParser._deprecated_value_is_set_in_config(
+            deprecated_section=deprecated_section, deprecated_key=deprecated_key + "_file", configs=configs
+        )
+
+    @staticmethod
+    def _deprecated_variable_file_is_set(deprecated_section: str, deprecated_key: str) -> bool:
+        return (
+            os.environ.get(f"{ENV_VAR_PREFIX}{deprecated_section.upper()}__{deprecated_key.upper()}_FILE")
+            is not None
+        )
+
+    @staticmethod
     def _deprecated_secret_is_set_in_config(
         deprecated_section: str,
         deprecated_key: str,
@@ -1007,6 +1106,7 @@ class AirflowConfigParser(ConfigParser):
         deprecated_options: dict[tuple[str, str], tuple[str, str, str]],
         include_env: bool,
         include_cmds: bool,
+        include_files: bool,
         include_secret: bool,
     ):
         for source_name, config in configs:
@@ -1024,6 +1124,7 @@ class AirflowConfigParser(ConfigParser):
                     configs,
                     include_env=include_env,
                     include_cmds=include_cmds,
+                    include_files=include_files,
                     include_secret=include_secret,
                 )
 
@@ -1040,6 +1141,7 @@ class AirflowConfigParser(ConfigParser):
         configs: Iterable[tuple[str, ConfigParser]],
         include_env: bool,
         include_cmds: bool,
+        include_files: bool,
         include_secret: bool,
     ):
         sect = config_sources.setdefault(section, {})
@@ -1068,6 +1170,15 @@ class AirflowConfigParser(ConfigParser):
                             deprecated_section, deprecated_key
                         )
                         or AirflowConfigParser._deprecated_command_is_set_in_config(
+                            deprecated_section, deprecated_key, configs
+                        )
+                    ):
+                        continue
+                    if include_files and (
+                        AirflowConfigParser._deprecated_variable_file_is_set(
+                            deprecated_section, deprecated_key
+                        )
+                        or AirflowConfigParser._deprecated_file_is_set_in_config(
                             deprecated_section, deprecated_key, configs
                         )
                     ):
@@ -1143,6 +1254,12 @@ class AirflowConfigParser(ConfigParser):
             # if this is a valid command key...
             if (section, key) in self.sensitive_config_values:
                 return run_command(os.environ[env_var_cmd])
+        # alternatively AIRFLOW__{SECTION}__{KEY}_FILE (to read from a file)
+        env_var_file_path = env_var + "_FILE"
+        if env_var_file_path in os.environ:
+            # if this is a valid file path...
+            if (section, key) in self.file_config_values:
+                return self._get_config_value_from_file(os.environ[env_var_file_path])
         # alternatively AIRFLOW__{SECTION}__{KEY}_SECRET (to get from Secrets Backend)
         env_var_secret_path = env_var + "_SECRET"
         if env_var_secret_path in os.environ:
@@ -1167,6 +1284,15 @@ class AirflowConfigParser(ConfigParser):
                         f" Please check the {fallback_key} value."
                     ) from e
                 return cmd_output
+        return None
+
+    def _get_file_option(self, section: str, key: str):
+        """Get config option from a file."""
+        fallback_key = key + "_file"
+        if (section, key) in self.file_config_values:
+            if super().has_option(section, fallback_key):
+                file_path = super().get(section, fallback_key)
+                return self._get_config_value_from_file(file_path)
         return None
 
     def _get_secret_option(self, section: str, key: str) -> str | None:
@@ -1247,6 +1373,32 @@ class AirflowConfigParser(ConfigParser):
         if deprecated_section and deprecated_key:
             with self.suppress_future_warnings():
                 option = self._get_cmd_option(deprecated_section, deprecated_key)
+            if option:
+                if issue_warning:
+                    self._warn_deprecate(section, key, deprecated_section, deprecated_key, extra_stacklevel)
+                return option
+        return VALUE_NOT_FOUND_SENTINEL
+
+    def _get_option_from_file(
+        self,
+        deprecated_key: str | None,
+        deprecated_section: str | None,
+        key: str,
+        section: str,
+        issue_warning: bool = True,
+        extra_stacklevel: int = 0,
+        **kwargs,
+    ):
+        """Get option by reading a separate file (NOT the config file)."""
+        if kwargs.get("team_name", None):
+            # File based team config fetching is not currently supported
+            return VALUE_NOT_FOUND_SENTINEL
+        option = self._get_file_option(section, key)
+        if option:
+            return option
+        if deprecated_section and deprecated_key:
+            with self.suppress_future_warnings():
+                option = self._get_file_option(deprecated_section, deprecated_key)
             if option:
                 if issue_warning:
                     self._warn_deprecate(section, key, deprecated_section, deprecated_key, extra_stacklevel)
@@ -1805,6 +1957,7 @@ class AirflowConfigParser(ConfigParser):
         raw: bool = False,
         include_env: bool = True,
         include_cmds: bool = True,
+        include_files: bool = True,
         include_secret: bool = True,
     ) -> ConfigSourcesType:
         """
@@ -1832,6 +1985,9 @@ class AirflowConfigParser(ConfigParser):
         :param include_cmds: Should the result of calling any ``*_cmd`` config be
             set (True, default), or should the _cmd options be left as the
             command to run (False)
+        :param include_files: Should the result of calling any ``*_file`` config be
+            set (True, default), or should the _file options be left as the
+            filepath.
         :param include_secret: Should the result of calling any ``*_secret`` config be
             set (True, default), or should the _secret options be left as the
             path to get the secret from (False)
@@ -1861,6 +2017,7 @@ class AirflowConfigParser(ConfigParser):
             self.deprecated_options,
             include_cmds=include_cmds,
             include_env=include_env,
+            include_files=include_files,
             include_secret=include_secret,
         )
 
@@ -1869,6 +2026,12 @@ class AirflowConfigParser(ConfigParser):
             self._include_envs(config_sources, display_sensitive, display_source, raw)
         else:
             self._filter_by_source(config_sources, display_source, self._get_env_var_option)
+
+        # add config from files
+        if include_files:
+            self._include_file(config_sources, display_sensitive, display_source, raw)
+        else:
+            self._filter_by_source(config_sources, display_source, self._get_file_option)
 
         # add bash commands
         if include_cmds:
