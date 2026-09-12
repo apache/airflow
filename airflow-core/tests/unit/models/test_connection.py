@@ -621,3 +621,26 @@ class TestConnection:
             "test_conn2": None,
         }
         clear_db_connections()
+
+    def test_port_rejects_out_of_range_high_value(self):
+        with pytest.raises(ValueError, match="Invalid port number"):
+            Connection(conn_id="test_conn", conn_type="http", port=999999)
+
+    def test_port_rejects_negative_value(self):
+        with pytest.raises(ValueError, match="Invalid port number"):
+            Connection(conn_id="test_conn", conn_type="http", port=-5)
+
+    def test_port_accepts_valid_value(self):
+        connection = Connection(conn_id="test_conn", conn_type="http", port=5432)
+        assert connection.port == 5432
+
+    def test_port_accepts_none(self):
+        connection = Connection(conn_id="test_conn", conn_type="http", port=None)
+        assert connection.port is None
+
+    def test_port_accepts_boundary_values(self):
+        connection_min = Connection(conn_id="test_conn_min", conn_type="http", port=0)
+        assert connection_min.port == 0
+
+        connection_max = Connection(conn_id="test_conn_max", conn_type="http", port=65535)
+        assert connection_max.port == 65535
