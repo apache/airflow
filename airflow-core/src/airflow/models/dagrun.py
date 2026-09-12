@@ -61,6 +61,7 @@ from sqlalchemy.orm import (
     Mapped,
     declared_attr,
     joinedload,
+    lazyload,
     mapped_column,
     relationship,
     synonym,
@@ -973,7 +974,10 @@ class DagRun(Base, LoggingMixin):
         """Return the task instances for this dag run."""
         tis = (
             select(TI)
-            .options(joinedload(TI.dag_run))
+            # TI.dag_run is a joined eager load, so every row of this unbounded query would carry
+            # its own copy of the run's conf: a large conf on a run with many mapped tasks moves
+            # hundreds of megabytes per scheduler loop. Nothing here reads it.
+            .options(joinedload(TI.dag_run).defer(DagRun.conf))
             .where(
                 TI.dag_id == dag_id,
                 TI.run_id == run_id,
@@ -1732,7 +1736,7 @@ class DagRun(Base, LoggingMixin):
         # Check if any ti changed state
         tis_filter = TI.filter_for_tis(old_states)
         if tis_filter is not None:
-            fresh_tis = session.scalars(select(TI).where(tis_filter)).all()
+            fresh_tis = session.scalars(select(TI).options(lazyload(TI.dag_run)).where(tis_filter)).all()
             changed_tis = any(ti.state != old_states[ti.key] for ti in fresh_tis)
 
         return ready_tis, changed_tis, expansion_happened

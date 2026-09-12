@@ -150,7 +150,7 @@ from airflow.utils.state import CallbackState, DagRunState, State, TaskInstanceS
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
-from tests_common.test_utils.asserts import assert_queries_count, count_queries
+from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects, count_queries
 from tests_common.test_utils.config import conf_vars, env_vars
 from tests_common.test_utils.dag import create_scheduler_dag, sync_dag_to_db, sync_dags_to_db
 from tests_common.test_utils.db import (
@@ -1464,6 +1464,36 @@ class TestSchedulerJob:
         queued_tis = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
         assert len(queued_tis) == 2
         assert {x.key for x in queued_tis} == {ti_non_backfill.key, ti_backfill.key}
+        session.rollback()
+
+    def test_executable_task_instances_does_not_fetch_run_conf(self, dag_maker, session):
+        """The run conf must not be repeated on every task-instance row of the critical section."""
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        conf = {"payload": "x" * 512}
+        with dag_maker(dag_id="test_executable_tis_run_conf", max_active_tasks=16, session=session):
+            EmptyOperator(task_id="t1")
+            EmptyOperator(task_id="t2")
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, conf=conf)
+        for ti in dr.task_instances:
+            ti.state = State.SCHEDULED
+        session.flush()
+
+        with (
+            capture_orm_selects("task_instance") as ti_statements,
+            capture_orm_selects("dag_version") as dag_version_statements,
+        ):
+            queued_tis = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+
+        assert len(queued_tis) == 2
+        assert ti_statements
+        # The joined eager load of TaskInstance.dag_run aliases the table, hence the suffix.
+        selects_run_conf = re.compile(r"\bdag_run(?:_\d+)?\.conf\b")
+        assert not any(selects_run_conf.search(stmt) for stmt in ti_statements), ti_statements
+        # The run's pinned DagVersion is still eager-loaded in the same call; ExecuteTask.make()
+        # reads it off task instances that are transient by then.
+        assert any("version_data" in stmt for stmt in dag_version_statements), dag_version_statements
         session.rollback()
 
     def test_executable_task_instances_no_per_ti_queries(self, dag_maker, session):
