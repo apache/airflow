@@ -176,7 +176,7 @@ def get_kube_client(
     :param in_cluster: whether we are in cluster
     :param cluster_context: context of the cluster
     :param config_file: configuration file
-    :param use_client_factory: whether to honour the ``client_factory`` setting; only the
+    :param use_client_factory: whether to honor the ``client_factory`` setting; only the
         KubernetesExecutor passes this, so other callers are unaffected by the setting
     :return: kubernetes client
     """
