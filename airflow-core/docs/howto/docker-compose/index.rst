@@ -64,7 +64,7 @@ Older versions of ``docker-compose`` do not support all the features required by
 
     There is no solution yet from the containerd team, but seems that installing
     `Docker Desktop on Linux <https://docs.docker.com/desktop/install/linux-install/>`_ solves the problem as
-    stated in `This comment <https://github.com/moby/moby/issues/43361#issuecomment-1227617516>`_ and allows to
+    stated in `this comment <https://github.com/moby/moby/issues/43361#issuecomment-1227617516>`_ and allows to
     run Breeze with no problems.
 
 
