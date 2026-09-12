@@ -24,6 +24,7 @@ from pydantic import ValidationError
 from airflow.providers.keycloak.auth_manager.datamodels.token import (
     TokenBody,
     TokenClientCredentialsBody,
+    TokenJwtFederatedBody,
     TokenPasswordBody,
     TokenResponse,
 )
@@ -68,6 +69,17 @@ class TestTokenBody:
                     "client_secret": "client_secret",
                 },
             ),
+            (
+                {
+                    "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
+                    "assertion": "assertion",
+                },
+                TokenJwtFederatedBody,
+                {
+                    "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
+                    "assertion": "assertion",
+                },
+            ),
         ],
     )
     def test_model_validate_and_dump(self, payload, expected_type, expected_dump):
@@ -84,6 +96,8 @@ class TestTokenBody:
             {"grant_type": "unsupported", "username": "username", "password": "password"},
             {"username": "username", "password": "password", "extra": "value"},
             {"grant_type": "client_credentials", "client_secret": "client_secret"},
+            {"grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer"},
+            {"grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer", "assertion": "a", "extra": "x"},
         ],
     )
     def test_rejects_invalid_payload(self, payload):
@@ -118,3 +132,19 @@ class TestTokenClientCredentialsBody:
         mock_create_client_credentials_token.assert_called_once_with(
             "client_id", "client_secret", expiration_time_in_seconds=60
         )
+
+
+class TestTokenJwtFederatedBody:
+    @mock.patch(
+        "airflow.providers.keycloak.auth_manager.datamodels.token.create_jwt_federated_token",
+        autospec=True,
+    )
+    def test_create_token(self, mock_create_jwt_federated_token):
+        mock_create_jwt_federated_token.return_value = "token"
+        body = TokenJwtFederatedBody(
+            grant_type="urn:ietf:params:oauth:grant-type:jwt-bearer",
+            assertion="assertion",
+        )
+
+        assert body.create_token(expiration_time_in_seconds=60) == "token"
+        mock_create_jwt_federated_token.assert_called_once_with("assertion", expiration_time_in_seconds=60)

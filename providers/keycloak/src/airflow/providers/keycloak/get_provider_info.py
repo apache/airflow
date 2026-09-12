@@ -71,6 +71,13 @@ def get_provider_info():
                         "example": None,
                         "default": None,
                     },
+                    "jwt_federated_client_ids": {
+                        "description": "Comma-separated allow-list of Keycloak client ids (``azp`` claim) permitted to\nexchange a Keycloak-issued access token for an Airflow token via the\n``urn:ietf:params:oauth:grant-type:jwt-bearer`` grant at ``/auth/token``. Unset\nor empty denies every caller.\n",
+                        "type": "string",
+                        "version_added": "0.10.0",
+                        "example": "team-platform-admin-sa,other-team-sa",
+                        "default": None,
+                    },
                     "realm": {
                         "description": "Realm configured in Keycloak associated to Airflow.\nThis realm define all users, roles and groups used in Airflow.\n",
                         "type": "string",

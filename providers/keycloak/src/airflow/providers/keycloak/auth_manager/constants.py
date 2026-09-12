@@ -27,6 +27,9 @@ CONF_REALM_KEY = "realm"
 CONF_SERVER_URL_KEY = "server_url"
 CONF_REQUESTS_POOL_SIZE_KEY = "requests_pool_size"
 CONF_REQUESTS_RETRIES_KEY = "requests_retries"
+# Comma-separated allow-list of federated Keycloak client ids (azp claim) permitted
+# to use the jwt-bearer grant. Empty/unset denies all callers.
+CONF_JWT_FEDERATED_CLIENT_IDS_KEY = "jwt_federated_client_ids"
 
 # Extra Cookie names
 COOKIE_NAME_ACCESS_TOKEN = "_access_token"
