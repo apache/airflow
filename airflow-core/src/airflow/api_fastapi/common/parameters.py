@@ -1137,6 +1137,114 @@ class _DagIdAssetReferenceFilter(BaseParam[list[str]]):
         )
 
 
+class _AssetHasEvent(BaseParam[bool]):
+    """Filter on whether an asset has events."""
+
+    def __init__(self, skip_none: bool = True) -> None:
+        super().__init__(skip_none=skip_none)
+
+    @classmethod
+    def depends(cls, has_events: bool | None = Query(default=None)) -> _AssetHasEvent:
+        return cls().set_value(has_events)
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+        if self.value is True:
+            return select.where(AssetEvent.id.is_not(None))
+        if self.value is False:
+            return select.where(AssetEvent.id.is_(None))
+
+        return select
+
+
+class _AssetIsAlias(BaseParam[bool]):
+    """Filter on whether an asset is an alias."""
+
+    def __init__(self, skip_none: bool = True) -> None:
+        super().__init__(skip_none=skip_none)
+
+    @classmethod
+    def depends(cls, is_alias: bool | None = Query(default=None)) -> _AssetIsAlias:
+        return cls().set_value(is_alias)
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+        if self.value is True:
+            return select.where(AssetModel.aliases.any())
+        if self.value is False:
+            return select.where(~AssetModel.aliases.any())
+
+        return select
+
+
+class _ConsumingDagAssetsFilter(BaseParam[str]):
+    """Filter on the basis of consuming dag."""
+
+    def __init__(self, skip_none: bool = True) -> None:
+        super().__init__(skip_none=skip_none)
+
+    @classmethod
+    def depends(cls, consuming_dag_id: str | None = Query(default=None)) -> _ConsumingDagAssetsFilter:
+        return cls().set_value(consuming_dag_id)
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+        return select.where(AssetModel.scheduled_dags.any(dag_id=self.value))
+
+
+class _ProducingTaskAssetsFilter(BaseParam[str]):
+    """Filter on the basis of producing task, scoped to the dag that owns it, if available."""
+
+    def __init__(self, skip_none: bool = True) -> None:
+        super().__init__(skip_none=skip_none)
+        self.dag_id: str | None = None
+
+    @classmethod
+    def depends(
+        cls,
+        producing_task_id: str | None = Query(default=None),
+        producing_dag_id: str | None = Query(default=None),
+    ) -> _ProducingTaskAssetsFilter:
+        instance = cls().set_value(producing_task_id)
+        instance.dag_id = producing_dag_id
+        return instance
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+        if self.dag_id is not None:
+            return select.where(AssetModel.producing_tasks.any(dag_id=self.dag_id, task_id=self.value))
+        return select.where(AssetModel.producing_tasks.any(task_id=self.value))
+
+
+class _ConsumingTaskAssetsFilter(BaseParam[str]):
+    """Filter on the basis of consuming task, scoped to the dag that owns it, if available."""
+
+    def __init__(self, skip_none: bool = True) -> None:
+        super().__init__(skip_none=skip_none)
+        self.dag_id: str | None = None
+
+    @classmethod
+    def depends(
+        cls,
+        consuming_task_id: str | None = Query(default=None),
+        consuming_task_dag_id: str | None = Query(default=None),
+    ) -> _ConsumingTaskAssetsFilter:
+        instance = cls().set_value(consuming_task_id)
+        instance.dag_id = consuming_task_dag_id
+        return instance
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+        if self.dag_id is not None:
+            return select.where(AssetModel.consuming_tasks.any(dag_id=self.dag_id, task_id=self.value))
+        return select.where(AssetModel.consuming_tasks.any(task_id=self.value))
+
+
 class Range(BaseModel, Generic[T]):
     """Range with a lower and upper bound."""
 
@@ -1861,6 +1969,19 @@ QueryAssetEventPartitionKeyRegex = Annotated[
 ]
 QueryAssetDagIdPatternSearch = Annotated[
     _DagIdAssetReferenceFilter, Depends(_DagIdAssetReferenceFilter.depends)
+]
+QueryAssetHasEventsFilter = Annotated[_AssetHasEvent, Depends(_AssetHasEvent.depends)]
+
+QueryAssetIsAliasFilter = Annotated[_AssetIsAlias, Depends(_AssetIsAlias.depends)]
+
+QueryConsumingDagAssetsFilter = Annotated[
+    _ConsumingDagAssetsFilter, Depends(_ConsumingDagAssetsFilter.depends)
+]
+QueryProducingTaskAssetsFilter = Annotated[
+    _ProducingTaskAssetsFilter, Depends(_ProducingTaskAssetsFilter.depends)
+]
+QueryConsumingTaskAssetsFilter = Annotated[
+    _ConsumingTaskAssetsFilter, Depends(_ConsumingTaskAssetsFilter.depends)
 ]
 QueryAssetEventExtraFilter = Annotated[_JsonKVFilter, Depends(json_kv_filter_factory(AssetEvent.extra))]
 QueryPartitionedDagRunHasCreatedDagRunIdFilter = Annotated[
