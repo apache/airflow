@@ -19,6 +19,8 @@ from __future__ import annotations
 import datetime
 import json
 from collections.abc import AsyncIterator
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
+from threading import Event
 from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
@@ -26,12 +28,13 @@ import pendulum
 import pytest
 import pytz
 from cryptography.fernet import Fernet
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, event as sqlalchemy_event, func, select, update
+from sqlalchemy.exc import OperationalError
 
 from airflow._shared.timezones import timezone
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-from airflow.models import TaskInstance, Trigger
+from airflow.models import DagRun, TaskInstance, Trigger
 from airflow.models.asset import AssetEvent, AssetModel, AssetWatcherModel
 from airflow.models.callback import Callback, TriggererCallback
 from airflow.models.taskinstancehistory import TaskInstanceHistory
@@ -342,6 +345,149 @@ def test_submit_failure(session, create_task_instance):
     updated_task_instance = session.scalar(select(TaskInstance))
     assert updated_task_instance.state == State.SCHEDULED
     assert updated_task_instance.next_method == "__fail__"
+
+
+@pytest.mark.parametrize(
+    "trigger_event",
+    [TriggerEvent("payload"), None, TaskSuccessEvent(), TaskFailedEvent(), TaskSkippedEvent()],
+    ids=["event", "failure", "success", "failed", "skipped"],
+)
+def test_submit_trigger_result_locks_only_dependent_tasks(session, create_task_instance, trigger_event):
+    if session.bind.dialect.name == "sqlite":
+        pytest.skip("SQLite does not support row locks")
+
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    task_instance = create_task_instance(session=session, state=State.DEFERRED)
+    task_instance.trigger_id = trigger.id
+    session.commit()
+    ti_id = task_instance.id
+    dag_run_id = task_instance.dag_run.id
+    checked_locks = []
+
+    def check_locks(orm_execute_state):
+        if (
+            not orm_execute_state.is_select
+            or orm_execute_state.is_relationship_load
+            or orm_execute_state.is_column_load
+            or orm_execute_state.bind_mapper.class_ is not TaskInstance
+        ):
+            return None
+        result = orm_execute_state.invoke_statement()
+        with pytest.raises(OperationalError):
+            with create_session(scoped=False) as competing_session:
+                competing_session.execute(
+                    select(TaskInstance.id).where(TaskInstance.id == ti_id).with_for_update(nowait=True)
+                )
+        with create_session(scoped=False) as competing_session:
+            competing_session.execute(
+                select(DagRun.id).where(DagRun.id == dag_run_id).with_for_update(nowait=True)
+            )
+        checked_locks.append(ti_id)
+        return result
+
+    sqlalchemy_event.listen(session, "do_orm_execute", check_locks)
+    try:
+        if trigger_event is None:
+            Trigger.submit_failure(trigger.id, session=session)
+        else:
+            Trigger.submit_event(trigger.id, trigger_event, session=session)
+    finally:
+        sqlalchemy_event.remove(session, "do_orm_execute", check_locks)
+
+    assert checked_locks == [ti_id]
+
+
+def test_submit_event_refreshes_cached_resume_kwargs(session, create_task_instance):
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    task_instance = create_task_instance(session=session, state=State.DEFERRED)
+    task_instance.trigger_id = trigger.id
+    task_instance.next_kwargs = {"version": "old"}
+    session.commit()
+    ti_id, trigger_id = task_instance.id, trigger.id
+
+    with create_session(scoped=False) as competing_session:
+        competing_session.execute(
+            update(TaskInstance).where(TaskInstance.id == ti_id).values(next_kwargs={"version": "new"})
+        )
+
+    assert task_instance.next_kwargs == {"version": "old"}
+    Trigger.submit_event(trigger_id, TriggerEvent("payload"), session=session)
+    assert task_instance.next_kwargs == {"version": "new", "event": "payload"}
+
+
+@pytest.mark.parametrize("transition", ["fail", "clear", "redeferral", "resume"])
+@pytest.mark.parametrize(
+    "trigger_event",
+    [TriggerEvent("late"), None, TaskSuccessEvent(xcoms={"return_value": "late"})],
+    ids=["event", "failure", "terminal-event"],
+)
+@patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send", autospec=True)
+def test_submit_trigger_result_preserves_concurrent_transition(
+    mock_send, session, create_task_instance, transition, trigger_event
+):
+    if session.bind.dialect.name == "sqlite":
+        pytest.skip("SQLite does not support concurrent row locking")
+
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    replacement_trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add_all([trigger, replacement_trigger])
+    task_instance = create_task_instance(session=session, state=State.DEFERRED)
+    task_instance.trigger_id = trigger.id
+    task_instance.next_method = "execute_complete"
+    task_instance.next_kwargs = {"version": "initial"}
+    session.commit()
+    ti_id, trigger_id = task_instance.id, trigger.id
+    query_started = Event()
+
+    def submit_result():
+        with create_session(scoped=False) as result_session:
+            sqlalchemy_event.listen(
+                result_session, "do_orm_execute", lambda _: query_started.set(), once=True
+            )
+            if trigger_event is None:
+                Trigger.submit_failure(trigger_id, session=result_session)
+            else:
+                Trigger.submit_event(trigger_id, trigger_event, session=result_session)
+
+    expected_state = {
+        "fail": State.FAILED,
+        "clear": None,
+        "redeferral": State.DEFERRED,
+        "resume": State.SCHEDULED,
+    }[transition]
+    expected_trigger_id = replacement_trigger.id if transition == "redeferral" else None
+    expected_kwargs = {"version": "current"}
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        with create_session(scoped=False) as competing_session:
+            competing_session.execute(
+                update(TaskInstance)
+                .where(TaskInstance.id == ti_id)
+                .values(
+                    state=expected_state,
+                    trigger_id=expected_trigger_id,
+                    next_kwargs=expected_kwargs,
+                )
+            )
+            pending_result = executor.submit(submit_result)
+            assert query_started.wait(timeout=10)
+            with pytest.raises(FutureTimeoutError):
+                pending_result.result(timeout=0.2)
+        pending_result.result(timeout=10)
+
+    session.refresh(task_instance)
+    assert task_instance.state == expected_state
+    assert task_instance.trigger_id == expected_trigger_id
+    assert task_instance.next_kwargs == expected_kwargs
+    assert task_instance.next_method == "execute_complete"
+    mock_send.assert_not_called()
+    assert not session.scalars(
+        XComModel.get_many(
+            dag_ids=[task_instance.dag_id], task_ids=[task_instance.task_id], run_id=task_instance.run_id
+        )
+    ).all()
 
 
 @pytest.mark.parametrize(
