@@ -56,6 +56,34 @@ describe("AssetsList columns", () => {
 });
 
 describe("AssetsList filtering", () => {
+  it.each([
+    { expectedLabel: "filters.hasEventsTrue", hasEvents: "true" },
+    { expectedLabel: "filters.hasEventsFalse", hasEvents: "false" },
+    { expectedLabel: undefined, hasEvents: null },
+  ])("restores has_events=$hasEvents from the URL", async ({ expectedLabel, hasEvents }) => {
+    let requestedHasEvents: string | null | undefined;
+
+    server.use(
+      http.get("/ui/assets", ({ request }) => {
+        requestedHasEvents = new URL(request.url).searchParams.get("has_events");
+
+        return HttpResponse.json({ assets: [], total_entries: 0 });
+      }),
+    );
+
+    const initialUrl = hasEvents === null ? "/assets" : `/assets?has_events=${hasEvents}`;
+
+    render(<AppWrapper initialEntries={[initialUrl]} />);
+
+    await waitFor(() => expect(requestedHasEvents).toBe(hasEvents));
+
+    if (expectedLabel === undefined) {
+      expect(screen.queryByTestId("has_events-pill")).not.toBeInTheDocument();
+    } else {
+      expect(screen.getByTestId("has_events-pill")).toHaveTextContent(`filters.hasEvents: ${expectedLabel}`);
+    }
+  });
+
   it("keeps the listed assets on screen while a filter change is still loading", async () => {
     render(<AppWrapper initialEntries={["/assets"]} />);
 
