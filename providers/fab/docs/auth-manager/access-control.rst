@@ -82,6 +82,64 @@ other users. ``Admin`` users have ``Op`` permission plus additional permissions:
 Custom Roles
 '''''''''''''
 
+Declarative custom roles
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use ``[fab] custom_roles`` to create custom roles and their permissions when the API server starts:
+
+.. code-block:: ini
+
+    [fab]
+    custom_roles = {"PythonTester": [{"action": "can_read", "resource": "DAGs"}], "Analyst": []}
+
+The equivalent environment variable is:
+
+.. code-block:: bash
+
+    export AIRFLOW__FAB__CUSTOM_ROLES='{"PythonTester": [{"action": "can_read", "resource": "DAGs"}], "Analyst": []}'
+
+The default is ``{}``, which creates no roles. Each role maps to a list of permission objects
+containing exactly ``action`` and ``resource``. Use actual FAB names such as ``can_edit`` and
+``DAGs``, not Python constant names such as ``ACTION_CAN_EDIT`` or a ``permission`` key.
+Names must be non-empty strings: role names support up to 64 characters, actions up to 100,
+and resources up to 250. Repeated permission pairs are applied once.
+
+Action and resource names must already be registered in the FAB database when this
+configuration is applied. They are validated independently: a new permission pairing an
+existing action with an existing resource is allowed. This configuration does not create
+actions or resources. Unknown names raise a configuration error before any configured
+role is created.
+
+Default-role permissions are synchronized before this validation. Permissions supplied by
+plugins or individual Dags must have their action and resource names registered beforehand;
+names registered later during startup are not available to this initialization step.
+
+All entries are validated before any configured role is created, including entries for existing
+and built-in roles. Invalid JSON or an invalid structure raises a configuration error.
+After validation, built-in roles (``Admin``, ``Viewer``, ``User``, ``Op``, and ``Public``)
+are skipped with a warning.
+
+Only missing roles are created. Like ``airflow roles import``, an existing role name is skipped.
+Changing the configuration does not update existing permissions, so UI and CLI edits are preserved.
+Removing a role from the configuration does not delete it from the database. Deleting a configured
+role from the database allows it to be created again at the next initialization.
+
+Each new role and its declared permissions are committed together. If creation fails, that role's
+transaction is rolled back; roles successfully created earlier are retained. If another process
+creates the same role first, its role is left unchanged by this configuration.
+
+An empty list, such as ``"Analyst": []``, declares no permissions. Normal FAB initialization still
+adds ``can_read`` on ``Website`` to custom roles. The existing default-role and permission
+maintenance behavior is unchanged.
+
+Startup initialization follows ``[fab] update_fab_perms``. When it is disabled, configuration is
+not applied on startup. Running ``airflow sync-perm`` explicitly applies it regardless of that flag.
+This configuration does not create users or assign roles to them.
+
+Registered names do not guarantee that every action-resource combination grants access to
+an existing feature. For access to individual Dags, prefer the Dag's ``DAG(access_control=...)``
+configuration rather than managing those permissions here.
+
 Dag Level Role
 ^^^^^^^^^^^^^^
 ``Admin`` can create a set of roles which are only allowed to view a certain set of Dags. This is called Dag level access. Each Dag defined in the Dag model table

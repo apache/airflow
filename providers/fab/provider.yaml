@@ -173,6 +173,19 @@ config:
         type: string
         example: ~
         default: "True"
+      custom_roles:
+        description: |
+          JSON object mapping custom role names to lists of objects with ``action`` and
+          ``resource`` keys, using FAB permission names such as ``can_read`` and ``DAGs``.
+          Missing roles are created with their permissions during role initialization.
+          Existing roles are skipped, preserving changes made through the UI or CLI.
+          Built-in roles are ignored. Startup initialization requires ``update_fab_perms``.
+          An empty list declares no permissions; normal FAB initialization still grants
+          custom roles ``can_read`` on ``Website``.
+        version_added: ~
+        type: string
+        example: '{"PythonTester": [{"action": "can_read", "resource": "DAGs"}], "Analyst": []}'
+        default: "{{}}"
       auth_backends:
         description: |
           Comma separated list of auth backends to authenticate users of the API.
