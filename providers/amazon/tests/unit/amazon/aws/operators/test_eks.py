@@ -760,6 +760,13 @@ class TestEksDeleteClusterOperator:
         with pytest.raises(TaskDeferred):
             self.delete_cluster_operator.execute({})
 
+    @pytest.mark.parametrize("status", ["deleted", "success"])
+    def test_execute_complete_when_trigger_yields_deleted(self, caplog, status):
+        self.delete_cluster_operator.execute_complete(context={}, event={"status": status})
+        # caplog.messages works on both StructlogCapture (Airflow 3.1+) and
+        # stock LogCaptureFixture (compat runs), unlike `in caplog`.
+        assert "Cluster deleted successfully." in caplog.messages
+
     @mock.patch("time.sleep", return_value=None)
     @mock.patch.object(Waiter, "wait")
     @mock.patch.object(EksHook, "list_nodegroups")
