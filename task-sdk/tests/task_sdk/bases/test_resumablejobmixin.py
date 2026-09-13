@@ -554,3 +554,79 @@ class TestAbstractMethodEnforcement:
         assert partial_cls.__abstractmethods__ == frozenset({missing_method})
         with pytest.raises(TypeError):
             partial_cls(task_id="test_task")
+
+
+class TestResolveReconnect:
+    """
+    Tests for resolve_reconnect(), extracted from execute_resumable() so a deferrable
+    operator can call it directly. Regression tests for
+    https://github.com/apache/airflow/issues/71485.
+    """
+
+    def test_does_not_submit_poll_or_return_result(self):
+        op = ConcreteResumableOperator(task_id="test_task")
+        op.resolve_reconnect(make_context(FakeTaskState()))
+        assert op.submitted_ids == []
+        assert op.polled_ids == []
+
+    def test_fresh_submit_when_no_stored_id(self):
+        op = ConcreteResumableOperator(task_id="test_task")
+        decision = op.resolve_reconnect(make_context(FakeTaskState()))
+        assert decision.action == "fresh_submit"
+        assert decision.external_id is None
+
+    def test_fresh_submit_when_no_task_state_store(self):
+        op = ConcreteResumableOperator(task_id="test_task")
+        decision = op.resolve_reconnect(make_context(task_store=None))
+        assert decision.action == "fresh_submit"
+        assert decision.external_id is None
+
+    def test_reconnect_when_stored_job_active(self):
+        op = ConcreteResumableOperator(task_id="test_task")
+        op._status_map["job-001"] = "RUNNING"
+        decision = op.resolve_reconnect(make_context(FakeTaskState({"test_job_id": "job-001"})))
+        assert decision.action == "reconnect"
+        assert decision.external_id == "job-001"
+
+    def test_already_succeeded_when_stored_job_succeeded(self):
+        op = ConcreteResumableOperator(task_id="test_task")
+        op._status_map["job-001"] = "SUCCEEDED"
+        decision = op.resolve_reconnect(make_context(FakeTaskState({"test_job_id": "job-001"})))
+        assert decision.action == "already_succeeded"
+        assert decision.external_id == "job-001"
+
+    def test_fresh_submit_when_stored_job_terminal_failed(self):
+        op = ConcreteResumableOperator(task_id="test_task")
+        op._status_map["job-001"] = "FAILED"
+        decision = op.resolve_reconnect(make_context(FakeTaskState({"test_job_id": "job-001"})))
+        assert decision.action == "fresh_submit"
+        assert decision.external_id is None
+
+    def test_callable_before_defer_then_again_on_retry(self):
+        """The exact usage pattern from the issue."""
+        op = ConcreteResumableOperator(task_id="test_task")
+        store = FakeTaskState()
+        ctx = make_context(store)
+
+        first_decision = op.resolve_reconnect(ctx)
+        assert first_decision.action == "fresh_submit"
+        external_id = op.submit_job(ctx)
+        store.set(op.external_id_key, external_id)
+
+        op._status_map[external_id] = "RUNNING"
+
+        second_decision = op.resolve_reconnect(ctx)
+        assert second_decision.action == "reconnect"
+        assert second_decision.external_id == external_id
+        assert op.submitted_ids == [external_id]
+
+    def test_execute_resumable_still_uses_resolve_reconnect_consistently(self):
+        op = ConcreteResumableOperator(task_id="test_task")
+        op._status_map["job-001"] = "RUNNING"
+        ctx = make_context(FakeTaskState({"test_job_id": "job-001"}))
+
+        decision = op.resolve_reconnect(ctx)
+        op.execute_resumable(ctx)
+
+        assert decision.action == "reconnect"
+        assert op.polled_ids == ["job-001"]
