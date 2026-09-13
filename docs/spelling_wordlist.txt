@@ -974,6 +974,7 @@ kinesis
 kinit
 kms
 knownHosts
+kpo
 krb
 Kube
 kube
