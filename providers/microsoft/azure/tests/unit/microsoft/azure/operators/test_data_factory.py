@@ -18,12 +18,15 @@ from __future__ import annotations
 
 import functools
 import itertools
-from typing import TYPE_CHECKING
+import warnings
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, Any, cast
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import pendulum
 import pytest
+from azure.core.exceptions import ResourceNotFoundError
 
 from airflow.models import DAG, Connection
 from airflow.models.dagrun import DagRun
@@ -34,18 +37,20 @@ from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryPipelineRunException,
     AzureDataFactoryPipelineRunStatus,
 )
+from airflow.providers.microsoft.azure.operators import data_factory as data_factory_module
 from airflow.providers.microsoft.azure.operators.data_factory import AzureDataFactoryRunPipelineOperator
 from airflow.providers.microsoft.azure.triggers.data_factory import AzureDataFactoryTrigger
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.taskinstance import create_task_instance as _create_task_instance
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.comms import XComResult
 
 if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
+    from airflow.sdk import Context
 
 DEFAULT_DATE = timezone.datetime(2021, 1, 1)
 SUBSCRIPTION_ID = "my-subscription-id"
@@ -66,6 +71,30 @@ EXPECTED_PIPELINE_RUN_OP_EXTRA_LINK = (
     "factories/{factory_name}"
 )
 AZ_PIPELINE_RUN_ID = "7f8c6c72-c093-11ec-a83d-0242ac120007"
+
+
+class FakeTaskInstance:
+    def __init__(self) -> None:
+        self.stats_tags: dict[str, str] = {}
+        self.xcom_values: list[tuple[str, Any]] = []
+
+    def xcom_push(self, *, key: str, value: Any) -> None:
+        self.xcom_values.append((key, value))
+
+
+class FakeTaskStateStore:
+    def __init__(self, stored: dict[str, Any] | None = None) -> None:
+        self._store: dict[str, Any] = dict(stored or {})
+        self.get_calls: list[str] = []
+        self.set_calls: list[tuple[str, Any]] = []
+
+    def get(self, key: str) -> Any:
+        self.get_calls.append(key)
+        return self._store.get(key)
+
+    def set(self, key: str, value: Any) -> None:
+        self.set_calls.append((key, value))
+        self._store[key] = value
 
 
 class TestAzureDataFactoryRunPipelineOperator:
@@ -169,9 +198,9 @@ class TestAzureDataFactoryRunPipelineOperator:
             )
 
             mock_run_pipeline.assert_called_once_with(
-                self.config["pipeline_name"],
-                self.config["resource_group_name"],
-                self.config["factory_name"],
+                pipeline_name=self.config["pipeline_name"],
+                resource_group_name=self.config["resource_group_name"],
+                factory_name=self.config["factory_name"],
                 reference_pipeline_run_id=None,
                 is_recovery=None,
                 start_activity_name=None,
@@ -221,9 +250,9 @@ class TestAzureDataFactoryRunPipelineOperator:
             )
 
             mock_run_pipeline.assert_called_once_with(
-                self.config["pipeline_name"],
-                self.config["resource_group_name"],
-                self.config["factory_name"],
+                pipeline_name=self.config["pipeline_name"],
+                resource_group_name=self.config["resource_group_name"],
+                factory_name=self.config["factory_name"],
                 reference_pipeline_run_id=None,
                 is_recovery=None,
                 start_activity_name=None,
@@ -315,6 +344,253 @@ class TestAzureDataFactoryRunPipelineOperator:
                 factory_name=factory or conn_factory_name,
             )
         )
+
+
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_3_PLUS,
+    reason="ResumableJobMixin reconnect requires task_state_store, available in Airflow 3.3+",
+)
+class TestAzureDataFactoryRunPipelineOperatorResumable:
+    def make_operator(self, **kwargs: Any) -> AzureDataFactoryRunPipelineOperator:
+        return AzureDataFactoryRunPipelineOperator(
+            task_id=TASK_ID,
+            azure_data_factory_conn_id=AZURE_DATA_FACTORY_CONN_ID,
+            pipeline_name=PIPELINE_NAME,
+            resource_group_name="resource-group-name",
+            factory_name="factory-name",
+            check_interval=1,
+            timeout=3,
+            **kwargs,
+        )
+
+    def make_hook(self, *, run_id: str = "new-run-id") -> MagicMock:
+        hook: MagicMock = MagicMock(spec=AzureDataFactoryHook)
+        hook.run_pipeline.return_value = SimpleNamespace(run_id=run_id)
+        hook.wait_for_pipeline_run_status.return_value = True
+        return hook
+
+    def make_context(self, task_state_store: FakeTaskStateStore) -> tuple[Context, FakeTaskInstance]:
+        task_instance = FakeTaskInstance()
+        return cast("Context", {"task_state_store": task_state_store, "ti": task_instance}), task_instance
+
+    def test_retry_reconnects_to_first_submission(self) -> None:
+        operator = self.make_operator()
+        hook = self.make_hook()
+        operator.hook = hook
+        task_state_store = FakeTaskStateStore()
+        context, first_task_instance = self.make_context(task_state_store)
+        persisted_before_poll: list[Any] = []
+
+        def record_persisted_run_id(*args: Any, **kwargs: Any) -> bool:
+            persisted_before_poll.append(task_state_store._store.get("azure_data_factory_run_id"))
+            return True
+
+        hook.wait_for_pipeline_run_status.side_effect = record_persisted_run_id
+
+        operator.execute(context=context)
+
+        retry_operator = self.make_operator()
+        retry_operator.hook = hook
+        retry_context, retry_task_instance = self.make_context(task_state_store)
+        hook.get_pipeline_run_status.return_value = AzureDataFactoryPipelineRunStatus.IN_PROGRESS
+
+        retry_operator.execute(context=retry_context)
+
+        hook.run_pipeline.assert_called_once()
+        hook.get_pipeline_run_status.assert_called_once_with(
+            run_id="new-run-id",
+            resource_group_name="resource-group-name",
+            factory_name="factory-name",
+        )
+        assert persisted_before_poll == ["new-run-id", "new-run-id"]
+        assert task_state_store.set_calls == [("azure_data_factory_run_id", "new-run-id")]
+        assert first_task_instance.xcom_values == [("run_id", "new-run-id")]
+        assert retry_task_instance.xcom_values == [("run_id", "new-run-id")]
+
+    @pytest.mark.parametrize(
+        ("prior_status", "expected_run_id", "should_submit", "should_poll"),
+        [
+            (AzureDataFactoryPipelineRunStatus.QUEUED, "prior-run-id", False, True),
+            (AzureDataFactoryPipelineRunStatus.IN_PROGRESS, "prior-run-id", False, True),
+            (AzureDataFactoryPipelineRunStatus.CANCELING, "prior-run-id", False, True),
+            (AzureDataFactoryPipelineRunStatus.SUCCEEDED, "prior-run-id", False, False),
+            (AzureDataFactoryPipelineRunStatus.FAILED, "new-run-id", True, True),
+            (AzureDataFactoryPipelineRunStatus.CANCELLED, "new-run-id", True, True),
+        ],
+    )
+    def test_retry_uses_prior_pipeline_status(
+        self,
+        prior_status: str,
+        expected_run_id: str,
+        should_submit: bool,
+        should_poll: bool,
+    ) -> None:
+        operator = self.make_operator()
+        hook = self.make_hook()
+        hook.get_pipeline_run_status.return_value = prior_status
+        operator.hook = hook
+        task_state_store = FakeTaskStateStore({"azure_data_factory_run_id": "prior-run-id"})
+        context, task_instance = self.make_context(task_state_store)
+
+        operator.execute(context=context)
+
+        assert hook.run_pipeline.called is should_submit
+        assert hook.wait_for_pipeline_run_status.called is should_poll
+        if should_poll:
+            assert hook.wait_for_pipeline_run_status.call_args.kwargs["run_id"] == expected_run_id
+        assert operator.run_id == expected_run_id
+        expected_xcom_values = [("run_id", "prior-run-id")]
+        if should_submit:
+            expected_xcom_values.append(("run_id", "new-run-id"))
+        assert task_instance.xcom_values == expected_xcom_values
+        expected_set_calls = [("azure_data_factory_run_id", "new-run-id")] if should_submit else []
+        assert task_state_store.set_calls == expected_set_calls
+
+    def test_retry_restores_run_id_xcom_before_status_lookup(self) -> None:
+        operator = self.make_operator()
+        hook = self.make_hook()
+        hook.get_pipeline_run_status.side_effect = RuntimeError("status unavailable")
+        operator.hook = hook
+        context, task_instance = self.make_context(
+            FakeTaskStateStore({"azure_data_factory_run_id": "prior-run-id"})
+        )
+
+        with pytest.raises(RuntimeError, match="status unavailable"):
+            operator.execute(context=context)
+
+        assert operator.run_id == "prior-run-id"
+        assert task_instance.xcom_values == [("run_id", "prior-run-id")]
+        hook.run_pipeline.assert_not_called()
+
+    def test_retry_replaces_missing_pipeline_run(self) -> None:
+        operator = self.make_operator()
+        hook = self.make_hook()
+        hook.get_pipeline_run_status.side_effect = ResourceNotFoundError("run not found")
+        operator.hook = hook
+        task_state_store = FakeTaskStateStore({"azure_data_factory_run_id": "prior-run-id"})
+        context, task_instance = self.make_context(task_state_store)
+
+        operator.execute(context=context)
+
+        hook.run_pipeline.assert_called_once()
+        assert operator.run_id == "new-run-id"
+        assert task_instance.xcom_values == [
+            ("run_id", "prior-run-id"),
+            ("run_id", "new-run-id"),
+        ]
+        assert task_state_store.set_calls == [("azure_data_factory_run_id", "new-run-id")]
+
+    @pytest.mark.parametrize(
+        ("status", "is_active", "is_succeeded"),
+        [
+            (AzureDataFactoryPipelineRunStatus.QUEUED, True, False),
+            (AzureDataFactoryPipelineRunStatus.IN_PROGRESS, True, False),
+            (AzureDataFactoryPipelineRunStatus.CANCELING, True, False),
+            (AzureDataFactoryPipelineRunStatus.SUCCEEDED, False, True),
+            (AzureDataFactoryPipelineRunStatus.FAILED, False, False),
+            (AzureDataFactoryPipelineRunStatus.CANCELLED, False, False),
+        ],
+    )
+    def test_pipeline_status_predicates(
+        self,
+        status: str,
+        is_active: bool,
+        is_succeeded: bool,
+    ) -> None:
+        operator = self.make_operator()
+
+        assert operator.is_job_active(status) is is_active
+        assert operator.is_job_succeeded(status) is is_succeeded
+
+    def test_default_args_durable_reaches_operator(self) -> None:
+        operator = self.make_operator(default_args={"durable": False})
+
+        assert operator.durable is False
+
+    def test_durable_false_submits_without_task_state(self) -> None:
+        operator = self.make_operator(durable=False)
+        hook = self.make_hook()
+        operator.hook = hook
+        task_state_store = FakeTaskStateStore({"azure_data_factory_run_id": "prior-run-id"})
+        context, task_instance = self.make_context(task_state_store)
+
+        operator.execute(context=context)
+
+        hook.run_pipeline.assert_called_once()
+        hook.get_pipeline_run_status.assert_not_called()
+        assert task_state_store.get_calls == []
+        assert task_state_store.set_calls == []
+        assert task_instance.xcom_values == [("run_id", "new-run-id")]
+
+    def test_wait_for_termination_false_preserves_submission_path(self) -> None:
+        operator = self.make_operator(wait_for_termination=False)
+        hook = self.make_hook()
+        operator.hook = hook
+        task_state_store = FakeTaskStateStore({"azure_data_factory_run_id": "prior-run-id"})
+        context, task_instance = self.make_context(task_state_store)
+
+        operator.execute(context=context)
+
+        hook.run_pipeline.assert_called_once()
+        hook.get_pipeline_run_status.assert_not_called()
+        hook.wait_for_pipeline_run_status.assert_not_called()
+        assert task_state_store.get_calls == []
+        assert task_state_store.set_calls == []
+        assert task_instance.xcom_values == [("run_id", "new-run-id")]
+
+    def test_deferrable_preserves_submission_path(self) -> None:
+        operator = self.make_operator(deferrable=True)
+        hook = self.make_hook()
+        hook.get_pipeline_run_status.return_value = AzureDataFactoryPipelineRunStatus.SUCCEEDED
+        operator.hook = hook
+        task_state_store = FakeTaskStateStore({"azure_data_factory_run_id": "prior-run-id"})
+        context, task_instance = self.make_context(task_state_store)
+
+        operator.execute(context=context)
+
+        hook.run_pipeline.assert_called_once()
+        assert task_state_store.get_calls == []
+        assert task_state_store.set_calls == []
+        assert task_instance.xcom_values == [("run_id", "new-run-id")]
+
+    def test_on_kill_during_reconnect_status_lookup_cancels_prior_run(self) -> None:
+        operator = self.make_operator()
+        hook = self.make_hook()
+        operator.hook = hook
+        task_state_store = FakeTaskStateStore({"azure_data_factory_run_id": "prior-run-id"})
+        context, task_instance = self.make_context(task_state_store)
+
+        def cancel_during_status_lookup(**kwargs: Any) -> str:
+            operator.on_kill()
+            return AzureDataFactoryPipelineRunStatus.IN_PROGRESS
+
+        hook.get_pipeline_run_status.side_effect = cancel_during_status_lookup
+        operator.execute(context=context)
+
+        hook.cancel_pipeline_run.assert_called_once_with(
+            run_id="prior-run-id",
+            resource_group_name="resource-group-name",
+            factory_name="factory-name",
+        )
+        assert operator.run_id == "prior-run-id"
+        assert task_instance.xcom_values == [("run_id", "prior-run-id")]
+
+
+class TestWarnAndDisableDurableAirflowPre3_3:
+    def test_no_warning_when_unset(self) -> None:
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            result: bool = data_factory_module._warn_and_disable_durable_pre_3_3(
+                data_factory_module._DURABLE_UNSET
+            )
+        assert result is False
+        assert caught == []
+
+    @pytest.mark.parametrize("value", [True, False])
+    def test_warns_and_disables_when_explicitly_set(self, value: bool) -> None:
+        with pytest.warns(UserWarning, match="durable.*no effect"):
+            result: bool = data_factory_module._warn_and_disable_durable_pre_3_3(value)
+        assert result is False
 
 
 @pytest.fixture

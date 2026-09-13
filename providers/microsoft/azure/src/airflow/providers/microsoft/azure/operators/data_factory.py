@@ -20,7 +20,9 @@ import time
 import warnings
 from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
+
+from azure.core.exceptions import ResourceNotFoundError
 
 from airflow.providers.common.compat.sdk import (
     AirflowException,
@@ -39,7 +41,51 @@ from airflow.providers.microsoft.azure.hooks.data_factory import (
 from airflow.providers.microsoft.azure.triggers.data_factory import AzureDataFactoryTrigger
 from airflow.utils.log.logging_mixin import LoggingMixin
 
+_DURABLE_UNSET: object = object()
+_MISSING_PIPELINE_RUN_STATUS: str = "Missing"
+
+
+def _warn_and_disable_durable_pre_3_3(durable: Any) -> bool:
+    if durable is not _DURABLE_UNSET:
+        warnings.warn(
+            message="`durable` has no effect on Airflow versions below 3.3.",
+            category=UserWarning,
+            stacklevel=3,
+        )
+    return False
+
+
+try:
+    from airflow.sdk import ResumableJobMixin
+except ImportError:
+
+    class ResumableJobMixin:  # type: ignore[no-redef]
+        """Compatibility shim for Airflow versions without task state."""
+
+        external_id_key: str = "azure_data_factory_run_id"
+
+        def __init__(self, *, durable: Any = _DURABLE_UNSET, **kwargs: Any) -> None:
+            super().__init__(**kwargs)
+            self.durable = _warn_and_disable_durable_pre_3_3(durable)
+
+        def submit_job(self, context: Context) -> JsonValue:
+            raise NotImplementedError
+
+        def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
+            raise NotImplementedError
+
+        def get_job_result(self, external_id: JsonValue, context: Context) -> Any:
+            raise NotImplementedError
+
+        def execute_resumable(self, context: Context) -> Any:
+            external_id: JsonValue = self.submit_job(context=context)
+            self.poll_until_complete(external_id=external_id, context=context)
+            return self.get_job_result(external_id=external_id, context=context)
+
+
 if TYPE_CHECKING:
+    from pydantic import JsonValue
+
     from airflow.providers.common.compat.sdk import TaskInstanceKey
     from airflow.sdk import Context
 
@@ -80,7 +126,7 @@ class AzureDataFactoryPipelineRunLink(LoggingMixin, BaseOperatorLink):
         return url
 
 
-class AzureDataFactoryRunPipelineOperator(BaseOperator):
+class AzureDataFactoryRunPipelineOperator(ResumableJobMixin, BaseOperator):
     """
     Execute a data factory pipeline.
 
@@ -115,6 +161,9 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
     :param check_interval: Time in seconds to check on a pipeline run's status for non-asynchronous waits.
         Used only if ``wait_for_termination`` is True.
     :param deferrable: Run operator in deferrable mode.
+    :param durable: When True (the default) and the operator waits synchronously, persist the pipeline
+        run ID before polling so a retry can reconnect instead of submitting a duplicate. Requires
+        Airflow 3.3+; this has no effect on earlier versions.
     """
 
     template_fields: Sequence[str] = (
@@ -130,6 +179,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
     ui_color = "#0678d4"
 
     operator_extra_links = (AzureDataFactoryPipelineRunLink(),)
+    external_id_key: str = "azure_data_factory_run_id"
 
     def __init__(
         self,
@@ -147,8 +197,11 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         timeout: int = 60 * 60 * 24 * 7,
         check_interval: int = 60,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
-        **kwargs,
+        durable: bool | None = None,
+        **kwargs: Any,
     ) -> None:
+        if durable is not None:
+            kwargs["durable"] = durable
         super().__init__(**kwargs)
         self.azure_data_factory_conn_id = azure_data_factory_conn_id
         self.pipeline_name = pipeline_name
@@ -163,6 +216,8 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         self.timeout = timeout
         self.check_interval = check_interval
         self.deferrable = deferrable
+        self.run_id: str | None = None
+        self._published_run_id: str | None = None
 
     @cached_property
     def hook(self) -> AzureDataFactoryHook:
@@ -171,72 +226,106 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
 
     def execute(self, context: Context) -> None:
         self.log.info("Executing the %s pipeline.", self.pipeline_name)
+        self._published_run_id = None
+        if self.wait_for_termination and self.deferrable is False:
+            self.execute_resumable(context=context)
+            return
+
+        run_id: str = cast("str", self.submit_job(context=context))
+
+        if self.wait_for_termination:
+            end_time = time.time() + self.timeout
+            pipeline_run_status: str = self.hook.get_pipeline_run_status(
+                run_id=run_id,
+                resource_group_name=self.resource_group_name,
+                factory_name=self.factory_name,
+            )
+            if pipeline_run_status not in AzureDataFactoryPipelineRunStatus.TERMINAL_STATUSES:
+                self.defer(
+                    timeout=self.execution_timeout,
+                    trigger=AzureDataFactoryTrigger(
+                        azure_data_factory_conn_id=self.azure_data_factory_conn_id,
+                        run_id=run_id,
+                        wait_for_termination=self.wait_for_termination,
+                        resource_group_name=self.resource_group_name,
+                        factory_name=self.factory_name,
+                        check_interval=self.check_interval,
+                        end_time=end_time,
+                    ),
+                    method_name="execute_complete",
+                )
+            elif pipeline_run_status == AzureDataFactoryPipelineRunStatus.SUCCEEDED:
+                self.log.info("Pipeline run %s has completed successfully.", run_id)
+            elif pipeline_run_status in AzureDataFactoryPipelineRunStatus.FAILURE_STATES:
+                raise AzureDataFactoryPipelineRunException(
+                    f"Pipeline run {run_id} has failed or has been cancelled."
+                )
+        elif self.deferrable is True:
+            warnings.warn(
+                "Argument `wait_for_termination` is False and `deferrable` is True , hence "
+                "`deferrable` parameter doesn't have any effect",
+                UserWarning,
+                stacklevel=2,
+            )
+
+    def submit_job(self, context: Context) -> JsonValue:
         response = self.hook.run_pipeline(
-            self.pipeline_name,
-            self.resource_group_name,
-            self.factory_name,
+            pipeline_name=self.pipeline_name,
+            resource_group_name=self.resource_group_name,
+            factory_name=self.factory_name,
             reference_pipeline_run_id=self.reference_pipeline_run_id,
             is_recovery=self.is_recovery,
             start_activity_name=self.start_activity_name,
             start_from_failure=self.start_from_failure,
             parameters=self.parameters,
         )
-        self.run_id = response.run_id
-        # Push the ``run_id`` value to XCom regardless of what happens during execution. This allows for
-        # retrieval the executed pipeline's ``run_id`` for downstream tasks especially if performing an
-        # asynchronous wait.
-        context["ti"].xcom_push(key="run_id", value=self.run_id)
+        run_id: str = response.run_id
+        self._set_run_id(run_id=run_id, context=context)
+        return run_id
 
-        if self.wait_for_termination:
-            if self.deferrable is False:
-                self.log.info("Waiting for pipeline run %s to terminate.", self.run_id)
+    def get_job_status(self, external_id: JsonValue, context: Context) -> str:
+        run_id: str = cast("str", external_id)
+        self._set_run_id(run_id=run_id, context=context)
+        try:
+            return self.hook.get_pipeline_run_status(
+                run_id=run_id,
+                resource_group_name=self.resource_group_name,
+                factory_name=self.factory_name,
+            )
+        except ResourceNotFoundError:
+            return _MISSING_PIPELINE_RUN_STATUS
 
-                if self.hook.wait_for_pipeline_run_status(
-                    self.run_id,
-                    AzureDataFactoryPipelineRunStatus.SUCCEEDED,
-                    self.resource_group_name,
-                    self.factory_name,
-                    check_interval=self.check_interval,
-                    timeout=self.timeout,
-                ):
-                    self.log.info("Pipeline run %s has completed successfully.", self.run_id)
-                else:
-                    raise AzureDataFactoryPipelineRunException(
-                        f"Pipeline run {self.run_id} has failed or has been cancelled."
-                    )
-            else:
-                end_time = time.time() + self.timeout
-                pipeline_run_status = self.hook.get_pipeline_run_status(
-                    self.run_id, self.resource_group_name, self.factory_name
-                )
-                if pipeline_run_status not in AzureDataFactoryPipelineRunStatus.TERMINAL_STATUSES:
-                    self.defer(
-                        timeout=self.execution_timeout,
-                        trigger=AzureDataFactoryTrigger(
-                            azure_data_factory_conn_id=self.azure_data_factory_conn_id,
-                            run_id=self.run_id,
-                            wait_for_termination=self.wait_for_termination,
-                            resource_group_name=self.resource_group_name,
-                            factory_name=self.factory_name,
-                            check_interval=self.check_interval,
-                            end_time=end_time,
-                        ),
-                        method_name="execute_complete",
-                    )
-                elif pipeline_run_status == AzureDataFactoryPipelineRunStatus.SUCCEEDED:
-                    self.log.info("Pipeline run %s has completed successfully.", self.run_id)
-                elif pipeline_run_status in AzureDataFactoryPipelineRunStatus.FAILURE_STATES:
-                    raise AzureDataFactoryPipelineRunException(
-                        f"Pipeline run {self.run_id} has failed or has been cancelled."
-                    )
-        else:
-            if self.deferrable is True:
-                warnings.warn(
-                    "Argument `wait_for_termination` is False and `deferrable` is True , hence "
-                    "`deferrable` parameter doesn't have any effect",
-                    UserWarning,
-                    stacklevel=2,
-                )
+    def is_job_active(self, status: str) -> bool:
+        return status in AzureDataFactoryPipelineRunStatus.INTERMEDIATE_STATES
+
+    def is_job_succeeded(self, status: str) -> bool:
+        return status == AzureDataFactoryPipelineRunStatus.SUCCEEDED
+
+    def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
+        run_id: str = cast("str", external_id)
+        self._set_run_id(run_id=run_id, context=context)
+        self.log.info("Waiting for pipeline run %s to terminate.", run_id)
+        if self.hook.wait_for_pipeline_run_status(
+            run_id=run_id,
+            expected_statuses=AzureDataFactoryPipelineRunStatus.SUCCEEDED,
+            resource_group_name=self.resource_group_name,
+            factory_name=self.factory_name,
+            check_interval=self.check_interval,
+            timeout=self.timeout,
+        ):
+            self.log.info("Pipeline run %s has completed successfully.", run_id)
+            return
+        raise AzureDataFactoryPipelineRunException(f"Pipeline run {run_id} has failed or has been cancelled.")
+
+    def get_job_result(self, external_id: JsonValue, context: Context) -> None:
+        run_id: str = cast("str", external_id)
+        self._set_run_id(run_id=run_id, context=context)
+
+    def _set_run_id(self, *, run_id: str, context: Context) -> None:
+        self.run_id = run_id
+        if self._published_run_id != run_id:
+            context["ti"].xcom_push(key="run_id", value=run_id)
+            self._published_run_id = run_id
 
     def execute_complete(self, context: Context, event: dict[str, str]) -> None:
         """
