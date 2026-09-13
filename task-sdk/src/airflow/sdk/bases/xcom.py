@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import collections
 from collections.abc import Iterable, Iterator, Sequence
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 import structlog
 
@@ -685,30 +685,68 @@ class FlattenedXComIterable(XComIterable):
 
     ``__len__``/``__getitem__`` must speak in terms of *flattened* items, not the raw pages
     ``XComIterable`` stores, since a single page can expand to any number of items (or none).
-    That can only be answered by walking the full flattened stream at least once, so it is
-    materialized lazily and cached on first random-access use. ``__iter__`` remains a plain
-    streaming generator over ``XComIterable``'s own lazy per-page fetches and does not depend
-    on this cache, so a simple ``for`` loop still never gets penalized for a full materialization.
+    Counting or indexing therefore requires walking the underlying page stream, but this class
+    never materializes the whole flattened sequence in memory to do so — ``XComIterable``'s
+    paged fetches are meant to hold only one page at a time, and caching a flattened list would
+    defeat that and risk out-of-memory for large iterables.
+
+    Instead, a running item count is tracked while the stream is consumed, and the final total
+    is cached once the stream is exhausted, so a subsequent ``__len__()`` is O(1) without
+    re-walking. Random-access reads via ``__getitem__`` walk the stream discarding items outside
+    the requested position(s), so memory use stays bounded by the size of the requested result
+    rather than the size of the whole iterable — at the cost of re-walking (and re-fetching)
+    pages on each call, since items themselves are never cached.
     """
 
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
-        self._flattened_cache: list[Any] | None = None
+        self._flattened_length: int | None = None
+
+    def _iter_pages(self) -> Iterator[Any]:
+        """Iterate raw pages via the base class, bypassing this class's own __len__/__getitem__ overrides."""
+        for index in range(XComIterable.__len__(self)):
+            yield XComIterable.__getitem__(self, index)
 
     def __iter__(self) -> Iterator[Any]:
-        for item in super().__iter__():
-            yield from self._flatten(item)
-
-    def _flattened(self) -> list[Any]:
-        if self._flattened_cache is None:
-            self._flattened_cache = list(self.__iter__())
-        return self._flattened_cache
+        count = 0
+        for page in self._iter_pages():
+            for item in self._flatten(page):
+                count += 1
+                yield item
+        # Only reached once the generator is fully exhausted, so a caller that breaks out
+        # of a partial iteration does not poison the cache with an incomplete count.
+        self._flattened_length = count
 
     def __len__(self) -> int:
-        return len(self._flattened())
+        if self._flattened_length is None:
+            for _ in self:
+                pass  # Drain without keeping items in memory; __iter__ caches the count.
+        return cast("int", self._flattened_length)
 
     def __getitem__(self, key: int | slice) -> Any | Sequence[Any]:
-        return self._flattened()[key]
+        if isinstance(key, slice):
+            positions = range(*key.indices(len(self)))
+            if not positions:
+                return []
+            wanted = set(positions)
+            highest = max(positions)
+            found: dict[int, Any] = {}
+            for index, item in enumerate(self):
+                if index > highest:
+                    break
+                if index in wanted:
+                    found[index] = item
+            return [found[index] for index in positions]
+
+        length = len(self)
+        index = key if key >= 0 else key + length
+        if not (0 <= index < length):
+            raise IndexError(key)
+
+        for current_index, item in enumerate(self):
+            if current_index == index:
+                return item
+        raise IndexError(key)  # pragma: no cover - unreachable given the bounds check above
 
     @classmethod
     def _flatten(cls, item: Any) -> Iterator[Any]:
