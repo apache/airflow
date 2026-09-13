@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import os
 import shutil
-from contextlib import nullcontext
+from contextlib import AbstractContextManager, nullcontext
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -61,6 +61,13 @@ class GitDagBundle(BaseDagBundle):
         The sparse checkout will only produce the files and subfolders of the list of provided directories
         into the working tree. The "cone" mode is used, which means that effective and fast filtering can be made.
         See https://git-scm.com/docs/git-sparse-checkout for more information on the sparse checkout feature.
+    :param shallow: When running a pinned version (as a worker does when running a task), fetch only that
+        single commit with ``--depth 1`` instead of mirroring the whole repository history. This avoids
+        pulling the full history into every ephemeral worker (for example a KubernetesExecutor pod). It
+        needs the remote to allow fetching a commit that is not an advertised branch tip
+        (``uploadpack.allowAnySHA1InWant`` / ``allowReachableSHA1InWant``, which GitHub and GitLab enable);
+        if the server refuses, the bundle transparently falls back to the full clone. It has no effect on
+        the branch-tracking path (no pinned version) used by the Dag processor.
     """
 
     supports_versioning = True
@@ -75,11 +82,13 @@ class GitDagBundle(BaseDagBundle):
         submodules: bool = False,
         prune_dotgit_folder: bool = True,
         sparse_dirs: list[str] | None = None,
+        shallow: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.tracking_ref = tracking_ref
         self.subdir = subdir
+        self.shallow = shallow
         self.bare_repo_path = self.base_dir / "bare"
         if self.version:
             self.repo_path = self.versions_dir / self.version
@@ -104,6 +113,7 @@ class GitDagBundle(BaseDagBundle):
             git_conn_id=self.git_conn_id,
             submodules=self.submodules,
             sparse_dirs=self.sparse_dirs,
+            shallow=self.shallow,
         )
 
         self._log.debug("bundle configured")
@@ -195,6 +205,21 @@ class GitDagBundle(BaseDagBundle):
                         self.repo = repo
                     return
 
+            if self.version and self.shallow:
+                try:
+                    self._initialize_shallow_version()
+                    return
+                except GitCommandError as e:
+                    # The remote may refuse to serve an unadvertised commit
+                    # (uploadpack.allowAnySHA1InWant disabled); fall back to the full clone.
+                    self._log.warning(
+                        "Shallow fetch of pinned version failed, falling back to full clone",
+                        version=self.version,
+                        exc=e,
+                    )
+                    if os.path.exists(self.repo_path):
+                        shutil.rmtree(self.repo_path)
+
             cm = self.hook.configure_hook_env() if self.hook else nullcontext()
             with cm:
                 try:
@@ -222,24 +247,64 @@ class GitDagBundle(BaseDagBundle):
                     self.repo.remotes.origin.fetch()
                 self.repo.head.set_reference(str(self.repo.commit(self.version)))
                 self.repo.head.reset(index=True, working_tree=True)
-
-                if self.submodules:
-                    cm_sub = self.hook.configure_hook_env() if self.hook else nullcontext()
-                    with cm_sub:
-                        try:
-                            self._fetch_submodules()
-                        except GitCommandError as e:
-                            raise RuntimeError("Error pulling submodule from repository") from e
-
-                if self.prune_dotgit_folder:
-                    self.repo.close()
-                    shutil.rmtree(self.repo_path / ".git")
-                    self.repo = None
+                self._finalize_pinned_checkout()
             else:
                 self.refresh()
 
             if self.repo is not None:
                 self.repo.close()
+
+    def _finalize_pinned_checkout(self) -> None:
+        """Fetch submodules if enabled and optionally prune the ``.git`` folder of a checked-out version."""
+        if self.submodules:
+            cm_sub = self.hook.configure_hook_env() if self.hook else nullcontext()
+            with cm_sub:
+                try:
+                    self._fetch_submodules()
+                except GitCommandError as e:
+                    raise RuntimeError("Error pulling submodule from repository") from e
+
+        if self.prune_dotgit_folder:
+            self.repo.close()
+            shutil.rmtree(self.repo_path / ".git")
+            self.repo = None
+
+    def _initialize_shallow_version(self) -> None:
+        """
+        Fetch only the pinned commit into the version directory, skipping the full-history bare mirror.
+
+        Raises ``GitCommandError`` if the remote refuses to serve the unadvertised commit, so the caller
+        can fall back to the full clone.
+        """
+        self._log.info("Shallow-fetching pinned version", repo_path=self.repo_path, version=self.version)
+        self.repo_path.parent.mkdir(parents=True, exist_ok=True)
+        repo = Repo.init(self.repo_path)
+        try:
+            repo.create_remote("origin", str(self.repo_url))
+            cm = self.hook.configure_hook_env() if self.hook else nullcontext()
+            with cm:
+                env_cm: AbstractContextManager[None] = nullcontext()
+                if self.hook and (cmd := self.hook.env.get("GIT_SSH_COMMAND")):
+                    env_cm = repo.git.custom_environment(GIT_SSH_COMMAND=cmd)
+                with env_cm:
+                    repo.git.fetch("origin", self.version, "--depth=1")
+            if self.sparse_dirs:
+                repo.git.sparse_checkout("init", "--cone")
+                repo.git.sparse_checkout("set", *self.sparse_dirs)
+            repo.git.checkout(self.version)
+            self.repo = repo
+            self._finalize_pinned_checkout()
+        except BaseException:
+            # Close the handle and drop the partial checkout on any failure (a rejected shallow
+            # fetch the caller retries as a full clone, or a submodule error) so a half-built
+            # version dir is never left behind to be mistaken for complete by the reuse fast-path.
+            repo.close()
+            self.repo = None
+            if os.path.exists(self.repo_path):
+                shutil.rmtree(self.repo_path)
+            raise
+        if self.repo is not None:
+            self.repo.close()
 
     def initialize(self) -> None:
         if not self.repo_url:

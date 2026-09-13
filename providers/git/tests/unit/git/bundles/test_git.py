@@ -215,6 +215,193 @@ class TestGitDagBundle:
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py"} == files_in_repo
 
+    def test_shallow_defaults_to_false(self):
+        assert GitDagBundle(name="test", tracking_ref=GIT_DEFAULT_BRANCH).shallow is False
+        assert GitDagBundle(name="test", tracking_ref=GIT_DEFAULT_BRANCH, shallow=True).shallow is True
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_shallow_pinned_version_fetches_only_that_commit(self, mock_githook, git_repo):
+        """With shallow=True and a pinned version, only that commit is fetched and the bare mirror is skipped."""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        mock_githook.return_value.env = {}
+        starting_commit = repo.head.commit
+
+        file_path = repo_path / "new_test.py"
+        file_path.write_text("hello world")
+        repo.index.add([file_path])
+        repo.index.commit("Another commit")
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id=CONN_HTTPS,
+            version=starting_commit.hexsha,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            prune_dotgit_folder=False,
+            shallow=True,
+        )
+        bundle.initialize()
+
+        assert _version_str(bundle.get_current_version()) == starting_commit.hexsha
+        files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
+        assert {"test_dag.py"} == files_in_repo
+        # the full-history bare mirror is skipped entirely
+        assert not bundle.bare_repo_path.exists()
+        # the version checkout is a shallow repo (single commit)
+        assert (bundle.repo_path / ".git" / "shallow").exists()
+        # the repo handle is closed (no leaked cat-file process)
+        assert bundle.repo.git.cat_file_all is None
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_shallow_pinned_version_prunes_dotgit_by_default(self, mock_githook, git_repo):
+        """With the default prune_dotgit_folder=True, the shallow checkout is pruned and reused."""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        mock_githook.return_value.env = {}
+        version = repo.head.commit.hexsha
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id=CONN_HTTPS,
+            version=version,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            shallow=True,
+        )
+        bundle.initialize()
+
+        assert _version_str(bundle.get_current_version()) == version
+        # default prune removes .git and clears the repo handle
+        assert bundle.repo is None
+        assert not (bundle.repo_path / ".git").exists()
+        assert not bundle.bare_repo_path.exists()
+
+        # a second initialize reuses the pruned worktree without building a bare mirror
+        bundle2 = GitDagBundle(
+            name="test",
+            git_conn_id=CONN_HTTPS,
+            version=version,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            shallow=True,
+        )
+        bundle2.initialize()
+        assert _version_str(bundle2.get_current_version()) == version
+        assert not bundle2.bare_repo_path.exists()
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_shallow_falls_back_to_full_clone_when_shallow_fetch_fails(self, mock_githook, git_repo):
+        """If the shallow fetch is rejected (e.g. the server disallows fetching a commit that is not an
+        advertised branch tip), initialization removes the partial checkout and falls back to the full clone."""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        mock_githook.return_value.env = {}
+        starting_commit = repo.head.commit
+
+        file_path = repo_path / "new_test.py"
+        file_path.write_text("hello world")
+        repo.index.add([file_path])
+        repo.index.commit("Another commit")
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id=CONN_HTTPS,
+            version=starting_commit.hexsha,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            prune_dotgit_folder=False,
+            shallow=True,
+        )
+
+        def _leave_partial_then_fail(self):
+            # mimic a shallow fetch that dies mid-way, leaving a partial version dir behind
+            self.repo_path.mkdir(parents=True, exist_ok=True)
+            (self.repo_path / ".git").mkdir(exist_ok=True)
+            raise GitCommandError("fetch", 1)
+
+        with mock.patch.object(
+            GitDagBundle, "_initialize_shallow_version", autospec=True, side_effect=_leave_partial_then_fail
+        ):
+            bundle.initialize()
+
+        assert _version_str(bundle.get_current_version()) == starting_commit.hexsha
+        files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
+        assert {"test_dag.py"} == files_in_repo
+        # the fallback takes the full path, which builds the bare mirror
+        assert bundle.bare_repo_path.exists()
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_shallow_cleans_up_when_finalize_fails(self, mock_githook, git_repo):
+        """If finalizing the shallow checkout fails (e.g. a submodule fetch error), the repo handle is
+        closed and the partial version directory is removed rather than silently reused."""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        mock_githook.return_value.env = {}
+        version = repo.head.commit.hexsha
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id=CONN_HTTPS,
+            version=version,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            prune_dotgit_folder=False,
+            shallow=True,
+        )
+        with mock.patch.object(GitDagBundle, "_finalize_pinned_checkout", side_effect=RuntimeError("boom")):
+            with pytest.raises(RuntimeError, match="boom"):
+                bundle.initialize()
+
+        assert bundle.repo is None
+        assert not bundle.repo_path.exists()
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_shallow_pinned_version_respects_sparse_dirs(self, mock_githook, git_repo):
+        """The shallow path still applies sparse_dirs, so only the requested subfolder is checked out."""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        mock_githook.return_value.env = {}
+
+        subdir = "some/subdir"
+        (repo_path / subdir).mkdir(parents=True)
+        relevant = repo_path / subdir / "some_relevant_file.py"
+        relevant.write_text("hello world")
+        otherdir = "other/dir"
+        (repo_path / otherdir).mkdir(parents=True)
+        other = repo_path / otherdir / "some_other_file.py"
+        other.write_text("hello world")
+        repo.index.add([str(relevant), str(other)])
+        version_commit = repo.index.commit("Sparse commit")
+
+        bundle = GitDagBundle(
+            name="test-shallow-sparse",
+            git_conn_id=CONN_HTTPS,
+            version=version_commit.hexsha,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            prune_dotgit_folder=False,
+            sparse_dirs=[subdir],
+            shallow=True,
+        )
+        bundle.initialize()
+
+        files_in_repo = {f.name for f in bundle.path.glob("**/*.py") if f.is_file()}
+        assert "some_relevant_file.py" in files_in_repo
+        assert "some_other_file.py" not in files_in_repo
+        # confirm the shallow path (not the bare mirror) produced the checkout
+        assert not bundle.bare_repo_path.exists()
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_shallow_ignored_without_pinned_version(self, mock_githook, git_repo):
+        """shallow only applies to a pinned version; an unpinned (branch-tracking) bundle is unaffected."""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        mock_githook.return_value.env = {}
+
+        bundle = GitDagBundle(
+            name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH, shallow=True
+        )
+        bundle.initialize()
+
+        assert _version_str(bundle.get_current_version()) == repo.head.commit.hexsha
+        # the unpinned processor path still builds the bare mirror
+        assert bundle.bare_repo_path.exists()
+
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_get_latest(self, mock_githook, git_repo):
         repo_path, repo = git_repo
