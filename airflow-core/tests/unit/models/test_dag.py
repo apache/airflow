@@ -360,6 +360,81 @@ class TestDag:
         assert "testing" in instantiated
         assert "unrelated" not in instantiated
 
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_dag_test_parses_only_needed_files_once_targets_are_known(self, test_dags_bundle, session):
+        """
+        Regression test for #72513.
+
+        Once the trigger target is known to the metadata DB, ``DAG.test()`` must parse
+        only the files that define the tested DAG and its trigger targets, instead of
+        re-walking the whole bundle and re-syncing every sibling DAG on each call.
+        """
+        parent_id = "test_dag_test_trigger_parent"
+        unrelated_id = "test_example_bash_operator"
+
+        dagbag = DagBag(dag_folder=os.fspath(TEST_DAGS_FOLDER))
+        parent = dagbag.dags.get(parent_id)
+        assert parent is not None
+
+        # First call: the parent and its target are unknown, so the bundle is walked
+        # and every sibling DAG in it is synced.
+        assert parent.test().state == DagRunState.SUCCESS
+        session.expire_all()
+        unrelated_parsed_at = session.scalar(
+            select(DagModel.last_parsed_time).where(DagModel.dag_id == unrelated_id)
+        )
+        assert unrelated_parsed_at is not None
+
+        parsed: list[str] = []
+        real_collect_dags = BundleDagBag.collect_dags
+
+        def _spy(self, dag_folder=None, *args, **kwargs):
+            parsed.append(os.fspath(dag_folder or self.dag_folder))
+            return real_collect_dags(self, dag_folder, *args, **kwargs)
+
+        with mock.patch.object(BundleDagBag, "collect_dags", _spy):
+            dr = parent.test()
+
+        assert dr.state == DagRunState.SUCCESS
+        # Second call: only the file defining the parent (and its target) is parsed.
+        assert [Path(f).resolve() for f in parsed] == [
+            (TEST_DAGS_FOLDER / "test_dag_test_with_trigger.py").resolve()
+        ]
+        session.expire_all()
+        assert (
+            session.scalar(select(DagModel.last_parsed_time).where(DagModel.dag_id == unrelated_id))
+            == unrelated_parsed_at
+        )
+
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_dag_test_walks_bundle_when_trigger_target_is_templated(self, test_dags_bundle, session):
+        """
+        A trigger target that is only known at runtime cannot be located, so ``DAG.test()``
+        keeps walking the whole bundle rather than risking a missing sibling.
+        """
+        parent_id = "test_dag_test_trigger_parent"
+
+        dagbag = DagBag(dag_folder=os.fspath(TEST_DAGS_FOLDER))
+        parent = dagbag.dags.get(parent_id)
+        assert parent is not None
+        assert parent.test().state == DagRunState.SUCCESS
+
+        # A templated target cannot be resolved before runtime; the task is marked success below
+        # because only the sync behaviour is of interest here.
+        parent.task_dict["trigger_target"].trigger_dag_id = "{{ params.target }}"
+
+        parsed: list[str] = []
+        real_collect_dags = BundleDagBag.collect_dags
+
+        def _spy(self, dag_folder=None, *args, **kwargs):
+            parsed.append(os.fspath(dag_folder or self.dag_folder))
+            return real_collect_dags(self, dag_folder, *args, **kwargs)
+
+        with mock.patch.object(BundleDagBag, "collect_dags", _spy):
+            parent.test(mark_success_pattern="trigger_target")
+
+        assert [Path(f).resolve() for f in parsed] == [TEST_DAGS_FOLDER.resolve()]
+
     def teardown_method(self) -> None:
         clear_db_runs()
         clear_db_dags()
