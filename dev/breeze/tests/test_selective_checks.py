@@ -1779,6 +1779,42 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
+                ("shared/search/src/airflow_shared/search/response.py",),
+                {
+                    "run-remote-logging-s3-e2e-tests": "false",
+                    "run-remote-logging-elasticsearch-e2e-tests": "true",
+                    "run-remote-logging-opensearch-e2e-tests": "true",
+                    "ci-image-build": "true",
+                    "prod-image-build": "true",
+                },
+                id="Shared search library changes enable Elasticsearch and OpenSearch e2e but not S3",
+            )
+        ),
+        (
+            pytest.param(
+                ("shared/search/src/airflow_shared/search/response.py",),
+                {
+                    "skip-providers-tests": "false",
+                    "selected-providers-list-as-string": "common.compat common.sql elasticsearch opensearch",
+                    "testable-providers-integrations": "['elasticsearch']",
+                },
+                id="Shared search library changes select both vendoring providers for unit tests",
+            )
+        ),
+        (
+            pytest.param(
+                ("shared/timezones/src/airflow_shared/timezones/timezone.py",),
+                {
+                    "skip-providers-tests": "true",
+                    "testable-providers-integrations": "[]",
+                    "run-remote-logging-elasticsearch-e2e-tests": "false",
+                    "run-remote-logging-opensearch-e2e-tests": "false",
+                },
+                id="Shared library not vendored by any provider does not select provider tests",
+            )
+        ),
+        (
+            pytest.param(
                 ("shared/timezones/src/airflow_shared/timezones/timezone.py",),
                 {
                     "ci-image-build": "true",

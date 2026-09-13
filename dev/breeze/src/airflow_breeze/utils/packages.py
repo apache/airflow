@@ -529,6 +529,35 @@ def get_provider_yaml(provider_id: str) -> Path:
     return AIRFLOW_PROVIDERS_ROOT_PATH / provider_id.replace(".", "/") / "provider.yaml"
 
 
+@clearable_cache
+def get_shared_distribution_to_providers_map() -> dict[str, tuple[str, ...]]:
+    """
+    Map each shared distribution to the providers that vendor it.
+
+    Shared library sources live in ``shared/<dist>`` and are symlinked into a provider under
+    ``_shared/``, so a change to them is reported by git under ``shared/``, never under
+    ``providers/``. CI selection therefore cannot find the affected providers by path alone and
+    needs this reverse index, built from the ``[tool.airflow] shared_distributions`` each provider
+    already declares.
+
+    :return: mapping of distribution name (e.g. ``apache-airflow-shared-search``) to provider ids.
+    """
+    mapping: dict[str, list[str]] = {}
+    for provider_id in get_available_distributions(include_suspended=True, include_not_ready=True):
+        pyproject_toml_path = get_provider_root_path(provider_id) / "pyproject.toml"
+        if not pyproject_toml_path.exists():
+            continue
+        shared_distributions = (
+            load_pyproject_toml(pyproject_toml_path)
+            .get("tool", {})
+            .get("airflow", {})
+            .get("shared_distributions", [])
+        )
+        for distribution in shared_distributions:
+            mapping.setdefault(distribution, []).append(provider_id)
+    return {distribution: tuple(sorted(ids)) for distribution, ids in mapping.items()}
+
+
 def load_pyproject_toml(pyproject_toml_file_path: Path) -> dict[str, Any]:
     try:
         import tomllib
