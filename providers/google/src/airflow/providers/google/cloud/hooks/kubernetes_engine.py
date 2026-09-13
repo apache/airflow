@@ -49,6 +49,8 @@ from airflow.providers.google.common.hooks.base_google import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
     import google.auth.credentials
     from google.api_core.retry import Retry
 
@@ -480,6 +482,27 @@ class GKEKubernetesHook(GoogleBaseHook, KubernetesHook):
         )
 
 
+class _GKEAsyncApiClient(async_client.ApiClient):
+    """Retry a rejected GKE token once with refreshed credentials."""
+
+    def __init__(
+        self,
+        configuration: async_client.Configuration,
+        refresh_token: Callable[[], Awaitable[str | None]],
+    ) -> None:
+        super().__init__(configuration=configuration)
+        self._refresh_token = refresh_token
+
+    async def call_api(self, *args: Any, **kwargs: Any) -> Any:
+        try:
+            return await super().call_api(*args, **kwargs)
+        except async_client.ApiException as error:
+            if error.status != 401:
+                raise
+        self.default_headers["Authorization"] = f"Bearer {await self._refresh_token()}"
+        return await super().call_api(*args, **kwargs)
+
+
 class GKEKubernetesAsyncHook(GoogleBaseAsyncHook, AsyncKubernetesHook):
     """
     Async GKE authenticated hook for standard Kubernetes API.
@@ -554,7 +577,12 @@ class GKEKubernetesAsyncHook(GoogleBaseAsyncHook, AsyncKubernetesHook):
             return list(response.items) if response.items else []
 
     def _build_client(self) -> async_client.ApiClient:
-        return async_client.ApiClient(configuration=self._get_config())
+        return _GKEAsyncApiClient(configuration=self._get_config(), refresh_token=self._refresh_token)
+
+    async def _refresh_token(self) -> str | None:
+        # A new wrapper forces credential acquisition even before the cached token's expiry.
+        self._cached_token = await self.get_token()
+        return await self._cached_token.get()
 
     def _get_config(self) -> async_client.configuration.Configuration:
         configuration = async_client.Configuration(
