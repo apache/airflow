@@ -31,9 +31,10 @@ import os
 import pickle
 import re
 import sys
+import uuid
 import warnings
 from collections.abc import Generator
-from datetime import datetime, timedelta, timezone as dt_timezone
+from datetime import date, datetime, timedelta, timezone as dt_timezone
 from glob import glob
 from pathlib import Path
 from textwrap import dedent
@@ -3627,6 +3628,113 @@ def test_stub_task_args_round_trip():
 
     for task_id in ("transform", "aggregate"):
         get_arg_bindings_adapter().validate_python(round_tripped.task_dict[task_id].arg_bindings)
+
+
+def test_stub_task_native_literals_serialize_to_their_wire_form():
+    """A native temporal/UUID literal reaches the lang SDK as the JSON spelling its
+    ``value_schema`` advertises, rather than being rejected as unserializable."""
+    from airflow.sdk import task
+
+    with DAG(dag_id="native_arg_bindings_dag", schedule=None) as dag:
+
+        @task.stub
+        def schedule_window(
+            starts_at: datetime,
+            on_day: date,
+            every: timedelta,
+            trace_id: uuid.UUID,
+            checkpoints: list[dict[str, datetime | None]],
+            observed_at: set[datetime],
+        ): ...
+
+        schedule_window(
+            # Naive on purpose: the offset must be pinned at serialization time, because an
+            # offset-less timestamp means a different instant to each lang SDK.
+            datetime(2024, 1, 2, 3, 4, 5),
+            date(2024, 1, 2),
+            timedelta(days=1, hours=2),
+            uuid.UUID("6BA7B810-9DAD-11D1-80B4-00C04FD430C8"),
+            [{"started_at": datetime(2024, 1, 3, 4, 5, 6), "finished_at": None}],
+            {datetime(2024, 1, 5, 4, 5, 6), datetime(2024, 1, 4, 4, 5, 6)},
+        )
+
+    ser_dag = DagSerialization.to_dict(dag)
+    DagSerialization.validate_schema(ser_dag)
+    round_tripped = DagSerialization.from_dict(ser_dag)
+
+    assert round_tripped.task_dict["schedule_window"].arg_bindings == [
+        {
+            "name": "starts_at",
+            "kind": "literal",
+            "value_schema": {"type": "string", "format": "date-time"},
+            "value": "2024-01-02T03:04:05Z",
+        },
+        {
+            "name": "on_day",
+            "kind": "literal",
+            "value_schema": {"type": "string", "format": "date"},
+            "value": "2024-01-02",
+        },
+        {
+            "name": "every",
+            "kind": "literal",
+            "value_schema": {"type": "string", "format": "duration"},
+            "value": "P1DT2H",
+        },
+        {
+            "name": "trace_id",
+            "kind": "literal",
+            "value_schema": {"type": "string", "format": "uuid"},
+            "value": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+        },
+        {
+            "name": "checkpoints",
+            "kind": "literal",
+            "value_schema": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "anyOf": [
+                            {"type": "string", "format": "date-time"},
+                            {"type": "null"},
+                        ]
+                    },
+                },
+            },
+            "value": [{"started_at": "2024-01-03T04:05:06Z", "finished_at": None}],
+        },
+        {
+            "name": "observed_at",
+            "kind": "literal",
+            "value_schema": {
+                "type": "array",
+                "items": {"type": "string", "format": "date-time"},
+                "uniqueItems": True,
+            },
+            "value": ["2024-01-04T04:05:06Z", "2024-01-05T04:05:06Z"],
+        },
+    ]
+
+    from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import get_arg_bindings_adapter
+
+    get_arg_bindings_adapter().validate_python(round_tripped.task_dict["schedule_window"].arg_bindings)
+
+
+def test_stub_task_unannotated_native_literal_still_rejected():
+    """Without an annotation there is no value_schema, so no lang SDK could interpret the
+    value -- the existing "not JSON-serializable" error is still the right answer."""
+    from airflow.sdk import task
+
+    with DAG(dag_id="unannotated_native_dag", schedule=None) as dag:
+
+        @task.stub
+        def starts_at(when): ...
+
+        starts_at(datetime(2024, 1, 2, 3, 4, 5))
+
+    with pytest.raises(SerializationError, match="not JSON-serializable"):
+        DagSerialization.to_dict(dag)
 
 
 @pytest.mark.parametrize("raw", ["false", "true", 0, 1, None, [], {"a": 1}])
