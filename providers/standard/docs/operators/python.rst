@@ -262,6 +262,17 @@ In case you have problems during runtime with broken cached virtual environments
 Note that any modification of a cached virtual environment (like temp files in binary path, post-installing further requirements) might pollute a cached virtual environment and the
 operator is not maintaining or cleaning the cache path.
 
+By default the cache key is calculated from the requirements as you specified them. If your requirements are not fully pinned (for example ``pandas`` or ``boto3>=1.30``),
+a new release of such a dependency does not change the cache key. The cached virtual environment keeps the versions that were resolved when it was first created and
+different workers may have resolved different versions.
+
+If you want new releases to be picked up while still using caching, set ``hash_resolved_requirements=True``. The operator then resolves the requirements (without
+installing them) at the start of every task run and includes the resolved versions in the cache key. As long as the resolution stays the same, the cached virtual
+environment is reused, otherwise a new one is created. Note that every task run then pays the overhead of the dependency resolution, needs network access to the
+package index and fails if the index is not reachable. Also every new release of an unpinned dependency leaves one more virtual environment behind in
+``venv_cache_path``, so you should clean up that folder periodically. With the pip install method this requires pip 23.0 or newer on the worker. If you rather want
+full reproducibility, pin all your requirements and the default cache behavior is already correct.
+
 
 .. _howto/operator:ExternalPythonOperator:
 
