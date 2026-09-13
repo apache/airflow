@@ -46,6 +46,7 @@ Helm Chart for Apache Airflow
    production-guide
    service-account-token-examples
    upgrading-to-airflow-3
+   Migrating from Git-Sync to GitDagBundle<migrate-to-git-dag-bundle>
 
 .. toctree::
    :hidden:
