@@ -25,6 +25,7 @@ from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.execution_api.datamodels.hitl import (
     HITLDetailRequest,
     HITLDetailResponse,
@@ -109,7 +110,12 @@ def _check_hitl_detail_exists(hitl_detail_model: HITLDetail | None) -> HITLDetai
     return hitl_detail_model
 
 
-@router.patch("/{task_instance_id}")
+@router.patch(
+    "/{task_instance_id}",
+    responses=create_openapi_http_exception_doc(
+        [(status.HTTP_409_CONFLICT, "A response has already been received for this HITLDetail")]
+    ),
+)
 def update_hitl_detail(
     task_instance_id: UUID,
     payload: UpdateHITLDetailPayload,

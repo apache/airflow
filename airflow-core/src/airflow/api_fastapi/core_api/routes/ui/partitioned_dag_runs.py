@@ -363,6 +363,7 @@ def get_partitioned_dag_runs(
 
 @partitioned_dag_runs_router.get(
     "/pending_partitioned_dag_run/{dag_id}",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_asset(method="GET")), Depends(requires_access_dag(method="GET"))],
 )
 def get_pending_partitioned_dag_run(

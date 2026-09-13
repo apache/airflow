@@ -473,6 +473,7 @@ export class AssetService {
                 dag_id: data.dagId
             },
             errors: {
+                404: 'Not Found',
                 422: 'Validation Error'
             }
         });
@@ -983,6 +984,7 @@ export class ConnectionService {
             body: data.requestBody,
             mediaType: 'application/json',
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 422: 'Validation Error'
@@ -3218,6 +3220,7 @@ export class TaskInstanceService {
                 token: data.token
             },
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
@@ -4543,6 +4546,7 @@ export class VariableService {
             errors: {
                 401: 'Unauthorized',
                 403: 'Forbidden',
+                404: 'Not Found',
                 409: 'Conflict',
                 422: 'Validation Error'
             }
@@ -4839,6 +4843,7 @@ export class PartitionedDagRunService {
                 partition_key: data.partitionKey
             },
             errors: {
+                404: 'Not Found',
                 422: 'Validation Error'
             }
         });
@@ -5312,6 +5317,7 @@ export class TeamsService {
                 order_by: data.orderBy
             },
             errors: {
+                403: 'Forbidden',
                 422: 'Validation Error'
             }
         });

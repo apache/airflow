@@ -29,6 +29,7 @@ from airflow.api_fastapi.common.parameters import (
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.teams import TeamCollectionResponse, TeamResponse
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
     ReadableTeamsFilterDep,
     requires_authenticated,
@@ -41,6 +42,7 @@ teams_router = AirflowRouter(tags=["Teams"], prefix="/teams")
 
 @teams_router.get(
     path="",
+    responses=create_openapi_http_exception_doc([status.HTTP_403_FORBIDDEN]),
     dependencies=[Depends(requires_authenticated())],
 )
 def list_teams(

@@ -126,6 +126,10 @@ tracer = trace.get_tracer(__name__)
             (status.HTTP_404_NOT_FOUND, "Task Instance not found"),
             (status.HTTP_409_CONFLICT, "The TI is already in the requested state"),
             (HTTP_422_UNPROCESSABLE_CONTENT, "Invalid payload for the state transition"),
+            (
+                status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "The serialized TaskFlow arg spec for this stub task is not valid",
+            ),
         ]
     ),
     response_model_exclude_unset=True,
