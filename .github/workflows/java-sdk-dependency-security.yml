@@ -51,6 +51,15 @@ jobs:
           fail-on-scopes: runtime, development, unknown
           show-openssf-scorecard: true
           show-patched-versions: true
+          # GHSA-8mgp-746c-j5xp / CVE-2026-81726 - path traversal in nltk's
+          # model-artifact save/load APIs, no released fix yet. nltk is a CI-only
+          # transitive dependency (llama-index-core, pulled by the common.ai
+          # provider's "llamaindex" extra); it is not in the released constraints
+          # and none of the affected APIs are reachable from llama-index-core,
+          # which only uses the Punkt tokenizer and the stopwords corpus. The fix
+          # is merged on nltk's develop branch (nltk/nltk#3757, #3759, #3813) and
+          # is waiting on a 3.10.4 release - drop this entry once that ships.
+          allow-ghsas: GHSA-8mgp-746c-j5xp
 
   dependency-submission:
     name: Submit resolved Gradle dependencies
