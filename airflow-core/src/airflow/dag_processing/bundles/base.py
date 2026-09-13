@@ -24,7 +24,7 @@ import shutil
 import tempfile
 import warnings
 from abc import ABC, abstractmethod
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass, field
 from datetime import timedelta
 from fcntl import LOCK_SH, LOCK_UN, flock
@@ -33,8 +33,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pendulum
-from pendulum.parsing import ParserError
 
+from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 
 if TYPE_CHECKING:
@@ -96,13 +96,6 @@ class BundleUsageTrackingManager:
     :meta private:
     """
 
-    def _parse_dt(self, val) -> DateTime | None:
-        try:
-            dt = pendulum.parse(val)
-            return dt if isinstance(dt, pendulum.DateTime) else None
-        except ParserError:
-            return None
-
     @staticmethod
     def _filter_for_min_versions(val: list[TrackedBundleVersionInfo]) -> list[TrackedBundleVersionInfo]:
         min_versions_to_keep = conf.getint(
@@ -134,15 +127,10 @@ class BundleUsageTrackingManager:
         for file in tracking_dir.iterdir():
             log.debug("found bundle tracking file, path=%s", file)
             version = file.name
-            dt_str = file.read_text()
-            dt = self._parse_dt(val=dt_str)
-            if not dt:
-                log.error(
-                    "could not parse val as datetime bundle_name=%s val=%s version=%s",
-                    bundle_name,
-                    dt_str,
-                    version,
-                )
+            try:
+                dt = timezone.from_timestamp(file.stat().st_mtime)
+            except FileNotFoundError:
+                # A concurrent cleanup may remove a tracking file after iterdir() observed it.
                 continue
             found.append(TrackedBundleVersionInfo(lock_file_path=file, version=version, dt=dt))
         return found
@@ -169,9 +157,10 @@ class BundleUsageTrackingManager:
             with open(info.lock_file_path, "a") as f:
                 flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)  # exclusive lock, do not wait
                 # remove the actual bundle copy
-                shutil.rmtree(bundle_version_path)
+                with suppress(FileNotFoundError):
+                    shutil.rmtree(bundle_version_path)
                 # remove the lock file
-                os.remove(info.lock_file_path)
+                info.lock_file_path.unlink(missing_ok=True)
         except BlockingIOError:
             log_info("could not obtain lock. stale bundle will not be removed.")
             return
@@ -285,8 +274,9 @@ class BaseDagBundle(ABC):
     that bundle version. This also means, that on a single worker, it's possible that multiple versions of the same
     bundle are used at the same time.
 
-    In contrast, the DAG processor uses a bundle to keep the DAGs from that bundle up to date. There will not be
-    multiple versions of the same bundle in use at the same time. The DAG processor will always use the latest version.
+    In contrast, the DAG processor uses a bundle to keep the DAGs from that bundle up to date. It discovers the
+    latest version while allowing in-flight and version-pinned callback work to finish against its original
+    generation.
 
     :param name: String identifier for the DAG bundle
     :param refresh_interval: How often the bundle should be refreshed from the source in seconds
@@ -297,6 +287,8 @@ class BaseDagBundle(ABC):
     """
 
     supports_versioning: bool = False
+    refreshes_to_versioned_paths: bool = False
+    """Whether refreshing publishes a new immutable path while older published paths remain usable."""
 
     _locked: bool = False
 
@@ -452,6 +444,9 @@ class BundleVersionLock:
     """
     Lock version of bundle when in use to prevent deletion.
 
+    Acquisition failures propagate because running without the lease could allow cleanup to remove code in use.
+    Release failures are logged so they do not mask the outcome of the protected operation.
+
     :meta private:
     """
 
@@ -476,28 +471,35 @@ class BundleVersionLock:
             self.lock_file_path,
         )
 
-    def _update_version_file(self):
-        """Create a version file containing last-used timestamp."""
-        if TYPE_CHECKING:
-            assert self.lock_file_path
-        self.lock_file_path.parent.mkdir(parents=True, exist_ok=True)
-
-        with tempfile.TemporaryDirectory() as td:
-            temp_file = Path(td, self.lock_file_path)
-            now = pendulum.now(tz=pendulum.UTC)
-            temp_file.write_text(now.isoformat())
-            os.replace(temp_file, self.lock_file_path)
-
     def acquire(self):
         if not self.version:
             return
         if self.lock_file:
             return
-        self._update_version_file()
         if TYPE_CHECKING:
             assert self.lock_file_path
-        self.lock_file = open(self.lock_file_path)
-        flock(self.lock_file, LOCK_SH)
+        self.lock_file_path.parent.mkdir(parents=True, exist_ok=True)
+        while True:
+            lock_file = open(self.lock_file_path, "a+")
+            flock(lock_file, LOCK_SH)
+            try:
+                path_stat = self.lock_file_path.stat()
+            except FileNotFoundError:
+                flock(lock_file, LOCK_UN)
+                lock_file.close()
+                continue
+            descriptor_stat = os.fstat(lock_file.fileno())
+            if (descriptor_stat.st_dev, descriptor_stat.st_ino) != (
+                path_stat.st_dev,
+                path_stat.st_ino,
+            ):
+                flock(lock_file, LOCK_UN)
+                lock_file.close()
+                continue
+            now = pendulum.now(tz=pendulum.UTC).timestamp()
+            os.utime(self.lock_file_path, (now, now))
+            self.lock_file = lock_file
+            return
 
     def release(self):
         if self.lock_file:
@@ -506,11 +508,7 @@ class BundleVersionLock:
             self.lock_file = None
 
     def __enter__(self) -> Self:
-        # wrapping in try except here is just extra cautious since this is in task execution path
-        try:
-            self.acquire()
-        except Exception:
-            self._log_exc("error when attempting to acquire lock")
+        self.acquire()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):

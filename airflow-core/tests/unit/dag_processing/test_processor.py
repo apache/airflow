@@ -585,6 +585,49 @@ def test_parse_file_entrypoint_parses_dag_callbacks(mocker):
     ]
 
 
+def test_parse_file_entrypoint_holds_bundle_generation_lease(mocker):
+    request = DagFileParseRequest(
+        file="/files/dags/dag.py",
+        bundle_path="/files/dags",
+        bundle_name="testing",
+        bundle_version="v1",
+    )
+    decoder = MagicMock()
+    decoder._get_response.return_value = request
+    decoder_class = mocker.patch("airflow.sdk.execution_time.comms.CommsDecoder")
+    decoder_class.__getitem__.return_value.return_value = decoder
+    lock = mocker.patch("airflow.dag_processing.processor.BundleVersionLock")
+    parse_file = mocker.patch(
+        "airflow.dag_processing.processor._parse_file",
+        return_value=DagFileParsingResult(fileloc=request.file, serialized_dags=[]),
+    )
+
+    _parse_file_entrypoint()
+
+    lock.assert_called_once_with(bundle_name="testing", bundle_version="v1")
+    lock.return_value.__enter__.assert_called_once_with()
+    lock.return_value.__exit__.assert_called_once_with(None, None, None)
+    parse_file.assert_called_once_with(request, mocker.ANY)
+
+
+def test_parse_process_forwards_bundle_version_to_child():
+    process = MagicMock(spec=DagFileProcessorProcess)
+
+    DagFileProcessorProcess._on_child_started(
+        process,
+        callbacks=[],
+        path="/files/dags/dag.py",
+        bundle_path=pathlib.Path("/files/dags"),
+        bundle_name="testing",
+        bundle_version="v1",
+    )
+
+    request = process.send_msg.call_args.args[0]
+    assert request.bundle_version == "v1"
+    assert request.bundle_name == "testing"
+    assert request.bundle_path == pathlib.Path("/files/dags")
+
+
 def test_parse_file_with_dag_callbacks(spy_agency):
     from airflow import DAG
 
