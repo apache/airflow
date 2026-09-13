@@ -21,10 +21,11 @@ PydanticAIHook
 ==============
 
 Use :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook` to interact
-with LLM providers via `pydantic-ai <https://ai.pydantic.dev/>`__.
+with LLM and embedding providers via `pydantic-ai <https://ai.pydantic.dev/>`__.
 
 The hook manages API credentials from an Airflow connection and creates pydantic-ai
-``Model`` and ``Agent`` objects. It supports any provider that pydantic-ai supports.
+``Model``, ``Agent``, and ``Embedder`` objects. Supported providers depend on the
+corresponding pydantic-ai model API.
 
 .. seealso::
     :ref:`Connection configuration <howto/connection:pydanticai>`
@@ -55,6 +56,41 @@ The model can be specified at three levels (highest priority first):
 
     # Override with a specific model
     hook = PydanticAIHook(llm_conn_id="my_llm", model_id="anthropic:claude-opus-4-6")
+
+Embedding Models
+----------------
+
+Set ``embed_model_id`` on the hook or ``embed_model`` in the connection's extra JSON,
+then call ``get_embedder()``. Use ``embed_conn_id`` when the embedding provider uses
+different credentials or an endpoint from the LLM provider; it defaults to
+``llm_conn_id``. Different LLM and embedding provider prefixes require separate
+connections so credentials cannot be reused for the wrong provider. Local
+``sentence-transformers:`` embeddings are the exception because they do not use
+provider credentials. The resolved ``Embedder`` is cached on the hook instance.
+
+.. code-block:: python
+
+    hook = PydanticAIHook(
+        llm_conn_id="my_llm",
+        embed_conn_id="my_embeddings",
+        embed_model_id="openai:text-embedding-3-small",
+    )
+    embedder = hook.get_embedder()
+    result = embedder.embed_query_sync("Apache Airflow orchestrates workflows.")
+    embedding = result.embeddings[0]
+
+Additional keyword arguments for pydantic-ai's ``Embedder`` can be passed directly
+to ``get_embedder()``. Repeated calls with the same arguments return the cached
+instance; passing different arguments creates and caches a new instance.
+
+.. code-block:: python
+
+    from pydantic_ai.embeddings import EmbeddingSettings
+
+    embedder = hook.get_embedder(
+        settings=EmbeddingSettings(dimensions=512),
+        defer_model_check=False,
+    )
 
 Structured Output
 -----------------

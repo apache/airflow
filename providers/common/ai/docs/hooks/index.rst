@@ -35,7 +35,8 @@ Choosing a hook
      - When to use
    * - :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook`
      - Default for ``common.ai`` operators (``LLMOperator``, ``AgentOperator``,
-       ``LLMBranchOperator``, ...). Returns a pydantic-ai ``Agent`` / ``Model``.
+       ``LLMBranchOperator``, ...). Returns a pydantic-ai ``Agent``, ``Model``,
+       or ``Embedder``.
    * - :class:`~airflow.providers.common.ai.hooks.langchain.LangChainHook`
      - Direct LangChain access for tasks that compose ``Runnable``\\s, use the
        LangChain agent surface, or need LangChain-native chat / embedding model
