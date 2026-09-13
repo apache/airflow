@@ -31,8 +31,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import structlog
-from pydantic import TypeAdapter
-from sqlalchemy import select
+from pydantic import TypeAdapter, ValidationError
+from sqlalchemy import select, update
 from structlog.typing import FilteringBoundLogger
 
 from airflow._shared.timezones import timezone
@@ -66,6 +66,7 @@ from airflow.dag_processing.processor import (
     _pre_import_airflow_modules,
 )
 from airflow.models import DagRun
+from airflow.models.xcom import XComModel
 from airflow.sdk import DAG, BaseOperator
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import ConnectionResponse, DagRunState, VariableResponse
@@ -77,6 +78,7 @@ from airflow.sdk.execution_time.comms import (
     GetVariable,
     GetXCom,
     GetXComSequenceSlice,
+    SetXCom,
     TaskStatesResult,
     TICount,
     ToSupervisor,
@@ -2233,7 +2235,6 @@ class TestDagProcessingMessageTypes:
             "RescheduleTask",
             "RetryTask",
             "SetRenderedFields",
-            "SetXCom",
             "SkipDownstreamTasks",
             "SucceedTask",
             "ValidateInletsAndOutlets",
@@ -2297,6 +2298,31 @@ class TestDagProcessingMessageTypes:
             + "\n".join(f"  - {t}" for t in sorted(task_diff))
             + "\n\nEither handle these types in ToDagProcessor or update in_task_runner_but_not_in_dag_processing_process list."
         )
+
+    def test_to_manager_accepts_set_xcom(self):
+        msg = DagFileProcessorProcess.decoder.validate_python(
+            {
+                "type": "SetXCom",
+                "key": "slack_thread_ts",
+                "value": "123.456",
+                "dag_id": "d",
+                "run_id": "r",
+                "task_id": "t",
+            }
+        )
+        assert isinstance(msg, SetXCom)
+
+    def test_to_manager_rejects_unsupported_delete_xcom(self):
+        with pytest.raises(ValidationError):
+            DagFileProcessorProcess.decoder.validate_python(
+                {
+                    "type": "DeleteXCom",
+                    "key": "slack_thread_ts",
+                    "dag_id": "d",
+                    "run_id": "r",
+                    "task_id": "t",
+                }
+            )
 
 
 class TestDagFileProcessorProcess:
@@ -2427,6 +2453,116 @@ class TestDagFileProcessorProcess:
             "value": "super-secret-value",
             "type": "VariableResult",
         }
+
+    def test_handle_request_set_xcom(self, proc):
+        with patch.object(DagFileProcessorProcess, "send_msg", autospec=True) as mock_send_msg:
+            proc._handle_request(
+                SetXCom(key="slack_thread_ts", value="123.456", dag_id="d", run_id="r", task_id="t"),
+                structlog.get_logger(),
+                req_id=789,
+            )
+
+        proc.client.xcoms.set.assert_called_once_with(
+            "d",
+            "r",
+            "t",
+            "slack_thread_ts",
+            "123.456",
+            None,
+            dag_result=False,
+            mapped_length=None,
+        )
+        mock_send_msg.assert_called_once()
+        _, args, kwargs = mock_send_msg.mock_calls[0]
+        assert args[0] is proc
+        assert args[1] is None
+        assert kwargs["request_id"] == 789
+        assert kwargs["error"] is None
+
+    @staticmethod
+    def _make_dag_run(dag_maker, dag_id: str, team_name: str | None) -> DagRun:
+        """Create a dag run, optionally owning the dag by ``team_name`` via its bundle."""
+        from airflow.models import DagModel
+        from airflow.models.dagbundle import DagBundleModel
+        from airflow.models.team import Team
+        from airflow.providers.standard.operators.empty import EmptyOperator
+        from airflow.utils.session import create_session
+
+        with dag_maker(dag_id=dag_id):
+            EmptyOperator(task_id="task")
+        dag_run = dag_maker.create_dagrun(run_id="run1", state=DagRunState.RUNNING)
+
+        if team_name is not None:
+            with create_session() as session:
+                bundle = DagBundleModel(name=f"bundle-{dag_id}")
+                team = session.scalar(select(Team).where(Team.name == team_name)) or Team(name=team_name)
+                bundle.teams.append(team)
+                session.add(bundle)
+                session.flush()
+                session.execute(
+                    update(DagModel).where(DagModel.dag_id == dag_id).values(bundle_name=bundle.name)
+                )
+        return dag_run
+
+    @pytest.mark.parametrize(
+        ("multi_team", "team_owned"),
+        [
+            pytest.param(False, True, id="multi_team_disabled"),
+            pytest.param(True, False, id="multi_team_enabled_global_dag"),
+            pytest.param(True, True, id="multi_team_enabled_team_owned_dag"),
+        ],
+    )
+    def test_handle_request_set_xcom_via_execution_api(
+        self, dag_maker, inprocess_client, multi_team, team_owned
+    ):
+        """
+        SetXCom through the real Execution API, not a mocked client.
+
+        ``test_handle_request_set_xcom`` above only proves the message reaches
+        ``client.xcoms.set`` with the right arguments; the client itself is a mock. This
+        exercises the real ``InProcessExecutionAPI`` round trip the Dag processor uses in
+        production. The Dag processor's in-process client bypasses ``has_xcom_access``
+        entirely (see that dependency's docstring), so the write succeeds regardless of
+        multi-team mode or which team owns the target Dag.
+        """
+        dag_id = f"set_xcom_dag_{uuid.uuid4().hex}"
+        self._make_dag_run(dag_maker, dag_id, "team_a" if team_owned else None)
+
+        proc_mock = MagicMock()
+        proc_mock.create_time.return_value = 0.0
+        r, w = socketpair()
+        proc = DagFileProcessorProcess(
+            process_log=structlog.get_logger().bind(),
+            id=uuid.uuid4(),
+            pid=1234,
+            process=proc_mock,
+            stdin=w,
+            logger_filehandle=MagicMock(spec=BinaryIO),
+            client=inprocess_client,
+            bundle_name="mybundle",
+            dag_file_rel_path="dags/my_dag.py",
+        )
+        proc._open_sockets.clear()
+        r.close()
+        w.close()
+
+        msg = SetXCom(key="slack_thread_ts", value="123.456", dag_id=dag_id, run_id="run1", task_id="task")
+
+        with conf_vars({("core", "multi_team"): str(multi_team)}):
+            with patch.object(DagFileProcessorProcess, "send_msg", autospec=True):
+                proc._handle_request(msg, structlog.get_logger(), req_id=1)
+
+        with create_session() as session:
+            xcom = session.scalar(
+                select(XComModel).where(
+                    XComModel.dag_id == dag_id,
+                    XComModel.run_id == "run1",
+                    XComModel.task_id == "task",
+                    XComModel.key == "slack_thread_ts",
+                )
+            )
+            assert xcom is not None
+            assert XComModel.deserialize_value(xcom) == 123.456
 
 
 class TestMultiTeamCallbackMetrics:
