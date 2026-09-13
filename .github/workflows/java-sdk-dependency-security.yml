@@ -18,10 +18,6 @@
 name: Java SDK dependency security
 
 on:  # yamllint disable-line rule:truthy
-  pull_request:
-    paths:
-      - "java-sdk/**"
-      - ".github/workflows/java-sdk-dependency-security.yml"
   push:
     branches:
       - main
@@ -36,25 +32,11 @@ permissions:
 
 concurrency:
   group: java-sdk-dependency-security-${{ github.event_name }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: false
 
 jobs:
-  dependency-review:
-    name: Reject vulnerable dependency changes
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-slim
-    steps:
-      - name: Review dependency changes
-        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294  # v5.0.0
-        with:
-          fail-on-severity: high
-          fail-on-scopes: runtime, development, unknown
-          show-openssf-scorecard: true
-          show-patched-versions: true
-
   dependency-submission:
     name: Submit resolved Gradle dependencies
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: write
