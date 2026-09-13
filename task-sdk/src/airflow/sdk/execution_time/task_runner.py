@@ -740,6 +740,8 @@ class RuntimeTaskInstance(TaskInstance):
         A string sets or replaces the note and an empty string removes it. ``None`` is a
         no-op, so an existing user-authored note is left untouched.
         """
+        if note is None:
+            return
         SUPERVISOR_COMMS.send(msg=UpdateDagRunNote(ti_id=self.id, note=note))
 
     def get_previous_ti(

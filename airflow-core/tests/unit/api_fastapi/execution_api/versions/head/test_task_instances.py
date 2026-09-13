@@ -4732,7 +4732,8 @@ class TestTIDagRunNoteUpdate:
         assert dag_run.note == "Created from task runtime"
         assert dag_run.dag_run_note.user_id is None
 
-    def test_update_dag_run_note_clears_user_id(self, client, session, create_task_instance):
+    def test_runtime_update_of_user_note_becomes_unattributed(self, client, session, create_task_instance):
+        """Runtime rewrites the content, so the previous author is not carried over."""
         ti = create_task_instance(
             task_id="test_update_dag_run_note",
             state=State.RUNNING,

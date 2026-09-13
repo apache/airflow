@@ -3381,6 +3381,15 @@ class TestRuntimeTaskInstance:
             msg=UpdateDagRunNote(ti_id=runtime_ti.id, note="Updated from task runtime")
         )
 
+    def test_update_dagrun_note_none_skips_request(self, create_runtime_ti, mock_supervisor_comms):
+        """A null note is a server-side no-op, so don't spend a round-trip on it."""
+        task = BaseOperator(task_id="hello")
+        runtime_ti = create_runtime_ti(task=task)
+
+        runtime_ti.update_dagrun_note(None)
+
+        mock_supervisor_comms.send.assert_not_called()
+
     def test_get_previous_dagrun_with_state(self, create_runtime_ti, mock_supervisor_comms):
         """Test that get_previous_dagrun sends the correct request with state filter."""
 
