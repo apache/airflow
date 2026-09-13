@@ -484,6 +484,49 @@ class TestIterableOperator:
 
             assert iterable_op.max_workers == 4
 
+    def test_direct_instantiation_rejects_task_concurrency(self):
+        """A directly instantiated operator can never reach IterableOperator/MappedIterableOperator,
+        so task_concurrency must be rejected instead of silently accepted as a dead value."""
+        with pytest.raises(TypeError, match="unexpected argument: task_concurrency"):
+            MockOperator(task_id="my_task", task_concurrency=4)
+
+    def test_expand_rejects_task_concurrency(self):
+        """.expand() produces a plain MappedOperator, never an IterableOperator, so
+        task_concurrency (only meaningful for .iterate()/.iterate_kwargs()) must be rejected."""
+        with DAG("test_dag"):
+            with pytest.raises(TypeError, match="unexpected argument: task_concurrency"):
+                MockOperator.partial(task_id="my_task", task_concurrency=4).expand(arg1=[1, 2, 3])
+
+    def test_expand_kwargs_rejects_task_concurrency(self):
+        """.expand_kwargs() produces a plain MappedOperator, never an IterableOperator, so
+        task_concurrency (only meaningful for .iterate()/.iterate_kwargs()) must be rejected."""
+        with DAG("test_dag"):
+            with pytest.raises(TypeError, match="unexpected argument: task_concurrency"):
+                MockOperator.partial(task_id="my_task", task_concurrency=4).expand_kwargs(
+                    [{"arg1": 1}, {"arg1": 2}]
+                )
+
+    def test_iterate_accepts_task_concurrency(self):
+        """.iterate() is the one public entry point where task_concurrency is meaningful: it
+        produces an IterableOperator, which reads task_concurrency out of partial_kwargs as
+        max_workers rather than forwarding it to BaseOperator.__init__."""
+        with DAG("test_dag"):
+            iterable_op = MockOperator.partial(task_id="my_task", task_concurrency=4).iterate(arg1=[1, 2, 3])
+
+            assert isinstance(iterable_op, IterableOperator)
+            assert iterable_op.max_workers == 4
+
+    def test_iterate_kwargs_accepts_task_concurrency(self):
+        """.iterate_kwargs() is the list-of-dicts counterpart to .iterate() and must accept
+        task_concurrency the same way."""
+        with DAG("test_dag"):
+            iterable_op = MockOperator.partial(task_id="my_task", task_concurrency=4).iterate_kwargs(
+                [{"arg1": 1}, {"arg1": 2}]
+            )
+
+            assert isinstance(iterable_op, IterableOperator)
+            assert iterable_op.max_workers == 4
+
     @pytest.mark.parametrize("invalid_value", [0, -1, -10])
     def test_task_concurrency_validation_rejects_non_positive_values(self, invalid_value):
         """Test that IterableOperator raises ValueError for task_concurrency < 1."""

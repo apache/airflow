@@ -24,7 +24,7 @@ from pathlib import Path
 
 import pytest
 
-from airflow.sdk import task
+from airflow.sdk import DAG, task
 from airflow.sdk.bases.decorator import KNOWN_CONTEXT_KEYS, DecoratedOperator, is_async_callable
 
 RAW_CODE = """
@@ -383,3 +383,75 @@ class TestAsyncCallable:
             return 42
 
         assert not is_async_callable(sync_task_fn)
+
+
+class TestTaskDecoratorTaskConcurrency:
+    """task_concurrency only has meaning for Dynamic Task Iteration (as the sub-task thread count
+    consumed by IterableOperator/MappedIterableOperator via .iterate()/.iterate_kwargs()). A plain
+    .expand()/.expand_kwargs() on a @task-decorated function never reaches that code path, so it
+    must be rejected instead of silently accepted as a dead value -- mirroring OperatorPartial."""
+
+    def test_direct_call_rejects_task_concurrency(self):
+        """Calling a @task-decorated function directly (no .expand()/.iterate()) constructs the
+        operator right away via BaseOperator.__init__, so task_concurrency must be rejected."""
+        with DAG("test_dag"):
+
+            @task(task_concurrency=2)
+            def add_one(x):
+                return x + 1
+
+            with pytest.raises(TypeError, match="unexpected argument: task_concurrency"):
+                add_one(1)
+
+    def test_expand_rejects_task_concurrency(self):
+        with DAG("test_dag"):
+
+            @task(task_concurrency=2)
+            def add_one(x):
+                return x + 1
+
+            with pytest.raises(TypeError, match="unexpected argument: task_concurrency"):
+                add_one.expand(x=[1, 2, 3])
+
+    def test_expand_kwargs_rejects_task_concurrency(self):
+        with DAG("test_dag"):
+
+            @task(task_concurrency=2)
+            def add_one(x):
+                return x + 1
+
+            with pytest.raises(TypeError, match="unexpected argument: task_concurrency"):
+                add_one.expand_kwargs([{"x": 1}, {"x": 2}])
+
+    def test_iterate_accepts_task_concurrency(self):
+        """.iterate() is the one entry point where task_concurrency is meaningful: it produces an
+        IterableOperator, which reads task_concurrency out of partial_kwargs as max_workers rather
+        than forwarding it to BaseOperator.__init__."""
+        from airflow.sdk.definitions.iterableoperator import IterableOperator
+
+        with DAG("test_dag"):
+
+            @task(task_concurrency=2)
+            def add_one(x):
+                return x + 1
+
+            xcom_arg = add_one.iterate(x=[1, 2, 3])
+
+            assert isinstance(xcom_arg.operator, IterableOperator)
+            assert xcom_arg.operator.max_workers == 2
+
+    def test_iterate_kwargs_accepts_task_concurrency(self):
+        """.iterate_kwargs() is the list-of-dicts counterpart to .iterate() and must accept
+        task_concurrency the same way."""
+        from airflow.sdk.definitions.iterableoperator import IterableOperator
+
+        with DAG("test_dag"):
+
+            @task(task_concurrency=2)
+            def add_one(x):
+                return x + 1
+
+            xcom_arg = add_one.iterate_kwargs([{"x": 1}, {"x": 2}])
+
+            assert isinstance(xcom_arg.operator, IterableOperator)
+            assert xcom_arg.operator.max_workers == 2

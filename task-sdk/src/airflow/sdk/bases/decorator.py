@@ -549,6 +549,12 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             )
         if not map_kwargs:
             raise TypeError("no arguments to expand against")
+        # task_concurrency only has meaning for Dynamic Task Iteration (as the sub-task thread
+        # count consumed by IterableOperator/MappedIterableOperator via .iterate()/.iterate_kwargs()).
+        # A plain .expand() never reaches that code path, so reject it here rather than silently
+        # accepting a dead value.
+        if "task_concurrency" in self.kwargs:
+            raise TypeError("unexpected argument: task_concurrency")
         self._validate_arg_names("expand", map_kwargs)
         prevent_duplicates(self.kwargs, map_kwargs, fail_reason="mapping already partial")
         # Since the input is already checked at parse time, we can set strict
@@ -581,6 +587,9 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
                     raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
         elif not isinstance(kwargs, XComArg):
             raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
+        # See the comment in expand() above: task_concurrency has no meaning outside iterate().
+        if "task_concurrency" in self.kwargs:
+            raise TypeError("unexpected argument: task_concurrency")
         return self._expand(ListOfDictsExpandInput(kwargs), strict=strict)
 
     def _expand(
