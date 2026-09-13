@@ -16,14 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { MouseEvent } from "react";
+
 import { Box, chakra, Flex, Link } from "@chakra-ui/react";
 import type { VirtualItem } from "@tanstack/react-virtual";
-import type { MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronUp } from "react-icons/fi";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
 import { TaskName } from "src/components/TaskName";
+
 import { useGroups } from "src/context/groups";
 
 import { ROW_HEIGHT } from "./constants";

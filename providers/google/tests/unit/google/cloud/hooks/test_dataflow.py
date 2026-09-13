@@ -28,11 +28,6 @@ from unittest.mock import MagicMock
 from uuid import UUID
 
 import pytest
-
-# TODO: Remove below skip once beam provider changed to ready state
-pytest.importorskip("apache-beam", reason="apache-beam package suspended due to grpcio limitation")
-
-
 from google.cloud.dataflow_v1beta3 import (
     GetJobMetricsRequest,
     GetJobRequest,
@@ -201,12 +196,17 @@ class TestDataflowHook:
         self.dataflow_hook = DataflowHook(gcp_conn_id="google_cloud_default")
         self.dataflow_hook.beam_hook = MagicMock()
 
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.DataflowHook.get_client_options")
     @mock.patch("airflow.providers.google.cloud.hooks.dataflow.DataflowHook._authorize")
     @mock.patch("airflow.providers.google.cloud.hooks.dataflow.build")
-    def test_dataflow_client_creation(self, mock_build, mock_authorize):
+    def test_dataflow_client_creation(self, mock_build, mock_authorize, mock_get_client_options):
         result = self.dataflow_hook.get_conn()
         mock_build.assert_called_once_with(
-            "dataflow", "v1b3", http=mock_authorize.return_value, cache_discovery=False
+            "dataflow",
+            "v1b3",
+            http=mock_authorize.return_value,
+            cache_discovery=False,
+            client_options=mock_get_client_options.return_value,
         )
         assert mock_build.return_value == result
 
@@ -1374,16 +1374,21 @@ class TestDataflowPipelineHook:
     def setup_method(self):
         self.dataflow_hook = DataflowHook(gcp_conn_id="google_cloud_default")
 
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.DataflowHook.get_client_options")
     @mock.patch("airflow.providers.google.cloud.hooks.dataflow.DataflowHook._authorize")
     @mock.patch("airflow.providers.google.cloud.hooks.dataflow.build")
-    def test_get_conn(self, mock_build, mock_authorize):
+    def test_get_conn(self, mock_build, mock_authorize, mock_get_client_options):
         """
         Test that get_conn is called with the correct params and
         returns the correct API address
         """
         connection = self.dataflow_hook.get_pipelines_conn()
         mock_build.assert_called_once_with(
-            "datapipelines", "v1", http=mock_authorize.return_value, cache_discovery=False
+            "datapipelines",
+            "v1",
+            http=mock_authorize.return_value,
+            cache_discovery=False,
+            client_options=mock_get_client_options.return_value,
         )
         assert mock_build.return_value == connection
 

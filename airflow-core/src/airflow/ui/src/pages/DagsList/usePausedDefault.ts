@@ -17,6 +17,7 @@
  * under the License.
  */
 import { useEffect, useRef } from "react";
+
 import { useSearchParams } from "react-router-dom";
 
 import { SearchParamsKeys } from "src/constants/searchParams";

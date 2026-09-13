@@ -270,9 +270,9 @@ Do not edit the table by hand — update the manifest and run the
 
 ## Links
 
-- [TypeScript SDK guide (staged docs build from latest main)](http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/typescript.html)
+- [TypeScript SDK guide (staged docs)](https://airflow.staged.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/typescript.html)
   — how Airflow runs TypeScript task handlers
-- [API reference (staged)](http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/ts-sdk/stable/)
+- [API reference (staged)](https://airflow.staged.apache.org/docs/ts-sdk/stable/)
   — generated from the TypeScript sources
 - [Source](https://github.com/apache/airflow/tree/main/ts-sdk) — the `ts-sdk/`
   directory of the Apache Airflow monorepo

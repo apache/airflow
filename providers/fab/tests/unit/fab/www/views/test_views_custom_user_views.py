@@ -259,7 +259,7 @@ class TestResetUserSessions:
             delete_user(app, "user_to_delete_1")
             delete_user(app, "user_to_delete_2")
 
-    def create_user_db_session(self, session_id: str, time_delta: timedelta, user_id: int):
+    def create_user_db_session(self, session_id: str, time_delta: timedelta, user_id: str | int):
         self.session.add(
             self.model(
                 session_id=session_id,
@@ -277,8 +277,8 @@ class TestResetUserSessions:
         ],
     )
     def test_reset_user_sessions_delete(self, time_delta: timedelta, user_sessions_deleted: bool):
-        self.create_user_db_session("session_id_1", time_delta, self.user_1.id)
-        self.create_user_db_session("session_id_2", time_delta, self.user_2.id)
+        self.create_user_db_session("session_id_1", time_delta, self.user_1.get_id())
+        self.create_user_db_session("session_id_2", time_delta, self.user_2.get_id())
         self.session.commit()
         self.session.flush()
         assert self.session.scalar(select(func.count()).select_from(self.model)) == 2
@@ -296,6 +296,40 @@ class TestResetUserSessions:
             assert self.session.scalar(select(func.count()).select_from(self.model)) == 2
             assert self.get_session_by_id("session_id_1") is not None
 
+    def test_reset_user_sessions_delete_legacy_integer_user_id(self):
+        """Sessions written before ``get_id()`` returned a string stored an int."""
+        self.create_user_db_session("session_id_1", timedelta(days=1), self.user_1.id)
+        self.create_user_db_session("session_id_2", timedelta(days=1), self.user_2.id)
+        self.session.commit()
+        self.session.flush()
+
+        with self.app.app_context():
+            self.security_manager.reset_password(self.user_1.id, "new_password")
+        self.session.commit()
+        self.session.flush()
+
+        assert self.get_session_by_id("session_id_1") is None
+        assert self.get_session_by_id("session_id_2") is not None
+
+    def test_reset_user_sessions_ignores_sessions_without_user_id(self):
+        """A session row with no ``_user_id`` must not raise and must not be deleted."""
+        self.session.add(
+            self.model(
+                session_id="session_id_anon",
+                data=self.serializer.encode({}),
+                expiry=datetime.now() + timedelta(days=1),
+            )
+        )
+        self.session.commit()
+        self.session.flush()
+
+        with self.app.app_context():
+            self.security_manager.reset_password(self.user_1.id, "new_password")
+        self.session.commit()
+        self.session.flush()
+
+        assert self.get_session_by_id("session_id_anon") is not None
+
     def get_session_by_id(self, session_id: str):
         return self.session.scalar(select(self.model).where(self.model.session_id == session_id))
 
@@ -307,8 +341,8 @@ class TestResetUserSessions:
         "airflow.providers.fab.auth_manager.security_manager.override.MAX_NUM_DATABASE_USER_SESSIONS", 1
     )
     def test_refuse_delete(self, _mock_has_context, flash_mock):
-        self.create_user_db_session("session_id_1", timedelta(days=1), self.user_1.id)
-        self.create_user_db_session("session_id_2", timedelta(days=1), self.user_2.id)
+        self.create_user_db_session("session_id_1", timedelta(days=1), self.user_1.get_id())
+        self.create_user_db_session("session_id_2", timedelta(days=1), self.user_2.get_id())
         self.session.commit()
         self.session.flush()
         assert self.session.scalar(select(func.count()).select_from(self.model)) == 2
@@ -344,8 +378,8 @@ class TestResetUserSessions:
         "airflow.providers.fab.auth_manager.security_manager.override.MAX_NUM_DATABASE_USER_SESSIONS", 1
     )
     def test_refuse_delete_cli(self, log_mock):
-        self.create_user_db_session("session_id_1", timedelta(days=1), self.user_1.id)
-        self.create_user_db_session("session_id_2", timedelta(days=1), self.user_2.id)
+        self.create_user_db_session("session_id_1", timedelta(days=1), self.user_1.get_id())
+        self.create_user_db_session("session_id_2", timedelta(days=1), self.user_2.get_id())
         self.session.commit()
         self.session.flush()
         assert self.session.scalar(select(func.count()).select_from(self.model)) == 2

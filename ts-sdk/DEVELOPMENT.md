@@ -75,6 +75,20 @@ a `stable.txt` holding the version from `ts-sdk/package.json`. To iterate on the
 docs directly instead, `npm ci && npm run build` inside `ts-sdk/docs/` writes to
 `ts-sdk/docs/_build/html/`, and `npm start` rebuilds on change.
 
+`typedoc.config.mjs` pins the theme's `basePath` to `/docs/ts-sdk/<version>`, so
+the generated HTML expects to be served from that prefix and looks unstyled when
+opened straight off disk. Override it for any local preview, `npm start`
+included:
+
+```bash
+TS_SDK_DOCS_BASE_PATH=/ npm run build && npx serve _build/html
+```
+
+`npm run build` also strips the theme's Google Fonts tags and then fails if the
+output still has root-relative asset URLs or remote font requests. `npm test`
+covers those checks; `npm start` skips them, so run a full build before
+publishing.
+
 CI builds the reference on every change under `ts-sdk/src/` or `ts-sdk/docs/`,
 so a broken docs build fails the PR rather than the release.
 
@@ -91,9 +105,10 @@ gh workflow run "Publish Docs to S3" --repo apache/airflow --ref main \
   -f destination=live
 ```
 
-Use `destination=staging` first to check the output, then `live`. Confirm that
-`https://airflow.apache.org/docs/ts-sdk/stable/` resolves (allow time for cache
-invalidation) and that `/docs/ts-sdk/` redirects to it.
+Use `destination=staging` first and check
+<https://airflow.staged.apache.org/docs/ts-sdk/stable/>, then publish to `live`
+and confirm that <https://airflow.apache.org/docs/ts-sdk/stable/> resolves (allow
+time for cache invalidation) and that `/docs/ts-sdk/` redirects to it.
 
 ## Publishing
 

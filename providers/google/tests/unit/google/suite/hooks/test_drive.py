@@ -279,7 +279,9 @@ class TestGoogleDriveHook:
         file_id = "1eC-Ahi4t57pHcLbW3C_xHB3-YrTQLQBa"
 
         self.gdrive_hook.get_media_request(file_id)
-        mock_get_conn.return_value.files.return_value.get_media.assert_called_once_with(fileId=file_id)
+        mock_get_conn.return_value.files.return_value.get_media.assert_called_once_with(
+            fileId=file_id, supportsAllDrives=True
+        )
 
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
     def test_get_file_id_when_one_file_exists(self, mock_get_conn):
@@ -292,6 +294,16 @@ class TestGoogleDriveHook:
         ]
 
         result_value = self.gdrive_hook.get_file_id(folder_id, file_name, drive_id)
+        mock_get_conn.return_value.files.return_value.list.assert_called_once_with(
+            q=f"name = '{file_name}' and '{folder_id}' in parents",
+            spaces="drive",
+            fields="files(id, mimeType)",
+            orderBy="modifiedTime desc",
+            driveId=drive_id,
+            includeItemsFromAllDrives=True,
+            supportsAllDrives=True,
+            corpora="drive",
+        )
         assert result_value == {"id": "ID_1", "mime_type": "text/plain"}
 
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
@@ -326,6 +338,16 @@ class TestGoogleDriveHook:
         ]
 
         result_value = self.gdrive_hook.get_file_id(folder_id, file_name, drive_id)
+        mock_get_conn.return_value.files.return_value.list.assert_called_once_with(
+            q=f"name = '{file_name}' and '{folder_id}' in parents",
+            spaces="drive",
+            fields="files(id, mimeType)",
+            orderBy="modifiedTime desc",
+            driveId=drive_id,
+            includeItemsFromAllDrives=True,
+            supportsAllDrives=True,
+            corpora="drive",
+        )
         assert result_value == {"id": "ID_1", "mime_type": "text/plain"}
 
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
@@ -337,7 +359,61 @@ class TestGoogleDriveHook:
         mock_get_conn.return_value.files.return_value.list.return_value.execute.side_effect = [{"files": []}]
 
         result_value = self.gdrive_hook.get_file_id(folder_id, file_name, drive_id)
+        mock_get_conn.return_value.files.return_value.list.assert_called_once_with(
+            q=f"name = '{file_name}' and '{folder_id}' in parents",
+            spaces="drive",
+            fields="files(id, mimeType)",
+            orderBy="modifiedTime desc",
+            driveId=drive_id,
+            includeItemsFromAllDrives=True,
+            supportsAllDrives=True,
+            corpora="drive",
+        )
         assert result_value == {}
+
+    @pytest.mark.parametrize(
+        ("include_trashed", "expected_query"),
+        [
+            (True, "name = 'abc123.csv' and 'abxy1z' in parents"),
+            (False, "name = 'abc123.csv' and 'abxy1z' in parents and trashed=false"),
+        ],
+    )
+    @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
+    def test_get_file_id_uses_collection_membership_parents_query(
+        self, mock_get_conn, include_trashed, expected_query
+    ):
+        folder_id = "abxy1z"
+        drive_id = "abc123"
+        file_name = "abc123.csv"
+        mock_get_conn.return_value.files.return_value.list.return_value.execute.return_value = {"files": []}
+
+        self.gdrive_hook.get_file_id(folder_id, file_name, drive_id, include_trashed=include_trashed)
+
+        mock_get_conn.return_value.files.return_value.list.assert_called_once_with(
+            q=expected_query,
+            spaces="drive",
+            fields="files(id, mimeType)",
+            orderBy="modifiedTime desc",
+            driveId=drive_id,
+            includeItemsFromAllDrives=True,
+            supportsAllDrives=True,
+            corpora="drive",
+        )
+
+    @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
+    def test_get_file_id_query_without_drive_id(self, mock_get_conn):
+        folder_id = "abxy1z"
+        file_name = "abc123.csv"
+        mock_get_conn.return_value.files.return_value.list.return_value.execute.return_value = {"files": []}
+
+        self.gdrive_hook.get_file_id(folder_id, file_name)
+
+        mock_get_conn.return_value.files.return_value.list.assert_called_once_with(
+            q=f"name = '{file_name}' and '{folder_id}' in parents",
+            spaces="drive",
+            fields="files(id, mimeType)",
+            orderBy="modifiedTime desc",
+        )
 
     @mock.patch("airflow.providers.google.suite.hooks.drive.MediaFileUpload")
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
@@ -428,3 +504,22 @@ class TestGoogleDriveHook:
             ]
         )
         assert return_value == file_id
+
+    @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
+    def test_create_file(self, mock_get_conn):
+        file_metadata = {
+            "name": "Test File",
+            "mimeType": "application/vnd.google-apps.spreadsheet",
+            "parents": ["shared_drive_123"],
+        }
+
+        mock_execute = mock_get_conn.return_value.files.return_value.create.return_value.execute
+        mock_execute.return_value = {"id": "NEW_FILE_ID", "webViewLink": "https://example.com/view"}
+
+        result = self.gdrive_hook.create_file(file_metadata=file_metadata)
+
+        mock_get_conn.return_value.files.return_value.create.assert_called_once_with(
+            body=file_metadata, fields="id, webViewLink", supportsAllDrives=True
+        )
+        mock_execute.assert_called_once()
+        assert result == {"id": "NEW_FILE_ID", "webViewLink": "https://example.com/view"}

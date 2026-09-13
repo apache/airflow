@@ -29,6 +29,7 @@ from starlette.middleware import Middleware
 
 from airflow.api_fastapi.common.dagbag import create_dag_bag
 from airflow.api_fastapi.common.exceptions import init_error_handlers
+from airflow.api_fastapi.common.http_access_log import HttpAccessLogMiddleware
 from airflow.api_fastapi.core_api.app import (
     init_config,
     init_flask_plugins,
@@ -152,6 +153,8 @@ def create_app(apps: str = "all") -> FastAPI:
         init_error_handlers(app)
         init_middlewares(app)
 
+    init_access_logging(app)
+
     init_config(app)
 
     return app
@@ -217,6 +220,11 @@ def get_auth_manager() -> BaseAuthManager:
             "The `init_auth_manager` method needs to be called first."
         )
     return _AuthManagerState.instance
+
+
+def init_access_logging(app: FastAPI) -> None:
+    """Install the access log middleware, the only producer of access records."""
+    app.add_middleware(HttpAccessLogMiddleware)
 
 
 def init_plugins(app: FastAPI) -> None:

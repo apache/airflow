@@ -651,6 +651,53 @@ class TestInitializeBreezePrek:
         assert exc_info.value.code == 1
 
 
+class TestDescribeBreezeNotRunningFromLock:
+    @staticmethod
+    def _install(tmp_path, monkeypatch, breeze_body: str, setup_version: str = "2"):
+        breeze_bin = tmp_path / "breeze"
+        breeze_bin.write_text(breeze_body)
+        setup_breeze = tmp_path / "setup_breeze"
+        setup_breeze.write_text(f'SHIM_VERSION="{setup_version}"\n')
+        monkeypatch.setattr(common_prek_utils, "SETUP_BREEZE_PATH", setup_breeze)
+        monkeypatch.setattr(common_prek_utils, "BREEZE_LOCKED_VENV_PATH", tmp_path / "locked" / ".venv")
+        monkeypatch.setattr(common_prek_utils.shutil, "which", lambda _: str(breeze_bin))
+        return breeze_bin
+
+    def _shim(self, version: int | None) -> str:
+        version_line = f"# breeze-shim-version: {version}\n" if version is not None else ""
+        return f"#!/usr/bin/env bash\n# {common_prek_utils.BREEZE_SHIM_MARKER}\n{version_line}"
+
+    def test_reports_an_outdated_shim(self, tmp_path, monkeypatch):
+        self._install(tmp_path, monkeypatch, self._shim(1))
+        assert "needs to be upgraded" in common_prek_utils.describe_breeze_not_running_from_lock()
+
+    def test_reports_a_shim_predating_versioning(self, tmp_path, monkeypatch):
+        self._install(tmp_path, monkeypatch, self._shim(None))
+        assert "pre-versioning" in common_prek_utils.describe_breeze_not_running_from_lock()
+
+    def test_reports_a_legacy_global_install(self, tmp_path, monkeypatch):
+        self._install(
+            tmp_path, monkeypatch, "#!/usr/bin/env python\nfrom airflow_breeze.breeze import main\n"
+        )
+        assert "legacy global install" in common_prek_utils.describe_breeze_not_running_from_lock()
+
+    def test_accepts_a_current_shim(self, tmp_path, monkeypatch):
+        self._install(tmp_path, monkeypatch, self._shim(2))
+        assert common_prek_utils.describe_breeze_not_running_from_lock() is None
+
+    def test_accepts_the_locked_venv_ci_syncs(self, tmp_path, monkeypatch):
+        venv_bin = tmp_path / "locked" / ".venv" / "bin"
+        venv_bin.mkdir(parents=True)
+        (venv_bin / "breeze").write_text("#!/usr/bin/env python\n")
+        monkeypatch.setattr(common_prek_utils, "BREEZE_LOCKED_VENV_PATH", tmp_path / "locked" / ".venv")
+        monkeypatch.setattr(common_prek_utils.shutil, "which", lambda _: str(venv_bin / "breeze"))
+        assert common_prek_utils.describe_breeze_not_running_from_lock() is None
+
+    def test_accepts_a_missing_breeze(self, monkeypatch):
+        monkeypatch.setattr(common_prek_utils.shutil, "which", lambda _: None)
+        assert common_prek_utils.describe_breeze_not_running_from_lock() is None
+
+
 class TestTemporaryTscProject:
     def test_creates_temp_tsconfig(self, tmp_path):
         tsconfig = tmp_path / "tsconfig.json"

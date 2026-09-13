@@ -50,6 +50,7 @@ from airflow._shared.module_loading import import_string
 from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
+from airflow.exceptions import TaskNotFound
 from airflow.executors import workloads
 from airflow.executors.workloads.task import TaskInstanceDTO
 from airflow.jobs.base_job_runner import BaseJobRunner
@@ -202,7 +203,6 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
         job: Job,
         capacity=None,
         queues: set[str] | None = None,
-        team_name: str | None = None,
     ):
         super().__init__(job)
         if capacity is None:
@@ -212,7 +212,6 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
         else:
             raise ValueError(f"Capacity number {capacity!r} is invalid")
         self.queues = queues
-        self.team_name = team_name
         # Set up only when _execute() starts the subprocess; keep it defined so that
         # signal handlers (or other code) firing before startup don't hit AttributeError.
         self.trigger_runner: TriggerRunnerSupervisor | None = None
@@ -274,7 +273,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
                 capacity=self.capacity,
                 logger=log,
                 queues=self.queues,
-                team_name=self.team_name,
+                team_name=self.job.team_name,
             )
             # Run the main DB comms loop in this process
             self.trigger_runner.run()
@@ -875,20 +874,29 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             ti=ser_ti,  # type: ignore
         )
 
-        serialized_dag_model = dag_bag.get_serialized_dag_model(
-            version_id=trigger.task_instance.dag_version_id,
-            session=session,
+        dag_run = trigger.task_instance.get_dagrun(session=session)
+        serialized_dag_model = dag_bag.get_serialized_dag_model_for_run(
+            dag_run, session=session
+        ) or dag_bag.get_serialized_dag_model(
+            version_id=trigger.task_instance.dag_version_id, session=session
         )
 
         if serialized_dag_model:
-            task = serialized_dag_model.dag.get_task(trigger.task_instance.task_id)
+            task = None
+            try:
+                task = serialized_dag_model.dag.get_task(trigger.task_instance.task_id)
+            except TaskNotFound:
+                log.warning(
+                    "Task not found in resolved Dag version; building plain workload",
+                    task_id=trigger.task_instance.task_id,
+                    dag_id=trigger.task_instance.dag_id,
+                )
 
             # When a TaskInstance of a Trigger contains a task with start_from_trigger enabled,
             # it means we need to load the SerializedDagModel so we can build a RuntimeTaskInstance later on which
             # will allow us to build a context on which we will render the templated fields.
-            if task.start_from_trigger:
+            if task is not None and task.start_from_trigger:
                 log.info("Start from trigger enabled for task %s", task.task_id)
-                dag_run = trigger.task_instance.get_dagrun(session=session)
 
                 return workloads.RunTrigger(
                     id=trigger.id,
@@ -1735,8 +1743,22 @@ class TriggerRunner:
         """
         Get a trigger class by its classpath ("path.to.module.classname").
 
+        The resolved object must be a :class:`~airflow.triggers.base.BaseTrigger`
+        subclass. This is validated before the class is cached and, crucially,
+        before it is ever instantiated in ``create_triggers`` -- ``classpath``
+        originates from the (attacker-influenceable) deferred-task payload, so
+        without this check an arbitrary importable callable could be invoked in
+        the triggerer process.
+
         Uses a cache dictionary to speed up lookups after the first time.
         """
         if classpath not in self.trigger_cache:
-            self.trigger_cache[classpath] = import_string(classpath)
+            trigger_class = import_string(classpath)
+            if not (isinstance(trigger_class, type) and issubclass(trigger_class, BaseTrigger)):
+                raise TypeError(
+                    f"The trigger classpath {classpath!r} does not resolve to a "
+                    f"{BaseTrigger.__module__}.{BaseTrigger.__qualname__} subclass; "
+                    f"refusing to load it."
+                )
+            self.trigger_cache[classpath] = trigger_class
         return self.trigger_cache[classpath]

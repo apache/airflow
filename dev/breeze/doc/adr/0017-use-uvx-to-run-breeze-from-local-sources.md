@@ -21,7 +21,7 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [17. Use `uvx` to run breeze from local sources](#17-use-uvx-to-run-breeze-from-local-sources)
+- [17. Run breeze from the current worktree's locked sources](#17-run-breeze-from-the-current-worktrees-locked-sources)
   - [Status](#status)
   - [Context](#context)
   - [Decision](#decision)
@@ -29,9 +29,9 @@
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-# 17. Use `uvx` to run breeze from local sources
+# 17. Run breeze from the current worktree's locked sources
 
-Date: 2026-04-26
+Date: 2026-04-26 (amended 2026-08-26: dispatch moved from ``uvx`` to ``uv run --locked``)
 
 ## Status
 
@@ -65,12 +65,23 @@ Two patterns have made that single-install model awkward:
    the same ``~/.local/bin/breeze`` symlink, and an agent that does ``uv tool install
    --force`` to "fix" itself silently sabotages every other worktree on the machine.
 
-``uv`` ships a tool — ``uvx`` — that runs a command from a project directory in an
-ephemeral, cached environment without installing anything globally. ``uvx --from
-./dev/breeze breeze ...`` resolves dependencies once per ``pyproject.toml`` /``uv.lock``
-hash, caches the resulting environment, and reuses it on subsequent calls. The first
-call in a fresh worktree is slow (one resolve + install); every call after that is
-fast.
+``uv`` ships a way to run a command from a project directory without installing anything
+globally: ``uv run --project ./dev/breeze --locked breeze ...`` syncs that project's own
+environment (``dev/breeze/.venv``) to exactly what ``dev/breeze/uv.lock`` pins, then runs the
+command in it. The first call in a fresh worktree pays for the sync; every call after that
+reuses the environment.
+
+The ``--locked`` part matters as much as the per-worktree part. The two alternatives that
+install from a path — ``uvx --from ./dev/breeze`` and ``uv tool install -e ./dev/breeze`` —
+re-resolve breeze's requirements against the package index on every fresh environment and read
+neither ``dev/breeze/uv.lock`` nor the ``[tool.uv] exclude-newer`` buffer declared next to it
+(that setting governs project operations such as ``uv lock`` and ``uv sync`` only). Under those,
+the committed lock recorded nothing and an unrelated upstream release could change breeze with
+no commit in this repository. click 8.5.0 showed the cost: released on 2026-08-26, it added a
+``help`` field to ``click.Argument.to_info_dict()`` — the dict breeze hashes to detect command
+drift — so within the hour every CI job resolved the new click, every command taking a
+positional argument hashed differently from its committed value, and static checks went red on
+every open PR regardless of what it touched. The lock said click 8.4.2 throughout.
 
 That gives us a way to make ``breeze`` always run from the *current* worktree's source
 without ever touching a shared global install — but the dispatch mechanism has to be
@@ -87,9 +98,9 @@ The recommended way to run breeze is via a small **shim script** at
 ```shell
 #!/usr/bin/env bash
 # Apache Airflow breeze shim — managed by scripts/tools/setup_breeze (ADR 0017).
-# Runs breeze from the dev/breeze folder of the current git worktree via 'uvx',
-# so each worktree (e.g. parallel agentic runs) gets its own ephemerally-installed
-# breeze tied to that worktree's source.
+# Runs breeze from the dev/breeze folder of the current git worktree via 'uv run',
+# so each worktree (e.g. parallel agentic runs) gets its own environment tied to
+# that worktree's source, with dependencies resolved from dev/breeze/uv.lock.
 #
 # Resolution order for the Airflow sources breeze runs from:
 #   1. the current git worktree (per-worktree isolation — see above);
@@ -115,7 +126,7 @@ else
     exit 1
 fi
 exec env AIRFLOW_ROOT_PATH="${breeze_root}" SKIP_BREEZE_SELF_UPGRADE_CHECK=1 \
-    uvx --from "${breeze_root}/dev/breeze" --quiet breeze "$@"
+    uv run --project "${breeze_root}/dev/breeze" --locked --quiet breeze "$@"
 ```
 
 ``scripts/tools/setup_breeze`` writes this file (replacing any previous
@@ -128,8 +139,9 @@ The user-facing command stays the same — they still type ``breeze`` — but ea
 invocation:
 
 * resolves ``$(git rev-parse --show-toplevel)`` from the current working directory,
-* dispatches to ``uvx --from <that-worktree>/dev/breeze breeze``,
-* and therefore always runs the breeze code that belongs to that worktree.
+* dispatches to ``uv run --project <that-worktree>/dev/breeze --locked breeze``,
+* and therefore always runs the breeze code that belongs to that worktree, with the
+  dependencies that worktree's ``uv.lock`` pins.
 
 Because the shim is a real file on ``PATH`` (not a shell function), it is also
 visible to subprocesses — pre-commit hooks, CI scripts, dev tools, and anything
@@ -137,11 +149,17 @@ else that does ``subprocess.run(["breeze", ...])`` will pick it up exactly like
 they picked up the old ``uv tool``-installed binary.
 
 The two ``env`` variables matter: ``AIRFLOW_ROOT_PATH`` short-circuits breeze's
-installation-source detection (which walks up from ``__file__`` and would
-otherwise misfire because ``__file__`` lives inside the uvx cache, not the
-source tree), and ``SKIP_BREEZE_SELF_UPGRADE_CHECK=1`` disables the "your
-install is older than your sources" nag — moot under uvx, which auto-rebuilds
-the env when ``pyproject.toml`` / ``uv.lock`` change.
+installation-source detection (which walks up from ``__file__`` and would otherwise
+misfire on installs that do not live in the source tree), and
+``SKIP_BREEZE_SELF_UPGRADE_CHECK=1`` disables the "your install is older than your
+sources" nag — moot here, since ``uv run`` re-syncs the environment whenever
+``pyproject.toml`` / ``uv.lock`` change and installs the sources as editable.
+
+CI installs breeze the same way: ``scripts/ci/install_breeze.sh`` runs
+``uv sync --project ./dev/breeze/ --locked`` and puts ``dev/breeze/.venv/bin`` on ``PATH``
+rather than installing a global ``uv tool``. Dependency upgrades reach breeze only through a
+change to ``dev/breeze/uv.lock`` — in practice the scheduled ``breeze ci upgrade`` PR, which
+regenerates the lock and the command-output files together, as one reviewable commit.
 
 ``uv tool install -e ./dev/breeze`` and ``pipx install -e ./dev/breeze`` remain
 supported as alternatives for users who explicitly want the old single-install
@@ -159,6 +177,10 @@ behaviour, but they are no longer the recommended path.
   checked out — not whatever was current the last time someone reinstalled.
   The "your installed breeze is older than your sources" warning class largely
   goes away.
+* **Reproducible dependencies.** Two checkouts of the same commit run breeze with the
+  same dependency versions, whatever the index served that day, so the command hashes
+  under ``dev/breeze/doc/images/`` are a property of the repository rather than of the
+  calendar — and the ``exclude-newer`` buffer around lock upgrades finally applies.
 * **Cheap setup in fresh worktrees.** Spinning up a new worktree (manually or
   via an agent) needs no extra install step; ``breeze`` works the moment
   ``cd`` lands in the tree.
@@ -175,11 +197,15 @@ behaviour, but they are no longer the recommended path.
 
 **Costs**
 
-* **First call in a new worktree is slow.** ``uvx`` has to resolve and install
-  breeze's dependencies the first time it sees a given ``pyproject.toml`` /
-  ``uv.lock``. Subsequent calls hit the cache and are fast.
+* **First call in a new worktree is slow.** ``uv run`` has to populate
+  ``dev/breeze/.venv`` (~275 MB, mostly hardlinked into the uv cache; ignored by both
+  ``.gitignore`` and ``.dockerignore``) the first time. Subsequent calls reuse it.
+* **A stale lock blocks breeze.** Editing ``dev/breeze/pyproject.toml`` without re-running
+  ``uv lock`` makes every breeze call fail until the lock is refreshed. The error names the
+  fix, and the alternative — silently running dependencies nobody recorded — is the failure
+  mode this dispatch removes.
 * **Adds a small bash startup overhead.** The shim is a tiny bash script that
-  runs ``git rev-parse`` and ``uvx`` for every invocation. Negligible at the
+  runs ``git rev-parse`` and ``uv run`` for every invocation. Negligible at the
   command line, but noticeable inside tight loops or shell completion that
   re-invokes ``breeze`` many times.
 * **Resolution is current-worktree-first, with two fallbacks.** ``breeze``

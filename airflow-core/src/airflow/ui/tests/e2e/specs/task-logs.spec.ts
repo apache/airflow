@@ -17,6 +17,7 @@
  * under the License.
  */
 import { testConfig } from "playwright.config";
+
 import { expect, test } from "tests/e2e/fixtures";
 
 test.describe("Verify task logs display", () => {

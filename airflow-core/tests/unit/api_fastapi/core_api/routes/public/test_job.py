@@ -157,6 +157,7 @@ class TestGetJobs(TestJobEndpoint):
             assert len(matched) == 1
             expected_job = {
                 "id": matched[0].id,
+                "bundle_names": None,
                 "dag_display_name": None,
                 "dag_id": None,
                 "state": matched[0].state,
@@ -166,6 +167,7 @@ class TestGetJobs(TestJobEndpoint):
                 "latest_heartbeat": from_datetime_to_zulu(matched[0].latest_heartbeat),
                 "executor_class": None,
                 "hostname": matched[0].hostname,
+                "team_name": None,
                 "unixname": matched[0].unixname,
             }
             assert resp_job == expected_job
@@ -186,6 +188,25 @@ class TestGetJobs(TestJobEndpoint):
         response_json = response.json()
         assert response_json["total_entries"] == 1
         assert response_json["jobs"][0]["dag_id"] == "target_dag"
+
+    def test_get_jobs_includes_team_name_and_bundle_names(self, test_client, session: Session, testing_team):
+        clear_db_jobs()
+        job = Job(
+            state=JobState.RUNNING,
+            job_type="TriggererJob",
+            team_name=testing_team.name,
+            bundle_names=["bundle-a", "bundle-b"],
+        )
+        session.add(job)
+        session.commit()
+
+        response = test_client.get("/jobs")
+
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json["total_entries"] == 1
+        assert response_json["jobs"][0]["team_name"] == testing_team.name
+        assert response_json["jobs"][0]["bundle_names"] == ["bundle-a", "bundle-b"]
 
     def test_should_raises_401_unauthenticated(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/jobs")

@@ -75,13 +75,33 @@ When a task fails, ``LLMRetryPolicy``:
    and truncated to ``max_exception_length`` characters before it is added
    to the prompt.
 2. The LLM classifies the error into a category (``rate_limit``, ``auth``,
-   ``network``, ``data``, ``transient``, ``permanent``)
+   ``network``, ``data``, ``resource``, ``transient``, ``permanent``)
 3. Based on the classification, returns RETRY (with a suggested delay) or FAIL
 4. The classification reason is logged in the task logs
 
 If the LLM call fails (provider down, timeout, bad credentials), the policy
 falls back to ``fallback_rules`` if configured, or to the task's standard
 retry behaviour.
+
+What the model can and cannot do
+--------------------------------
+
+The model answers two questions: retry or not, and how long to wait. It is
+given no tools and there is no way to attach any, so it cannot run code, call an
+API, read a connection, or reach your data. It sees only the exception's class
+name, the exception message (after redaction and truncation), and the attempt
+count. It returns four fields: ``category``, ``should_retry``, ``suggested_delay_seconds``,
+and ``reasoning``. Of the four fields it returns, only ``should_retry`` and
+``suggested_delay_seconds`` affect the run. ``category`` and ``reasoning`` are
+recorded but nothing branches on them.
+
+Two limits are worth knowing about:
+
+* RETRY cannot give a task more attempts than ``retries`` allows. FAIL, though, ends the task
+  straight away even when attempts were left, so a wrong classification costs
+  the task the retries it would otherwise have had.
+* ``suggested_delay_seconds`` is used as returned, with no upper limit. If particular delays
+  matter to you, state them in ``instructions`` as the examples below do.
 
 Custom instructions
 -------------------

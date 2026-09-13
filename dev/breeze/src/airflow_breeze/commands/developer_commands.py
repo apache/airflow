@@ -852,14 +852,15 @@ def _build_ts_sdk_docs(generated_path: Path) -> int:
             f"node:{TYPESCRIPT_SDK_NODE_VERSION}-bookworm-slim",
             "sh",
             "-c",
-            # `npm ci` keeps the lock file authoritative; `npm run build` strips the ASF
-            # header from the landing page and then runs TypeDoc.
-            "npm ci --no-audit --no-fund && npm run build",
+            # `npm ci` keeps the lock file authoritative; `npm test` covers the postbuild
+            # checks; `npm run build` strips the ASF header from the landing page, runs
+            # TypeDoc, then checks the generated HTML is publishable.
+            "npm ci --no-audit --no-fund && npm test && npm run build",
         ],
         check=False,
     )
     if result.returncode != 0:
-        console_print("[error]TypeDoc build failed.")
+        console_print("[error]TypeScript SDK docs build failed.")
         return result.returncode
 
     _stage_sdk_docs(
@@ -1356,6 +1357,7 @@ def doctor(ctx):
 @option_forward_credentials
 @option_forward_ports
 @option_github_repository
+@option_include_mypy_volume
 @option_mysql_version
 @option_platform_single
 @option_postgres_version
@@ -1376,6 +1378,7 @@ def run(
     forward_credentials: bool,
     forward_ports: bool,
     github_repository: str,
+    include_mypy_volume: bool,
     mysql_version: str,
     platform: str | None,
     postgres_version: str,
@@ -1443,6 +1446,7 @@ def run(
         force_build=force_build,
         forward_credentials=forward_credentials,
         github_repository=github_repository,
+        include_mypy_volume=include_mypy_volume,
         mysql_version=mysql_version,
         platform=platform,
         postgres_version=postgres_version,
