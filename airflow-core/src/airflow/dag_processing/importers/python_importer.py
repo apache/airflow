@@ -76,6 +76,53 @@ def _timeout(seconds: float = 1, error_message: str = "Timeout"):
             signal.setitimer(signal.ITIMER_REAL, 0)
 
 
+def _zip_package_dirs(zip_file: zipfile.ZipFile) -> set[str]:
+    """Return the archive folders that are importable packages (contain an ``__init__`` module)."""
+    package_dirs: set[str] = set()
+    for name in zip_file.namelist():
+        member = Path(name)
+        if member.stem == "__init__" and member.suffix in (".py", ".pyc"):
+            package_dirs.add(member.parent.as_posix())
+    return package_dirs
+
+
+def _zip_member_module_name(zip_path: Path, package_dirs: set[str]) -> str | None:
+    """
+    Resolve the dotted module name for a ``.py``/``.pyc`` member sitting in a sub-folder of a zip.
+
+    ``zipimport`` can only reach a sub-folder module through its parent package, so every parent
+    folder must contain an ``__init__`` module. Namespace packages (folders without ``__init__``)
+    are not importable from a zip, so this returns ``None`` for them and the caller surfaces the
+    unreachable file instead of importing it. Root-level members are handled by the caller.
+    """
+    if zip_path.stem == "__init__":
+        module_parts = zip_path.parts[:-1]
+        required_package_dirs = zip_path.parts[:-2]
+    else:
+        module_parts = (*zip_path.parts[:-1], zip_path.stem)
+        required_package_dirs = zip_path.parts[:-1]
+
+    for depth in range(1, len(required_package_dirs) + 1):
+        if "/".join(required_package_dirs[:depth]) not in package_dirs:
+            return None
+    return ".".join(module_parts)
+
+
+def _zip_owned_module_names(
+    package_dirs: set[str], candidates: list[tuple[str, zipfile.ZipInfo]]
+) -> set[str]:
+    """Return every module and (intermediate) package name that the archive defines."""
+    names: set[str] = set()
+    for package_dir in package_dirs:
+        if package_dir != ".":
+            names.add(package_dir.replace("/", "."))
+    for mod_name, _ in candidates:
+        parts = mod_name.split(".")
+        for depth in range(1, len(parts) + 1):
+            names.add(".".join(parts[:depth]))
+    return names
+
+
 class PythonDagImporter(AbstractDagImporter):
     """
     Importer for Python DAG files and zip archives containing Python DAGs.
@@ -285,13 +332,36 @@ class PythonDagImporter(AbstractDagImporter):
 
         mods: list[ModuleType] = []
         with zipfile.ZipFile(filepath) as current_zip_file:
+            package_dirs = _zip_package_dirs(current_zip_file)
+
+            candidates: list[tuple[str, zipfile.ZipInfo]] = []
             for zip_info in current_zip_file.infolist():
                 zip_path = Path(zip_info.filename)
-                if zip_path.suffix not in [".py", ".pyc"] or len(zip_path.parts) > 1:
+                if zip_path.suffix not in [".py", ".pyc"]:
                     continue
 
-                if zip_path.stem == "__init__":
-                    log.warning("Found %s at root of %s", zip_path.name, filepath)
+                if len(zip_path.parts) == 1:
+                    if zip_path.stem == "__init__":
+                        log.warning("Found %s at root of %s", zip_path.name, filepath)
+                    mod_name = zip_path.stem
+                else:
+                    resolved = _zip_member_module_name(zip_path, package_dirs)
+                    if resolved is None:
+                        # The file lives in a folder that is not an importable package, so it can
+                        # never be loaded from the zip. Surface it when it looks like a DAG instead
+                        # of dropping it silently, which otherwise hides the file with no diagnostic.
+                        if might_contain_dag(zip_info.filename, safe_mode, current_zip_file):
+                            log.warning(
+                                "Ignoring %s in %s: it is not part of a package (no __init__.py in "
+                                "its folder), so it cannot be imported from a zip archive. Add an "
+                                "__init__.py to every parent folder, or move the DAG to the archive "
+                                "root.",
+                                zip_info.filename,
+                                filepath,
+                            )
+                            result.skipped_files.append(f"{filepath}:{zip_info.filename}")
+                        continue
+                    mod_name = resolved
 
                 log.debug("Reading %s from %s", zip_info.filename, filepath)
 
@@ -299,10 +369,20 @@ class PythonDagImporter(AbstractDagImporter):
                     result.skipped_files.append(f"{filepath}:{zip_info.filename}")
                     continue
 
-                mod_name = zip_path.stem
-                if mod_name in sys.modules:
-                    del sys.modules[mod_name]
+                candidates.append((mod_name, zip_info))
 
+            # Import shallower modules first so a parent package is fully loaded before its
+            # sub-modules; this keeps DAG autoregistration attributed to the right module when a
+            # package's __init__ also defines DAGs.
+            candidates.sort(key=lambda candidate: candidate[0].count("."))
+
+            # Drop any module or package this archive defines from a previous import (e.g. a
+            # different zip that ships a package of the same name) so its members resolve against
+            # this archive rather than a stale one left in sys.modules.
+            for stale in _zip_owned_module_names(package_dirs, candidates):
+                sys.modules.pop(stale, None)
+
+            for mod_name, zip_info in candidates:
                 DagContext.current_autoregister_module_name = mod_name
                 try:
                     sys.path.insert(0, filepath)
