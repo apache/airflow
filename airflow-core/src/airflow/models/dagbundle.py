@@ -20,7 +20,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
-from sqlalchemy import Boolean, String, Text, select
+from sqlalchemy import BigInteger, Boolean, String, Text, select
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from airflow.models.base import Base, StringID
@@ -45,6 +45,7 @@ class DagBundleModel(Base, LoggingMixin):
     - active: Is the bundle currently found in configuration?
     - version: The latest version Airflow has seen for the bundle.
     - last_refreshed: When the bundle was last refreshed.
+    - refresh_generation: Monotonically increasing signal requesting a refresh.
     - signed_url_template: Signed URL template for viewing the bundle
     - template_params: JSON object containing template parameters for constructing view url (e.g., {"subdir": "dags"})
 
@@ -55,6 +56,7 @@ class DagBundleModel(Base, LoggingMixin):
     active: Mapped[bool | None] = mapped_column(Boolean, default=True, nullable=True)
     version: Mapped[str | None] = mapped_column(String(200), nullable=True)
     last_refreshed: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    refresh_generation: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False, server_default="0")
     signed_url_template: Mapped[str | None] = mapped_column(Text, nullable=True)
     template_params: Mapped[dict | None] = mapped_column(sa.JSON(), nullable=True)
     teams = relationship("Team", secondary=dag_bundle_team_association_table, back_populates="dag_bundles")
