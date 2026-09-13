@@ -156,6 +156,9 @@ jobs:
         with:
           ref: ${{ inputs.checkout-ref }}
           persist-credentials: false
+      - name: "Free up disk space"
+        shell: bash
+        run: ./scripts/tools/free_up_disk_space.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: "Resolve compatible main CI image"
@@ -168,9 +171,6 @@ jobs:
           python: ${{ matrix.python-version }}
           platform: ${{ inputs.platform }}
           disabled: "true"
-      - name: "Free up disk space"
-        shell: bash
-        run: ./scripts/tools/free_up_disk_space.sh
       - name: "Make /mnt writeable"
         run: ./scripts/ci/make_mnt_writeable.sh
       - name: "Move docker to /mnt"
