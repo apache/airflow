@@ -57,7 +57,9 @@ log = logging.getLogger(__name__)
 
 
 @router.get(
-    "/{connection_id}",
+    # ``:path`` so connection IDs containing ``/`` (e.g. ``dev-env/project-name``)
+    # match instead of being split into separate segments, mirroring the variables route.
+    "/{connection_id:path}",
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
         status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the connection"},
