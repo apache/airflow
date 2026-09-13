@@ -79,6 +79,7 @@ from airflow.sdk.definitions.deadline import (
     AsyncCallback,
     DeadlineAlert,
     DeadlineReference,
+    SyncCallback,
     VariableInterval,
 )
 from airflow.sdk.definitions.decorators import task
@@ -1766,3 +1767,54 @@ def test_deadline_fields_refuse_legacy_encoded_classes(field):
             BaseSerialization.deserialize(serialized)
 
     assert _DeadlineGadget.instantiated is False
+
+
+@pytest.mark.parametrize("callback_cls", [AsyncCallback, SyncCallback])
+def test_deadline_callback_accepts_pre_3_2_module_path(callback_cls):
+    """Callbacks serialized before 3.2 name the module they were defined in back then.
+
+    3.2 moved them out of ``airflow.sdk.definitions.deadline`` into
+    ``...definitions.callback``, so an alert stored by an earlier version carries the old
+    path. Rejecting it would make those rows undecodable on upgrade.
+    """
+    from airflow.sdk import serde
+
+    valid = DeadlineAlert(
+        reference=DeadlineReference.DAGRUN_QUEUED_AT,
+        interval=timedelta(hours=1),
+        callback=callback_cls(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS),
+    )
+    serialized = BaseSerialization.serialize(valid)
+    payload = serialized[Encoding.VAR][DeadlineAlertFields.CALLBACK]
+    payload[serde.CLASSNAME] = f"airflow.sdk.definitions.deadline.{callback_cls.__qualname__}"
+
+    decoded = BaseSerialization.deserialize(serialized)
+
+    assert isinstance(decoded.callback, callback_cls)
+    assert decoded.callback.path == TEST_CALLBACK_PATH
+    assert decoded.callback.kwargs == TEST_CALLBACK_KWARGS
+
+
+@pytest.mark.parametrize(
+    ("callback_cls", "foreign_field"),
+    [(AsyncCallback, "executor"), (SyncCallback, "queue")],
+    ids=["async-rejects-executor", "sync-rejects-queue"],
+)
+def test_deadline_callback_rejects_field_belonging_to_the_other_subclass(callback_cls, foreign_field):
+    """``queue`` and ``executor`` belong to one subclass each, not to both.
+
+    Accepting either for both classes would hand the constructor an argument it does not
+    take, turning a malformed payload into a TypeError from deep inside the rebuild.
+    """
+    from airflow.sdk import serde
+
+    valid = DeadlineAlert(
+        reference=DeadlineReference.DAGRUN_QUEUED_AT,
+        interval=timedelta(hours=1),
+        callback=callback_cls(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS),
+    )
+    serialized = BaseSerialization.serialize(valid)
+    serialized[Encoding.VAR][DeadlineAlertFields.CALLBACK][serde.DATA][foreign_field] = "something"
+
+    with pytest.raises(ValueError, match=f"Unexpected deadline callback fields: {foreign_field}"):
+        BaseSerialization.deserialize(serialized)

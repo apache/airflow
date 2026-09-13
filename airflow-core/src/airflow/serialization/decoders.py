@@ -56,6 +56,7 @@ if TYPE_CHECKING:
     from airflow.partition_mappers.base import PartitionMapper
     from airflow.partition_mappers.wait_policy import WaitPolicy
     from airflow.partition_mappers.window import Window
+    from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback  # noqa: SDK001
     from airflow.timetables.base import Timetable as CoreTimetable
 
 R = TypeVar("R")
@@ -189,6 +190,9 @@ _VARIABLE_INTERVAL_CLASSNAMES = frozenset(
         "airflow.serialization.definitions.deadline.SerializedVariableInterval",
     }
 )
+# The callback classes lived here until 3.2 moved them to ``...definitions.callback``,
+# so alerts serialized by an earlier version name this module instead.
+_LEGACY_CALLBACK_MODULE = "airflow.sdk.definitions.deadline"
 
 
 def _normalised_payload(encoded: Any, field: str) -> tuple[str, Any]:
@@ -200,13 +204,15 @@ def _normalised_payload(encoded: Any, field: str) -> tuple[str, Any]:
     that call therefore has to normalise it first, or the legacy spelling carries no
     ``__classname__`` at the moment it is looked at and slips past unexamined.
     """
-    from airflow.sdk.serde import _convert, CLASSNAME, DATA
+    from airflow.sdk.serde import CLASSNAME, DATA, _convert
 
     if not isinstance(encoded, dict):
         raise ValueError(f"Deadline {field} is not a serialized object.")
     converted = _convert(encoded)
-    if not isinstance(converted, dict) or CLASSNAME not in converted:
-        raise ValueError(f"Deadline {field} names no class.")
+    if not isinstance(converted, dict):
+        raise ValueError(f"Deadline {field} is not a serialized object.")
+    if CLASSNAME not in converted:
+        raise ValueError(f"Deadline {field} does not name a class.")
     return converted[CLASSNAME], converted.get(DATA)
 
 
@@ -241,7 +247,7 @@ def _decode_deadline_interval(raw_interval: Any) -> datetime.timedelta | Seriali
     )
 
 
-def _decode_deadline_callback(raw_callback: Any):
+def _decode_deadline_callback(raw_callback: Any) -> AsyncCallback | SyncCallback:
     """
     Build the callback from its encoded form without importing what the payload names.
 
@@ -262,7 +268,11 @@ def _decode_deadline_callback(raw_callback: Any):
         _SerializedCallbackPath,
     )
 
-    permitted = {f"{cls.__module__}.{cls.__qualname__}": cls for cls in (AsyncCallback, SyncCallback)}
+    permitted = {
+        f"{module}.{cls.__qualname__}": cls
+        for cls in (AsyncCallback, SyncCallback)
+        for module in (cls.__module__, _LEGACY_CALLBACK_MODULE)
+    }
     classname, data = _normalised_payload(raw_callback, "callback")
     callback_cls = permitted.get(classname)
     if callback_cls is None:
@@ -273,6 +283,14 @@ def _decode_deadline_callback(raw_callback: Any):
     if not isinstance(data, dict):
         raise ValueError("Deadline callback payload is not a mapping.")
 
+    # The fields each class declares are the fields it can be rebuilt from, so an unknown
+    # one means the payload does not describe this callback and nothing below should run.
+    # ``queue`` and ``executor`` belong to one subclass each, never to both.
+    permitted_fields = set(callback_cls.serialized_fields())
+    unexpected = set(data) - permitted_fields
+    if unexpected:
+        raise ValueError(f"Unexpected deadline callback fields: {', '.join(sorted(unexpected))}.")
+
     path = data.get("path")
     if not isinstance(path, str):
         raise ValueError("Deadline callback payload has no string path.")
@@ -281,16 +299,12 @@ def _decode_deadline_callback(raw_callback: Any):
 
     raw_kwargs = data.get("kwargs") or {}
     fields: dict[str, Any] = {"kwargs": deserialize(raw_kwargs) if raw_kwargs else {}}
-    for optional in ("queue", "executor"):
+    for optional in sorted(permitted_fields - {"path", "kwargs"}):
         if optional in data:
             value = data[optional]
             if value is not None and not isinstance(value, str):
                 raise ValueError(f"Deadline callback {optional} is not a string.")
             fields[optional] = value
-
-    unexpected = set(data) - {"path", "kwargs", "queue", "executor"}
-    if unexpected:
-        raise ValueError(f"Unexpected deadline callback fields: {', '.join(sorted(unexpected))}.")
 
     return callback_cls(callback_callable=_SerializedCallbackPath(path), **fields)
 
