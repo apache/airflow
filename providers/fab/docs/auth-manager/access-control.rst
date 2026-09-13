@@ -384,6 +384,10 @@ Stable API Permissions
      - PATCH
      - DAGs.can_edit
      - User
+   * - ``/api/v2/dags/bulk``
+     - PATCH
+     - DAGs.can_edit
+     - User
    * - ``/api/v2/dags/{dag_id}``
      - DELETE
      - DAGs.can_delete
