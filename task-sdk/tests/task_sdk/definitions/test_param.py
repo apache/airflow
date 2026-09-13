@@ -18,13 +18,16 @@ from __future__ import annotations
 
 from contextlib import nullcontext
 from typing import Literal
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.sdk.definitions.param import Param, ParamsDict
+from airflow.sdk.definitions.param import Param, ParamsDict, process_params
 from airflow.sdk.exceptions import ParamValidationError
 from airflow.serialization.definitions.param import SerializedParam
 from airflow.serialization.serialized_objects import BaseSerialization
+
+from tests_common.test_utils.config import conf_vars
 
 
 class TestParam:
@@ -388,3 +391,138 @@ class TestParamsDict:
                 "key2": Param("value", source="task"),
             }
         )
+
+
+class TestProcessParamsMasksPassword:
+    def _make_dag(self, params: dict) -> MagicMock:
+        dag = MagicMock()
+        dag.params = ParamsDict(params)
+        return dag
+
+    def _make_task(self) -> MagicMock:
+        task = MagicMock()
+        task.params = None
+        return task
+
+    @patch("airflow.sdk.definitions.param.mask_secret")
+    def test_masks_string_param_declared_as_password(self, mock_mask_secret):
+        dag = self._make_dag({"api_token": Param("default", type="string", format="password")})
+        task = self._make_task()
+
+        resolved = process_params(dag, task, {"api_token": "super-secret-value"}, suppress_exception=False)
+
+        assert resolved["api_token"] == "super-secret-value"
+        # Three calls: (1) dagrun_conf's raw value, masked unconditionally before any merge;
+        # (2) params.dump()'s current value before the debug log line, which at that point is
+        # still the stale unresolved default ("default"), since this runs before
+        # params.update(dagrun_conf); (3) the final resolved_params value after validate(). All
+        # three are harmless to register even where they coincide or cover a placeholder default,
+        # SecretsMasker patterns are a set, not a list.
+        assert mock_mask_secret.call_count == 3
+        mock_mask_secret.assert_any_call("default")
+        mock_mask_secret.assert_called_with("super-secret-value")
+
+    @patch("airflow.sdk.definitions.param.mask_secret")
+    def test_does_not_mask_plain_string_param(self, mock_mask_secret):
+        dag = self._make_dag({"greeting": Param("default", type="string")})
+        task = self._make_task()
+
+        resolved = process_params(dag, task, {"greeting": "hello"}, suppress_exception=False)
+
+        assert resolved["greeting"] == "hello"
+        mock_mask_secret.assert_not_called()
+
+    @patch("airflow.sdk.definitions.param.mask_secret")
+    def test_ignores_non_string_password_format_param(self, mock_mask_secret):
+        # format="password" on a non-string type is not a supported combination;
+        # it must not crash and must not attempt to mask a non-string value.
+        dag = self._make_dag({"retry_count": Param(3, type="integer", format="password")})
+        task = self._make_task()
+
+        resolved = process_params(dag, task, {"retry_count": 5}, suppress_exception=False)
+
+        assert resolved["retry_count"] == 5
+        mock_mask_secret.assert_not_called()
+
+    @patch("airflow.sdk.definitions.param.mask_secret")
+    def test_does_not_mask_when_key_has_no_declared_param(self, mock_mask_secret):
+        dag = self._make_dag({})
+        task = self._make_task()
+
+        resolved = process_params(dag, task, {"undeclared_key": "value"}, suppress_exception=False)
+
+        assert resolved["undeclared_key"] == "value"
+        mock_mask_secret.assert_not_called()
+
+    @patch("airflow.sdk.definitions.param.logger")
+    @patch("airflow.sdk.definitions.param.mask_secret")
+    def test_masks_dagrun_conf_value_before_debug_log(self, mock_mask_secret, mock_logger):
+        # Regression test: dag_run_conf_overrides_params=True (the default) logs dagrun_conf via
+        # logger.debug(). mask_secret() must be called before that log line, not after, or the
+        # SecretsMasker filter won't yet know to redact the value from the emitted log record.
+        manager = MagicMock()
+        manager.attach_mock(mock_mask_secret, "mask_secret")
+        manager.attach_mock(mock_logger.debug, "debug")
+
+        dag = self._make_dag({"api_token": Param("default", type="string", format="password")})
+        task = self._make_task()
+
+        process_params(dag, task, {"api_token": "super-secret-value"}, suppress_exception=False)
+
+        call_names = [call[0] for call in manager.mock_calls]
+        assert "mask_secret" in call_names
+        assert "debug" in call_names
+        assert call_names.index("mask_secret") < call_names.index("debug"), (
+            "mask_secret must be registered before the debug log referencing dagrun_conf"
+        )
+
+    @patch("airflow.sdk.definitions.param.logger")
+    @patch("airflow.sdk.definitions.param.mask_secret")
+    def test_masks_password_default_before_debug_log(self, mock_mask_secret, mock_logger):
+        # Regression test: a password-format param's *default* value (never overridden by
+        # dagrun_conf) must also be registered before the debug log line, since that log line
+        # renders `params` itself, not just `dagrun_conf`. Masking only dagrun_conf's values
+        # would miss this default entirely.
+        manager = MagicMock()
+        manager.attach_mock(mock_mask_secret, "mask_secret")
+        manager.attach_mock(mock_logger.debug, "debug")
+
+        dag = self._make_dag({"api_token": Param("default-secret-value", type="string", format="password")})
+        task = self._make_task()
+
+        # dagrun_conf touches an unrelated key only; api_token keeps its default.
+        process_params(dag, task, {"unrelated_key": "not-a-secret"}, suppress_exception=False)
+
+        call_names_and_args = [
+            (call[0], call.args) for call in manager.mock_calls if call[0] == "mask_secret"
+        ]
+        assert any(args and args[0] == "default-secret-value" for _, args in call_names_and_args), (
+            "the password param's default value must be registered with mask_secret before "
+            "the debug log line, not just values coming from dagrun_conf"
+        )
+        debug_call_index = [call[0] for call in manager.mock_calls].index("debug")
+        default_mask_index = next(
+            i
+            for i, call in enumerate(manager.mock_calls)
+            if call[0] == "mask_secret" and call.args and call.args[0] == "default-secret-value"
+        )
+        assert default_mask_index < debug_call_index, (
+            "the default value must be masked before the debug log, not after"
+        )
+
+    @conf_vars({("core", "dag_run_conf_overrides_params"): "False"})
+    @patch("airflow.sdk.definitions.param.mask_secret")
+    def test_masks_dagrun_conf_even_when_overrides_params_disabled(self, mock_mask_secret):
+        # Regression test: dag_run.conf remains readable from task code/templates via
+        # context["dag_run"].conf regardless of dag_run_conf_overrides_params, so a password-format
+        # value in dagrun_conf must be masked even when this setting is False and dagrun_conf never
+        # gets merged into task params at all.
+        dag = self._make_dag({"api_token": Param("default", type="string", format="password")})
+        task = self._make_task()
+
+        resolved = process_params(dag, task, {"api_token": "super-secret-value"}, suppress_exception=False)
+
+        # With the override disabled, the task's resolved params keep the default, not the conf
+        # value, but the conf value itself must still have been registered with the masker.
+        assert resolved["api_token"] == "default"
+        mock_mask_secret.assert_any_call("super-secret-value")
