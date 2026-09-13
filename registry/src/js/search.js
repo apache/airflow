@@ -126,13 +126,19 @@
       // provider it lives under.
       let matchedService = '';
       if (type === 'provider' && currentQuery) {
-        const services = (result.meta.externalServices || '').split(',').filter(Boolean);
         const normalizedQuery = normalize(currentQuery);
-        matchedService = services.find((service) => {
-          const normalizedService = normalize(service);
-          return normalizedService.startsWith(normalizedQuery) ||
-            normalizedService.includes(' ' + normalizedQuery);
-        }) || '';
+        // Skip the service lookup when the query already matches the
+        // provider's own name/id -- otherwise an unrelated service that
+        // happens to share the same substring gets badged instead.
+        const selfText = normalize(name + ' ' + (result.meta.providerId || ''));
+        if (!selfText.includes(normalizedQuery)) {
+          const services = (result.meta.externalServices || '').split(',').filter(Boolean);
+          matchedService = services.find((service) => {
+            const normalizedService = normalize(service);
+            return normalizedService.startsWith(normalizedQuery) ||
+              normalizedService.includes(' ' + normalizedQuery);
+          }) || '';
+        }
       }
 
       return `
