@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Query, status
+from fastapi import Depends, HTTPException, status
 from sqlalchemy import delete, select
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
@@ -28,6 +28,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryVariableKeyPatternSearch,
     QueryVariableKeyPrefixPatternSearch,
     SortParam,
+    update_mask_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
@@ -146,7 +147,7 @@ def patch_variable(
     variable_key: str,
     patch_body: VariableBody,
     session: SessionDep,
-    update_mask: list[str] | None = Query(None),
+    update_mask: Annotated[list[str] | None, Depends(update_mask_param_factory(VariableBody))] = None,
 ) -> VariableResponse:
     """Update a variable by key."""
     if patch_body.key != variable_key:

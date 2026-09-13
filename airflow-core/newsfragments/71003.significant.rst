@@ -1,0 +1,31 @@
+PATCH endpoints reject unknown ``update_mask`` fields
+
+An ``update_mask`` entry that names no field of the request body used to be dropped silently, so a
+typo turned the whole request into a no-op that still answered ``200`` with the untouched record.
+Such a mask is now rejected with ``400``, naming the offending entry and the accepted field names.
+
+Affected endpoints:
+
+* ``PATCH /variables/{variable_key}`` and ``PATCH /variables``
+* ``PATCH /pools/{pool_name}`` and ``PATCH /pools``
+* ``PATCH /connections/{connection_id}`` and ``PATCH /connections``
+* ``PATCH /dags/{dag_id}/dagRuns/{dag_run_id}``
+* ``PATCH /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}`` and its ``dry_run`` and
+  task-group variants
+
+Surrounding whitespace in a mask entry is now stripped, so ``update_mask=%20value`` applies the
+field instead of silently applying nothing.
+
+Clients that send an unused or misspelled mask entry and rely on the request succeeding must fix
+the entry.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [x] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

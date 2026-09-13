@@ -86,6 +86,7 @@ from airflow.api_fastapi.common.parameters import (
     prefix_search_param_factory,
     search_param_factory,
     teams_filter_factory,
+    update_mask_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.base import OrmClause
@@ -1029,7 +1030,9 @@ def patch_task_group_instances(
     body: PatchTaskInstanceBody,
     session: SessionDep,
     user: GetUserDep,
-    update_mask: list[str] | None = Query(None),
+    update_mask: Annotated[
+        list[str] | None, Depends(update_mask_param_factory(PatchTaskInstanceBody))
+    ] = None,
 ) -> TaskInstanceCollectionResponse:
     """Update the state of all task instances in a task group."""
     dag, tis, data = _patch_ti_group_validate_request(
@@ -1131,7 +1134,9 @@ def patch_task_instance_dry_run(
     body: PatchTaskInstanceBody,
     session: SessionDep,
     map_index: int | None = None,
-    update_mask: list[str] | None = Query(None),
+    update_mask: Annotated[
+        list[str] | None, Depends(update_mask_param_factory(PatchTaskInstanceBody))
+    ] = None,
 ) -> TaskInstanceCollectionResponse:
     """Update a task instance dry_run mode."""
     tis: Sequence[TI]
@@ -1227,7 +1232,9 @@ def patch_task_instance(
     user: GetUserDep,
     session: SessionDep,
     map_index: int | None = None,
-    update_mask: list[str] | None = Query(None),
+    update_mask: Annotated[
+        list[str] | None, Depends(update_mask_param_factory(PatchTaskInstanceBody))
+    ] = None,
 ) -> TaskInstanceCollectionResponse:
     """Update a task instance."""
     dag, tis, data = _patch_ti_validate_request(
