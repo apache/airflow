@@ -16,12 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import importlib
 import logging
 import os
-from unittest import mock
+from io import StringIO
 
-import httpx
 import pytest
 
 from airflow.cli import cli_parser
@@ -162,39 +162,13 @@ class TestAirflowInfo:
         assert airflow_version in output
         assert "postgresql+psycopg2://p...s:PASSWORD@postgres/airflow" in output
 
-    @mock.patch.dict(os.environ, {"FORCE_COLOR": "1", "TERM": "xterm-256color"})
-    def test_render_text_stays_plain_on_a_color_terminal(self):
-        instance = info_command.AirflowInfo(info_command.NullAnonymizer())
+    def test_file_io_flag_is_rejected(self):
+        # --file-io uploaded the report to file.io, which stopped accepting anonymous
+        # uploads; the flag is gone rather than failing on every invocation. Pin the
+        # message, not just the exit code: argparse exits 2 for a missing subcommand too.
+        with contextlib.redirect_stderr(StringIO()) as stderr:
+            with pytest.raises(SystemExit) as exc_info:
+                self.parser.parse_args(["info", "--file-io"])
 
-        rendered = instance.render_text("table")
-
-        assert airflow_version in rendered
-        assert "\x1b[" not in rendered
-
-
-@pytest.fixture
-def setup_parser():
-    return cli_parser.get_parser()
-
-
-class TestInfoCommandMockHttpx:
-    @conf_vars(
-        {
-            ("database", "sql_alchemy_conn"): "postgresql+psycopg2://postgres:airflow@postgres/airflow",
-        }
-    )
-    def test_show_info_anonymize_fileio(self, setup_parser, cleanup_providers_manager, stdout_capture):
-        with mock.patch("airflow.cli.commands.info_command.httpx.post") as post:
-            post.return_value = httpx.Response(
-                status_code=200,
-                json={
-                    "success": True,
-                    "key": "f9U3zs3I",
-                    "link": "https://file.io/TEST",
-                    "expiry": "14 days",
-                },
-            )
-            with stdout_capture as stdout:
-                info_command.show_info(setup_parser.parse_args(["info", "--file-io", "--anonymize"]))
-            assert "https://file.io/TEST" in stdout.getvalue()
-            assert airflow_version in post.call_args.kwargs["content"]
+        assert exc_info.value.code == 2
+        assert "unrecognized arguments: --file-io" in stderr.getvalue()

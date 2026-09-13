@@ -28,9 +28,6 @@ from enum import Enum
 from typing import Protocol
 from urllib.parse import urlsplit, urlunsplit
 
-import httpx
-import tenacity
-
 from airflow import configuration
 from airflow.cli.simple_table import AirflowConsole
 from airflow.dag_processing.bundles.manager import DagBundlesManager
@@ -39,8 +36,6 @@ from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.platform import getuser
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.version import version as airflow_version
-
-log = logging.getLogger(__name__)
 
 
 class Anonymizer(Protocol):
@@ -311,7 +306,7 @@ class AirflowInfo:
     def _providers_info(self):
         return [(p.data["package-name"], p.version) for p in ProvidersManager().providers.values()]
 
-    def show(self, output: str, console: AirflowConsole | None = None) -> None:
+    def show(self, output: str) -> None:
         """Show information about Airflow instance."""
         all_info = {
             "Apache Airflow": self._airflow_info,
@@ -321,7 +316,7 @@ class AirflowInfo:
             "Providers info": self._providers_info,
         }
 
-        console = console or AirflowConsole(show_header=False)
+        console = AirflowConsole(show_header=False)
         if output in ("table", "plain"):
             # Show each info as table with key, value column
             for key, info in all_info.items():
@@ -333,58 +328,10 @@ class AirflowInfo:
                 data=[{k.lower().replace(" ", "_"): dict(v)} for k, v in all_info.items()], output=output
             )
 
-    def render_text(self, output: str) -> str:
-        """Export the info to string."""
-        # The text is uploaded as a file: no escape codes, fixed width regardless of the terminal.
-        console = AirflowConsole(color_system=None, width=200)
-        with console.capture() as capture:
-            self.show(output=output, console=console)
-        return capture.get()
-
-
-class FileIoException(Exception):
-    """Raises when error happens in FileIo.io integration."""
-
-
-@tenacity.retry(
-    stop=tenacity.stop_after_attempt(5),
-    wait=tenacity.wait_exponential(multiplier=1, max=10),
-    retry=tenacity.retry_if_exception_type(FileIoException),
-    before=tenacity.before_log(log, logging.DEBUG),
-    after=tenacity.after_log(log, logging.DEBUG),
-)
-def _upload_text_to_fileio(content):
-    """Upload text file to File.io service and return link."""
-    resp = httpx.post("https://file.io", content=content)
-    if resp.status_code not in [200, 201]:
-        print(resp.json())
-        raise FileIoException("Failed to send report to file.io service.")
-    try:
-        return resp.json()["link"]
-    except ValueError as e:
-        log.debug(e)
-        raise FileIoException("Failed to send report to file.io service.")
-
-
-def _send_report_to_fileio(info):
-    print("Uploading report to file.io service.")
-    try:
-        link = _upload_text_to_fileio(str(info))
-        print("Report uploaded.")
-        print(link)
-        print()
-    except FileIoException as ex:
-        print(str(ex))
-
 
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def show_info(args):
     """Show information related to Airflow, system and other."""
-    # Enforce anonymization, when file_io upload is tuned on.
-    anonymizer = PiiAnonymizer() if args.anonymize or args.file_io else NullAnonymizer()
-    info = AirflowInfo(anonymizer)
-    if args.file_io:
-        _send_report_to_fileio(info.render_text(args.output))
-    else:
-        info.show(args.output)
+    anonymizer = PiiAnonymizer() if args.anonymize else NullAnonymizer()
+    AirflowInfo(anonymizer).show(args.output)
