@@ -69,9 +69,9 @@ class LLMApprovalMixin:
     ``approval_notifiers`` are called once the review is open, so a reviewer
     learns about it without watching the Required Actions page, the way
     :class:`~airflow.providers.standard.operators.hitl.HITLOperator` does with
-    ``notifiers``.  The review ``subject`` and ``body`` are added to the
-    notifier context, and a notifier that raises is logged without failing
-    the task.
+    ``notifiers``.  The review ``subject`` and ``body`` are exposed as
+    ``{{ task.subject }}`` and ``{{ task.body }}`` in notifier templates, and
+    a notifier that raises is logged without failing the task.
 
     Operators that use this mixin must set the following attributes:
 
@@ -177,9 +177,11 @@ class LLMApprovalMixin:
             params=hitl_params,
         )
 
+        self.subject = subject
+        self.body = body
         for notifier in self.approval_notifiers:
             try:
-                notifier({**context, "subject": subject, "body": body})
+                notifier(context)
             except Exception:
                 log.exception("Approval notifier %s failed; the review stays open", notifier)
 

@@ -45,6 +45,19 @@ UTCNOW_PATH = "airflow.sdk.timezone.utcnow"
 AWAIT_INPUT_FLAG_PATH = "airflow.providers.common.ai.mixins.approval.AIRFLOW_V_3_3_PLUS"
 
 
+class RecordingNotifier(BaseNotifier):
+    template_fields: Sequence[str] = ("subject", "message")
+
+    def __init__(self, *, subject: str | None = None, message: str = "{{ task.subject }}: {{ task.body }}"):
+        super().__init__()
+        self.subject = subject
+        self.message = message
+        self.sent: list[str] = []
+
+    def notify(self, context):
+        self.sent.append(self.message)
+
+
 class FakeOperator(LLMApprovalMixin):
     """Minimal concrete class satisfying both mixin protocols."""
 
@@ -189,14 +202,23 @@ class TestDeferForApproval:
 
         op.defer_for_approval(context, "output")
 
-        notifier.assert_called_once_with(
-            {
-                **context,
-                "subject": "Review output for task `test_task`",
-                "body": "```\nPrompt: Summarize this\n\noutput\n```",
-            }
-        )
+        notifier.assert_called_once_with(context)
         assert [call[0] for call in order.mock_calls] == ["open_review", "notify"]
+
+    @patch(HITL_TRIGGER_PATH, autospec=True)
+    @patch(UPSERT_HITL_PATH)
+    def test_notifier_renders_review_subject_and_body_despite_own_template_fields(
+        self, mock_upsert, mock_trigger_cls, context
+    ):
+        notifier = RecordingNotifier()
+        op = FakeOperator(approval_notifiers=[notifier])
+        context["task"] = op
+
+        op.defer_for_approval(context, "output")
+
+        assert notifier.sent == [
+            "Review output for task `test_task`: ```\nPrompt: Summarize this\n\noutput\n```"
+        ]
 
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)
@@ -204,14 +226,16 @@ class TestDeferForApproval:
     def test_notifier_failure_does_not_stop_the_review(
         self, mock_log, mock_upsert, mock_trigger_cls, context
     ):
-        notifier = MagicMock(spec=BaseNotifier, side_effect=RuntimeError("smtp down"))
-        op = FakeOperator(approval_notifiers=[notifier])
+        failing = MagicMock(spec=BaseNotifier, side_effect=RuntimeError("smtp down"))
+        healthy = MagicMock(spec=BaseNotifier)
+        op = FakeOperator(approval_notifiers=[failing, healthy])
 
         op.defer_for_approval(context, "output")
 
         mock_log.exception.assert_called_once_with(
-            "Approval notifier %s failed; the review stays open", notifier
+            "Approval notifier %s failed; the review stays open", failing
         )
+        healthy.assert_called_once_with(context)
         op.defer.assert_called_once()
 
     @patch(HITL_TRIGGER_PATH, autospec=True)

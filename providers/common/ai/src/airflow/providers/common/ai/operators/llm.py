@@ -143,8 +143,13 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         self.approval_timeout = approval_timeout
         self.allow_modifications = allow_modifications
         self.approval_notifiers = (
-            [approval_notifiers] if isinstance(approval_notifiers, BaseNotifier) else approval_notifiers or []
+            [approval_notifiers]
+            if isinstance(approval_notifiers, BaseNotifier)
+            else list(approval_notifiers or [])
         )
+        for notifier in self.approval_notifiers:
+            if not isinstance(notifier, BaseNotifier):
+                raise TypeError(f"approval_notifiers must contain BaseNotifier instances, got {notifier!r}")
 
     @cached_property
     def llm_hook(self) -> PydanticAIHook:

@@ -200,6 +200,11 @@ class TestLLMOperatorApproval:
         op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", approval_notifiers=notifier)
         assert op.approval_notifiers == [notifier]
 
+    @pytest.mark.parametrize("notifiers", ["not-a-notifier", [object()]])
+    def test_rejects_non_notifier_approval_notifiers(self, notifiers):
+        with pytest.raises(TypeError, match="approval_notifiers must contain BaseNotifier"):
+            LLMOperator(task_id="t", prompt="p", llm_conn_id="c", approval_notifiers=notifiers)
+
     @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
     @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)

@@ -210,8 +210,8 @@ A pending review is not surfaced as a notification.  Pass
 notifier (Slack, email, ...), the way
 :class:`~airflow.providers.standard.operators.hitl.HITLOperator` does with
 ``notifiers``.  The notifiers run once the review is open and can reference
-the review ``{{ subject }}`` and ``{{ body }}`` in their templates.  A
-notifier that raises is logged and the task still waits for the review.
+the review ``{{ task.subject }}`` and ``{{ task.body }}`` in their templates.
+A notifier that raises is logged and the task still waits for the review.
 
 Parameters
 ----------
