@@ -1358,6 +1358,23 @@ def test_template_body_templating(create_task_instance_of_operator, session):
 
 
 @pytest.mark.db_test
+def test_application_arguments_templating(create_task_instance_of_operator, session):
+    ti = create_task_instance_of_operator(
+        SparkKubernetesOperator,
+        template_spec={"spec": {}},
+        application_arguments=["{{ ds }}", "static-arg"],
+        kubernetes_conn_id="kubernetes_default_kube_config",
+        dag_id="test_application_arguments_templating_dag",
+        task_id="test_application_arguments_templating_task",
+        session=session,
+    )
+    session.add(ti)
+    session.commit()
+    task = ti.render_templates()
+    assert task.application_arguments == ["2016-01-01", "static-arg"]
+
+
+@pytest.mark.db_test
 def test_resolve_application_file_template_file(create_task_instance_of_operator, tmp_path, session):
     filename = "test-application-file.yml"
     (tmp_path / filename).write_text("foo: {{ ds }}\nbar: {{ dag_run.dag_id }}\nspam: egg")
@@ -1651,3 +1668,77 @@ class TestSparkKubernetesLifecycle:
             app_name_envs = [e for e in env if e["name"] == "SPARK_APPLICATION_NAME"]
             assert len(app_name_envs) == 1  # not duplicated
             assert app_name_envs[0]["value"] == "user-defined"
+
+    @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator.client")
+    def test_application_arguments_merged_into_spec(self, mock_client):
+        op = SparkKubernetesOperator(
+            task_id="test_task",
+            namespace="default",
+            template_spec={
+                "apiVersion": "sparkoperator.k8s.io/v1beta2",
+                "kind": "SparkApplication",
+                "spec": {
+                    "driver": {},
+                    "executor": {},
+                },
+            },
+            application_arguments=["--input", "s3://bucket/data"],
+            reattach_on_restart=False,
+        )
+        op.name = "my-spark-app-abc123"
+
+        with mock.patch.object(op, "get_or_create_spark_crd", return_value=mock.MagicMock()):
+            op._setup_spark_configuration(mock.MagicMock())
+
+        assert op.launcher.body["spec"]["arguments"] == ["--input", "s3://bucket/data"]
+
+    @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator.client")
+    def test_application_arguments_override_existing_spec_arguments(self, mock_client):
+        op = SparkKubernetesOperator(
+            task_id="test_task",
+            namespace="default",
+            template_spec={
+                "apiVersion": "sparkoperator.k8s.io/v1beta2",
+                "kind": "SparkApplication",
+                "spec": {
+                    "arguments": ["--from-template"],
+                    "driver": {},
+                    "executor": {},
+                },
+            },
+            application_arguments=["--from-operator"],
+            reattach_on_restart=False,
+        )
+        op.name = "my-spark-app-abc123"
+
+        with mock.patch.object(op, "get_or_create_spark_crd", return_value=mock.MagicMock()):
+            op._setup_spark_configuration(mock.MagicMock())
+
+        assert op.launcher.body["spec"]["arguments"] == ["--from-operator"]
+
+    @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator.client")
+    def test_application_arguments_do_not_shadow_container_arguments(self, mock_client):
+        """application_arguments (spec.arguments) must stay independent of the inherited
+        KubernetesPodOperator `arguments` param (driver container entrypoint args)."""
+        op = SparkKubernetesOperator(
+            task_id="test_task",
+            namespace="default",
+            template_spec={
+                "apiVersion": "sparkoperator.k8s.io/v1beta2",
+                "kind": "SparkApplication",
+                "spec": {
+                    "driver": {},
+                    "executor": {},
+                },
+            },
+            arguments=["--container-arg"],
+            application_arguments=["--spec-arg"],
+            reattach_on_restart=False,
+        )
+        op.name = "my-spark-app-abc123"
+
+        with mock.patch.object(op, "get_or_create_spark_crd", return_value=mock.MagicMock()):
+            op._setup_spark_configuration(mock.MagicMock())
+
+        assert op.arguments == ["--container-arg"]
+        assert op.launcher.body["spec"]["arguments"] == ["--spec-arg"]
