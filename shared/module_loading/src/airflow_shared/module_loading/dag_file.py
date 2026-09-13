@@ -34,6 +34,9 @@ if TYPE_CHECKING:
     class _MightContainDagCallable(Protocol):
         def __call__(self, file_path: str, zip_file: zipfile.ZipFile | None = None) -> bool: ...
 
+    class _ConfLike(Protocol):
+        def getimport(self, section: str, key: str, **kwargs: Any) -> Any: ...
+
 
 def get_unique_dag_module_name(file_path: str) -> str:
     """Return a unique module name in the format unusual_prefix_{sha1 of module's file path}_{original module name}."""
@@ -71,7 +74,7 @@ def might_contain_dag(
     safe_mode: bool,
     zip_file: zipfile.ZipFile | None = None,
     *,
-    conf: Any | None = None,
+    conf: _ConfLike,
 ) -> bool:
     """
     Check whether a Python file contains Airflow DAGs.
@@ -84,51 +87,19 @@ def might_contain_dag(
         return True
 
     might_contain_dag_callable: _MightContainDagCallable | None = None
-    if conf is None:
-        try:
-            import importlib
-            import sys
+    try:
+        might_contain_dag_callable = conf.getimport(
+            "core",
+            "might_contain_dag_callable",
+            fallback=None,
+        )
+    except Exception as e:
+        import logging
 
-            target_module = "airflow.configuration"
-            frame = sys._getframe().f_back
-            while frame:
-                caller_name = frame.f_globals.get("__name__", "")
-                if caller_name.startswith(("airflow.sdk", "task_sdk")):
-                    target_module = "airflow.sdk.configuration"
-                    break
-                if caller_name.startswith("airflow") and not caller_name.startswith("airflow_shared"):
-                    target_module = "airflow.configuration"
-                    break
-                frame = frame.f_back
-
-            try:
-                config_module = importlib.import_module(target_module)
-            except ImportError:
-                alt_module = (
-                    "airflow.sdk.configuration"
-                    if target_module == "airflow.configuration"
-                    else "airflow.configuration"
-                )
-                config_module = importlib.import_module(alt_module)
-
-            conf = config_module.conf
-        except Exception:
-            conf = None
-
-    if conf is not None:
-        try:
-            might_contain_dag_callable = conf.getimport(
-                "core",
-                "might_contain_dag_callable",
-                fallback=None,
-            )
-        except Exception as e:
-            import logging
-
-            logging.getLogger(__name__).warning(
-                "Failed to load might_contain_dag_callable from config, falling back to default heuristic: %s",
-                e,
-            )
+        logging.getLogger(__name__).warning(
+            "Failed to load might_contain_dag_callable from config, falling back to default heuristic: %s",
+            e,
+        )
 
     if might_contain_dag_callable is None:
         might_contain_dag_callable = might_contain_dag_via_default_heuristic

@@ -111,7 +111,7 @@ def find_dag_file_paths(directory: str | os.PathLike[str], safe_mode: bool) -> l
         path = Path(file_path)
         try:
             if path.is_file() and (path.suffix == ".py" or zipfile.is_zipfile(path)):
-                if might_contain_dag(file_path, safe_mode):
+                if might_contain_dag(file_path, safe_mode, conf=conf):
                     file_paths.append(file_path)
         except Exception:
             log.exception("Error while examining %s", file_path)

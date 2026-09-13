@@ -164,7 +164,7 @@ class PythonDagImporter(AbstractDagImporter):
         """Check whether a file might contain Airflow DAGs according to safe mode heuristics."""
         if not safe_mode:
             return True
-        return might_contain_dag(str(file_path), safe_mode)
+        return might_contain_dag(str(file_path), safe_mode, conf=conf)
 
     def _load_modules_from_file(
         self,

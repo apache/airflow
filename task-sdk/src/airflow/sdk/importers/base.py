@@ -249,7 +249,7 @@ def find_file_dag_definitions(
         if path.suffix.lower() not in supported_exts:
             continue
 
-        if safe_mode and not might_contain_dag(str(path), safe_mode):
+        if safe_mode and not might_contain_dag(str(path), safe_mode, conf=conf):
             continue
         yield FileDagDefinition(path=path)
 
