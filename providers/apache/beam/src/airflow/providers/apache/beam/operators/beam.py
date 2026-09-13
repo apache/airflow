@@ -23,6 +23,7 @@ import copy
 import os
 import stat
 import tempfile
+import time
 from abc import ABC, ABCMeta, abstractmethod
 from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -45,6 +46,7 @@ from airflow.version import version
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
 GOOGLE_PROVIDER = ProvidersManager().providers.get("apache-airflow-providers-google")
+_DATAFLOW_JOB_ID_LOOKUP_INTERVAL: float = 5.0
 
 
 if GOOGLE_PROVIDER:
@@ -102,7 +104,7 @@ class BeamDataflowMixin(metaclass=ABCMeta):
             pipeline_options, dataflow_job_name, job_name_variable_key
         )
         process_line_callback = self.__get_dataflow_process_callback()
-        is_dataflow_job_id_exist_callback = self.__is_dataflow_job_id_exist_callback()
+        is_dataflow_job_id_exist_callback = self.__get_dataflow_job_id_callback(dataflow_job_name)
         return dataflow_job_name, pipeline_options, process_line_callback, is_dataflow_job_id_exist_callback
 
     def __set_dataflow_hook(self) -> DataflowHook:
@@ -152,11 +154,33 @@ class BeamDataflowMixin(metaclass=ABCMeta):
             on_new_job_id_callback=set_current_dataflow_job_id
         )
 
-    def __is_dataflow_job_id_exist_callback(self) -> Callable[[], bool]:
-        def is_dataflow_job_id_exist() -> bool:
-            return True if self.dataflow_job_id else False
+    def __get_dataflow_job_id_callback(self, dataflow_job_name: str) -> Callable[[], bool]:
+        last_dataflow_job_id_lookup = -_DATAFLOW_JOB_ID_LOOKUP_INTERVAL
 
-        return is_dataflow_job_id_exist
+        def try_resolve_dataflow_job_id() -> bool:
+            nonlocal last_dataflow_job_id_lookup
+
+            if self.dataflow_job_id:
+                return True
+            if not self.dataflow_hook:
+                return False
+
+            now = time.monotonic()
+            if now - last_dataflow_job_id_lookup < _DATAFLOW_JOB_ID_LOOKUP_INTERVAL:
+                return False
+            last_dataflow_job_id_lookup = now
+
+            job_id = self.dataflow_hook.fetch_job_id_by_name(
+                prefix_name=dataflow_job_name,
+                project_id=self.dataflow_config.project_id,
+                location=self.dataflow_config.location or DEFAULT_DATAFLOW_LOCATION,
+            )
+            if job_id:
+                self.dataflow_job_id = job_id
+                return True
+            return False
+
+        return try_resolve_dataflow_job_id
 
 
 class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
@@ -467,7 +491,7 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
             project_id=self.dataflow_config.project_id,
         )
 
-        if self.deferrable:
+        if self.deferrable and self.dataflow_job_id:
             trigger_args = {
                 "job_id": self.dataflow_job_id,
                 "project_id": self.dataflow_config.project_id,
@@ -661,7 +685,7 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
                     job_id=self.dataflow_job_id,
                     project_id=self.dataflow_config.project_id,
                 )
-                if self.deferrable:
+                if self.deferrable and self.dataflow_job_id:
                     trigger_args = {
                         "job_id": self.dataflow_job_id,
                         "project_id": self.dataflow_config.project_id,

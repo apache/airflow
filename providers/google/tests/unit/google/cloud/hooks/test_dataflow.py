@@ -251,6 +251,25 @@ class TestDataflowHook:
 
     @mock.patch(DATAFLOW_STRING.format("_DataflowJobsController"))
     @mock.patch(DATAFLOW_STRING.format("DataflowHook.get_conn"))
+    def test_fetch_job_id_by_name(self, mock_conn, mock_dataflowjob):
+        method_fetch_job_id_by_name = mock_dataflowjob.return_value.fetch_job_id_by_name
+        method_fetch_job_id_by_name.return_value = TEST_JOB_ID
+
+        result = self.dataflow_hook.fetch_job_id_by_name(
+            prefix_name=JOB_NAME.upper(), project_id=TEST_PROJECT_ID, location=TEST_LOCATION
+        )
+
+        assert result == TEST_JOB_ID
+        mock_conn.assert_called_once()
+        mock_dataflowjob.assert_called_once_with(
+            dataflow=mock_conn.return_value,
+            project_number=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+        )
+        method_fetch_job_id_by_name.assert_called_once_with(JOB_NAME)
+
+    @mock.patch(DATAFLOW_STRING.format("_DataflowJobsController"))
+    @mock.patch(DATAFLOW_STRING.format("DataflowHook.get_conn"))
     def test_fetch_job_metrics_by_id(self, mock_conn, mock_dataflowjob):
         method_fetch_job_metrics_by_id = mock_dataflowjob.return_value.fetch_job_metrics_by_id
 
@@ -702,6 +721,30 @@ class TestDataflowJob:
         ).get_jobs()
 
         mock_list.assert_called_once_with(projectId=TEST_PROJECT, location=TEST_LOCATION)
+
+    @pytest.mark.parametrize(
+        ("jobs", "expected_job_id"),
+        [
+            pytest.param([], None, id="no-matches"),
+            pytest.param([{"id": TEST_JOB_ID, "name": UNIQUE_JOB_NAME}], TEST_JOB_ID, id="single-match"),
+            pytest.param(
+                [
+                    {"id": TEST_JOB_ID, "name": UNIQUE_JOB_NAME},
+                    {"id": "other-job-id", "name": f"{UNIQUE_JOB_NAME}-extra"},
+                ],
+                None,
+                id="multiple-matches",
+            ),
+        ],
+    )
+    def test_fetch_job_id_by_name_returns_unique_match(self, jobs, expected_job_id):
+        dataflow_job = _DataflowJobsController(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            location=TEST_LOCATION,
+        )
+        with mock.patch.object(dataflow_job, "_fetch_all_jobs", return_value=jobs):
+            assert dataflow_job.fetch_job_id_by_name(UNIQUE_JOB_NAME) == expected_job_id
 
     def test_dataflow_job_wait_for_multiple_jobs(self):
         job = {

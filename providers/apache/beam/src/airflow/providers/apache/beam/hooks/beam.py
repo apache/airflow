@@ -125,6 +125,7 @@ def process_fd(
     log: Logger,
     process_line_callback: Callable[[str], None] | None = None,
     is_dataflow_job_id_exist_callback: Callable[[], bool] | None = None,
+    drain: bool = False,
 ):
     """
     Print output to logs.
@@ -134,6 +135,7 @@ def process_fd(
     :param process_line_callback: Optional callback which can be used to process
         stdout and stderr to detect job id.
     :param log: logger.
+    :param drain: Whether to read until EOF instead of returning after one line.
     """
     if fd not in (proc.stdout, proc.stderr):
         raise AirflowException("No data in stderr or in stdout.")
@@ -147,6 +149,8 @@ def process_fd(
             process_line_callback(line)
         func_log(line.rstrip("\n"))
         if is_dataflow_job_id_exist_callback and is_dataflow_job_id_exist_callback():
+            return
+        if not drain:
             return
 
 
@@ -191,17 +195,30 @@ def run_beam_command(
             if is_dataflow_job_id_exist_callback and is_dataflow_job_id_exist_callback():
                 return
 
+        if is_dataflow_job_id_exist_callback and is_dataflow_job_id_exist_callback():
+            return
+
         if proc.poll() is not None:
             break
 
     # Corner case: check if more output was created between the last read and the process termination
     for readable_fd in reads:
-        process_fd(proc, readable_fd, log, process_line_callback, is_dataflow_job_id_exist_callback)
+        process_fd(
+            proc,
+            readable_fd,
+            log,
+            process_line_callback,
+            is_dataflow_job_id_exist_callback,
+            drain=True,
+        )
 
     log.info("Process exited with return code: %s", proc.returncode)
 
     if proc.returncode != 0:
         raise AirflowException(f"Apache Beam process failed with return code {proc.returncode}")
+
+    if is_dataflow_job_id_exist_callback:
+        is_dataflow_job_id_exist_callback()
 
 
 class BeamHook(BaseHook):
