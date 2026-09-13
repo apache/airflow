@@ -109,7 +109,6 @@ def make_indexed_ti():
             state=TaskInstanceState.SCHEDULED,
             is_mapped=True,
             task=operator,
-            xcom_pushed=False,
             dag_version_id=uuid7(),
             end_date=end_date,
             start_date=start_date,

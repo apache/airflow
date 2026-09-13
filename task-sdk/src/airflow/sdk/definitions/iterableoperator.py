@@ -652,7 +652,6 @@ class IterableOperator(BaseOperator):
             is_mapped=True,
             task=operator,
             try_number=try_number,
-            xcom_pushed=False,
         )
 
     def execute(self, context: Context):
