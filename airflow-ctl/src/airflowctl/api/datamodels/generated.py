@@ -1533,6 +1533,19 @@ class BulkCreateActionVariableBody(BaseModel):
     action_on_existence: BulkActionOnExistence | None = "fail"
 
 
+class BulkDAGBody(BaseModel):
+    """
+    Request body for bulk update of Dags.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    is_paused: Annotated[bool | None, Field(title="Is Paused")] = None
+    scheduling_state: DagSchedulingState | None = None
+    dag_id: Annotated[str, Field(title="Dag Id")]
+
+
 class BulkDAGRunBody(BaseModel):
     """
     Request body for bulk operations on Dag Runs.
@@ -1594,6 +1607,20 @@ class BulkDAGRunClearBody(BaseModel):
     ] = None
     note: Annotated[Note | None, Field(title="Note")] = None
     dag_runs: Annotated[list[BulkDAGRunBody] | None, Field(title="Dag Runs")] = None
+
+
+class BulkDeleteActionBulkDAGBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    action: Annotated[
+        Literal["delete"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
+    entities: Annotated[
+        list[str | BulkDAGBody],
+        Field(description="A list of entity id/key or entity objects to be deleted.", title="Entities"),
+    ]
+    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
 
 
 class BulkDeleteActionBulkDAGRunBody(BaseModel):
@@ -1670,6 +1697,26 @@ class BulkTaskInstanceBody(BaseModel):
     map_index: Annotated[int | None, Field(title="Map Index")] = None
     dag_id: Annotated[str | None, Field(title="Dag Id")] = None
     dag_run_id: Annotated[str | None, Field(title="Dag Run Id")] = None
+
+
+class BulkUpdateActionBulkDAGBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    action: Annotated[
+        Literal["update"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
+    entities: Annotated[
+        list[BulkDAGBody], Field(description="A list of entities to be updated.", title="Entities")
+    ]
+    update_mask: Annotated[
+        list[str] | None,
+        Field(
+            description="A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.",
+            title="Update Mask",
+        ),
+    ] = None
+    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
 
 
 class BulkUpdateActionBulkDAGRunBody(BaseModel):
@@ -2365,6 +2412,19 @@ class BulkBodyVariableBody(BaseModel):
     ]
 
 
+class BulkCreateActionBulkDAGBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    action: Annotated[
+        Literal["create"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
+    entities: Annotated[
+        list[BulkDAGBody], Field(description="A list of entities to be created.", title="Entities")
+    ]
+    action_on_existence: BulkActionOnExistence | None = "fail"
+
+
 class BulkCreateActionBulkDAGRunBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -2614,6 +2674,16 @@ class TaskInstanceHistoryCollectionResponse(BaseModel):
 
     task_instances: Annotated[list[TaskInstanceHistoryResponse], Field(title="Task Instances")]
     total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class BulkBodyBulkDAGBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    actions: Annotated[
+        list[BulkCreateActionBulkDAGBody | BulkUpdateActionBulkDAGBody | BulkDeleteActionBulkDAGBody],
+        Field(title="Actions"),
+    ]
 
 
 class BulkBodyBulkDAGRunBody(BaseModel):

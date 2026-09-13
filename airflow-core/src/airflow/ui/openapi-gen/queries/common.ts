@@ -1169,6 +1169,7 @@ export type DagRunServicePatchDagRunMutationResult = Awaited<ReturnType<typeof D
 export type DagRunServiceBulkDagRunsMutationResult = Awaited<ReturnType<typeof DagRunService.bulkDagRuns>>;
 export type DagServicePatchDagsMutationResult = Awaited<ReturnType<typeof DagService.patchDags>>;
 export type DagServicePatchDagMutationResult = Awaited<ReturnType<typeof DagService.patchDag>>;
+export type DagServiceBulkDagsMutationResult = Awaited<ReturnType<typeof DagService.bulkDags>>;
 export type TaskInstanceServicePatchTaskInstanceMutationResult = Awaited<ReturnType<typeof TaskInstanceService.patchTaskInstance>>;
 export type TaskInstanceServicePatchTaskInstanceByMapIndexMutationResult = Awaited<ReturnType<typeof TaskInstanceService.patchTaskInstanceByMapIndex>>;
 export type TaskInstanceServiceBulkTaskInstancesMutationResult = Awaited<ReturnType<typeof TaskInstanceService.bulkTaskInstances>>;
