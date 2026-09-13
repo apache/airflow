@@ -19,7 +19,18 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.utils.strings import to_boolean
+from airflow.utils.strings import get_random_string, to_boolean
+
+
+def test_get_random_string_uses_requested_length_and_choices() -> None:
+    assert get_random_string(length=3, choices="a") == "aaa"
+
+
+def test_get_random_string_defaults_to_eight_alphanumeric_characters() -> None:
+    value = get_random_string()
+
+    assert len(value) == 8
+    assert value.isalnum()
 
 
 @pytest.mark.parametrize(
@@ -35,3 +46,7 @@ from airflow.utils.strings import to_boolean
 )
 def test_to_boolean_strips_whitespace(input_string: str, expected_result: bool) -> None:
     assert to_boolean(input_string) is expected_result
+
+
+def test_to_boolean_returns_false_for_none() -> None:
+    assert to_boolean(None) is False
