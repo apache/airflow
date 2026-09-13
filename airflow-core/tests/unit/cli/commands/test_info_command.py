@@ -34,8 +34,6 @@ from airflow.version import version as airflow_version
 
 from tests_common.test_utils.config import conf_vars
 
-REAL_UNAME = platform.uname()
-
 
 class TestPiiAnonymizer:
     def setup_method(self) -> None:
@@ -122,9 +120,15 @@ class TestAirflowInfo:
         expected = {"uname", "architecture", "OS", "python_location", "locale", "python_version"}
         assert self.unique_items(instance._system_info) == expected
 
+    @staticmethod
+    def _fake_uname(node: str):
+        return platform.uname_result(
+            system="Linux", node=node, release="6.1.0", version="#1 SMP", machine="x86_64"
+        )
+
     @mock.patch("airflow.cli.commands.info_command.platform.uname")
     def test_system_info_anonymizes_uname_hostname(self, mock_uname):
-        mock_uname.return_value = REAL_UNAME._replace(node="test-hostname")
+        mock_uname.return_value = self._fake_uname("test-hostname")
         instance = info_command.AirflowInfo(info_command.PiiAnonymizer())
         system_info = dict(instance._system_info)
         assert "test-hostname" not in system_info["uname"]
@@ -132,7 +136,7 @@ class TestAirflowInfo:
 
     @mock.patch("airflow.cli.commands.info_command.platform.uname")
     def test_system_info_keeps_uname_hostname_without_anonymizer(self, mock_uname):
-        mock_uname.return_value = REAL_UNAME._replace(node="test-hostname")
+        mock_uname.return_value = self._fake_uname("test-hostname")
         instance = info_command.AirflowInfo(info_command.NullAnonymizer())
         system_info = dict(instance._system_info)
         assert "node='test-hostname'" in system_info["uname"]
