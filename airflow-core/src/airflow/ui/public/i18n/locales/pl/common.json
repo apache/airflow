@@ -147,6 +147,7 @@
   },
   "filter": "Filtr",
   "filters": {
+    "date": "Data",
     "durationFrom": "Czas trwania od",
     "durationTo": "Czas trwania do",
     "endTime": "Czas zakończenia",
@@ -156,12 +157,15 @@
     "runAfterTo": "Uruchom po (do)",
     "searchAsset": "Szukaj zasobu",
     "selectDateRange": "Wybierz zakres dat",
-    "startTime": "Czas rozpoczęcia"
+    "selectDateTime": "Wybierz datę i godzinę",
+    "startTime": "Czas rozpoczęcia",
+    "time": "Godzina"
   },
   "fullscreen": {
     "tooltip": "Naciśnij {{hotkey}}, aby przejść na pełny ekran"
   },
   "generateToken": "Wygeneruj token",
+  "includedIn": "Zawarte w",
   "key": "Klucz",
   "logicalDate": "Data logiczna",
   "logout": "Wyloguj",
@@ -298,7 +302,7 @@
   "state": "Stan",
   "states": {
     "awaiting_input": "Oczekuje na dane wejściowe",
-    "deferred": "Odłożone",
+    "deferred": "Odroczone",
     "failed": "Niepowodzenie",
     "no_status": "Brak stanu",
     "none": "Brak stanu",

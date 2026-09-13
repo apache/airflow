@@ -59,7 +59,7 @@ export const useDags = ({
   tags?: Array<string>;
   tagsMatchMode?: "all" | "any";
 }) => {
-  const refetchInterval = useAutoRefresh({});
+  const refetchInterval = useAutoRefresh({ checkPendingRuns: true });
 
   const { data, error, isFetching, isLoading } = useDagServiceGetDagsUi(
     {
@@ -83,11 +83,13 @@ export const useDags = ({
     undefined,
     {
       refetchInterval: (query) =>
-        query.state.data?.dags.some(
-          (dag) => !dag.is_paused && dag.latest_dag_runs.some((dr) => isStatePending(dr.state)),
-        )
-          ? refetchInterval
-          : false,
+        refetchInterval === false
+          ? false
+          : query.state.data?.dags.some(
+                (dag) => !dag.is_paused && dag.latest_dag_runs.some((dr) => isStatePending(dr.state)),
+              )
+            ? refetchInterval
+            : refetchInterval * 10,
     },
   );
 

@@ -292,8 +292,10 @@ This command will provide detailed logs and execute your bash command.
 Keep in mind that the ``airflow tasks test`` command runs task instances locally, outputs their logs to stdout, and
 doesn't track state in the database. This is a handy way to test individual task instances.
 
-Similarly, ``airflow dags test`` runs a single Dag run without registering any state in the database, which is useful
-for testing your entire Dag locally.
+Similarly, ``airflow dags test`` runs a single Dag run locally, which is useful for testing your entire Dag. Unlike
+``airflow tasks test``, it creates a real Dag run and records task state in the metadata database, so it needs an
+initialized database and a Dag that Airflow can serialize from your Dags folder. See
+:ref:`Testing Dags with dag.test() <concepts:debugging>`.
 
 What's Next?
 -------------

@@ -303,8 +303,8 @@ if CI:
         print("No files to test. Quitting")
         sys.exit(0)
 
-    write_file_list(all_files_to_check)
-    file_argument_ci = "@/files/mypy_files.txt"
+    mypy_file_list = write_file_list(all_files_to_check, suffix=mypy_folders[0].replace("/", "-"))
+    file_argument_ci = f"@/files/{mypy_file_list.name}"
 
     mypy_cmd = (
         f"TERM=ansi mypy --follow-imports=silent {shlex.quote(file_argument_ci)} {' '.join(mypy_extra_args)}"

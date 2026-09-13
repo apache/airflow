@@ -36,7 +36,7 @@ from pydantic import JsonValue
 from sqlalchemy import and_, func, or_, tuple_, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import DataError, NoResultFound, SQLAlchemyError
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import contains_eager, joinedload
 from sqlalchemy.sql import select
 from structlog.contextvars import bind_contextvars
 
@@ -214,11 +214,6 @@ def ti_run(
             previous_state=previous_state,
         )
 
-        # TODO: Pass a RFC 9457 compliant error message in "detail" field
-        # https://datatracker.ietf.org/doc/html/rfc9457
-        # to provide more information about the error
-        # FastAPI will automatically convert this to a JSON response
-        # This might be added in FastAPI in https://github.com/fastapi/fastapi/issues/10370
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
@@ -270,7 +265,13 @@ def ti_run(
 
         if not dr:
             log.error("DagRun not found", dag_id=ti.dag_id, run_id=ti.run_id)
-            raise ValueError(f"DagRun with dag_id={ti.dag_id} and run_id={ti.run_id} not found.")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "reason": "not_found",
+                    "message": f"DagRun with dag_id={ti.dag_id} and run_id={ti.run_id} not found",
+                },
+            )
 
         # Send the keys to the SDK so that the client requests to clear those XComs from the server.
         # The reason we cannot do this here in the server is because we need to issue a purge on custom XCom backends
@@ -1193,7 +1194,7 @@ def get_previous_task_instance(
     query = (
         select(TI)
         .join(DR, (TI.dag_id == DR.dag_id) & (TI.run_id == DR.run_id))
-        .options(joinedload(TI.dag_run))
+        .options(contains_eager(TI.dag_run).load_only(DR.logical_date))
         .where(TI.dag_id == dag_id, TI.task_id == task_id, TI.map_index == map_index)
         .order_by(DR.logical_date.desc())
     )
@@ -1205,7 +1206,7 @@ def get_previous_task_instance(
     if state:
         query = query.where(TI.state == state)
 
-    ti = session.scalars(query).first()
+    ti = session.scalars(query.limit(1)).first()
 
     if not ti:
         return None

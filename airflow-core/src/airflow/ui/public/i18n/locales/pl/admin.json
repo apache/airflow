@@ -116,20 +116,20 @@
   },
   "pools": {
     "add": "Dodaj pulę",
-    "deferredSlotsIncluded": "Uwzględniono odroczone miejsca",
+    "deferredSlotsIncluded": "Uwzględniono odroczone sloty",
     "delete": {
       "title": "Usuń pulę",
       "warning": "To usunie wszystkie metadane związane z pulą i może wpłynąć na zadania korzystające z tej puli."
     },
     "edit": "Edytuj pulę",
     "form": {
-      "checkbox": "Zaznacz, aby uwzględnić zadania odroczone przy obliczaniu wolnych miejsc w puli",
+      "checkbox": "Zaznacz, aby uwzględnić zadania odroczone przy obliczaniu wolnych slotów w puli",
       "description": "Opis",
       "includeDeferred": "Uwzględnij odroczone",
       "nameMaxLength": "Nazwa może zawierać maksymalnie 256 znaków",
       "nameRequired": "Nazwa jest wymagana",
-      "slots": "Miejsca",
-      "slotsHelperText": "Użyj -1 dla nieograniczonej liczby miejsc."
+      "slots": "Sloty",
+      "slotsHelperText": "Użyj -1 dla nieograniczonej liczby slotów."
     },
     "noPoolsFound": "Nie znaleziono pul",
     "pool_few": "Pule",

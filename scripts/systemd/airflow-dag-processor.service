@@ -15,12 +15,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
 
+[Unit]
+Description=Airflow Dag processor daemon
+After=network.target postgresql.service mysql.service redis.service rabbitmq-server.service
+Wants=postgresql.service mysql.service redis.service rabbitmq-server.service
 
-def action_event_from_permission(prefix: str, permission: str) -> str:
-    if permission.startswith("can_"):
-        permission = permission[4:]
-    if prefix:
-        return f"{prefix}.{permission}"
-    return permission
+[Service]
+EnvironmentFile=/etc/sysconfig/airflow
+User=airflow
+Group=airflow
+Type=simple
+ExecStart=/bin/bash -c 'source /home/airflow/airflow_venv/bin/activate && airflow dag-processor'
+Restart=always
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

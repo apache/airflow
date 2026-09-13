@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from abc import ABC
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -42,11 +43,11 @@ class BaseDeadlineReference(ABC):
     """
     Base class for all Deadline Reference implementations.
 
-    This is a lightweight SDK class for DAG authoring. It only handles serialization.
-    The actual evaluation logic (_evaluate_with) is in Core's SerializedReferenceModels.
+    This is a lightweight SDK class for Dag authoring. It only handles serialization.
+    The actual evaluation logic (``_evaluate_with``) is in Core's ``SerializedReferenceModels``.
 
     For custom deadline references, users should inherit from this class and implement
-    _evaluate_with() with deferred Core imports (imports inside the method body).
+    ``_evaluate_with()`` with deferred Core imports (imports inside the method body).
     """
 
     @property
@@ -419,6 +420,13 @@ class VariableInterval:
     key: str
 
     def resolve(self) -> timedelta:
+        warnings.warn(
+            "VariableInterval.resolve() is deprecated and will be removed in a future release. "
+            "Deadline interval resolution is handled internally during deadline evaluation.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         try:
             value = Variable.get(self.key)
         except AirflowRuntimeError as e:
@@ -430,8 +438,5 @@ class VariableInterval:
             raise ValueError(
                 f"VariableInterval '{self.key}' must be an integer (seconds), got: {value!r}"
             ) from e
-
-        if seconds <= 0:
-            raise ValueError(f"VariableInterval '{self.key}' must be > 0, got: {seconds}")
 
         return timedelta(seconds=seconds)

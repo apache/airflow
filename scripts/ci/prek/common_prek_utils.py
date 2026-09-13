@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import abc
 import ast
 import difflib
 import os
@@ -26,7 +27,7 @@ import subprocess
 import sys
 import textwrap
 import time
-from collections.abc import Callable, Generator
+from collections.abc import Callable, Generator, Iterable
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import NamedTemporaryFile, _TemporaryFileWrapper
@@ -39,9 +40,6 @@ AIRFLOW_BREEZE_SOURCES_PATH = AIRFLOW_ROOT_PATH / "dev" / "breeze"
 AIRFLOW_PROVIDERS_ROOT_PATH = AIRFLOW_ROOT_PATH / "providers"
 AIRFLOW_TASK_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "task-sdk"
 AIRFLOW_TASK_SDK_SOURCES_PATH = AIRFLOW_TASK_SDK_ROOT_PATH / "src"
-
-# Here we should add the second level paths that we want to have sub-packages in
-KNOWN_SECOND_LEVEL_PATHS = ["apache", "atlassian", "common", "cncf", "dbt", "ibm", "microsoft"]
 
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.10"
 
@@ -58,10 +56,12 @@ GITHUB_TOKEN_ENV_VARS = ("GH_TOKEN", "GITHUB_TOKEN")
 
 try:
     from rich.console import Console
+    from rich.panel import Panel
 
     console = Console(width=400, color_system="standard")
 except ImportError:
     console = None  # type: ignore[assignment]
+    Panel = None  # type: ignore[assignment,misc]
 
 
 @contextmanager
@@ -340,6 +340,59 @@ def check_uv_version(uv_bin: str = "uv") -> None:
         sys.exit(1)
 
 
+BREEZE_SHIM_MARKER = "Apache Airflow breeze shim — managed by scripts/tools/setup_breeze"
+BREEZE_SHIM_VERSION_PREFIX = "# breeze-shim-version:"
+SETUP_BREEZE_SHIM_VERSION_PREFIX = "SHIM_VERSION="
+SETUP_BREEZE_PATH = AIRFLOW_ROOT_PATH / "scripts" / "tools" / "setup_breeze"
+BREEZE_LOCKED_VENV_PATH = AIRFLOW_BREEZE_SOURCES_PATH / ".venv"
+
+
+def _read_shim_version(text: str, prefix: str) -> int | None:
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith(prefix):
+            try:
+                return int(stripped[len(prefix) :].strip().strip("\"'"))
+            except ValueError:
+                return None
+    return None
+
+
+def describe_breeze_not_running_from_lock() -> str | None:
+    """Describe why the ``breeze`` on PATH does not run from ``dev/breeze/uv.lock``.
+
+    Only the current shim (which dispatches to ``uv run --locked``) and the locked venv CI
+    syncs run the versions the lock pins. An older shim and a legacy ``uv tool`` / ``pipx``
+    install both resolve breeze's dependencies against the index instead, so anything derived
+    from them — command hashes above all — reflects whatever the index served that day.
+
+    :return: a description of the offending install, or None when breeze runs from the lock.
+    """
+    breeze_bin = shutil.which("breeze")
+    if breeze_bin is None:
+        return None
+    resolved = Path(breeze_bin).resolve()
+    if resolved.is_relative_to(BREEZE_LOCKED_VENV_PATH.resolve()):
+        return None
+    try:
+        text = Path(breeze_bin).read_text()
+    except (OSError, UnicodeDecodeError):
+        return None
+    if BREEZE_SHIM_MARKER not in text:
+        return f"`{breeze_bin}` is a legacy global install, which ignores the lock"
+    expected_version = _read_shim_version(SETUP_BREEZE_PATH.read_text(), SETUP_BREEZE_SHIM_VERSION_PREFIX)
+    if expected_version is None:
+        return None
+    installed_version = _read_shim_version(text, BREEZE_SHIM_VERSION_PREFIX)
+    if installed_version is not None and installed_version >= expected_version:
+        return None
+    installed_text = installed_version if installed_version is not None else "pre-versioning"
+    return (
+        f"the shim at `{breeze_bin}` needs to be upgraded "
+        f"(installed: {installed_text}, current: {expected_version})"
+    )
+
+
 def initialize_breeze_prek(name: str, file: str):
     if name not in ("__main__", "__mp_main__"):
         raise SystemExit(
@@ -357,7 +410,7 @@ def initialize_breeze_prek(name: str, file: str):
             "[red]The `breeze` command is not on path.[/]\n\n"
             "[yellow]Please install breeze. Recommended: run `./scripts/tools/setup_breeze` "
             "from the repo root — it installs a shim at `~/.local/bin/breeze` that runs breeze "
-            "via `uvx` from the current git worktree (see ADR 0017).\n"
+            "via `uv run --locked` from the current git worktree (see ADR 0017).\n"
             "Legacy global install (`uv tool install -e ./dev/breeze` or "
             "`pipx install -e ./dev/breeze`) still works but is no longer recommended.[/]\n\n"
             "[bright_blue]You can also set SKIP_BREEZE_PREK_HOOKS env variable to non-empty "
@@ -586,6 +639,30 @@ def get_provider_base_dir_from_path(file_path: Path) -> Path | None:
         if (parent / "provider.yaml").exists():
             return parent
     return None
+
+
+def get_provider_namespace_from_path(file_path: Path) -> str | None:
+    """Get the namespace of the nested provider the file belongs to, None if it is not nested."""
+    provider_id = get_provider_id_from_path(file_path)
+    if not provider_id or "." not in provider_id:
+        return None
+    return provider_id.split(".")[0]
+
+
+def is_duplicated_namespace_init(file_path: Path) -> bool:
+    """Check whether the file is a namespace ``__init__.py`` repeated across the namespace."""
+    if file_path.name != "__init__.py":
+        return False
+    namespace = get_provider_namespace_from_path(file_path)
+    base_dir = get_provider_base_dir_from_path(file_path)
+    if namespace is None or base_dir is None:
+        return False
+    return file_path.relative_to(base_dir).parts in {
+        ("src", "airflow", "providers", namespace, "__init__.py"),
+        ("tests", "unit", namespace, "__init__.py"),
+        ("tests", "integration", namespace, "__init__.py"),
+        ("tests", "system", namespace, "__init__.py"),
+    }
 
 
 def get_all_provider_ids(
@@ -925,3 +1002,182 @@ def parse_operations(
                     commands[group_name].append(subcommand)
 
     return commands
+
+
+def _is_safe_relative(rel: str, repo_root: Path) -> bool:
+    """Whether ``rel`` is a plain relative path that stays inside ``repo_root``."""
+    candidate = Path(rel)
+    if candidate.is_absolute():
+        return False
+    try:
+        (repo_root / candidate).resolve().relative_to(repo_root.resolve())
+    except ValueError:
+        return False
+    return True
+
+
+class AllowlistManager(abc.ABC):
+    """Common base for prek hooks that track per-file occurrence counts in allowlist files.
+
+    Subclasses implement :meth:`iter_files`, :meth:`count_occurrences`, and
+    :meth:`violation_panel_text` to define what gets scanned, how violations
+    are counted, and what help text to show.  Everything else — loading, saving,
+    generating, cleaning up, and the check loop — is handled here.
+    """
+
+    def __init__(self, allowlist_file: Path, *, repo_root: Path = AIRFLOW_ROOT_PATH) -> None:
+        self.allowlist_file = allowlist_file
+        self.repo_root = repo_root
+
+    def parse(self, text: str) -> dict[str, int]:
+        """Parse allowlist *text* into a ``{rel_path: count}`` mapping.
+
+        Entries that escape the repo root (absolute paths or ``..`` segments)
+        are silently skipped.
+        """
+        result: dict[str, int] = {}
+        for raw_line in text.splitlines():
+            if not (stripped := raw_line.strip()):
+                continue
+
+            rel_str, _, count_str = stripped.rpartition("::")
+            if not rel_str or not count_str:
+                continue
+
+            try:
+                count = int(count_str)
+            except ValueError:
+                continue
+
+            if not _is_safe_relative(rel_str, self.repo_root):
+                if console:
+                    console.print(
+                        f"[yellow]Ignoring unsafe allowlist entry (escapes repo root):[/yellow] {rel_str}"
+                    )
+                continue
+
+            result[rel_str] = count
+
+        return result
+
+    def load(self) -> dict[str, int]:
+        """Return mapping of ``relative_path -> allowed_count``."""
+        if not self.allowlist_file.exists():
+            return {}
+        return self.parse(self.allowlist_file.read_text())
+
+    def save(self, counts: dict[str, int]) -> None:
+        lines = [f"{rel}::{count}" for rel, count in sorted(counts.items())]
+        self.allowlist_file.write_text("\n".join(lines) + "\n")
+
+    @abc.abstractmethod
+    def iter_files(self) -> Iterable[Path]:
+        """Return all files to scan during ``--generate`` or ``--all-files``."""
+
+    @abc.abstractmethod
+    def count_occurrences(self, path: Path) -> int:
+        """Count the number of violations/occurrences in a single file."""
+
+    @abc.abstractmethod
+    def violation_panel_text(self) -> str:
+        """Return the rich markup body for the violation help panel."""
+
+    def format_violation_details(self, path: Path) -> list[str]:
+        """Return extra detail lines for each violating file."""
+        return []
+
+    def check(self, files: list[Path], allowlist: dict[str, int]) -> int:
+        """Run the check loop: compare counts, tighten entries, report violations."""
+        violations: list[tuple[Path, int, int]] = []
+        tightened: list[tuple[str, int, int]] = []
+
+        for path in files:
+            if not path.exists() or path.suffix != ".py":
+                continue
+            actual = self.count_occurrences(path)
+            rel = str(path.relative_to(self.repo_root))
+            allowed = allowlist.get(rel, 0)
+            if actual > allowed:
+                violations.append((path, actual, allowed))
+            elif actual < allowed:
+                if actual == 0:
+                    del allowlist[rel]
+                else:
+                    allowlist[rel] = actual
+                tightened.append((rel, allowed, actual))
+
+        if tightened:
+            self.save(allowlist)
+            if console:
+                console.print(
+                    f"[green]Tightened {len(tightened)} entr{'y' if len(tightened) == 1 else 'ies'} "
+                    f"in [cyan]{self.allowlist_file.relative_to(self.repo_root)}[/cyan][/green] "
+                    "(stage the updated file):"
+                )
+                for rel, old, new in tightened:
+                    console.print(f"  [cyan]{rel}[/cyan]  {old} → {new}")
+
+        if violations:
+            if console:
+                console.print(
+                    Panel.fit(
+                        self.violation_panel_text(),
+                        title="[red]Check failed[/red]",
+                        border_style="red",
+                    )
+                )
+                for path, actual, allowed in violations:
+                    console.print(
+                        f"  [cyan]{path.relative_to(self.repo_root)}[/cyan]  "
+                        f"count={actual} (allowed={allowed})"
+                    )
+                    for detail in self.format_violation_details(path):
+                        console.print(detail)
+            return 1
+
+        return 1 if tightened else 0
+
+    def generate(self) -> int:
+        if console:
+            console.print(f"Scanning [cyan]{self.repo_root}[/cyan] …")
+        counts: dict[str, int] = {}
+        for path in self.iter_files():
+            n = self.count_occurrences(path)
+            if n > 0:
+                counts[str(path.relative_to(self.repo_root))] = n
+
+        self.save(counts)
+        total = sum(counts.values())
+        if console:
+            console.print(
+                f"[green]Generated[/green] [cyan]{self.allowlist_file.relative_to(self.repo_root)}[/cyan] "
+                f"with [bold]{len(counts)}[/bold] files / [bold]{total}[/bold] occurrences."
+            )
+        return 0
+
+    def cleanup(self) -> int:
+        allowlist = self.load()
+        if not allowlist:
+            if console:
+                console.print("[yellow]Allowlist is empty – nothing to clean up.[/yellow]")
+            return 0
+
+        stale: list[str] = [rel for rel in allowlist if not (self.repo_root / rel).exists()]
+        if stale:
+            if console:
+                console.print(
+                    f"[yellow]Removing {len(stale)} stale entr{'y' if len(stale) == 1 else 'ies'}:[/yellow]"
+                )
+                for s in sorted(stale):
+                    console.print(f"  [dim]-[/dim] {s}")
+            for s in stale:
+                del allowlist[s]
+            self.save(allowlist)
+            if console:
+                console.print(
+                    f"\n[green]Updated[/green] [cyan]{self.allowlist_file.relative_to(self.repo_root)}[/cyan]"
+                )
+        else:
+            if console:
+                console.print("[green]No stale entries found.[/green]")
+        return 0

@@ -431,8 +431,7 @@ choose a different time.
 
     from sqlalchemy.orm import Session
 
-    from airflow.sdk import DeadlineReference
-    from airflow.sdk.definitions.deadline import BaseDeadlineReference, deadline_reference
+    from airflow.sdk import BaseDeadlineReference, DeadlineReference, deadline_reference
     from airflow.sdk.timezone import datetime
 
 

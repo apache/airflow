@@ -48,7 +48,7 @@ const MarkdownModal = ({
   readonly placeholder: string;
   readonly setMdContent: (value: string) => void;
 }) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   const hasContent = Boolean(mdContent?.trim());
   // Open straight into editing when there's nothing to read; otherwise show the

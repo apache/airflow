@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import { useConnectionServiceTestConnection } from "openapi/queries";
 import type { ConnectionTestResponse } from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
+import { createErrorToaster } from "src/utils";
 
 export const useTestConnection = (setConnected: Dispatch<SetStateAction<boolean | undefined>>) => {
   const { t: translate } = useTranslation("admin");
@@ -43,8 +44,9 @@ export const useTestConnection = (setConnected: Dispatch<SetStateAction<boolean 
     }
   };
 
-  const onError = () => {
+  const onError = (error: unknown) => {
     setConnected(false);
+    createErrorToaster(error, { titleKey: "connections.testError.title" }, translate);
   };
 
   return useConnectionServiceTestConnection({

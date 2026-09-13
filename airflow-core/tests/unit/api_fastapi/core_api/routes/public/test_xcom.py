@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -36,7 +37,7 @@ from airflow.sdk.execution_time.xcom import resolve_xcom_backend
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs, clear_db_xcom
@@ -695,6 +696,19 @@ class TestCreateXComEntry(TestXComEndpoint):
             assert current_data["run_id"] == dag_run_id
             assert current_data["map_index"] == request_body.map_index
         check_last_log(session, dag_id=TEST_DAG_ID, event="create_xcom_entry", logical_date=None)
+
+    def test_create_xcom_entry_duplicate_check_is_bounded(self, test_client):
+        """Checking for an existing XCom before inserting must ask the database for one row."""
+        with capture_orm_selects("xcom") as statements:
+            response = test_client.post(
+                f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries",
+                json=XComCreateBody(key=TEST_XCOM_KEY, value=TEST_XCOM_VALUE).model_dump(),
+            )
+
+        assert response.status_code == 201
+        assert statements, "expected the endpoint to query the xcom table"
+        for sql in statements:
+            assert re.search(r"\bLIMIT 1\b", sql), f"XCom lookup is not bounded to one row: {sql}"
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.post(

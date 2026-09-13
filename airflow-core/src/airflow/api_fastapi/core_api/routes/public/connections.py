@@ -53,6 +53,7 @@ from airflow.api_fastapi.core_api.datamodels.connections import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
+    AuthManagerDep,
     GetUserDep,
     ReadableConnectionsFilterDep,
     requires_access_connection,
@@ -101,6 +102,37 @@ def _ensure_executor_is_configured(executor: str | None) -> None:
             f"Executor '{executor}' is not configured. "
             f"Configured executors: {[name.alias or name.module_path for name in configured]}",
         )
+
+
+_MASKED_CREDENTIAL_SENTINEL = "***"
+
+
+def _same_endpoint(requested: str | int | None, stored: str | int | None) -> bool:
+    """
+    Return True when request and stored host/port refer to the same destination.
+
+    The UI sends empty string for hidden unused host/port fields; the ORM stores
+    those as NULL. Treat blank as unset so connection types that do not use
+    host/port still reuse stored credentials.
+    """
+
+    def _norm(value: str | int | None) -> str | int | None:
+        return None if value is None or value == "" else value
+
+    return _norm(requested) == _norm(stored)
+
+
+def _supplies_own_credentials(test_body: ConnectionBody) -> bool:
+    """
+    Return True when the request includes a real (non-masked) password.
+
+    The UI always posts the masked sentinel for unchanged secrets. That is not
+    a caller-supplied credential and must not skip restoring stored extras.
+    """
+    if "password" not in test_body.model_fields_set:
+        return False
+    password = test_body.password
+    return bool(password) and password != _MASKED_CREDENTIAL_SENTINEL
 
 
 @connections_router.delete(
@@ -293,7 +325,11 @@ def patch_connection(
 
 
 @connections_router.post("/test", dependencies=[Depends(requires_access_connection(method="POST"))])
-def test_connection(test_body: ConnectionBody) -> ConnectionTestResponse:
+def test_connection(
+    test_body: ConnectionBody,
+    user: GetUserDep,
+    auth_manager: AuthManagerDep,
+) -> ConnectionTestResponse:
     """
     Test an API connection.
 
@@ -306,20 +342,52 @@ def test_connection(test_body: ConnectionBody) -> ConnectionTestResponse:
     transient_conn_id = get_random_string()
     conn_env_var = f"{CONN_ENV_PREFIX}{transient_conn_id.upper()}"
     try:
-        # Try to get existing connection and merge with provided values
-        try:
-            existing_conn: Connection | None = Connection.get_connection_from_secrets(test_body.connection_id)
-        except AirflowNotFoundException:
-            existing_conn = None
+        # Authorize read access on the requested ``connection_id`` *before*
+        # touching the secrets backends. The route-level POST dependency only
+        # verifies the caller can create connections; merging the existing
+        # connection's hidden fields also requires read access to that
+        # specific connection. Gating the backend lookup itself (rather than
+        # the post-load merge) prevents an unauthorized caller from using
+        # this endpoint to enumerate protected connection ids, generate
+        # access-log entries in audited backends, or impose backend load for
+        # arbitrary ids. ``get_team_name`` is a metadata-only DB lookup and
+        # does not touch the configured secrets backends.
+        #
+        # When the connection has no metadata-DB row (e.g. it lives only in
+        # a team-aware secrets backend like Vault or Kubernetes), fall back
+        # to the request body's validated ``team_name`` so the GET
+        # authorization and the secrets lookup both run in the right team
+        # scope. ``ConnectionBody.validate_team_name`` already rejects
+        # ``team_name`` from clients when ``[core] multi_team`` is off, so
+        # a non-None body value here is always already gated by that
+        # validator.
+        team_name = Connection.get_team_name(test_body.connection_id)
+        if team_name is None:
+            team_name = test_body.team_name
+        existing_conn: Connection | None = None
+        if auth_manager.is_authorized_connection(
+            method="GET",
+            details=ConnectionDetails(
+                conn_id=test_body.connection_id,
+                team_name=team_name,
+            ),
+            user=user,
+        ):
+            try:
+                existing_conn = Connection.get_connection_from_secrets(
+                    test_body.connection_id, team_name=team_name
+                )
+            except AirflowNotFoundException:
+                existing_conn = None
 
         if existing_conn is not None:
             # Stored credentials are only reused to test the connection's own
             # host/port; testing a different destination must supply its own.
             fields_set = test_body.model_fields_set
-            if ("host" in fields_set and test_body.host != existing_conn.host) or (
-                "port" in fields_set and test_body.port != existing_conn.port
-            ):
-                if "password" not in fields_set:
+            host_changed = "host" in fields_set and not _same_endpoint(test_body.host, existing_conn.host)
+            port_changed = "port" in fields_set and not _same_endpoint(test_body.port, existing_conn.port)
+            if host_changed or port_changed:
+                if not _supplies_own_credentials(test_body):
                     raise HTTPException(
                         status.HTTP_400_BAD_REQUEST,
                         "The host or port to test differs from the stored connection. "

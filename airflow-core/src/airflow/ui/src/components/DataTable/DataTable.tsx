@@ -63,6 +63,7 @@ type DataTableProps<TData> = {
   readonly showRowCountHeading?: boolean;
   readonly skeletonCount?: number;
   readonly total?: number;
+  readonly totalEntriesLimit?: number;
 };
 
 const defaultGetRowCanExpand = () => false;
@@ -88,10 +89,11 @@ export const DataTable = <TData,>({
   showRowCountHeading = true,
   skeletonCount = 10,
   total = 0,
+  totalEntriesLimit,
 }: DataTableProps<TData>) => {
   "use no memo"; // remove if https://github.com/TanStack/table/issues/5567 is resolved
 
-  const { t: translate } = useTranslation(["common"]);
+  const { i18n, t: translate } = useTranslation(["common"]);
   const ref = useRef<{ tableRef: TanStackTable<TData> | undefined }>({
     tableRef: undefined,
   });
@@ -169,13 +171,17 @@ export const DataTable = <TData,>({
     [modelName, translate],
   );
   const showRowCount = Boolean(
-    showRowCountHeading && !hasCursorPagination && !Boolean(isLoading) && !Boolean(isFetching) && total > 0,
+    showRowCountHeading && !Boolean(isLoading) && !Boolean(isFetching) && total > 0,
   );
+  // Cursor pagination reports the total capped at totalEntriesLimit, so a total that reaches the
+  // cap means "at least this many" and is rendered as "N+".
+  const isCapped = totalEntriesLimit !== undefined && total >= totalEntriesLimit;
+  const totalLabel = `${total.toLocaleString(i18n.language)}${isCapped ? "+" : ""}`;
   const noRowsModelName = translateModelName(0);
 
   const rowCountHeading = showRowCount ? (
     <Heading py={3} size="md">
-      {`${total} ${translateModelName(total)}`}
+      {`${totalLabel} ${translateModelName(total)}`}
     </Heading>
   ) : undefined;
 

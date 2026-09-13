@@ -18,11 +18,13 @@
  */
 import { Flex, Heading, useDisclosure, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
 import { useAssetServiceGetAssets } from "openapi/queries";
 import type { AssetResponse } from "openapi/requests/types.gen";
+import { AliasesPopover, WatchersPopover } from "src/components/Assets/ListPopover";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -40,10 +42,7 @@ import { DependencyPopover } from "./DependencyPopover";
 
 type AssetRow = { row: { original: AssetResponse } };
 
-const createColumns = (
-  translate: (key: string) => string,
-  open?: boolean,
-): Array<ColumnDef<AssetResponse>> => [
+const createColumns = (translate: TFunction, open?: boolean): Array<ColumnDef<AssetResponse>> => [
   {
     accessorKey: "name",
     cell: ({ row: { original } }: AssetRow) => (
@@ -92,8 +91,32 @@ const createColumns = (
     header: () => translate("producingTasks"),
   },
   {
+    accessorKey: "consuming_tasks",
+    cell: ({ row: { original } }: AssetRow) =>
+      original.consuming_tasks.length ? (
+        <DependencyPopover dependencies={original.consuming_tasks} type="Task" />
+      ) : undefined,
+    enableSorting: false,
+    header: () => translate("consumingTasks"),
+  },
+  {
+    accessorKey: "aliases",
+    cell: ({ row: { original } }: AssetRow) =>
+      original.aliases.length ? <AliasesPopover aliases={original.aliases} /> : undefined,
+    enableSorting: false,
+    header: () => translate("aliases"),
+  },
+  {
+    accessorKey: "watchers",
+    cell: ({ row: { original } }: AssetRow) =>
+      original.watchers.length ? <WatchersPopover watchers={original.watchers} /> : undefined,
+    enableSorting: false,
+    header: () => translate("watchers"),
+  },
+  {
     accessorKey: "trigger",
     cell: ({ row }) => <CreateAssetEvent asset={row.original} />,
+    enableHiding: false,
     enableSorting: false,
     header: "",
   },

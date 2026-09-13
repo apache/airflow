@@ -3,6 +3,7 @@ abc
 AbstractFileSystem
 AbstractToolset
 accessor
+accessors
 AccessSecretVersionResponse
 aci
 Ack
@@ -44,6 +45,7 @@ akeyless
 aks
 AlertApi
 alertPolicies
+aliased
 Alibaba
 alibaba
 alibabacloud
@@ -204,6 +206,7 @@ bugfix
 bugfixes
 buildType
 burstable
+bytea
 bytestring
 cacert
 Cadwyn
@@ -234,6 +237,8 @@ charset
 chatbot
 chatbots
 CheckOperator
+checkpointed
+checkpointing
 checksums
 childs
 chmod
@@ -266,6 +271,7 @@ cmake
 cmd
 cmdlet
 cmds
+CN
 cncf
 cnf
 cnt
@@ -451,6 +457,7 @@ delim
 deltalake
 denylist
 dep
+dependant
 DependencyMixin
 Deprecations
 deprecations
@@ -772,6 +779,7 @@ hiveserver
 hmsclient
 hoc
 homebrew
+honoured
 hookimpl
 hookspec
 HostAliases
@@ -913,6 +921,7 @@ journald
 js
 Json
 json
+JSONB
 jsonl
 JsonValue
 juli
@@ -1006,6 +1015,7 @@ lodash
 logfile
 logformat
 loglevel
+logout
 Logstash
 logstash
 longblob
@@ -1581,6 +1591,7 @@ Stackdriver
 stackdriver
 stacklevel
 stacktrace
+Starlette
 starttls
 stateful
 StatefulSet
@@ -1761,6 +1772,7 @@ TTU
 Ttu
 TTY
 tunables
+TW
 twitterHandle
 txt
 TZ
@@ -1924,6 +1936,7 @@ Zendesk
 zendesk
 Zenpy
 zenpy
+zh
 Zhong
 Zsh
 zsh

@@ -42,6 +42,7 @@
   },
   "deadlineAlerts": {
     "completionRule": "必须在 {{reference}} 后的 {{interval}} 内完成",
+    "completionRuleDynamic": "必须在从 {{reference}} 起算的可变时间间隔内完成",
     "count_one": "{{count}} 个截止期限",
     "count_other": "{{count}} 个截止期限",
     "referenceType": {
@@ -91,10 +92,6 @@
     "critical": "CRITICAL",
     "debug": "DEBUG",
     "error": "ERROR",
-    "fullscreen": {
-      "button": "全屏",
-      "tooltip": "按下 {{hotkey}} 进入全屏"
-    },
     "info": "INFO",
     "noTryNumber": "没有重试次数",
     "search": {

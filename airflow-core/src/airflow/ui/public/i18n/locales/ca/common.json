@@ -38,6 +38,7 @@
   "dag_one": "Dag",
   "dag_other": "Dags",
   "dagDetails": {
+    "activeRuns": "Execucions actives",
     "catchup": "Recuperar (catchup)",
     "dagRunTimeout": "Temps d'espera de l'execució del Dag",
     "defaultArgs": "Arguments per defecte",
@@ -72,6 +73,7 @@
     "expectedDuration": "Durada esperada",
     "lastSchedulingDecision": "Última decisió de programació",
     "mappedPartitionKey": "Clau de partició mapejada",
+    "partitionDate": "Data de la partició",
     "partitionKey": "Clau de partició",
     "queuedAt": "Enviat a cua a les",
     "runAfter": "Executar després de",
@@ -134,6 +136,7 @@
   },
   "filter": "Filtre",
   "filters": {
+    "date": "Data",
     "durationFrom": "Duració Des de",
     "durationTo": "Duració Fins a",
     "endTime": "Hora de finalització",
@@ -143,9 +146,15 @@
     "runAfterTo": "Executar Després de",
     "searchAsset": "Cercar Asset",
     "selectDateRange": "Seleccionar interval de dates",
-    "startTime": "Hora d'inici"
+    "selectDateTime": "Seleccionar data i hora",
+    "startTime": "Hora d'inici",
+    "time": "Hora"
+  },
+  "fullscreen": {
+    "tooltip": "Prem {{hotkey}} per a activar la pantalla completa"
   },
   "generateToken": "Generar token",
+  "includedIn": "Inclòs a",
   "key": "Clau",
   "logicalDate": "Data Lògica",
   "logout": "Tancar sessió",
@@ -176,10 +185,14 @@
   "note": {
     "add": "Afegir una nota",
     "dagRun": "Nota de l'execució del Dag",
+    "edit": "Editar la nota",
     "label": "Nota",
     "placeholder": "Afegir una nota...",
-    "taskInstance": "Nota de la instància de la tasca"
+    "preview": "Previsualitzar",
+    "taskInstance": "Nota de la instància de la tasca",
+    "write": "Escriure"
   },
+  "overallStatus": "Estat general",
   "partitionedDagRun_one": "Execució de Dag particionada",
   "partitionedDagRun_other": "Execucions de Dag particionades",
   "partitionedDagRunDetail": {
@@ -218,6 +231,47 @@
   },
   "selectLanguage": "Seleccionar idioma",
   "selected": "Seleccionat",
+  "shortcuts": {
+    "categories": {
+      "code": "Codi",
+      "dagView": "Vista de Dag",
+      "filters": "Filtres",
+      "global": "Global",
+      "logs": "Registres",
+      "navigation": "Navegació",
+      "runActions": "Accions d'execució i de tasca",
+      "search": "Cerca"
+    },
+    "descriptions": {
+      "clearRun": "Rellançar $t(dagRun_one)",
+      "clearTaskInstance": "Rellançar $t(taskInstance_one)",
+      "downloadLogs": "Descarregar registres",
+      "focusFilterSearch": "Enfocar la cerca de filtres",
+      "focusLogSearch": "Cercar als registres",
+      "focusSearch": "Enfocar la cerca",
+      "markRunFailed": "Marcar $t(dagRun_one) com a fallida",
+      "markRunSuccess": "Marcar $t(dagRun_one) com a exitosa",
+      "markTaskFailed": "Marcar $t(task_one) com a fallida",
+      "markTaskGroupFailed": "Marcar $t(taskGroup_one) com a fallit",
+      "markTaskGroupSuccess": "Marcar $t(taskGroup_one) com a exitós",
+      "markTaskSuccess": "Marcar $t(task_one) com a exitosa",
+      "navigateTasks": "Navegar per $t(task_other)",
+      "openGraphFilters": "Obrir els filtres del gràfic",
+      "scrollBottom": "Desplaçar-se fins al final",
+      "scrollTop": "Desplaçar-se fins al principi",
+      "searchDags": "Cercar $t(dag_other)",
+      "showHelp": "Mostrar $t(shortcuts.title)",
+      "toggleExpand": "Expandir o col·lapsar tots els grups",
+      "toggleFullscreen": "Alternar la pantalla completa",
+      "toggleGraphGrid": "Alternar entre la vista de gràfic i de graella",
+      "toggleSource": "Alternar el codi font",
+      "toggleTaskGroup": "Expandir o col·lapsar $t(taskGroup_one)",
+      "toggleTimestamp": "Alternar les marques de temps",
+      "toggleWrap": "Alternar $t(wrap.wrap)"
+    },
+    "empty": "No hi ha dreceres de teclat disponibles en aquesta pàgina.",
+    "title": "Dreceres de teclat"
+  },
   "showDetailsPanel": "Mostrar panell de detalls",
   "signedInAs": "Sessió iniciada com a",
   "source": {
@@ -267,10 +321,13 @@
     "updatedAt": "Actualitzat a"
   },
   "task": {
+    "dependsOnPast": "Depèn del passat",
     "documentation": "Documentació de la tasca",
     "lastInstance": "Última instància",
     "operator": "Operador",
-    "triggerRule": "Regla d'execució"
+    "retries": "Reintents",
+    "triggerRule": "Regla d'execució",
+    "waitForDownstream": "Espera aigües avall"
   },
   "task_one": "Tasca",
   "task_other": "Tasques",
@@ -281,10 +338,12 @@
   "taskGroup_other": "Grups de tasques",
   "taskId": "ID de la tasca",
   "taskInstance": {
+    "additionalAttributes": "Atributs addicionals de la instància de tasca",
     "dagVersion": "Versió del Dag",
     "executor": "Executor",
     "executorConfig": "Configuració de l'executor",
     "hostname": "Nom del Host",
+    "id": "ID",
     "maxTries": "Màxim de reintents",
     "pid": "PID",
     "pool": "Pool",
@@ -294,11 +353,13 @@
     "queuedWhen": "Enviat a cua a les",
     "renderedMapIndex": "Índex del mapa renderitzat",
     "scheduledWhen": "Programat a les",
+    "trigger": "Trigger",
     "triggerer": {
       "assigned": "Triggerer assignat",
       "class": "Classe del trigger",
       "createdAt": "Hora de creació del trigger",
       "id": "ID del trigger",
+      "job": "Treball del Triggerer",
       "latestHeartbeat": "Darrer batec del triggerer",
       "title": "Informació del Triggerer"
     },

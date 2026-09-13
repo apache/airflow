@@ -413,7 +413,7 @@ def task_test(args, dag: DAG | None = None) -> None:
     env_vars = {"AIRFLOW_TEST_MODE": "True"}
     if args.env_vars:
         env_vars.update(args.env_vars)
-        os.environ.update(env_vars)
+    os.environ.update(env_vars)
 
     if dag:
         sdk_dag = dag

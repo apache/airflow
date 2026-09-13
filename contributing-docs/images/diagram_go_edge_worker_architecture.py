@@ -22,11 +22,11 @@
 # ]
 # ///
 """
-Architecture diagram for a native-language (compiled) Task SDK.
+Architecture diagram for the Go SDK's standalone **edge-worker** deployment mode.
 
-The Go SDK (``go-sdk/``) is the first implementation; the same shape applies to
-any future compiled-language SDK (e.g. Java). Unlike the Python Task SDK there is
-**no Python Supervisor and no msgpack stdin socket**:
+This is the Go SDK's alternative to the Coordinator path: instead of a Python
+Supervisor driving the bundle (the approach Java and the Go Coordinator mode both
+take), there is **no Python Supervisor and no msgpack socket**:
 
 * a long-running compiled **edge worker** (``airflow-go-edge-worker``) *pulls*
   work from the **Edge Executor API** over HTTP;
@@ -35,6 +35,9 @@ any future compiled-language SDK (e.g. Java). Unlike the Python Task SDK there i
 * the task uses the **native Task Execution Interface client** (AIP-72) to reach
   the **Execution API** directly over HTTPS — so, unlike the Python task, it holds
   the task JWT itself.
+
+This mode is missing features the Supervisor provides (see the Go SDK "known
+limitations"), which is why the Coordinator path is recommended.
 
 Rendered with graphviz directly so every label sits inside a sized shape:
 3-D box = native OS process, rounded box = an object inside a process,
@@ -85,11 +88,11 @@ def _node(g, node_id: str, title: str, sub: str, *, shape: str, theme: tuple[str
     )
 
 
-def generate_native_language_sdk_architecture_diagram():
+def generate_go_edge_worker_architecture_diagram():
     image_file = MY_DIR / f"{MY_FILENAME}.png"
     console.print(f"[bright_blue]Generating architecture image {image_file}")
 
-    g = graphviz.Digraph("native_language_sdk_architecture")
+    g = graphviz.Digraph("go_edge_worker_architecture")
     g.attr(
         rankdir="TB",
         splines="spline",
@@ -255,4 +258,4 @@ def generate_native_language_sdk_architecture_diagram():
 
 
 if __name__ == "__main__":
-    generate_native_language_sdk_architecture_diagram()
+    generate_go_edge_worker_architecture_diagram()

@@ -291,6 +291,7 @@ class SubCommand(threading.Thread):
         self.name = name
         self.command = command
         self.env = env
+        self.process: subprocess.Popen[bytes] | None = None
 
     def run(self):
         """Run the actual process and captures it output to a queue."""
@@ -305,7 +306,8 @@ class SubCommand(threading.Thread):
 
     def stop(self):
         """Call to stop this process (and thus this thread)."""
-        self.process.terminate()
+        if self.process is not None:
+            self.process.terminate()
 
 
 # Alias for use in the CLI parser

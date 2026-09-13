@@ -38,6 +38,7 @@
   "dag_one": "Dag",
   "dag_other": "Dags",
   "dagDetails": {
+    "activeRuns": "活跃执行数",
     "catchup": "自动回填",
     "dagRunTimeout": "Dag 执行超时",
     "defaultArgs": "默认参数",
@@ -135,6 +136,7 @@
   },
   "filter": "筛选",
   "filters": {
+    "date": "日期",
     "durationFrom": "持续时间起始",
     "durationTo": "持续时间结束",
     "endTime": "结束时间",
@@ -144,12 +146,15 @@
     "runAfterTo": "执行时间结束",
     "searchAsset": "搜索资源",
     "selectDateRange": "选择日期范围",
-    "startTime": "开始时间"
+    "selectDateTime": "选择日期与时间",
+    "startTime": "开始时间",
+    "time": "时间"
   },
   "fullscreen": {
     "tooltip": "按下 {{hotkey}} 进入全屏"
   },
   "generateToken": "生成令牌",
+  "includedIn": "包含于",
   "key": "键",
   "logicalDate": "逻辑日期",
   "logout": "退出登录",

@@ -18,13 +18,14 @@
 [build-system]
 requires = [
     "gitdb==4.0.12",
-    "GitPython==3.1.50",
-    "hatchling==1.30.1",
-    "packaging==26.2",
+    "GitPython==3.1.62",
+    "hatchling==1.32.0",
+    "packaging==26.3",
     "pathspec==1.1.1",
     "pluggy==1.6.0",
     "smmap==5.0.3",
     "tomli==2.4.1; python_version < '3.11'",
+    "tomlkit==0.15.1",
     "trove-classifiers==2026.6.1.19",
 ]
 build-backend = "hatchling.build"
@@ -64,7 +65,7 @@ classifiers = [
 ]
 
 # Version is defined in src/airflow/__init__.py and it is automatically synchronized by prek hook
-version = "3.3.1"
+version = "3.3.2"
 
 dependencies = [
     "a2wsgi>=1.10.8",
@@ -151,7 +152,7 @@ dependencies = [
     "typing-extensions>=4.14.1",
     "universal-pathlib>=0.3.8",
     "uuid6>=2024.7.10",
-    "apache-airflow-task-sdk==1.3.1",
+    "apache-airflow-task-sdk==1.3.2",
     # pre-installed providers
     "apache-airflow-providers-common-compat>=1.7.4",
     "apache-airflow-providers-common-io>=1.6.3",

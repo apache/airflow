@@ -158,7 +158,7 @@ def get_mapped_xcom_by_index(
         xcom_query = xcom_query.order_by(XComModel.map_index.desc()).offset(-1 - offset)
 
     result: tuple[XComModel] | None
-    if (result := session.scalars(xcom_query).first()) is None:
+    if (result := session.scalars(xcom_query.limit(1)).first()) is None:
         message = (
             f"XCom with {key=} {offset=} not found for task {task_id!r} in DAG run {run_id!r} of {dag_id!r}"
         )
@@ -337,7 +337,7 @@ def get_xcom(
     # (which automatically deserializes using the backend), we avoid potential
     # performance hits from retrieving large data files into the API server.
     result: tuple[XComModel] | None
-    if (result := session.scalars(xcom_query).first()) is None:
+    if (result := session.scalars(xcom_query.limit(1)).first()) is None:
         if params.offset is None:
             message = (
                 f"XCom with {key=} map_index={params.map_index} not found for "

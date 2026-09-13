@@ -71,7 +71,11 @@ export const ExternalView = () => {
           which is part of the deployment of Airflow and trusted as per our security policy.
           https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html
           They are not user provided plugins. */}
-        <Iframe externalView={externalView} sandbox="allow-scripts allow-same-origin allow-forms" />
+        <Iframe
+          externalView={externalView}
+          key={page}
+          sandbox="allow-scripts allow-same-origin allow-forms allow-downloads"
+        />
       </Box>
     );
   }

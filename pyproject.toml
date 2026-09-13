@@ -17,11 +17,12 @@
 
 [build-system]
 requires = [
-    "hatchling==1.30.1",
-    "packaging==26.2",
+    "hatchling==1.32.0",
+    "packaging==26.3",
     "pathspec==1.1.1",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",
+    "tomlkit==0.15.1",
     "trove-classifiers==2026.6.1.19",
 ]
 build-backend = "hatchling.build"
@@ -56,11 +57,11 @@ classifiers = [
 ]
 
 # Version is defined in src/airflow/__init__.py and it is automatically synchronized by prek
-version = "3.3.1"
+version = "3.3.2"
 
 dependencies = [
-    "apache-airflow-task-sdk==1.3.1",
-    "apache-airflow-core==3.3.1",
+    "apache-airflow-task-sdk==1.3.2",
+    "apache-airflow-core==3.3.2",
 ]
 
 packages = []
@@ -555,7 +556,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.11.21",
+    "uv>=0.12.10",
 ]
 
 [project.urls]
@@ -595,6 +596,10 @@ extend-exclude = [
 [tool.ruff.lint]
 typing-modules = ["airflow.typing_compat"]
 external = ["MIG"]
+# Pin the base rule set instead of inheriting Ruff's default, which Ruff changes
+# between releases (0.16 widened it from ~250 to ~510 rules). Everything Airflow
+# actually opts into lives in extend-select below.
+select = ["E4", "E7", "E9", "F"]
 extend-select = [
     # Enable entire ruff rule section
     "I", # Missing required import (auto-fixable)
@@ -663,6 +668,7 @@ extend-select = [
     "B012", # Checks for `break`, `continue`, and `return` statements in `finally` blocks
     "B017", # Checks for pytest.raises context managers that catch Exception or BaseException.
     "B019", # Use of functools.lru_cache or functools.cache on methods can lead to memory leaks
+    "B023", # Function definition does not bind loop variable (late binding of closure over loop var)
     "B028", # No explicit stacklevel keyword argument found
     "TRY002", # Prohibit use of `raise Exception`, use specific exceptions instead.
     "RET505", # Unnecessary {branch} after return statement
@@ -702,6 +708,13 @@ ignore = [
     "COM812",
     "COM819",
     "E501", # Formatted code may exceed the line length, leading to line-too-long (E501) errors.
+    # New in Ruff 0.16, inside sections Airflow selects wholesale. Deferred so a tooling
+    # bump does not also carry semantic changes; both need per-site judgement.
+    "ISC004", # Implicit string concat in a collection literal; 109 sites, unsafe autofix
+    # LOG004 is not a mechanical replacement: switching to `.error()` where an exception is
+    # in flight silently drops the traceback, while leaving `.exception()` where none is
+    # only prints a bare `NoneType: None`. Review already caught one bad guess in 13.
+    "LOG004", # `.exception()` outside an exception handler; 13 sites
 ]
 unfixable = [
     # PT022 replace empty `yield` to empty `return`. Might be fixed with a combination of PLR1711

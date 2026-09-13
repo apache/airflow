@@ -44,7 +44,7 @@ from rich.progress import Progress
 from rich.syntax import Syntax
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
-from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
+from airflow_breeze.commands.ci_image_commands import build_ci_image_if_needed
 from airflow_breeze.commands.common_options import (
     argument_doc_packages,
     option_airflow_extras,
@@ -283,13 +283,13 @@ class VersionedFile(NamedTuple):
     file_name: str
 
 
-AIRFLOW_PIP_VERSION = "26.1.2"
-AIRFLOW_UV_VERSION = "0.11.21"
+AIRFLOW_PIP_VERSION = "26.2.1"
+AIRFLOW_UV_VERSION = "0.12.10"
 AIRFLOW_USE_UV = False
-GITPYTHON_VERSION = "3.1.50"
+GITPYTHON_VERSION = "3.1.62"
 RICH_VERSION = "15.0.0"
-PREK_VERSION = "0.4.5"
-HATCH_VERSION = "1.17.0"
+PREK_VERSION = "0.5.2"
+HATCH_VERSION = "1.18.0"
 PYYAML_VERSION = "6.0.3"
 
 # prek environment and this is done with node, no python installation is needed.
@@ -978,6 +978,13 @@ def classify_provider_changes(
     help="Runs incremental update only after rebase of earlier branch to check if there are no changes.",
 )
 @click.option(
+    "--mark-doc-only",
+    is_flag=True,
+    help="Take the named providers back out of the release: restore their version and changelog to the "
+    "released state and record the doc-only marker to commit. Use when review concludes that an "
+    "already-prepared provider has no user-facing changes. Requires an explicit list of providers.",
+)
+@click.option(
     "--skip-readme",
     is_flag=True,
     help="Skip readme generation. This is used in prek that updates build-files only.",
@@ -1007,6 +1014,7 @@ def prepare_provider_documentation(
     skip_changelog: bool,
     skip_readme: bool,
     incremental_update: bool,
+    mark_doc_only: bool,
     release_date: str | None,
 ):
     from airflow_breeze.prepare_providers.provider_documentation import (
@@ -1015,6 +1023,7 @@ def prepare_provider_documentation(
         PrepareReleaseDocsNoChangesException,
         PrepareReleaseDocsUserQuitException,
         PrepareReleaseDocsUserSkippedException,
+        drop_provider_to_doc_only,
         update_changelog,
         update_index_rst,
         update_min_airflow_version_and_build_files,
@@ -1025,10 +1034,19 @@ def prepare_provider_documentation(
         console_print("[error]Release date is required unless --only-min-version-update is used![/]")
         sys.exit(1)
 
+    if mark_doc_only and not provider_distributions:
+        console_print(
+            "[error]--mark-doc-only takes the named providers out of the release, so it needs an "
+            "explicit list of providers rather than defaulting to all of them![/]"
+        )
+        sys.exit(1)
+
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
-    if incremental_update:
+    # Forcing "yes" keeps the incremental pass from re-asking about every provider, which also puts
+    # the reclassify-to-doc-only prompt out of reach - --mark-doc-only is how that decision is applied.
+    if incremental_update and not mark_doc_only:
         set_forced_answer("yes")
     if not provider_distributions:
         provider_distributions = get_available_distributions(
@@ -1048,6 +1066,9 @@ def prepare_provider_documentation(
     for provider_id in provider_distributions:
         try:
             provider_metadata = basic_provider_checks(provider_id)
+            if mark_doc_only:
+                with ci_group(f"Marking '{provider_id}' as doc-only"):
+                    drop_provider_to_doc_only(provider_id, base_branch=base_branch)
             if os.environ.get("GITHUB_ACTIONS", "false") != "true":
                 if not only_min_version_update:
                     console_print("-" * get_console().width)
@@ -1775,7 +1796,7 @@ def install_provider_distributions(
         use_airflow_version=use_airflow_version,
         use_distributions_from_dist=use_distributions_from_dist,
     )
-    rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
+    build_ci_image_if_needed(command_params=shell_params)
     if run_in_parallel:
         list_of_all_providers = get_all_providers_in_dist(
             distribution_format=distribution_format, install_selected_providers=install_selected_providers
@@ -1914,7 +1935,7 @@ def verify_provider_distributions(
         use_airflow_version=use_airflow_version,
         use_distributions_from_dist=use_distributions_from_dist,
     )
-    rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
+    build_ci_image_if_needed(command_params=shell_params)
     result_command = execute_command_in_shell(
         shell_params,
         project_name="breeze-providers",
@@ -3956,7 +3977,7 @@ SOURCE_API_YAML_PATH = (
     AIRFLOW_ROOT_PATH / "airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml"
 )
 TARGET_API_YAML_PATH = PYTHON_CLIENT_DIR_PATH / "v2.yaml"
-OPENAPI_GENERATOR_CLI_VER = "7.23.0"
+OPENAPI_GENERATOR_CLI_VER = "7.25.0"
 
 GENERATED_CLIENT_DIRECTORIES_TO_COPY: list[Path] = [
     Path("airflow_client") / "client",
@@ -4893,7 +4914,7 @@ def version_check(
         python=python,
         builder=builder,
     )
-    rebuild_or_pull_ci_image_if_needed(command_params=build_params)
+    build_ci_image_if_needed(command_params=build_params)
     if os.environ.get("CI", "false") == "true":
         # Show output outside the group in CI
         print("::endgroup::")

@@ -216,6 +216,20 @@ class SerializedTaskGroup(TaskGroupMixin, DAGNode):
                 yield group
             group = group.parent_group
 
+    def hierarchical_alphabetical_sort(self) -> list[DAGNode]:
+        """
+        Sort children in hierarchical alphabetical order: groups first, then tasks, each alphabetical.
+
+        Mirrors ``TaskGroup.hierarchical_alphabetical_sort`` in task-sdk. This orders one group's
+        direct children; the server-side graph/grid builder in
+        ``api_fastapi.core_api.services.ui.task_group`` walks the tree and re-applies it at every
+        level, so the API response is fully ordered at all nesting levels and the UI renders it as-is.
+        """
+        return sorted(
+            self.children.values(),
+            key=lambda node: (not isinstance(node, SerializedTaskGroup), node.node_id),
+        )
+
     def topological_sort(
         self, *, group_dict: dict[str | None, SerializedTaskGroup] | None = None
     ) -> list[DAGNode]:

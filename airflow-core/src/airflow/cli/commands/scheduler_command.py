@@ -79,8 +79,11 @@ def _serve_logs(skip_serve_logs: bool = False):
 
     sub_proc = None
     if skip_serve_logs is False:
-        executor_class, _ = ExecutorLoader.import_default_executor_cls()
-        if executor_class.serve_logs:
+        executor_classes = [
+            ExecutorLoader.import_executor_cls(executor_name)[0]
+            for executor_name in (ExecutorLoader.get_executor_names())
+        ]
+        if any(executor_class.serve_logs for executor_class in executor_classes):
             sub_proc = Process(target=serve_logs)
             sub_proc.start()
     try:

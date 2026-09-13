@@ -178,7 +178,7 @@ jobs:
   providers-compatibility-tests-matrix:
     timeout-minutes: 80
     # yamllint disable rule:line-length
-    name: Compat ${{ matrix.compat.airflow-version }}:P${{ matrix.compat.python-version }}:${{ matrix.compat.test-types.description }}
+    name: Compat ${{ matrix.compat.airflow-version }}:P${{ matrix.compat.python-version }}:${{ matrix.test-types.description }}
     runs-on: ${{ fromJSON(inputs.runners) }}
     strategy:
       fail-fast: false

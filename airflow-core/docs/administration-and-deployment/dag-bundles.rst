@@ -276,6 +276,10 @@ The setting is resolved using the following precedence (highest to lowest):
 4. **Per-call-site fallback**: ``False`` for clear/rerun, ``True`` for backfills (preserving
    the historical default for each path)
 
+One exception: a Dag run with no version of its own — carried over from Airflow 2, or its version
+since removed by ``airflow db clean`` — has nothing to preserve, so clearing it always uses the
+latest version and bundle version regardless of the resolved setting.
+
 Global Configuration
 ~~~~~~~~~~~~~~~~~~~~
 

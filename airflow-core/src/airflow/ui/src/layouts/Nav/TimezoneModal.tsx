@@ -29,7 +29,7 @@ type TimezoneModalProps = {
 };
 
 const TimezoneModal: React.FC<TimezoneModalProps> = ({ isOpen, onClose }) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   return (
     <Dialog.Root lazyMount onOpenChange={onClose} open={isOpen}>

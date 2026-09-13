@@ -88,7 +88,7 @@ jobs:
       AIRFLOW_VERSION: ${{ inputs.airflow-version || '' }}
       APPLY_COMMITS: ${{ inputs.apply-commits || '' }}
     outputs:
-      include-docs: ${{ inputs.include-docs == 'all' && '' || inputs.include-docs }}
+      include-docs: ${{ case(inputs.include-docs == 'all', '', inputs.include-docs) }}
       destination-location: ${{ steps.parameters.outputs.destination-location }}
       destination: ${{ steps.parameters.outputs.destination }}
       extra-build-options: ${{ steps.parameters.outputs.extra-build-options }}
@@ -96,7 +96,7 @@ jobs:
       airflow-version: ${{ steps.parameters.outputs.airflow-version }}
       # yamllint disable rule:line-length
       skip-write-to-stable-folder: ${{ inputs.skip-write-to-stable-folder && '--skip-write-to-stable-folder' || '' }}
-      default-python-version: "3.10"
+      default-python-version: ${{ steps.default_python.outputs.default-python-version }}
       registry-providers: ${{ steps.derive_registry_inputs.outputs.registry-providers }}
       registry-full-build: ${{ steps.derive_registry_inputs.outputs.registry-full-build }}
     if: contains(fromJSON('[
@@ -160,6 +160,21 @@ jobs:
             exit 0
           fi
           python3 dev/registry/derive_wave_providers.py
+      - name: "Derive the default Python version"
+        id: default_python
+        shell: bash
+        # `breeze build-docs` always documents on breeze's default Python, so the image this
+        # workflow builds for it has to be that same one. Reading the constant keeps the two from
+        # drifting apart and silently making the docs job build an image nothing then uses.
+        run: |
+          DEFAULT_PYTHON=$(python3 -c "
+          import re, pathlib
+          text = pathlib.Path('dev/breeze/src/airflow_breeze/global_constants.py').read_text()
+          versions = re.search(r'^ALL_PYTHON_MAJOR_MINOR_VERSIONS\s*=\s*\[(.*?)\]', text, re.M | re.S)
+          print(re.findall(r'\"([0-9]+\.[0-9]+)\"', versions.group(1))[0])
+          ")
+          echo "Default Python version: '${DEFAULT_PYTHON}'"
+          echo "default-python-version=${DEFAULT_PYTHON}" >> "${GITHUB_OUTPUT}"
       - name: "Input parameters summary"
         shell: bash
         id: parameters
@@ -303,7 +318,7 @@ jobs:
           -t "ghcr.io/apache/airflow/main/ci/python${PYTHON_MAJOR_MINOR_VERSION}:latest" --target main .
           -f Dockerfile.ci --platform linux/amd64
       - name: "Restore docs inventory cache"
-        uses: apache/infrastructure-actions/stash/restore@0ff9972b5872e19c9f4555c9159c2fea4f794355
+        uses: apache/infrastructure-actions/stash/restore@ec1b354a0455b41001d77473236d02a0ee0adba4
         with:
           path: ./generated/_inventory_cache/
           key: cache-docs-inventory-v1
@@ -316,7 +331,7 @@ jobs:
         run: >
           breeze build-docs ${INCLUDE_DOCS} --docs-only ${FAIL_ON_INVENTORIES}
       - name: "Save docs inventory cache"
-        uses: apache/infrastructure-actions/stash/save@0ff9972b5872e19c9f4555c9159c2fea4f794355
+        uses: apache/infrastructure-actions/stash/save@ec1b354a0455b41001d77473236d02a0ee0adba4
         if: steps.restore-docs-inventory-cache.outputs.stash-hit != 'true'
         with:
           path: ./generated/_inventory_cache/
@@ -416,7 +431,7 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
       INCLUDE_SUCCESS_OUTPUTS: false
-      PYTHON_MAJOR_MINOR_VERSION: "3.10"
+      PYTHON_MAJOR_MINOR_VERSION: "${{ needs.build-info.outputs.default-python-version }}"
       VERBOSE: "true"
     steps:
       - name: "Cleanup repo"
@@ -507,7 +522,7 @@ jobs:
           sudo /tmp/aws/install --update
           rm -rf /tmp/aws/
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c  # v6.2.3
+        uses: aws-actions/configure-aws-credentials@cbe3b392738ccf3f987d68400dafcf4b0624a56c  # v6.2.4
         with:
           aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}

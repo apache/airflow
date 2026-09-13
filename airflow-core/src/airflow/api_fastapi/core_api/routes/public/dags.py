@@ -245,7 +245,7 @@ def get_dag_details(
         is not None
     )
 
-    # Count active (running + queued) Dag runs for this Dag
+    # Count only running Dag runs: this stat shows runs that are actually executing right now.
     active_runs_count = (
         session.scalar(
             select(func.count())
@@ -426,10 +426,12 @@ def unfavorite_dag(dag_id: str, session: SessionDep, user: GetUserDep):
     user_id = str(user.get_id())
 
     favorite_exists = session.execute(
-        select(DagFavorite).where(
+        select(DagFavorite)
+        .where(
             DagFavorite.dag_id == dag_id,
             DagFavorite.user_id == user_id,
         )
+        .limit(1)
     ).first()
 
     if not favorite_exists:
@@ -449,6 +451,7 @@ def unfavorite_dag(dag_id: str, session: SessionDep, user: GetUserDep):
         [
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
             HTTP_422_UNPROCESSABLE_CONTENT,
         ]
     ),
