@@ -72,6 +72,7 @@ from airflow.sdk.execution_time.comms import (
     SetAssetStateStoreByUri,
     SetXCom,
     TaskStatesResult,
+    UpdateDagRunNote,
     VariableKeysResult,
     VariableResult,
     XComResult,
@@ -215,6 +216,14 @@ def handle_get_dag_run_state(client: Client, msg: GetDagRunState) -> tuple[BaseM
     if isinstance(dr_resp, DagRunStateResponse):
         return DagRunStateResult.from_api_response(dr_resp), {}
     return dr_resp, {}
+
+
+def handle_update_dag_run_note(
+    client: Client, msg: UpdateDagRunNote
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    """Update the note for the DagRun associated with the current task instance."""
+    resp = client.task_instances.update_dagrun_note(msg.ti_id, msg.note)
+    return resp, {}
 
 
 def handle_get_previous_dag_run(

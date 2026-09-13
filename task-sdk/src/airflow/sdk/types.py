@@ -181,6 +181,8 @@ class RuntimeTaskInstanceProtocol(Protocol):
 
     def get_previous_dagrun(self, state: str | None = None) -> DagRunProtocol | None: ...
 
+    def update_dagrun_note(self, note: str | None) -> None: ...
+
     def get_previous_ti(
         self,
         state: TaskInstanceState | None = None,
