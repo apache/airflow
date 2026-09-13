@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from contextlib import nullcontext as _noop_cm
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
@@ -33,11 +32,10 @@ class TestUsers:
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.users.FABAuthManagerUsers")
     @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
     @patch(
-        "airflow.providers.fab.auth_manager.api_fastapi.routes.users.get_application_builder",
-        return_value=_noop_cm(),
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.users._get_flask_app",
     )
     def test_create_user_ok(
-        self, mock_get_application_builder, mock_get_auth_manager, mock_users, test_client, as_user
+        self, mock_get_flask_app, mock_get_auth_manager, mock_users, test_client, as_user
     ):
         mgr = MagicMock()
         mgr.is_authorized_custom_view.return_value = True
@@ -72,11 +70,10 @@ class TestUsers:
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.users.FABAuthManagerUsers")
     @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
     @patch(
-        "airflow.providers.fab.auth_manager.api_fastapi.routes.users.get_application_builder",
-        return_value=_noop_cm(),
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.users._get_flask_app",
     )
     def test_create_user_forbidden(
-        self, mock_get_application_builder, mock_get_auth_manager, mock_users, test_client, as_user
+        self, mock_get_flask_app, mock_get_auth_manager, mock_users, test_client, as_user
     ):
         mgr = MagicMock()
         mgr.is_authorized_custom_view.return_value = False
@@ -99,11 +96,10 @@ class TestUsers:
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.users.FABAuthManagerUsers")
     @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
     @patch(
-        "airflow.providers.fab.auth_manager.api_fastapi.routes.users.get_application_builder",
-        return_value=_noop_cm(),
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.users._get_flask_app",
     )
     def test_create_user_validation_422_empty_username(
-        self, mock_get_application_builder, mock_get_auth_manager, mock_users, test_client, as_user
+        self, mock_get_flask_app, mock_get_auth_manager, mock_users, test_client, as_user
     ):
         mgr = MagicMock()
         mgr.is_authorized_custom_view.return_value = True
@@ -126,11 +122,10 @@ class TestUsers:
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.users.FABAuthManagerUsers")
     @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
     @patch(
-        "airflow.providers.fab.auth_manager.api_fastapi.routes.users.get_application_builder",
-        return_value=_noop_cm(),
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.users._get_flask_app",
     )
     def test_create_user_validation_422_missing_username(
-        self, mock_get_application_builder, mock_get_auth_manager, mock_users, test_client, as_user
+        self, mock_get_flask_app, mock_get_auth_manager, mock_users, test_client, as_user
     ):
         mgr = MagicMock()
         mgr.is_authorized_custom_view.return_value = True
@@ -152,11 +147,10 @@ class TestUsers:
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.users.FABAuthManagerUsers")
     @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
     @patch(
-        "airflow.providers.fab.auth_manager.api_fastapi.routes.users.get_application_builder",
-        return_value=_noop_cm(),
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.users._get_flask_app",
     )
     def test_create_user_validation_422_missing_password(
-        self, mock_get_application_builder, mock_get_auth_manager, mock_users, test_client, as_user
+        self, mock_get_flask_app, mock_get_auth_manager, mock_users, test_client, as_user
     ):
         mgr = MagicMock()
         mgr.is_authorized_custom_view.return_value = True
@@ -179,14 +173,13 @@ class TestUsers:
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.users.FABAuthManagerUsers")
     @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
     @patch(
-        "airflow.providers.fab.auth_manager.api_fastapi.routes.users.get_application_builder",
-        return_value=_noop_cm(),
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.users._get_flask_app",
     )
     @patch("airflow.providers.fab.auth_manager.api_fastapi.parameters.conf")
     def test_get_users_success_defaults(
         self,
         conf_mock,
-        mock_get_application_builder,
+        mock_get_flask_app,
         mock_get_auth_manager,
         mock_users,
         test_client,
@@ -219,18 +212,18 @@ class TestUsers:
             assert resp.status_code == 200
             assert resp.json() == dummy.model_dump(by_alias=True)
             mock_users.get_users.assert_called_once_with(order_by="id", limit=100, offset=0)
+        mock_get_flask_app.return_value.app_context.assert_called_once()
 
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.users.FABAuthManagerUsers")
     @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
     @patch(
-        "airflow.providers.fab.auth_manager.api_fastapi.routes.users.get_application_builder",
-        return_value=_noop_cm(),
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.users._get_flask_app",
     )
     @patch("airflow.providers.fab.auth_manager.api_fastapi.parameters.conf")
     def test_get_users_with_params(
         self,
         conf_mock,
-        mock_get_application_builder,
+        mock_get_flask_app,
         mock_get_auth_manager,
         mock_users,
         test_client,
@@ -258,11 +251,10 @@ class TestUsers:
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.users.FABAuthManagerUsers")
     @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
     @patch(
-        "airflow.providers.fab.auth_manager.api_fastapi.routes.users.get_application_builder",
-        return_value=_noop_cm(),
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.users._get_flask_app",
     )
     def test_get_users_forbidden(
-        self, mock_get_application_builder, mock_get_auth_manager, mock_users, test_client, as_user
+        self, mock_get_flask_app, mock_get_auth_manager, mock_users, test_client, as_user
     ):
         mgr = MagicMock()
         mgr.is_authorized_custom_view.return_value = False
@@ -276,11 +268,10 @@ class TestUsers:
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.users.FABAuthManagerUsers")
     @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
     @patch(
-        "airflow.providers.fab.auth_manager.api_fastapi.routes.users.get_application_builder",
-        return_value=_noop_cm(),
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.users._get_flask_app",
     )
     def test_get_users_validation_422_negative_offset(
-        self, mock_get_application_builder, mock_get_auth_manager, mock_users, test_client, as_user
+        self, mock_get_flask_app, mock_get_auth_manager, mock_users, test_client, as_user
     ):
         mgr = MagicMock()
         mgr.is_authorized_custom_view.return_value = True
@@ -294,11 +285,10 @@ class TestUsers:
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.users.FABAuthManagerUsers")
     @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
     @patch(
-        "airflow.providers.fab.auth_manager.api_fastapi.routes.users.get_application_builder",
-        return_value=_noop_cm(),
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.users._get_flask_app",
     )
     def test_get_user_success(
-        self, mock_get_application_builder, mock_get_auth_manager, mock_users, test_client, as_user
+        self, mock_get_flask_app, mock_get_auth_manager, mock_users, test_client, as_user
     ):
         mgr = MagicMock()
         mgr.is_authorized_custom_view.return_value = True
@@ -321,11 +311,10 @@ class TestUsers:
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.users.FABAuthManagerUsers")
     @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
     @patch(
-        "airflow.providers.fab.auth_manager.api_fastapi.routes.users.get_application_builder",
-        return_value=_noop_cm(),
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.users._get_flask_app",
     )
     def test_get_user_forbidden(
-        self, mock_get_application_builder, mock_get_auth_manager, mock_users, test_client, as_user
+        self, mock_get_flask_app, mock_get_auth_manager, mock_users, test_client, as_user
     ):
         mgr = MagicMock()
         mgr.is_authorized_custom_view.return_value = False
@@ -339,11 +328,10 @@ class TestUsers:
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.users.FABAuthManagerUsers")
     @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
     @patch(
-        "airflow.providers.fab.auth_manager.api_fastapi.routes.users.get_application_builder",
-        return_value=_noop_cm(),
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.users._get_flask_app",
     )
     def test_get_user_not_found(
-        self, mock_get_application_builder, mock_get_auth_manager, mock_users, test_client, as_user
+        self, mock_get_flask_app, mock_get_auth_manager, mock_users, test_client, as_user
     ):
         mgr = MagicMock()
         mgr.is_authorized_custom_view.return_value = True
@@ -361,11 +349,10 @@ class TestUsers:
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.users.FABAuthManagerUsers")
     @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
     @patch(
-        "airflow.providers.fab.auth_manager.api_fastapi.routes.users.get_application_builder",
-        return_value=_noop_cm(),
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.users._get_flask_app",
     )
     def test_get_user_empty_username_404(
-        self, mock_get_application_builder, mock_get_auth_manager, mock_users, test_client, as_user
+        self, mock_get_flask_app, mock_get_auth_manager, mock_users, test_client, as_user
     ):
         mgr = MagicMock()
         mgr.is_authorized_custom_view.return_value = True
@@ -379,11 +366,10 @@ class TestUsers:
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.users.FABAuthManagerUsers")
     @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
     @patch(
-        "airflow.providers.fab.auth_manager.api_fastapi.routes.users.get_application_builder",
-        return_value=_noop_cm(),
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.users._get_flask_app",
     )
     def test_update_user_success(
-        self, mock_get_application_builder, mock_get_auth_manager, mock_users, test_client, as_user
+        self, mock_get_flask_app, mock_get_auth_manager, mock_users, test_client, as_user
     ):
         mgr = MagicMock()
         mgr.is_authorized_custom_view.return_value = True
@@ -409,11 +395,10 @@ class TestUsers:
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.users.FABAuthManagerUsers")
     @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
     @patch(
-        "airflow.providers.fab.auth_manager.api_fastapi.routes.users.get_application_builder",
-        return_value=_noop_cm(),
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.users._get_flask_app",
     )
     def test_update_user_with_update_mask(
-        self, mock_get_application_builder, mock_get_auth_manager, mock_users, test_client, as_user
+        self, mock_get_flask_app, mock_get_auth_manager, mock_users, test_client, as_user
     ):
         mgr = MagicMock()
         mgr.is_authorized_custom_view.return_value = True
@@ -441,11 +426,10 @@ class TestUsers:
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.users.FABAuthManagerUsers")
     @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
     @patch(
-        "airflow.providers.fab.auth_manager.api_fastapi.routes.users.get_application_builder",
-        return_value=_noop_cm(),
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.users._get_flask_app",
     )
     def test_update_user_forbidden(
-        self, mock_get_application_builder, mock_get_auth_manager, mock_users, test_client, as_user
+        self, mock_get_flask_app, mock_get_auth_manager, mock_users, test_client, as_user
     ):
         mgr = MagicMock()
         mgr.is_authorized_custom_view.return_value = False
@@ -459,11 +443,10 @@ class TestUsers:
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.users.FABAuthManagerUsers")
     @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
     @patch(
-        "airflow.providers.fab.auth_manager.api_fastapi.routes.users.get_application_builder",
-        return_value=_noop_cm(),
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.users._get_flask_app",
     )
     def test_update_user_not_found(
-        self, mock_get_application_builder, mock_get_auth_manager, mock_users, test_client, as_user
+        self, mock_get_flask_app, mock_get_auth_manager, mock_users, test_client, as_user
     ):
         mgr = MagicMock()
         mgr.is_authorized_custom_view.return_value = True
@@ -481,11 +464,10 @@ class TestUsers:
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.users.FABAuthManagerUsers")
     @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
     @patch(
-        "airflow.providers.fab.auth_manager.api_fastapi.routes.users.get_application_builder",
-        return_value=_noop_cm(),
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.users._get_flask_app",
     )
     def test_update_user_unknown_update_mask(
-        self, mock_get_application_builder, mock_get_auth_manager, mock_users, test_client, as_user
+        self, mock_get_flask_app, mock_get_auth_manager, mock_users, test_client, as_user
     ):
         mgr = MagicMock()
         mgr.is_authorized_custom_view.return_value = True
@@ -507,11 +489,10 @@ class TestUsers:
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.users.FABAuthManagerUsers")
     @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
     @patch(
-        "airflow.providers.fab.auth_manager.api_fastapi.routes.users.get_application_builder",
-        return_value=_noop_cm(),
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.users._get_flask_app",
     )
     def test_delete_user_success(
-        self, mock_get_application_builder, mock_get_auth_manager, mock_users, test_client, as_user
+        self, mock_get_flask_app, mock_get_auth_manager, mock_users, test_client, as_user
     ):
         mgr = MagicMock()
         mgr.is_authorized_custom_view.return_value = True
@@ -526,11 +507,10 @@ class TestUsers:
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.users.FABAuthManagerUsers")
     @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
     @patch(
-        "airflow.providers.fab.auth_manager.api_fastapi.routes.users.get_application_builder",
-        return_value=_noop_cm(),
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.users._get_flask_app",
     )
     def test_delete_user_forbidden(
-        self, mock_get_application_builder, mock_get_auth_manager, mock_users, test_client, as_user
+        self, mock_get_flask_app, mock_get_auth_manager, mock_users, test_client, as_user
     ):
         mgr = MagicMock()
         mgr.is_authorized_custom_view.return_value = False
@@ -544,11 +524,10 @@ class TestUsers:
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.users.FABAuthManagerUsers")
     @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
     @patch(
-        "airflow.providers.fab.auth_manager.api_fastapi.routes.users.get_application_builder",
-        return_value=_noop_cm(),
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.users._get_flask_app",
     )
     def test_delete_user_not_found(
-        self, mock_get_application_builder, mock_get_auth_manager, mock_users, test_client, as_user
+        self, mock_get_flask_app, mock_get_auth_manager, mock_users, test_client, as_user
     ):
         mgr = MagicMock()
         mgr.is_authorized_custom_view.return_value = True
@@ -566,11 +545,10 @@ class TestUsers:
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.users.FABAuthManagerUsers")
     @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
     @patch(
-        "airflow.providers.fab.auth_manager.api_fastapi.routes.users.get_application_builder",
-        return_value=_noop_cm(),
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.users._get_flask_app",
     )
     def test_delete_user_empty_username_404(
-        self, mock_get_application_builder, mock_get_auth_manager, mock_users, test_client, as_user
+        self, mock_get_flask_app, mock_get_auth_manager, mock_users, test_client, as_user
     ):
         mgr = MagicMock()
         mgr.is_authorized_custom_view.return_value = True
