@@ -247,7 +247,7 @@ You can also run :doc:`CLI commands <../usage-cli>`, but you have to do it in on
 
     docker compose run airflow-worker airflow info
 
-If you have Linux or Mac OS, you can make your work easier and download a optional wrapper scripts that will allow you to run commands with a simpler command.
+If you have Linux or Mac OS, you can make your work easier and download an optional wrapper script that will allow you to run commands with a simpler command.
 
 .. jinja:: quick_start_ctx
 
