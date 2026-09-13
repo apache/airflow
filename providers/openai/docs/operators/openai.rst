@@ -53,6 +53,27 @@ The OpenAIResponseOperator requires the ``input_text`` prompt. Use the ``conn_id
 specify the OpenAI connection to use, and ``response_kwargs`` to pass through options such as
 ``tools``, ``conversation`` or ``previous_response_id``.
 
+Use ``max_output_tokens`` and ``max_tool_calls`` to cap generation per run -- both are templated,
+so a ceiling can vary by environment or Dag run without hardcoding it. ``max_output_tokens`` caps
+the number of tokens generated; ``max_tool_calls`` caps the number of built-in tool calls the model
+may make. Both limits are enforced by the OpenAI API itself; OpenAI exposes no monetary cost limit
+on the Responses API, so this operator has no cost cap. For a monetary limit, use
+:doc:`apache-airflow-providers-common-ai:index` instead. Hitting ``max_output_tokens`` does not
+fail the request: the response comes back with ``status="incomplete"``, so ``return_value`` will
+not raise -- but it is not guaranteed to be truncated text either. A reasoning model can spend
+the entire ceiling on reasoning tokens and return an empty ``output_text``, in which case
+``return_value`` is an empty string. Hitting ``max_tool_calls`` is different: the OpenAI API
+silently drops any tool calls beyond the ceiling without changing ``status`` or setting
+``incomplete_details`` -- there is no log warning and no signal in ``return_value``, so a run
+truncated by ``max_tool_calls`` looks identical to a clean run.
+
+A rendered ``max_output_tokens`` or ``max_tool_calls`` that is blank or whitespace-only -- for
+example ``max_output_tokens="{{ params.tokens | default('', true) }}"`` when ``params.tokens`` is
+unset -- is treated as "no ceiling for this run" rather than raising. This only applies when the same run does
+not also set the corresponding key in ``response_kwargs``: the mutually-exclusive-with-``response_kwargs``
+check happens at task definition (Dag-parse) time and fires regardless of what the template later
+renders to.
+
 .. exampleinclude:: /../../openai/tests/system/openai/example_openai.py
     :language: python
     :start-after: [START howto_operator_openai_response]

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from airflow.providers.common.compat.sdk import BaseOperator, conf
 from airflow.providers.openai.exceptions import OpenAIBatchJobException
@@ -87,12 +87,38 @@ class OpenAIResponseOperator(BaseOperator):
     ``previous_response_id`` chaining, ``background=True`` responses, or access to the full
     structured response, use :class:`~airflow.providers.openai.hooks.openai.OpenAIHook` directly.
 
+    ``max_output_tokens`` caps the number of tokens generated for the response; ``max_tool_calls``
+    caps the number of built-in tool calls the model may make. Both limits are enforced by the
+    OpenAI API itself -- OpenAI exposes no monetary cost limit on the Responses API, so this
+    operator has no cost cap. For a monetary limit, use
+    :doc:`apache-airflow-providers-common-ai:index` instead. When ``max_output_tokens`` is hit, the
+    request does not fail: the response comes back with ``status="incomplete"`` -- but
+    ``output_text`` is not guaranteed to contain any content, since a reasoning model can spend
+    the entire ceiling on reasoning tokens without producing visible output. Hitting
+    ``max_tool_calls`` is different: the OpenAI SDK documents it as silently dropping further
+    tool calls, with no ``status`` change and no ``incomplete_details`` -- a run truncated this
+    way looks identical to a clean one in both the logs and ``return_value``.
+
     :param conn_id: The OpenAI connection ID to use.
     :param input_text: The input prompt for the model. This can be a string or a structured list of
         input items.
     :param model: The OpenAI model to use.
     :param response_kwargs: Additional keyword arguments to pass to the OpenAI ``create_response``
         method (for example ``instructions``, ``tools``, ``conversation`` or ``previous_response_id``).
+    :param max_output_tokens: Optional upper bound on the number of tokens generated for the
+        response. Templated, so it renders to a string; accepts an ``int`` or a string containing one.
+        Must be a positive integer -- an invalid value raises instead of silently disabling the
+        ceiling. A literal (non-string) value is validated at task definition (Dag-parse) time; a
+        string value -- whether a template or a plain literal string -- is validated when the task
+        executes, after templating has resolved it. A blank or whitespace-only rendered value (for
+        example ``{{ params.tokens | default('', true) }}`` rendering to ``''``) is treated as unset,
+        disabling the ceiling; the literal strings ``"None"``, ``"none"`` and ``"null"`` are **not** treated
+        as blank and still raise. Mutually
+        exclusive with ``max_output_tokens`` in ``response_kwargs`` -- this is checked at task
+        definition (Dag-parse) time, regardless of what the templated value later renders to.
+    :param max_tool_calls: Optional upper bound on the number of built-in tool calls the model may
+        make while generating the response. Same templating, type, validation, blank-as-unset, and
+        mutual-exclusion rules as ``max_output_tokens``.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -101,7 +127,9 @@ class OpenAIResponseOperator(BaseOperator):
         https://platform.openai.com/docs/api-reference/responses/create
     """
 
-    template_fields: Sequence[str] = ("input_text",)
+    template_fields: Sequence[str] = ("input_text", "max_output_tokens", "max_tool_calls")
+
+    _TOKEN_CEILING_PARAM_NAMES: ClassVar[tuple[str, ...]] = ("max_output_tokens", "max_tool_calls")
 
     def __init__(
         self,
@@ -109,6 +137,9 @@ class OpenAIResponseOperator(BaseOperator):
         input_text: str | list[Any],
         model: str = "gpt-4o-mini",
         response_kwargs: dict | None = None,
+        *,
+        max_output_tokens: int | str | None = None,
+        max_tool_calls: int | str | None = None,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
@@ -116,15 +147,103 @@ class OpenAIResponseOperator(BaseOperator):
         self.input_text = input_text
         self.model = model
         self.response_kwargs = response_kwargs or {}
+        self.max_output_tokens = max_output_tokens
+        self.max_tool_calls = max_tool_calls
+        self._validate_no_response_kwargs_conflict()
+        self._validate_literal_ceiling_values()
+
+    def _validate_no_response_kwargs_conflict(self) -> None:
+        """Reject a ceiling set both as an operator argument and in ``response_kwargs``."""
+        for param_name in self._TOKEN_CEILING_PARAM_NAMES:
+            value = getattr(self, param_name)
+            if value is not None and param_name in self.response_kwargs:
+                raise ValueError(
+                    f"Task {self.task_id!r}: {param_name!r} was set both as an operator argument "
+                    "and in 'response_kwargs'; set it in only one place."
+                )
+
+    def _validate_literal_ceiling_values(self) -> None:
+        """
+        Eagerly validate a ceiling value that is already a final literal, not a template.
+
+        Only ``bool``, ``float``, and ``int`` are recognized as literals here -- they are already
+        final at construction and never arrive via Jinja rendering, so an invalid one is rejected
+        at Dag-parse time instead of surfacing only when the task runs. Anything else (``str``
+        templates awaiting ``render_template_fields()``, or template values such as ``XComArg``
+        that resolve later) must wait for ``_build_response_kwargs()`` at ``execute()`` time.
+        """
+        for param_name in self._TOKEN_CEILING_PARAM_NAMES:
+            value = getattr(self, param_name)
+            if value is not None and isinstance(value, (bool, float, int)):
+                self._coerce_token_ceiling(param_name, value)
 
     @cached_property
     def hook(self) -> OpenAIHook:
         """Return an instance of the OpenAIHook."""
         return OpenAIHook(conn_id=self.conn_id)
 
+    @staticmethod
+    def _coerce_token_ceiling(param_name: str, value: int | float | str) -> int:
+        """Coerce a templated token-ceiling argument to a positive int, or raise ``ValueError``."""
+        # bool is an int subclass (isinstance(True, int) is True) and must be rejected before the
+        # allowlist check below. Only int and str are accepted as real values to coerce; anything
+        # else -- float, Decimal, Fraction, or any other numeric type -- is rejected here instead
+        # of being handed to int(), since int() silently truncates those (e.g. int(10.5) == 10,
+        # int(Decimal("10.5")) == 10) rather than raising. Such values can reach here as real Python
+        # objects, not just strings, when a Dag uses render_template_as_native_obj=True.
+        if isinstance(value, bool):
+            raise ValueError(f"{param_name!r} must be an integer, got {value!r}.")
+        if not isinstance(value, (int, str)):
+            raise ValueError(f"{param_name!r} must be an integer, got {value!r}.")
+        try:
+            coerced = int(value)
+        except (TypeError, ValueError):
+            raise ValueError(f"{param_name!r} must be an integer, got {value!r}.")
+        if coerced <= 0:
+            raise ValueError(f"{param_name!r} must be a positive integer, got {coerced}.")
+        return coerced
+
+    def _build_response_kwargs(self) -> dict[str, Any]:
+        """Merge the token-ceiling arguments into ``response_kwargs``, skipping unset ceilings."""
+        response_kwargs = dict(self.response_kwargs)
+        for param_name in self._TOKEN_CEILING_PARAM_NAMES:
+            value = getattr(self, param_name)
+            # Blank means unset; the response_kwargs conflict was already rejected in __init__.
+            if value is None or (isinstance(value, str) and value.strip() == ""):
+                continue
+            response_kwargs[param_name] = self._coerce_token_ceiling(param_name, value)
+        return response_kwargs
+
     def execute(self, context: Context) -> str:
-        response = self.hook.create_response(input=self.input_text, model=self.model, **self.response_kwargs)
-        if response.status != "completed":
+        response = self.hook.create_response(
+            input=self.input_text, model=self.model, **self._build_response_kwargs()
+        )
+        if response.status == "incomplete":
+            reason = response.incomplete_details.reason if response.incomplete_details else None
+            if reason and response.output_text:
+                # Any reason -- including max_output_tokens -- can fire before any output text
+                # is produced (e.g. a reasoning model spends the whole ceiling on reasoning
+                # tokens), so whether truncated content actually exists is decided by looking at
+                # output_text itself, not by the reason string.
+                self.log.warning(
+                    "Response %s is incomplete (incomplete_details.reason=%s); the returned output "
+                    "text is truncated, not empty.",
+                    response.id,
+                    reason,
+                )
+            elif reason:
+                self.log.warning(
+                    "Response %s is incomplete (incomplete_details.reason=%s); the returned output "
+                    "text may be empty.",
+                    response.id,
+                    reason,
+                )
+            else:
+                self.log.warning(
+                    "Response %s is incomplete; the returned output text may be truncated or empty.",
+                    response.id,
+                )
+        elif response.status != "completed":
             self.log.warning(
                 "Response %s ended with status %s; the returned output text may be empty.",
                 response.id,
