@@ -117,7 +117,7 @@ Params can be referenced in :ref:`templated strings <templates-ref>` under ``par
     )
 
 Even though Params can use a variety of types, the default behavior of templates is to provide your task with a string.
-You can change this by setting ``render_template_as_native_obj=True`` while initializing the :class:`~airflow.models.dag.DAG`.
+You can change this by setting ``render_template_as_native_obj=True`` while initializing the :class:`~airflow.sdk.DAG`.
 
 .. code-block::
    :emphasize-lines: 4
@@ -210,7 +210,7 @@ Use Params to Provide a Trigger UI Form
 
 .. versionadded:: 2.6.0
 
-:class:`~airflow.models.dag.DAG` level params are used to render a user friendly trigger form.
+:class:`~airflow.sdk.DAG` level params are used to render a user friendly trigger form.
 This form is provided when a user clicks on the "Trigger Dag" button.
 
 The Trigger UI Form is rendered based on the pre-defined Dag Params. If the Dag has no params defined, the trigger form is skipped.
