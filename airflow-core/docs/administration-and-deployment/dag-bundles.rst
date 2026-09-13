@@ -387,6 +387,8 @@ In addition to the abstract methods, you may choose to override the following me
 **initialize**
     This method is called before the bundle is first used in the Dag processor or worker. It allows you to perform expensive operations only when the bundle's content is accessed.
 
+    When a worker starts a task, Airflow sets the Dag parsing context before calling ``initialize()``. See **Parsing context** under Other Considerations.
+
 **view_url**
     This method should return a URL as a string to view the bundle on an external system (e.g., a Git repository's web interface).
 
@@ -394,6 +396,28 @@ Other Considerations
 ~~~~~~~~~~~~~~~~~~~~
 
 - **Versioning**: If your bundle supports versioning, ensure that ``initialize``, ``get_current_version`` and ``refresh`` are implemented to handle version-specific logic.
+
+- **Parsing context**: If expensive bundle setup can be scoped to a single Dag (for example, a sparse checkout of only the paths that Dag needs), worker task startup can do less work in ``initialize()``.
+  Call :py:func:`~airflow.sdk.get_parsing_context` inside ``initialize()`` and branch on ``dag_id``.
+
+  Airflow sets ``dag_id`` and ``task_id`` only on the worker task startup path (``startup()`` wraps ``parse()``, which calls ``initialize()``).
+  The Dag processor, CLI (for example ``airflow dags reserialize`` or ``dag report``), callbacks, and other call sites invoke ``initialize()`` without setting this parsing context, so custom bundles should prepare the full bundle on those paths.
+  ``refresh()`` is not invoked with Dag-specific parsing context either; use it to update the entire bundle, not for per-Dag preparation.
+
+  .. code-block:: python
+
+      from airflow.sdk import get_parsing_context
+
+
+      class MyBundle(BaseDagBundle):
+          def initialize(self):
+              dag_id = get_parsing_context().dag_id
+              if dag_id:
+                  # Worker task startup only: prepare just this Dag (e.g. sparse checkout)
+                  ...
+              else:
+                  # Dag processor, CLI, callbacks, and other paths: prepare the full bundle
+                  ...
 
 - **Concurrency**: Workers may create many bundles simultaneously, and does nothing to serialize calls to the bundle objects. Thus, the bundle class must handle locking if
   that is problematic for the underlying technology. For example, if you are cloning a git repo, the bundle class is responsible for locking to ensure only 1 bundle
