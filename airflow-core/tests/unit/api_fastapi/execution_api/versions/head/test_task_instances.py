@@ -3542,6 +3542,47 @@ class TestGetCount:
             "message": "Task group non_existent_group not found in DAG test_get_count_task_group_not_found",
         }
 
+    def test_get_count_task_group_resolved_against_run_version(self, client, session, dag_maker):
+        """A run of a versioned bundle keeps the task group of the version it was created from."""
+        dag_id = "test_get_count_task_group_run_version"
+        with dag_maker(dag_id=dag_id, serialized=True, bundle_version="v1"):
+            with TaskGroup("group1"):
+                EmptyOperator(task_id="task1")
+                EmptyOperator(task_id="task2")
+        dag_maker.create_dagrun(run_id="pinned", session=session)
+        session.commit()
+
+        # The group is renamed in the next version; the pinned run still has the two old tasks.
+        with dag_maker(dag_id=dag_id, serialized=True, bundle_version="v2"):
+            with TaskGroup("group2"):
+                EmptyOperator(task_id="task1")
+                EmptyOperator(task_id="task2")
+        session.commit()
+
+        response = client.get(
+            "/execution/task-instances/count",
+            params={"dag_id": dag_id, "task_group_id": "group1", "run_ids": ["pinned"]},
+        )
+        assert response.status_code == 200
+        assert response.json() == 2
+
+        # Without a named run the latest version answers, and it no longer has group1.
+        response = client.get(
+            "/execution/task-instances/count", params={"dag_id": dag_id, "task_group_id": "group1"}
+        )
+        assert response.status_code == 404
+
+        # A group that only exists in the newer version is not part of the pinned run.
+        response = client.get(
+            "/execution/task-instances/count",
+            params={"dag_id": dag_id, "task_group_id": "group2", "run_ids": ["pinned"]},
+        )
+        assert response.status_code == 404
+        assert response.json()["detail"] == {
+            "reason": "not_found",
+            "message": f"Task group group2 not found in DAG {dag_id}",
+        }
+
     def test_get_count_dag_not_found(self, client, session):
         response = client.get(
             "/execution/task-instances/count",
@@ -3979,6 +4020,34 @@ class TestGetTaskStates:
                 },
             },
         }
+
+    def test_get_task_states_task_group_resolved_against_run_version(self, client, session, dag_maker):
+        """A run of a versioned bundle keeps the task group of the version it was created from."""
+        dag_id = "test_get_task_states_task_group_run_version"
+        with dag_maker(dag_id=dag_id, serialized=True, bundle_version="v1"):
+            with TaskGroup("group1"):
+                EmptyOperator(task_id="task1")
+        dag_maker.create_dagrun(run_id="pinned", session=session)
+        session.commit()
+
+        # The group is renamed in the next version; the pinned run still has the old task.
+        with dag_maker(dag_id=dag_id, serialized=True, bundle_version="v2"):
+            with TaskGroup("group2"):
+                EmptyOperator(task_id="task1")
+        session.commit()
+
+        response = client.get(
+            "/execution/task-instances/states",
+            params={"dag_id": dag_id, "task_group_id": "group1", "run_ids": ["pinned"]},
+        )
+        assert response.status_code == 200
+        assert response.json() == {"task_states": {"pinned": {"group1.task1": None}}}
+
+        response = client.get(
+            "/execution/task-instances/states",
+            params={"dag_id": dag_id, "task_group_id": "group2", "run_ids": ["pinned"]},
+        )
+        assert response.status_code == 404
 
     def test_get_task_states_with_task_group_id_and_task_id(self, client, session, dag_maker):
         with dag_maker("test_get_task_group_states_with_multiple_task_tasks", serialized=True):

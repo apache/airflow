@@ -103,6 +103,8 @@ from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 if TYPE_CHECKING:
     from sqlalchemy.sql.dml import Update
 
+    from airflow.serialization.definitions.dag import SerializedDAG
+
 router = VersionedAPIRouter()
 
 ti_id_router = VersionedAPIRouter(
@@ -1335,23 +1337,13 @@ def _get_group_tasks(
     run_ids=None,
     map_index: int | None = None,
 ):
-    # Get all tasks in the task group
-    dag = get_latest_version_of_dag(dag_bag, dag_id, session, include_reason=True)
-    task_group = dag.task_group_dict.get(task_group_id)
-    if not task_group:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": f"Task group {task_group_id} not found in DAG {dag_id}",
-            },
-        )
+    task_ids = _get_group_task_ids(dag_id, task_group_id, session, dag_bag, logical_dates, run_ids)
 
     # First get all task instances to get the task_id, map_index pairs
     group_tasks = session.scalars(
         select(TI).where(
             TI.dag_id == dag_id,
-            TI.task_id.in_(task.task_id for task in task_group.iter_tasks()),
+            TI.task_id.in_(task_ids),
             *([TI.logical_date.in_(logical_dates)] if logical_dates else []),
             *([TI.run_id.in_(run_ids)] if run_ids else []),
             *([TI.map_index == map_index] if map_index is not None else []),
@@ -1359,6 +1351,61 @@ def _get_group_tasks(
     ).all()
 
     return group_tasks
+
+
+def _get_group_task_ids(
+    dag_id: str,
+    task_group_id: str,
+    session: SessionDep,
+    dag_bag: DagBagDep,
+    logical_dates=None,
+    run_ids=None,
+) -> set[str]:
+    """
+    Return the ids of the tasks that make up a task group.
+
+    When the request names Dag runs, the group is resolved against the Dag version each of those
+    runs resolves to (the version a run of a versioned bundle was created from, the latest version
+    otherwise), so a group renamed or removed after a run was created is still found for that run,
+    and a group that only exists in a newer version is not. Without a named run, or while none of
+    the named runs exists yet, the latest version answers.
+    """
+    dags: list[SerializedDAG] = []
+    if logical_dates or run_ids:
+        runs = session.scalars(
+            select(DR).where(
+                DR.dag_id == dag_id,
+                *([DR.logical_date.in_(logical_dates)] if logical_dates else []),
+                *([DR.run_id.in_(run_ids)] if run_ids else []),
+            )
+        ).all()
+        # One lookup per distinct version: a run of a versioned bundle resolves to the version it
+        # was created from, every other run resolves to the latest one.
+        representatives: dict[UUID | None, DR] = {}
+        for run in runs:
+            key = run.created_dag_version_id if run.bundle_version and run.created_dag_version_id else None
+            representatives.setdefault(key, run)
+        for run in representatives.values():
+            if (dag := dag_bag.get_dag_for_run(run, session=session)) is not None:
+                dags.append(dag)
+    if not dags:
+        dags = [get_latest_version_of_dag(dag_bag, dag_id, session, include_reason=True)]
+
+    task_ids = {
+        task.task_id
+        for dag in dags
+        if (task_group := dag.task_group_dict.get(task_group_id)) is not None
+        for task in task_group.iter_tasks()
+    }
+    if not task_ids:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail={
+                "reason": "not_found",
+                "message": f"Task group {task_group_id} not found in DAG {dag_id}",
+            },
+        )
+    return task_ids
 
 
 @ti_id_router.get(
