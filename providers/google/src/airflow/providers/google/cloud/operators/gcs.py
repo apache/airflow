@@ -22,8 +22,9 @@ from __future__ import annotations
 import datetime
 import subprocess
 import sys
+import time
 import warnings
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
@@ -996,7 +997,11 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
                     )
                 destination_file.parent.mkdir(parents=True, exist_ok=True)
 
-                blob.download_to_filename(filename=str(destination_file))
+                self._run_with_attempts(
+                    lambda: blob.download_to_filename(filename=str(destination_file)),
+                    num_attempts=self.download_num_attempts,
+                    description=f"Download of gs://{self.source_bucket}/{blob_name}",
+                )
 
                 return blob_name
 
@@ -1071,8 +1076,10 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
 
                 blob = bucket.blob(blob_name=upload_file_name, chunk_size=self.chunk_size)
 
-                blob.upload_from_filename(
-                    filename=str(upload_file),
+                self._run_with_attempts(
+                    lambda: blob.upload_from_filename(filename=str(upload_file)),
+                    num_attempts=self.upload_num_attempts,
+                    description=f"Upload of {upload_file_name} to gs://{self.destination_bucket}",
                 )
 
                 return upload_file_name
@@ -1100,6 +1107,28 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
                         self.log.warning("Upload failed for %s: %s", upload_file, e)
 
             return files_uploaded
+
+    def _run_with_attempts(
+        self, operation: Callable[[], object], *, num_attempts: int, description: str
+    ) -> None:
+        """
+        Run ``operation`` up to ``num_attempts`` times, retrying on ``GoogleCloudError``.
+
+        This mirrors the retry loop of :meth:`GCSHook.download` and :meth:`GCSHook.upload`, which the
+        operator relied on before it started transferring blobs through the storage client directly.
+        """
+        for attempt in range(1, max(num_attempts, 1) + 1):
+            try:
+                operation()
+                return
+            except GoogleCloudError as e:
+                if attempt >= num_attempts:
+                    raise
+                self.log.warning(
+                    "%s failed on attempt %s of %s: %s. Retrying.", description, attempt, num_attempts, e
+                )
+                # Wait with exponential backoff scheme before retrying.
+                time.sleep(2**attempt)
 
     def get_openlineage_facets_on_complete(self, task_instance):
         """Implement on_complete as execute() resolves object prefixes."""
