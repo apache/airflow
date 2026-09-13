@@ -18,13 +18,16 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from grpc import RpcError
 from qdrant_client import QdrantClient
 from qdrant_client.http.exceptions import UnexpectedResponse
 
 from airflow.providers.common.compat.sdk import BaseHook
+
+if TYPE_CHECKING:
+    from qdrant_client import models
 
 
 class QdrantHook(BaseHook):
@@ -130,3 +133,51 @@ class QdrantHook(BaseHook):
     def test_connection(self) -> tuple[bool, str]:
         """Test the connection to the Qdrant instance."""
         return self.verify_connection()
+
+    def search(
+        self,
+        collection_name: str,
+        query: Any,
+        *,
+        query_filter: models.Filter | None = None,
+        search_params: models.SearchParams | None = None,
+        limit: int = 10,
+        offset: int | None = None,
+        with_payload: bool | list[str] = True,
+        with_vectors: bool | list[str] = False,
+        score_threshold: float | None = None,
+        **kwargs: Any,
+    ) -> list[dict[str, Any]]:
+        """
+        Run a similarity search against a Qdrant collection and return the matches.
+
+        Wraps ``QdrantClient.query_points`` and returns plain, XCom-serializable
+        dictionaries (via ``ScoredPoint.model_dump``) instead of pydantic objects.
+
+        :param collection_name: Name of the collection to search.
+        :param query: The query. Commonly a dense vector (``list[float]``); it may
+            also be a point id, a named/sparse vector, or a ``qdrant_client.models``
+            query object. See the Qdrant ``query_points`` docs for all supported forms.
+        :param query_filter: Optional filter to restrict which points are considered.
+        :param search_params: Optional search-tuning parameters (e.g. ``hnsw_ef``).
+        :param limit: Maximum number of results to return (top-k). Defaults to 10.
+        :param offset: Number of results to skip, for pagination. Optional.
+        :param with_payload: Whether (or which payload fields) to include. Defaults to True.
+        :param with_vectors: Whether (or which vectors) to include. Defaults to False.
+        :param score_threshold: Minimal similarity score for a result to be returned.
+        :param kwargs: Additional keyword arguments forwarded to ``query_points``.
+        :return: A list of scored points as dictionaries, ordered by descending score.
+        """
+        response = self.conn.query_points(
+            collection_name=collection_name,
+            query=query,
+            query_filter=query_filter,
+            search_params=search_params,
+            limit=limit,
+            offset=offset,
+            with_payload=with_payload,
+            with_vectors=with_vectors,
+            score_threshold=score_threshold,
+            **kwargs,
+        )
+        return [point.model_dump() for point in response.points]

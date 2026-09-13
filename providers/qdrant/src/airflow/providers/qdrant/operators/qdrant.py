@@ -108,3 +108,87 @@ class QdrantIngestOperator(BaseOperator):
             max_retries=self.max_retries,
             wait=self.wait,
         )
+
+
+class QdrantSearchOperator(BaseOperator):
+    """
+    Run a similarity search against a Qdrant collection and return the matches.
+
+    The operator wraps :meth:`~airflow.providers.qdrant.hooks.qdrant.QdrantHook.search`,
+    which calls Qdrant's ``query_points`` API and converts each returned point to a
+    plain, XCom-serializable ``dict`` (id, score, payload, vector). Results land in
+    XCom as a ``list[dict]`` ready to be consumed by downstream tasks (e.g. an LLM
+    task that builds a prompt from the retrieved payloads in a RAG pipeline).
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:QdrantSearchOperator`
+
+    :param conn_id: The connection id to connect to a Qdrant instance.
+    :param collection_name: The name of the collection to search.
+    :param query: The query. Commonly a dense vector (``list[float]``); it may also
+        be a point id, a named/sparse vector, or any query form supported by
+        ``qdrant_client.QdrantClient.query_points``.
+    :param query_filter: Optional filter to restrict which points are considered.
+    :param search_params: Optional Qdrant ``SearchParams`` (e.g. ``hnsw_ef``).
+    :param limit: Maximum number of results to return (top-k). Defaults to 10.
+    :param offset: Number of results to skip, for pagination. Optional.
+    :param with_payload: Whether (or which payload fields) to include. Defaults to True.
+    :param with_vectors: Whether (or which vectors) to include. Defaults to False.
+    :param score_threshold: Minimum similarity score for a result to be returned.
+    :param kwargs: Additional keyword arguments passed to the ``BaseOperator``
+        constructor.
+    """
+
+    template_fields: Sequence[str] = (
+        "collection_name",
+        "query",
+        "query_filter",
+        "limit",
+    )
+
+    def __init__(
+        self,
+        *,
+        conn_id: str = QdrantHook.default_conn_name,
+        collection_name: str,
+        query: Any,
+        query_filter: Any = None,
+        search_params: Any = None,
+        limit: int = 10,
+        offset: int | None = None,
+        with_payload: bool | list[str] = True,
+        with_vectors: bool | list[str] = False,
+        score_threshold: float | None = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.conn_id = conn_id
+        self.collection_name = collection_name
+        self.query = query
+        self.query_filter = query_filter
+        self.search_params = search_params
+        self.limit = limit
+        self.offset = offset
+        self.with_payload = with_payload
+        self.with_vectors = with_vectors
+        self.score_threshold = score_threshold
+
+    @cached_property
+    def hook(self) -> QdrantHook:
+        """Return an instance of QdrantHook."""
+        return QdrantHook(conn_id=self.conn_id)
+
+    def execute(self, context: Context) -> list[dict[str, Any]]:
+        """Search the Qdrant collection and return the matching points as dicts."""
+        return self.hook.search(
+            collection_name=self.collection_name,
+            query=self.query,
+            query_filter=self.query_filter,
+            search_params=self.search_params,
+            limit=self.limit,
+            offset=self.offset,
+            with_payload=self.with_payload,
+            with_vectors=self.with_vectors,
+            score_threshold=self.score_threshold,
+        )

@@ -38,3 +38,32 @@ An example using the operator in this way:
     :dedent: 4
     :start-after: [START howto_operator_qdrant_ingest]
     :end-before: [END howto_operator_qdrant_ingest]
+
+
+.. _howto/operator:QdrantSearchOperator:
+
+QdrantSearchOperator
+======================
+
+Use the :class:`~airflow.providers.qdrant.operators.qdrant.QdrantSearchOperator` to
+run a vector similarity search against a Qdrant collection and pull the top-k
+matches back into the DAG for downstream tasks (for example, a retrieval step
+in a RAG pipeline).
+
+Using the Operator
+^^^^^^^^^^^^^^^^^^
+
+Pass the target ``collection_name`` and a ``query`` (typically a dense embedding
+vector, but any query form accepted by
+:meth:`~qdrant_client.QdrantClient.query_points` also works). The operator pushes
+the results to XCom as a list of dictionaries -- one per matched point, with
+``id``, ``score``, ``payload`` and (optionally) ``vector`` keys -- so downstream
+tasks can consume them without any custom serialization.
+
+An example using the operator downstream of an ingest task:
+
+.. exampleinclude:: /../../qdrant/tests/system/qdrant/example_dag_qdrant.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_qdrant_search]
+    :end-before: [END howto_operator_qdrant_search]
