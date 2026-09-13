@@ -34,3 +34,11 @@ class AddArgBindingsToSupervisorTIRunContext(VersionChange):
     description = __doc__
 
     instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("arg_bindings").didnt_exist,)
+
+
+class AddBatchXComSupervisorMessages(VersionChange):
+    """Add supervisor messages for fetching multiple XCom values together."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = ()

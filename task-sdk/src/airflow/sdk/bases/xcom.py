@@ -25,8 +25,10 @@ import structlog
 from airflow.sdk.execution_time.comms import (
     DeleteXCom,
     GetXCom,
+    GetXComs,
     GetXComSequenceSlice,
     SetXCom,
+    XComBatchResult,
     XComResult,
     XComSequenceSliceResult,
 )
@@ -348,6 +350,41 @@ class BaseXCom:
             map_index=map_index,
         )
         return None
+
+    @classmethod
+    def get_many(
+        cls,
+        *,
+        key: str,
+        dag_id: str,
+        task_ids: list[str],
+        run_id: str,
+        map_index: int | None = None,
+        include_prior_dates: bool = False,
+    ) -> dict[str, Any | None]:
+        """Retrieve multiple XCom values for one Dag run, key, and map index."""
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        msg = SUPERVISOR_COMMS.send(
+            GetXComs(
+                key=key,
+                dag_id=dag_id,
+                task_ids=task_ids,
+                run_id=run_id,
+                map_index=map_index,
+                include_prior_dates=include_prior_dates,
+            ),
+        )
+
+        if not isinstance(msg, XComBatchResult):
+            raise TypeError(f"Expected XComBatchResult, received: {type(msg)} {msg}")
+
+        return {
+            item.task_id: cls.deserialize_value(_XComValueWrapper(item.value))
+            if item.value is not None
+            else None
+            for item in msg.values
+        }
 
     @classmethod
     async def aget_one(

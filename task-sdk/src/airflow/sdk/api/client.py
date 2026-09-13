@@ -85,6 +85,7 @@ from airflow.sdk.api.datamodels._generated import (
     VariableKeysResponse,
     VariablePostBody,
     VariableResponse,
+    XComBatchResponse,
     XComResponse,
     XComSequenceIndexResponse,
     XComSequenceSliceResponse,
@@ -612,6 +613,24 @@ class XComOperations:
                 return XComResponse(key=key, value=None)
             raise
         return XComResponse.model_validate_json(resp.read())
+
+    def get_batch(
+        self,
+        dag_id: str,
+        run_id: str,
+        task_ids: list[str],
+        key: str,
+        map_index: int | None = None,
+        include_prior_dates: bool = False,
+    ) -> XComBatchResponse:
+        """Get multiple XCom values from the API server."""
+        body: dict[str, Any] = {"dag_id": dag_id, "run_id": run_id, "key": key, "task_ids": task_ids}
+        if map_index is not None and map_index >= 0:
+            body["map_index"] = map_index
+        if include_prior_dates:
+            body["include_prior_dates"] = include_prior_dates
+        resp = self.client.post("xcoms/batch", json=body)
+        return XComBatchResponse.model_validate_json(resp.read())
 
     def set(
         self,

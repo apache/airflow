@@ -70,7 +70,7 @@ def access_denied(client):
         token=CurrentTIToken,
     ):
         with create_session() as session:
-            has_xcom_access(dag_id, run_id, task_id, xcom_key, request, session, token)
+            has_xcom_access(dag_id, run_id, task_id, xcom_key, request, session=session, token=token)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={

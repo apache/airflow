@@ -48,6 +48,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskStateStoreResponse,
     TerminalTIState,
     VariableResponse,
+    XComBatchResponse,
     XComResponse,
 )
 from airflow.sdk.exceptions import ErrorType, TaskAlreadyRunningError
@@ -1020,6 +1021,44 @@ class TestXCOMOperations:
         assert isinstance(result, XComResponse)
         assert result.key == "test_key"
         assert result.value == "test_value"
+
+    def test_xcom_get_batch_success(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/xcoms/batch"
+            assert json.loads(request.content) == {
+                "dag_id": "dag_id",
+                "run_id": "run_id",
+                "task_ids": ["task_1", "task_2"],
+                "key": "key",
+                "map_index": 2,
+                "include_prior_dates": True,
+            }
+            return httpx.Response(
+                status_code=201,
+                json={
+                    "key": "key",
+                    "values": [
+                        {"task_id": "task_1", "value": "value_1"},
+                        {"task_id": "task_2", "value": None},
+                    ],
+                },
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.xcoms.get_batch(
+            dag_id="dag_id",
+            run_id="run_id",
+            task_ids=["task_1", "task_2"],
+            key="key",
+            map_index=2,
+            include_prior_dates=True,
+        )
+        assert isinstance(result, XComBatchResponse)
+        assert result.key == "key"
+        assert [(item.task_id, item.value) for item in result.values] == [
+            ("task_1", "value_1"),
+            ("task_2", None),
+        ]
 
     def test_xcom_get_500_error(self):
         with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
