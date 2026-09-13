@@ -33,9 +33,16 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"reflect"
+	"regexp"
+	"slices"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
@@ -468,7 +475,8 @@ func (p *Plan) decodeArg(
 			"task function %s: %s: nil argument binding", p.fnName, errCtx,
 		)
 	}
-	if err := checkValueType(arg.Schema(), targetType); err != nil {
+	shape, err := checkValueType(arg.Schema(), targetType)
+	if err != nil {
 		return reflect.Value{}, fmt.Errorf("task function %s: %s: %w", p.fnName, errCtx, err)
 	}
 	var source string
@@ -482,7 +490,7 @@ func (p *Plan) decodeArg(
 			"task function %s: %s: unsupported argument binding %T", p.fnName, errCtx, arg,
 		)
 	}
-	v, err := decodeValue(raw, targetType)
+	v, err := decodeValue(raw, targetType, shape)
 	if err != nil {
 		return reflect.Value{}, fmt.Errorf(
 			"task function %s: %s: decoding %s into %s: %w",
@@ -534,6 +542,10 @@ func structParamType(in reflect.Type) reflect.Type {
 		t = t.Elem()
 	}
 	if t.Kind() != reflect.Struct {
+		return nil
+	}
+	// time.Time binds positionally despite being a struct.
+	if _, isNative := nativeFormats[t]; isNative {
 		return nil
 	}
 	return t
@@ -662,6 +674,52 @@ type schemaShape struct {
 	fragment map[string]any
 }
 
+func (s schemaShape) child(key string) schemaShape {
+	nested, ok := s.fragment[key].(map[string]any)
+	if !ok {
+		return schemaShape{}
+	}
+	return nestedShapeOf(nested)
+}
+
+func (s schemaShape) property(name string) schemaShape {
+	props, ok := s.fragment["properties"].(map[string]any)
+	if !ok {
+		return schemaShape{}
+	}
+	nested, ok := props[name].(map[string]any)
+	if !ok {
+		return schemaShape{}
+	}
+	return nestedShapeOf(nested)
+}
+
+// Preserve formats inside nullable schemas.
+func nestedShapeOf(fragment map[string]any) schemaShape {
+	branches, isUnion := fragment["anyOf"].([]any)
+	if !isUnion {
+		return shapeOf(fragment)
+	}
+	var only map[string]any
+	for _, branch := range branches {
+		alt, isMap := branch.(map[string]any)
+		if !isMap {
+			return shapeOf(fragment)
+		}
+		if jsonType, _ := alt["type"].(string); jsonType == "null" {
+			continue
+		}
+		if only != nil {
+			return shapeOf(fragment)
+		}
+		only = alt
+	}
+	if only == nil {
+		return shapeOf(fragment)
+	}
+	return shapeOf(only)
+}
+
 func shapeOf(fragment map[string]any) schemaShape {
 	jsonType, _ := fragment["type"].(string)
 	format, _ := fragment["format"].(string)
@@ -705,13 +763,22 @@ func schemaShapes(
 	return []schemaShape{shapeOf(fragment)}, false, true
 }
 
-func checkValueType(schema *genmodels.ArgValueSchema, target reflect.Type) error {
+var nativeFormats = map[reflect.Type][]string{
+	timeType:     {"date-time", "date", "time"},
+	durationType: {"duration"},
+	uuidType:     {"uuid"},
+}
+
+func checkValueType(
+	schema *genmodels.ArgValueSchema,
+	target reflect.Type,
+) (matched schemaShape, err error) {
 	shapes, nullable, ok := schemaShapes(schema)
 	if !ok {
-		return nil
+		return schemaShape{}, nil
 	}
 	if nullable && !isNilableType(target) {
-		return fmt.Errorf(
+		return schemaShape{}, fmt.Errorf(
 			"the Dag may pass null for this argument, so Go parameter type %s must be a "+
 				"pointer (or a slice, map or any)",
 			target,
@@ -722,20 +789,23 @@ func checkValueType(schema *genmodels.ArgValueSchema, target reflect.Type) error
 		t = t.Elem()
 	}
 	if t.Kind() == reflect.Interface {
-		return nil
+		return schemaShape{}, nil
 	}
 	for _, shape := range shapes {
 		if isBindableShape(shape, t) {
-			return nil
+			return shape, nil
 		}
 	}
-	return fmt.Errorf(
+	return schemaShape{}, fmt.Errorf(
 		"the Dag declares %s which cannot bind to Go parameter type %s",
 		describeShapes(shapes), target,
 	)
 }
 
 func isBindableShape(shape schemaShape, t reflect.Type) bool {
+	if formats, isNative := nativeFormats[t]; isNative {
+		return slices.Contains(formats, shape.format)
+	}
 	// Self-decoding types define their own wire representation.
 	if implementsUnmarshaler(t) {
 		return true
@@ -788,7 +858,7 @@ func describeShapes(shapes []schemaShape) string {
 	return "JSON-schema alternatives " + strings.Join(parts, " | ")
 }
 
-func decodeValue(raw any, target reflect.Type) (reflect.Value, error) {
+func decodeValue(raw any, target reflect.Type, shape schemaShape) (reflect.Value, error) {
 	out := reflect.New(target)
 
 	if raw == nil {
@@ -800,7 +870,12 @@ func decodeValue(raw any, target reflect.Type) (reflect.Value, error) {
 		)
 	}
 
-	blob, err := json.Marshal(raw)
+	normalized, err := normalizeNative(raw, target, shape)
+	if err != nil {
+		return reflect.Value{}, err
+	}
+
+	blob, err := json.Marshal(normalized)
 	if err != nil {
 		return reflect.Value{}, err
 	}
@@ -810,6 +885,335 @@ func decodeValue(raw any, target reflect.Type) (reflect.Value, error) {
 		return reflect.Value{}, err
 	}
 	return out.Elem(), nil
+}
+
+func normalizeNative(raw any, target reflect.Type, shape schemaShape) (any, error) {
+	if raw == nil {
+		// Reject null before encoding/json can zero the target.
+		if !isNilableType(target) {
+			return nil, fmt.Errorf(
+				"value is null but the type %s is not nilable", target,
+			)
+		}
+		return nil, nil
+	}
+	for target.Kind() == reflect.Pointer {
+		target = target.Elem()
+	}
+
+	if formats, isNative := nativeFormats[target]; isNative {
+		if shape.jsonType != "" && !slices.Contains(formats, shape.format) {
+			return nil, fmt.Errorf(
+				"the Dag declares %s which cannot bind to Go type %s",
+				describeShapes([]schemaShape{shape}), target,
+			)
+		}
+	}
+
+	switch target {
+	case durationType:
+		text, ok := raw.(string)
+		if !ok {
+			// Reject numbers, which Go would interpret as nanoseconds.
+			return nil, fmt.Errorf(
+				"expected an ISO-8601 duration string, got %T; a bare number would be "+
+					"read as nanoseconds",
+				raw,
+			)
+		}
+		d, err := parseISO8601Duration(text)
+		if err != nil {
+			return nil, err
+		}
+		return int64(d), nil
+	case timeType:
+		text, ok := raw.(string)
+		if !ok {
+			return nil, fmt.Errorf("expected a timestamp string, got %T", raw)
+		}
+		ts, err := parseTemporal(text, shape.format)
+		if err != nil {
+			return nil, err
+		}
+		return ts.Format(time.RFC3339Nano), nil
+	}
+
+	// Native types handled above or self-decoding (e.g. uuid.UUID via TextUnmarshaler).
+	if _, isNative := nativeFormats[target]; isNative {
+		return raw, nil
+	}
+
+	if !containsNative(target) {
+		return raw, nil
+	}
+
+	switch target.Kind() {
+	case reflect.Slice, reflect.Array:
+		items, ok := raw.([]any)
+		if !ok {
+			return nil, fmt.Errorf("expected an array, got %T", raw)
+		}
+		if target.Kind() == reflect.Array && len(items) != target.Len() {
+			return nil, fmt.Errorf(
+				"expected %d elements for %s, got %d", target.Len(), target, len(items),
+			)
+		}
+		elemShape := shape.child("items")
+		out := make([]any, len(items))
+		for i, item := range items {
+			v, err := normalizeNative(item, target.Elem(), elemShape)
+			if err != nil {
+				return nil, fmt.Errorf("element %d: %w", i, err)
+			}
+			out[i] = v
+		}
+		return out, nil
+
+	case reflect.Map:
+		entries, ok := raw.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("expected an object, got %T", raw)
+		}
+		elemShape := shape.child("additionalProperties")
+		out := make(map[string]any, len(entries))
+		for key, item := range entries {
+			v, err := normalizeNative(item, target.Elem(), elemShape)
+			if err != nil {
+				return nil, fmt.Errorf("key %q: %w", key, err)
+			}
+			out[key] = v
+		}
+		return out, nil
+
+	case reflect.Struct:
+		entries, ok := raw.(map[string]any)
+		if !ok {
+			// Let strict decoding report the mismatch.
+			return raw, nil
+		}
+		fields := nativeStructFields(target)
+		out := make(map[string]any, len(entries))
+		for key, item := range entries {
+			fieldType, ok := lookupNativeField(fields, key)
+			if !ok {
+				// Preserve unknown keys for strict decoding.
+				out[key] = item
+				continue
+			}
+			v, err := normalizeNative(item, fieldType, shape.property(key))
+			if err != nil {
+				return nil, fmt.Errorf("field %q: %w", key, err)
+			}
+			out[key] = v
+		}
+		return out, nil
+	}
+	return raw, nil
+}
+
+var nativeStructFieldsCache sync.Map // reflect.Type → map[string]reflect.Type
+
+func nativeStructFields(structType reflect.Type) map[string]reflect.Type {
+	if v, ok := nativeStructFieldsCache.Load(structType); ok {
+		return v.(map[string]reflect.Type)
+	}
+	fields := make(map[string]reflect.Type)
+	collectNativeFields(structType, fields, map[string]bool{}, map[reflect.Type]bool{})
+	nativeStructFieldsCache.Store(structType, fields)
+	return fields
+}
+
+func collectNativeFields(
+	structType reflect.Type,
+	into map[string]reflect.Type,
+	claimed map[string]bool,
+	seen map[reflect.Type]bool,
+) {
+	if seen[structType] {
+		return
+	}
+	seen[structType] = true
+
+	var embeddedTypes []reflect.Type
+	for i := range structType.NumField() {
+		f := structType.Field(i)
+		tag := f.Tag.Get("json")
+		if tag == "-" {
+			continue
+		}
+		name, _, _ := strings.Cut(tag, ",")
+
+		embedded := f.Type
+		for embedded.Kind() == reflect.Pointer {
+			embedded = embedded.Elem()
+		}
+		// Embedded structs promote exported fields even when unexported.
+		if f.Anonymous && name == "" && embedded.Kind() == reflect.Struct && embedded != timeType {
+			embeddedTypes = append(embeddedTypes, embedded)
+			continue
+		}
+		if !f.IsExported() {
+			continue
+		}
+		if name == "" {
+			name = f.Name
+		}
+		if claimed[name] {
+			continue
+		}
+		claimed[name] = true
+		if containsNative(f.Type) {
+			into[name] = f.Type
+		}
+	}
+	for _, embedded := range embeddedTypes {
+		collectNativeFields(embedded, into, claimed, seen)
+	}
+}
+
+func lookupNativeField(
+	fields map[string]reflect.Type,
+	key string,
+) (reflect.Type, bool) {
+	if t, ok := fields[key]; ok {
+		return t, true
+	}
+	// Match encoding/json's case-insensitive fallback.
+	for name, t := range fields {
+		if strings.EqualFold(name, key) {
+			return t, true
+		}
+	}
+	return nil, false
+}
+
+var containsNativeCache sync.Map // reflect.Type → bool
+
+func containsNative(t reflect.Type) bool {
+	if v, ok := containsNativeCache.Load(t); ok {
+		return v.(bool)
+	}
+	result := containsNativeSeen(t, map[reflect.Type]bool{})
+	containsNativeCache.Store(t, result)
+	return result
+}
+
+func containsNativeSeen(t reflect.Type, seen map[reflect.Type]bool) bool {
+	for t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	if t == timeType || t == durationType || t == uuidType {
+		return true
+	}
+	if implementsUnmarshaler(t) {
+		// Self-decoding types manage their own wire format.
+		return false
+	}
+	switch t.Kind() {
+	case reflect.Slice, reflect.Array, reflect.Map:
+		return containsNativeSeen(t.Elem(), seen)
+	case reflect.Struct:
+		if seen[t] {
+			return false
+		}
+		seen[t] = true
+		for i := range t.NumField() {
+			f := t.Field(i)
+			// Embedded structs may promote native fields.
+			if !f.IsExported() && !f.Anonymous {
+				continue
+			}
+			if containsNativeSeen(f.Type, seen) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// parseTemporal treats naive Python datetimes as UTC.
+func parseTemporal(text, format string) (time.Time, error) {
+	var layouts []string
+	switch format {
+	case "date":
+		layouts = []string{time.DateOnly}
+	case "time":
+		layouts = []string{"15:04:05.999999999Z07:00", "15:04:05.999999999"}
+	default:
+		layouts = []string{time.RFC3339Nano, "2006-01-02T15:04:05.999999999"}
+	}
+	for _, layout := range layouts {
+		if ts, err := time.Parse(layout, text); err == nil {
+			return ts, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("%q is not a valid %s value", text, temporalName(format))
+}
+
+func temporalName(format string) string {
+	if format == "" {
+		return "date-time"
+	}
+	return format
+}
+
+// iso8601Duration matches fixed-length ISO 8601 durations.
+var iso8601Duration = regexp.MustCompile(
+	`^([+-])?P(?:(\d+(?:\.\d+)?)W)?(?:(\d+(?:\.\d+)?)D)?` +
+		`(?:T(?:(\d+(?:\.\d+)?)H)?(?:(\d+(?:\.\d+)?)M)?(?:(\d+(?:\.\d+)?)S)?)?$`,
+)
+
+var calendarDuration = regexp.MustCompile(`^[+-]?P\d+(?:\.\d+)?[YM]`)
+
+func parseISO8601Duration(text string) (time.Duration, error) {
+	groups := iso8601Duration.FindStringSubmatch(text)
+	if groups == nil {
+		if calendarDuration.MatchString(text) {
+			return 0, fmt.Errorf(
+				"duration %q counts years or months, which have no fixed length; "+
+					"express it in weeks, days, or smaller units",
+				text,
+			)
+		}
+		return 0, fmt.Errorf(
+			"%q is not an ISO-8601 duration (want e.g. \"PT5M\" or \"P1DT2H3M4S\")", text,
+		)
+	}
+
+	units := []time.Duration{
+		7 * 24 * time.Hour, // W
+		24 * time.Hour,     // D
+		time.Hour,          // H
+		time.Minute,        // M
+		time.Second,        // S
+	}
+	var total float64
+	empty := true
+	for i, unit := range units {
+		field := groups[i+2]
+		if field == "" {
+			continue
+		}
+		n, err := strconv.ParseFloat(field, 64)
+		if err != nil {
+			return 0, fmt.Errorf("duration %q: %w", text, err)
+		}
+		total += n * float64(unit)
+		empty = false
+	}
+	if empty {
+		return 0, fmt.Errorf("duration %q carries no components", text)
+	}
+	if groups[1] == "-" {
+		total = -total
+	}
+	// Guard float-to-int overflow explicitly.
+	if total >= math.MaxInt64 || total < math.MinInt64 {
+		return 0, fmt.Errorf(
+			"duration %q does not fit in a time.Duration (max about 292 years)", text,
+		)
+	}
+	return time.Duration(total), nil
 }
 
 // Struct fields are checked only if the wire value names them.
@@ -847,6 +1251,10 @@ var (
 
 	jsonUnmarshalerType = reflect.TypeFor[json.Unmarshaler]()
 	textUnmarshalerType = reflect.TypeFor[encoding.TextUnmarshaler]()
+
+	timeType     = reflect.TypeFor[time.Time]()
+	durationType = reflect.TypeFor[time.Duration]()
+	uuidType     = reflect.TypeFor[uuid.UUID]()
 )
 
 func isContext(inType reflect.Type) bool {

@@ -22,6 +22,9 @@ import (
 	"fmt"
 	"log/slog"
 	"reflect"
+	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/apache/airflow/go-sdk/sdk"
 )
@@ -263,4 +266,36 @@ func ViaPlainMap(
 
 	log.InfoContext(ctx, "Bound dict into a plain map", "labels", fmt.Sprint(labels))
 	return map[string]any{"team": labels["team"], "tier": labels["tier"]}, nil
+}
+
+// ViaTemporalArgs validates native argument binding.
+func ViaTemporalArgs(
+	ctx sdk.TIRunContext,
+	log *slog.Logger,
+	when time.Time,
+	window time.Duration,
+	traceID uuid.UUID,
+) (any, error) {
+	wantWhen := time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC)
+	if !when.Equal(wantWhen) {
+		return nil, fmt.Errorf("datetime bound incorrectly: when=%s, want %s", when, wantWhen)
+	}
+	if window != 5*time.Minute {
+		return nil, fmt.Errorf("timedelta bound incorrectly: window=%s, want 5m", window)
+	}
+	wantTrace := uuid.MustParse("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
+	if traceID != wantTrace {
+		return nil, fmt.Errorf("UUID bound incorrectly: trace_id=%s, want %s", traceID, wantTrace)
+	}
+
+	log.InfoContext(ctx, "Bound temporal arguments",
+		"when", when.Format(time.RFC3339),
+		"window", window.String(),
+		"trace_id", traceID.String(),
+	)
+	return map[string]any{
+		"when":           when.UTC().Format(time.RFC3339),
+		"window_seconds": window.Seconds(),
+		"trace_id":       traceID.String(),
+	}, nil
 }
