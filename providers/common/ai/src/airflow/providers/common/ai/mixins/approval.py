@@ -66,14 +66,15 @@ class LLMApprovalMixin:
     ``on_approval_timeout`` decides what happens when ``approval_timeout``
     expires without a response: ``"fail"`` raises ``HITLTimeoutError``, while
     ``"approve"`` and ``"reject"`` answer the review with that option so the
-    task resumes as if a reviewer had chosen it.
+    task resumes as if a reviewer had chosen it.  The chosen option is also
+    pre-highlighted for the reviewer in the HITL form.
 
     Operators that use this mixin must set the following attributes:
 
     - ``require_approval`` (``bool``)
     - ``allow_modifications`` (``bool``)
     - ``approval_timeout`` (``timedelta | None``)
-    - ``on_approval_timeout`` (``str``)
+    - ``on_approval_timeout`` (``Literal["fail", "approve", "reject"]``)
     - ``prompt`` (``str``)
     """
 
