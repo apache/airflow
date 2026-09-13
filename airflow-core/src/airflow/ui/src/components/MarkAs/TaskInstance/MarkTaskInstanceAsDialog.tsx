@@ -16,16 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Flex, Heading, VStack } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
+
+import { Button, Flex } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
+
+import { Modal, SegmentedControl } from "src/system-components";
+
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { Dialog } from "src/components/ui";
-import SegmentedControl from "src/components/ui/SegmentedControl";
+
 import { useMarkTaskInstanceDefaultOptions } from "src/hooks/useUserSettings";
 import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
 import { usePatchTaskInstanceDryRun } from "src/queries/usePatchTaskInstanceDryRun";
@@ -97,7 +100,30 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
   };
 
   return (
-    <Dialog.Root
+    <Modal
+      footerActions={
+        <Button
+          loading={isPending || isPendingDryRun}
+          onClick={() => {
+            mutate({
+              dagId,
+              dagRunId,
+              mapIndex,
+              requestBody: {
+                include_downstream: downstream,
+                include_future: future,
+                include_past: past,
+                include_upstream: upstream,
+                new_state: state,
+                note,
+              },
+              taskId,
+            });
+          }}
+        >
+          {translate("modal.confirm")}
+        </Button>
+      }
       lazyMount
       onOpenChange={(details) => {
         if (!details.open) {
@@ -105,81 +131,46 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
         }
       }}
       open={open}
+      title={
+        <>
+          {translate("dags:runAndTaskActions.markAs.title", {
+            state,
+            type: translate("taskInstance_one"),
+          })}
+          : {taskInstance.task_display_name} <Time datetime={taskInstance.start_date} />{" "}
+          <StateBadge state={state} />
+        </>
+      }
     >
-      <Dialog.Content backdrop>
-        <Dialog.Header>
-          <VStack align="start" gap={4}>
-            <Heading size="xl">
-              <strong>
-                {translate("dags:runAndTaskActions.markAs.title", {
-                  state,
-                  type: translate("taskInstance_one"),
-                })}
-                :
-              </strong>{" "}
-              {taskInstance.task_display_name} <Time datetime={taskInstance.start_date} />{" "}
-              <StateBadge state={state} />
-            </Heading>
-          </VStack>
-        </Dialog.Header>
-
-        <Dialog.CloseTrigger />
-
-        <Dialog.Body width="full">
-          <Flex justifyContent="center">
-            <SegmentedControl
-              defaultValues={markTaskInstanceDefaultOptions}
-              multiple
-              onChange={setSelectedOptions}
-              options={[
-                {
-                  disabled: taskInstance.logical_date === null,
-                  label: translate("dags:runAndTaskActions.options.past"),
-                  value: "past",
-                },
-                {
-                  disabled: taskInstance.logical_date === null,
-                  label: translate("dags:runAndTaskActions.options.future"),
-                  value: "future",
-                },
-                {
-                  label: translate("dags:runAndTaskActions.options.upstream"),
-                  value: "upstream",
-                },
-                {
-                  label: translate("dags:runAndTaskActions.options.downstream"),
-                  value: "downstream",
-                },
-              ]}
-            />
-          </Flex>
-          <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
-          <Flex justifyContent="end" mt={3}>
-            <Button
-              loading={isPending || isPendingDryRun}
-              onClick={() => {
-                mutate({
-                  dagId,
-                  dagRunId,
-                  mapIndex,
-                  requestBody: {
-                    include_downstream: downstream,
-                    include_future: future,
-                    include_past: past,
-                    include_upstream: upstream,
-                    new_state: state,
-                    note,
-                  },
-                  taskId,
-                });
-              }}
-            >
-              {translate("modal.confirm")}
-            </Button>
-          </Flex>
-        </Dialog.Body>
-      </Dialog.Content>
-    </Dialog.Root>
+      <Flex justifyContent="center">
+        <SegmentedControl
+          defaultValues={markTaskInstanceDefaultOptions}
+          multiple
+          onChange={setSelectedOptions}
+          options={[
+            {
+              disabled: taskInstance.logical_date === null,
+              label: translate("dags:runAndTaskActions.options.past"),
+              value: "past",
+            },
+            {
+              disabled: taskInstance.logical_date === null,
+              label: translate("dags:runAndTaskActions.options.future"),
+              value: "future",
+            },
+            {
+              label: translate("dags:runAndTaskActions.options.upstream"),
+              value: "upstream",
+            },
+            {
+              label: translate("dags:runAndTaskActions.options.downstream"),
+              value: "downstream",
+            },
+          ]}
+        />
+      </Flex>
+      <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
+    </Modal>
   );
 };
 

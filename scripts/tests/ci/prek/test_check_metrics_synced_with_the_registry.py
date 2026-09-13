@@ -24,13 +24,13 @@ from unittest import mock
 import pytest
 from ci.prek import check_metrics_synced_with_the_registry
 from ci.prek.check_metrics_synced_with_the_registry import (
-    _PREFIX_MATCHED,
+    _PATTERN_MATCHED,
     _except_handler_catches_expected_error,
     _is_stats_module_path,
     compute_unused_registry_entries,
     extract_metric_name_from_ast_node,
     extract_metric_names_from_ast_node,
-    find_prefix_matched_registry_entries,
+    find_pattern_matched_registry_entries,
     find_registry_match,
     find_stale_indirectly_emitted_metrics,
     get_stats_obj_name,
@@ -117,9 +117,9 @@ def test_normalize_metric_name(metric_name, expected_result):
         # In this case, the legacy name of 'task.duration', is 'dag.{dag_id}.{task_id}.duration'.
         # Once normalized, both will be 'dag.*.*.duration' and there should be a match.
         pytest.param("dag.{x}.{y}.duration", "task.duration", id="legacy_name_match_different_structure"),
-        pytest.param("ti.{state}", _PREFIX_MATCHED, id="prefix_match_returns_sentinel"),
-        pytest.param("dagrun.duration.{state}", _PREFIX_MATCHED, id="prefix_match_dotted_base"),
-        pytest.param("non.existent.{var}", None, id="dynamic_metric_no_prefix_match_returns_none"),
+        pytest.param("ti.{state}", _PATTERN_MATCHED, id="pattern_match_returns_sentinel"),
+        pytest.param("dagrun.duration.{state}", _PATTERN_MATCHED, id="pattern_match_dotted_static_part"),
+        pytest.param("non.existent.{var}", None, id="dynamic_metric_no_pattern_match_returns_none"),
         pytest.param("non.existent", None, id="static_metric_not_in_registry_returns_none"),
     ],
 )
@@ -222,14 +222,71 @@ def test_extract_metric_names_from_ast_node(code: str, expected_result):
         pytest.param(
             "ti.{state}",
             ["ti.scheduled", "ti.queued", "ti.start.{dag_id}.{task_id}"],
-            id="base_prefix_matches_multiple_entries",
+            id="pattern_matches_multiple_entries",
         ),
-        pytest.param("dagrun.duration.{state}", ["dagrun.duration.success"], id="dotted_base_prefix"),
-        pytest.param("non.existent.{var}", [], id="no_prefix_match_returns_empty_list"),
+        pytest.param("dagrun.duration.{state}", ["dagrun.duration.success"], id="dotted_static_part"),
+        pytest.param("non.existent.{var}", [], id="no_pattern_match_returns_empty_list"),
     ],
 )
-def test_find_prefix_matched_registry_entries(metric_name, expected_result):
-    assert find_prefix_matched_registry_entries(metric_name, METRICS_REGISTRY) == expected_result
+def test_find_pattern_matched_registry_entries(metric_name, expected_result):
+    assert find_pattern_matched_registry_entries(metric_name, METRICS_REGISTRY) == expected_result
+
+
+# A registry whose entries share a suffix but differ in how many segments precede it, which is the
+# shape produced by a metric name built from a per-component prefix.
+PREFIXED_METRICS_REGISTRY = {
+    "api_server.dag_bag.cache_hit": {"name": "api_server.dag_bag.cache_hit", "type": "counter"},
+    "scheduler.dag_bag.cache_hit": {"name": "scheduler.dag_bag.cache_hit", "type": "counter"},
+    "pool.open_slots": {"name": "pool.open_slots", "type": "gauge"},
+    "a.b.foo.success.duration": {"name": "a.b.foo.success.duration", "type": "timer"},
+}
+
+
+@pytest.mark.parametrize(
+    "metric_name, expected_result",
+    [
+        pytest.param(
+            "{stats_prefix}.cache_hit",
+            ["api_server.dag_bag.cache_hit", "scheduler.dag_bag.cache_hit"],
+            id="leading_variable_spans_multiple_segments",
+        ),
+        pytest.param(
+            "{prefix}.foo.{state}.duration",
+            ["a.b.foo.success.duration"],
+            id="variables_around_a_static_middle",
+        ),
+        pytest.param("{stats_prefix}.cache_miss", [], id="unregistered_suffix_matches_nothing"),
+        pytest.param("{prefix}.open_slots", ["pool.open_slots"], id="single_segment_prefix"),
+    ],
+)
+def test_find_pattern_matched_registry_entries_with_variable_prefix(metric_name, expected_result):
+    """A variable anywhere in the name resolves, which static-prefix matching could not do."""
+    assert find_pattern_matched_registry_entries(metric_name, PREFIXED_METRICS_REGISTRY) == expected_result
+
+
+def test_pattern_match_does_not_cross_static_parts():
+    """The static parts must line up, so a name is not matched just because it shares a suffix."""
+    assert find_pattern_matched_registry_entries("{prefix}.bar.duration", PREFIXED_METRICS_REGISTRY) == []
+
+
+@pytest.mark.parametrize(
+    "metric_name",
+    [
+        pytest.param("{variable}", id="single_variable"),
+        pytest.param("{prefix}{suffix}", id="adjacent_variables"),
+    ],
+)
+def test_all_variable_name_matches_nothing(metric_name):
+    """A name with no static part must not match, or it marks the whole registry used.
+
+    Its pattern would be a bare "any segments" regex, so every entry would fullmatch and
+    ``compute_unused_registry_entries`` would go permanently empty -- the check failing open.
+    """
+    assert find_pattern_matched_registry_entries(metric_name, PREFIXED_METRICS_REGISTRY) == []
+    assert find_registry_match(metric_name, PREFIXED_METRICS_REGISTRY) is None
+    assert compute_unused_registry_entries({metric_name}, PREFIXED_METRICS_REGISTRY) == sorted(
+        PREFIXED_METRICS_REGISTRY
+    )
 
 
 # 'executor.open_slots' is in INDIRECTLY_EMITTED_METRICS, so it is never reported as unused.
@@ -263,7 +320,7 @@ def test_find_prefix_matched_registry_entries(metric_name, expected_result):
         pytest.param(
             {"ti.{state}"},
             ["dagrun.duration.success", "pool.open_slots", "scheduler.heartbeat", "task.duration"],
-            id="prefix_match_marks_all_prefix_entries_used",
+            id="pattern_match_marks_all_matched_entries_used",
         ),
         pytest.param(
             {"pool.open_slots.{my_pool}"},

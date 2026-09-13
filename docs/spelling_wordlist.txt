@@ -15,6 +15,7 @@ actionCard
 Acyclic
 acyclic
 adb
+adbc
 additionalProperties
 adf
 adhoc
@@ -176,7 +177,9 @@ baseoperatorlink
 BaseView
 BaseXCom
 bashrc
+BatchClient
 batchGet
+BatchNodeState
 BatchServiceClient
 bc
 bcc
@@ -239,6 +242,7 @@ chatbot
 chatbots
 CheckOperator
 checkpointed
+checkpointing
 checksums
 childs
 chmod
@@ -313,6 +317,7 @@ containerConfiguration
 containerd
 ContainerGroup
 containerinstance
+containerised
 ContainerPort
 contentUrl
 contextmgr
@@ -393,6 +398,8 @@ dataframes
 DataFusion
 Datafusion
 datafusion
+Datagram
+datagram
 Datalake
 datamodel
 Datanodes
@@ -463,6 +470,7 @@ deliverability
 deltalake
 denylist
 dep
+dependant
 DependencyMixin
 Deprecations
 deprecations
@@ -1151,6 +1159,8 @@ nohup
 nonnegative
 nonterminal
 noqa
+Normalised
+normalised
 normalizer
 NotFound
 notificationChannels
@@ -1401,6 +1411,7 @@ ReadOnlyCredentials
 readthedocs
 Realtime
 realtime
+rebalance
 rebase
 Rebasing
 Recency
@@ -1436,6 +1447,8 @@ requeue
 requeued
 requeues
 requeuing
+rerank
+reranking
 reserialize
 Reserializing
 resetdb
@@ -1524,6 +1537,7 @@ sendgrid
 sentimentMax
 ser
 serde
+serialisation
 serialise
 serializable
 SerializedDAG
@@ -1592,6 +1606,7 @@ Splunk
 Sql
 sql
 sqla
+sqladmin
 Sqlalchemy
 sqlalchemy
 sqlglot
@@ -1617,6 +1632,7 @@ Stackdriver
 stackdriver
 stacklevel
 stacktrace
+Starlette
 starttls
 stateful
 StatefulSet
@@ -1888,6 +1904,7 @@ Vertica
 vertica
 Vespa
 vespa
+Vianet
 videointelligence
 views
 virtualenv
@@ -1918,6 +1935,7 @@ webpage
 Webserver
 webserver
 webservers
+webViewLink
 Werkzeug
 werkzeug
 whitespace

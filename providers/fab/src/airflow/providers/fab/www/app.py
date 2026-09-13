@@ -18,11 +18,9 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from functools import cache
 from os.path import isabs
 
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
 from sqlalchemy.engine.url import make_url
 
@@ -32,6 +30,7 @@ from airflow.exceptions import AirflowConfigException
 from airflow.logging_config import configure_logging
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_8_PLUS
+from airflow.providers.fab.www.db import AirflowSQLAlchemy
 from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
 from airflow.providers.fab.www.extensions.init_jinja_globals import init_jinja_globals
 from airflow.providers.fab.www.extensions.init_manifest_files import configure_manifest_files
@@ -105,7 +104,7 @@ def create_app(enable_plugins: bool):
 
     csrf.init_app(flask_app)
 
-    db = SQLAlchemy(flask_app)
+    db = AirflowSQLAlchemy(flask_app)
     if settings.Session is None:
         raise RuntimeError("Session not configured. Call configure_orm() first.")
     db.session = settings.Session
@@ -131,14 +130,3 @@ def create_app(enable_plugins: bool):
         init_jinja_globals(flask_app, enable_plugins=enable_plugins)
         init_wsgi_middleware(flask_app)
     return flask_app
-
-
-@cache
-def cached_app():
-    """Return cached instance of Airflow WWW app."""
-    return create_app()
-
-
-def purge_cached_app():
-    """Remove the cached version of the app in global state."""
-    cached_app.cache_clear()

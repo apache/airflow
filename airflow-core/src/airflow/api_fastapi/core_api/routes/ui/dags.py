@@ -321,7 +321,12 @@ def get_dag_timetable_types(
 
 @dags_router.get(
     "/{dag_id}/latest_run",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN))],
 )
 def get_latest_run_info(dag_id: str, session: SessionDep) -> DAGRunLightResponse | None:

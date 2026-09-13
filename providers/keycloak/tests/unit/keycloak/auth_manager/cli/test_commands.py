@@ -29,6 +29,8 @@ from airflow.providers.keycloak.auth_manager.cli.commands import (
     TEAM_SCOPED_RESOURCE_NAMES,
     _get_extended_resource_methods,
     _get_resource_methods,
+    _update_admin_permission_resources,
+    _update_read_only_permission_resources,
     add_user_to_team_command,
     create_all_command,
     create_permissions_command,
@@ -426,6 +428,83 @@ class TestCommands:
             },
             skip_exists=True,
         )
+        client.create_client_authz_resource_based_permission.assert_any_call(
+            client_id="test-id",
+            payload={
+                "name": "Op-team-a",
+                "type": "scope",
+                "logic": "POSITIVE",
+                "decisionStrategy": "UNANIMOUS",
+                "resources": ["r1", "r2", "r3", "r4"],  # Dag, Connection, Pool, Variable
+            },
+            skip_exists=True,
+        )
+
+    @patch("airflow.providers.keycloak.auth_manager.cli.commands._get_permission_policy_ids")
+    def test_update_read_only_permission_resources_excludes_team_resources(
+        self, mock_get_permission_policy_ids
+    ):
+        client = Mock()
+        client.get_client_authz_permissions.return_value = [{"id": "readonly-id", "name": "ReadOnly"}]
+        client.get_client_authz_scopes.return_value = [
+            {"id": "scope-get", "name": "GET"},
+            {"id": "scope-list", "name": "LIST"},
+            {"id": "scope-menu", "name": "MENU"},
+            {"id": "scope-put", "name": "PUT"},
+        ]
+        client.get_client_authz_resources.return_value = [
+            {"_id": "dag-global", "name": "Dag"},
+            {"_id": "dag-team-a", "name": "Dag:team-a"},
+            {"_id": "variable-global", "name": "Variable"},
+            {"_id": "variable-team-a", "name": "Variable:team-a"},
+            {"_id": "asset-global", "name": "Asset"},
+        ]
+        mock_get_permission_policy_ids.return_value = ["viewer-policy", "admin-policy"]
+
+        _update_read_only_permission_resources(client, "test-id")
+
+        client.update_client_authz_scope_permission.assert_called_once_with(
+            client_id="test-id",
+            scope_id="readonly-id",
+            payload={
+                "id": "readonly-id",
+                "name": "ReadOnly",
+                "type": "scope",
+                "logic": "POSITIVE",
+                "decisionStrategy": "AFFIRMATIVE",
+                "scopes": ["scope-get", "scope-list", "scope-menu"],
+                "resources": ["dag-global", "variable-global", "asset-global"],
+                "policies": ["viewer-policy", "admin-policy"],
+            },
+        )
+
+    @patch("airflow.providers.keycloak.auth_manager.cli.commands._get_policy_id")
+    @patch("airflow.providers.keycloak.auth_manager.cli.commands._get_permission_policy_ids")
+    def test_update_admin_permission_resources_removes_admin_role_policy(
+        self, mock_get_permission_policy_ids, mock_get_policy_id
+    ):
+        client = Mock()
+        client.get_client_authz_permissions.return_value = [{"id": "admin-id", "name": "Admin"}]
+        client.get_client_authz_scopes.return_value = [
+            {"id": "scope-get", "name": "GET"},
+            {"id": "scope-list", "name": "LIST"},
+            {"id": "scope-put", "name": "PUT"},
+        ]
+        client.get_client_authz_resources.return_value = [
+            {"_id": "dag-global", "name": "Dag"},
+            {"_id": "dag-team-a", "name": "Dag:team-a"},
+            {"_id": "dag-team-b", "name": "Dag:team-b"},
+            {"_id": "asset-global", "name": "Asset"},
+        ]
+        mock_get_permission_policy_ids.return_value = ["admin-policy", "superadmin-policy"]
+        mock_get_policy_id.return_value = "superadmin-policy"
+
+        _update_admin_permission_resources(client, "test-id")
+
+        client.update_client_authz_scope_permission.assert_called_once()
+        payload = client.update_client_authz_scope_permission.call_args.kwargs["payload"]
+        assert payload["policies"] == ["superadmin-policy"]
+        assert payload["resources"] == ["dag-team-a", "dag-team-b", "asset-global"]
 
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._attach_policy_to_resource_permission")
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._attach_policy_to_scope_permission")
@@ -501,6 +580,7 @@ class TestCommands:
         )
 
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._update_admin_permission_resources")
+    @patch("airflow.providers.keycloak.auth_manager.cli.commands._update_read_only_permission_resources")
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._ensure_scope_permission")
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._attach_policy_to_resource_permission")
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._attach_policy_to_scope_permission")
@@ -521,6 +601,7 @@ class TestCommands:
         mock_attach_policy,
         mock_attach_resource_policy,
         mock_ensure_scope_permission,
+        mock_update_read_only_permission_resources,
         mock_update_admin_permission_resources,
     ):
         client = Mock()
@@ -557,6 +638,7 @@ class TestCommands:
         mock_create_permissions.assert_called_once_with(
             client, "test-id", teams=["team-a"], include_global_admin=False, _dry_run=False
         )
+        mock_update_read_only_permission_resources.assert_called_once_with(client, "test-id", _dry_run=False)
         mock_update_admin_permission_resources.assert_called_once_with(client, "test-id", _dry_run=False)
         mock_ensure_group_policy.assert_called_once_with(client, "test-id", "team-a", _dry_run=False)
         assert mock_ensure_aggregate_policy.call_count == 4
@@ -601,6 +683,7 @@ class TestCommands:
             policy_name="Allow-Op-team-a",
             resource_names=[
                 "Connection:team-a",
+                "Dag:team-a",
                 "Pool:team-a",
                 "Variable:team-a",
             ],

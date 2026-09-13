@@ -30,6 +30,6 @@ before executing default behaviour. See
 [`docs/setup/agentic-overrides.md`](https://github.com/apache/magpie/blob/main/docs/setup/agentic-overrides.md)
 in the framework for the full contract.
 
-**Hard rule**: never modify the snapshot under
-`<repo-root>/.apache-magpie/`. Local mods go here.
-Framework changes go via PR to `apache/magpie`.
+**Hard rule**: never modify the installed plugin. Local
+mods go here. Framework changes go via PR to
+`apache/magpie`.

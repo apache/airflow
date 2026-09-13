@@ -166,7 +166,7 @@ While both Dag constructors get called when the file is accessed, only ``dag_1``
 
     When searching for Dags inside the Dag bundle, Airflow only considers Python files that contain the strings ``airflow`` and ``dag`` (case-insensitively) as an optimization.
 
-    To consider all Python files instead, disable the ``DAG_DISCOVERY_SAFE_MODE`` configuration flag.
+    To consider all Python files instead, set the ``[core] dag_discovery_safe_mode`` configuration flag to ``False``. This is the setting to use when your Dags are defined through a wrapper or abstraction whose source does not contain those strings. The flag is read by the Dag file processor, so set it on that component (and on anything that runs ``airflow dags reserialize``) and restart it for the change to take effect -- otherwise Dags may appear after a manual reserialize and then disappear again on the next processor scan.
 
 You can also provide an ``.airflowignore`` file inside your Dag bundle, or any of its subfolders, which describes patterns of files for the loader to ignore. It covers the directory it's in plus all subfolders underneath it. See  :ref:`.airflowignore <concepts:airflowignore>` below for details of the file syntax.
 
@@ -367,7 +367,7 @@ The ``@task.branch`` can also be used with XComs allowing branching context to d
 If you wish to implement your own operators with branching functionality, you can inherit from :class:`~airflow.operators.branch.BaseBranchOperator`, which behaves similarly to ``@task.branch`` decorator but expects you to provide an implementation of the method ``choose_branch``.
 
 .. note::
-    The ``@task.branch`` decorator is recommended over directly instantiating :class:`~airflow.providers.standard.operators.python.BranchPythonOperator` in a Dag. The latter should generally only be subclassed to implement a custom operator.
+    The ``@task.branch`` decorator is the Taskflow equivalent of :class:`~airflow.providers.standard.operators.python.BranchPythonOperator`. The latter should generally only be subclassed to implement a custom operator.
 
 As with the callable for ``@task.branch``, this method can return the ID of a downstream task, or a list of task IDs, which will be run, and all others will be skipped. It can also return None to skip all downstream task::
 

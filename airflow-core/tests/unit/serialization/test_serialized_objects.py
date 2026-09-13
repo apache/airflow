@@ -79,6 +79,7 @@ from airflow.sdk.definitions.deadline import (
     AsyncCallback,
     DeadlineAlert,
     DeadlineReference,
+    VariableInterval,
 )
 from airflow.sdk.definitions.decorators import task
 from airflow.sdk.definitions.operator_resources import Resources
@@ -95,7 +96,11 @@ from airflow.serialization.definitions.assets import (
     SerializedAssetBase,
     SerializedAssetRef,
 )
-from airflow.serialization.definitions.deadline import DeadlineAlertFields, SerializedDeadlineAlert
+from airflow.serialization.definitions.deadline import (
+    DeadlineAlertFields,
+    SerializedDeadlineAlert,
+    SerializedVariableInterval,
+)
 from airflow.serialization.encoders import ensure_serialized_asset, ensure_serialized_deadline_alert
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import PartitionMapperNotFound
@@ -492,13 +497,33 @@ def test_serialize_deserialize_connection():
 
 
 @pytest.mark.parametrize("reference", REFERENCE_TYPES)
-def test_serialize_deserialize_deadline_alert(reference):
+@pytest.mark.parametrize(
+    ("interval", "expected_interval"),
+    [
+        pytest.param(
+            timedelta(hours=1),
+            timedelta(hours=1),
+            id="timedelta",
+        ),
+        pytest.param(
+            VariableInterval("deadline_seconds"),
+            SerializedVariableInterval("deadline_seconds"),
+            id="sdk_variable_interval",
+        ),
+        pytest.param(
+            SerializedVariableInterval("deadline_seconds"),
+            SerializedVariableInterval("deadline_seconds"),
+            id="serialized_variable_interval",
+        ),
+    ],
+)
+def test_serialize_deserialize_deadline_alert(reference, interval, expected_interval):
     public_deadline_alert_fields = {
         field.lower() for field in vars(DeadlineAlertFields) if not field.startswith("_")
     }
     original = DeadlineAlert(
         reference=reference,
-        interval=timedelta(hours=1),
+        interval=interval,
         callback=AsyncCallback(empty_callback_for_deadline, kwargs=TEST_CALLBACK_KWARGS),
     )
 
@@ -509,7 +534,7 @@ def test_serialize_deserialize_deadline_alert(reference):
 
     deserialized = BaseSerialization.deserialize(serialized)
     assert deserialized.reference.serialize_reference() == reference.serialize_reference()
-    assert deserialized.interval == original.interval
+    assert deserialized.interval == expected_interval
     assert deserialized.callback == original.callback
 
 
@@ -833,6 +858,36 @@ def test_decode_asset_with_consumer_teams():
         "consumer_teams": ["team_ml"],
         "allow_global": False,
     }
+
+
+@pytest.mark.parametrize("q_val", [None, "my_q"])
+def test_decode_asset_preserves_watcher_trigger_queue(q_val: str | None):
+    from airflow.serialization.decoders import decode_asset_like
+
+    decoded = decode_asset_like(
+        {
+            "__type": "asset",
+            "name": "test",
+            "uri": "s3://bucket/key",
+            "group": "asset",
+            "extra": {},
+            "watchers": [
+                {
+                    "name": "watcher",
+                    "trigger": {
+                        "classpath": "airflow.providers.standard.triggers.file.FileDeleteTrigger",
+                        "kwargs": {"filepath": "/tmp"},
+                        **({"queue": q_val} if q_val else {}),
+                    },
+                }
+            ],
+        }
+    )
+    assert isinstance(decoded, SerializedAsset)
+    if q_val:
+        assert decoded.watchers[0].trigger["queue"] == q_val
+    else:
+        assert "queue" not in decoded.watchers[0].trigger
 
 
 def test_decode_asset_defaults_access_control_to_empty_dict():

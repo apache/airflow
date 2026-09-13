@@ -74,21 +74,17 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, *, session: Sessio
     count: int = 0
     for model in models_for_deletion:
         if hasattr(model, "dag_id") and (not keep_records_in_log or model.__name__ != "Log"):
-            result: Result = session.execute(
-                delete(model).where(model.dag_id == dag_id).execution_options(synchronize_session="fetch")
-            )
+            result: Result = session.execute(delete(model).where(model.dag_id == dag_id))
             cursor_result = cast("CursorResult", result)
             count += cursor_result.rowcount
 
     # Delete entries in Import Errors table for a deleted Dag
     # This handles the case when the dag_id is changed in the file
     session.execute(
-        delete(ParseImportError)
-        .where(
+        delete(ParseImportError).where(
             ParseImportError.filename == dag.relative_fileloc,
             ParseImportError.bundle_name == dag.bundle_name,
         )
-        .execution_options(synchronize_session="fetch")
     )
 
     return count

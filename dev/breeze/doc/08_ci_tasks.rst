@@ -18,7 +18,7 @@
 CI tasks
 ========
 
-Breeze hase a number of commands that are mostly used in CI environment to perform cleanup.
+Breeze has a number of commands that are mostly used in CI environment to perform cleanup.
 Detailed description of the CI design can be found in `CI design <ci/README.md>`_.
 
 **The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**

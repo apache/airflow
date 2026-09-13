@@ -25,7 +25,7 @@ import pytest
 
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import Connection, task
@@ -35,10 +35,7 @@ else:
     from airflow.models import Connection  # type: ignore[assignment]
     from airflow.utils.types import NOTSET as SET_DURING_EXECUTION  # type: ignore[attr-defined,no-redef]
 
-if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk import timezone
-else:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from airflow.providers.common.compat.sdk import timezone
 
 DEFAULT_DATE = timezone.datetime(2023, 1, 1)
 conn_id: str = "my_conn_id"

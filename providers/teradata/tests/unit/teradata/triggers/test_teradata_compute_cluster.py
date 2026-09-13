@@ -125,6 +125,49 @@ async def test_run_resume_failure():
         mock_get_status.assert_called_once()
 
 
+@pytest.mark.asyncio
+async def test_run_invalid_operation():
+    trigger = TeradataComputeClusterSyncTrigger(
+        teradata_conn_id="test_conn_id",
+        compute_profile_name="test_profile",
+        operation_type="INVALID",
+        poll_interval=1,
+    )
+    with patch.object(trigger, "get_status", autospec=True) as mock_get_status:
+        events = [event async for event in trigger.run()]
+        assert events == [TriggerEvent({"status": "error", "message": "Invalid operation: INVALID"})]
+        mock_get_status.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("operation_type", "db_status"),
+    [
+        (Constants.CC_CREATE_OPR, Constants.CC_RESUME_DB_STATUS),
+        (Constants.CC_CREATE_SUSPEND_OPR, Constants.CC_SUSPEND_DB_STATUS),
+    ],
+)
+async def test_run_create_success(operation_type, db_status):
+    trigger = TeradataComputeClusterSyncTrigger(
+        teradata_conn_id="test_conn_id",
+        compute_profile_name="test_profile",
+        operation_type=operation_type,
+        poll_interval=1,
+    )
+    with patch.object(trigger, "get_status", autospec=True) as mock_get_status:
+        mock_get_status.return_value = db_status
+        events = [event async for event in trigger.run()]
+        assert events == [
+            TriggerEvent(
+                {
+                    "status": "success",
+                    "message": Constants.CC_OPR_SUCCESS_STATUS_MSG % ("test_profile", operation_type),
+                }
+            )
+        ]
+        mock_get_status.assert_called_once()
+
+
 @pytest.fixture
 def mock_teradata_hook_run():
     with patch.object(TeradataHook, "run") as mock_run:

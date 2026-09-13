@@ -29,6 +29,19 @@ serialized python process.
 This approach can be used with any supported database (including a local SQLite database) and will
 *fail fast* as all tasks run in a single process.
 
+``dag.test()`` executes a real Dag run, so it has two prerequisites:
+
+* an initialized metadata database (``airflow db migrate``), and
+* a Dag that Airflow can serialize, which means the Dag must be defined in a file inside a
+  configured :doc:`Dag bundle </administration-and-deployment/dag-bundles>` — by default, your
+  Dags folder. ``dag.test()`` re-parses the bundle and serializes the Dag for you.
+
+A Dag built in memory — for instance inside a pytest function, in a file outside your Dags folder —
+is not in any bundle, so nothing gets serialized and the call fails with
+``Cannot create DagRun for DAG <dag_id> because the dag is not serialized``. To test operator
+behaviour without a Dag run at all, call the operator directly as described in
+:ref:`Unit tests <best_practices:unit_tests>`.
+
 To set up ``dag.test``, add these two lines to the bottom of your Dag file:
 
 .. code-block:: python

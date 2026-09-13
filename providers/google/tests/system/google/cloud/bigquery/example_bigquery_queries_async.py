@@ -65,7 +65,8 @@ SCHEMA = [
 
 INSERT_DATE = "2030-01-01"
 INSERT_ROWS_QUERY = (
-    f"INSERT {DATASET_NAME}.{TABLE_NAME_1} VALUES "
+    f"TRUNCATE TABLE `{DATASET_NAME}.{TABLE_NAME_1}`; "
+    f"INSERT INTO `{DATASET_NAME}.{TABLE_NAME_1}` VALUES "
     f"(42, 'monty python', '{INSERT_DATE}'), "
     f"(42, 'fishy fish', '{INSERT_DATE}');"
 )

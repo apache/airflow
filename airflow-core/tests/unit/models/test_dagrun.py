@@ -61,6 +61,7 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_ta
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
+from airflow.models.variable import Variable
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator, ShortCircuitOperator
@@ -76,8 +77,6 @@ from airflow.sdk import (
 )
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference, VariableInterval
-from airflow.sdk.definitions.variable import Variable
-from airflow.sdk.exceptions import AirflowRuntimeError
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.settings import get_policy_plugin_manager
@@ -1532,7 +1531,7 @@ class TestDagRun:
         )
         dag_run.dag = scheduler_dag
 
-        # First update resolve interval to "5".
+        # First update resolves interval to "60".
         dag_run.update_state(session=session)
 
         deadline = session.execute(select(Deadline)).scalars().one_or_none()
@@ -1547,16 +1546,71 @@ class TestDagRun:
         deadline = session.execute(select(Deadline)).scalars().one_or_none()
         assert deadline.deadline_time == first_deadline_time
 
+    def test_dagrun_deadline_logs_when_reference_column_is_null(self, session, deadline_test_dag, caplog):
+        scheduler_dag = deadline_test_dag(
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+                interval=datetime.timedelta(minutes=5),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+
+        with caplog.at_level("WARNING"):
+            scheduler_dag.create_dagrun(
+                run_id="manual__null_logical_date",
+                run_type=DagRunType.MANUAL,
+                logical_date=None,
+                data_interval=None,
+                run_after=timezone.utcnow(),
+                start_date=timezone.utcnow(),
+                state=DagRunState.QUEUED,
+                triggered_by=DagRunTriggeredByType.TEST,
+                session=session,
+            )
+
+        assert session.execute(select(Deadline)).scalars().one_or_none() is None
+        assert {
+            "event": "skipping deadline alert because the deadline reference evaluated to None",
+            "dag_id": "test_dag",
+            "run_id": "manual__null_logical_date",
+            "reference_type": "DagRunLogicalDateDeadline",
+            "required_dagrun_column": "logical_date",
+            "log_level": "warning",
+        } in caplog
+        assert not any("Could not find DagRun" in record.message for record in caplog.records)
+
+    def test_dagrun_deadline_does_not_warn_for_average_runtime_without_history(
+        self, session, deadline_test_dag, caplog
+    ):
+        scheduler_dag = deadline_test_dag(
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.AVERAGE_RUNTIME(max_runs=10, min_runs=5),
+                interval=datetime.timedelta(minutes=5),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+
+        with caplog.at_level("WARNING", logger="airflow.serialization.definitions.dag"):
+            self.create_dag_run(
+                dag=scheduler_dag,
+                logical_date=DEFAULT_DATE,
+                session=session,
+            )
+
+        assert session.execute(select(Deadline)).scalars().one_or_none() is None
+        assert {
+            "event": "skipping deadline alert because the deadline reference evaluated to None",
+            "reference_type": "AverageRuntimeDeadline",
+            "log_level": "warning",
+        } not in caplog
+
     @mock.patch.object(Deadline, "prune_deadlines")
     def test_dagrun_deadline_variable_interval_missing_variable_fails(self, _, session, deadline_test_dag):
-        mock_err = mock.Mock()
-        mock_err.error.value = "MISSING_DEADLINE"
-        mock_err.detail = "missing deadline"
 
         with mock.patch.object(
             Variable,
             "get",
-            side_effect=AirflowRuntimeError(mock_err),
+            side_effect=KeyError,
         ):
             future_date = datetime.datetime.now() + datetime.timedelta(days=365)
 

@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ReactNode } from "react";
+
 import "@testing-library/jest-dom";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import dayjs from "dayjs";
@@ -55,7 +57,7 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
-const TestWrapper = ({ children }: { readonly children: React.ReactNode }) => {
+const TestWrapper = ({ children }: { readonly children: ReactNode }) => {
   const timezoneContextValue = {
     availableTimezones: ["UTC", "America/New_York"],
     selectedTimezone: "UTC",

@@ -93,7 +93,7 @@ airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 @guan
 /providers/celery/ @hussein-awala @dheerajturaga
 /providers/cncf/kubernetes @jedcunningham @hussein-awala @jscheffl
 /providers/common/messaging/ @vincbeck
-/providers/common/ai/ @gopidesupavan @kaxil @Lee-W
+/providers/common/ai/ @gopidesupavan @kaxil @Lee-W @ashb
 /providers/dbt/cloud/ @josh-fell
 /providers/edge3/ @jscheffl @dheerajturaga @shubhamraj-git
 /providers/fab/ @vincbeck
@@ -179,12 +179,12 @@ Dockerfile.ci @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @ja
 /shared/ @ashb @amoghrajesh @potiuk
 
 # Agentic instructions
-/AGENTS.md @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin @Dev-iL @jason810496 @shahar1 @choo121600
-/.github/instructions/ @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin @Dev-iL @jason810496 @shahar1 @choo121600
-/airflow-core/src/airflow/api_fastapi/execution_api/AGENTS.md @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin @Dev-iL @jason810496 @shahar1 @choo121600
-/providers/AGENTS.md @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin @Dev-iL @jason810496 @shahar1 @choo121600
-/.github/skills/ @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin @Dev-iL @jason810496 @shahar1 @choo121600
-/.claude/skills/ @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin @Dev-iL @jason810496 @shahar1 @choo121600
+/AGENTS.md @potiuk @kaxil @jscheffl @amoghrajesh @ashb @jason810496 @shahar1 @choo121600
+/.github/instructions/ @potiuk @kaxil @jscheffl @amoghrajesh @ashb @jason810496 @shahar1 @choo121600
+/airflow-core/src/airflow/api_fastapi/execution_api/AGENTS.md @potiuk @kaxil @jscheffl @amoghrajesh @ashb @jason810496 @shahar1 @choo121600
+/providers/AGENTS.md @potiuk @kaxil @jscheffl @amoghrajesh @ashb @jason810496 @shahar1 @choo121600
+/.github/skills/ @potiuk @kaxil @jscheffl @amoghrajesh @ashb @jason810496 @shahar1 @choo121600
+/.claude/skills/ @potiuk @kaxil @jscheffl @amoghrajesh @ashb @jason810496 @shahar1 @choo121600
 
 # RMs on release documents
 /dev/README_RELEASE_*.md @potiuk @jscheffl @vincbeck @shahar1 @jedcunningham @bugraoz93

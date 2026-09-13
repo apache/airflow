@@ -39,7 +39,9 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from airflow._shared.timezones import timezone
+from airflow.configuration import conf as airflow_conf
 from airflow.models.base import Base, StringID
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
@@ -394,6 +396,13 @@ class AssetModel(Base):
     def add_trigger(self, trigger: Trigger, watcher_name: str):
         self.watchers.append(AssetWatcherModel(name=watcher_name, trigger_id=trigger.id))
 
+    @staticmethod
+    @provide_session
+    def get_name_and_uri(asset_id: int, *, session: Session = NEW_SESSION) -> tuple[str, str] | None:
+        stmt = select(AssetModel.name, AssetModel.uri).where(AssetModel.id == asset_id)
+        row = session.execute(stmt).one_or_none()
+        return (row.name, row.uri) if row is not None else None
+
 
 class AssetActive(Base):
     """
@@ -605,6 +614,14 @@ class DagScheduleAssetReference(Base):
     asset = relationship("AssetModel", back_populates="scheduled_dags")
     dag = relationship("DagModel", back_populates="schedule_asset_references")
 
+    @property
+    def team_name(self) -> str | None:
+        """Name of the team owning the Dag scheduled by this asset, or ``None``."""
+        # Gate before touching ``dag``: single-team deployments must not pay for the load.
+        if not airflow_conf.getboolean("core", "multi_team"):
+            return None
+        return self.dag.team_name if self.dag else None
+
     queue_records = relationship(
         "AssetDagRunQueue",
         primaryjoin="""and_(
@@ -661,6 +678,15 @@ class TaskOutletAssetReference(Base):
     )
 
     asset = relationship("AssetModel", back_populates="producing_tasks")
+    dag = relationship("DagModel", viewonly=True)
+
+    @property
+    def team_name(self) -> str | None:
+        """Name of the team owning the Dag producing this asset, or ``None``."""
+        # Gate before touching ``dag``: single-team deployments must not pay for the load.
+        if not airflow_conf.getboolean("core", "multi_team"):
+            return None
+        return self.dag.team_name if self.dag else None
 
     __tablename__ = "task_outlet_asset_reference"
     __table_args__ = (

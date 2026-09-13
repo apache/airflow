@@ -8,8 +8,7 @@
     },
     "filters": {
       "eventType": "इवेंट प्रकार"
-    },
-    "title": "ऑडिट लॉग"
+    }
   },
   "deadlines": {
     "columns": {

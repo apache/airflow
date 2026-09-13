@@ -33,6 +33,7 @@ import type {
   DAGResponse,
   DAGWithLatestDagRunsCollectionResponse,
 } from "openapi/requests/types.gen";
+
 import { createErrorToaster } from "src/utils";
 
 type TogglePauseVariables = { dagId: string; requestBody: DAGPatchBody };
@@ -45,7 +46,7 @@ type TogglePauseContext = {
 
 export const useTogglePause = ({ dagId }: { dagId: string }) => {
   const queryClient = useQueryClient();
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   const dagKey = UseDagServiceGetDagKeyFn({ dagId }, [{ dagId }]);
   const dagDetailsKey = UseDagServiceGetDagDetailsKeyFn({ dagId }, [{ dagId }]);

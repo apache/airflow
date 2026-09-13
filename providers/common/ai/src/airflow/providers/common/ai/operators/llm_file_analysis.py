@@ -44,6 +44,12 @@ class LLMFileAnalysisOperator(LLMOperator):
 
     :param prompt: The analysis prompt for the LLM.
     :param llm_conn_id: Connection ID for the LLM provider.
+    :param model_id: Model identifier (e.g. ``"openai:gpt-5"``).
+        Overrides the model stored in the connection's extra field.
+    :param system_prompt: Additional instructions appended to the built-in
+        file-analysis system prompt.
+    :param agent_params: Additional keyword arguments passed to the pydantic-ai
+        ``Agent`` constructor (e.g. ``retries``, ``model_settings``, ``tools``).
     :param file_path: File or prefix to analyze.
     :param file_conn_id: Optional connection ID for the storage backend.
         Overrides a connection embedded in ``file_path``.
@@ -62,6 +68,12 @@ class LLMFileAnalysisOperator(LLMOperator):
         while ``max_file_size_bytes`` and ``max_total_size_bytes`` limit bytes
         read from storage and ``max_text_chars`` limits the final prompt text
         budget. Default ``10``.
+
+    Human-in-the-Loop approval parameters are inherited from
+    :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
+    (``require_approval``, ``approval_timeout``, ``allow_modifications``).
+    The task pauses after the file analysis and only returns the result once a
+    reviewer approves.
     """
 
     template_fields: Sequence[str] = (
