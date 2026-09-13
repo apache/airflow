@@ -166,7 +166,16 @@ class TestSerializers:
 
     @pytest.mark.parametrize(
         ("expr", "expected"),
-        [("1", "1"), ("52e4", "520000"), ("2e0", "2"), ("12e-2", "0.12"), ("12.34", "12.34")],
+        [
+            ("1", "1"),
+            ("52e4", "520000"),
+            ("2e0", "2"),
+            ("12e-2", "0.12"),
+            ("12.34", "12.34"),
+            ("3.14159265358979323846", "3.14159265358979323846"),
+            ("12345678901234567.89", "12345678901234567.89"),
+            ("0.1234567890123456789", "0.1234567890123456789"),
+        ],
     )
     def test_encode_decimal(self, expr, expected):
         assert deserialize(serialize(decimal.Decimal(expr))) == decimal.Decimal(expected)
