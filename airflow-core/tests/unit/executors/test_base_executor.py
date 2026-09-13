@@ -446,6 +446,25 @@ def test_queued_callbacks_setter_emits_warning_and_writes_through():
     assert executor.executor_queues[WorkloadType.EXECUTE_CALLBACK] is new_queue
 
 
+@pytest.mark.parametrize(
+    ("flag", "workload_type"),
+    [
+        ("supports_callbacks", WorkloadType.EXECUTE_CALLBACK),
+        ("supports_connection_test", WorkloadType.TEST_CONNECTION),
+    ],
+)
+def test_supports_flag_setter_emits_warning_and_toggles_workload_type(flag, workload_type):
+    executor = BaseExecutor()
+    with pytest.warns(RemovedInAirflow4Warning, match=f"{flag} is deprecated"):
+        setattr(executor, flag, True)
+    assert workload_type in executor.supported_workload_types
+    assert workload_type not in BaseExecutor.supported_workload_types
+
+    setattr(executor, flag, False)
+    assert workload_type not in executor.supported_workload_types
+    assert WorkloadType.EXECUTE_TASK in executor.supported_workload_types
+
+
 def test_trigger_tasks_shim_emits_warning_and_forwards():
     executor = BaseExecutor()
     with mock.patch.object(executor, "trigger_workloads") as mocked:
@@ -598,7 +617,7 @@ def test_queue_connection_test_workload_rejected_by_default():
         connection_id="test_conn",
         timeout=60,
     )
-    with pytest.raises(NotImplementedError, match="does not support.*TestConnection"):
+    with pytest.raises(NotImplementedError, match="does not support TestConnection workloads"):
         executor.queue_workload(wl, session=mock.MagicMock(spec=Session))
 
 
@@ -832,7 +851,7 @@ class TestCallbackSupport:
             log_path="test.log",
         )
 
-        with pytest.raises(NotImplementedError, match="does not support.*ExecuteCallback"):
+        with pytest.raises(NotImplementedError, match="does not support ExecuteCallback workloads"):
             executor.queue_workload(callback_workload, session)
 
     @pytest.mark.db_test
@@ -1056,6 +1075,7 @@ class TestLegacySupportsCallbacksShim:
         ("legacy_method", "replacement"),
         [
             ("trigger_tasks", "trigger_workloads"),
+            ("trigger_connection_tests", "trigger_workloads"),
             ("order_queued_tasks_by_priority", "_get_workloads_to_schedule"),
         ],
     )
