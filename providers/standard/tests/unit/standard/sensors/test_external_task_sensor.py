@@ -1185,8 +1185,6 @@ exit 0
         assert op._handle_execution_date_fn(context) == DEFAULT_DATE
 
 
-@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Different test for AF 2")
-@pytest.mark.usefixtures("testing_dag_bundle")
 def _api_server_error(status_code: int):
     """Build the error a task gets back when an execution API call fails."""
     from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
@@ -1200,6 +1198,8 @@ def _api_server_error(status_code: int):
     )
 
 
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Different test for AF 2")
+@pytest.mark.usefixtures("testing_dag_bundle")
 class TestExternalTaskSensorV3:
     def setup_method(self):
         # Create a mock for TaskInstance with get_ti_count method
