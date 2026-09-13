@@ -183,7 +183,7 @@ class OpenAIResponseOperator(BaseOperator):
         return OpenAIHook(conn_id=self.conn_id)
 
     @staticmethod
-    def _coerce_token_ceiling(param_name: str, value: int | str) -> int:
+    def _coerce_token_ceiling(param_name: str, value: int | float | str) -> int:
         """Coerce a templated token-ceiling argument to a positive int, or raise ``ValueError``."""
         # bool is an int subclass (isinstance(True, int) is True) and must be rejected before the
         # allowlist check below. Only int and str are accepted as real values to coerce; anything
