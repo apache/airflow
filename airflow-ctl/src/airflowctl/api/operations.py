@@ -533,7 +533,7 @@ class ConnectionsOperations(BaseOperations):
         try:
             self.response = self.client.patch(
                 f"connections/{connection.connection_id}",
-                json=connection.model_dump(mode="json", by_alias=True),
+                json=connection.model_dump(mode="json", by_alias=True, exclude_none=True),
             )
             return ConnectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
@@ -775,7 +775,7 @@ class PoolsOperations(BaseOperations):
         """Update a pool."""
         try:
             self.response = self.client.patch(
-                f"pools/{pool_body.pool}", json=pool_body.model_dump(mode="json")
+                f"pools/{pool_body.pool}", json=pool_body.model_dump(mode="json", exclude_none=True)
             )
             return PoolResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
@@ -835,7 +835,7 @@ class VariablesOperations(BaseOperations):
         """Update a variable."""
         try:
             self.response = self.client.patch(
-                f"variables/{variable.key}", json=variable.model_dump(mode="json")
+                f"variables/{variable.key}", json=variable.model_dump(mode="json", exclude_none=True)
             )
             return VariableResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
