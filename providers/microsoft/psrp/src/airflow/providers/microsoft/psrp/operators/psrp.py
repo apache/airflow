@@ -55,9 +55,7 @@ class PsrpOperator(BaseOperator):
     :param psrp_conn_id: connection id
     :param command: command to execute on remote host. (templated)
     :param powershell: powershell to execute on remote host. (templated)
-    :param cmdlet:
-        cmdlet to execute on remote host (templated). Also used as the default
-        value for `task_id`.
+    :param cmdlet: cmdlet to execute on remote host (templated).
     :param arguments:
         When using the `cmdlet` or `powershell` option, use `arguments` to
         provide arguments (templated).
@@ -112,8 +110,6 @@ class PsrpOperator(BaseOperator):
             raise ValueError("Arguments only allowed with 'powershell' or 'cmdlet'")
         if parameters is not None and powershell is None and cmdlet is None:
             raise ValueError("Parameters only allowed with 'powershell' or 'cmdlet'")
-        if cmdlet:
-            kwargs.setdefault("task_id", cmdlet)
         super().__init__(**kwargs)
         self.conn_id = psrp_conn_id
         self.command = command

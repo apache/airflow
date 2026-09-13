@@ -25,7 +25,7 @@ from unittest import mock
 import pytest
 import time_machine
 from fastapi.testclient import TestClient
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import func, select, update
 
 from airflow import plugins_manager
 from airflow._shared.module_loading import qualname
@@ -64,6 +64,7 @@ from tests_common.test_utils.db import (
 )
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu, from_datetime_to_zulu_without_ms
 from tests_common.test_utils.taskinstance import run_task_instance
+from tests_common.test_utils.team import attach_dag_to_team
 from unit.listeners.class_listener import ClassBasedListener
 
 if TYPE_CHECKING:
@@ -334,35 +335,6 @@ def get_dag_run_dict(run: DagRun):
     }
 
 
-def _attach_dag_to_team(session, dag_id: str, *, bundle_name: str, team_name: str) -> str:
-    """
-    Associate a Dag with a team via a team-scoped bundle for multi-team tests.
-
-    Returns the Dag's original bundle name so the caller can restore it during cleanup
-    (``DagModel.bundle_name`` is a foreign key with no ``ON DELETE`` action).
-    """
-    original_bundle_name = session.scalar(select(DagModel.bundle_name).where(DagModel.dag_id == dag_id))
-    bundle = DagBundleModel(name=bundle_name)
-    bundle.teams.append(Team(name=team_name))
-    session.add(bundle)
-    session.flush()
-    session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(bundle_name=bundle_name))
-    session.commit()
-    return original_bundle_name
-
-
-def _detach_dag_from_team(
-    session, dag_id: str, *, bundle_name: str, team_name: str, original_bundle_name: str
-) -> None:
-    """Undo :func:`_attach_dag_to_team`, restoring the Dag's original bundle."""
-    session.execute(
-        update(DagModel).where(DagModel.dag_id == dag_id).values(bundle_name=original_bundle_name)
-    )
-    session.execute(delete(DagBundleModel).where(DagBundleModel.name == bundle_name))
-    session.execute(delete(Team).where(Team.name == team_name))
-    session.commit()
-
-
 class TestGetDagRun:
     @pytest.mark.parametrize(
         ("dag_id", "run_id", "state", "run_type", "triggered_by", "dag_run_note"),
@@ -416,21 +388,10 @@ class TestGetDagRun:
     @conf_vars({("core", "multi_team"): "True"})
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_get_dag_run_includes_team_name(self, test_client, session):
-        original_bundle_name = _attach_dag_to_team(
-            session, DAG1_ID, bundle_name="team-bundle-run", team_name="team-run"
-        )
-        try:
+        with attach_dag_to_team(session, DAG1_ID, bundle_name="team-bundle-run", team_name="team-run"):
             response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}")
             assert response.status_code == 200
             assert response.json()["team_name"] == "team-run"
-        finally:
-            _detach_dag_from_team(
-                session,
-                DAG1_ID,
-                bundle_name="team-bundle-run",
-                team_name="team-run",
-                original_bundle_name=original_bundle_name,
-            )
 
     def test_get_dag_run_not_found(self, test_client):
         response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/invalid")
@@ -489,31 +450,17 @@ class TestGetDagRuns:
     @conf_vars({("core", "multi_team"): "True"})
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_get_dag_runs_includes_team_name(self, test_client, session):
-        original_bundle_name = _attach_dag_to_team(
-            session, DAG1_ID, bundle_name="team-bundle-runs", team_name="team-runs"
-        )
-        try:
+        with attach_dag_to_team(session, DAG1_ID, bundle_name="team-bundle-runs", team_name="team-runs"):
             response = test_client.get(f"/dags/{DAG1_ID}/dagRuns")
             assert response.status_code == 200
             body = response.json()
             assert body["dag_runs"]
             assert all(run["team_name"] == "team-runs" for run in body["dag_runs"])
-        finally:
-            _detach_dag_from_team(
-                session,
-                DAG1_ID,
-                bundle_name="team-bundle-runs",
-                team_name="team-runs",
-                original_bundle_name=original_bundle_name,
-            )
 
     @conf_vars({("core", "multi_team"): "True"})
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_get_dag_runs_filtered_by_team(self, test_client, session):
-        original_bundle_name = _attach_dag_to_team(
-            session, DAG1_ID, bundle_name="team-bundle-filter", team_name="team-filter"
-        )
-        try:
+        with attach_dag_to_team(session, DAG1_ID, bundle_name="team-bundle-filter", team_name="team-filter"):
             response = test_client.get("/dags/~/dagRuns", params={"teams": ["team-filter"]})
             assert response.status_code == 200
             body = response.json()
@@ -524,14 +471,6 @@ class TestGetDagRuns:
             response = test_client.get("/dags/~/dagRuns", params={"teams": ["nonexistent-team"]})
             assert response.status_code == 200
             assert response.json()["total_entries"] == 0
-        finally:
-            _detach_dag_from_team(
-                session,
-                DAG1_ID,
-                bundle_name="team-bundle-filter",
-                team_name="team-filter",
-                original_bundle_name=original_bundle_name,
-            )
 
     def test_invalid_order_by_raises_400(self, test_client):
         response = test_client.get("/dags/test_dag1/dagRuns?order_by=invalid")

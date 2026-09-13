@@ -16,14 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
+
+import { Button } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type { DagRunMutableStates, DAGRunResponse } from "openapi/requests/types.gen";
+
+import { Modal } from "src/system-components";
+
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { StateBadge } from "src/components/StateBadge";
-import { Modal } from "src/components/ui";
+
 import { usePatchDagRun } from "src/queries/usePatchDagRun";
 
 type Props = {

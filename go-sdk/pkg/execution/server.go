@@ -92,7 +92,7 @@ func Serve(provider bundlev1.BundleProvider, commAddr, logsAddr string) error {
 	// Buffer log records until the logs socket is connected. Anything the
 	// runtime emits between Connect-time and the first frame still gets
 	// flushed.
-	logHandler := NewSocketLogHandler(nil, slog.LevelDebug)
+	logHandler := newSocketLogHandlerFromEnv(nil)
 	logger := slog.New(logHandler)
 	slog.SetDefault(logger)
 

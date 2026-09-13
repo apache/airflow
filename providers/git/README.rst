@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-git``
 
-Release: ``0.4.3``
+Release: ``0.5.0``
 
 
 `Distributed version control system (GIT) <https://git-scm.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``git`` provider. All classes for this provider p
 are in ``airflow.providers.git`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-git/0.4.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-git/0.5.0/>`_.
 
 Installation
 ------------
@@ -58,5 +58,14 @@ PIP package                                 Version required
 ``GitPython``                               ``>=3.1.44``
 ==========================================  ==================
 
+Optional dependencies
+----------------------
+
+==========  ===================
+Extra       Dependencies
+==========  ===================
+``github``  ``PyGithub>=2.1.1``
+==========  ===================
+
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-git/0.4.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-git/0.5.0/changelog.html>`_.

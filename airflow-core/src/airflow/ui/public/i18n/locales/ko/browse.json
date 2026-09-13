@@ -56,6 +56,8 @@
       "successTitle": "XCom 수정됨",
       "title": "XCom 수정하기"
     },
+    "entry_one": "XCom 항목",
+    "entry_other": "XCom 항목",
     "key": "키",
     "title": "XCom",
     "value": "값"

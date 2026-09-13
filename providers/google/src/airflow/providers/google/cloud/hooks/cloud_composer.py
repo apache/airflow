@@ -561,14 +561,21 @@ class CloudComposerAsyncHook(GoogleBaseAsyncHook):
 
     sync_hook_class = CloudComposerHook
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._client: EnvironmentsAsyncClient | None = None
+        self._credentials = None
+
     async def get_environment_client(self) -> EnvironmentsAsyncClient:
         """Retrieve client library object that allow access Environments service."""
-        sync_hook = await self.get_sync_hook()
-        return EnvironmentsAsyncClient(
-            credentials=sync_hook.get_credentials(),
-            client_info=CLIENT_INFO,
-            client_options=sync_hook.get_client_options(),
-        )
+        if self._client is None:
+            sync_hook = await self.get_sync_hook()
+            self._client = EnvironmentsAsyncClient(
+                credentials=sync_hook.get_credentials(),
+                client_info=CLIENT_INFO,
+                client_options=sync_hook.get_client_options(),
+            )
+        return self._client
 
     async def make_composer_airflow_api_request(
         self,
@@ -587,11 +594,12 @@ class CloudComposerAsyncHook(GoogleBaseAsyncHook):
         :param data: Dictionary, list of tuples, bytes, or file-like object to send in the body of the request.
         :param timeout: The timeout for this request.
         """
-        sync_hook = await self.get_sync_hook()
-        credentials = sync_hook.get_credentials()
+        if self._credentials is None:
+            sync_hook = await self.get_sync_hook()
+            self._credentials = sync_hook.get_credentials()
 
-        if not credentials.valid:
-            credentials.refresh(Request())
+        if not self._credentials.valid:
+            self._credentials.refresh(Request())
 
         async with ClientSession() as session:
             async with session.request(
@@ -600,7 +608,7 @@ class CloudComposerAsyncHook(GoogleBaseAsyncHook):
                 data=data,
                 headers={
                     "Content-Type": "application/json",
-                    "Authorization": f"Bearer {credentials.token}",
+                    "Authorization": f"Bearer {self._credentials.token}",
                 },
                 timeout=timeout,
             ) as response:

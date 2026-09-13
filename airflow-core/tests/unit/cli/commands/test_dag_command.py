@@ -564,6 +564,34 @@ class TestCliDags:
         dag_command.dag_unpause(args)
         assert not DagModel.get_dagmodel("example_bash_operator").is_paused
 
+    def test_pause_unpause_from_dag_cli(self):
+        """``DAG.cli()`` passes the Dag positionally and its parser drops ``--dag-id``."""
+        parser = cli_parser.get_parser(dag_parser=True)
+        dag = DAG("example_bash_operator")
+
+        dag_command.dag_pause(parser.parse_args(["dags", "pause"]), dag)
+        assert DagModel.get_dagmodel("example_bash_operator").is_paused
+
+        dag_command.dag_unpause(parser.parse_args(["dags", "unpause"]), dag)
+        assert not DagModel.get_dagmodel("example_bash_operator").is_paused
+
+    @mock.patch("airflow.cli.commands.dag_command.ask_yesno")
+    def test_pause_from_dag_cli_ignores_treat_dag_id_as_regex(self, mock_yesno):
+        """The Dag fixes the target, so its dag_id must not be read back as a pattern."""
+        target = DAG("dag.cli_regex_target")
+        sync_dag_to_db(target)
+        sync_dag_to_db(DAG("dagXcli_regex_target"))
+        parser = cli_parser.get_parser(dag_parser=True)
+
+        dag_command.dag_pause(parser.parse_args(["dags", "pause", "--treat-dag-id-as-regex"]), target)
+
+        mock_yesno.assert_not_called()
+        assert DagModel.get_dagmodel("dag.cli_regex_target").is_paused
+        assert not DagModel.get_dagmodel("dagXcli_regex_target").is_paused
+
+        clear_db_dags()
+        self.setup_class()
+
     @mock.patch("airflow.cli.commands.dag_command.ask_yesno")
     def test_pause_regex(self, mock_yesno):
         args = self.parser.parse_args(["dags", "pause", "^example_.*$", "--treat-dag-id-as-regex"])

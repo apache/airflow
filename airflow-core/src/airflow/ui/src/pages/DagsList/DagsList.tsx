@@ -23,6 +23,11 @@ import { useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import type { DagRunState, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+
+import { RouterLink } from "src/system-components";
+
+import { DagsLayout } from "src/layouts/DagsLayout";
+
 import { DeleteDagButton } from "src/components/DagActions/DeleteDagButton";
 import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 import DagRunInfo from "src/components/DagRunInfo";
@@ -35,11 +40,10 @@ import { SearchBar } from "src/components/SearchBar";
 import { TeamName } from "src/components/TeamName";
 import { TogglePause } from "src/components/TogglePause";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
-import { RouterLink } from "src/components/ui";
+
 import { DAGS_LIST_DISPLAY_KEY } from "src/constants/localStorage";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
-import { DagsLayout } from "src/layouts/DagsLayout";
 import { useConfig } from "src/queries/useConfig";
 import { useDagRunStateCounts } from "src/queries/useDagRunStateCounts";
 import { useDags } from "src/queries/useDags";
@@ -309,7 +313,7 @@ export const DagsList = () => {
     pendingHitl = false;
   }
 
-  const { data, error, isLoading } = useDags({
+  const { data, error, isFetching, isLoading } = useDags({
     advancedSearch: advancedSearch.enabled,
     dagDisplayNamePattern: Boolean(dagDisplayNamePattern) ? dagDisplayNamePattern : undefined,
     dagRunsLimit,
@@ -377,6 +381,7 @@ export const DagsList = () => {
           }
           headingExtra={<DagImportErrors iconOnly />}
           initialState={tableURLState}
+          isFetching={isFetching}
           isLoading={isLoading}
           modelName="common:dag"
           onDisplayToggleChange={setDisplay}

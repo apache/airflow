@@ -25,6 +25,19 @@
 Changelog
 ---------
 
+3.6.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fail the Teradata compute cluster trigger on an unknown operation (#72696)``
+* ``Fix passphrase quoting in decrypt_remote_file_to_string for Windows (#69908)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
 3.6.2
 .....
 

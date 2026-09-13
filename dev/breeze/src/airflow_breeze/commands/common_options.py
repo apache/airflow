@@ -467,13 +467,6 @@ option_use_uv_default_depends_on_installation_method = click.option(
     "from sources and False for installing from packages).",
     envvar="USE_UV",
 )
-option_uv_http_timeout = click.option(
-    "--uv-http-timeout",
-    help="Deprecated: This option isn't exposed anymore",
-    type=click.IntRange(min=1),
-    default=30,
-    hidden=True,
-)
 option_use_airflow_version = click.option(
     "--use-airflow-version",
     help="Use (reinstall at entry) Airflow version from PyPI. It can also be version (to install from PyPI), "
