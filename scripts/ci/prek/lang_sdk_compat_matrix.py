@@ -117,11 +117,11 @@ class LangSdk(TypedDict):
     readme: Path
 
 
-# The registry of Language SDKs and where each one's manifest and README live. Only the Java SDK
-# declares one so far; the Go and TypeScript entries record where theirs go when those runtimes
-# declare their capabilities. Because of that, `capabilities_yaml` is a declared location and not a
-# promise the file exists — a consumer walking the whole registry must check `.exists()` before
-# calling load_capabilities().
+# The registry of Language SDKs and where each one's manifest and README live. The Go and Java SDKs
+# declare manifests; the TypeScript entry records where its manifest goes when that runtime declares
+# its capabilities. Because of that, `capabilities_yaml` is a declared location and not a promise the
+# file exists — a consumer walking the whole registry must check `.exists()` before calling
+# load_capabilities().
 LANG_SDKS: list[LangSdk] = [
     {
         "id": "go",
