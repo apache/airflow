@@ -35,6 +35,7 @@ from airflow._shared.state import (
 )
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
+from airflow.exceptions import DagRunNotFound
 from airflow.models.asset_state_store import AssetStateStoreModel
 from airflow.models.dagrun import DagRun
 from airflow.models.task_state_store import TaskStateStoreModel
@@ -255,7 +256,7 @@ class MetastoreBackend(BaseStoreBackend):
             )
         )
         if dag_run_id is None:
-            raise ValueError(f"No DagRun found for dag_id={scope.dag_id!r} run_id={scope.run_id!r}")
+            raise DagRunNotFound(f"No DagRun found for dag_id={scope.dag_id!r} run_id={scope.run_id!r}")
         now = timezone.utcnow()
         values = dict(
             dag_run_id=dag_run_id,
@@ -456,7 +457,7 @@ class MetastoreBackend(BaseStoreBackend):
             )
         )
         if dag_run_id is None:
-            raise ValueError(f"No DagRun found for dag_id={scope.dag_id!r} run_id={scope.run_id!r}")
+            raise DagRunNotFound(f"No DagRun found for dag_id={scope.dag_id!r} run_id={scope.run_id!r}")
         now = timezone.utcnow()
         values = dict(
             dag_run_id=dag_run_id,
