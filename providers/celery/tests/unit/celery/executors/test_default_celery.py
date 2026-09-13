@@ -298,6 +298,7 @@ def test_result_backend_transport_options_with_multiple_options():
     assert result_backend_opts["master_name"] == "mymaster"
 
 
+@pytest.mark.db_test
 @conf_vars(
     {
         ("celery", "result_backend"): None,
@@ -311,6 +312,7 @@ def test_result_backend_derived_from_sql_alchemy_conn_uses_psycopg(monkeypatch):
     assert config["result_backend"] == "db+postgresql+psycopg://user:pass@host/db"
 
 
+@pytest.mark.db_test
 @conf_vars(
     {
         ("celery", "result_backend"): None,
