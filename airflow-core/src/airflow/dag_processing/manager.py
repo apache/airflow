@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import gc
 import inspect
@@ -28,6 +29,7 @@ import random
 import selectors
 import signal
 import sys
+import threading
 import time
 import zipfile
 from collections import OrderedDict, defaultdict
@@ -209,6 +211,53 @@ class _StubSelector(selectors.BaseSelector):
     def get_map(self): ...
 
 
+class _LockedSelector(selectors.BaseSelector):
+    """Serialize selector operations so the IPC thread and the parsing loop do not race."""
+
+    def __init__(self, inner: selectors.BaseSelector | None = None) -> None:
+        super().__init__()
+        self._inner = inner or selectors.DefaultSelector()
+        self._lock = threading.Lock()
+
+    def register(self, fileobj, events, data=None):
+        with self._lock:
+            return self._inner.register(fileobj, events, data)
+
+    def unregister(self, fileobj):
+        with self._lock:
+            return self._inner.unregister(fileobj)
+
+    def modify(self, fileobj, events, data=None):
+        with self._lock:
+            return self._inner.modify(fileobj, events, data)
+
+    def select(self, timeout=None):
+        # Do not hold ``_lock`` across the blocking wait. The IPC thread is the
+        # only select() caller (kill uses wait=False); register/unregister from
+        # the parsing thread must proceed while we wait, and holding the lock
+        # here also meant os.fork() could copy a held lock into parser children.
+        return self._inner.select(timeout)
+
+    def close(self):
+        with self._lock:
+            return self._inner.close()
+
+    def get_map(self):
+        with self._lock:
+            return self._inner.get_map()
+
+    def get_key(self, fileobj):
+        with self._lock:
+            return self._inner.get_key(fileobj)
+
+
+class _IpcThreadControl(NamedTuple):
+    stop: threading.Event
+    pause: threading.Event
+    parked: threading.Event
+    thread: threading.Thread
+
+
 @attrs.define(kw_only=True)
 class DagFileProcessorManager(LoggingMixin):
     """
@@ -293,6 +342,7 @@ class DagFileProcessorManager(LoggingMixin):
     """Last time we checked if any bundles are ready to be refreshed"""
     _force_refresh_bundles: set[str] = attrs.field(factory=set, init=False)
     """List of bundles that need to be force refreshed in the next loop"""
+    _ipc_control: _IpcThreadControl | None = attrs.field(default=None, init=False)
 
     _file_parsing_sort_mode: str = attrs.field(
         factory=_config_get_factory("dag_processor", "file_parsing_sort_mode")
@@ -401,7 +451,9 @@ class DagFileProcessorManager(LoggingMixin):
         """Initialize transport-neutral process state (selector, stats) before the parsing loop starts."""
         # Initialization is delayed until here to avoid fork issues in some
         # selector implementations. Also see _StubSelector documentation.
-        self.selector = selectors.DefaultSelector()
+        # The lock wrapper lets the IPC service thread and the parsing loop
+        # share the selector without concurrent select/register/unregister.
+        self.selector = _LockedSelector()
 
         stats.initialize(
             factory=stats_utils.get_stats_factory(),
@@ -561,55 +613,148 @@ class DagFileProcessorManager(LoggingMixin):
         # needs to be done before this process is forked to create the DAG parsing processes.
         SecretCache.init()
 
-        poll_time = 0.0
-
         known_files: dict[str, set[DagFileInfo]] = {}
 
-        while True:
-            loop_start_time = time.monotonic()
+        with self._ipc_service_thread():
+            while True:
+                loop_start_time = time.monotonic()
 
-            self.heartbeat()
+                self.heartbeat()
 
-            self._kill_timed_out_processors()
+                self._kill_timed_out_processors()
 
-            self._queue_requested_files_for_parsing()
+                self._queue_requested_files_for_parsing()
 
-            self._refresh_dag_bundles(known_files=known_files)
+                self._refresh_dag_bundles(known_files=known_files)
 
-            if not self._file_queue:
-                # Generate more file paths to process if we processed all the files already. Note for this to
-                # clear down, we must have cleared all files found from scanning the dags dir _and_ have
-                # cleared all files added as a result of callbacks
-                self.prepare_file_queue(known_files=known_files)
+                if not self._file_queue:
+                    # Generate more file paths to process if we processed all the files already. Note for this to
+                    # clear down, we must have cleared all files found from scanning the dags dir _and_ have
+                    # cleared all files added as a result of callbacks
+                    self.prepare_file_queue(known_files=known_files)
 
-            self._start_new_processes()
+                self._start_new_processes()
 
-            self._service_processor_sockets(timeout=poll_time)
+                self._collect_results()
 
-            self._collect_results()
+                for callback in self.fetch_callbacks():
+                    self._add_callback_to_queue(callback)
+                self._scan_stale_dags()
+                self._cleanup_stale_bundle_versions()
+                self.purge_inactive_dag_warnings()
 
-            for callback in self.fetch_callbacks():
-                self._add_callback_to_queue(callback)
-            self._scan_stale_dags()
-            self._cleanup_stale_bundle_versions()
-            self.purge_inactive_dag_warnings()
+                # Update number of loop iteration.
+                self._num_run += 1
 
-            # Update number of loop iteration.
-            self._num_run += 1
+                self.print_stats(known_files=known_files)
 
-            self.print_stats(known_files=known_files)
+                if self.max_runs_reached():
+                    self.log.info(
+                        "Exiting dag parsing loop as all files have been processed %s times", self.max_runs
+                    )
+                    break
 
-            if self.max_runs_reached():
-                self.log.info(
-                    "Exiting dag parsing loop as all files have been processed %s times", self.max_runs
-                )
-                break
+                self._wait_between_loop_iterations(loop_start_time)
+                if self.max_runs_reached():
+                    self.log.info(
+                        "Exiting dag parsing loop as all files have been processed %s times", self.max_runs
+                    )
+                    break
 
-            loop_duration = time.monotonic() - loop_start_time
-            if loop_duration < 1:
-                poll_time = 1 - loop_duration
-            else:
-                poll_time = 0.0
+        # max_runs can be reached while collecting in-flight results, before the
+        # next empty-queue prepare_file_queue() call that used to emit this.
+        self._emit_parse_cycle_metrics()
+
+    def _wait_between_loop_iterations(self, loop_start_time: float) -> None:
+        """
+        Rate-limit the parsing loop without delaying in-flight result collection.
+
+        The pre-thread loop waited inside ``_service_processor_sockets`` and woke
+        as soon as a child closed its sockets. Replacing that with a blind
+        ``sleep(1)`` made ``max_runs=1`` manager runs take several extra seconds
+        and trip CI ``execution_timeout`` (see ``test_dag_with_system_exit``).
+        """
+        remaining = 1.0 - (time.monotonic() - loop_start_time)
+        if remaining <= 0:
+            return
+
+        if not self._processors and not self._file_queue:
+            time.sleep(remaining)
+            return
+
+        deadline = time.monotonic() + remaining
+        while time.monotonic() < deadline:
+            if self._processors:
+                self._collect_results()
+            if self.max_runs_reached() or not self._processors:
+                return
+            time.sleep(0.05)
+
+    @contextlib.contextmanager
+    def _ipc_service_thread(self):
+        """
+        Run ``_service_processor_sockets`` in a background thread until the context exits.
+
+        Parser children that call ``Variable.get()`` / ``xcom_push()`` block on
+        ``socket.recv()`` until the parent replies. Servicing sockets only once
+        per parsing-loop iteration leaves those children stuck while the parent
+        is in ``_refresh_dag_bundles`` or other long work.
+
+        The thread parks before ``os.fork()`` (see ``_pause_ipc_for_fork``) so
+        Linux parser children are not created from a multi-threaded parent.
+        """
+        stop_event = threading.Event()
+        pause_event = threading.Event()
+        parked = threading.Event()
+
+        def _service_loop():
+            while not stop_event.is_set():
+                if pause_event.is_set():
+                    parked.set()
+                    while pause_event.is_set() and not stop_event.is_set():
+                        stop_event.wait(timeout=0.05)
+                    parked.clear()
+                    continue
+                try:
+                    self._service_processor_sockets(timeout=0.1)
+                except Exception:
+                    self.log.exception("Error servicing processor sockets")
+
+        thread = threading.Thread(target=_service_loop, name="dag-processor-ipc")
+        self._ipc_control = _IpcThreadControl(
+            stop=stop_event, pause=pause_event, parked=parked, thread=thread
+        )
+        thread.start()
+        try:
+            yield
+        finally:
+            stop_event.set()
+            pause_event.clear()
+            thread.join(timeout=2.0)
+            if thread.is_alive():
+                self.log.warning("IPC service thread did not stop within 2s")
+            self._ipc_control = None
+
+    @contextlib.contextmanager
+    def _pause_ipc_for_fork(self):
+        """
+        Park the IPC thread so ``os.fork()`` does not copy a live extra thread.
+
+        Linux parser children use a bare fork (no exec). Forking while
+        ``dag-processor-ipc`` is in ``select()`` or holding library locks can
+        leave the child deadlocked, so ``is_ready`` never becomes true.
+        """
+        ctl = self._ipc_control
+        if ctl is None or not ctl.thread.is_alive():
+            yield
+            return
+        ctl.pause.set()
+        if not ctl.parked.wait(timeout=1.0):
+            self.log.warning("IPC thread did not pause before fork")
+        try:
+            yield
+        finally:
+            ctl.pause.clear()
 
     def _service_processor_sockets(self, timeout: float | None = 1.0):
         """
@@ -1237,7 +1382,7 @@ class DagFileProcessorManager(LoggingMixin):
                         }
                     ),
                 )
-                processor.kill(signal.SIGKILL)
+                processor.kill(signal.SIGKILL, wait=False)
                 processor.close()
                 self._file_stats.pop(file, None)
 
@@ -1450,28 +1595,33 @@ class DagFileProcessorManager(LoggingMixin):
 
     def _start_new_processes(self):
         """Start more processors if we have enough slots and files to process."""
+        if not (self._parallelism > len(self._processors) and self._file_queue):
+            return
+
         bundle_to_team = self._get_team_names({file.bundle_name for file in self._file_queue})
 
-        while self._parallelism > len(self._processors) and self._file_queue:
-            file, _ = self._file_queue.popitem(last=False)
-            # Stop creating duplicate processor i.e. processor with the same filepath
-            if file in self._processors:
-                continue
+        # Forking with the IPC thread running is not safe on Linux (bare fork).
+        with self._pause_ipc_for_fork():
+            while self._parallelism > len(self._processors) and self._file_queue:
+                file, _ = self._file_queue.popitem(last=False)
+                # Stop creating duplicate processor i.e. processor with the same filepath
+                if file in self._processors:
+                    continue
 
-            processor = self._create_process(file)
-            stats.incr(
-                "dag_processing.processes",
-                tags=prune_dict(
-                    {
-                        "file_path": file.normalized_file_path_for_stats,
-                        "action": "start",
-                        "team_name": bundle_to_team.get(file.bundle_name),
-                    }
-                ),
-            )
+                processor = self._create_process(file)
+                stats.incr(
+                    "dag_processing.processes",
+                    tags=prune_dict(
+                        {
+                            "file_path": file.normalized_file_path_for_stats,
+                            "action": "start",
+                            "team_name": bundle_to_team.get(file.bundle_name),
+                        }
+                    ),
+                )
 
-            self._processors[file] = processor
-            stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
+                self._processors[file] = processor
+                stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
 
     def _add_new_files_to_queue(self, known_files: dict[str, set[DagFileInfo]]):
         """
@@ -1564,12 +1714,7 @@ class DagFileProcessorManager(LoggingMixin):
         """
         # We only emit metrics after processing all files in the queue. If `self._parsing_start_time` is None
         # when this method is called, no files have yet been added to the queue so we shouldn't emit metrics.
-        if self._parsing_start_time is not None:
-            emit_metrics(
-                parse_time=time.perf_counter() - self._parsing_start_time,
-                dag_file_stats=list(self._file_stats.values()),
-            )
-            self._parsing_start_time = None
+        self._emit_parse_cycle_metrics()
 
         # If the file path is already being processed, or if a file was
         # processed recently, wait until the next batch
@@ -1658,7 +1803,7 @@ class DagFileProcessorManager(LoggingMixin):
                     "dag_processing.processor_timeouts",
                     tags=prune_dict({"file_path": file_path_tag, "team_name": team_name}),
                 )
-                processor.kill(signal.SIGKILL)
+                processor.kill(signal.SIGKILL, wait=False)
 
                 processors_to_remove.append(file)
 
@@ -1707,6 +1852,16 @@ class DagFileProcessorManager(LoggingMixin):
             self._parsing_start_time = time.perf_counter()
 
         stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
+
+    def _emit_parse_cycle_metrics(self) -> None:
+        """Emit ``total_parse_time`` for the current file-queue cycle, if one is in progress."""
+        if self._parsing_start_time is None:
+            return
+        emit_metrics(
+            parse_time=time.perf_counter() - self._parsing_start_time,
+            dag_file_stats=list(self._file_stats.values()),
+        )
+        self._parsing_start_time = None
 
     def max_runs_reached(self):
         """:return: whether all file paths have been processed max_runs times."""

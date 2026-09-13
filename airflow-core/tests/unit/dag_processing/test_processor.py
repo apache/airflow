@@ -22,6 +22,7 @@ import logging
 import pathlib
 import sys
 import textwrap
+import time
 import typing
 import uuid
 from collections.abc import Callable, Iterable
@@ -192,6 +193,51 @@ class TestDagFileProcessor:
             proc._service_subprocess(0.1)
 
         result = proc.parsing_result
+        assert result is not None
+        assert result.import_errors == {}
+        assert result.serialized_dags[0].dag_id == "test_abc"
+
+    def test_variable_get_serviced_while_manager_is_busy(
+        self,
+        tmp_path: pathlib.Path,
+        monkeypatch: pytest.MonkeyPatch,
+        inprocess_client,
+    ):
+        logger = MagicMock(spec=FilteringBoundLogger)
+        logger_filehandle = MagicMock(spec=BinaryIO)
+
+        def dag_in_a_fn():
+            from airflow.sdk import DAG, Variable
+
+            with DAG(f"test_{Variable.get('myvar')}"):
+                ...
+
+        path = write_dag_in_a_fn_to_file(dag_in_a_fn, tmp_path)
+        monkeypatch.setenv("AIRFLOW_VAR_MYVAR", "abc")
+
+        manager = DagFileProcessorManager(max_runs=1)
+        manager.prepare_process_context()
+        proc = DagFileProcessorProcess.start(
+            id=1,
+            path=path,
+            bundle_path=tmp_path,
+            bundle_name="testing",
+            dag_file_rel_path=str(path.relative_to(tmp_path)),
+            callbacks=[],
+            logger=logger,
+            logger_filehandle=logger_filehandle,
+            client=inprocess_client,
+            selector=manager.selector,
+        )
+
+        # Main thread does not call _service_processor_sockets; the IPC thread must.
+        with manager._ipc_service_thread():
+            deadline = time.monotonic() + 15
+            while not proc.is_ready and time.monotonic() < deadline:
+                time.sleep(0.05)
+
+        result = proc.parsing_result
+        assert proc.is_ready
         assert result is not None
         assert result.import_errors == {}
         assert result.serialized_dags[0].dag_id == "test_abc"
