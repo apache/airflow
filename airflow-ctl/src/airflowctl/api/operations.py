@@ -475,7 +475,8 @@ class ConnectionsOperations(BaseOperations):
     ) -> ConnectionTestResponse | ServerResponseError:
         """Test a connection."""
         self.response = self.client.post(
-            "connections/test", json=connection.model_dump(mode="json", by_alias=True)
+            "connections/test",
+            json=connection.model_dump(mode="json", by_alias=True, exclude_none=True),
         )
         return ConnectionTestResponse.model_validate_json(self.response.content)
 
