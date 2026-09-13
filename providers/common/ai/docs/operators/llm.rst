@@ -245,7 +245,9 @@ Set ``on_approval_timeout="approve"`` to return the generated output instead, so
 an unattended pipeline keeps moving.  ``"reject"`` answers the review with a
 rejection, which still fails this operator; only
 :class:`~airflow.providers.common.ai.operators.llm_branch.LLMBranchOperator`
-turns a rejection into a downstream skip:
+turns a rejection into a downstream skip.  The chosen option is also
+pre-highlighted as the default in the review form, so ``"reject"`` makes
+Reject the primary button:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm.py
     :language: python
@@ -274,7 +276,7 @@ Parameters
   means wait indefinitely.  Default ``None``.
 - ``on_approval_timeout``: Outcome when ``approval_timeout`` expires without a
   review: ``"fail"`` (default), ``"approve"``, or ``"reject"``.  Requires
-  ``require_approval=True`` and ``approval_timeout``.
+  ``require_approval=True`` and a positive ``approval_timeout``.
 - ``allow_modifications``: If ``True``, the reviewer can edit the output before
   approving.  Default ``False``.
 

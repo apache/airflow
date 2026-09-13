@@ -343,9 +343,15 @@ class TestLLMOperatorApproval:
         [
             {"require_approval": True},
             {"require_approval": True, "approval_timeout": timedelta(0)},
+            {"require_approval": True, "approval_timeout": timedelta(hours=-1)},
             {"approval_timeout": timedelta(hours=1)},
         ],
-        ids=["no_approval_timeout", "zero_approval_timeout", "no_require_approval"],
+        ids=[
+            "no_approval_timeout",
+            "zero_approval_timeout",
+            "negative_approval_timeout",
+            "no_require_approval",
+        ],
     )
     def test_on_approval_timeout_without_prerequisites_raises(self, kwargs):
         with pytest.raises(
