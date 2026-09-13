@@ -139,6 +139,11 @@ class SafeDogStatsdLogger:
         """Timer metric that can be cancelled."""
         tags_list = self._build_tags_list(tags)
         if stat and self.metrics_validator.test(stat):
+            # datadog's ``timed()`` context manager defaults to ``use_ms=False``, which reports
+            # the elapsed time in seconds even though the metric is sent with the ``|ms`` type.
+            # Airflow's ``Timer`` measures in milliseconds, so keep the units consistent and
+            # report milliseconds (see GH issue #72110).
+            kwargs.setdefault("use_ms", True)
             return Timer(self.dogstatsd.timed(stat, tags=tags_list, **kwargs))
         return Timer()
 
