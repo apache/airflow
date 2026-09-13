@@ -435,15 +435,16 @@ class TestAgentOperatorExecute:
     @pytest.mark.skipif(
         not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
     )
+    @pytest.mark.parametrize("approved_output", ["Approved output", "true"])
     @patch("airflow.providers.common.ai.operators.agent.AgentOperator.run_hitl_review", autospec=True)
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_execute_with_hitl_returns_string_unchanged(self, mock_hook_cls, mock_run_hitl):
+    def test_execute_with_hitl_returns_string_unchanged(self, mock_hook_cls, mock_run_hitl, approved_output):
         """When enable_hitl_review=True and output_type is str, execute returns string as-is."""
         mock_result = _make_mock_run_result("Initial output")
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = mock_result
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
-        mock_run_hitl.return_value = "Approved output"
+        mock_run_hitl.return_value = approved_output
 
         op = AgentOperator(
             task_id="test",
@@ -456,7 +457,7 @@ class TestAgentOperatorExecute:
         context = MagicMock()
         result = op.execute(context=context)
 
-        assert result == "Approved output"
+        assert result == approved_output
 
     @pytest.mark.skipif(
         not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
