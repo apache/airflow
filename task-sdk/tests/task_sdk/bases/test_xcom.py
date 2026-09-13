@@ -497,22 +497,6 @@ class TestXComIterable:
     # FlattenedXComIterable __len__ / __getitem__
     # ------------------------------------------------------------------
 
-    @staticmethod
-    def _pages_by_key(pages: list) -> object:
-        """Build a get_one side_effect that maps each page's index-suffixed key to its page.
-
-        Unlike a plain list side_effect (consumed once and then exhausted), this can be called
-        any number of times for the same key — mirroring how a real XCom backend is queried by
-        key and does not get "used up" — which is required now that FlattenedXComIterable no
-        longer caches flattened items and may re-walk (and re-fetch) pages on repeated access.
-        """
-
-        def _get_one(*args, **kwargs):
-            index = int(kwargs["key"].rsplit("_", 1)[-1])
-            return pages[index]
-
-        return _get_one
-
     @patch.object(XCom, "get_one")
     def test_flatten_len_counts_flattened_items_not_pages(self, mock_get_one):
         """len() of a flattened iterable must count individual flattened items, not the raw
