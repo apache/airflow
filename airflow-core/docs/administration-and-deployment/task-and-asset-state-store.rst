@@ -84,7 +84,7 @@ Number of rows deleted per batch during garbage collection cleanup. Set to ``0``
 .. _task-and-asset-state-store:worker-backends:
 
 Worker-side backend (``[workers] state_store_backend``)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A separate, optional config key under ``[workers]`` lets you route task state store and asset state store values through a worker-side backend before they reach the API server.
 
