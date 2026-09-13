@@ -180,6 +180,26 @@ class TestListPyFilesPath:
 
         assert len(modules) == 0
 
+    @mock.patch("zipfile.is_zipfile")
+    def test_find_dag_file_paths_ignores_non_zip_archives(self, mock_is_zipfile, tmp_path):
+        mock_is_zipfile.return_value = True
+
+        (tmp_path / "test.jar").touch()
+        (tmp_path / "test.docx").touch()
+        (tmp_path / "test.zip").touch()
+        (tmp_path / "test.py").touch()
+        
+        with mock.patch("airflow.utils.file.might_contain_dag") as mock_might_contain_dag:
+            mock_might_contain_dag.return_value = True
+            paths = file_utils.find_dag_file_paths(os.fspath(tmp_path), safe_mode=False)
+            
+        assert len(paths) == 2
+        paths_str = " ".join(paths)
+        assert "test.zip" in paths_str
+        assert "test.py" in paths_str
+        assert "test.jar" not in paths_str
+        assert "test.docx" not in paths_str
+
     def test_list_py_file_paths(self, test_zip_path):
         detected_files = set()
         expected_files = set()
