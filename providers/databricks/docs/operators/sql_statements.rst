@@ -50,6 +50,23 @@ but not limited to:
   (``dag_id``, ``task_id``, ``run_id``, ``try_number``, ``map_index``) is merged into
   ``query_tags`` automatically. Set to ``False`` to suppress these automatic tags.
 
+Durable execution
+-----------------
+
+Synchronous executions that wait for termination persist the Databricks
+statement ID before polling. When a task retries after a worker crash, the
+operator reconnects to a pending or running statement and recovers a
+successful statement without submitting it again. A failed, canceled, closed,
+or missing statement is replaced with a new submission.
+
+The recovered statement ID is restored on the operator and in the
+``statement_id`` XCom, preserving task cancellation, operator links, and
+OpenLineage metadata. Fire-and-forget and deferrable executions retain their
+existing behavior. Set ``durable=False`` to disable recovery.
+
+Durable execution requires Airflow 3.3 or newer. On older Airflow versions,
+the operator uses the previous non-durable behavior.
+
 Examples
 --------
 
