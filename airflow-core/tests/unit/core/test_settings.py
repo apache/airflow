@@ -533,3 +533,62 @@ class TestDisposeOrm:
             settings.dispose_orm(do_log=False)
 
         mock_close.assert_not_called()
+
+
+class TestGetAsyncConnUriFromSync:
+    """Tests for _get_async_conn_uri_from_sync function."""
+
+    @pytest.mark.parametrize(
+        ("sync_uri", "expected"),
+        [
+            ("sqlite:///path/to/db.sqlite", "sqlite+aiosqlite:///path/to/db.sqlite"),
+            ("mysql://user:pass@localhost/dbname", "mysql+aiomysql://user:pass@localhost/dbname"),
+        ],
+    )
+    def test_supported_scheme_conversion(self, sync_uri, expected):
+        """Test conversion of supported sync SQLAlchemy URIs to async driver variants."""
+        result = settings._get_async_conn_uri_from_sync(sync_uri)
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("sync_uri", "expected_template"),
+        [
+            ("postgresql://user:pass@localhost/dbname", "postgresql+{driver}://user:pass@localhost/dbname"),
+            ("postgresql+psycopg2://user@localhost/db", "postgresql+{driver}://user@localhost/db"),
+        ],
+    )
+    def test_postgresql_scheme_conversion(self, sync_uri, expected_template):
+        """Test conversion of PostgreSQL sync URIs to the configured async driver."""
+        postgres_async_driver = "psycopg_async" if settings._USE_PSYCOPG3 else "asyncpg"
+        assert settings._get_async_conn_uri_from_sync(sync_uri) == expected_template.format(
+            driver=postgres_async_driver
+        )
+
+    def test_unsupported_scheme_returns_original_uri(self):
+        """Test that unsupported schemes return the original URI unchanged."""
+        uri = "oracle://user:pass@localhost:1521/dbname"
+        result = settings._get_async_conn_uri_from_sync(uri)
+        assert result == uri
+
+    @pytest.mark.parametrize(
+        ("invalid_uri", "error_match"),
+        [
+            ("", "Invalid SQLAlchemy connection URI"),
+            (None, "Invalid SQLAlchemy connection URI"),
+            ("notavaliduri", "Invalid SQLAlchemy connection URI.*':' separator"),
+        ],
+    )
+    def test_invalid_uri_raises_value_error(self, invalid_uri, error_match):
+        """Test that invalid URIs raise ValueError with actionable guidance."""
+        with pytest.raises(ValueError, match=error_match):
+            settings._get_async_conn_uri_from_sync(invalid_uri)
+
+    def test_error_message_is_helpful(self):
+        """Test that error message contains helpful guidance."""
+        with pytest.raises(ValueError, match="Invalid SQLAlchemy connection URI") as exc_info:
+            settings._get_async_conn_uri_from_sync("invalid_value")
+
+        error_msg = str(exc_info.value)
+        assert "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN" in error_msg
+        assert "sql_alchemy_conn" in error_msg
+        assert "airflow.cfg" in error_msg
