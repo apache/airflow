@@ -1507,7 +1507,7 @@ class TestAssetOperations:
 
 class TestDagRunOperations:
     def test_trigger(self):
-        # Simulate a successful response from the server when triggering a dag run
+        # Simulate a successful response from the server when triggering a Dag run
         def handle_request(request: httpx.Request) -> httpx.Response:
             if request.url.path == "/dag-runs/test_trigger/test_run_id":
                 actual_body = json.loads(request.read())
@@ -1551,7 +1551,7 @@ class TestDagRunOperations:
         assert result == ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS)
 
     def test_trigger_conflict_reset_dag_run(self):
-        """Test that if dag run already exists and reset_dag_run=True, the client clears the dag run"""
+        """Test that if Dag run already exists and reset_dag_run=True, the client clears the Dag run"""
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             if request.url.path == "/dag-runs/test_trigger_conflict_reset/test_run_id":
@@ -1577,8 +1577,54 @@ class TestDagRunOperations:
 
         assert result == OKResponse(ok=True)
 
+    def test_trigger_conflict_reset_dag_run_clear_failure(self):
+        """Test that reset_dag_run=True returns the clear failure response."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dag-runs/test_trigger_conflict_reset/test_run_id":
+                return httpx.Response(
+                    status_code=409,
+                    json={
+                        "detail": {
+                            "reason": "already_exists",
+                            "message": "A Dag Run already exists for Dag test_trigger_conflict",
+                        }
+                    },
+                )
+            if request.url.path == "/dag-runs/test_trigger_conflict_reset/test_run_id/clear":
+                return httpx.Response(
+                    status_code=404,
+                    json={
+                        "detail": {
+                            "reason": "not_found",
+                            "message": "Dag run with run_id: 'test_run_id' not found",
+                        }
+                    },
+                )
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dag_runs.trigger(
+            dag_id="test_trigger_conflict_reset",
+            run_id="test_run_id",
+            reset_dag_run=True,
+        )
+
+        assert result == ErrorResponse(
+            error=ErrorType.DAGRUN_NOT_FOUND,
+            detail={
+                "dag_id": "test_trigger_conflict_reset",
+                "run_id": "test_run_id",
+                "status_code": 404,
+                "server_detail": {
+                    "reason": "not_found",
+                    "message": "Dag run with run_id: 'test_run_id' not found",
+                },
+            },
+        )
+
     def test_clear(self):
-        """Test that the client can clear a dag run"""
+        """Test that the client can clear a Dag run"""
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             if request.url.path == "/dag-runs/test_clear/test_run_id/clear":
@@ -1590,8 +1636,58 @@ class TestDagRunOperations:
 
         assert result == OKResponse(ok=True)
 
+    @pytest.mark.parametrize(
+        ("status_code", "server_detail", "expected_error"),
+        [
+            pytest.param(
+                404,
+                {"reason": "not_found", "message": "Dag run with run_id: 'test_run_id' not found"},
+                ErrorType.DAGRUN_NOT_FOUND,
+                id="dag-run-not-found",
+            ),
+            pytest.param(
+                404,
+                {"reason": "not_found", "message": "Dag with dag_id: 'test_clear' not found"},
+                ErrorType.DAG_NOT_FOUND,
+                id="dag-not-found",
+            ),
+            pytest.param(
+                400,
+                {"reason": "import_errors", "message": "Dag with dag_id 'test_clear' has import errors"},
+                ErrorType.DAGRUN_CLEAR_FAILED,
+                id="bad-request",
+            ),
+            pytest.param(
+                422,
+                {"reason": "validation_error", "message": "Invalid payload"},
+                ErrorType.DAGRUN_CLEAR_FAILED,
+                id="validation-error",
+            ),
+        ],
+    )
+    def test_clear_error_response(self, status_code, server_detail, expected_error):
+        """Test that clear returns semantic errors for known clear failures."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dag-runs/test_clear/test_run_id/clear":
+                return httpx.Response(status_code=status_code, json={"detail": server_detail})
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dag_runs.clear(dag_id="test_clear", run_id="test_run_id")
+
+        assert result == ErrorResponse(
+            error=expected_error,
+            detail={
+                "dag_id": "test_clear",
+                "run_id": "test_run_id",
+                "status_code": status_code,
+                "server_detail": server_detail,
+            },
+        )
+
     def test_get_state(self):
-        """Test that the client can get the state of a dag run"""
+        """Test that the client can get the state of a Dag run"""
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             if request.url.path == "/dag-runs/test_state/test_run_id/state":

@@ -1979,6 +1979,9 @@ def _handle_trigger_dag_run(
 
         return msg, state
 
+    if isinstance(comms_msg, ErrorResponse):
+        raise AirflowRuntimeError(comms_msg)
+
     log.info("Dag Run triggered successfully.", trigger_dag_id=drte.trigger_dag_id)
 
     # Store the run id from the dag run (either created or found above) to
