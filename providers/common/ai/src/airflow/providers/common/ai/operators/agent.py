@@ -285,6 +285,14 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         self._durable_storage: DurableStorageProtocol | None = None
         self._durable_counter: DurableStepCounter | None = None
 
+        # Checked ahead of the combination rules below. On a core older than 3.1 the core
+        # version is the real blocker, and reporting a combination error first would send the
+        # user to drop an argument that was never the problem -- they would hit this anyway.
+        if enable_hitl_review and not AIRFLOW_V_3_1_PLUS:
+            raise AirflowOptionalProviderFeatureException(
+                "Human in the loop functionality needs Airflow 3.1+."
+            )
+
         if durable and enable_hitl_review:
             raise ValueError("durable=True and enable_hitl_review=True cannot be used together.")
 
@@ -308,11 +316,6 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         self.max_hitl_iterations = max_hitl_iterations
         self.hitl_timeout = hitl_timeout
         self.hitl_poll_interval = hitl_poll_interval
-
-        if self.enable_hitl_review and not AIRFLOW_V_3_1_PLUS:
-            raise AirflowOptionalProviderFeatureException(
-                "Human in the loop functionality needs Airflow 3.1+."
-            )
 
     @cached_property
     def llm_hook(self) -> PydanticAIHook:
