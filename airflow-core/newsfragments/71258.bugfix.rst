@@ -1,0 +1,1 @@
+Fix ``airflow db downgrade`` failing on MySQL when the ``PyMySQL`` driver is used. The ``task_instance_history`` downgrade passed two statements to a single ``op.execute()``, which PyMySQL rejects because it does not enable ``CLIENT.MULTI_STATEMENTS``.
