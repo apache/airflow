@@ -9799,14 +9799,20 @@
                             "default": "https://github.com/apache/airflow.git"
                         },
                         "branch": {
-                            "description": "Git branch",
-                            "type": "string",
-                            "default": "v2-2-stable"
+                            "description": "Git branch. Deprecated by git-sync v4 in favor of `ref`; only needed if pinning `images.gitSync` back to a v3 image, since git-sync v4 gives it precedence over `ref` whenever both are set.",
+                            "type": [
+                                "null",
+                                "string"
+                            ],
+                            "default": null
                         },
                         "rev": {
-                            "description": "Git revision.",
-                            "type": "string",
-                            "default": "HEAD"
+                            "description": "Git revision. Deprecated by git-sync v4 in favor of `ref`; only needed if pinning `images.gitSync` back to a v3 image, since git-sync v4 gives it precedence over `ref` whenever both are set.",
+                            "type": [
+                                "null",
+                                "string"
+                            ],
+                            "default": null
                         },
                         "ref": {
                             "description": "Git revision branch, tag, or hash.",

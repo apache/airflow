@@ -3523,8 +3523,12 @@ dags:
     # SSH example: git@github.com:apache/airflow.git
     # HTTPS example: https://github.com/apache/airflow.git
 
-    branch: v2-2-stable
-    rev: HEAD
+    # Deprecated by git-sync v4 in favor of `ref` below. Only needed if pinning
+    # `images.gitSync` back to a v3 image: git-sync v4 gives these legacy flags
+    # precedence over `ref` whenever both are set, so leave them unset to let
+    # `ref` control checkout.
+    branch: ~
+    rev: ~
 
     # The git revision (branch, tag, or hash) to check out, v4 only
     ref: v2-2-stable
