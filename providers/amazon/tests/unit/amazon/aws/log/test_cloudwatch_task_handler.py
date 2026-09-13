@@ -400,8 +400,9 @@ class TestCloudRemoteLogIO:
         self.subject._cached_handler = active
         self.subject.delete_local_copy = False
 
-        self.subject.upload(completed_path, self.ti)
-        self.subject.upload(completed_path, self.ti)
+        with mock.patch.object(self.subject.log, "debug", autospec=True) as log_debug:
+            self.subject.upload(completed_path, self.ti)
+            self.subject.upload(completed_path, self.ti)
 
         completed.close.assert_called_once_with()
         active.close.assert_not_called()
@@ -409,6 +410,9 @@ class TestCloudRemoteLogIO:
         assert self.subject._cached_handler is active
         with self.subject._stream_lock:
             assert self.subject._get_stream_handler(active_path) is active
+        log_debug.assert_called_once_with(
+            "No active CloudWatch handler for completed stream %s", completed_path
+        )
 
     def test_completed_stream_path_can_be_reused(self):
         stream_name = "dag_id=a/reused.log"
