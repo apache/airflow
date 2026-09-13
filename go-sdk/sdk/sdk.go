@@ -73,8 +73,9 @@ type VariableClient interface {
 	// description the Variable already had.
 	//
 	// The value is stored as-is: encode structured data (for example with
-	// json.Marshal) before storing it. An AIRFLOW_VAR_<KEY> environment
-	// variable still takes precedence when the Variable is read back.
+	// json.Marshal) before storing it. A value supplied by a secrets backend
+	// (for example an AIRFLOW_VAR_<KEY> environment variable) still takes
+	// precedence over the stored value when the Variable is read back.
 	SetVariable(ctx context.Context, key, value, description string) error
 
 	// DeleteVariable removes the Variable stored under key.

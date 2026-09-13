@@ -243,8 +243,7 @@ The ``sdk.Client`` surface
 Go types.
 
 ``SetVariable`` stores the value as a string, so encode structured data (for example with ``json.Marshal``)
-before storing it. Passing an empty description clears any description the Variable already had, and an
-``AIRFLOW_VAR_*`` environment variable still takes precedence when the Variable is read back:
+before storing it.
 
 .. code-block:: go
 
@@ -254,6 +253,12 @@ before storing it. Passing an empty description clears any description the Varia
     if err := client.DeleteVariable(ctx, "legacy_threshold"); err != nil {
         return err
     }
+
+.. note::
+
+  A value supplied by a secrets backend (for example an ``AIRFLOW_VAR_*`` environment variable) still takes
+  precedence over the stored value when the Variable is read back. Calling ``SetVariable`` with an empty
+  description clears any existing description.
 
 Not-found lookups return sentinel errors - ``VariableNotFound``, ``ConnectionNotFound``, ``XComNotFound`` -
 so you can branch on a missing value with ``errors.Is`` rather than parsing an error string.
