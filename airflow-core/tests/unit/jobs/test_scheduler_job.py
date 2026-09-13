@@ -7599,6 +7599,57 @@ class TestSchedulerJob:
         assert session.scalar(select(func.count()).select_from(DagRun)) == 6
         assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 6
 
+    def test_backfill_runs_started_when_backfill_completed_despite_paused_flag(self, dag_maker, session):
+        """
+        A completed backfill leaves is_paused=True (cancel sets both is_paused and
+        completed_at). Its queued runs -- e.g. one cleared after cancel -- must still
+        be promoted; the stale is_paused flag must not strand them. Regression test
+        for https://github.com/apache/airflow/issues/69658.
+        """
+        dag1_dag_id = "test_dag1"
+        with dag_maker(
+            dag_id=dag1_dag_id,
+            start_date=DEFAULT_DATE,
+            schedule=timedelta(days=1),
+            max_active_runs=1,
+            catchup=True,
+        ):
+            EmptyOperator(task_id="mytask")
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[MockExecutor(do_update=False)])
+
+        from_date = pendulum.parse("2021-01-01")
+        to_date = pendulum.parse("2021-01-06")
+        b = _create_backfill(
+            dag_id=dag1_dag_id,
+            from_date=from_date,
+            to_date=to_date,
+            max_active_runs=3,
+            reverse=False,
+            triggering_user_name="test_user",
+            dag_run_conf={},
+        )
+
+        # Simulate a cancelled backfill: paused and terminal.
+        b = session.get(Backfill, b.id)
+        b.is_paused = True
+        b.completed_at = timezone.utcnow()
+        session.commit()
+
+        self.job_runner._start_queued_dagruns(session)
+        session.flush()
+
+        backfill_running = session.scalar(
+            select(func.count(DagRun.id)).where(
+                DagRun.dag_id == dag1_dag_id,
+                DagRun.state == State.RUNNING,
+                DagRun.run_type == DagRunType.BACKFILL_JOB,
+            )
+        )
+        # max_active_runs=3 on the backfill, so up to 3 of the 6 runs start.
+        assert backfill_running == 3
+
     def test_backfill_runs_skipped_when_lock_held_by_another_scheduler(self, dag_maker, session):
         """Test that a scheduler skips backfill runs when another scheduler holds the lock."""
         dag_id = "test_dag1"
