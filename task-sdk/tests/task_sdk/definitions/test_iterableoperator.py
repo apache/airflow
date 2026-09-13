@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import copy
 from datetime import timedelta
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
 try:
@@ -93,8 +94,14 @@ def mock_context(task, run_id: str | None = None) -> Context:
     """Wrap the shared ``mock_context`` helper with a ``task_state_store``, since
     ``IterableOperator`` checkpoints per-index sub-task progress via ``context["task_state_store"]``,
     and an ``outlet_events`` accessor, since successful sub-tasks merge their recorded outlet asset
-    events into it (see ``IterableOperator._run_task``)."""
+    events into it (see ``IterableOperator._run_task``).
+
+    Also seeds ``dag``/``dag_run``, which the shared helper omits but which
+    ``context_update_for_unmapped`` (invoked via ``IterableOperator._render_unmapped_operator``)
+    requires to re-render ``params`` against each unmapped sub-task."""
     context = _mock_context_base(task=task, run_id=run_id)
+    context["dag"] = task.dag  # type: ignore[typeddict-item]
+    context["dag_run"] = SimpleNamespace(conf={})  # type: ignore[typeddict-item]
     context["task_state_store"] = MockTaskStateStoreAccessor()  # type: ignore[typeddict-item]
     context["outlet_events"] = OutletEventAccessors()
     return context
@@ -516,39 +523,22 @@ class TestIterableOperator:
             assert hasattr(iterable_op, "partial_kwargs")
             assert isinstance(iterable_op.partial_kwargs, dict)
 
-    def test_xcom_push_delegates_to_task_when_not_pushed(self):
-        """_xcom_push delegates to task.xcom_push only when xcom_pushed is False."""
+    def test_xcom_push_delegates_to_task(self):
+        """_xcom_push awaits task.axcom_push with the default XCom return key."""
         from unittest import mock
 
         with DAG("test_dag") as dag:
-            expand_input = ListOfDictsExpandInput([{"arg1": 1}])
+            expand_input = ListOfDictsExpandInput([{}])
             iterable_op = create_iterable_operator(dag, expand_input)
 
         task = mock.MagicMock()
-        task.xcom_pushed = False
+        task.axcom_push = mock.AsyncMock()
         task.task_id = "my_task"
         task.index = 0
 
-        iterable_op._xcom_push(task=task, value="result_value")
+        asyncio.run(iterable_op._xcom_push(task=task, value="result_value"))
 
-        task.xcom_push.assert_called_once_with(key=BaseXCom.XCOM_RETURN_KEY, value="result_value")
-
-    def test_xcom_push_skips_when_already_pushed(self):
-        """_xcom_push skips pushing when xcom_pushed is already True."""
-        from unittest import mock
-
-        with DAG("test_dag") as dag:
-            expand_input = ListOfDictsExpandInput([{"arg1": 1}])
-            iterable_op = create_iterable_operator(dag, expand_input)
-
-        task = mock.MagicMock()
-        task.xcom_pushed = True
-        task.task_id = "my_task"
-        task.index = 0
-
-        iterable_op._xcom_push(task=task, value="result_value")
-
-        task.xcom_push.assert_not_called()
+        task.axcom_push.assert_awaited_once_with(key=BaseXCom.XCOM_RETURN_KEY, value="result_value")
 
     def test_execute_list_of_dicts(self, mock_xcom_get_one):
         """Test executing IterableOperator with ListOfDictsExpandInput."""
@@ -1209,7 +1199,7 @@ class TestIterableOperatorContextIsolation:
     def test_async_subtask_execution_timeout_is_enforced(self):
         """execution_timeout is enforced for async sub-tasks via asyncio.wait_for."""
         with DAG("test_dag") as dag:
-            expand_input = ListOfDictsExpandInput([{"arg1": 1}])
+            expand_input = ListOfDictsExpandInput([{}])
             mapped_op = MockSlowAsyncOperator.partial(
                 task_id="slow_async_task",
                 dag=dag,

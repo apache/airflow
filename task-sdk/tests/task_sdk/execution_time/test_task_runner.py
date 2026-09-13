@@ -2126,9 +2126,7 @@ def test_execute_task_scopes_context_vars_for_indexed_task_instance(create_runti
         state=ti.state,
         is_mapped=True,
         task=ti.task,
-        bundle_instance=ti.bundle_instance,
         try_number=ti.try_number,
-        xcom_pushed=False,
     )
 
     _execute_task(context=indexed_ti.get_template_context(), ti=indexed_ti, log=mock.MagicMock())
@@ -2194,26 +2192,22 @@ def test_rendered_map_index_updates_sent_progressively(create_runtime_ti, mock_s
 
 class TestIndexedTaskInstance:
     @pytest.mark.parametrize(
-        ("index", "key", "value", "expected_key", "expected_xcom_pushed"),
+        ("index", "key", "value", "expected_key"),
         [
-            (3, "result", "ok", "result_3", False),
-            (2, BaseXCom.XCOM_RETURN_KEY, "value1", f"{BaseXCom.XCOM_RETURN_KEY}_2", True),
-            (1, "custom_key", "value2", "custom_key_1", False),
+            (3, "result", "ok", "result_3"),
+            (2, BaseXCom.XCOM_RETURN_KEY, "value1", f"{BaseXCom.XCOM_RETURN_KEY}_2"),
+            (1, "custom_key", "value2", "custom_key_1"),
         ],
-        ids=["delegates_with_index_suffix", "sets_flag_for_default_key", "does_not_set_flag_for_custom_key"],
+        ids=["delegates_with_index_suffix", "default_key", "custom_key"],
     )
-    def test_xcom_push_suffix_and_flag(
-        self, make_indexed_ti, index, key, value, expected_key, expected_xcom_pushed
-    ):
-        """xcom_push appends map index suffix and only marks default-key pushes."""
+    def test_xcom_push_suffix(self, make_indexed_ti, index, key, value, expected_key):
+        """xcom_push appends the sub-task's index suffix to the XCom key."""
         ti = make_indexed_ti(index=index)
-        assert ti.xcom_pushed is False
 
         with mock.patch("airflow.sdk.execution_time.task_runner._xcom_push", autospec=True) as mock_push:
             ti.xcom_push(key=key, value=value)
 
         mock_push.assert_called_once_with(ti, expected_key, value)
-        assert ti.xcom_pushed is expected_xcom_pushed
 
     def test_properties(self, make_indexed_ti):
         ti = make_indexed_ti(index=7, try_number=4, is_async=True, do_xcom_push=False)
