@@ -1194,11 +1194,26 @@ class NullableDatetimeRangeFilter(RangeFilter):
     ``OR`` predicates so each branch can be satisfied by an independent index scan.
 
     NULL semantics: ``start_date=NULL`` means the task has not started yet; ``end_date=NULL`` means
-    the task is still running. For lower bounds the NULL branch passes unconditionally — a not-yet-
-    started/ended task will eventually satisfy any past lower bound. For upper bounds the NULL branch
-    is ``col IS NULL AND now() <= x``, preserving the COALESCE(col, now()) semantics without the
-    function-wrap index penalty.
+    the task is still running. For lower bounds the NULL branch usually passes unconditionally, but
+    callers may narrow it with an extra clause when NULL cannot still evolve into an in-range value.
+    For upper bounds the NULL branch is ``col IS NULL AND now() <= x``, preserving the
+    COALESCE(col, now()) semantics without the function-wrap index penalty.
     """
+
+    def __init__(
+        self,
+        value: Range | None,
+        attribute: InstrumentedAttribute,
+        null_lower_bound_clause: ColumnElement[bool] | None = None,
+    ) -> None:
+        super().__init__(value, attribute)
+        self.null_lower_bound_clause = null_lower_bound_clause
+
+    def _get_null_lower_bound_clause(self) -> ColumnElement[bool]:
+        null_clause: ColumnElement[bool] = self.attribute.is_(None)
+        if self.null_lower_bound_clause is not None:
+            null_clause = and_(null_clause, self.null_lower_bound_clause)
+        return null_clause
 
     def to_orm(self, select: Select) -> Select:
         if self.skip_none is False:
@@ -1209,10 +1224,10 @@ class NullableDatetimeRangeFilter(RangeFilter):
 
         if self.value.lower_bound_gte:
             x = self.value.lower_bound_gte
-            select = select.where(or_(self.attribute >= x, self.attribute.is_(None)))
+            select = select.where(or_(self.attribute >= x, self._get_null_lower_bound_clause()))
         if self.value.lower_bound_gt:
             x = self.value.lower_bound_gt
-            select = select.where(or_(self.attribute > x, self.attribute.is_(None)))
+            select = select.where(or_(self.attribute > x, self._get_null_lower_bound_clause()))
         if self.value.upper_bound_lte:
             x = self.value.upper_bound_lte
             select = select.where(or_(self.attribute <= x, and_(self.attribute.is_(None), func.now() <= x)))
@@ -1224,7 +1239,11 @@ class NullableDatetimeRangeFilter(RangeFilter):
 
 
 def datetime_range_filter_factory(
-    filter_name: str, model: Base, attribute_name: str | None = None
+    filter_name: str,
+    model: Base,
+    attribute_name: str | None = None,
+    *,
+    null_lower_bound_clause: ColumnElement[bool] | None = None,
 ) -> Callable[[datetime | None, datetime | None, datetime | None, datetime | None], RangeFilter]:
     def depends_datetime(
         lower_bound_gte: datetime | None = Query(alias=f"{filter_name}_gte", default=None),
@@ -1240,7 +1259,9 @@ def datetime_range_filter_factory(
             upper_bound_lt=upper_bound_lt,
         )
         if filter_name in ("start_date", "end_date"):
-            return NullableDatetimeRangeFilter(range_val, attr)
+            return NullableDatetimeRangeFilter(
+                range_val, attr, null_lower_bound_clause=null_lower_bound_clause
+            )
         return RangeFilter(range_val, attr)
 
     return depends_datetime
