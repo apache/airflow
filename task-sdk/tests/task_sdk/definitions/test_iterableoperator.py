@@ -52,7 +52,7 @@ from airflow.sdk.exceptions import (
     TaskDeferred,
 )
 from airflow.sdk.execution_time.comms import DeadlockImminentError
-from airflow.sdk.execution_time.context import OutletEventAccessors
+from airflow.sdk.execution_time.context import InletEventsAccessors, OutletEventAccessors
 from airflow.sdk.execution_time.task_runner import IndexedTaskState, RuntimeTaskInstance
 from airflow.sdk.execution_time.xcom import XCom
 
@@ -107,11 +107,32 @@ def task_state_store(monkeypatch):
     )
 
 
+@pytest.fixture(autouse=True)
+def xcom_backend(monkeypatch):
+    """``XCom.set``/``XCom.aset`` normally push through ``SUPERVISOR_COMMS`` to the Execution API,
+    which these tests never wire up either. Each sub-task pushes its own return value via
+    ``IndexedTaskInstance.axcom_push`` (see ``IterableOperator._xcom_push``), independently of the
+    parent task's ``context["ti"].xcom_push`` that ``mock_xcom_get_one`` intercepts, so it needs its
+    own stand-in. Patch the backend to capture pushes in memory instead of requiring a live comms
+    channel."""
+    store: dict[tuple, Any] = {}
+
+    def _set(cls, key, value, *, dag_id, task_id, run_id, map_index=-1, **kwargs):
+        store[(dag_id, task_id, run_id, map_index, key)] = value
+
+    async def _aset(cls, key, value, *, dag_id, task_id, run_id, map_index=-1, **kwargs):
+        store[(dag_id, task_id, run_id, map_index, key)] = value
+
+    monkeypatch.setattr(XCom, "set", classmethod(_set))
+    monkeypatch.setattr(XCom, "aset", classmethod(_aset))
+
+
 def mock_context(task, run_id: str | None = None) -> Context:
     """Wrap the shared ``mock_context`` helper with a ``task_state_store``, since
     ``IterableOperator`` checkpoints per-index sub-task progress via ``context["task_state_store"]``,
-    and an ``outlet_events`` accessor, since successful sub-tasks merge their recorded outlet asset
-    events into it (see ``IterableOperator._run_task``).
+    and ``outlet_events``/``inlet_events`` accessors, since successful sub-tasks merge their recorded
+    outlet asset events into it (see ``IterableOperator._run_task``) and ``clone_context`` (invoked for
+    every sub-task) requires ``inlet_events`` to be present.
 
     Also seeds ``dag``/``dag_run``, which the shared helper omits but which
     ``context_update_for_unmapped`` (invoked via ``IterableOperator._render_unmapped_operator``)
@@ -123,6 +144,7 @@ def mock_context(task, run_id: str | None = None) -> Context:
     _active_task_state_store = MockTaskStateStoreAccessor()
     context["task_state_store"] = _active_task_state_store  # type: ignore[typeddict-item]
     context["outlet_events"] = OutletEventAccessors()
+    context["inlet_events"] = InletEventsAccessors(inlets=[])
     return context
 
 
