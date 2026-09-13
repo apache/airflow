@@ -22,9 +22,13 @@ import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
-import type { DagRunState, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+import type {
+  DagRunState,
+  DagSchedulingState,
+  DAGWithLatestDagRunsResponse,
+} from "openapi/requests/types.gen";
 
-import { RouterLink } from "src/system-components";
+import { ActionBar, RouterLink } from "src/system-components";
 
 import { DagsLayout } from "src/layouts/DagsLayout";
 
@@ -33,7 +37,14 @@ import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 import DagRunInfo from "src/components/DagRunInfo";
 import { DataTable } from "src/components/DataTable";
 import type { CardDef } from "src/components/DataTable/types";
+import {
+  SelectionHeaderCheckbox,
+  SelectionProvider,
+  SelectionRowCheckbox,
+  useRowSelection,
+} from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
+import { DrainingBadge } from "src/components/DrainingBadge";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { NeedsReviewBadge } from "src/components/NeedsReviewBadge";
 import { SearchBar } from "src/components/SearchBar";
@@ -50,12 +61,15 @@ import { useDags } from "src/queries/useDags";
 import { useDocumentTitle } from "src/utils";
 
 import { DagImportErrors } from "../Dashboard/Stats/DagImportErrors";
+import BulkPauseDrainDagsButton from "./BulkPauseDrainDagsButton";
 import { DagCard } from "./DagCard";
 import { DagRunStateCounts } from "./DagRunStateCounts";
 import { DagTags } from "./DagTags";
 import { DagsFilters } from "./DagsFilters";
 import { Schedule } from "./Schedule";
 import { SortSelect } from "./SortSelect";
+
+const getRowKey = (dag: DAGWithLatestDagRunsResponse) => dag.dag_id;
 
 type GetColumnsParams = {
   readonly multiTeam: boolean;
@@ -73,12 +87,24 @@ const createColumns = (
   { multiTeam }: GetColumnsParams,
 ): Array<ColumnDef<DAGWithLatestDagRunsResponse>> => [
   {
+    accessorKey: "select",
+    cell: ({ row }) => <SelectionRowCheckbox colorPalette="brand" rowKey={getRowKey(row.original)} />,
+    enableHiding: false,
+    enableSorting: false,
+    header: () => <SelectionHeaderCheckbox colorPalette="brand" />,
+    meta: {
+      skeletonWidth: 10,
+    },
+  },
+  {
     accessorKey: "is_paused",
     cell: ({ row: { original } }) => (
       <TogglePause
         dagDisplayName={original.dag_display_name}
         dagId={original.dag_id}
+        hasUnfinishedRuns={original.has_unfinished_runs}
         isPaused={original.is_paused}
+        schedulingState={original.scheduling_state}
       />
     ),
     enableSorting: false,
@@ -113,7 +139,9 @@ const createColumns = (
   {
     accessorKey: "next_dagrun",
     cell: ({ row: { original } }) =>
-      !original.is_paused && Boolean(original.next_dagrun_run_after) ? (
+      original.is_paused ? undefined : original.scheduling_state === "draining" ? (
+        <DrainingBadge />
+      ) : Boolean(original.next_dagrun_run_after) ? (
         <DagRunInfo
           logicalDate={original.next_dagrun_logical_date}
           runAfter={original.next_dagrun_run_after as string}
@@ -223,6 +251,7 @@ const {
   OFFSET,
   OWNERS,
   PAUSED,
+  SCHEDULING_STATE,
   TAGS,
   TAGS_MATCH_MODE,
   TEAMS,
@@ -255,6 +284,7 @@ export const DagsList = () => {
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   const showPaused = searchParams.get(PAUSED);
+  const schedulingState = searchParams.get(SCHEDULING_STATE) as DagSchedulingState | null;
   const showFavorites = searchParams.get(FAVORITE);
 
   const lastDagRunState = searchParams.get(LAST_DAG_RUN_STATE) as DagRunState;
@@ -326,6 +356,7 @@ export const DagsList = () => {
     owners,
     paused,
     pendingHitl,
+    schedulingState: schedulingState ?? undefined,
     tags: selectedTags,
     tagsMatchMode: selectedMatchMode,
     teams: teams.length > 0 ? teams : undefined,
@@ -347,6 +378,13 @@ export const DagsList = () => {
   const columns = createColumns(translate, runStateContext, { multiTeam: multiTeamEnabled });
   const cardDef = createCardDef(runStateContext);
 
+  const { allRowsSelected, clearSelections, deselectKeys, handleRowSelect, handleSelectAll, selectedRows } =
+    useRowSelection({
+      data: data?.dags,
+      getKey: getRowKey,
+    });
+  const selectedDags = (data?.dags ?? []).filter((dag) => selectedRows.has(getRowKey(dag)));
+
   const handleSortChange = ({ value }: SelectValueChangeDetails<Array<string>>) => {
     setTableURLState({
       pagination,
@@ -357,44 +395,69 @@ export const DagsList = () => {
     });
   };
 
+  const handleDisplayToggleChange = (nextDisplay: "card" | "table") => {
+    setDisplay(nextDisplay);
+    if (nextDisplay !== "table") {
+      // The card view has no selection affordance, so drop any stale selection made in table view.
+      clearSelections();
+    }
+  };
+
   const totalEntries = data?.total_entries ?? 0;
 
   return (
     <DagsLayout>
       <Box pb={8}>
-        <DataTable
-          cardDef={cardDef}
-          columns={columns}
-          data={data?.dags ?? []}
-          displayMode={display}
-          errorMessage={<ErrorAlert error={error} />}
-          filterActions={
-            <VStack alignItems="flex-start" gap={2} w="100%">
-              <SearchBar
-                advancedSearch={advancedSearch}
-                defaultValue={dagDisplayNamePattern}
-                onChange={handleSearchChange}
-                placeholder={translate("dags:search.dags")}
-              />
-              <DagsFilters />
-            </VStack>
-          }
-          headingExtra={<DagImportErrors iconOnly />}
-          initialState={tableURLState}
-          isFetching={isFetching}
-          isLoading={isLoading}
-          modelName="common:dag"
-          onDisplayToggleChange={setDisplay}
-          onStateChange={setTableURLState}
-          presentationActions={
-            display === "card" ? (
-              <SortSelect handleSortChange={handleSortChange} orderBy={orderBy} />
-            ) : undefined
-          }
-          showDisplayToggle
-          skeletonCount={display === "card" ? 5 : undefined}
-          total={totalEntries}
-        />
+        <SelectionProvider
+          allRowsSelected={allRowsSelected}
+          onRowSelect={handleRowSelect}
+          onSelectAll={handleSelectAll}
+          selectedRows={selectedRows}
+        >
+          <DataTable
+            cardDef={cardDef}
+            columns={columns}
+            data={data?.dags ?? []}
+            displayMode={display}
+            errorMessage={<ErrorAlert error={error} />}
+            filterActions={
+              <VStack alignItems="flex-start" gap={2} w="100%">
+                <SearchBar
+                  advancedSearch={advancedSearch}
+                  defaultValue={dagDisplayNamePattern}
+                  onChange={handleSearchChange}
+                  placeholder={translate("dags:search.dags")}
+                />
+                <DagsFilters />
+              </VStack>
+            }
+            headingExtra={<DagImportErrors iconOnly />}
+            initialState={tableURLState}
+            isFetching={isFetching}
+            isLoading={isLoading}
+            modelName="common:dag"
+            onDisplayToggleChange={handleDisplayToggleChange}
+            onStateChange={setTableURLState}
+            presentationActions={
+              display === "card" ? (
+                <SortSelect handleSortChange={handleSortChange} orderBy={orderBy} />
+              ) : undefined
+            }
+            showDisplayToggle
+            skeletonCount={display === "card" ? 5 : undefined}
+            total={totalEntries}
+          />
+          <ActionBar.Root closeOnInteractOutside={false} open={display === "table" && selectedRows.size > 0}>
+            <ActionBar.Content>
+              <ActionBar.SelectionTrigger>
+                {selectedRows.size} {translate("selected")}
+              </ActionBar.SelectionTrigger>
+              <ActionBar.Separator />
+              <BulkPauseDrainDagsButton deselectKeys={deselectKeys} selectedDags={selectedDags} />
+              <ActionBar.CloseTrigger onClick={clearSelections} />
+            </ActionBar.Content>
+          </ActionBar.Root>
+        </SelectionProvider>
       </Box>
     </DagsLayout>
   );

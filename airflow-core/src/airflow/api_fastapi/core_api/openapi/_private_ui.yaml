@@ -641,6 +641,14 @@ paths:
           - type: boolean
           - type: 'null'
           title: Paused
+      - name: scheduling_state
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/DagSchedulingState'
+          - type: 'null'
+          title: Scheduling State
       - name: has_import_errors
         in: query
         required: false
@@ -3090,6 +3098,9 @@ components:
         is_paused:
           type: boolean
           title: Is Paused
+        scheduling_state:
+          $ref: '#/components/schemas/DagSchedulingState'
+          default: active
         is_stale:
           type: boolean
           title: Is Stale
@@ -3224,6 +3235,9 @@ components:
             $ref: '#/components/schemas/DAGRunLightResponse'
           type: array
           title: Latest Dag Runs
+        has_unfinished_runs:
+          type: boolean
+          title: Has Unfinished Runs
         pending_actions:
           items:
             $ref: '#/components/schemas/HITLDetail'
@@ -3279,6 +3293,7 @@ components:
       - owners
       - asset_expression
       - latest_dag_runs
+      - has_unfinished_runs
       - pending_actions
       - is_favorite
       - is_backfillable
@@ -3365,6 +3380,14 @@ components:
       - updated_at
       title: DagScheduleAssetReference
       description: Dag schedule reference serializer for assets.
+    DagSchedulingState:
+      type: string
+      enum:
+      - active
+      - draining
+      - paused
+      title: DagSchedulingState
+      description: States controlling whether a Dag can create and schedule work.
     DagTagResponse:
       properties:
         name:

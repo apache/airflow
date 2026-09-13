@@ -1083,6 +1083,32 @@ The response includes a list of successful keys and any errors encountered durin
 This structure helps users understand which key actions succeeded and which failed.`
 } as const;
 
+export const $BulkBody_BulkDAGBody_ = {
+    properties: {
+        actions: {
+            items: {
+                oneOf: [
+                    {
+                        '$ref': '#/components/schemas/BulkCreateAction_BulkDAGBody_'
+                    },
+                    {
+                        '$ref': '#/components/schemas/BulkUpdateAction_BulkDAGBody_'
+                    },
+                    {
+                        '$ref': '#/components/schemas/BulkDeleteAction_BulkDAGBody_'
+                    }
+                ]
+            },
+            type: 'array',
+            title: 'Actions'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['actions'],
+    title: 'BulkBody[BulkDAGBody]'
+} as const;
+
 export const $BulkBody_BulkDAGRunBody_ = {
     properties: {
         actions: {
@@ -1211,6 +1237,33 @@ export const $BulkBody_VariableBody_ = {
     type: 'object',
     required: ['actions'],
     title: 'BulkBody[VariableBody]'
+} as const;
+
+export const $BulkCreateAction_BulkDAGBody_ = {
+    properties: {
+        action: {
+            type: 'string',
+            const: 'create',
+            title: 'Action',
+            description: 'The action to be performed on the entities.'
+        },
+        entities: {
+            items: {
+                '$ref': '#/components/schemas/BulkDAGBody'
+            },
+            type: 'array',
+            title: 'Entities',
+            description: 'A list of entities to be created.'
+        },
+        action_on_existence: {
+            '$ref': '#/components/schemas/BulkActionOnExistence',
+            default: 'fail'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['action', 'entities'],
+    title: 'BulkCreateAction[BulkDAGBody]'
 } as const;
 
 export const $BulkCreateAction_BulkDAGRunBody_ = {
@@ -1346,6 +1399,41 @@ export const $BulkCreateAction_VariableBody_ = {
     type: 'object',
     required: ['action', 'entities'],
     title: 'BulkCreateAction[VariableBody]'
+} as const;
+
+export const $BulkDAGBody = {
+    properties: {
+        is_paused: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Is Paused'
+        },
+        scheduling_state: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/DagSchedulingState'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        dag_id: {
+            type: 'string',
+            title: 'Dag Id'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['dag_id'],
+    title: 'BulkDAGBody',
+    description: 'Request body for bulk update of Dags.'
 } as const;
 
 export const $BulkDAGRunBody = {
@@ -1487,6 +1575,40 @@ export const $BulkDAGRunClearBody = {
     type: 'object',
     title: 'BulkDAGRunClearBody',
     description: 'Request body for the bulk clear Dag Runs endpoint.'
+} as const;
+
+export const $BulkDeleteAction_BulkDAGBody_ = {
+    properties: {
+        action: {
+            type: 'string',
+            const: 'delete',
+            title: 'Action',
+            description: 'The action to be performed on the entities.'
+        },
+        entities: {
+            items: {
+                anyOf: [
+                    {
+                        type: 'string'
+                    },
+                    {
+                        '$ref': '#/components/schemas/BulkDAGBody'
+                    }
+                ]
+            },
+            type: 'array',
+            title: 'Entities',
+            description: 'A list of entity id/key or entity objects to be deleted.'
+        },
+        action_on_non_existence: {
+            '$ref': '#/components/schemas/BulkActionNotOnExistence',
+            default: 'fail'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['action', 'entities'],
+    title: 'BulkDeleteAction[BulkDAGBody]'
 } as const;
 
 export const $BulkDeleteAction_BulkDAGRunBody_ = {
@@ -1791,6 +1913,48 @@ export const $BulkTaskInstanceBody = {
     required: ['task_id'],
     title: 'BulkTaskInstanceBody',
     description: 'Request body for bulk update, and delete task instances.'
+} as const;
+
+export const $BulkUpdateAction_BulkDAGBody_ = {
+    properties: {
+        action: {
+            type: 'string',
+            const: 'update',
+            title: 'Action',
+            description: 'The action to be performed on the entities.'
+        },
+        entities: {
+            items: {
+                '$ref': '#/components/schemas/BulkDAGBody'
+            },
+            type: 'array',
+            title: 'Entities',
+            description: 'A list of entities to be updated.'
+        },
+        update_mask: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Update Mask',
+            description: 'A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.'
+        },
+        action_on_non_existence: {
+            '$ref': '#/components/schemas/BulkActionNotOnExistence',
+            default: 'fail'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['action', 'entities'],
+    title: 'BulkUpdateAction[BulkDAGBody]'
 } as const;
 
 export const $BulkUpdateAction_BulkDAGRunBody_ = {
@@ -2831,6 +2995,10 @@ export const $DAGDetailsResponse = {
             type: 'boolean',
             title: 'Is Paused'
         },
+        scheduling_state: {
+            '$ref': '#/components/schemas/DagSchedulingState',
+            default: 'active'
+        },
         is_stale: {
             type: 'boolean',
             title: 'Is Stale'
@@ -3301,13 +3469,29 @@ Deprecated: Use max_active_tasks instead.`,
 export const $DAGPatchBody = {
     properties: {
         is_paused: {
-            type: 'boolean',
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Is Paused'
+        },
+        scheduling_state: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/DagSchedulingState'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     additionalProperties: false,
     type: 'object',
-    required: ['is_paused'],
     title: 'DAGPatchBody',
     description: 'Dag Serializer for updatable bodies.'
 } as const;
@@ -3325,6 +3509,10 @@ export const $DAGResponse = {
         is_paused: {
             type: 'boolean',
             title: 'Is Paused'
+        },
+        scheduling_state: {
+            '$ref': '#/components/schemas/DagSchedulingState',
+            default: 'active'
         },
         is_stale: {
             type: 'boolean',
@@ -4663,6 +4851,13 @@ export const $DagScheduleAssetReference = {
     required: ['dag_id', 'created_at', 'updated_at'],
     title: 'DagScheduleAssetReference',
     description: 'Dag schedule reference serializer for assets.'
+} as const;
+
+export const $DagSchedulingState = {
+    type: 'string',
+    enum: ['active', 'draining', 'paused'],
+    title: 'DagSchedulingState',
+    description: 'States controlling whether a Dag can create and schedule work.'
 } as const;
 
 export const $DagStatsCollectionResponse = {
@@ -9682,6 +9877,10 @@ export const $DAGWithLatestDagRunsResponse = {
             type: 'boolean',
             title: 'Is Paused'
         },
+        scheduling_state: {
+            '$ref': '#/components/schemas/DagSchedulingState',
+            default: 'active'
+        },
         is_stale: {
             type: 'boolean',
             title: 'Is Stale'
@@ -9943,6 +10142,10 @@ export const $DAGWithLatestDagRunsResponse = {
             type: 'array',
             title: 'Latest Dag Runs'
         },
+        has_unfinished_runs: {
+            type: 'boolean',
+            title: 'Has Unfinished Runs'
+        },
         pending_actions: {
             items: {
                 '$ref': '#/components/schemas/HITLDetail'
@@ -9979,7 +10182,7 @@ export const $DAGWithLatestDagRunsResponse = {
         }
     },
     type: 'object',
-    required: ['dag_id', 'dag_display_name', 'is_paused', 'is_stale', 'last_parsed_time', 'last_parse_duration', 'last_expired', 'bundle_name', 'bundle_version', 'relative_fileloc', 'fileloc', 'description', 'timetable_summary', 'timetable_description', 'timetable_partitioned', 'timetable_periodic', 'tags', 'max_active_tasks', 'max_active_runs', 'max_consecutive_failed_dag_runs', 'has_task_concurrency_limits', 'has_import_errors', 'next_dagrun_logical_date', 'next_dagrun_data_interval_start', 'next_dagrun_data_interval_end', 'next_dagrun_run_after', 'allowed_run_types', 'owners', 'asset_expression', 'latest_dag_runs', 'pending_actions', 'is_favorite', 'is_backfillable', 'file_token'],
+    required: ['dag_id', 'dag_display_name', 'is_paused', 'is_stale', 'last_parsed_time', 'last_parse_duration', 'last_expired', 'bundle_name', 'bundle_version', 'relative_fileloc', 'fileloc', 'description', 'timetable_summary', 'timetable_description', 'timetable_partitioned', 'timetable_periodic', 'tags', 'max_active_tasks', 'max_active_runs', 'max_consecutive_failed_dag_runs', 'has_task_concurrency_limits', 'has_import_errors', 'next_dagrun_logical_date', 'next_dagrun_data_interval_start', 'next_dagrun_data_interval_end', 'next_dagrun_run_after', 'allowed_run_types', 'owners', 'asset_expression', 'latest_dag_runs', 'has_unfinished_runs', 'pending_actions', 'is_favorite', 'is_backfillable', 'file_token'],
     title: 'DAGWithLatestDagRunsResponse',
     description: 'DAG with latest dag runs response serializer.'
 } as const;

@@ -40,6 +40,23 @@ afterEach(() => {
 afterAll(() => server.close());
 
 describe("Dag Filters", () => {
+  it("passes an exact scheduling state from the URL to the API", async () => {
+    let requestedSchedulingState: string | null = null;
+
+    server.use(
+      http.get("/ui/dags", ({ request }) => {
+        requestedSchedulingState = new URL(request.url).searchParams.get("scheduling_state");
+
+        return HttpResponse.json({ dags: [], total_entries: 0 });
+      }),
+    );
+
+    render(<AppWrapper initialEntries={["/dags?scheduling_state=active"]} />);
+
+    await waitFor(() => expect(requestedSchedulingState).toBe("active"));
+    expect(await screen.findByTestId("scheduling_state-pill")).toHaveTextContent("schedulingState.active");
+  });
+
   it("Filter by selected last run state", async () => {
     render(<AppWrapper initialEntries={["/dags"]} />);
 
@@ -82,6 +99,50 @@ describe("Dag Filters", () => {
 
     expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument();
     expect(screen.queryAllByTestId("skeleton")).toHaveLength(0);
+  });
+});
+
+describe("Bulk pause/drain Dags", () => {
+  it("pauses every selected Dag in one bulk request", async () => {
+    localStorage.setItem(DAGS_LIST_DISPLAY_KEY, JSON.stringify("table"));
+
+    let requestBody: unknown;
+
+    server.use(
+      http.patch("/api/v2/dags/bulk", async ({ request }) => {
+        requestBody = await request.json();
+
+        return HttpResponse.json({
+          update: {
+            errors: [],
+            success: ["tutorial_taskflow_api_success", "tutorial_taskflow_api_failed", "paused_dag"],
+          },
+        });
+      }),
+    );
+
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
+
+    // Select every row via the header checkbox, then trigger the bulk action.
+    const table = screen.getByTestId("table-list");
+
+    fireEvent.click(within(table).getAllByRole("checkbox")[0] as HTMLInputElement);
+    fireEvent.click(await screen.findByTestId("bulk-pause-drain-dags"));
+
+    // Every mocked Dag has no unfinished runs, so pausing is a single confirm — no drain choice.
+    fireEvent.click(await screen.findByTestId("confirmation-confirm-button"));
+
+    await waitFor(() => expect(requestBody).toBeDefined());
+    const [action] = (
+      requestBody as { actions: Array<{ entities: Array<{ dag_id: string; scheduling_state: string }> }> }
+    ).actions;
+
+    expect(action?.entities.map((entity) => entity.dag_id).sort()).toEqual(
+      ["paused_dag", "tutorial_taskflow_api_failed", "tutorial_taskflow_api_success"].sort(),
+    );
+    expect(action?.entities.every((entity) => entity.scheduling_state === "paused")).toBe(true);
   });
 });
 

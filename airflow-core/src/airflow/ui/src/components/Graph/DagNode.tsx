@@ -20,11 +20,12 @@ import { Flex, HStack, LinkOverlay, Text } from "@chakra-ui/react";
 import type { NodeProps, Node as NodeType } from "@xyflow/react";
 import { Link as RouterLink } from "react-router-dom";
 
-import { useDagServiceGetDag } from "openapi/queries";
+import { useDagRunServiceGetDagRuns, useDagServiceGetDag } from "openapi/queries";
 
 import { TogglePause } from "src/components/TogglePause";
 
 import { DagIcon } from "src/assets/DagIcon";
+import { useAutoRefresh } from "src/utils";
 
 import { NodeWrapper } from "./NodeWrapper";
 import type { CustomNodeProps } from "./reactflowUtils";
@@ -32,7 +33,15 @@ import type { CustomNodeProps } from "./reactflowUtils";
 export const DagNode = ({
   data: { height, isOpen, isSelected, label, team, width },
 }: NodeProps<NodeType<CustomNodeProps, "dag">>) => {
-  const { data: dag } = useDagServiceGetDag({ dagId: label });
+  const refetchInterval = useAutoRefresh({ dagId: label });
+  const { data: dag } = useDagServiceGetDag({ dagId: label }, undefined, {
+    refetchInterval: (query) => (query.state.data?.scheduling_state === "draining" ? refetchInterval : false),
+  });
+  const { data: unfinishedRuns } = useDagRunServiceGetDagRuns(
+    { dagId: label, limit: 1, state: ["queued", "running"] },
+    undefined,
+    { enabled: dag?.scheduling_state === "active" },
+  );
 
   return (
     <NodeWrapper>
@@ -53,7 +62,9 @@ export const DagNode = ({
           <TogglePause
             dagId={dag?.dag_id ?? label}
             disabled={!Boolean(dag)}
+            hasUnfinishedRuns={unfinishedRuns === undefined ? undefined : unfinishedRuns.dag_runs.length > 0}
             isPaused={dag?.is_paused}
+            schedulingState={dag?.scheduling_state}
             style={{ zIndex: 2 }}
           />
         </HStack>

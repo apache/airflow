@@ -449,17 +449,6 @@ class CreateAssetEventsBody(BaseModel):
     access_control: AssetEventAccessControl | None = None
 
 
-class DAGPatchBody(BaseModel):
-    """
-    Dag Serializer for updatable bodies.
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    is_paused: Annotated[bool, Field(title="Is Paused")]
-
-
 class DAGRunClearBody(BaseModel):
     """
     Dag Run serializer for clear endpoint body.
@@ -609,6 +598,16 @@ class DagScheduleAssetReference(BaseModel):
     created_at: Annotated[datetime, Field(title="Created At")]
     updated_at: Annotated[datetime, Field(title="Updated At")]
     team_name: Annotated[str | None, Field(title="Team Name")] = None
+
+
+class DagSchedulingState(str, Enum):
+    """
+    States controlling whether a Dag can create and schedule work.
+    """
+
+    ACTIVE = "active"
+    DRAINING = "draining"
+    PAUSED = "paused"
 
 
 class DagStatsStateResponse(BaseModel):
@@ -1534,6 +1533,19 @@ class BulkCreateActionVariableBody(BaseModel):
     action_on_existence: BulkActionOnExistence | None = "fail"
 
 
+class BulkDAGBody(BaseModel):
+    """
+    Request body for bulk update of Dags.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    is_paused: Annotated[bool | None, Field(title="Is Paused")] = None
+    scheduling_state: DagSchedulingState | None = None
+    dag_id: Annotated[str, Field(title="Dag Id")]
+
+
 class BulkDAGRunBody(BaseModel):
     """
     Request body for bulk operations on Dag Runs.
@@ -1595,6 +1607,20 @@ class BulkDAGRunClearBody(BaseModel):
     ] = None
     note: Annotated[Note | None, Field(title="Note")] = None
     dag_runs: Annotated[list[BulkDAGRunBody] | None, Field(title="Dag Runs")] = None
+
+
+class BulkDeleteActionBulkDAGBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    action: Annotated[
+        Literal["delete"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
+    entities: Annotated[
+        list[str | BulkDAGBody],
+        Field(description="A list of entity id/key or entity objects to be deleted.", title="Entities"),
+    ]
+    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
 
 
 class BulkDeleteActionBulkDAGRunBody(BaseModel):
@@ -1671,6 +1697,26 @@ class BulkTaskInstanceBody(BaseModel):
     map_index: Annotated[int | None, Field(title="Map Index")] = None
     dag_id: Annotated[str | None, Field(title="Dag Id")] = None
     dag_run_id: Annotated[str | None, Field(title="Dag Run Id")] = None
+
+
+class BulkUpdateActionBulkDAGBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    action: Annotated[
+        Literal["update"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
+    entities: Annotated[
+        list[BulkDAGBody], Field(description="A list of entities to be updated.", title="Entities")
+    ]
+    update_mask: Annotated[
+        list[str] | None,
+        Field(
+            description="A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.",
+            title="Update Mask",
+        ),
+    ] = None
+    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
 
 
 class BulkUpdateActionBulkDAGRunBody(BaseModel):
@@ -1793,6 +1839,18 @@ class ConnectionCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
+class DAGPatchBody(BaseModel):
+    """
+    Dag Serializer for updatable bodies.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    is_paused: Annotated[bool | None, Field(title="Is Paused")] = None
+    scheduling_state: DagSchedulingState | None = None
+
+
 class DAGResponse(BaseModel):
     """
     Dag serializer for responses.
@@ -1801,6 +1859,7 @@ class DAGResponse(BaseModel):
     dag_id: Annotated[str, Field(title="Dag Id")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     is_paused: Annotated[bool, Field(title="Is Paused")]
+    scheduling_state: DagSchedulingState | None = "active"
     is_stale: Annotated[bool, Field(title="Is Stale")]
     last_parsed_time: Annotated[datetime | None, Field(title="Last Parsed Time")]
     last_parse_duration: Annotated[float | None, Field(title="Last Parse Duration")]
@@ -2353,6 +2412,19 @@ class BulkBodyVariableBody(BaseModel):
     ]
 
 
+class BulkCreateActionBulkDAGBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    action: Annotated[
+        Literal["create"], Field(description="The action to be performed on the entities.", title="Action")
+    ]
+    entities: Annotated[
+        list[BulkDAGBody], Field(description="A list of entities to be created.", title="Entities")
+    ]
+    action_on_existence: BulkActionOnExistence | None = "fail"
+
+
 class BulkCreateActionBulkDAGRunBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -2604,6 +2676,16 @@ class TaskInstanceHistoryCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
+class BulkBodyBulkDAGBody(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    actions: Annotated[
+        list[BulkCreateActionBulkDAGBody | BulkUpdateActionBulkDAGBody | BulkDeleteActionBulkDAGBody],
+        Field(title="Actions"),
+    ]
+
+
 class BulkBodyBulkDAGRunBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -2672,6 +2754,7 @@ class DAGDetailsResponse(BaseModel):
     dag_id: Annotated[str, Field(title="Dag Id")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     is_paused: Annotated[bool, Field(title="Is Paused")]
+    scheduling_state: DagSchedulingState | None = "active"
     is_stale: Annotated[bool, Field(title="Is Stale")]
     last_parsed_time: Annotated[datetime | None, Field(title="Last Parsed Time")]
     last_parse_duration: Annotated[float | None, Field(title="Last Parse Duration")]

@@ -459,6 +459,17 @@ export const useFilterConfigs = () => {
       })),
       type: FilterTypes.SELECT,
     },
+    [SearchParamsKeys.SCHEDULING_STATE]: {
+      icon: <MdSchedule />,
+      label: translate("dags:schedulingState.label"),
+      options: [
+        { label: translate("dags:schedulingState.active"), value: "active" },
+        { label: translate("dags:schedulingState.draining"), value: "draining" },
+        { label: translate("dags:schedulingState.paused"), value: "paused" },
+      ],
+      placeholder: translate("dags:schedulingState.placeholder"),
+      type: FilterTypes.SELECT,
+    },
     [SearchParamsKeys.START_DATE_RANGE]: {
       endKey: SearchParamsKeys.START_DATE_LTE,
       icon: <MdDateRange />,

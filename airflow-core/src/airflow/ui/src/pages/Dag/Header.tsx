@@ -30,6 +30,7 @@ import { ParseDagButton } from "src/components/DagActions/ParseDagButton";
 import DagRunInfo from "src/components/DagRunInfo";
 import { DagVersion } from "src/components/DagVersion";
 import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
+import { DrainingBadge } from "src/components/DrainingBadge";
 import { HeaderCard } from "src/components/HeaderCard";
 import { NeedsReviewButtonWithModal } from "src/components/NeedsReviewButton";
 import { TeamName } from "src/components/TeamName";
@@ -70,13 +71,14 @@ export const Header = ({
     : [
         {
           label: translate("dagDetails.nextRun"),
-          value:
-            !dag?.is_paused && Boolean(dag?.next_dagrun_run_after) ? (
-              <DagRunInfo
-                logicalDate={dag?.next_dagrun_logical_date}
-                runAfter={dag?.next_dagrun_run_after as string}
-              />
-            ) : undefined,
+          value: dag?.is_paused ? undefined : dag?.scheduling_state === "draining" ? (
+            <DrainingBadge />
+          ) : Boolean(dag?.next_dagrun_run_after) ? (
+            <DagRunInfo
+              logicalDate={dag?.next_dagrun_logical_date}
+              runAfter={dag?.next_dagrun_run_after as string}
+            />
+          ) : undefined,
         },
       ];
 

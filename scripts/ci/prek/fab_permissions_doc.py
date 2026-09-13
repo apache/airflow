@@ -230,6 +230,14 @@ def fab_permissions_for(entry: PermissionEntry) -> list[str]:
     auth_method = entry.required_permission
     action = _METHOD_TO_ACTION.get(auth_method, "can_read")
 
+    if entry.resource == "DAG" and auth_method == "multi":
+        # A bulk `requires_access_dag_*` call with no method arg (e.g.
+        # ``requires_access_dag_bulk``) always authorizes a write, same as the base Dag
+        # check below for a ``DAG.<entity>`` bulk call -- ``_METHOD_TO_ACTION`` has no
+        # "multi" entry, so it would otherwise fall back to the generic "can_read".
+        dag_name = display.get("RESOURCE_DAG", "DAGs")
+        return [f"{dag_name}.can_edit"]
+
     if entry.resource.startswith("DAG."):
         entity = entry.resource.split(".", 1)[1]
         consts = dag_map.get(entity, ())

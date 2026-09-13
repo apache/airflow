@@ -16,6 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { BadgeProps } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
+import { MdHourglassTop } from "react-icons/md";
 
-export { default as BackfillBanner } from "./BackfillBanner";
-export { default as DrainingBanner } from "./DrainingBanner";
+import { Tooltip } from "src/system-components";
+
+import { StateBadge } from "./StateBadge";
+
+export const DrainingBadge = (props: BadgeProps) => {
+  const { t: translate } = useTranslation("dags");
+
+  return (
+    <Tooltip content={translate("schedulingState.drainingBadgeTooltip")}>
+      <span>
+        <StateBadge colorPalette="warning" data-testid="draining-badge" variant="subtle" {...props}>
+          <MdHourglassTop />
+          {translate("schedulingState.draining")}
+        </StateBadge>
+      </span>
+    </Tooltip>
+  );
+};
