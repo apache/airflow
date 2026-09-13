@@ -1660,9 +1660,9 @@ def _run_task_and_map_outcome(
         error = e
     except (AirflowTaskTimeout, AirflowException, AirflowRuntimeError) as e:
         # We should allow retries if the task has defined it.
-        log.exception("Task failed with exception")
         log.info("::group::Post Execute")
         msg, state = _handle_current_task_failed(ti, e, log, context)
+        _log_task_failure(log, state, e)
         error = e
     except AirflowTaskTerminated as e:
         # External state updates are already handled with `ti_heartbeat` and will be
@@ -1685,9 +1685,9 @@ def _run_task_and_map_outcome(
         msg, state = _handle_current_task_failed(ti, e, log, context)
         error = e
     except BaseException as e:
-        log.exception("Task failed with exception")
         log.info("::group::Post Execute")
         msg, state = _handle_current_task_failed(ti, e, log, context)
+        _log_task_failure(log, state, e)
         error = e
 
     return state, msg, error
@@ -1791,6 +1791,23 @@ def _handle_current_task_success(
     return msg, TaskInstanceState.SUCCESS
 
 
+def _log_task_failure(log: Logger, state: TaskInstanceState, exception: BaseException) -> None:
+    """
+    Log a task failure at the severity matching its outcome.
+
+    A failure that will be retried is logged as a warning so error-tracking tools
+    (e.g. Sentry) aren't paged for transient failures; only the final, non-retried
+    attempt is logged as an error. ``exception`` is passed explicitly (rather than
+    relying on ``exc_info=True``) since this is called after the except block that
+    caught it has already done other work, and in ``_handle_handler_failure``'s case,
+    from outside an except block entirely.
+    """
+    if state == TaskInstanceState.UP_FOR_RETRY:
+        log.warning("Task failed with exception, will be retried", exc_info=exception)
+    else:
+        log.exception("Task failed with exception")
+
+
 def _evaluate_retry_policy(
     ti: RuntimeTaskInstance,
     exception: BaseException,
@@ -1838,11 +1855,12 @@ def _handle_handler_failure(
     through the retry-count check, so an exception that means "do not retry" still means
     that when it surfaces from a handler.
     """
-    log.exception("Task failed with exception")
     if isinstance(exception, (AirflowFailException, AirflowSensorTimeout, AirflowTaskTerminated)):
+        log.exception("Task failed with exception")
         return _terminal_failure(ti), TaskInstanceState.FAILED, exception
     try:
         msg, state = _handle_current_task_failed(ti, exception, log, context)
+        _log_task_failure(log, state, exception)
     except Exception:
         # The failure path itself failed. Re-entering it would just fail again and
         # escape, losing the callbacks this whole function exists to preserve, so fail

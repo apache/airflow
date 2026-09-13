@@ -5172,6 +5172,7 @@ class TestTaskRunnerCallsCallbacks:
             "expected_state",
             "expected_results",
             "extra_exceptions",
+            "expected_warning_call",
         ),
         [
             pytest.param(
@@ -5181,6 +5182,7 @@ class TestTaskRunnerCallsCallbacks:
                 TaskInstanceState.SUCCESS,
                 ["on-execute 1", "on-execute 3", "execute success", "on-success 1", "on-success 3"],
                 [],
+                None,
                 id="success",
             ),
             pytest.param(
@@ -5190,6 +5192,7 @@ class TestTaskRunnerCallsCallbacks:
                 TaskInstanceState.SKIPPED,
                 ["on-execute 1", "on-execute 3", "execute skipped", "on-skipped 1", "on-skipped 3"],
                 [],
+                None,
                 id="skipped",
             ),
             pytest.param(
@@ -5199,6 +5202,7 @@ class TestTaskRunnerCallsCallbacks:
                 TaskInstanceState.FAILED,
                 ["on-execute 1", "on-execute 3", "execute failure", "on-failure 1", "on-failure 3"],
                 [(1, mock.call("Task failed with exception"))],
+                None,
                 id="failure",
             ),
             pytest.param(
@@ -5207,7 +5211,10 @@ class TestTaskRunnerCallsCallbacks:
                 True,
                 TaskInstanceState.UP_FOR_RETRY,
                 ["on-execute 1", "on-execute 3", "execute failure", "on-retry 1", "on-retry 3"],
-                [(1, mock.call("Task failed with exception"))],
+                # A failure that will be retried is logged as a warning, not an exception -- see
+                # `expected_warning_call` below.
+                [],
+                mock.call("Task failed with exception, will be retried", exc_info=mock.ANY),
                 id="retry",
             ),
         ],
@@ -5221,6 +5228,7 @@ class TestTaskRunnerCallsCallbacks:
         expected_state,
         expected_results,
         extra_exceptions,
+        expected_warning_call,
     ):
         collected_results = []
 
@@ -5281,6 +5289,9 @@ class TestTaskRunnerCallsCallbacks:
         for index, calls in extra_exceptions:
             expected_exception_logs.insert(index, calls)
         assert log.exception.mock_calls == expected_exception_logs
+
+        if expected_warning_call is not None:
+            assert expected_warning_call in log.warning.mock_calls
 
 
 class TestTriggerDagRunOperator:
