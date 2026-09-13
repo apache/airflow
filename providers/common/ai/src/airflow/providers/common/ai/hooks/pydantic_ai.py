@@ -308,10 +308,13 @@ class PydanticAIAzureHook(PydanticAIHook):
 
     Connection fields:
         - **password**: Azure API key
-        - **host**: Azure endpoint (e.g. ``https://<resource>.openai.azure.com``)
+        - **host**: Azure endpoint (e.g. ``https://<resource>.openai.azure.com/openai/v1``)
         - **extra** JSON::
 
-            {"model": "azure:gpt-4o", "api_version": "2024-07-01-preview"}
+            {"model": "azure:gpt-4o"}
+
+          ``api_version`` is only used with legacy endpoints and must be omitted
+          for the v1 API.
 
     :param llm_conn_id: Airflow connection ID.
     :param model_id: Model identifier, e.g. ``"azure:gpt-4o"``.
@@ -328,8 +331,8 @@ class PydanticAIAzureHook(PydanticAIHook):
             "hidden_fields": ["schema", "port", "login"],
             "relabeling": {"password": "API Key", "host": "Azure Endpoint"},
             "placeholders": {
-                "host": "https://<resource>.openai.azure.com",
-                "extra": '{"model": "azure:gpt-4o", "api_version": "2024-07-01-preview"}',
+                "host": "https://<resource>.openai.azure.com/openai/v1",
+                "extra": '{"model": "azure:gpt-4o"}',
             },
         }
 

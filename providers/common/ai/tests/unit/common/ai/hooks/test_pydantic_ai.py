@@ -528,6 +528,10 @@ class TestPydanticAIAzureHook:
     def test_ui_field_behaviour_relabels_host(self):
         behaviour = PydanticAIAzureHook.get_ui_field_behaviour()
         assert behaviour["relabeling"].get("host") == "Azure Endpoint"
+        assert behaviour["placeholders"] == {
+            "host": "https://<resource>.openai.azure.com/openai/v1",
+            "extra": '{"model": "azure:gpt-4o"}',
+        }
 
     def test_get_provider_kwargs_maps_azure_endpoint(self):
         hook = PydanticAIAzureHook.__new__(PydanticAIAzureHook)
