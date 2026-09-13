@@ -34,6 +34,34 @@ Changelog
     ``in_cluster``, ``kube_config`` or ``config_dict`` raises instead of being ignored — drop
     whichever option you did not mean to use.
 
+10.22.0
+.......
+
+Features
+~~~~~~~~
+
+* ``Add KubernetesPodExecOperator for existing Kubernetes Pods (#71244)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix XCom sidecar helper mutating the caller's pod volumes (#72522)``
+* ``Fix KubernetesPodOperator XCom loss when container_logs is a string (#72502)``
+
+Misc
+~~~~
+
+* ``Refactor validate_key to raise ValueError instead of AirflowException (#68890)``
+* ``Use common.compat.sdk for the remaining provider timezone imports (#71209)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove stale is_async docstring param from await_pod_start (#72261)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 10.21.1
 .......
 

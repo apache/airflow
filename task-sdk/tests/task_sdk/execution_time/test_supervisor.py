@@ -49,6 +49,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import get_current_span
 from pytest_unordered import unordered
+from structlog.typing import FilteringBoundLogger
 from task_sdk import FAKE_BUNDLE, make_client
 from uuid6 import uuid7
 
@@ -168,6 +169,7 @@ from airflow.sdk.execution_time.supervisor import (
     WatchedSubprocess,
     _make_process_nondumpable,
     _remote_logging_conn,
+    forward_to_log,
     in_process_api_server,
     make_buffered_socket_reader,
     process_log_messages_from_subprocess,
@@ -4279,6 +4281,120 @@ def test_process_log_messages_from_subprocess(monkeypatch, caplog):
         (None, logging.DEBUG, "A debug"),
         (None, logging.ERROR, "An error"),
     ]
+
+
+@pytest.mark.parametrize(
+    "error_message",
+    ["write to closed file", "I/O operation on closed file"],
+)
+def test_process_log_messages_closed_logger_is_skipped(error_message):
+    closed_logger = mock.Mock(spec=FilteringBoundLogger)
+    closed_logger.log.side_effect = ValueError(error_message)
+
+    good_logger = mock.Mock(spec=FilteringBoundLogger)
+
+    def fake_reconfigure(logger, *args, **kwargs):
+        return logger
+
+    with (
+        mock.patch(
+            "airflow.sdk.execution_time.supervisor.reconfigure_logger",
+            side_effect=fake_reconfigure,
+        ),
+        mock.patch.object(supervisor.log, "debug") as mock_debug,
+    ):
+        gen = process_log_messages_from_subprocess(loggers=(closed_logger, good_logger))
+        next(gen)
+
+        gen.send(b'{"level": "info", "event": "hello"}\n')
+        gen.send(b'{"level": "info", "event": "world"}\n')
+
+    assert good_logger.log.call_count == 2
+    assert mock_debug.call_count == 2
+
+
+def test_forward_to_log_closed_logger_is_skipped():
+    closed_logger = mock.Mock(spec=FilteringBoundLogger)
+    closed_logger.log.side_effect = ValueError("I/O operation on closed file")
+    good_logger = mock.Mock(spec=FilteringBoundLogger)
+
+    with mock.patch.object(supervisor.log, "debug") as mock_debug:
+        gen = forward_to_log((closed_logger, good_logger), logger="task.stdout", level=logging.INFO)
+        next(gen)
+        gen.send(b"hello\n")
+        gen.send(b"world\n")
+
+    assert good_logger.log.call_count == 2
+    good_logger.log.assert_any_call(logging.INFO, "hello", logger="task.stdout")
+    good_logger.log.assert_any_call(logging.INFO, "world", logger="task.stdout")
+    assert mock_debug.call_count == 2
+
+
+def test_process_log_messages_unexpected_value_error_is_reraised():
+    """A ValueError unrelated to a closed file handle must propagate, not be silently swallowed."""
+    buggy_logger = mock.Mock(spec=FilteringBoundLogger)
+    buggy_logger.log.side_effect = ValueError("unexpected formatting bug")
+
+    def fake_reconfigure(log, *args, **kwargs):
+        return log
+
+    with mock.patch(
+        "airflow.sdk.execution_time.supervisor.reconfigure_logger",
+        side_effect=fake_reconfigure,
+    ):
+        gen = process_log_messages_from_subprocess(loggers=(buggy_logger,))
+        next(gen)
+
+        with pytest.raises(ValueError, match="unexpected formatting bug"):
+            gen.send(b'{"level": "info", "event": "test"}\n')
+
+
+def test_cleanup_sockets_after_kill_drains_logs_but_not_requests(mocker):
+    request_read, request_write = socket.socketpair()
+    stdout_read, stdout_write = socket.socketpair()
+    log_read, log_write = socket.socketpair()
+
+    subprocess = ActivitySubprocess(
+        process_log=mocker.MagicMock(),
+        id=TI_ID,
+        pid=12345,
+        stdin=stdout_write,
+        client=mocker.Mock(),
+        process=mocker.Mock(),
+    )
+    selector = selectors.DefaultSelector()
+    subprocess.selector = selector
+
+    request_handler = mock.Mock(return_value=False)
+    stdout_handler = mock.Mock(return_value=False)
+    log_handler = mock.Mock(return_value=False)
+
+    def on_close(sock):
+        selector.unregister(sock)
+        subprocess._open_sockets.pop(sock, None)
+
+    try:
+        subprocess._open_sockets[request_read] = "requests"
+        subprocess._open_sockets[stdout_read] = "stdout"
+        subprocess._open_sockets[log_read] = "logs"
+
+        selector.register(request_read, selectors.EVENT_READ, (request_handler, on_close))
+        selector.register(stdout_read, selectors.EVENT_READ, (stdout_handler, on_close))
+        selector.register(log_read, selectors.EVENT_READ, (log_handler, on_close))
+
+        subprocess.cleanup_sockets_after_kill()
+
+        request_handler.assert_not_called()
+        stdout_handler.assert_called_once_with(stdout_read)
+        log_handler.assert_called_once_with(log_read)
+        assert not subprocess._open_sockets
+        with pytest.raises((KeyError, ValueError)):
+            selector.get_key(request_read)
+    finally:
+        selector.close()
+        request_write.close()
+        stdout_write.close()
+        log_write.close()
 
 
 def test_reinit_supervisor_comms(monkeypatch, client_with_ti_start, caplog):

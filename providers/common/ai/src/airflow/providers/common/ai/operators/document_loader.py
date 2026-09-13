@@ -136,6 +136,10 @@ class DocumentLoaderOperator(BaseOperator):
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
+        if source_path is not None and source_bytes is not None:
+            raise ValueError("Provide exactly one of 'source_path' or 'source_bytes', not both.")
+        if source_path is None and source_bytes is None:
+            raise ValueError("Provide exactly one of 'source_path' or 'source_bytes'.")
         self.source_path = source_path
         self.source_conn_id = source_conn_id
         self.source_bytes = source_bytes
@@ -148,13 +152,15 @@ class DocumentLoaderOperator(BaseOperator):
         self.json_text_field = json_text_field
 
     def execute(self, context: Context) -> list[dict[str, Any]]:
-        # source_path/file_type are template fields; validate after rendering, not in __init__.
-        if self.source_path is not None and self.source_bytes is not None:
-            raise ValueError("Provide exactly one of 'source_path' or 'source_bytes', not both.")
-        if self.source_path is None and self.source_bytes is None:
-            raise ValueError("Provide exactly one of 'source_path' or 'source_bytes'.")
+        # file_type and source_path can each be *supplied* (as non-None argument) yet still
+        # render to None. These aren't provision checks (that already happened in __init__);
+        # they guard the rendered value itself, since _parse_bytes/_resolve_files need a real
+        # value to work with. Checking this in __init__ would validate the unrendered template
+        # string instead of the value actually used here.
         if self.source_bytes is not None and self.file_type is None:
             raise ValueError("'file_type' is required when using 'source_bytes' (e.g. '.pdf').")
+        if self.source_bytes is None and self.source_path is None:
+            raise ValueError("Provide exactly one of 'source_path' or 'source_bytes'.")
 
         if self.source_bytes is not None:
             if TYPE_CHECKING:

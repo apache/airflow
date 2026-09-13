@@ -35,6 +35,30 @@
 Changelog
 ---------
 
+1.19.0
+......
+
+Features
+~~~~~~~~
+
+* ``Support multiple_outputs in @task.bash (#71808)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix FileTrigger walking a stale path when globbing (#70640)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove TaskFlow recommendation in doc (#71315)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make the TimeDeltaSensor delta a template field (#71314)``
+   * ``Fix ExternalTaskSensor example Dag never finding its parent task (#72480)``
+   * ``Use common.compat.sdk for the remaining provider timezone imports (#71209)``
+
 1.18.0
 ......
 
