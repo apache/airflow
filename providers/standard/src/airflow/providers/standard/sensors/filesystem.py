@@ -74,14 +74,14 @@ class FileSensor(BaseSensorOperator):
     def __init__(
         self,
         *,
-        filepath,
-        fs_conn_id="fs_default",
-        recursive=False,
+        filepath: str,
+        fs_conn_id: str = "fs_default",
+        recursive: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         start_from_trigger: bool = False,
         trigger_kwargs: dict[str, Any] | None = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.filepath = filepath
         self.fs_conn_id = fs_conn_id
