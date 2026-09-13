@@ -198,6 +198,13 @@ def _create_connection(conn_id: str, value: Any):
     from airflow.models.connection import Connection
 
     if isinstance(value, str):
+        # A URI can never start with "{" (RFC 3986: the scheme begins with a letter), and a ``.env``
+        # value is the string one would put in ``AIRFLOW_CONN_*`` -- so JSON deserializes as it does there.
+        if value.lstrip().startswith("{"):
+            try:
+                return Connection.from_json(value, conn_id=conn_id)
+            except (JSONDecodeError, TypeError) as e:
+                raise ValueError(f"Could not create connection {conn_id!r} from JSON: {e}") from e
         return Connection(conn_id=conn_id, uri=value)
     if isinstance(value, dict):
         connection_parameter_names = get_connection_parameter_names() | {"extra_dejson"}
