@@ -36,28 +36,71 @@ type myBundle struct{}
 // myBundle must implement v1.BundleProvider
 var _ v1.BundleProvider = (*myBundle)(nil)
 
+type NativeResult struct {
+	Message string `json:"message"`
+}
+
 func (m *myBundle) RegisterDags(dagbag v1.Registry) error {
-	simpleDag := dagbag.AddDag("simple_dag")
-	simpleDag.AddTask(extract)
-	simpleDag.AddTask(transform)
-	simpleDag.AddTask(load)
+	simpleDag := dagbag.AddDag(v1.DagSpec{DagId: "simple_dag"})
+	simpleDag.Task(extract)
+	simpleDag.Task(transform)
+	simpleDag.Task(load)
+
+	nativeDag := dagbag.AddDag(v1.DagSpec{
+		DagId:       "native_dag",
+		Schedule:    "@daily",
+		Description: "Example Go-authored Dag",
+		Tags:        []string{"example", "go-sdk"},
+	})
+	extracted := nativeDag.Task(nativeExtract, v1.TaskSpec{Queue: "go-task"})
+	transformed := nativeDag.Task(
+		nativeTransform,
+		v1.TaskSpec{Queue: "go-task"},
+		v1.Inputs(extracted),
+	)
+	nativeDag.Task(
+		nativeLoad,
+		v1.TaskSpec{Queue: "go-task"},
+		v1.Inputs(transformed),
+	)
 
 	// Tasks defined in other packages register through the same dagbag.
-	concurrentDag := dagbag.AddDag("concurrent_xcom_dag")
-	concurrentDag.AddTaskWithName("pull_xcoms_concurrently", concurrentxcom.PullXComsConcurrently)
+	concurrentDag := dagbag.AddDag(v1.DagSpec{DagId: "concurrent_xcom_dag"})
+	concurrentDag.Task(
+		concurrentxcom.PullXComsConcurrently,
+		v1.TaskSpec{TaskId: "pull_xcoms_concurrently"},
+	)
 
-	bindingDag := dagbag.AddDag("taskflow_binding_dag")
-	bindingDag.AddTaskWithName("make_config", taskflowbinding.MakeConfig)
-	bindingDag.AddTaskWithName("make_numbers", taskflowbinding.MakeNumbers)
-	bindingDag.AddTaskWithName("make_region", taskflowbinding.MakeRegion)
-	bindingDag.AddTaskWithName("via_flat_args", taskflowbinding.ViaFlatArgs)
-	bindingDag.AddTaskWithName("via_struct_no_tags", taskflowbinding.ViaStructNoTags)
-	bindingDag.AddTaskWithName("via_struct_arg_tag", taskflowbinding.ViaStructArgTag)
-	bindingDag.AddTaskWithName("via_struct_unmatched_arg", taskflowbinding.ViaStructUnmatchedArg)
-	bindingDag.AddTaskWithName("via_flat_map", taskflowbinding.ViaFlatMap)
-	bindingDag.AddTaskWithName("via_struct_map", taskflowbinding.ViaStructMap)
-	bindingDag.AddTaskWithName("via_plain_map", taskflowbinding.ViaPlainMap)
+	bindingDag := dagbag.AddDag(v1.DagSpec{DagId: "taskflow_binding_dag"})
+	bindingDag.Task(taskflowbinding.MakeConfig, v1.TaskSpec{TaskId: "make_config"})
+	bindingDag.Task(taskflowbinding.MakeNumbers, v1.TaskSpec{TaskId: "make_numbers"})
+	bindingDag.Task(taskflowbinding.MakeRegion, v1.TaskSpec{TaskId: "make_region"})
+	bindingDag.Task(taskflowbinding.ViaFlatArgs, v1.TaskSpec{TaskId: "via_flat_args"})
+	bindingDag.Task(taskflowbinding.ViaStructNoTags, v1.TaskSpec{TaskId: "via_struct_no_tags"})
+	bindingDag.Task(taskflowbinding.ViaStructArgTag, v1.TaskSpec{TaskId: "via_struct_arg_tag"})
+	bindingDag.Task(
+		taskflowbinding.ViaStructUnmatchedArg,
+		v1.TaskSpec{TaskId: "via_struct_unmatched_arg"},
+	)
+	bindingDag.Task(taskflowbinding.ViaFlatMap, v1.TaskSpec{TaskId: "via_flat_map"})
+	bindingDag.Task(taskflowbinding.ViaStructMap, v1.TaskSpec{TaskId: "via_struct_map"})
+	bindingDag.Task(taskflowbinding.ViaPlainMap, v1.TaskSpec{TaskId: "via_plain_map"})
 
+	return nil
+}
+
+func nativeExtract(log *slog.Logger) (NativeResult, error) {
+	log.Info("Extracting native Dag data")
+	return NativeResult{Message: "native Dag data"}, nil
+}
+
+func nativeTransform(log *slog.Logger, extracted NativeResult) (NativeResult, error) {
+	log.Info("Transforming native Dag data", "message", extracted.Message)
+	return NativeResult{Message: "transformed " + extracted.Message}, nil
+}
+
+func nativeLoad(log *slog.Logger, transformed NativeResult) error {
+	log.Info("Loading native Dag data", "message", transformed.Message)
 	return nil
 }
 
