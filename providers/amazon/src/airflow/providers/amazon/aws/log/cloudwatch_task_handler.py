@@ -157,10 +157,12 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         )
 
     def _build_handler(self, stream_name: str | None = None) -> watchtower.CloudWatchLogHandler:
+        if stream_name is None:
+            stream_name = self.log_stream_name
         _json_serialize = conf.getimport("aws", "cloudwatch_task_handler_json_serializer", fallback=None)
         return watchtower.CloudWatchLogHandler(
             log_group_name=self.log_group,
-            log_stream_name=self.log_stream_name if stream_name is None else stream_name,
+            log_stream_name=stream_name,
             use_queues=True,
             boto3_client=self.hook.get_conn(),
             json_serialize_default=_json_serialize or json_serialize_legacy,
@@ -211,11 +213,14 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
     def _close_stream(self, stream_name: str) -> None:
         with self._stream_lock:
             handler = self._stream_handlers.pop(stream_name, None)
-            if handler is None:
-                return
-            self._closing_streams.add(stream_name)
-            if self._cached_handler is handler:
-                self._cached_handler = next(reversed(self._stream_handlers.values()), None)
+            if handler is not None:
+                self._closing_streams.add(stream_name)
+                if self._cached_handler is handler:
+                    self._cached_handler = next(reversed(self._stream_handlers.values()), None)
+
+        if handler is None:
+            self.log.debug("No active CloudWatch handler for completed stream %s", stream_name)
+            return
 
         try:
             handler.close()
@@ -265,9 +270,10 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         """
         Flush pending events one last time and mark the IO closed.
 
-        Mark the IO closed first so ``handler`` stops rebuilding: a record arriving after
-        teardown must be dropped, not revive a fresh handler. Read the cached handlers
-        directly so we never build one just to flush it.
+        Called from :meth:`upload` when logs are not streamed by path. Mark the IO closed
+        first so ``handler`` stops rebuilding: a record arriving after teardown must be
+        dropped, not revive a fresh handler. Read the cached handlers directly so we never
+        build one just to flush it.
         """
         with self._stream_lock:
             self._closed = True
