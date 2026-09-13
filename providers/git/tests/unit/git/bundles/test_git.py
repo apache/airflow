@@ -238,6 +238,171 @@ class TestGitDagBundle:
         assert_repo_is_closed(bundle)
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_initialize_without_refresh_reuses_existing_tracking_repo(self, mock_githook, git_repo):
+        """
+        With refresh_on_initialize=False, initializing over an existing tracking repo
+        skips the remote fetch and serves the on-disk state; an explicit refresh()
+        still fetches as usual.
+        """
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+
+        # First initialization has nothing on disk yet: it clones (and fetches) regardless of the flag
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id=CONN_HTTPS,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            refresh_on_initialize=False,
+        )
+        bundle.initialize()
+        starting_version = _version_str(bundle.get_current_version())
+
+        # The remote moves ahead
+        file_path = repo_path / "new_test.py"
+        with open(file_path, "w") as f:
+            f.write("hello world")
+        repo.index.add([file_path])
+        repo.index.commit("Another commit")
+
+        # A second process initializing over the same storage must not fetch the new commit
+        bundle2 = GitDagBundle(
+            name="test",
+            git_conn_id=CONN_HTTPS,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            refresh_on_initialize=False,
+        )
+        bundle2.initialize()
+        assert _version_str(bundle2.get_current_version()) == starting_version
+        files_in_repo = {f.name for f in bundle2.path.iterdir() if f.is_file()}
+        assert files_in_repo == {"test_dag.py"}
+
+        # An explicit refresh still fetches
+        bundle2.refresh()
+        assert _version_str(bundle2.get_current_version()) != starting_version
+        files_in_repo = {f.name for f in bundle2.path.iterdir() if f.is_file()}
+        assert files_in_repo == {"test_dag.py", "new_test.py"}
+
+        assert_repo_is_closed(bundle2)
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_initialize_without_refresh_falls_back_when_existing_repo_is_unusable(
+        self, mock_githook, git_repo
+    ):
+        """
+        Reusing the on-disk repo is best-effort: when it cannot be reused for a reason that
+        is not a git error - e.g. a filesystem failure on the shared bundle storage - the
+        reuse attempt falls through to full initialization instead of propagating.
+        """
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id=CONN_HTTPS,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            refresh_on_initialize=False,
+        )
+        bundle.initialize()
+        starting_version = _version_str(bundle.get_current_version())
+
+        # The remote moves ahead. Reuse would keep the old state, so ending up on the new
+        # commit is what proves the fallback ran instead of the reuse path.
+        file_path = repo_path / "new_test.py"
+        with open(file_path, "w") as f:
+            f.write("hello world")
+        repo.index.add([file_path])
+        repo.index.commit("Another commit")
+
+        bundle2 = GitDagBundle(
+            name="test",
+            git_conn_id=CONN_HTTPS,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            refresh_on_initialize=False,
+        )
+
+        # Fail the reuse attempt itself - the first open of the working repo - rather than the
+        # Nth open overall, so the test does not encode how often Repo() gets constructed.
+        failed = []
+
+        def unusable_working_repo(path, *args, **kwargs):
+            if Path(path) == bundle2.repo_path and not failed:
+                failed.append(path)
+                raise PermissionError("bundle storage temporarily unavailable")
+            return Repo(path, *args, **kwargs)
+
+        with mock.patch(
+            "airflow.providers.git.bundles.git.Repo", wraps=Repo, side_effect=unusable_working_repo
+        ):
+            bundle2.initialize()
+
+        assert failed, "the reuse path never attempted to open the working repo"
+        assert _version_str(bundle2.get_current_version()) != starting_version
+        files_in_repo = {f.name for f in bundle2.path.iterdir() if f.is_file()}
+        assert files_in_repo == {"test_dag.py", "new_test.py"}
+
+        assert_repo_is_closed(bundle2)
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_initialize_without_refresh_discards_working_tree_mutations(self, mock_githook, git_repo):
+        """
+        Skipping the fetch must not skip the clean-working-tree guarantee: the refresh() that
+        the reuse path replaces resets the working tree, so reuse has to do the same or a
+        previous task's leftovers get served as bundle content.
+        """
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id=CONN_HTTPS,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            refresh_on_initialize=False,
+        )
+        bundle.initialize()
+        starting_version = _version_str(bundle.get_current_version())
+
+        # A previous task left the tracked dag file modified on the shared storage
+        tracked_file = bundle.repo_path / "test_dag.py"
+        original_contents = tracked_file.read_text()
+        tracked_file.write_text("raise SystemExit('leftover from a previous task')")
+
+        bundle2 = GitDagBundle(
+            name="test",
+            git_conn_id=CONN_HTTPS,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            refresh_on_initialize=False,
+        )
+        bundle2.initialize()
+
+        assert tracked_file.read_text() == original_contents
+        # Still no fetch: reuse restored the committed state, it did not move to a new commit
+        assert _version_str(bundle2.get_current_version()) == starting_version
+
+        assert_repo_is_closed(bundle2)
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_initialize_with_refresh_default_fetches_latest(self, mock_githook, git_repo):
+        """Default behavior is unchanged: a second initialize fetches the latest commit."""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
+        bundle.initialize()
+        starting_version = _version_str(bundle.get_current_version())
+
+        file_path = repo_path / "new_test.py"
+        with open(file_path, "w") as f:
+            f.write("hello world")
+        repo.index.add([file_path])
+        repo.index.commit("Another commit")
+
+        bundle2 = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
+        bundle2.initialize()
+        assert _version_str(bundle2.get_current_version()) != starting_version
+
+        assert_repo_is_closed(bundle2)
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_removes_git_dir_for_versioned_bundle_by_default(self, mock_githook, git_repo):
         repo_path, repo = git_repo
         mock_githook.return_value.repo_url = repo_path
