@@ -1101,6 +1101,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         super().__init__()
         self.task_group = task_group
+        # task_concurrency only has meaning for Dynamic Task Iteration (as the sub-task thread
+        # count, see IterableOperator.max_workers). A directly instantiated operator can never
+        # reach that code path, so reject it here rather than silently accepting a dead value.
+        if task_concurrency is not None:
+            raise TypeError("unexpected argument: task_concurrency")
         self.task_concurrency = task_concurrency
 
         kwargs.pop("_airflow_mapped_validation_only", None)
