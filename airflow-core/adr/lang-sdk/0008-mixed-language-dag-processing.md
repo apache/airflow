@@ -42,12 +42,12 @@ which are not Dags, so no second definition for that `dag_id` is ever produced.
 
 Terms follow the Language SDK spec (`task-sdk/docs/lang-sdk-spec.rst`, spec
 version `1.0`): `Dag`, `TaskHandler`, `DagRef`, `TaskHandlerRef`, `bundle`,
-`register`, `serve`. The examples below use the Java and Go spellings
+`register`, `serve`. The examples use the Java and Go spellings
 (`@Builder.TaskHandler` / `airflow.TaskHandler`); TypeScript spells the same
 terms in its own idiom. Note that the spec's `bundle` is the SDK-side
 registration container, not Airflow's `DagBundle` — both appear in this ADR.
 
-This ADR uses `JavaDagImporter` and `JavaCoordinator` as the concrete examples.
+`JavaDagImporter` and `JavaCoordinator` are the concrete examples throughout.
 `ExecutableDagImporter` (Go) and `NodeDagImporter` (TypeScript) follow the same
 flow, each pairing its own `SubprocessCoordinator` subclass with its own
 `AbstractDagImporter` implementation.
@@ -74,12 +74,8 @@ flow, each pairing its own `SubprocessCoordinator` subclass with its own
 `TaskHandler` is a separate interface, not a second flavour of `Dag`. It names
 the `(dagId, taskId)` pair Python already declared and the `fn` that implements
 it, and returns a `TaskHandlerRef`: no schedule, no task graph, no `dag_id` of
-its own to persist. `Dag(spec)` returns a `DagRef`, which owns all three. Java
-spells the pair `@Builder.TaskHandler(dagId, taskId)` and `@Builder.Dag(id,
-...)`, both driving the `BuilderProcessor` annotation processor
-([ADR-0003](0003-pure-java-dags.md)); Go spells them
-`airflow.TaskHandler(dagId, taskId, fn)` and `airflow.Dag(spec)`. The spelling
-differs per SDK, the split does not.
+its own to persist. `Dag(spec)` returns a `DagRef`, which owns all three. The
+spelling differs per SDK; the split does not.
 
 The spec puts both kinds in one `bundle`, takes them through one `register` verb
 in any mixture, and serves the process with one `bundle.serve()`. So the bundle
@@ -95,30 +91,205 @@ Dag. Taking the Dag out of the authoring interface answers that question once,
 for everyone. The only marker left in serialization is `is_stub`, and it is
 per-task.
 
-### The Wire Contract: a Channel of Its Own
+### Handler Declarations Travel on Their Own Channel
 
-Handler declarations travel on their own message pair, in their own
-discriminated unions — not as a field on `DagFileParseRequest`:
+Handler declarations are carried by a dedicated message pair in their own
+discriminated unions — `ToRuntime` / `ToCoordinator` — not by a field added to
+`DagFileParseRequest`.
+
+Union membership is the only registration step in the supervisor schema
+package: it is what puts a body into the generated snapshot, and therefore into
+every SDK's generated models. So the choice of union *is* the wire-contract
+decision. Neither existing pair fits, because the runtime plays two roles. When
+it parses native Dags it **replaces** the parser process and answers the
+manager, which the manager ↔ parser unions already describe. When it answers a
+handler query it is a short-lived child of the Python parser, and the manager is
+not a peer at all. Reusing the parser unions there would make one union mean two
+recipients.
+
+The payload is deliberately a stronger contract than the one it parallels.
+`DagFileParsingResult.serialized_dags` is `list[LazyDeserializedDAG]`, which
+reduces in the snapshot to an opaque object — which is why every SDK
+reimplements DagSerialization by hand and validates it against shared fixtures
+([ADR-0004](0004-dag-parsing.md)). A handler declaration carries no Dag, so it
+is fully typed, code-generated, and schema-validated in every SDK. **The
+mixed-language path never asks a Lang SDK to implement DagSerialization at
+all.**
+
+Parameter schemas reuse the existing `ArgValueSchema` definition that
+`arg_bindings` already carries ([ADR-0007](0007-taskflow-across-language-boundary.md)),
+so validation compares like against like rather than translating between two
+vocabularies. Appendix A gives the message definitions and the two properties of
+that field — nullability and ordering — that validation has to respect.
+
+### Two Parse Verbs, Because There Are Two Conversations
+
+`BaseCoordinator` gains `parse_dag` and `parse_task_handler` alongside the
+shipped `execute_task`. They are **not symmetric siblings**, which is the
+reason not to collapse them into one `parse(request)`:
+
+- `parse_dag` is **bridge mode**. The coordinator becomes the parser process
+  and raw-forwards the manager's request and the runtime's reply. It never
+  reads the payload.
+- `parse_task_handler` is **query mode**. The coordinator is itself the peer:
+  it sends one request and decodes one reply on the channel above.
+
+One collapsed method would also erase a real deployment distinction — a
+coordinator can serve mixed-language handlers with no interest in native Dag
+parsing, and an absent method says so better than a runtime rejection.
+Appendix B gives the layering and the command hooks.
+
+### A Lang-SDK DagImporter Comes From Its Coordinator
+
+`AbstractDagImporter` (AIP-85) is about source formats and returns
+`DagImportResult.dags: list[DAG]`, i.e. `airflow.sdk.DAG` objects. The
+coordinator is about processes. A Lang-SDK importer composes one, and the
+coordinator is what hands it out — `JavaCoordinator.get_dag_importer()` returns
+a `JavaDagImporter` already bound to that coordinator. An operator therefore
+never configures an importer's coordinator: that wiring is an implementation
+detail of the coordinator that produced it, and `[sdk] coordinators` stays the
+one place a runtime is declared.
+
+Importers are keyed by file extension, one per extension, so two
+`JavaCoordinator` instances on different JDKs would both claim `.jar`. The
+boundary that resolves this is deployment-shaped rather than a tie-break: **a
+coordinator instance owns a DagBundle.** `SubprocessCoordinator` already
+classifies that ownership at construction, and only its `NAMED_BUNDLE` mode
+names a bundle — which makes `NAMED_BUNDLE` the mode a deployment running two
+runtimes of the same language has to use. Appendix C covers the registration
+tiers, the three artifact-source modes, and extensionless artifacts.
+
+### Processing Flows
+
+Three flows, walked through in full in Appendix D.
+
+**Flow A — pure Python Dag.** No stub tasks, nothing to cross-validate.
+`PythonDagImporter` parses and returns; the Dag is persisted.
+
+**Flow B — native Lang-SDK Dag.** `JavaDagImporter` calls `parse_dag`, and the
+runtime serializes its `Dag` registrations. `TaskHandler` registrations have no
+Dag to serialize, so no mixed-language `dag_id` is ever a candidate for
+persistence — there is nothing to filter. Because `DagImportResult.dags` is
+`list[DAG]`, the importer wraps each serialized entry as a
+`LazyDeserializedDAG` and transforms it into an `airflow.sdk.DAG` before
+returning. That transform is mechanical, but `LazyDeserializedDAG` lives in
+`airflow-core` today, so where a Task SDK importer reaches it from is settled by
+AIP-85's own `list[DAG]` / `list[LazyDeserializedDAG]` discussion rather than
+here.
+
+**Flow C — mixed-language Dag.** The `PythonDagImporter` owns validation. When
+it finds a stub task it resolves the stub's `queue` to a coordinator, calls
+`parse_task_handler` for the same `dag_id`, and compares the returned
+declarations against the Dag it just parsed. No `DagImporter` is involved —
+this is a single request/response rather than a discovery operation, and what
+comes back is not a Dag. Resolution goes through the coordinator registry, not
+the filesystem, so the Python Dag and the Lang-SDK artifact **do not need to be
+in the same DagBundle**. Flow C needs no `sdk.DAG` round-trip at all: it
+returns the Dag the Python parser already built.
+
+### Decision Matrix
+
+| Caller                                       | Coordinator call                             | What comes back                          | Action                                           |
+|----------------------------------------------|----------------------------------------------|------------------------------------------|--------------------------------------------------|
+| `PythonDagImporter`                          | — (parses the Python file itself)            | its own parsed Dag                       | PERSIST                                          |
+| `PythonDagImporter` (via stub → Coordinator) | `parse_task_handler`, scoped to one `dag_id` | `TaskHandlerParsingResult`               | VALIDATE only — not a Dag, so nothing to persist |
+| `JavaDagImporter`                            | `parse_dag`                                  | `DagFileParsingResult`, native Dags only | PERSIST                                          |
+
+There is no fourth row. A `TaskHandlerRef` has no Dag, so no `DagImporter` —
+and nothing reading a `DagImporter`'s results — ever sees one.
+
+### Why the Distinction Lives on the Interface, Not the Bundle
+
+A single artifact registers both kinds through one `register` call:
+
+```
+analytics.jar
+├── EtlTasks            @Builder.TaskHandler(dagId = "etl", taskId = "extract")
+│                       @Builder.TaskHandler(dagId = "etl", taskId = "transform")
+│                         backs etl.py's stub tasks — no Dag on the Java side
+└── JavaReportPipeline  @Builder.Dag(id = "java_report")
+                          native, persisted as "java_report"
+
+bundle.register(javaReport, etlExtract, etlTransform);   // one verb, both kinds
+bundle.serve(args);
+```
+
+One artifact, one bundle, one `register` call — so neither the file nor the
+bundle can tell a `DagImporter` what it is holding. The registration kind can,
+and does: the split is per registration, not per file and not per bundle.
+
+## Consequences
+
+- **Python leads, Lang-SDK follows.** `PythonDagImporter` persists the Dag and
+  drives validation via `queue → Coordinator → parse_task_handler`, comparing
+  the returned declarations against its own parsed Dag.
+- **A mixed-language `dag_id` never appears in Dag processing results.** The
+  artifact registers handlers only, so no `Dag` registration exists for a
+  `dag_id` a Python file already owns. Everything downstream — `DagImportResult`,
+  import errors, the Dag list — sees exactly one record per `dag_id`, with no
+  flag to interpret.
+- **The handler channel is typed where the Dag channel is opaque.** Every SDK
+  gets generated models for the declaration shape, and nothing on this path
+  requires a DagSerialization implementation.
+- Stub/implementation mismatches (missing handler, extra handler, parameter name
+  or order, incompatible schema) surface as `DagImportError` at parse time. An
+  unannotated stub argument is checked by name and position only.
+- The Python Dag and Lang-SDK artifact can live in different DagBundles —
+  resolution goes through the coordinator registry, not the filesystem.
+- A single Dag can have stubs targeting different queues (some Java, some Go) —
+  each resolves to its own coordinator instance independently, and validation
+  unions their declarations before comparing task ids.
+- **Mixed-language is Python-primary only.** Lang-SDK runtimes cannot define stub
+  operators — the reverse direction (a native Dag delegating tasks to Python) is
+  not supported.
+- **A Lang-SDK importer is never configured by hand.** `[sdk] coordinators` is
+  the one place a runtime is declared; the importer follows from it through
+  `get_dag_importer()`, so the same runtime has no second configuration site to
+  drift from.
+- **One coordinator instance per DagBundle** becomes a deployment constraint:
+  two JDKs mean two `dag_bundle_name` values and two bundle-scoped registries.
+  It is what keeps extension-keyed importer registration unambiguous, and it
+  makes `NAMED_BUNDLE` the mode a multi-runtime deployment has to use.
+- **No per-Dag flag**, no schema migration, no new `DagModel` column, no
+  REST/UI change.
+- Each Lang-SDK runtime implements a second request type rather than a new field
+  on the existing one. That is the cost of handlers not being Dags: a `DagRef`
+  and a `TaskHandlerRef` have different shapes, so one request/result pair could
+  not have carried both.
+- Terms here track Language SDK spec `1.0`. A spec rename of `TaskHandler`, or
+  of the `register`/`serve` verbs, lands in this ADR too.
+
+## References
+
+- Language SDK spec (`task-sdk/docs/lang-sdk-spec.rst`) — `Dag` /
+  `TaskHandler` / `bundle` / `register` / `serve` and their per-SDK spellings
+- `task-sdk/src/airflow/sdk/execution_time/schema/` — the supervisor schema
+  version bundle, the union registry, and the generated snapshot
+- `task-sdk/src/airflow/sdk/importers/` — `AbstractDagImporter`,
+  `DagImportResult`, `DagImporterRegistry`
+- [ADR-0003](0003-pure-java-dags.md) — `BundleScanner` / `BuilderProcessor`
+  (`@Builder.Dag` / `@Builder.Task` annotation processing, build-time artifact
+  inventory)
+- [ADR-0004](0004-dag-parsing.md) — coordinator subprocess bridge,
+  `DagFileParseRequest` / `DagFileParsingResult`, `can_handle_dag_file`
+- [ADR-0006](0006-no-lang-sdk-source-display.md) — no Lang-SDK source display
+  for mixed-language Dags
+- [ADR-0007](0007-taskflow-across-language-boundary.md) — `arg_bindings` /
+  `TaskArgBinding` / `ArgValueSchema`
+- [AIP-108](https://cwiki.apache.org/confluence/x/pY4mGQ) — Language SDKs
+- [AIP-85](https://cwiki.apache.org/confluence/x/_Q7OEg) — DagImporter
+
+## Appendix — For Implementation
+
+Everything below is mechanics: exact shapes, exact call sites, and the code
+that has to change. None of it is needed to follow the decision above.
+
+### Appendix A — Message Definitions
 
 ```
 ToRuntime      = TaskHandlerParseRequest      coordinator → runtime
 ToCoordinator  = TaskHandlerParsingResult     runtime → coordinator
 ```
-
-`task-sdk/src/airflow/sdk/execution_time/schema/` introspects exactly the
-unions it is given — `ToTask` / `ToSupervisor` (task-execution channel) and
-`ToManager` / `ToDagProcessor` (manager ↔ parser channel) — and union
-membership is the only registration step: it is what puts a body into the
-generated `schema.json` snapshot and therefore into every SDK's generated
-models. So the choice of union *is* the wire-contract decision.
-
-Neither existing pair fits, because the runtime plays two different roles. When
-it parses native Dags it **replaces** the parser process and answers the
-manager, so `ToDagProcessor` / `ToManager` describe it exactly, and those
-unions stay as ADR-0004 defined them. When it answers a handler query it is a
-short-lived child of the Python parser, and the manager is not a peer at all.
-Reusing `ToDagProcessor` there would make one union mean two recipients. A
-fifth pair, named for the peers the coordinator already has, keeps both honest.
 
 ```
 class TaskHandlerParseRequest:
@@ -144,21 +315,7 @@ class TaskHandlerParam:
     required: bool                     # the handler declares no default
 ```
 
-`task_handlers` is this channel's answer to
-`DagFileParsingResult.serialized_dags`, and it is deliberately a stronger
-contract. `serialized_dags` is `list[LazyDeserializedDAG]`, which reduces in
-the snapshot to `{"data": {"type": "object", "additionalProperties": true}}` —
-an opaque blob, which is why every SDK reimplements DagSerialization v3 by hand
-and validates it against shared fixtures ([ADR-0004](0004-dag-parsing.md)).
-A handler declaration carries no Dag, so it can be fully typed, code-generated,
-and schema-validated in every SDK. **The mixed-language path never asks a Lang
-SDK to implement DagSerialization at all.**
-
-`value_schema` reuses the existing `ArgValueSchema` definition — the same one
-`LiteralArgBinding.value_schema` and `XComArgBinding.value_schema` already
-point at ([ADR-0007](0007-taskflow-across-language-boundary.md)). Validation
-therefore compares like against like rather than translating between two
-vocabularies. Two properties of that field are load-bearing:
+Two properties of `value_schema` are load-bearing for validation:
 
 - **It is nullable on both sides.** An unannotated `@task.stub` parameter
   produces `value_schema: null` today, so validation compares schemas only
@@ -168,11 +325,22 @@ vocabularies. Two properties of that field are load-bearing:
   documented as "one positional stub-task argument", so position is part of the
   contract rather than incidental.
 
-A declaration carries no class, method, or source location. ADR-0006 already
-rules out Lang-SDK source display, and putting it on the wire would invite a
-consumer to render it.
+A declaration carries no class, method, or source location. ADR-0006 rules out
+Lang-SDK source display, and putting it on the wire would invite a consumer to
+render it.
 
-### The Coordinator Interface
+Registration mechanics: `registered_models_by_name()` in
+`task-sdk/src/airflow/sdk/execution_time/schema/` introspects a fixed set of
+unions — `ToTask` / `ToSupervisor` and `ToManager` / `ToDagProcessor` — so
+adding `ToRuntime` / `ToCoordinator` extends that set. Regenerating the
+`schema.json` snapshot is what propagates the new bodies into each SDK's
+generated models. Two prek hooks guard the snapshot, and their interaction on a
+first-introduction body needs checking against the hooks rather than against
+that package's `AGENTS.md`, which says no `VersionChange` is required while the
+second hook fails when the snapshot moves with nothing under `versions/`
+touched.
+
+### Appendix B — Coordinator Interface
 
 ```
 BaseCoordinator                          execution_time/coordinator.py
@@ -191,47 +359,20 @@ JavaCoordinator · ExecutableCoordinator · NodeCoordinator
   supply the three commands; no socket or protocol code
 ```
 
-The two parse methods are **not symmetric siblings**, which is the strongest
-reason not to collapse them into one `parse(request)`:
-
-- `parse_dag` is **bridge mode**. The coordinator becomes the parser process;
-  the manager's `DagFileParseRequest` and the runtime's `DagFileParsingResult`
-  cross unchanged over the raw byte forwarder, on the manager ↔ parser unions
-  ([ADR-0004](0004-dag-parsing.md)). The coordinator never reads the payload.
-- `parse_task_handler` is **query mode**. The coordinator is itself the peer:
-  it sends one `TaskHandlerParseRequest` and decodes one
-  `TaskHandlerParsingResult` on the channel above.
-
-One collapsed method would also erase a real deployment distinction — a
-coordinator can serve mixed-language handlers with no interest in native Dag
-parsing, and an absent method says so better than a runtime rejection.
-`can_handle_dag_file` still gates Flow B only; Flow C resolves through the
-coordinator registry instead.
-
 Naming follows the shipped `execute_task` / `_build_execute_task_command` pair,
 and supersedes ADR-0004's `run_dag_parsing` / `dag_parsing_cmd`. Each hook
 returns its own `subprocess_schema_version`, so handler parsing negotiates the
-supervisor schema through the mechanism task execution already uses, and
-`None` disables migration exactly as it does today.
+supervisor schema through the mechanism task execution already uses, and `None`
+disables migration exactly as it does today. `can_handle_dag_file` still gates
+Flow B only; Flow C resolves through the coordinator registry instead.
 
-### DagImporter Registration
-
-`AbstractDagImporter` (AIP-85, `task-sdk/src/airflow/sdk/importers/`) is about
-source formats — `can_handle`, `list_dag_definitions`, `import_definition`,
-`get_source_code` — and returns `DagImportResult.dags: list[DAG]`, i.e.
-`airflow.sdk.DAG` objects. The coordinator is about processes. A Lang-SDK
-importer composes one, and the coordinator is what hands it out:
+### Appendix C — DagImporter Registration
 
 ```
 BaseCoordinator.get_dag_importer() -> AbstractDagImporter | None
     default: None — this coordinator contributes no importer
     JavaCoordinator.get_dag_importer() -> JavaDagImporter(coordinator=self)
 ```
-
-Because the coordinator returns the importer already bound to itself, an
-operator never configures an importer's coordinator: that wiring is an
-implementation detail of the coordinator that produced it.
-`DagImporterRegistry.from_config` gains one tier:
 
 ```
 DagImporterRegistry.from_config(bundle_name)
@@ -245,16 +386,9 @@ DagImporterRegistry.from_config(bundle_name)
 `dag_importer_configs` stays the door for importers with no runtime behind them
 — a YAML importer, say. A Lang SDK never arrives that way.
 
-#### One coordinator instance per DagBundle
+#### Artifact-source modes
 
-The registry keys importers by file extension, one importer per extension,
-evicting the previous claimant with a log warning. Two `JavaCoordinator`
-instances on different JDKs would both claim `.jar`.
-
-The boundary that resolves this is deployment-shaped rather than a tie-break:
-**a coordinator instance owns a DagBundle.** `SubprocessCoordinator` classifies
-that ownership at construction into one of three artifact sources, and only one
-of them names a bundle:
+`SubprocessCoordinator` classifies artifact ownership at construction:
 
 ```
 EXPLICIT_ROOT   jars_root / executables_root / bundles_root
@@ -268,13 +402,11 @@ TASK_BUNDLE     neither set
 
 The first two are mutually exclusive, and both that conflict and a
 `dag_bundle_name` naming an unconfigured bundle are rejected at construction.
-
 Which mode a coordinator is in decides whether it can back a Flow-B importer:
 
-- **`NAMED_BUNDLE` registers into that bundle's registry.** This is the
-  unambiguous case, and the mode a deployment running two JDKs has to use: two
-  `dag_bundle_name` values, two bundle-scoped registries, `.jar` claimed once
-  in each.
+- **`NAMED_BUNDLE` registers into that bundle's registry.** Two
+  `dag_bundle_name` values, two bundle-scoped registries, `.jar` claimed once in
+  each.
 - **`TASK_BUNDLE` has no fixed bundle**, so its importer registers into every
   bundle-scoped registry. Sound only while it is the sole claimant of its
   extension — the co-located single-runtime deployment.
@@ -309,7 +441,7 @@ extensionless file; and `find_file_dag_definitions` filters on
 `path.suffix.lower()`. Empty has to pass through all three, with the guards
 testing `suffix is not None`.
 
-### Processing Flows
+### Appendix D — Flow Walkthroughs
 
 #### Flow A — Pure Python Dag (no `@task.stub`)
 
@@ -324,9 +456,6 @@ DagModelOperation → PERSIST
 ```
 
 #### Flow B — Lang-SDK Importer (native Dags only)
-
-A `TaskHandlerRef` carries no Dag, so a mixed-language `dag_id` is never a
-candidate for persistence — there is nothing for `JavaDagImporter` to filter.
 
 ```
 JavaDagImporter.import_definition(definition, bundle=...)
@@ -348,27 +477,7 @@ JavaDagImporter.import_definition(definition, bundle=...)
 DagModelOperation → PERSIST "java_report" only
 ```
 
-`DagImportResult.dags` is `list[DAG]`, so the importer wraps each serialized
-entry as a `LazyDeserializedDAG` and transforms it into an `airflow.sdk.DAG`
-before returning. The transform is mechanical — the serialized form encodes the
-SDK Dag's own fields — but `LazyDeserializedDAG` lives in `airflow-core` today,
-so where a Task SDK importer reaches it from is settled by AIP-85's own
-`list[DAG]` / `list[LazyDeserializedDAG]` discussion rather than here. Flow C
-needs none of this: it compares declarations and returns the `airflow.sdk.DAG`
-the Python parser already built.
-
 #### Flow C — Mixed-Language Dag (validation driven by PythonDagImporter)
-
-The `PythonDagImporter` owns validation. When it finds a stub task, it resolves
-the stub's `queue` to its Coordinator, then calls that Coordinator's
-`parse_task_handler` **directly** — no `DagImporter` involved, since this is a
-single request/response rather than a discovery operation, and what comes back
-is not a Dag.
-
-Resolution goes through the coordinator registry, not the filesystem — the Dag
-processor is file-at-a-time and the `PythonDagImporter` never sees the `.jar`.
-This also means the Python Dag and the Lang-SDK artifact **do not need to be in
-the same DagBundle**.
 
 ```
 PythonDagImporter.import_definition(definition, bundle=...)
@@ -450,98 +559,3 @@ PythonDagImporter.import_definition(definition, bundle=...)
   ▼
 DagModelOperation → PERSIST (Python Dag is the sole DB record)
 ```
-
-### Decision Matrix
-
-| Caller                                       | Coordinator call                             | What comes back                          | Action                                           |
-|----------------------------------------------|----------------------------------------------|------------------------------------------|--------------------------------------------------|
-| `PythonDagImporter`                          | — (parses the Python file itself)            | its own parsed Dag                       | PERSIST                                          |
-| `PythonDagImporter` (via stub → Coordinator) | `parse_task_handler`, scoped to one `dag_id` | `TaskHandlerParsingResult`               | VALIDATE only — not a Dag, so nothing to persist |
-| `JavaDagImporter`                            | `parse_dag`                                  | `DagFileParsingResult`, native Dags only | PERSIST                                          |
-
-There is no fourth row. A `TaskHandlerRef` has no Dag, so no `DagImporter` —
-and nothing reading a `DagImporter`'s results — ever sees one.
-
-### Why the Distinction Lives on the Interface, Not the Bundle
-
-A single artifact registers both kinds through one `register` call:
-
-```
-analytics.jar
-├── EtlTasks            @Builder.TaskHandler(dagId = "etl", taskId = "extract")
-│                       @Builder.TaskHandler(dagId = "etl", taskId = "transform")
-│                         backs etl.py's stub tasks — no Dag on the Java side
-└── JavaReportPipeline  @Builder.Dag(id = "java_report")
-                          native, persisted as "java_report"
-
-bundle.register(javaReport, etlExtract, etlTransform);   // one verb, both kinds
-bundle.serve(args);
-```
-
-One artifact, one bundle, one `register` call — so neither the file nor the
-bundle can tell a `DagImporter` what it is holding. The registration kind can,
-and does: the split is per registration, not per file and not per bundle.
-
-## Consequences
-
-- **Python leads, Lang-SDK follows.** `PythonDagImporter` persists the Dag and
-  drives validation via `queue → Coordinator → parse_task_handler`, comparing
-  the returned declarations against its own parsed Dag.
-- **A mixed-language `dag_id` never appears in Dag processing results.** The
-  artifact registers handlers only, so no `Dag` registration exists for a
-  `dag_id` a Python file already owns, and
-  `DagFileParsingResult.serialized_dags` carries native Dags exclusively.
-  Everything downstream — `DagImportResult`, import errors, the Dag list — sees
-  exactly one record per `dag_id`, with no flag to interpret.
-- **The handler channel is typed where the Dag channel is opaque.** Every SDK
-  gets generated models for `TaskHandlerDeclaration` from the `schema.json`
-  snapshot, and nothing on this path requires a DagSerialization
-  implementation.
-- Stub/implementation mismatches (missing handler, extra handler, parameter name
-  or order, incompatible schema) surface as `DagImportError` at parse time.
-  An unannotated stub argument is checked by name and position only.
-- The Python Dag and Lang-SDK artifact can live in different DagBundles —
-  resolution goes through the coordinator registry, not the filesystem.
-- A single Dag can have stubs targeting different queues (some Java, some Go) —
-  each resolves to its own coordinator instance independently, and validation
-  unions their declarations before comparing task ids.
-- **Mixed-language is Python-primary only.** Lang-SDK runtimes cannot define stub
-  operators — the reverse direction (a native Dag delegating tasks to Python) is
-  not supported.
-- **A Lang-SDK importer is never configured by hand.** `[sdk] coordinators` is
-  the one place a runtime is declared; the importer follows from it through
-  `get_dag_importer()`, so the same runtime has no second configuration site to
-  drift from.
-- **One coordinator instance per DagBundle** becomes a deployment constraint:
-  two JDKs mean two `dag_bundle_name` values and two bundle-scoped
-  registries. It is what keeps extension-keyed importer registration
-  unambiguous, and it makes `NAMED_BUNDLE` the mode a multi-runtime
-  deployment has to use.
-- **No per-Dag flag**, no schema migration, no new `DagModel` column, no
-  REST/UI change.
-- Adding `ToRuntime` / `ToCoordinator` extends the set of unions the supervisor
-  schema package introspects, and regenerating the `schema.json` snapshot is
-  what propagates the new bodies into each SDK's generated models. Two prek
-  hooks guard that snapshot, and their interaction on a first-introduction body
-  needs checking against the hooks rather than the docs.
-- Terms here track Language SDK spec `1.0`. A spec rename of `TaskHandler`, or
-  of the `register`/`serve` verbs, lands in this ADR too.
-
-## References
-
-- Language SDK spec (`task-sdk/docs/lang-sdk-spec.rst`) — `Dag` /
-  `TaskHandler` / `bundle` / `register` / `serve` and their per-SDK spellings
-- `task-sdk/src/airflow/sdk/execution_time/schema/` — the supervisor schema
-  version bundle, the union registry, and the generated `schema.json` snapshot
-- [ADR-0003](0003-pure-java-dags.md) — `BundleScanner` / `BuilderProcessor`
-  (`@Builder.Dag` / `@Builder.Task` annotation processing, build-time artifact
-  inventory)
-- [ADR-0004](0004-dag-parsing.md) — coordinator subprocess bridge,
-  `DagFileParseRequest` / `DagFileParsingResult`, `can_handle_dag_file`
-- [ADR-0006](0006-no-lang-sdk-source-display.md) — no Lang-SDK source display
-  for mixed-language Dags
-- [ADR-0007](0007-taskflow-across-language-boundary.md) — `arg_bindings` /
-  `TaskArgBinding` / `ArgValueSchema`, compared against `TaskHandler` parameter
-  declarations in Flow C
-- [AIP-108](https://cwiki.apache.org/confluence/x/pY4mGQ) — Language SDKs
-- [AIP-85](https://cwiki.apache.org/confluence/x/_Q7OEg) — DagImporter
