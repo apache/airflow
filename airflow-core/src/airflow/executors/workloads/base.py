@@ -46,7 +46,7 @@ class WorkloadType(str, Enum):
 # Connection tests are short-lived and user-interactive, so they sort ahead of tasks:
 # otherwise a sustained task backlog would starve them until the reaper times them out.
 #
-# Adding a new workload type is a four-place change that must stay in sync:
+# Adding a new workload type is a six-place change that must stay in sync:
 #   1. ``WorkloadType`` — declare the enum member.
 #   2. ``_workload_type_priority_order`` — insert it at the right priority slot.
 #   3. ``All`` and ``ExecutorWorkload`` in ``airflow.executors.workloads`` — extend the
@@ -54,6 +54,10 @@ class WorkloadType(str, Enum):
 #      e.g. Celery's ``TypeAdapter`` decodes dequeued workloads with ``ExecutorWorkload``.
 #   4. ``sort_key`` — the ``BaseWorkloadSchema`` default of ``0`` gives FIFO ordering;
 #      override it on the new schema if it needs ordering within its priority group.
+#   5. ``BaseExecutor.run_workload`` — the worker-side entrypoint (local, Celery, edge3) is
+#      an ``isinstance`` chain that raises ``ValueError`` on anything else; add a branch.
+#   6. ``state_class_for_key`` in ``airflow.executors.workloads.types`` — maps the new key
+#      type to its state enum; it raises ``TypeError`` for unknown keys.
 _workload_type_priority_order = (
     WorkloadType.EXECUTE_CALLBACK,
     WorkloadType.TEST_CONNECTION,

@@ -238,6 +238,7 @@ class BaseExecutor(LoggingMixin):
             cls.supported_workload_types = cls.supported_workload_types | legacy_workload_types
         legacy_override_replacements = {
             "trigger_tasks": "trigger_workloads",
+            "trigger_connection_tests": "trigger_workloads",
             "order_queued_tasks_by_priority": "_get_workloads_to_schedule",
         }
         for legacy_method, replacement in legacy_override_replacements.items():
@@ -349,6 +350,16 @@ class BaseExecutor(LoggingMixin):
         )
         return WorkloadType.EXECUTE_CALLBACK in self.supported_workload_types
 
+    @supports_callbacks.setter
+    def supports_callbacks(self, value: bool) -> None:
+        """Backward-compat setter: toggles EXECUTE_CALLBACK in supported_workload_types."""
+        self._warn_legacy_property(
+            "supports_callbacks",
+            "supports_callbacks is deprecated. "
+            "Use WorkloadType.EXECUTE_CALLBACK in supported_workload_types instead.",
+        )
+        self._set_workload_type_supported(WorkloadType.EXECUTE_CALLBACK, value)
+
     @property
     def supports_connection_test(self) -> bool:
         """Backward-compat property: True if TEST_CONNECTION is in supported_workload_types."""
@@ -358,6 +369,23 @@ class BaseExecutor(LoggingMixin):
             "Use WorkloadType.TEST_CONNECTION in supported_workload_types instead.",
         )
         return WorkloadType.TEST_CONNECTION in self.supported_workload_types
+
+    @supports_connection_test.setter
+    def supports_connection_test(self, value: bool) -> None:
+        """Backward-compat setter: toggles TEST_CONNECTION in supported_workload_types."""
+        self._warn_legacy_property(
+            "supports_connection_test",
+            "supports_connection_test is deprecated. "
+            "Use WorkloadType.TEST_CONNECTION in supported_workload_types instead.",
+        )
+        self._set_workload_type_supported(WorkloadType.TEST_CONNECTION, value)
+
+    def _set_workload_type_supported(self, workload_type: WorkloadType, supported: bool) -> None:
+        # Assign on the instance so the class-level frozenset shared by all instances is untouched.
+        if supported:
+            self.supported_workload_types = self.supported_workload_types | {workload_type}
+        else:
+            self.supported_workload_types = self.supported_workload_types - {workload_type}
 
     def start(self):  # pragma: no cover
         """Executors may need to get things started."""
@@ -372,8 +400,8 @@ class BaseExecutor(LoggingMixin):
     def queue_workload(self, workload: ExecutorWorkload, session: Session) -> None:
         if workload.type not in self.supported_workload_types:
             raise NotImplementedError(
-                f"{type(self).__name__} does not support {workload.type!r} workloads. "
-                f"Add {workload.type!r} to supported_workload_types and implement handling "
+                f"{type(self).__name__} does not support {workload.type.value} workloads. "
+                f"Add WorkloadType.{workload.type.name} to supported_workload_types and implement handling "
                 f"in _process_workloads()."
             )
         self.executor_queues[workload.type][workload.key] = workload
