@@ -25,11 +25,13 @@ from unittest import mock
 
 import pytest
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from airflow.api_fastapi.common.parameters import (
     FilterParam,
     NullableDatetimeRangeFilter,
+    QueryLimit,
     RangeFilter,
     SortParam,
     _AssetDependencyFilter,
@@ -44,6 +46,7 @@ from airflow.api_fastapi.common.parameters import (
     filter_param_factory,
     regex_param_factory,
 )
+from airflow.configuration import conf
 from airflow.models import DagModel, DagRun, Log
 from airflow.models.asset import AssetEvent
 from airflow.models.errors import ParseImportError
@@ -109,6 +112,25 @@ class TestFilterParam:
                 assert param["description"] == expected_description, (
                     f"Expected description '{expected_description}', got '{param['description']}'"
                 )
+
+
+class TestLimitFilter:
+    def test_limit_maximum_is_documented_and_enforced(self):
+        app = FastAPI()
+
+        @app.get("/test")
+        def test_route(limit: QueryLimit):
+            return {"limit": limit.value}
+
+        maximum_page_limit = conf.getint("api", "maximum_page_limit")
+        parameter = app.openapi()["paths"]["/test"]["get"]["parameters"][0]
+        assert parameter["schema"]["maximum"] == maximum_page_limit
+
+        client = TestClient(app)
+        assert client.get("/test", params={"limit": maximum_page_limit}).status_code == 200
+        response = client.get("/test", params={"limit": maximum_page_limit + 1})
+        assert response.status_code == 200
+        assert response.json() == {"limit": maximum_page_limit}
 
 
 class TestSortParam:
