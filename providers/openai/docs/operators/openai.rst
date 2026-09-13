@@ -58,13 +58,35 @@ specify the OpenAI connection to use, and ``response_kwargs`` to pass through op
     :start-after: [START howto_operator_openai_response]
     :end-before: [END howto_operator_openai_response]
 
+Structured outputs (Pydantic models)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To request a structured response, pass a Pydantic ``BaseModel`` subclass as ``text_format``. The
+operator then calls the Responses API's structured-output path (``responses.parse``) and returns
+the parsed model as a ``dict`` (via ``model_dump(mode="json")``), which is safe to push to XCom
+regardless of the field types the model uses (enums, dates, etc. are rendered as their JSON
+representations).
+
+The operator rejects incomplete and failed responses even if the partial output happens to match
+the Pydantic model. The resulting ``ValueError`` includes the response id and available API details,
+such as ``status``, ``error``, ``incomplete_details``, refusal text, or output item types. If the SDK
+cannot parse the model output, it raises ``ValidationError`` before returning a response object; the
+operator converts that to ``ValueError`` naming the requested model and notes that reaching
+``max_output_tokens`` is a likely cause. In that case, a response id and API details are unavailable.
+
+.. exampleinclude:: /../../openai/tests/system/openai/example_openai.py
+    :language: python
+    :start-after: [START howto_operator_openai_response_structured]
+    :end-before: [END howto_operator_openai_response_structured]
+
 Using the OpenAIHook for Responses and Conversations
 =====================================================
 
 The :class:`~airflow.providers.openai.hooks.openai.OpenAIHook` exposes the Responses and
 Conversations APIs directly for use inside ``@task`` functions or custom operators:
 
-- Responses: ``create_response``, ``get_response``, ``delete_response`` and ``cancel_response``
+- Responses: ``create_response``, ``parse_response`` (structured-output wrapper),
+  ``get_response``, ``delete_response`` and ``cancel_response``
   (the last cancels a response created with ``background=True``).
 - Conversations: ``create_conversation``, ``get_conversation``, ``update_conversation`` and
   ``delete_conversation``. Pass the conversation id to ``create_response`` (via the operator's
