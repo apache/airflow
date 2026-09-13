@@ -503,6 +503,9 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
                     result_str,
                     serialize_output=self._serialize_model_output,
                 )
+
+            if self.output_type is str:
+                return result_str
             try:
                 return json.loads(result_str)
             except (ValueError, TypeError):
