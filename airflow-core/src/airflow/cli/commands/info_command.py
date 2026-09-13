@@ -306,7 +306,7 @@ class AirflowInfo:
     def _providers_info(self):
         return [(p.data["package-name"], p.version) for p in ProvidersManager().providers.values()]
 
-    def show(self, output: str, console: AirflowConsole | None = None) -> None:
+    def show(self, output: str) -> None:
         """Show information about Airflow instance."""
         all_info = {
             "Apache Airflow": self._airflow_info,
@@ -316,7 +316,7 @@ class AirflowInfo:
             "Providers info": self._providers_info,
         }
 
-        console = console or AirflowConsole(show_header=False)
+        console = AirflowConsole(show_header=False)
         if output in ("table", "plain"):
             # Show each info as table with key, value column
             for key, info in all_info.items():
