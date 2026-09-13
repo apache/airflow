@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from collections.abc import Collection
+from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import func, select, tuple_
@@ -27,6 +28,8 @@ from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
 
@@ -153,3 +156,78 @@ def _get_count_by_matched_states(
             count += 1
 
     return count
+
+
+def _check_external_task_existence(
+    api: Any,
+    *,
+    external_dag_id: str,
+    external_task_ids: Collection[str] | None,
+    external_task_group_id: str | None,
+    logical_dates: Collection[datetime] | None = None,
+    run_ids: Collection[str] | None = None,
+) -> bool:
+    """
+    Verify that the awaited tasks or task group exist in the awaited Dag runs, through the execution API.
+
+    A Dag run's task instances are created together with the run, in the same transaction and
+    from the run's own Dag version, so once a run exists its task instances are the
+    version-accurate answer to whether a task belongs to it. Nothing can be concluded about a run
+    that does not exist yet, which is why the caller has to repeat the check until this function
+    returns True.
+
+    :param api: an object exposing ``get_dr_count``, ``get_ti_count`` and ``get_task_states`` the
+        way ``RuntimeTaskInstance`` does: the running task instance, or the class itself.
+    :param external_dag_id: The ID of the external Dag.
+    :param external_task_ids: The task IDs that must exist in every awaited run.
+    :param external_task_group_id: The task group ID that must exist in every awaited run.
+    :param logical_dates: Logical dates identifying the awaited runs, used when ``run_ids`` is empty.
+    :param run_ids: Run IDs identifying the awaited runs.
+    :return: True once every awaited run exists and passed the check, False while at least one
+        awaited run does not exist yet.
+    :raises ExternalTaskNotFoundError: when an existing run has no task instance for one of the tasks.
+    :raises ExternalTaskGroupNotFoundError: when the Dag has no such task group, or an existing run
+        has no task instance for any task of the group.
+    """
+    from airflow.providers.standard.exceptions import (
+        ExternalTaskGroupNotFoundError,
+        ExternalTaskNotFoundError,
+    )
+    from airflow.sdk.exceptions import AirflowRuntimeError
+
+    awaited_runs: list[tuple[str, dict[str, list[Any]]]]
+    if run_ids:
+        awaited_runs = [(run_id, {"run_ids": [run_id]}) for run_id in run_ids]
+    else:
+        awaited_runs = [(dt.isoformat(), {"logical_dates": [dt]}) for dt in logical_dates or []]
+
+    all_runs_checked = True
+    for run_label, run_filter in awaited_runs:
+        if api.get_dr_count(dag_id=external_dag_id, **run_filter) == 0:
+            all_runs_checked = False
+            continue
+        for task_id in external_task_ids or ():
+            if api.get_ti_count(dag_id=external_dag_id, task_ids=[task_id], **run_filter) == 0:
+                raise ExternalTaskNotFoundError(
+                    f"The external task {task_id} in Dag {external_dag_id} does not exist for run {run_label}."
+                )
+
+        if external_task_group_id:
+            try:
+                run_id_task_state_map = api.get_task_states(
+                    dag_id=external_dag_id, task_group_id=external_task_group_id, **run_filter
+                )
+            except AirflowRuntimeError as e:
+                if (e.error.detail or {}).get("status_code") == HTTPStatus.NOT_FOUND:
+                    raise ExternalTaskGroupNotFoundError(
+                        f"The external task group '{external_task_group_id}' in Dag '{external_dag_id}' "
+                        "does not exist."
+                    ) from None
+                raise
+            if not any(run_id_task_state_map.values()):
+                raise ExternalTaskGroupNotFoundError(
+                    f"The external task group '{external_task_group_id}' in Dag '{external_dag_id}' "
+                    f"does not exist for run {run_label}."
+                )
+
+    return all_runs_checked

@@ -25,6 +25,7 @@ from asgiref.sync import sync_to_async
 from sqlalchemy import func, select
 
 from airflow.models import DagRun
+from airflow.providers.standard.exceptions import ExternalTaskGroupNotFoundError, ExternalTaskNotFoundError
 from airflow.providers.standard.utils.sensor_helper import _get_count
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -51,6 +52,8 @@ class WorkflowTrigger(BaseTrigger):
     :param poke_interval: The interval (in seconds) for poking the external tasks.
     :param soft_fail: If True, the trigger will not fail the entire dag on external task failure.
     :param logical_dates: A list of logical dates for the external dag.
+    :param check_existence: If True, verify that the external tasks or task group exist in each
+        awaited Dag run once that run exists, and fire a ``not_found`` event otherwise. Airflow 3 only.
     """
 
     def __init__(
@@ -66,6 +69,7 @@ class WorkflowTrigger(BaseTrigger):
         allowed_states: Collection[str] | None = None,
         poke_interval: float = 2.0,
         soft_fail: bool = False,
+        check_existence: bool = False,
         **kwargs,
     ):
         self.external_dag_id = external_dag_id
@@ -79,6 +83,7 @@ class WorkflowTrigger(BaseTrigger):
         self.soft_fail = soft_fail
         self.execution_dates = execution_dates
         self.logical_dates = logical_dates
+        self.check_existence = check_existence
         super().__init__(**kwargs)
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
@@ -96,6 +101,7 @@ class WorkflowTrigger(BaseTrigger):
         if AIRFLOW_V_3_0_PLUS:
             data["run_ids"] = self.run_ids
             data["logical_dates"] = self.logical_dates
+            data["check_existence"] = self.check_existence
         else:
             data["execution_dates"] = self.execution_dates
 
@@ -110,7 +116,25 @@ class WorkflowTrigger(BaseTrigger):
             get_count_func = self._get_count
             run_id_or_dates = self.execution_dates or []
 
+        # Tasks and task groups can only be verified against a Dag run that exists, so this is
+        # repeated at every poll until every awaited run has been seen.
+        existence_checked = not (
+            AIRFLOW_V_3_0_PLUS
+            and self.check_existence
+            and (self.external_task_ids or self.external_task_group_id)
+        )
+
         while True:
+            if not existence_checked:
+                try:
+                    existence_checked = await self._check_existence_af_3()
+                except ExternalTaskGroupNotFoundError as e:
+                    yield TriggerEvent({"status": "not_found", "kind": "task_group", "message": str(e)})
+                    return
+                except ExternalTaskNotFoundError as e:
+                    yield TriggerEvent({"status": "not_found", "kind": "task", "message": str(e)})
+                    return
+
             if self.failed_states:
                 failed_count = await get_count_func(self.failed_states)
                 if failed_count > 0:
@@ -129,6 +153,20 @@ class WorkflowTrigger(BaseTrigger):
                 return
             self.log.info("Sleeping for %s seconds", self.poke_interval)
             await asyncio.sleep(self.poke_interval)
+
+    async def _check_existence_af_3(self) -> bool:
+        """Check the awaited tasks or task group against the runs that exist; True once every run was checked."""
+        from airflow.providers.standard.utils.sensor_helper import _check_external_task_existence
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+        return await sync_to_async(_check_external_task_existence)(
+            RuntimeTaskInstance,
+            external_dag_id=self.external_dag_id,
+            external_task_ids=self.external_task_ids,
+            external_task_group_id=self.external_task_group_id,
+            logical_dates=self.logical_dates,
+            run_ids=self.run_ids,
+        )
 
     async def _get_count_af_3(self, states: Collection[str] | None) -> int:
         from airflow.providers.standard.utils.sensor_helper import _get_count_by_matched_states

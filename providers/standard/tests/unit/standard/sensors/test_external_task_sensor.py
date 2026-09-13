@@ -1187,6 +1187,19 @@ exit 0
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Different test for AF 2")
 @pytest.mark.usefixtures("testing_dag_bundle")
+def _api_server_error(status_code: int):
+    """Build the error a task gets back when an execution API call fails."""
+    from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+    from airflow.sdk.execution_time.comms import ErrorResponse
+
+    return AirflowRuntimeError(
+        ErrorResponse(
+            error=ErrorType.API_SERVER_ERROR,
+            detail={"status_code": status_code, "message": f"Server returned {status_code}"},
+        )
+    )
+
+
 class TestExternalTaskSensorV3:
     def setup_method(self):
         # Create a mock for TaskInstance with get_ti_count method
@@ -1639,6 +1652,169 @@ class TestExternalTaskSensorV3:
         )
         context = {"logical_date": DEFAULT_DATE}
         assert op._handle_execution_date_fn(context) == DEFAULT_DATE
+
+    @pytest.mark.execution_timeout(10)
+    def test_check_existence_waits_for_run_then_checks_task_once(self, dag_maker):
+        """Nothing is concluded until the awaited run exists; once it does, the task is checked once."""
+        with dag_maker("test_dag_child"):
+            op = ExternalTaskSensor(
+                task_id="test_external_task_sensor_check",
+                external_dag_id="test_dag_parent",
+                external_task_id="test_task",
+                check_existence=True,
+            )
+
+        self.context["ti"].get_dr_count.side_effect = [0, 1]
+        # the existence probe (no ``states``) finds the task's instance; the state poll keeps waiting
+        self.context["ti"].get_ti_count.side_effect = lambda **kwargs: 0 if "states" in kwargs else 1
+
+        assert op.poke(self.context) is False  # no run yet: nothing can be checked
+        assert op.poke(self.context) is False  # run exists: task verified, still waiting for its state
+        assert op.poke(self.context) is False  # already verified: no further run lookup
+
+        assert self.context["ti"].get_dr_count.call_count == 2
+        existence_probes = [
+            c for c in self.context["ti"].get_ti_count.call_args_list if "states" not in c.kwargs
+        ]
+        assert existence_probes == [
+            mock.call(dag_id="test_dag_parent", task_ids=["test_task"], logical_dates=[DEFAULT_DATE]),
+        ]
+
+    @pytest.mark.execution_timeout(10)
+    def test_check_existence_task_not_found_in_run(self, dag_maker):
+        """A run that exists but has no task instance for the awaited task fails the sensor."""
+        with dag_maker("test_dag_child"):
+            op = ExternalTaskSensor(
+                task_id="test_external_task_sensor_check",
+                external_dag_id="test_dag_parent",
+                external_task_id="missing_task",
+                check_existence=True,
+            )
+
+        self.context["ti"].get_dr_count.return_value = 1
+        self.context["ti"].get_ti_count.return_value = 0
+
+        with pytest.raises(ExternalTaskNotFoundError, match="missing_task"):
+            op.poke(self.context)
+
+        self.context["ti"].get_ti_count.assert_called_once_with(
+            dag_id="test_dag_parent", task_ids=["missing_task"], logical_dates=[DEFAULT_DATE]
+        )
+
+    @pytest.mark.execution_timeout(10)
+    def test_check_existence_task_not_found_ignores_soft_fail(self, dag_maker):
+        """A missing task is a configuration error, so soft_fail does not turn it into a skip."""
+        with dag_maker("test_dag_child"):
+            op = ExternalTaskSensor(
+                task_id="test_external_task_sensor_check",
+                external_dag_id="test_dag_parent",
+                external_task_id="missing_task",
+                check_existence=True,
+                soft_fail=True,
+            )
+
+        self.context["ti"].get_dr_count.return_value = 1
+        self.context["ti"].get_ti_count.return_value = 0
+
+        with pytest.raises(ExternalTaskNotFoundError, match="missing_task"):
+            op.execute(context=self.context)
+
+    @pytest.mark.execution_timeout(10)
+    def test_check_existence_task_group_not_found_in_run(self, dag_maker):
+        """A run that exists without any task instance of the awaited group fails the sensor."""
+        with dag_maker("test_dag_child"):
+            op = ExternalTaskSensor(
+                task_id="test_external_task_sensor_check",
+                external_dag_id="test_dag_parent",
+                external_task_group_id="missing_group",
+                check_existence=True,
+            )
+
+        self.context["ti"].get_dr_count.return_value = 1
+        self.context["ti"].get_task_states.return_value = {}
+
+        with pytest.raises(ExternalTaskGroupNotFoundError, match="missing_group"):
+            op.poke(self.context)
+
+        self.context["ti"].get_task_states.assert_called_once_with(
+            dag_id="test_dag_parent", task_group_id="missing_group", logical_dates=[DEFAULT_DATE]
+        )
+
+    @pytest.mark.execution_timeout(10)
+    def test_check_existence_task_group_unknown_to_dag(self, dag_maker):
+        """The execution API answers 404 for a task group the Dag does not define."""
+        with dag_maker("test_dag_child"):
+            op = ExternalTaskSensor(
+                task_id="test_external_task_sensor_check",
+                external_dag_id="test_dag_parent",
+                external_task_group_id="missing_group",
+                check_existence=True,
+            )
+
+        self.context["ti"].get_dr_count.return_value = 1
+        self.context["ti"].get_task_states.side_effect = _api_server_error(404)
+
+        with pytest.raises(ExternalTaskGroupNotFoundError, match="missing_group"):
+            op.poke(self.context)
+
+    @pytest.mark.execution_timeout(10)
+    def test_check_existence_task_group_other_error_is_not_swallowed(self, dag_maker):
+        """Errors other than a missing task group keep their own type."""
+        from airflow.sdk.exceptions import AirflowRuntimeError
+
+        with dag_maker("test_dag_child"):
+            op = ExternalTaskSensor(
+                task_id="test_external_task_sensor_check",
+                external_dag_id="test_dag_parent",
+                external_task_group_id="test_group",
+                check_existence=True,
+            )
+
+        self.context["ti"].get_dr_count.return_value = 1
+        self.context["ti"].get_task_states.side_effect = _api_server_error(500)
+
+        with pytest.raises(AirflowRuntimeError):
+            op.poke(self.context)
+
+    @pytest.mark.execution_timeout(10)
+    def test_check_existence_deferrable_leaves_check_to_trigger(self, dag_maker):
+        """Nothing is checked before deferring; the trigger checks the tasks once their runs exist."""
+        with dag_maker("test_dag_child"):
+            op = ExternalTaskSensor(
+                task_id="test_external_task_sensor_check",
+                external_dag_id="test_dag_parent",
+                external_task_id="test_task",
+                deferrable=True,
+                check_existence=True,
+            )
+
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute(context=self.context)
+
+        assert exc.value.trigger.check_existence is True
+        self.context["ti"].get_dr_count.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("kind", "expected_exception"),
+        [("task", ExternalTaskNotFoundError), ("task_group", ExternalTaskGroupNotFoundError)],
+    )
+    def test_execute_complete_not_found_event(self, dag_maker, kind, expected_exception):
+        """A not_found event from the trigger raises the matching exception, even with soft_fail."""
+        with dag_maker("test_dag_child"):
+            op = ExternalTaskSensor(
+                task_id="test_external_task_sensor_check",
+                external_dag_id="test_dag_parent",
+                external_task_id="test_task",
+                deferrable=True,
+                check_existence=True,
+                soft_fail=True,
+            )
+
+        with pytest.raises(expected_exception, match="does not exist"):
+            op.execute_complete(
+                context=self.context,
+                event={"status": "not_found", "kind": kind, "message": "The external thing does not exist."},
+            )
 
 
 class TestExternalTaskAsyncSensor:
