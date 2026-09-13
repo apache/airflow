@@ -313,6 +313,7 @@ class TestBigQueryStreamingBufferEmptySensor:
         sensor = _make_streaming_sensor(
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            empty_confirmations=1,
         )
         mock_table = mock.MagicMock(streaming_buffer=None)
         mock_hook.return_value.get_client.return_value.get_table.return_value = mock_table
@@ -343,6 +344,50 @@ class TestBigQueryStreamingBufferEmptySensor:
 
         assert sensor.poke(mock.MagicMock()) is False
 
+    @pytest.mark.parametrize(
+        ("empty_confirmations", "expected_results"),
+        [
+            pytest.param(2, [False, True], id="default"),
+            pytest.param(3, [False, False, True], id="three_confirmations"),
+        ],
+    )
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
+    def test_poke_requires_consecutive_empty_confirmations(
+        self,
+        mock_hook,
+        empty_confirmations,
+        expected_results,
+    ):
+        sensor = _make_streaming_sensor(empty_confirmations=empty_confirmations)
+        mock_hook.return_value.get_client.return_value.get_table.return_value = mock.MagicMock(
+            streaming_buffer=None
+        )
+
+        # A single absent reading is ambiguous (metadata lag), so the sensor only
+        # reports empty after the configured number of consecutive empty readings.
+        for expected in expected_results:
+            assert sensor.poke(mock.MagicMock()) is expected
+
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
+    def test_poke_resets_confirmations_when_buffer_reappears(self, mock_hook):
+        sensor = _make_streaming_sensor(empty_confirmations=2)
+        get_table = mock_hook.return_value.get_client.return_value.get_table
+        get_table.side_effect = [
+            mock.MagicMock(streaming_buffer=None),
+            mock.MagicMock(streaming_buffer={"estimatedRows": 5}),
+            mock.MagicMock(streaming_buffer=None),
+            mock.MagicMock(streaming_buffer=None),
+        ]
+
+        assert sensor.poke(mock.MagicMock()) is False  # 1st empty
+        assert sensor.poke(mock.MagicMock()) is False  # buffer reappears, counter resets
+        assert sensor.poke(mock.MagicMock()) is False  # empty again, count restarts at 1
+        assert sensor.poke(mock.MagicMock()) is True  # 2nd consecutive empty
+
+    def test_init_rejects_non_positive_empty_confirmations(self):
+        with pytest.raises(ValueError, match="empty_confirmations must be at least 1"):
+            _make_streaming_sensor(empty_confirmations=0)
+
     @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
     def test_poke_raises_value_error_when_table_not_found(self, mock_hook):
         mock_hook.return_value.get_client.return_value.get_table.side_effect = NotFound("missing")
@@ -364,7 +409,7 @@ class TestBigQueryStreamingBufferEmptySensor:
             streaming_buffer=None
         )
 
-        _make_streaming_sensor(deferrable=True).execute(mock.MagicMock())
+        _make_streaming_sensor(deferrable=True, empty_confirmations=1).execute(mock.MagicMock())
 
         mock_defer.assert_not_called()
 
@@ -374,6 +419,7 @@ class TestBigQueryStreamingBufferEmptySensor:
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
             deferrable=True,
+            empty_confirmations=3,
         )
         mock_hook.return_value.get_client.return_value.get_table.return_value = mock.MagicMock(
             streaming_buffer={"estimatedRows": 1}
@@ -391,6 +437,7 @@ class TestBigQueryStreamingBufferEmptySensor:
         assert trigger.project_id == TEST_PROJECT_ID
         assert trigger.dataset_id == TEST_DATASET_ID
         assert trigger.table_id == TEST_TABLE_ID
+        assert trigger.empty_confirmations == 3
 
     def test_execute_complete_returns_message_on_success(self):
         sensor = _make_streaming_sensor(deferrable=True)
