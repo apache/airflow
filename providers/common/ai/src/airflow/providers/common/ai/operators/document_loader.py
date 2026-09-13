@@ -75,9 +75,12 @@ class DocumentLoaderOperator(BaseOperator):
         ``ObjectStoragePath`` for cloud URIs (``aws_default``,
         ``google_cloud_default``, ...). Ignored for local paths.
     :param source_bytes: Raw file bytes, typically from XCom.
-    :param file_type: File extension hint when using ``source_bytes``
-        (e.g. ``".pdf"``). Also accepted with ``source_path`` to override
-        auto-detection.
+    :param file_type: File extension hint (e.g. ``".pdf"``). Required when
+        using ``source_bytes``, since bytes carry no extension to detect.
+        Omitting it is rejected when the operator is constructed -- Dag parse
+        time for a regular task, run time for a mapped one, since ``expand()``
+        validates argument names only and defers construction to ``unmap()``.
+        Optional with ``source_path``, where it overrides auto-detection.
     :param parser: Parsing backend selection. ``"auto"`` (default) picks the
         backend from the file extension.
     :param file_extensions: When ``source_path`` is a directory or glob,
@@ -140,6 +143,8 @@ class DocumentLoaderOperator(BaseOperator):
             raise ValueError("Provide exactly one of 'source_path' or 'source_bytes', not both.")
         if source_path is None and source_bytes is None:
             raise ValueError("Provide exactly one of 'source_path' or 'source_bytes'.")
+        if source_bytes is not None and file_type is None:
+            raise ValueError("'file_type' is required when using 'source_bytes' (e.g. '.pdf').")
         self.source_path = source_path
         self.source_conn_id = source_conn_id
         self.source_bytes = source_bytes
@@ -152,15 +157,21 @@ class DocumentLoaderOperator(BaseOperator):
         self.json_text_field = json_text_field
 
     def execute(self, context: Context) -> list[dict[str, Any]]:
-        # file_type and source_path can each be *supplied* (as non-None argument) yet still
-        # render to None. These aren't provision checks (that already happened in __init__);
-        # they guard the rendered value itself, since _parse_bytes/_resolve_files need a real
-        # value to work with. Checking this in __init__ would validate the unrendered template
-        # string instead of the value actually used here.
+        # Provision -- whether an argument was supplied at all -- is settled in __init__.
+        # Both guards below exist for a different reason: file_type and source_path are
+        # template fields, so a supplied argument can still arrive here as None once it has
+        # been rendered. __init__ cannot catch that, because it only ever sees the unrendered
+        # template string; _parse_bytes and _resolve_files need the rendered value to be real.
         if self.source_bytes is not None and self.file_type is None:
-            raise ValueError("'file_type' is required when using 'source_bytes' (e.g. '.pdf').")
+            raise ValueError(
+                "'file_type' was supplied but rendered to None. Check the template or the "
+                "upstream XCom value it resolves from."
+            )
         if self.source_bytes is None and self.source_path is None:
-            raise ValueError("Provide exactly one of 'source_path' or 'source_bytes'.")
+            raise ValueError(
+                "'source_path' was supplied but rendered to None. Check the template or the "
+                "upstream XCom value it resolves from."
+            )
 
         if self.source_bytes is not None:
             if TYPE_CHECKING:
