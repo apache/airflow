@@ -31,6 +31,9 @@ Use the :class:`~airflow.providers.microsoft.azure.operators.synapse.AzureSynaps
 spark application within Synapse Analytics.
 By default, the operator will periodically check on the status of the executed Spark job to
 terminate with a "Succeeded" status.
+On Airflow 3.3 and later, retries reconnect to the submitted batch when ``wait_for_termination=True``
+rather than starting a duplicate.
+Set ``durable=False`` to submit a new batch on each attempt.
 
 Below is an example of using this operator to execute a Spark application on Azure Synapse.
 

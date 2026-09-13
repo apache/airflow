@@ -68,13 +68,13 @@ class ConcreteResumableOperator(ResumableJobMixin, BaseOperator):
 
 
 class FakeTaskState:
-    def __init__(self, stored: dict[str, str] | None = None):
-        self._store: dict[str, str] = stored or {}
+    def __init__(self, stored: dict[str, JsonValue] | None = None):
+        self._store: dict[str, JsonValue] = stored or {}
 
-    def get(self, key: str) -> str | None:
+    def get(self, key: str) -> JsonValue:
         return self._store.get(key)
 
-    def set(self, key: str, value: str) -> None:
+    def set(self, key: str, value: JsonValue) -> None:
         self._store[key] = value
 
 
@@ -139,6 +139,16 @@ class TestFirstSubmission:
 
 
 class TestRetryWithDifferentJobStatuses:
+    def test_zero_external_id_is_reconnected(self):
+        op = ConcreteResumableOperator(task_id="test_task")
+        op._status_map["0"] = "RUNNING"
+        task_state = FakeTaskState({"test_job_id": 0})
+
+        op.execute_resumable(make_context(task_state))
+
+        assert op.submitted_ids == []
+        assert op.polled_ids == ["0"]
+
     def test_skips_submission_when_job_active(self):
         op = ConcreteResumableOperator(task_id="test_task")
         op._status_map["job-001"] = "RUNNING"
