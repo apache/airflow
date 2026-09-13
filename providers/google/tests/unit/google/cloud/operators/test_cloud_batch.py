@@ -18,10 +18,14 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 from datetime import datetime
+from typing import Any
 from unittest import mock
+from uuid import UUID
 
 import pytest
+from google.api_core.exceptions import AlreadyExists, NotFound
 from google.cloud import batch_v1
 
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
@@ -33,6 +37,19 @@ from airflow.providers.google.cloud.operators.cloud_batch import (
 )
 
 from tests_common.test_utils.compat import DagSerialization
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
+
+if AIRFLOW_V_3_3_PLUS:
+    from airflow.sdk.execution_time.comms import (
+        ErrorResponse,
+        ErrorType,
+        GetTaskStateStore,
+        OKResponse,
+        SetTaskStateStore,
+        TaskStateStoreResult,
+    )
+    from airflow.sdk.execution_time.context import TaskStateStoreAccessor
+    from airflow.sdk.state import TaskScope
 
 CLOUD_BATCH_HOOK_PATH = "airflow.providers.google.cloud.operators.cloud_batch.CloudBatchHook"
 TASK_ID = "test"
@@ -41,6 +58,49 @@ REGION = "us-central1"
 JOB_NAME = "test"
 JOB = batch_v1.Job()
 JOB.name = JOB_NAME
+FULL_JOB_NAME = f"projects/{PROJECT_ID}/locations/{REGION}/jobs/{JOB_NAME}"
+OPERATOR_ARGS: dict[str, Any] = {
+    "task_id": TASK_ID,
+    "project_id": PROJECT_ID,
+    "region": REGION,
+    "job_name": JOB_NAME,
+    "job": JOB,
+}
+
+
+def _job_with_state(state: batch_v1.JobStatus.State | int) -> batch_v1.Job:
+    return batch_v1.Job(name=FULL_JOB_NAME, status=batch_v1.JobStatus(state=state))
+
+
+@pytest.fixture
+def task_state_store() -> Iterator[tuple[TaskStateStoreAccessor, dict[str, Any], mock.Mock]]:
+    if not AIRFLOW_V_3_3_PLUS:
+        pytest.skip("Task state store recovery requires Airflow 3.3+")
+
+    stored: dict[str, Any] = {}
+    supervisor_comms = mock.Mock(spec=["send"])
+
+    def send(message: object) -> object:
+        if isinstance(message, GetTaskStateStore):
+            if message.key in stored:
+                return TaskStateStoreResult(value=stored[message.key])
+            return ErrorResponse(error=ErrorType.TASK_STORE_NOT_FOUND, detail={"key": message.key})
+        if isinstance(message, SetTaskStateStore):
+            stored[message.key] = message.value
+            return OKResponse(ok=True)
+        raise AssertionError(f"Unexpected task state store message: {message!r}")
+
+    supervisor_comms.send.side_effect = send
+    state_store = TaskStateStoreAccessor(
+        ti_id=UUID("01900000-0000-0000-0000-000000000001"),
+        scope=TaskScope(dag_id="dag", run_id="run", task_id=TASK_ID),
+    )
+    with mock.patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", supervisor_comms, create=True):
+        yield state_store, stored, supervisor_comms
+
+
+def _context(task_state_store: TaskStateStoreAccessor) -> dict[str, Any]:
+    return {"task_state_store": task_state_store}
 
 
 class TestCloudBatchSubmitJobOperator:
@@ -48,10 +108,14 @@ class TestCloudBatchSubmitJobOperator:
     def test_execute(self, mock):
         mock.return_value.wait_for_job.return_value = JOB
         operator = CloudBatchSubmitJobOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, job=JOB
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_name=JOB_NAME,
+            job=JOB,
         )
 
-        completed_job = operator.execute(context=mock.MagicMock())
+        completed_job = operator.execute(context={})
 
         assert completed_job["name"] == JOB_NAME
 
@@ -60,14 +124,169 @@ class TestCloudBatchSubmitJobOperator:
         )
         mock.return_value.wait_for_job.assert_called()
 
-    @mock.patch(CLOUD_BATCH_HOOK_PATH)
-    def test_execute_deferrable(self, mock):
-        operator = CloudBatchSubmitJobOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, job=JOB, deferrable=True
+    @mock.patch(CLOUD_BATCH_HOOK_PATH, autospec=True)
+    def test_fresh_run_persists_exact_job_name_before_waiting(self, mock_hook, task_state_store):
+        store, stored, _ = task_state_store
+        submitted_job = _job_with_state(batch_v1.JobStatus.State.RUNNING)
+        completed_job = _job_with_state(batch_v1.JobStatus.State.SUCCEEDED)
+        mock_hook.return_value.submit_batch_job.return_value = submitted_job
+
+        def wait_for_job(**_: Any) -> batch_v1.Job:
+            assert stored["cloud_batch_job_name"] == FULL_JOB_NAME
+            return completed_job
+
+        mock_hook.return_value.wait_for_job.side_effect = wait_for_job
+        operator = CloudBatchSubmitJobOperator(**OPERATOR_ARGS)
+
+        result = operator.execute(context=_context(store))
+
+        assert result["name"] == FULL_JOB_NAME
+        mock_hook.return_value.submit_batch_job.assert_called_once_with(
+            job_name=JOB_NAME, job=JOB, region=REGION, project_id=PROJECT_ID
+        )
+        mock_hook.return_value.wait_for_job.assert_called_once_with(
+            job_name=FULL_JOB_NAME,
+            polling_period_seconds=10,
+            timeout=None,
         )
 
+    @mock.patch(CLOUD_BATCH_HOOK_PATH, autospec=True)
+    def test_retry_reconnects_to_running_job(self, mock_hook, task_state_store):
+        store, _, supervisor_comms = task_state_store
+        store.set(key="cloud_batch_job_name", value=FULL_JOB_NAME)
+        supervisor_comms.reset_mock()
+        mock_hook.return_value.submit_batch_job.side_effect = AlreadyExists(
+            f"Job {FULL_JOB_NAME} already exists"
+        )
+        mock_hook.return_value.get_job.return_value = _job_with_state(batch_v1.JobStatus.State.RUNNING)
+        mock_hook.return_value.wait_for_job.return_value = _job_with_state(batch_v1.JobStatus.State.SUCCEEDED)
+        operator = CloudBatchSubmitJobOperator(**OPERATOR_ARGS)
+
+        result = operator.execute(context=_context(store))
+
+        assert result["name"] == FULL_JOB_NAME
+        mock_hook.return_value.submit_batch_job.assert_not_called()
+        mock_hook.return_value.get_job.assert_called_once_with(job_name=FULL_JOB_NAME)
+        mock_hook.return_value.wait_for_job.assert_called_once_with(
+            job_name=FULL_JOB_NAME,
+            polling_period_seconds=10,
+            timeout=None,
+        )
+
+    @mock.patch(CLOUD_BATCH_HOOK_PATH, autospec=True)
+    def test_retry_restores_succeeded_job(self, mock_hook, task_state_store):
+        store, _, _ = task_state_store
+        store.set(key="cloud_batch_job_name", value=FULL_JOB_NAME)
+        mock_hook.return_value.get_job.return_value = _job_with_state(batch_v1.JobStatus.State.SUCCEEDED)
+        operator = CloudBatchSubmitJobOperator(**OPERATOR_ARGS)
+
+        result = operator.execute(context=_context(store))
+
+        assert result["name"] == FULL_JOB_NAME
+        mock_hook.return_value.submit_batch_job.assert_not_called()
+        mock_hook.return_value.wait_for_job.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("state", "message"),
+        [
+            (batch_v1.JobStatus.State.FAILED, "has failed its execution"),
+            (batch_v1.JobStatus.State.DELETION_IN_PROGRESS, "is being deleted"),
+            (7, "is being cancelled"),
+            (8, "was cancelled"),
+        ],
+    )
+    @mock.patch(CLOUD_BATCH_HOOK_PATH, autospec=True)
+    def test_retry_does_not_replace_terminal_job(self, mock_hook, state, message, task_state_store):
+        store, _, _ = task_state_store
+        store.set(key="cloud_batch_job_name", value=FULL_JOB_NAME)
+        mock_hook.return_value.get_job.return_value = _job_with_state(state)
+        operator = CloudBatchSubmitJobOperator(**OPERATOR_ARGS)
+
+        with pytest.raises(RuntimeError, match=message):
+            operator.execute(context=_context(store))
+
+        mock_hook.return_value.submit_batch_job.assert_not_called()
+        mock_hook.return_value.wait_for_job.assert_not_called()
+
+    @mock.patch(CLOUD_BATCH_HOOK_PATH, autospec=True)
+    def test_retry_replaces_missing_job(self, mock_hook, task_state_store):
+        store, stored, _ = task_state_store
+        store.set(key="cloud_batch_job_name", value=FULL_JOB_NAME)
+        mock_hook.return_value.get_job.side_effect = NotFound("job was deleted")
+        mock_hook.return_value.submit_batch_job.return_value = _job_with_state(
+            batch_v1.JobStatus.State.RUNNING
+        )
+        mock_hook.return_value.wait_for_job.return_value = _job_with_state(batch_v1.JobStatus.State.SUCCEEDED)
+        operator = CloudBatchSubmitJobOperator(**OPERATOR_ARGS)
+
+        result = operator.execute(context=_context(store))
+
+        assert result["name"] == FULL_JOB_NAME
+        assert stored["cloud_batch_job_name"] == FULL_JOB_NAME
+        mock_hook.return_value.get_job.assert_called_once_with(job_name=FULL_JOB_NAME)
+        mock_hook.return_value.submit_batch_job.assert_called_once_with(
+            job_name=JOB_NAME, job=JOB, region=REGION, project_id=PROJECT_ID
+        )
+
+    @mock.patch(CLOUD_BATCH_HOOK_PATH, autospec=True)
+    def test_retry_rejects_non_string_job_name(self, mock_hook, task_state_store):
+        store, _, _ = task_state_store
+        store.set(key="cloud_batch_job_name", value=42)
+        operator = CloudBatchSubmitJobOperator(**OPERATOR_ARGS)
+
+        with pytest.raises(ValueError, match="Stored Cloud Batch job name is not a string: 42"):
+            operator.execute(context=_context(store))
+
+        mock_hook.return_value.submit_batch_job.assert_not_called()
+
+    @mock.patch(CLOUD_BATCH_HOOK_PATH, autospec=True)
+    def test_durable_false_submits_fresh(self, mock_hook, task_state_store):
+        store, _, supervisor_comms = task_state_store
+        store.set(key="cloud_batch_job_name", value=FULL_JOB_NAME)
+        supervisor_comms.reset_mock()
+        mock_hook.return_value.submit_batch_job.return_value = _job_with_state(
+            batch_v1.JobStatus.State.RUNNING
+        )
+        mock_hook.return_value.wait_for_job.return_value = _job_with_state(batch_v1.JobStatus.State.SUCCEEDED)
+        operator = CloudBatchSubmitJobOperator(**OPERATOR_ARGS, durable=False)
+
+        result = operator.execute(context=_context(store))
+
+        assert result["name"] == FULL_JOB_NAME
+        mock_hook.return_value.submit_batch_job.assert_called_once()
+        mock_hook.return_value.get_job.assert_not_called()
+        assert not any(
+            isinstance(call.args[0], GetTaskStateStore) for call in supervisor_comms.send.call_args_list
+        )
+
+    @mock.patch(CLOUD_BATCH_HOOK_PATH, autospec=True)
+    def test_missing_task_state_store_submits_fresh(self, mock_hook):
+        mock_hook.return_value.submit_batch_job.return_value = _job_with_state(
+            batch_v1.JobStatus.State.RUNNING
+        )
+        mock_hook.return_value.wait_for_job.return_value = _job_with_state(batch_v1.JobStatus.State.SUCCEEDED)
+        operator = CloudBatchSubmitJobOperator(**OPERATOR_ARGS)
+
+        result = operator.execute(context={})
+
+        assert result["name"] == FULL_JOB_NAME
+        mock_hook.return_value.submit_batch_job.assert_called_once()
+
+    @mock.patch(CLOUD_BATCH_HOOK_PATH, autospec=True)
+    def test_execute_deferrable(self, mock_hook, task_state_store):
+        store, _, supervisor_comms = task_state_store
+        store.set(key="cloud_batch_job_name", value=FULL_JOB_NAME)
+        supervisor_comms.reset_mock()
+        mock_hook.return_value.submit_batch_job.return_value = JOB
+        operator = CloudBatchSubmitJobOperator(**OPERATOR_ARGS, deferrable=True)
+
         with pytest.raises(expected_exception=TaskDeferred):
-            operator.execute(context=mock.MagicMock())
+            operator.execute(context=_context(store))
+
+        mock_hook.return_value.submit_batch_job.assert_called_once()
+        mock_hook.return_value.get_job.assert_not_called()
+        mock_hook.return_value.wait_for_job.assert_not_called()
+        assert not supervisor_comms.send.called
 
     @mock.patch(CLOUD_BATCH_HOOK_PATH)
     def test_execute_complete(self, mock):
