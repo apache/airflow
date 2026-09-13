@@ -211,6 +211,11 @@ class BasePythonTest:
         """
         return TaskInstance.xcom_pull(ran)
 
+    @staticmethod
+    def _run_id(ran):
+        """Return the run ID for whatever ``run_as_task(return_ti=True)`` returned."""
+        return ran.run_id
+
     def render_templates(self, fn, **kwargs):
         """Create TaskInstance and render templates without actual run."""
         return self.create_ti(fn, **kwargs).render_templates()
@@ -1367,6 +1372,10 @@ class _DBFreeVenvRun:
     def _pull_xcom(self, ran):  # ``ran`` is the TaskRunResult from run_as_task(return_ti=True)
         return pushed_xcom(self._last_xcoms, ran.ti)
 
+    @staticmethod
+    def _run_id(ran):
+        return ran.ti.run_id
+
 
 def _dbfree_venv_supported() -> bool:
     """Whether venv operators can run DB-free here.
@@ -1423,6 +1432,61 @@ class TestPythonVirtualenvOperator(_VenvTestBase):
             if "venv_cache_path" not in kwargs:
                 kwargs["venv_cache_path"] = venv_cache_path
         return kwargs
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="The Task SDK is only available in Airflow 3")
+    def test_get_current_context(self):
+        def f():
+            from airflow.sdk import get_current_context
+
+            context = get_current_context()
+            return {"run_id": context["run_id"], "task_id": context["task"].task_id}
+
+        result = self.run_as_task(
+            f,
+            env_vars={"PYTHONPATH": os.pathsep.join(sys.path)},
+            return_ti=True,
+            system_site_packages=True,
+            use_airflow_context=True,
+        )
+
+        assert self._pull_xcom(result) == {"run_id": self._run_id(result), "task_id": self.task_id}
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="The Task SDK is only available in Airflow 3")
+    def test_get_current_context_disabled_by_default(self):
+        def f():
+            from airflow.sdk import get_current_context
+
+            get_current_context()
+
+        with pytest.raises(AirflowException, match="Current context was requested but no context was found"):
+            self.run_as_task(
+                f,
+                env_vars={"PYTHONPATH": os.pathsep.join(sys.path)},
+                system_site_packages=True,
+            )
+
+    def test_use_airflow_context_requires_airflow_in_virtualenv(self):
+        def f(): ...
+
+        with pytest.raises(ValueError, match="requires Airflow in the virtual environment"):
+            PythonVirtualenvOperator(
+                task_id=self.task_id,
+                python_callable=f,
+                expect_airflow=False,
+                system_site_packages=False,
+                use_airflow_context=True,
+            )
+
+    @mock.patch("airflow.providers.standard.operators.python.AIRFLOW_V_3_0_PLUS", False)
+    def test_use_airflow_context_requires_airflow_3(self):
+        def f(): ...
+
+        with pytest.raises(ValueError, match="requires Airflow 3.0 or later"):
+            PythonVirtualenvOperator(
+                task_id=self.task_id,
+                python_callable=f,
+                use_airflow_context=True,
+            )
 
     @CLOUDPICKLE_MARKER
     def test_add_cloudpickle(self):
@@ -2106,6 +2170,30 @@ class TestExternalPythonOperator(_VenvTestBase):
     def default_kwargs(*, python_version=DEFAULT_PYTHON_VERSION, **kwargs):
         kwargs["python"] = sys.executable
         return kwargs
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="The Task SDK is only available in Airflow 3")
+    def test_get_current_context(self):
+        def f():
+            from airflow.sdk import get_current_context
+
+            context = get_current_context()
+            return {"run_id": context["run_id"], "task_id": context["task"].task_id}
+
+        result = self.run_as_task(f, return_ti=True, use_airflow_context=True)
+
+        assert self._pull_xcom(result) == {"run_id": self._run_id(result), "task_id": self.task_id}
+
+    def test_use_airflow_context_requires_expect_airflow(self):
+        def f(): ...
+
+        with pytest.raises(ValueError, match="requires expect_airflow to be True"):
+            ExternalPythonOperator(
+                task_id=self.task_id,
+                python=sys.executable,
+                python_callable=f,
+                expect_airflow=False,
+                use_airflow_context=True,
+            )
 
     @mock.patch("pickle.loads")
     def test_except_value_error(self, loads_mock):
