@@ -97,3 +97,23 @@ class TestBaseNotifier:
             }
         )
         assert notifier.message == "task: some_task"
+
+    def test_render_template_fields_with_serialized_dag(self):
+        """Rendering template fields with a SerializedDAG-like object should not raise AttributeError.
+
+        When `airflow dags test` runs callbacks, the context contains a SerializedDAG which does
+        not have a `get_template_env` method. The notifier must fall back to a SandboxedEnvironment
+        rather than raising AttributeError.
+        """
+
+        class FakeSerializedDAG:
+            """Simulate SerializedDAG which lacks get_template_env."""
+
+            dag_id = "test_dag"
+            render_template_as_native_obj = False
+
+        notifier = MockNotifier(message="Hello {{ dag.dag_id }}")
+        context: Context = {"dag": FakeSerializedDAG()}
+        # Must not raise AttributeError: 'FakeSerializedDAG' object has no attribute 'get_template_env'
+        notifier.render_template_fields(context)
+        assert notifier.message == "Hello test_dag"
