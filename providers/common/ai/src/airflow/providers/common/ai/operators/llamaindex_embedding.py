@@ -70,7 +70,9 @@ class LlamaIndexEmbeddingOperator(BaseOperator):
     :param embed_conn_id: Optional separate Airflow connection ID for the
         embedding provider. Falls back to ``llm_conn_id`` when ``None``.
     :param embedding_kwargs: Additional keyword arguments passed to the embedding
-        model constructor when ``embed_model`` is a string or omitted.
+        model constructor when ``embed_model`` is a string or omitted. ``model``
+        and ``model_name`` are reserved; use ``embed_model`` instead. ``input``,
+        ``model``, and ``model_name`` are also reserved inside ``additional_kwargs``.
     :param chunk_size: Chunk size for the sentence splitter.
     :param chunk_overlap: Overlap between chunks.
     :param persist_dir: Optional path to persist the index. Accepts local

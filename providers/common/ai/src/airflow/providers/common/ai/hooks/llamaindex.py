@@ -96,7 +96,9 @@ class LlamaIndexHook(BaseHook):
         :meth:`get_llm`.
     :param embedding_kwargs: Additional keyword arguments to pass to the embedding
         model constructor. Connection ``api_key`` and ``api_base`` values take
-        precedence over matching values.
+        precedence over matching values. ``model`` and ``model_name`` are reserved;
+        configure the embedding model with ``embed_model`` instead. ``input``,
+        ``model``, and ``model_name`` are also reserved inside ``additional_kwargs``.
     """
 
     conn_name_attr = "llm_conn_id"
@@ -179,6 +181,20 @@ class LlamaIndexHook(BaseHook):
         except ImportError as e:
             raise AirflowOptionalProviderFeatureException(e)
 
+        reserved_keys = sorted(self.embedding_kwargs.keys() & {"model", "model_name"})
+        if reserved_keys:
+            raise ValueError(
+                f"embedding_kwargs must not contain reserved keys {reserved_keys}; use embed_model instead"
+            )
+        additional_kwargs = self.embedding_kwargs.get("additional_kwargs")
+        if isinstance(additional_kwargs, dict):
+            reserved_request_keys = sorted(additional_kwargs.keys() & {"input", "model", "model_name"})
+            if reserved_request_keys:
+                raise ValueError(
+                    "embedding_kwargs['additional_kwargs'] must not contain reserved keys "
+                    f"{reserved_request_keys}; model identity and input are managed by the hook"
+                )
+
         conn = self.get_connection(self.embed_conn_id)
         model_id = self._resolve_model(
             conn.extra_dejson,
@@ -191,9 +207,12 @@ class LlamaIndexHook(BaseHook):
         if overridden_keys:
             self.log.warning("Connection parameters override embedding_kwargs values: %s", overridden_keys)
         kwargs = {**self.embedding_kwargs, **connection_kwargs}
-        supported_kwargs = set(inspect.signature(OpenAIEmbedding.__init__).parameters) | set(
-            OpenAIEmbedding.model_fields
-        )
+        supported_kwargs = {
+            name
+            for name, parameter in inspect.signature(OpenAIEmbedding.__init__).parameters.items()
+            if name != "self"
+            and parameter.kind not in {inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD}
+        } | set(OpenAIEmbedding.model_fields)
         unsupported_keys = sorted(self.embedding_kwargs.keys() - supported_kwargs)
         if unsupported_keys:
             self.log.warning("OpenAIEmbedding ignores unsupported embedding_kwargs: %s", unsupported_keys)

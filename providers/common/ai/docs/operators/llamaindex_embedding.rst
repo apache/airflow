@@ -99,7 +99,13 @@ Parameters
        when ``embed_model`` is a string or omitted, for example
        ``{"dimensions": 128}``. Supports templating; set the Dag's
        ``render_template_as_native_obj=True`` when templating typed values such
-       as ``dimensions`` so they remain integers instead of strings.
+       as ``dimensions`` so they remain integers instead of strings. When
+       persisting an index, record and reuse shape-affecting values such as
+       ``dimensions`` in the retrieval operator's ``embedding_kwargs``.
+       ``model`` and ``model_name`` are reserved; configure the model with
+       ``embed_model`` instead. ``input``, ``model``, and ``model_name`` are also
+       reserved inside ``additional_kwargs`` because the hook supplies the input
+       and model identity for each request.
    * - ``chunk_size``
      - Sentence-splitter chunk size (default 512).
    * - ``chunk_overlap``
@@ -108,6 +114,10 @@ Parameters
      - Local path or storage URI to persist the LlamaIndex index. Templated.
    * - ``persist_conn_id``
      - Cloud credentials connection ID for ``persist_dir`` URIs. Templated.
+
+.. seealso::
+   `llama_index.embeddings.openai.OpenAIEmbedding <https://developers.llamaindex.ai/python/framework-api-reference/embeddings/openai/>`__
+   for valid ``embedding_kwargs`` keys.
 
 Output
 ------

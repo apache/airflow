@@ -148,23 +148,67 @@ class TestGetEmbeddingModel:
             timeout=30,
         )
         assert "Connection parameters override embedding_kwargs values: ['api_key']" in caplog.messages
+        assert not any(
+            message.startswith("OpenAIEmbedding ignores unsupported embedding_kwargs")
+            for message in caplog.messages
+        )
 
-    @patch("llama_index.embeddings.openai.OpenAIEmbedding")
+    @pytest.mark.parametrize(
+        ("embedding_kwarg", "expect_warning"),
+        [
+            ("http_client", False),
+            ("embeddings_cache", False),
+            ("dimension", True),
+            ("kwargs", True),
+        ],
+    )
     @patch.object(LlamaIndexHook, "get_connection")
-    def test_warns_about_unsupported_embedding_kwargs(self, mock_get_conn, mock_cls, caplog):
+    def test_warns_about_unsupported_embedding_kwargs(
+        self, mock_get_conn, caplog, embedding_kwarg, expect_warning
+    ):
         mock_get_conn.return_value = _conn(password="sk-test")
-        mock_cls.model_fields = {"api_key": None, "dimensions": None}
         hook = LlamaIndexHook(
             embed_model="text-embedding-3-small",
-            embedding_kwargs={"base_url": "http://vllm.internal/v1", "dimension": 128},
+            embedding_kwargs={embedding_kwarg: None},
         )
 
         hook.get_embedding_model()
 
-        assert (
-            "OpenAIEmbedding ignores unsupported embedding_kwargs: ['base_url', 'dimension']"
-            in caplog.messages
+        warning = f"OpenAIEmbedding ignores unsupported embedding_kwargs: ['{embedding_kwarg}']"
+        assert (warning in caplog.messages) is expect_warning
+
+    @pytest.mark.parametrize("reserved_key", ["model", "model_name"])
+    @patch("llama_index.embeddings.openai.OpenAIEmbedding")
+    @patch.object(LlamaIndexHook, "get_connection")
+    def test_rejects_reserved_embedding_kwargs(self, mock_get_conn, mock_cls, reserved_key):
+        hook = LlamaIndexHook(
+            embed_model="text-embedding-3-small",
+            embedding_kwargs={reserved_key: "other-model"},
         )
+
+        with pytest.raises(ValueError, match=rf"reserved keys.*{reserved_key}.*use embed_model"):
+            hook.get_embedding_model()
+
+        mock_get_conn.assert_not_called()
+        mock_cls.assert_not_called()
+
+    @pytest.mark.parametrize("reserved_key", ["input", "model", "model_name"])
+    @patch("llama_index.embeddings.openai.OpenAIEmbedding")
+    @patch.object(LlamaIndexHook, "get_connection")
+    def test_rejects_reserved_additional_kwargs(self, mock_get_conn, mock_cls, reserved_key):
+        hook = LlamaIndexHook(
+            embed_model="text-embedding-3-small",
+            embedding_kwargs={"additional_kwargs": {reserved_key: "overridden-value"}},
+        )
+
+        with pytest.raises(
+            ValueError,
+            match=rf"additional_kwargs.*reserved keys.*{reserved_key}.*managed by the hook",
+        ):
+            hook.get_embedding_model()
+
+        mock_get_conn.assert_not_called()
+        mock_cls.assert_not_called()
 
     @patch("llama_index.embeddings.openai.OpenAIEmbedding")
     @patch.object(LlamaIndexHook, "get_connection")

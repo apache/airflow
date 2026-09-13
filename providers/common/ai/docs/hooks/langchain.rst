@@ -161,7 +161,13 @@ Parameters
      - ``None``
      - Additional keyword arguments passed to the embedding model constructor,
        for example ``{"dimensions": 128}``. Connection ``api_key`` and
-       ``base_url`` values take precedence over matching values.
+       ``base_url`` values take precedence over matching values. ``model``,
+       ``model_name``, and ``provider`` are reserved; configure the model and
+       provider with ``embed_model`` in ``provider:name`` form instead.
+
+.. seealso::
+   `langchain.embeddings.init_embeddings <https://reference.langchain.com/python/langchain/embeddings/base/init_embeddings>`__
+   for valid ``embedding_kwargs`` keys.
 
 Dependencies
 ------------

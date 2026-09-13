@@ -93,9 +93,16 @@ Parameters
        ``dimensions`` must match those used to build the index. Supports
        templating; set the Dag's ``render_template_as_native_obj=True`` when
        templating typed values such as ``dimensions`` so they remain integers
-       instead of strings.
+       instead of strings. ``model`` and ``model_name`` are reserved; configure
+       the model with ``embed_model`` instead. ``input``, ``model``, and
+       ``model_name`` are also reserved inside ``additional_kwargs`` because the
+       hook supplies the input and model identity for each request.
    * - ``top_k``
      - Number of top similarity results to return (default 5).
+
+.. seealso::
+   `llama_index.embeddings.openai.OpenAIEmbedding <https://developers.llamaindex.ai/python/framework-api-reference/embeddings/openai/>`__
+   for valid ``embedding_kwargs`` keys.
 
 Output
 ------

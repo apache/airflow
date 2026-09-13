@@ -75,6 +75,9 @@ class LlamaIndexRetrievalOperator(BaseOperator):
     :param embedding_kwargs: Additional keyword arguments passed to the embedding
         model constructor when ``embed_model`` is a string or omitted. Options
         that affect vector dimensions must match those used to build the index.
+        ``model`` and ``model_name`` are reserved; use ``embed_model`` instead.
+        ``input``, ``model``, and ``model_name`` are also reserved inside
+        ``additional_kwargs``.
     :param top_k: Number of top results to retrieve.
     """
 

@@ -113,10 +113,18 @@ Parameters
      - ``None``
      - Additional keyword arguments passed to ``OpenAIEmbedding``, for example
        ``{"dimensions": 128}``. Connection ``api_key`` and ``api_base`` values
-       take precedence over matching values.
+       take precedence over matching values. ``model`` and ``model_name`` are
+       reserved; configure the model with ``embed_model`` instead. ``input``,
+       ``model``, and ``model_name`` are also reserved inside
+       ``additional_kwargs`` because the hook supplies the input and model identity
+       for each embedding request.
    * - ``llm_model``
      - ``None`` (falls back to ``extra["llm_model"]``)
      - LLM model name, e.g. ``gpt-4o``. Required when calling ``get_llm()``.
+
+.. seealso::
+   `llama_index.embeddings.openai.OpenAIEmbedding <https://developers.llamaindex.ai/python/framework-api-reference/embeddings/openai/>`__
+   for valid ``embedding_kwargs`` keys.
 
 Dependencies
 ------------

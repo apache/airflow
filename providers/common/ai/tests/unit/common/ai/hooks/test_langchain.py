@@ -239,6 +239,21 @@ class TestGetEmbeddingModel:
         )
         assert "Connection parameters override embedding_kwargs values: ['api_key']" in caplog.messages
 
+    @pytest.mark.parametrize("reserved_key", ["model", "model_name", "provider"])
+    @patch("langchain.embeddings.init_embeddings")
+    @patch.object(LangChainHook, "get_connection")
+    def test_rejects_reserved_embedding_kwargs(self, mock_get_conn, mock_init_embeddings, reserved_key):
+        hook = LangChainHook(
+            embed_model="openai:text-embedding-3-small",
+            embedding_kwargs={reserved_key: "other-model"},
+        )
+
+        with pytest.raises(ValueError, match=rf"reserved keys.*{reserved_key}.*use embed_model"):
+            hook.get_embedding_model()
+
+        mock_get_conn.assert_not_called()
+        mock_init_embeddings.assert_not_called()
+
     @patch("langchain.embeddings.init_embeddings")
     @patch.object(LangChainHook, "get_connection")
     def test_resolves_embed_model_from_extra(self, mock_get_conn, mock_init_embeddings):
