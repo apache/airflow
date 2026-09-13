@@ -162,6 +162,7 @@ def get_dogstatsd_logger(
 
     dogstatsd_kwargs: dict[str, Any] = {
         "constant_tags": tags_in_string.split(",") if tags_in_string else [],
+        "use_ms": True,
     }
     if host is not None:
         dogstatsd_kwargs["host"] = host

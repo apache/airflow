@@ -1,0 +1,1 @@
+Report DogStatsD timer metrics in milliseconds instead of seconds.
