@@ -35,7 +35,9 @@ bind core interfaces and apply to every language SDK, not just the Java SDK.
 - [ADR-0007](0007-taskflow-across-language-boundary.md): TaskFlow across the language boundary — argument binding for Lang-SDK tasks.
 - [ADR-0008](0008-control-flow-constructs.md): control-flow constructs — grouping, conditional skipping, branching, and triggering a Dag run.
 - [ADR-0009](0009-provider-operators-as-generated-dsl.md): provider operators as generated, serialization-only DSL in every Lang SDK.
-- [ADR-0010](0010-mixed-language-dag-processing.md): mixed-language Dag processing — DagImporter routing and persistence.
+- [ADR-0010](0010-lang-sdk-parse-protocol.md): Lang-SDK parse protocol — task handler messages and coordinator verbs.
+- [ADR-0011](0011-native-dag-processing.md): native Dag processing — DagImporter registration and routing.
+- [ADR-0012](0012-mixed-language-dag-processing.md): mixed-language Dag processing — task handlers are not Dags.
 
 Decisions specific to a single SDK stay next to that SDK — for example, the Go SDK's bundle-format
 decisions live in [`go-sdk/adr/`](../../../go-sdk/adr). Java-SDK-only interface-design decisions —
