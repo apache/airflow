@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import threading
 from collections.abc import Callable
 from unittest.mock import MagicMock, patch
 
@@ -321,6 +322,32 @@ class TestGetProducer:
         # Unset options must not be passed to the hook at all (e.g. as ""), so the
         # hook's own defaults (the "kafka_default" connection) apply.
         hook_cls_mock.assert_called_once_with()
+
+    def test_producer_is_not_built_on_the_calling_thread(self):
+        """Building the producer must not run on the thread that called the listener.
+
+        Building it resolves the Kafka connection, and settings.Session gives out one
+        session per thread. The scheduler is what calls these listeners. On its thread
+        the lookup would reuse the scheduler's own session and close it, detaching the
+        rows the scheduler is working on.
+        """
+        calling_thread = threading.get_ident()
+        lookup_thread = {}
+
+        def record_thread():
+            lookup_thread["ident"] = threading.get_ident()
+            return MagicMock()
+
+        # get_producer is where the real hook resolves the connection.
+        hook_mock = MagicMock()
+        hook_mock.get_producer.side_effect = record_thread
+
+        with patch(_PRODUCER_HOOK_CLS, return_value=hook_mock):
+            assert event_producer._get_producer() is not None
+
+        assert lookup_thread["ident"] != calling_thread, (
+            "the Kafka connection was resolved on the caller's thread"
+        )
 
 
 class TestCheckTopicExists:
