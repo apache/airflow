@@ -20,6 +20,9 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+from airflow.exceptions import UnknownExecutorException
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.state import TaskInstanceState
 
@@ -236,6 +239,14 @@ class TestFileTaskHandlerExecutorLogs:
         ti.try_number = 1
         return ti
 
+    @staticmethod
+    def _finished_ti(executor_name: str, state: TaskInstanceState) -> MagicMock:
+        ti = MagicMock()
+        ti.executor = executor_name
+        ti.state = state
+        ti.try_number = 1
+        return ti
+
     def test_running_task_prefers_streaming_executor_logs(self):
         """Use executor streaming logs when the executor implements streaming."""
         handler = FileTaskHandler(base_log_folder="")
@@ -294,3 +305,89 @@ class TestFileTaskHandlerExecutorLogs:
             "legacy log",
         ]
         assert metadata == {"end_of_log": False, "log_pos": 1}
+
+    @pytest.mark.parametrize(
+        "state", [TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY, TaskInstanceState.RUNNING]
+    )
+    def test_reads_executor_logs_when_attempt_left_no_other_logs(self, state):
+        """A worker that dies before writing any log still surfaces the executor's container log."""
+        handler = FileTaskHandler(base_log_folder="")
+        executor = MagicMock()
+        executor.get_streaming_task_log.return_value = (
+            ["Found logs through kube API"],
+            [convert_list_to_stream(["ModuleNotFoundError: No module named 'pandas'"])],
+        )
+        handler.executor_instances = {"KubernetesExecutor": executor}
+        ti = self._finished_ti("KubernetesExecutor", state)
+
+        with (
+            patch.object(handler, "_render_filename", return_value="dag/run/task/1.log"),
+            patch.object(handler, "_read_remote_logs", side_effect=NotImplementedError),
+            patch.object(handler, "_read_from_local", return_value=([], [])),
+            patch.object(handler, "_read_from_logs_server", return_value=([], [])),
+        ):
+            logs, _ = handler._read(ti=ti, try_number=1)
+
+        executor.get_streaming_task_log.assert_called_once_with(ti, 1)
+        assert "ModuleNotFoundError: No module named 'pandas'" in extract_events(logs)
+
+    @pytest.mark.parametrize("state", [TaskInstanceState.SUCCESS, TaskInstanceState.UPSTREAM_FAILED])
+    def test_skips_executor_logs_for_states_without_a_failed_attempt(self, state):
+        """Only a failed attempt falls back to the executor; other finished states must not."""
+        handler = FileTaskHandler(base_log_folder="")
+        executor = MagicMock()
+        handler.executor_instances = {"KubernetesExecutor": executor}
+        ti = self._finished_ti("KubernetesExecutor", state)
+
+        with (
+            patch.object(handler, "_render_filename", return_value="dag/run/task/1.log"),
+            patch.object(handler, "_read_remote_logs", side_effect=NotImplementedError),
+            patch.object(handler, "_read_from_local", return_value=([], [])),
+            patch.object(handler, "_read_from_logs_server", return_value=([], [])),
+        ):
+            handler._read(ti=ti, try_number=1)
+
+        executor.get_streaming_task_log.assert_not_called()
+        executor.get_task_log.assert_not_called()
+
+    def test_unknown_executor_does_not_break_log_reading(self):
+        """A finished task naming an executor that was since removed still serves its other logs."""
+        handler = FileTaskHandler(base_log_folder="")
+        ti = self._finished_ti("RemovedExecutor", TaskInstanceState.FAILED)
+
+        with (
+            patch.object(handler, "_render_filename", return_value="dag/run/task/1.log"),
+            patch.object(handler, "_read_remote_logs", side_effect=NotImplementedError),
+            patch.object(handler, "_read_from_local", return_value=([], [])),
+            patch.object(
+                handler,
+                "_read_from_logs_server",
+                return_value=(["served source"], [convert_list_to_stream(["served log"])]),
+            ),
+            patch.object(handler, "_get_executor", side_effect=UnknownExecutorException("RemovedExecutor")),
+        ):
+            logs, _ = handler._read(ti=ti, try_number=1)
+
+        assert "served log" in extract_events(logs)
+
+    def test_skips_executor_logs_for_failed_task_that_already_has_logs(self):
+        """The executor is a last resort, so an existing worker log must not trigger an API call."""
+        handler = FileTaskHandler(base_log_folder="")
+        executor = MagicMock()
+        handler.executor_instances = {"KubernetesExecutor": executor}
+        ti = self._finished_ti("KubernetesExecutor", TaskInstanceState.FAILED)
+
+        with (
+            patch.object(handler, "_render_filename", return_value="dag/run/task/1.log"),
+            patch.object(handler, "_read_remote_logs", side_effect=NotImplementedError),
+            patch.object(
+                handler,
+                "_read_from_local",
+                return_value=(["local source"], [convert_list_to_stream(["local log"])]),
+            ),
+            patch.object(handler, "_read_from_logs_server", return_value=([], [])),
+        ):
+            handler._read(ti=ti, try_number=1)
+
+        executor.get_streaming_task_log.assert_not_called()
+        executor.get_task_log.assert_not_called()
