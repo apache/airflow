@@ -1,0 +1,1 @@
+Honor ``AirflowFailException`` raised inside ``on_retry_callback`` and mark the task FAILED instead of retrying. Previously the exception was swallowed and the task continued retrying, ignoring the explicit signal to stop.
