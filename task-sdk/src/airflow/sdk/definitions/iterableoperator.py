@@ -58,6 +58,7 @@ if TYPE_CHECKING:
 
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
     from airflow.sdk.definitions.context import Context
+    from airflow.sdk.types import OutletEventAccessorsProtocol
 
 
 def _serialize_outlet_events(accessors: OutletEventAccessors) -> list[dict[str, Any]]:
@@ -95,7 +96,7 @@ def _serialize_outlet_events(accessors: OutletEventAccessors) -> list[dict[str, 
     return events
 
 
-def _merge_outlet_events(target: OutletEventAccessors, source: OutletEventAccessors) -> None:
+def _merge_outlet_events(target: OutletEventAccessorsProtocol, source: OutletEventAccessors) -> None:
     """
     Merge every outlet asset event recorded in ``source`` into ``target``.
 
@@ -110,7 +111,7 @@ def _merge_outlet_events(target: OutletEventAccessors, source: OutletEventAccess
         target_accessor.partition_keys.update(accessor.partition_keys)
 
 
-def _replay_outlet_events(target: OutletEventAccessors, events: list[dict[str, Any]]) -> None:
+def _replay_outlet_events(target: OutletEventAccessorsProtocol, events: list[dict[str, Any]]) -> None:
     """
     Re-populate ``target`` with events a sub-task recorded on a previous attempt.
 
