@@ -55,7 +55,7 @@ Or add it through the Airflow UI (``Admin > Connections``) or the CLI (``airflow
 
 ``AnthropicBatchOperator`` submits a Message Batch — a list of
 ``messages.create`` requests — and waits for it to reach a terminal status.
-A task retry resubmits a **new** batch, so set ``retries=0``:
+On Airflow 3.3+, a synchronous task retry reconnects to its existing batch:
 
 
 .. exampleinclude:: /../../anthropic/src/airflow/providers/anthropic/example_dags/example_batch.py

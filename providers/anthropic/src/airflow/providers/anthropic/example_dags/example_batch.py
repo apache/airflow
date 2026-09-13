@@ -49,7 +49,6 @@ def quickstart_batch():
             },
         ],
         wait_for_completion=True,
-        retries=0,
     )
 
 
