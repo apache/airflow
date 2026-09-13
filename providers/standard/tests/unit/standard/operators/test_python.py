@@ -1076,6 +1076,15 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         ):
             PythonVirtualenvOperator(python_callable=lambda x: 4, task_id=self.task_id)
 
+    def test_async_callable_not_supported(self):
+        async def f():
+            return 1
+
+        with pytest.raises(
+            ValueError, match=f"{self.opcls.__name__} does not support async functions as python_callable"
+        ):
+            self.opcls(task_id=self.task_id, python_callable=f, **self.default_kwargs())
+
     def test_nonimported_as_arg(self):
         def f(_):
             return None

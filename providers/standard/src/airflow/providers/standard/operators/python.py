@@ -509,6 +509,12 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             raise ValueError(f"{type(self).__name__} only supports functions for python_callable arg")
         if inspect.isgeneratorfunction(python_callable):
             raise ValueError(f"{type(self).__name__} does not support using 'yield' in python_callable")
+        # aexecute() awaits async callables in the worker process and never calls execute_callable().
+        if is_async_callable(python_callable):
+            raise ValueError(
+                f"{type(self).__name__} does not support async functions as python_callable. "
+                "Call asyncio.run() inside a regular function instead."
+            )
         super().__init__(
             python_callable=python_callable,
             op_args=op_args,
