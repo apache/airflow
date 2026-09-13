@@ -23,6 +23,7 @@ import re
 from datetime import time, timedelta
 from unittest import mock
 
+import pendulum
 import pytest
 from sqlalchemy import select
 
@@ -123,6 +124,20 @@ EXTERNAL_IDS_AND_TASK_GROUP_ID_PROVIDE_ERROR = "Only one of `external_task_group
 @pytest.fixture(autouse=True)
 def clean_db():
     clear_db_runs()
+
+
+def test_serialize_dttm_filter_for_log_includes_configured_timezone(monkeypatch):
+    monkeypatch.setattr(
+        "airflow.providers.standard.sensors.external_task.conf.get_mandatory_value",
+        lambda *_: "Asia/Seoul",
+    )
+
+    dttm_filter = [pendulum.datetime(2026, 7, 6, 21, tz="UTC")]
+
+    assert (
+        ExternalTaskSensor._serialize_dttm_filter_for_log(dttm_filter)
+        == "2026-07-06T21:00:00+00:00 (default timezone: 2026-07-07T06:00:00+09:00)"
+    )
 
 
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Different test for v3.0+")
@@ -1412,6 +1427,33 @@ class TestExternalTaskSensorV3:
             task_ids=["test_task"],
         )
         assert op.external_dates_filter == expected_date.isoformat()
+
+    @pytest.mark.execution_timeout(10)
+    def test_external_dag_sensor_poke_log_includes_configured_timezone(
+        self, monkeypatch, caplog, dag_maker
+    ):
+        monkeypatch.setattr(
+            "airflow.providers.standard.sensors.external_task.conf.get_mandatory_value",
+            lambda *_: "Asia/Seoul",
+        )
+        logical_date = pendulum.datetime(2026, 7, 6, 21, tz="UTC")
+        self.context["logical_date"] = logical_date
+        self.context["ti"].get_dr_count.return_value = 0
+
+        with dag_maker("test_dag_child"):
+            op = ExternalTaskSensor(
+                task_id="test_external_dag_sensor_check",
+                external_dag_id="other_dag",
+            )
+
+        with caplog.at_level(logging.INFO, logger=op.log.name):
+            caplog.clear()
+            op.poke(context=self.context)
+
+        assert (
+            "Poking for DAG 'other_dag' on "
+            "2026-07-06T21:00:00+00:00 (default timezone: 2026-07-07T06:00:00+09:00) ... "
+        ) in caplog.messages
 
     @pytest.mark.execution_timeout(10)
     def test_external_task_sensor_duplicate_task_ids(self, dag_maker):

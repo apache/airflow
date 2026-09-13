@@ -23,6 +23,7 @@ import warnings
 from collections.abc import Callable, Collection, Iterable, Sequence
 from typing import TYPE_CHECKING, ClassVar
 
+import pendulum
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dag import DagModel
 from airflow.providers.common.compat.sdk import (
@@ -30,6 +31,7 @@ from airflow.providers.common.compat.sdk import (
     BaseOperatorLink,
     BaseSensorOperator,
     conf,
+    timezone,
 )
 from airflow.providers.standard.exceptions import (
     DuplicateStateError,
@@ -311,6 +313,26 @@ class ExternalTaskSensor(BaseSensorOperator):
     def _serialize_dttm_filter(dttm_filter: Sequence[datetime.datetime]) -> str:
         return ",".join(dt.isoformat() for dt in dttm_filter)
 
+    @staticmethod
+    def _get_default_timezone() -> datetime.tzinfo:
+        default_timezone = conf.get_mandatory_value("core", "default_timezone")
+        if default_timezone == "system":
+            return datetime.datetime.now().astimezone().tzinfo or datetime.timezone.utc
+        return pendulum.timezone(default_timezone)
+
+    @classmethod
+    def _serialize_dttm_filter_for_log(cls, dttm_filter: Sequence[datetime.datetime]) -> str:
+        default_timezone = cls._get_default_timezone()
+        formatted_dates = []
+        for dt in dttm_filter:
+            serialized_dt = dt.isoformat()
+            default_timezone_dt = timezone.coerce_datetime(dt).astimezone(default_timezone).isoformat()
+            if serialized_dt == default_timezone_dt:
+                formatted_dates.append(serialized_dt)
+            else:
+                formatted_dates.append(f"{serialized_dt} (default timezone: {default_timezone_dt})")
+        return ",".join(formatted_dates)
+
     def poke(self, context: Context) -> bool:
         # delay check to poke rather than __init__ in case it was supplied as XComArgs
         if self.external_task_ids and len(self.external_task_ids) > len(set(self.external_task_ids)):
@@ -318,6 +340,7 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         dttm_filter = self._get_dttm_filter(context)
         serialized_dttm_filter = self._serialize_dttm_filter(dttm_filter)
+        log_dttm_filter = self._serialize_dttm_filter_for_log(dttm_filter)
         # Save as attribute - to be used by listeners
         self.external_dates_filter = serialized_dttm_filter
 
@@ -326,7 +349,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                 "Poking for tasks %s in dag %s on %s ... ",
                 self.external_task_ids,
                 self.external_dag_id,
-                serialized_dttm_filter,
+                log_dttm_filter,
             )
 
         if self.external_task_group_id:
@@ -334,14 +357,14 @@ class ExternalTaskSensor(BaseSensorOperator):
                 "Poking for task_group '%s' in dag '%s' on %s ... ",
                 self.external_task_group_id,
                 self.external_dag_id,
-                serialized_dttm_filter,
+                log_dttm_filter,
             )
 
         if self.external_dag_id and not self.external_task_group_id and not self.external_task_ids:
             self.log.info(
                 "Poking for DAG '%s' on %s ... ",
                 self.external_dag_id,
-                serialized_dttm_filter,
+                log_dttm_filter,
             )
 
         if AIRFLOW_V_3_0_PLUS:
