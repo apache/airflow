@@ -22,8 +22,10 @@ from unittest import mock
 
 import pendulum
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import delete, insert, select, update
 
+from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.models.asset import AssetModel, DagScheduleAssetReference
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_favorite import DagFavorite
@@ -1184,6 +1186,187 @@ class TestPatchDags(TestDagEndpoint):
     def test_patch_dags_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.patch("/dags", json={"is_paused": True})
         assert response.status_code == 403
+
+
+class TestBulkDags(TestDagEndpoint):
+    """Unit tests for bulk pause/resume/drain of Dags."""
+
+    def test_bulk_update_pauses_dags(self, test_client, session):
+        response = test_client.patch(
+            "/dags/bulk",
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {"dag_id": DAG1_ID, "scheduling_state": DagSchedulingState.PAUSED},
+                            {"dag_id": DAG2_ID, "scheduling_state": DagSchedulingState.PAUSED},
+                        ],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert sorted(body["update"]["success"]) == [DAG1_ID, DAG2_ID]
+        assert body["update"]["errors"] == []
+        session.expire_all()
+        assert session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == DAG1_ID)) is True
+        assert session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == DAG2_ID)) is True
+        check_last_log(session, dag_id=None, event="bulk_dags", logical_date=None)
+
+    def test_bulk_update_drains_dags(self, test_client, session):
+        response = test_client.patch(
+            "/dags/bulk",
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {"dag_id": DAG1_ID, "scheduling_state": DagSchedulingState.DRAINING},
+                        ],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["update"]["success"] == [DAG1_ID]
+        session.expire_all()
+        dag = session.scalar(select(DagModel).where(DagModel.dag_id == DAG1_ID))
+        assert dag.is_paused is False
+        assert dag.is_draining is True
+
+    def test_bulk_update_accepts_legacy_is_paused(self, test_client, session):
+        response = test_client.patch(
+            "/dags/bulk",
+            json={"actions": [{"action": "update", "entities": [{"dag_id": DAG1_ID, "is_paused": True}]}]},
+        )
+        assert response.status_code == 200
+        session.expire_all()
+        assert session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == DAG1_ID)) is True
+
+    def test_bulk_update_not_found_fails(self, test_client, session):
+        """FAIL semantics: an unknown dag_id fails the whole action and nothing is updated."""
+        response = test_client.patch(
+            "/dags/bulk",
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {"dag_id": DAG1_ID, "scheduling_state": DagSchedulingState.PAUSED},
+                            {"dag_id": "does_not_exist", "scheduling_state": DagSchedulingState.PAUSED},
+                        ],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["update"]["success"] == []
+        errors = body["update"]["errors"]
+        assert len(errors) == 1
+        assert errors[0]["status_code"] == 404
+        assert "does_not_exist" in errors[0]["error"]
+        session.expire_all()
+        assert session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == DAG1_ID)) is False
+
+    def test_bulk_update_not_found_skip(self, test_client, session):
+        response = test_client.patch(
+            "/dags/bulk",
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "action_on_non_existence": "skip",
+                        "entities": [
+                            {"dag_id": DAG1_ID, "scheduling_state": DagSchedulingState.PAUSED},
+                            {"dag_id": "does_not_exist", "scheduling_state": DagSchedulingState.PAUSED},
+                        ],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["update"]["success"] == [DAG1_ID]
+        assert body["update"]["errors"] == []
+
+    @pytest.mark.parametrize("action", ["create", "delete"])
+    def test_bulk_create_and_delete_not_supported(self, test_client, action):
+        entity = (
+            {"dag_id": DAG1_ID, "scheduling_state": DagSchedulingState.PAUSED}
+            if action == "create"
+            else DAG1_ID
+        )
+        response = test_client.patch(
+            "/dags/bulk",
+            json={"actions": [{"action": action, "entities": [entity]}]},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body[action]["success"] == []
+        assert body[action]["errors"][0]["status_code"] == 405
+
+    def test_bulk_update_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.patch(
+            "/dags/bulk",
+            json={"actions": [{"action": "update", "entities": [{"dag_id": DAG1_ID, "is_paused": True}]}]},
+        )
+        assert response.status_code == 401
+
+    def test_bulk_update_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.patch(
+            "/dags/bulk",
+            json={"actions": [{"action": "update", "entities": [{"dag_id": DAG1_ID, "is_paused": True}]}]},
+        )
+        assert response.status_code == 403
+
+    def test_bulk_update_rejects_unauthorized_dag_ids(self, test_client, session):
+        """A 403 if any entity references a Dag the user can't access; nothing is updated."""
+        restricted_bundle = DagBundleModel(name="restricted-bundle-bulk")
+        restricted_team = Team(name="restricted-team-bulk")
+        restricted_bundle.teams.append(restricted_team)
+        session.add_all([restricted_bundle, restricted_team])
+        session.flush()
+        session.execute(
+            update(DagModel).where(DagModel.dag_id == DAG2_ID).values(bundle_name="restricted-bundle-bulk")
+        )
+        session.commit()
+
+        auth_manager = test_client.app.state.auth_manager
+        token = auth_manager._get_token_signer().generate(
+            auth_manager.serialize_user(
+                SimpleAuthManagerUser(username="limited-user", role="user", teams=[]),
+            )
+        )
+        with (
+            mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False),
+            TestClient(
+                test_client.app,
+                headers={"Authorization": f"Bearer {token}"},
+                base_url=str(test_client.base_url),
+            ) as limited_test_client,
+        ):
+            response = limited_test_client.patch(
+                "/dags/bulk",
+                json={
+                    "actions": [
+                        {
+                            "action": "update",
+                            "entities": [
+                                {"dag_id": DAG1_ID, "is_paused": True},
+                                {"dag_id": DAG2_ID, "is_paused": True},
+                            ],
+                        }
+                    ]
+                },
+            )
+
+        assert response.status_code == 403
+        session.expire_all()
+        assert session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == DAG1_ID)) is False
 
 
 class TestFavoriteDag(TestDagEndpoint):
