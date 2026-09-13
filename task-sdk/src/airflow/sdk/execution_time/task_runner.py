@@ -47,6 +47,7 @@ from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.sdk._shared.observability.metrics import stats
 from airflow.sdk._shared.observability.metrics.stats import build_dag_metric_tags
 from airflow.sdk._shared.observability.traces import get_task_span_detail_level
+from airflow.sdk._shared.state import attempt_link_state_key
 from airflow.sdk._shared.template_rendering import truncate_rendered_value
 from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
@@ -2329,6 +2330,10 @@ def finalize(
             link, xcom_key = oe.get_link(operator=task, ti_key=ti), oe.xcom_key  # type: ignore[arg-type]
             log.debug("Setting xcom for operator extra link", link=link, xcom_key=xcom_key)
             _xcom_push_to_db(ti, key=xcom_key, value=link)
+            # The task's XComs are cleared before the next attempt, so this attempt's link
+            # goes to the state store, which is not.
+            if (store := context.get("task_state_store")) is not None:
+                store.set(attempt_link_state_key(xcom_key, ti.try_number), link)
         except Exception:
             log.exception(
                 "Failed to push an xcom for task operator extra link",

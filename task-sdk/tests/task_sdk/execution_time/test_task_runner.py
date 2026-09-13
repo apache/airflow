@@ -1196,6 +1196,35 @@ def test_handler_failure_counts_the_failure_once(create_runtime_ti, mock_supervi
     assert counted.count("operator_failures") == 1
 
 
+def test_finalize_stores_the_operator_link_per_attempt(
+    mocked_parse, create_runtime_ti, mock_supervisor_comms
+):
+    """A retry clears the task's XComs, so each attempt's link also goes to the state store."""
+    from airflow.sdk._shared.state import attempt_link_state_key
+
+    class MyLink(BaseOperatorLink):
+        name = "My Link"
+
+        def get_link(self, operator, *, ti_key):
+            return f"https://logs/attempt-{ti_key.try_number}"
+
+    class CustomOperator(BaseOperator):
+        operator_extra_links = (MyLink(),)
+
+        def execute(self, context):
+            return None
+
+    ti = create_runtime_ti(task=CustomOperator(task_id="link_per_attempt"))
+    ti.try_number = 2
+    context = ti.get_template_context()
+    store = mock.MagicMock()
+    context["task_state_store"] = store
+
+    finalize(ti, context=context, log=mock.MagicMock(), state=TaskInstanceState.SUCCESS)
+
+    store.set.assert_called_once_with(attempt_link_state_key("_link_MyLink", 2), "https://logs/attempt-2")
+
+
 def test_run_downstream_skipped(mocked_parse, create_runtime_ti, mock_supervisor_comms, listener_manager):
     listener = TestTaskRunnerCallsListeners.CustomListener()
     listener_manager(listener)
