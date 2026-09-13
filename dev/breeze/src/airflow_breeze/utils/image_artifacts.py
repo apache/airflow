@@ -40,6 +40,14 @@ MAX_AGE = timedelta(hours=48)
 TRUSTED_REPOSITORY = "apache/airflow"
 PUBLISHER_PATH = ".github/workflows/publish-main-images.yml"
 KINDS = ("ci", "prod", "prod-dependencies")
+# Below this sustained rate, building the image from scratch is assumed faster than finishing
+# the download; sized to a compressed image (a few GB) reliably arriving in a couple of minutes.
+MIN_DOWNLOAD_SPEED_BYTES_PER_SECOND = 50_000_000  # 50 MB/s
+DOWNLOAD_SPEED_PROBE_SECONDS = 30
+
+
+class DownloadTooSlowError(Exception):
+    """A reuse download fell below the speed floor; the consumer should build instead."""
 
 
 def is_build_input(path: str, kind: str) -> bool:
@@ -236,6 +244,9 @@ class GithubArtifacts:
                     payload.seek(0)
                     payload.truncate()
                     digest = hashlib.sha256()
+                    downloaded = 0
+                    speed_checked = False
+                    started = time.monotonic()
                     with self.session.get(
                         f"https://api.github.com/repos/{self.repository}/actions/artifacts/{artifact['id']}/zip",
                         timeout=120,
@@ -245,6 +256,18 @@ class GithubArtifacts:
                         for chunk in response.iter_content(chunk_size=1024 * 1024):
                             digest.update(chunk)
                             payload.write(chunk)
+                            downloaded += len(chunk)
+                            elapsed = time.monotonic() - started
+                            if not speed_checked and elapsed >= DOWNLOAD_SPEED_PROBE_SECONDS:
+                                speed_checked = True
+                                speed = downloaded / elapsed
+                                if speed < MIN_DOWNLOAD_SPEED_BYTES_PER_SECOND:
+                                    raise DownloadTooSlowError(
+                                        f"Download averaged {speed / 1_000_000:.1f} MB/s over the first "
+                                        f"{elapsed:.0f}s, below the "
+                                        f"{MIN_DOWNLOAD_SPEED_BYTES_PER_SECOND / 1_000_000:.0f} MB/s "
+                                        "reuse floor"
+                                    )
                     if "sha256:" + digest.hexdigest() != artifact.get("digest"):
                         raise ValueError("Artifact digest mismatch")
                     break
@@ -389,7 +412,10 @@ def restore_selection(args: argparse.Namespace) -> dict[str, Any]:
         args.platform,
     ):
         raise ValueError("Selection dimensions do not match consumer")
-    download(selection, args.output_directory, args.repository, args.run_id)
+    try:
+        download(selection, args.output_directory, args.repository, args.run_id)
+    except DownloadTooSlowError as error:
+        return {"hit": False, "reason": str(error)}
     return selection
 
 

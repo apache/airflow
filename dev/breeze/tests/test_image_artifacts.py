@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import io
 import json
 import zipfile
@@ -28,6 +29,8 @@ import pytest
 import requests
 
 from airflow_breeze.utils.image_artifacts import (
+    DOWNLOAD_SPEED_PROBE_SECONDS,
+    DownloadTooSlowError,
     GithubArtifacts,
     artifact_name,
     download,
@@ -215,6 +218,42 @@ class TestDownload:
         with pytest.raises(ValueError, match="digest mismatch"), api.archive({"id": 1, "digest": "wrong"}):
             pytest.fail("must not open corrupt archive")
 
+    def test_slow_download_aborts_without_retry(self):
+        api = GithubArtifacts()
+        response = MagicMock(spec=requests.Response)
+        response.iter_content.return_value = [b"x" * 100]
+        api.session.get = Mock(spec=api.session.get, return_value=response)
+        response.__enter__.return_value = response
+        response.__exit__.return_value = False
+        with patch(
+            "airflow_breeze.utils.image_artifacts.time.monotonic",
+            side_effect=[0, DOWNLOAD_SPEED_PROBE_SECONDS],
+        ):
+            with pytest.raises(DownloadTooSlowError, match="MB/s"):
+                with api.archive({"id": 1, "digest": "sha256:" + "a" * 64}):
+                    pytest.fail("must not open archive when download is too slow")
+        api.session.get.assert_called_once()
+
+    def test_download_at_or_above_speed_floor_continues(self):
+        api = GithubArtifacts()
+        payload = io.BytesIO()
+        with zipfile.ZipFile(payload, "w"):
+            pass
+        chunk = payload.getvalue()
+        response = MagicMock(spec=requests.Response)
+        response.iter_content.return_value = [chunk]
+        api.session.get = Mock(spec=api.session.get, return_value=response)
+        response.__enter__.return_value = response
+        response.__exit__.return_value = False
+        digest = "sha256:" + hashlib.sha256(chunk).hexdigest()
+        with (
+            patch("airflow_breeze.utils.image_artifacts.DOWNLOAD_SPEED_PROBE_SECONDS", 1),
+            patch("airflow_breeze.utils.image_artifacts.MIN_DOWNLOAD_SPEED_BYTES_PER_SECOND", len(chunk)),
+            patch("airflow_breeze.utils.image_artifacts.time.monotonic", side_effect=[0, 1]),
+        ):
+            with api.archive({"id": 1, "digest": digest}) as archive:
+                assert archive.namelist() == []
+
     def test_selected_image_remains_downloadable_after_freshness_window(
         self, inputs, artifact, run, tmp_path
     ):
@@ -385,6 +424,41 @@ class TestRequiredSelection:
             with patch("airflow_breeze.utils.image_artifacts.download", autospec=True) as restore:
                 assert restore_selection(args) == selection
         restore.assert_called_once_with(selection, tmp_path, "apache/airflow", 456)
+
+    def test_slow_download_falls_back_to_build_instead_of_failing(self, tmp_path, inputs):
+        args = argparse.Namespace(
+            repository="apache/airflow",
+            kind="ci",
+            python="3.12",
+            platform="linux/amd64",
+            run_id=456,
+            run_attempt=2,
+            require_selection=True,
+            output_directory=tmp_path,
+        )
+        api = Mock(spec=GithubArtifacts)
+        selected = {"id": 1, "name": "selected-ci-3.12-amd64-1"}
+        api.find.return_value = [selected]
+        selection = {**inputs, "hit": True}
+
+        @contextmanager
+        def archive(artifact):
+            assert artifact == selected
+            payload = io.BytesIO()
+            with zipfile.ZipFile(payload, "w") as zipped:
+                zipped.writestr("selection.json", json.dumps(selection))
+            payload.seek(0)
+            with zipfile.ZipFile(payload) as zipped:
+                yield zipped
+
+        api.archive = archive
+        with patch("airflow_breeze.utils.image_artifacts.GithubArtifacts", autospec=True, return_value=api):
+            with patch(
+                "airflow_breeze.utils.image_artifacts.download",
+                autospec=True,
+                side_effect=DownloadTooSlowError("too slow"),
+            ):
+                assert restore_selection(args) == {"hit": False, "reason": "too slow"}
 
 
 class TestCLI:
