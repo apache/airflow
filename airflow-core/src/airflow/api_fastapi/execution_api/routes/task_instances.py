@@ -948,8 +948,18 @@ def update_dag_run_note(
     if body.note is None:
         return
 
-    # Reuse the public API note logic so both editing paths stay consistent. Runtime notes carry
-    # no acting user, so they are stored unattributed (user_id=None).
+    # Runtime notes have no acting user, so they are stored unattributed. Carrying over the
+    # previous author would credit them with content they did not write, so log the drop
+    # instead of keeping it.
+    if dag_run.dag_run_note is not None and dag_run.dag_run_note.user_id is not None:
+        log.info(
+            "Replacing an attributed DagRun note from task runtime; the note becomes unattributed",
+            dag_id=dag_run.dag_id,
+            run_id=dag_run.run_id,
+            previous_user_id=dag_run.dag_run_note.user_id,
+        )
+
+    # Reuse the public API note logic so both editing paths stay consistent.
     patch_dag_run_note(dag_run=dag_run, note=body.note, user_id=None)
 
 
