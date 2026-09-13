@@ -104,6 +104,7 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=3.0.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``opensearch-py``                           ``>=2.2.0``
+``pendulum``                                ``>=3.1.0``
 ==========================================  ==================
 
 Downloading official packages

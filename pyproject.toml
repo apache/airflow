@@ -1383,6 +1383,7 @@ dev = [
     "apache-airflow-shared-observability",
     "apache-airflow-shared-plugins-manager",
     "apache-airflow-shared-providers-discovery",
+    "apache-airflow-shared-search",
     "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-serialization",
@@ -1571,6 +1572,7 @@ apache-airflow-shared-module-loading = false
 apache-airflow-shared-observability = false
 apache-airflow-shared-plugins-manager = false
 apache-airflow-shared-providers-discovery = false
+apache-airflow-shared-search = false
 apache-airflow-shared-secrets-backend = false
 apache-airflow-shared-secrets-masker = false
 apache-airflow-shared-serialization = false
@@ -1732,6 +1734,7 @@ apache-airflow-shared-module-loading = false
 apache-airflow-shared-observability = false
 apache-airflow-shared-plugins-manager = false
 apache-airflow-shared-providers-discovery = false
+apache-airflow-shared-search = false
 apache-airflow-shared-secrets-backend = false
 apache-airflow-shared-secrets-masker = false
 apache-airflow-shared-serialization = false
@@ -1777,6 +1780,7 @@ apache-airflow-shared-module-loading = { workspace = true }
 apache-airflow-shared-observability = { workspace = true }
 apache-airflow-shared-plugins-manager = { workspace = true }
 apache-airflow-shared-providers-discovery = { workspace = true }
+apache-airflow-shared-search = { workspace = true }
 apache-airflow-shared-secrets-backend = { workspace = true }
 apache-airflow-shared-secrets-masker = { workspace = true }
 apache-airflow-shared-serialization = { workspace = true }
@@ -1921,6 +1925,7 @@ members = [
     "shared/observability",
     "shared/plugins_manager",
     "shared/providers_discovery",
+    "shared/search",
     "shared/secrets_backend",
     "shared/secrets_masker",
     "shared/serialization",

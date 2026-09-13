@@ -106,6 +106,7 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``elasticsearch``                           ``<10,>=8.10``
+``pendulum``                                ``>=3.1.0``
 ==========================================  ==================
 
 Optional dependencies
