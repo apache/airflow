@@ -35,6 +35,7 @@ from airflow.api_fastapi.core_api.routes.ui.grid import grid_router
 from airflow.api_fastapi.core_api.routes.ui.partitioned_dag_runs import partitioned_dag_runs_router
 from airflow.api_fastapi.core_api.routes.ui.structure import structure_router
 from airflow.api_fastapi.core_api.routes.ui.teams import teams_router
+from airflow.api_fastapi.core_api.routes.ui.time_schedule import time_schedule_router
 from airflow.api_fastapi.core_api.security import get_user
 
 # Every UI route requires an authenticated user; the router-level dependency makes that
@@ -57,3 +58,4 @@ ui_router.include_router(grid_router)
 ui_router.include_router(gantt_router)
 ui_router.include_router(calendar_router)
 ui_router.include_router(teams_router)
+ui_router.include_router(time_schedule_router)

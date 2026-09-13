@@ -61,6 +61,12 @@ describe("Dag route handles", () => {
   });
 });
 
+describe("Time Schedule route", () => {
+  it("matches the Dashboard Time Schedule path", () => {
+    expect(matchRoutes(routerConfig, "/home/time_schedule")).toHaveLength(2);
+  });
+});
+
 type RouteLike = { readonly children?: ReadonlyArray<RouteLike>; readonly path?: string };
 
 describe("taskInstanceRoutes stay in sync with the TaskInstanceTab enum", () => {
