@@ -181,8 +181,7 @@ until ``min_file_process_interval`` is reached since Dag Parser will look for mo
    :caption: dag_loader.py
    :name: dag_loader.py
 
-    from airflow.sdk import DAG
-    from airflow.sdk import task
+    from airflow.sdk import DAG, task
 
     import pendulum
 
@@ -820,8 +819,7 @@ such as the following Airflow 3 example:
 
 .. code-block:: python
 
-  from airflow.sdk import DAG
-  from airflow.sdk import task
+  from airflow.sdk import DAG, task
 
   with DAG(dag_id="canary", schedule="@daily", doc_md="Canary Dag to regularly test connections to systems."):
 
