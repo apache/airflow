@@ -53,7 +53,7 @@ from airflow.sdk.exceptions import (
 )
 from airflow.sdk.execution_time.comms import DeadlockImminentError
 from airflow.sdk.execution_time.context import OutletEventAccessors
-from airflow.sdk.execution_time.task_runner import IndexedTaskState
+from airflow.sdk.execution_time.task_runner import IndexedTaskState, RuntimeTaskInstance
 from airflow.sdk.execution_time.xcom import XCom
 
 from tests_common.test_utils.mock_context import mock_context as _mock_context_base
@@ -90,6 +90,23 @@ class MockTaskStateStoreAccessor:
         return self._data[key]
 
 
+_active_task_state_store: MockTaskStateStoreAccessor | None = None
+
+
+@pytest.fixture(autouse=True)
+def task_state_store(monkeypatch):
+    """``RuntimeTaskInstance.task_state_store`` (inherited by ``IndexedTaskInstance``) is a
+    ``cached_property`` that builds a real ``TaskStateStoreAccessor`` talking to
+    ``SUPERVISOR_COMMS``, which these tests never wire up. Patch it at the class level to return
+    the lightweight in-memory ``MockTaskStateStoreAccessor`` installed by ``mock_context`` instead,
+    so ``context["task_state_store"]`` and each sub-task's own ``task.task_state_store`` are backed
+    by the exact same store -- mirroring production, where both resolve to the same backend via a
+    shared ``ti_id`` (see ``IterableOperator._create_mapped_task``)."""
+    monkeypatch.setattr(
+        RuntimeTaskInstance, "task_state_store", property(lambda self: _active_task_state_store)
+    )
+
+
 def mock_context(task, run_id: str | None = None) -> Context:
     """Wrap the shared ``mock_context`` helper with a ``task_state_store``, since
     ``IterableOperator`` checkpoints per-index sub-task progress via ``context["task_state_store"]``,
@@ -99,10 +116,12 @@ def mock_context(task, run_id: str | None = None) -> Context:
     Also seeds ``dag``/``dag_run``, which the shared helper omits but which
     ``context_update_for_unmapped`` (invoked via ``IterableOperator._render_unmapped_operator``)
     requires to re-render ``params`` against each unmapped sub-task."""
+    global _active_task_state_store
     context = _mock_context_base(task=task, run_id=run_id)
     context["dag"] = task.dag  # type: ignore[typeddict-item]
     context["dag_run"] = SimpleNamespace(conf={})  # type: ignore[typeddict-item]
-    context["task_state_store"] = MockTaskStateStoreAccessor()  # type: ignore[typeddict-item]
+    _active_task_state_store = MockTaskStateStoreAccessor()
+    context["task_state_store"] = _active_task_state_store  # type: ignore[typeddict-item]
     context["outlet_events"] = OutletEventAccessors()
     return context
 
