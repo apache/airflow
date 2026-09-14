@@ -101,6 +101,7 @@ from airflow.utils.sqlalchemy import get_dialect_name
 from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 
 if TYPE_CHECKING:
+    from sqlalchemy.sql import ColumnElement
     from sqlalchemy.sql.dml import Update
 
     from airflow.serialization.definitions.dag import SerializedDAG
@@ -1175,16 +1176,18 @@ def get_task_instance_count(
             dag_id, task_group_id, session, dag_bag, logical_dates, run_ids, map_index
         )
 
-        # Get unique (task_id, map_index) pairs
-        task_map_pairs = [(ti.task_id, ti.map_index) for ti in group_tasks]
-
-        if not task_map_pairs:
+        if group_tasks:
+            # Match each run's own group instances, so a task that the group holds in one run's
+            # Dag version is not counted for a run whose version keeps it outside the group.
+            query = query.where(
+                tuple_(TI.run_id, TI.task_id, TI.map_index).in_(
+                    [(ti.run_id, ti.task_id, ti.map_index) for ti in group_tasks]
+                )
+            )
+        else:
             # If no task group tasks found, default to checking the task group ID itself
             # This matches the behavior in _get_external_task_group_task_ids
-            task_map_pairs = [(task_group_id, -1)]
-
-        # Update query to use task_id, map_index pairs
-        query = query.where(tuple_(TI.task_id, TI.map_index).in_(task_map_pairs))
+            query = query.where(tuple_(TI.task_id, TI.map_index).in_([(task_group_id, -1)]))
 
     if states:
         if "null" in states:
@@ -1282,6 +1285,9 @@ def get_task_instance_states(
 
     results = session.scalars(query).all()
 
+    if task_ids and (logical_dates or run_ids):
+        _raise_if_tasks_unknown_to_runs(dag_id, task_ids, results, session, dag_bag, logical_dates, run_ids)
+
     if task_group_id:
         group_tasks = _get_group_tasks(
             dag_id, task_group_id, session, dag_bag, logical_dates, run_ids, map_index
@@ -1337,13 +1343,31 @@ def _get_group_tasks(
     run_ids=None,
     map_index: int | None = None,
 ):
-    task_ids = _get_group_task_ids(dag_id, task_group_id, session, dag_bag, logical_dates, run_ids)
+    task_ids_by_run = _get_group_task_ids_by_run(
+        dag_id, task_group_id, session, dag_bag, logical_dates, run_ids
+    )
+
+    group_filter: ColumnElement[bool]
+    if None in task_ids_by_run:
+        # No named run resolved to a Dag version, so the latest version's group applies to whatever
+        # runs the other filters select.
+        group_filter = TI.task_id.in_(task_ids_by_run[None])
+    else:
+        # Each run contributes only the tasks its own Dag version places in the group, so a task that
+        # belongs to the group in one version is never attributed to a run of another version.
+        group_filter = or_(
+            *(
+                and_(TI.run_id == run_id, TI.task_id.in_(task_ids))
+                for run_id, task_ids in task_ids_by_run.items()
+                if task_ids
+            )
+        )
 
     # First get all task instances to get the task_id, map_index pairs
     group_tasks = session.scalars(
         select(TI).where(
             TI.dag_id == dag_id,
-            TI.task_id.in_(task_ids),
+            group_filter,
             *([TI.logical_date.in_(logical_dates)] if logical_dates else []),
             *([TI.run_id.in_(run_ids)] if run_ids else []),
             *([TI.map_index == map_index] if map_index is not None else []),
@@ -1353,51 +1377,72 @@ def _get_group_tasks(
     return group_tasks
 
 
-def _get_group_task_ids(
+def _get_dags_for_named_runs(
+    dag_id: str,
+    session: SessionDep,
+    dag_bag: DagBagDep,
+    logical_dates=None,
+    run_ids=None,
+) -> dict[str, SerializedDAG]:
+    """
+    Return the Dag version each named run resolves to, keyed by run id.
+
+    A run of a versioned bundle resolves to the version it was created from, every other run to the
+    latest version, so each distinct version is deserialized once. Runs that do not exist yet, or
+    whose version cannot be loaded, are left out.
+    """
+    if not logical_dates and not run_ids:
+        return {}
+    runs = session.scalars(
+        select(DR).where(
+            DR.dag_id == dag_id,
+            *([DR.logical_date.in_(logical_dates)] if logical_dates else []),
+            *([DR.run_id.in_(run_ids)] if run_ids else []),
+        )
+    ).all()
+    dags_by_version: dict[UUID | None, SerializedDAG | None] = {}
+    dags_by_run: dict[str, SerializedDAG] = {}
+    for run in runs:
+        key = run.created_dag_version_id if run.bundle_version and run.created_dag_version_id else None
+        if key not in dags_by_version:
+            dags_by_version[key] = dag_bag.get_dag_for_run(run, session=session)
+        if (dag := dags_by_version[key]) is not None:
+            dags_by_run[run.run_id] = dag
+    return dags_by_run
+
+
+def _task_ids_in_group(dag: SerializedDAG, task_group_id: str) -> set[str]:
+    task_group = dag.task_group_dict.get(task_group_id)
+    return {task.task_id for task in task_group.iter_tasks()} if task_group is not None else set()
+
+
+def _get_group_task_ids_by_run(
     dag_id: str,
     task_group_id: str,
     session: SessionDep,
     dag_bag: DagBagDep,
     logical_dates=None,
     run_ids=None,
-) -> set[str]:
+) -> dict[str | None, set[str]]:
     """
-    Return the ids of the tasks that make up a task group.
+    Return the ids of the tasks that make up a task group, keyed by the Dag run they apply to.
 
-    When the request names Dag runs, the group is resolved against the Dag version each of those
-    runs resolves to (the version a run of a versioned bundle was created from, the latest version
-    otherwise), so a group renamed or removed after a run was created is still found for that run,
-    and a group that only exists in a newer version is not. Without a named run, or while none of
-    the named runs exists yet, the latest version answers.
+    When the request names Dag runs, the group is resolved for each run that exists against the Dag
+    version that run resolves to (the version a run of a versioned bundle was created from, the
+    latest version otherwise). A group renamed or removed after a run was created is still found for
+    that run, a group that only exists in a newer version is not, and a task that belongs to the
+    group in one version is not attributed to the runs of another. Without a named run, or while
+    none of the named runs exists, the latest version answers under the ``None`` key.
     """
-    dags: list[SerializedDAG] = []
-    if logical_dates or run_ids:
-        runs = session.scalars(
-            select(DR).where(
-                DR.dag_id == dag_id,
-                *([DR.logical_date.in_(logical_dates)] if logical_dates else []),
-                *([DR.run_id.in_(run_ids)] if run_ids else []),
-            )
-        ).all()
-        # One lookup per distinct version: a run of a versioned bundle resolves to the version it
-        # was created from, every other run resolves to the latest one.
-        representatives: dict[UUID | None, DR] = {}
-        for run in runs:
-            key = run.created_dag_version_id if run.bundle_version and run.created_dag_version_id else None
-            representatives.setdefault(key, run)
-        for run in representatives.values():
-            if (dag := dag_bag.get_dag_for_run(run, session=session)) is not None:
-                dags.append(dag)
-    if not dags:
-        dags = [get_latest_version_of_dag(dag_bag, dag_id, session, include_reason=True)]
-
-    task_ids = {
-        task.task_id
-        for dag in dags
-        if (task_group := dag.task_group_dict.get(task_group_id)) is not None
-        for task in task_group.iter_tasks()
+    task_ids_by_run: dict[str | None, set[str]] = {
+        run_id: _task_ids_in_group(dag, task_group_id)
+        for run_id, dag in _get_dags_for_named_runs(dag_id, session, dag_bag, logical_dates, run_ids).items()
     }
-    if not task_ids:
+    if not task_ids_by_run:
+        dag = get_latest_version_of_dag(dag_bag, dag_id, session, include_reason=True)
+        task_ids_by_run[None] = _task_ids_in_group(dag, task_group_id)
+
+    if not any(task_ids_by_run.values()):
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             detail={
@@ -1405,7 +1450,47 @@ def _get_group_task_ids(
                 "message": f"Task group {task_group_id} not found in DAG {dag_id}",
             },
         )
-    return task_ids
+    return task_ids_by_run
+
+
+def _raise_if_tasks_unknown_to_runs(
+    dag_id: str,
+    task_ids: list[str],
+    task_instances: Sequence[TI],
+    session: SessionDep,
+    dag_bag: DagBagDep,
+    logical_dates=None,
+    run_ids=None,
+) -> None:
+    """
+    Answer 404 for a task that no named run's Dag version defines and no named run has an instance of.
+
+    A task the version of a run defines exists for that run even before its task instance is
+    created, which the scheduler does on a later pass when a newly parsed task joins an unfinished
+    run of an unversioned bundle. An existing task instance counts on its own, so a task removed
+    from a newer version is still found for a run that has it. Nothing is known about a run that
+    does not exist yet, so such runs are skipped and a request that names only such runs is not
+    validated.
+    """
+    dags_by_run = _get_dags_for_named_runs(dag_id, session, dag_bag, logical_dates, run_ids)
+    if not dags_by_run:
+        return
+    dags = list({id(dag): dag for dag in dags_by_run.values()}.values())
+    known_task_ids = {ti.task_id for ti in task_instances}
+    missing = [
+        task_id
+        for task_id in task_ids
+        if task_id not in known_task_ids and not any(dag.has_task(task_id) for dag in dags)
+    ]
+    if missing:
+        label = "Task" if len(missing) == 1 else "Tasks"
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail={
+                "reason": "not_found",
+                "message": f"{label} {', '.join(missing)} not found in DAG {dag_id}",
+            },
+        )
 
 
 @ti_id_router.get(
