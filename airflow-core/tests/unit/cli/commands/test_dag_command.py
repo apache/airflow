@@ -562,6 +562,16 @@ class TestCliDags:
             self.parser.parse_args(["dags", "list-jobs", "--limit", "abc"])
         assert exc_info.value.code == 2
 
+    def test_cli_list_jobs_with_negative_limit(self):
+        with pytest.raises(SystemExit) as exc_info:
+            self.parser.parse_args(["dags", "list-jobs", "--limit", "-1"])
+        assert exc_info.value.code == 2
+
+    def test_cli_list_jobs_with_zero_limit(self):
+        args = self.parser.parse_args(["dags", "list-jobs", "--limit", "0"])
+        assert args.limit == 0
+        dag_command.dag_list_jobs(args)
+
     def test_pause(self):
         args = self.parser.parse_args(["dags", "pause", "example_bash_operator"])
         dag_command.dag_pause(args)
