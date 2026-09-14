@@ -1,0 +1,109 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# When Dependabot bumps a Gradle dependency under java-sdk/, it edits the build
+# script but cannot regenerate java-sdk/gradle/verification-metadata.xml (Gradle
+# dependency verification, verify-metadata=true). The new artifacts then have no
+# trusted checksum and `./gradlew build` fails in java-sdk-release-verify.yml.
+#
+# This is a MANUAL job: a committer runs it from the Actions tab (or `gh workflow
+# run`) with the PR number. It checks that PR out, regenerates the metadata, and
+# pushes the refreshed file back onto the PR branch. Being workflow_dispatch, it
+# runs with the committer's own trigger and the normal repo GITHUB_TOKEN -- no
+# standing Dependabot secret or pull_request_target write token required.
+---
+name: Java SDK refresh verification metadata
+
+on:  # yamllint disable-line rule:truthy
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number whose java-sdk verification metadata to refresh"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: java-sdk-refresh-verification-metadata-${{ github.event.inputs.pr_number }}
+  cancel-in-progress: true
+
+jobs:
+  refresh-verification-metadata:
+    name: Refresh Gradle verification-metadata.xml
+    runs-on: ubuntu-slim
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      # Resolve the PR's head branch (and guard that it lives in this repo --
+      # Dependabot pushes to apache/airflow itself, never a fork).
+      - name: Resolve PR head branch
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.inputs.pr_number }}
+        run: |
+          set -euo pipefail
+          repo="${{ github.repository }}"
+          head_repo=$(gh pr view "$PR_NUMBER" --repo "$repo" --json headRepositoryOwner \
+            --jq '.headRepositoryOwner.login')
+          head_ref=$(gh pr view "$PR_NUMBER" --repo "$repo" --json headRefName --jq '.headRefName')
+          if [ "$head_repo" != "${repo%%/*}" ]; then
+            echo "PR #$PR_NUMBER head is not in $repo (owner: $head_repo); refusing to push." >&2
+            exit 1
+          fi
+          echo "head_ref=$head_ref" >> "$GITHUB_OUTPUT"
+      - name: Checkout the PR head branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ steps.pr.outputs.head_ref }}
+          fetch-depth: 0
+          persist-credentials: false
+      # 11: main build toolchain, 17/21: example toolchains + Gradle runtime.
+      - name: Install JDK toolchains
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961  # v5.7.0
+        with:
+          distribution: temurin
+          java-version: |
+            11
+            17
+            21
+      - name: Regenerate verification-metadata.xml
+        working-directory: java-sdk
+        # `build` resolves the same configurations the release-verify check does,
+        # so every newly-bumped artifact gets a recorded sha256.
+        run: ./gradlew --no-daemon --write-verification-metadata sha256 build
+      - name: Commit and push if the metadata changed
+        env:
+          # Explicit token push: the checkout stores no credentials
+          # (persist-credentials: false), so authenticate the push via the URL.
+          GH_TOKEN: ${{ github.token }}
+          HEAD_REF: ${{ steps.pr.outputs.head_ref }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- java-sdk/gradle/verification-metadata.xml; then
+            echo "verification-metadata.xml already up to date; nothing to do."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add java-sdk/gradle/verification-metadata.xml
+          git commit -m "Refresh Gradle dependency verification metadata for java-sdk"
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            "HEAD:${HEAD_REF}"

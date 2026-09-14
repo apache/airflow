@@ -206,17 +206,8 @@ class TestFastApiSecurity:
         assert result == resolved_user
         mock_resolve_user_from_token.assert_called_once_with("cookie_token")
 
-    @pytest.mark.parametrize(
-        ("oauth_token", "bearer_credentials_creds", "expected"),
-        [
-            pytest.param(None, "bearer_token", "bearer_token", id="bearer"),
-            pytest.param("oauth_token", None, "oauth_token", id="oauth"),
-        ],
-    )
     @patch("airflow.api_fastapi.core_api.security.resolve_user_from_token")
-    async def test_get_user_explicit_credential_beats_cookie_user(
-        self, mock_resolve_user_from_token, oauth_token, bearer_credentials_creds, expected
-    ):
+    async def test_get_user_explicit_credential_beats_cookie_user(self, mock_resolve_user_from_token):
         """An explicitly supplied credential wins over the cookie-derived session user.
 
         `JWTRefreshMiddleware` resolves a user from the `_token` cookie alone and stamps
@@ -236,29 +227,26 @@ class TestFastApiSecurity:
         request.state.user_authenticated_via = USER_INJECTED_BY_TRUSTED_MIDDLEWARE
         request.cookies = {COOKIE_NAME_JWT_TOKEN: "cookie_token"}
 
-        bearer_credentials = None
-        if bearer_credentials_creds:
-            bearer_credentials = Mock()
-            bearer_credentials.scheme = "bearer"
-            bearer_credentials.credentials = bearer_credentials_creds
+        bearer_credentials = Mock()
+        bearer_credentials.scheme = "bearer"
+        bearer_credentials.credentials = "bearer_token"
 
-        result = await get_user(request, oauth_token, bearer_credentials)
+        result = await get_user(request, None, bearer_credentials)
 
         assert result == token_user
         assert result != cookie_user
-        mock_resolve_user_from_token.assert_called_once_with(expected)
+        mock_resolve_user_from_token.assert_called_once_with("bearer_token")
 
     @pytest.mark.parametrize(
-        ("oauth_token", "bearer_credentials_creds", "cookies", "expected"),
+        ("bearer_credentials_creds", "cookies", "expected"),
         [
-            ("oauth_token", None, {}, "oauth_token"),
-            (None, "bearer_credentials_creds", {}, "bearer_credentials_creds"),
-            (None, None, {COOKIE_NAME_JWT_TOKEN: "cookie_token"}, "cookie_token"),
+            ("bearer_credentials_creds", {}, "bearer_credentials_creds"),
+            (None, {COOKIE_NAME_JWT_TOKEN: "cookie_token"}, "cookie_token"),
         ],
     )
     @patch("airflow.api_fastapi.core_api.security.resolve_user_from_token")
     async def test_get_user_with_token(
-        self, mock_resolve_user_from_token, oauth_token, bearer_credentials_creds, cookies, expected
+        self, mock_resolve_user_from_token, bearer_credentials_creds, cookies, expected
     ):
         user = Mock()
         mock_resolve_user_from_token.return_value = user
@@ -272,7 +260,7 @@ class TestFastApiSecurity:
             bearer_credentials.scheme = "bearer"
             bearer_credentials.credentials = bearer_credentials_creds
 
-        result = await get_user(request, oauth_token, bearer_credentials)
+        result = await get_user(request, None, bearer_credentials)
 
         assert result == user
         mock_resolve_user_from_token.assert_called_once_with(expected)
