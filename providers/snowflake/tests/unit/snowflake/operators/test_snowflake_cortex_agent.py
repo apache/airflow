@@ -20,10 +20,10 @@ from __future__ import annotations
 from unittest import mock
 
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.snowflake.operators.snowflake_cortex_agent import (
     SnowflakeCortexAgentOperator,
 )
-from airflow.utils import timezone
 
 TASK_ID = "run_agent"
 CONN_ID = "snowflake_default"

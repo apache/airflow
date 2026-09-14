@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Text, HStack, Stack } from "@chakra-ui/react";
 import { type ReactNode, Fragment } from "react";
+
+import { Box, Button, Text, HStack, Stack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
-import { Popover } from "./ui";
+import { Popover } from "src/system-components";
 
 type ListProps = {
   readonly icon?: ReactNode;

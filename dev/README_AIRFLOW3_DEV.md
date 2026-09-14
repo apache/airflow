@@ -130,7 +130,8 @@ To test your changes locally, check out the `v2-11-test` branch. Breeze on Airfl
 not compatible with Airflow 2.11, so you need a Breeze that matches the branch you're on.
 
 If you installed Breeze via the recommended shim (`./scripts/tools/setup_breeze`), nothing extra
-is needed — the shim runs Breeze via `uvx` from the current git worktree's `dev/breeze`, so
+is needed — the shim runs Breeze via `uv run --locked` from the current git worktree's
+`dev/breeze`, so
 checking out a different branch (or using a separate git worktree) automatically picks up that
 branch's Breeze:
 

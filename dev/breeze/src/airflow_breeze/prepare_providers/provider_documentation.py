@@ -30,7 +30,7 @@ from enum import Enum
 from pathlib import Path
 from shutil import copyfile
 from time import time
-from typing import Any, NamedTuple
+from typing import Any, NamedTuple, NoReturn
 
 from packaging.version import Version, parse
 from rich.syntax import Syntax
@@ -588,7 +588,7 @@ def _ask_the_user_for_the_type_of_changes(non_interactive: bool) -> TypeOfChange
 
 def _mark_latest_changes_as_documentation_only(
     provider_id: str, list_of_list_of_latest_changes: list[list[Change]]
-):
+) -> NoReturn:
     latest_change = list_of_list_of_latest_changes[0][0]
     provider_details = get_provider_details(provider_id=provider_id)
     console_print(
@@ -599,6 +599,47 @@ def _mark_latest_changes_as_documentation_only(
 
     latest_doc_onl_change_file.write_text(latest_change.full_hash + "\n")
     raise PrepareReleaseDocsChangesOnlyException()
+
+
+def drop_provider_to_doc_only(provider_id: str, base_branch: str) -> NoReturn:
+    """Take a provider that is already prepared for release back out of the wave.
+
+    Review can conclude that a prepared provider's changes are internal after all. Correcting the
+    changelog entry is not enough: the version bump and the changelog section are already written,
+    so the provider would still be built and uploaded. Restoring both files to their released state
+    and recording the doc-only marker is what actually removes it from the release.
+    """
+    provider_details = get_provider_details(provider_id=provider_id)
+    provider_yaml_path = get_provider_yaml(provider_id)
+    changelog_path = provider_details.root_provider_path / "docs" / "changelog.rst"
+    restore_paths = [str(path) for path in (provider_yaml_path, changelog_path) if path.exists()]
+    console_print(f"[info]Restoring {provider_id} to its released state before marking it doc-only.[/]")
+    run_command(
+        ["git", "checkout", f"{HTTPS_REMOTE}/{base_branch}", "--", *restore_paths],
+        cwd=AIRFLOW_ROOT_PATH,
+        check=True,
+    )
+    clear_cache_for_provider_metadata(provider_yaml_path=provider_yaml_path)
+    marked_for_release, list_of_list_of_changes, _ = _get_all_changes_for_package(
+        provider_id=provider_id,
+        base_branch=base_branch,
+        reapply_templates_only=False,
+        only_min_version_update=False,
+    )
+    if not list_of_list_of_changes or not list_of_list_of_changes[0]:
+        if marked_for_release:
+            # Restored to the released state and still up for release with no earlier version to diff
+            # against: the provider has never been released. The marker means "everything after this
+            # commit is documentation" and is only read once the current version is tagged, so writing
+            # one here would be inert - and taken literally, would suppress the first release for good.
+            console_print(
+                f"[warning]{provider_id} has never been released, so there is no release to take it "
+                f"out of. Its prepared files were restored - drop it from the wave instead.[/]"
+            )
+        else:
+            console_print(f"[warning]No changes found for {provider_id} - nothing to mark as doc-only.[/]")
+        raise PrepareReleaseDocsNoChangesException()
+    _mark_latest_changes_as_documentation_only(provider_id, list_of_list_of_changes)
 
 
 VERSION_MAJOR_INDEX = 0
@@ -951,6 +992,10 @@ def update_release_notes(
                 f"[special]{TYPE_OF_CHANGE_DESCRIPTION[type_of_change]}"
             )
             console_print()
+            if type_of_change == TypeOfChange.DOCUMENTATION:
+                # Classification can override the answer given above. Without the marker the next
+                # wave replays these same changes.
+                _mark_latest_changes_as_documentation_only(provider_id, list_of_list_of_changes)
             bump = False
             if type_of_change == TypeOfChange.MIN_AIRFLOW_VERSION_BUMP:
                 bump = True

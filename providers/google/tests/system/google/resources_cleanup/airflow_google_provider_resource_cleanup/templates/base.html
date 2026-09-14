@@ -1,0 +1,145 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GCP {{ resource_type | title }} Hierarchy for {{ project_name }}</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f4f4f4;
+      color: #333;
+    }
+
+    .container {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+    h1 {
+      color: #007bff;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 10px;
+      margin-bottom: 20px;
+    }
+
+    ul {
+      list-style-type: none;
+      padding-left: 20px;
+    }
+
+    .node-container {
+      margin-bottom: 5px;
+      padding-left: 5px;
+    }
+
+    .node-summary {
+      cursor: pointer;
+      font-weight: bold;
+      padding: 2px 0;
+      user-select: none;
+    }
+
+    .node-summary:hover {
+      color: #0056b3;
+    }
+
+    .node-summary::marker {
+      content: "+ ";
+    }
+
+    .node-container[open] > .node-summary::marker {
+      content: "- ";
+    }
+
+    .leaf-node {
+      margin-bottom: 5px;
+      padding: 2px 0;
+    }
+
+    .asset-type {
+      color: #6a0dad;
+      font-weight: normal;
+    }
+
+    .location {
+      color: #FFB300;
+      font-weight: normal;
+    }
+
+    .resource-id {
+      color: #28a745;
+      font-family: monospace;
+    }
+
+    .top-level-list > .node-container > .node-summary {
+      font-size: 1.1em;
+      color: #d9534f;
+    }
+
+    .top-level-list > .leaf-node {
+      font-size: 1.1em;
+      font-weight: bold;
+      color: #d9534f;
+    }
+
+    .protected {
+      color: #d9534f;
+      font-weight: bold;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>GCP {{ resource_type | title }} Hierarchy</h1>
+  <div class="controls">
+    <button onclick="expandAll()">Expand All</button>
+    <button onclick="collapseAll()">Collapse All</button>
+  </div>
+  {% block content %}{% endblock %}
+</div>
+<script>
+  function setDetailsState(state) {
+    const detailsElements = document.querySelectorAll('details.node-container');
+    detailsElements.forEach(details => {
+      details.open = state;
+    });
+  }
+
+  function expandAll() {
+    setDetailsState(true);
+  }
+
+  function collapseAll() {
+    setDetailsState(false);
+  }
+
+  (function() {
+      collapseAll();
+  })()
+</script>
+</body>
+</html>

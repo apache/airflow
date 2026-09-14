@@ -17,6 +17,7 @@
  * under the License.
  */
 import type { Locator, Page } from "@playwright/test";
+
 import { HITLReviewModal } from "tests/e2e/components/HITLReviewModal";
 import { BasePage } from "tests/e2e/pages/BasePage";
 

@@ -28,6 +28,7 @@ from sqlalchemy import select
 
 from airflow.models import Variable, crypto, variable
 from airflow.sdk import SecretCache
+from airflow.secrets import BaseSecretsBackend
 from airflow.secrets.metastore import MetastoreBackend
 
 from tests_common.test_utils import db
@@ -39,6 +40,30 @@ if TYPE_CHECKING:
     from airflow.models.team import Team
 
 pytestmark = pytest.mark.db_test
+
+
+class _TeamUnawareVariableBackend(BaseSecretsBackend):
+    """A custom backend whose ``get_variable`` override predates the ``team_name`` keyword."""
+
+    def __init__(self):
+        self.was_called = False
+
+    # The signature mismatch with the base class is the point of this fixture, so mypy's
+    # override check has to be waived here rather than fixed.
+    def get_variable(self, key: str) -> str | None:  # type: ignore[override]
+        self.was_called = True
+        return "secret_val"
+
+
+class _TeamAwareVariableBackend(BaseSecretsBackend):
+    """A custom backend whose ``get_variable`` override accepts ``team_name``."""
+
+    def __init__(self):
+        self.received_team_name: str | None = None
+
+    def get_variable(self, key: str, team_name: str | None = None) -> str | None:
+        self.received_team_name = team_name
+        return "secret_val"
 
 
 class TestVariable:
@@ -191,6 +216,43 @@ class TestVariable:
             "MockSecretsBackend"
         )
         Variable.delete(key="key", session=session)
+
+    @mock.patch("airflow.models.variable.ensure_secrets_loaded")
+    def test_write_conflict_check_forwards_team_name(self, mock_ensure_secrets):
+        """The check must resolve against the scope being written, not the global one."""
+        backend = _TeamAwareVariableBackend()
+        mock_ensure_secrets.return_value = [backend, MetastoreBackend()]
+
+        Variable.check_for_write_conflict(key="key", team_name="team_a")
+
+        assert backend.received_team_name == "team_a"
+
+    @mock.patch("airflow.models.variable.ensure_secrets_loaded")
+    def test_write_conflict_check_tolerates_team_unaware_backend(self, mock_ensure_secrets):
+        """A backend whose override predates ``team_name`` must still be consulted, not error out."""
+        backend = _TeamUnawareVariableBackend()
+        mock_ensure_secrets.return_value = [backend, MetastoreBackend()]
+
+        Variable.check_for_write_conflict(key="key", team_name="team_a")
+
+        assert backend.was_called
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @mock.patch.object(Variable, "check_for_write_conflict")
+    def test_set_forwards_team_name_to_write_conflict_check(self, mock_check, testing_team, session):
+        Variable.set(key="key", value="db-value", team_name=testing_team.name, session=session)
+
+        assert mock_check.call_args.kwargs["team_name"] == testing_team.name
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @mock.patch.object(Variable, "check_for_write_conflict")
+    def test_update_forwards_team_name_to_write_conflict_check(self, mock_check, testing_team, session):
+        Variable.set(key="key", value="db-value", team_name=testing_team.name, session=session)
+        SecretCache.invalidate_variable("key")
+
+        Variable.update(key="key", value="new-value", team_name=testing_team.name, session=session)
+
+        assert mock_check.call_args.kwargs["team_name"] == testing_team.name
 
     def test_variable_set_get_round_trip_json(self):
         value = {"a": 17, "b": 47}

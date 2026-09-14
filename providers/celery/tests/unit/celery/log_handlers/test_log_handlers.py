@@ -27,12 +27,12 @@ from sqlalchemy import delete
 from airflow.executors import executor_loader
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
+from airflow.providers.common.compat.sdk import timezone
 from airflow.utils.log.file_task_handler import (
     FileTaskHandler,
 )
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
@@ -43,7 +43,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V
 
 pytestmark = pytest.mark.db_test
 
-DEFAULT_DATE = datetime(2016, 1, 1)
+DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 TASK_LOGGER = "airflow.task"
 FILE_TASK_HANDLER = "task"
 
