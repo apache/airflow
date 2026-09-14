@@ -722,7 +722,8 @@ def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
     # version from the metadata airflow-ts-pack embedded in the bundle.
     ts_bundles_dir = tmp_dir / "ts-bundles"
     ts_bundles_dir.mkdir()
-    copyfile(TS_SDK_EXAMPLE_PATH / "dist" / "bundle.mjs", ts_bundles_dir / "bundle.mjs")
+    # Deliberately renamed: the coordinator routes on embedded metadata, not on a fixed name.
+    copyfile(TS_SDK_EXAMPLE_PATH / "dist" / "bundle.min.mjs", ts_bundles_dir / "example.min.mjs")
 
     copyfile(
         TS_SDK_EXAMPLE_PATH / "dags" / "typescript_example.py", tmp_dir / "dags" / "typescript_example.py"
@@ -770,7 +771,7 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     _E2ETestState.airflow_dags_path = tmp_dir / "dags"
 
     # openlineage sources its dags from the provider system tests (via _setup_openlineage_integration),
-    # so it must not also load the stock e2e dags — the harness triggers every dag it finds.
+    # so it must not also load the stock e2e dags, because the harness triggers every dag it finds.
     if E2E_TEST_MODE != "openlineage":
         console.print(f"[yellow]Copying dags to:[/ {tmp_dir / 'dags'}")
         copytree(E2E_DAGS_FOLDER, tmp_dir / "dags", dirs_exist_ok=True)
