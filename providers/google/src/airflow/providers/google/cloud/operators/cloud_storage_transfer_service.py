@@ -264,12 +264,12 @@ class CloudDataTransferServiceCreateJobOperator(GoogleCloudBaseOperator):
         self.api_version = api_version
         self.project_id = project_id
         self.google_impersonation_chain = google_impersonation_chain
-        self._validate_inputs()
 
     def _validate_inputs(self) -> None:
         TransferJobValidator(body=self.body).validate_body()
 
     def execute(self, context: Context) -> dict:
+        self._validate_inputs()
         TransferJobPreprocessor(body=self.body, aws_conn_id=self.aws_conn_id).process_body()
         hook = CloudDataTransferServiceHook(
             api_version=self.api_version,
