@@ -330,7 +330,7 @@ class TestOtelIntegration:
                 # Additional detail spans are deferred to follow-up PRs; tracked
                 # at https://linear.app/astronomer/issue/ACD-157.
                 {
-                    "_verify_bundle_access": "parse",
+                    "verify_bundle_access": "parse",
                     "parse": "startup",
                     "get_template_context": "startup",
                     "startup": "worker.task1",

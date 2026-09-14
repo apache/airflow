@@ -237,6 +237,41 @@ class TestJavaCoordinatorAttributes:
         assert coordinator.jvm_args == ["-Xmx512m", "-Xms256m"]
         assert coordinator.jars_root == [pathlib.Path("/airflow/java-bundles")]
 
+    def test_jars_root_optional_defaults_to_empty(self):
+        # main_class stays optional: the entrypoint is auto-detected from the bundle scan.
+        coordinator = JavaCoordinator()
+        assert coordinator.jars_root == []
+        assert coordinator.dag_bundle_name is None
+        assert coordinator.main_class == ""
+
+    @pytest.mark.parametrize("jars_root", [None, []], ids=["none", "empty-list"])
+    def test_explicit_empty_jars_root_raises(self, jars_root):
+        with pytest.raises(ValueError, match="must contain at least one path when provided"):
+            JavaCoordinator(jars_root=jars_root)
+
+    def test_explicit_root_does_not_require_main_class(self, tmp_path):
+        coordinator = JavaCoordinator(jars_root=tmp_path)
+        assert coordinator.main_class == ""
+
+    def test_root_and_dag_bundle_name_are_mutually_exclusive(self):
+        with pytest.raises(ValueError, match="at most one of 'jars_root' or 'dag_bundle_name'"):
+            JavaCoordinator(jars_root="/airflow/java-bundles", dag_bundle_name="artifacts")
+
+    @patch("airflow.sdk.coordinators._subprocess.DagBundlesManager")
+    def test_unconfigured_dag_bundle_name_raises(self, mock_manager):
+        mock_manager.is_bundle_configured.return_value = False
+        with pytest.raises(ValueError, match="unconfigured Dag bundle 'ghost'"):
+            JavaCoordinator(dag_bundle_name="ghost")
+
+    def test_build_command_scans_passed_roots_in_colocated_mode(self, tmp_path):
+        _make_jar(tmp_path / "app.jar", main_class="com.example.TaskRunner", schema_version="2026-06-16")
+        coordinator = JavaCoordinator(main_class="com.example.TaskRunner")
+        with coordinator._set_scan_roots([tmp_path]):
+            command, schema_version = coordinator._build_execute_task_command(what=_make_ti())
+        assert command[0] == "java"
+        assert command[-1] == "com.example.TaskRunner"
+        assert schema_version == "2026-06-16"
+
 
 @pytest.fixture
 def jars_root(tmp_path):
