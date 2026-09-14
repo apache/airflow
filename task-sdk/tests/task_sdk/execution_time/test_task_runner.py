@@ -1046,8 +1046,9 @@ def test_defer_with_unserializable_kwargs_honours_retries_and_callbacks(
     assert callbacks_run == ["retry" if should_retry else "failure"]
 
 
+@mock.patch("airflow.sdk.execution_time.task_runner.stats.incr", autospec=True)
 def test_handler_failure_keeps_non_retryable_exceptions_non_retryable(
-    create_runtime_ti, mock_supervisor_comms
+    mock_incr, create_runtime_ti, mock_supervisor_comms
 ):
     """
     A handler that raises a non-retryable exception must still fail without retrying.
@@ -1085,6 +1086,16 @@ def test_handler_failure_keeps_non_retryable_exceptions_non_retryable(
     assert state == TaskInstanceState.FAILED
     assert isinstance(msg, TaskState)
     assert isinstance(error, AirflowFailException)
+    assert mock_incr.call_args_list.count(mock.call("ti_failures", tags=ti.stats_tags)) == 1
+    assert (
+        mock_incr.call_args_list.count(
+            mock.call(
+                "operator_failures",
+                tags={**ti.stats_tags, "operator_name": "_DeferWithFailingTrigger"},
+            )
+        )
+        == 1
+    )
 
 
 def test_handler_failure_lets_keyboard_interrupt_propagate(create_runtime_ti, mock_supervisor_comms):
@@ -1164,9 +1175,8 @@ def test_handler_failure_counts_the_failure_once(create_runtime_ti, mock_supervi
     """
     One failure is one increment, even when the failure path runs twice.
 
-    The first pass through `_finalize_task_failure` records the counters before the broken
-    retry delay makes it raise, so counting again on the second pass would report two
-    failures for a single task run.
+    A broken retry delay makes the failure handler run twice, but it must still report
+    only one failure for the task run.
     """
 
     class _BadDelayPolicy(RetryPolicy):
@@ -5892,26 +5902,64 @@ class TestTaskInstanceMetrics:
             )
             backend.incr.assert_any_call("ti_successes", tags=stats_tags)
 
-    def test_operator_failures_metrics_emitted(self, create_runtime_ti, mock_supervisor_comms):
-        """Test that operator_failures and ti_failures metrics are emitted on task failure."""
-        task = PythonOperator(task_id="test", python_callable=lambda: 1 / 0)
-        ti = create_runtime_ti(task=task)
+    @pytest.mark.parametrize("should_retry", [False, True])
+    @pytest.mark.parametrize(
+        ("exception", "policy_action"),
+        [
+            pytest.param(ValueError, None, id="ordinary-failure"),
+            pytest.param(AirflowFailException, None, id="forced-failure"),
+            pytest.param(AirflowSensorTimeout, None, id="sensor-timeout"),
+            pytest.param(AirflowTaskTerminated, None, id="terminated"),
+            pytest.param(ValueError, RetryAction.FAIL, id="retry-policy-fail"),
+        ],
+    )
+    @mock.patch("airflow.sdk._shared.observability.metrics.stats._get_backend", autospec=True)
+    def test_operator_failures_metrics_emitted(
+        self,
+        mock_get_backend,
+        exception,
+        policy_action,
+        should_retry,
+        create_runtime_ti,
+        mock_supervisor_comms,
+    ):
+        def fail():
+            raise exception("Task failed")
 
-        with mock.patch("airflow.sdk._shared.observability.metrics.stats._get_backend") as mock_get_backend:
-            backend = mock.MagicMock(spec=StatsLogger)
-            mock_get_backend.return_value = backend
-            run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+        retry_policy = (
+            ExceptionRetryPolicy(rules=[RetryRule(exception=exception, action=policy_action)])
+            if policy_action
+            else None
+        )
+        task = PythonOperator(task_id="test", python_callable=fail, retry_policy=retry_policy)
+        ti = create_runtime_ti(task=task, should_retry=should_retry)
+        backend = mock.MagicMock(spec=StatsLogger)
+        mock_get_backend.return_value = backend
 
-            stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id, "run_type": "manual"}
+        state, msg, error = run(
+            ti,
+            context=ti.get_template_context(),
+            log=mock.MagicMock(spec=structlog.typing.FilteringBoundLogger),
+        )
 
-            # verify operator_failures in legacy format
-            backend.incr.assert_any_call("operator_failures_PythonOperator", tags=stats_tags)
-            # verify operator_failures in tagged format
-            backend.incr.assert_any_call(
-                "operator_failures",
-                tags={**stats_tags, "operator_name": "PythonOperator"},
-            )
-            backend.incr.assert_any_call("ti_failures", tags=stats_tags)
+        expected_state = (
+            TaskInstanceState.UP_FOR_RETRY
+            if exception is ValueError and policy_action is None and should_retry
+            else TaskInstanceState.FAILED
+        )
+        assert state == expected_state
+        assert isinstance(msg, RetryTask if expected_state == TaskInstanceState.UP_FOR_RETRY else TaskState)
+        assert isinstance(error, exception)
+        failure_calls = [
+            c
+            for c in backend.incr.call_args_list
+            if c.args[0].startswith(("operator_failures", "ti_failures"))
+        ]
+        assert failure_calls == [
+            mock.call("operator_failures_PythonOperator", tags=ti.stats_tags),
+            mock.call("operator_failures", tags={**ti.stats_tags, "operator_name": "PythonOperator"}),
+            mock.call("ti_failures", tags=ti.stats_tags),
+        ]
 
     @pytest.mark.parametrize(
         ("team_name", "expected_tags_extra"),
