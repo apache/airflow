@@ -219,8 +219,10 @@ class OpenSandboxBackend(SandboxBackend):
         from opensandbox.models.sandboxes import NetworkPolicy, NetworkRule
 
         rules = [NetworkRule(action="allow", target=target) for target in spec.allow_egress_to or ()]
+        # default_action is declared under its wire alias. populate_by_name means both
+        # spellings work at runtime, but only the alias is in the typed signature.
         return NetworkPolicy(
-            default_action="deny" if spec.block_network else "allow",
+            defaultAction="deny" if spec.block_network else "allow",
             egress=rules or None,
         )
 
