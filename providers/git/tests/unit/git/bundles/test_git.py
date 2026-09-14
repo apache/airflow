@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import types
 from pathlib import Path
 from unittest import mock
@@ -734,13 +735,13 @@ class TestGitDagBundle:
         assert {"test_dag.py"} == files_in_repo
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
-    def test_tracking_ref_commit_sha_promote_fails_without_clearing_storage(self, mock_githook, git_repo):
-        """A SHA created after the bundle's local storage was first populated can't be
-        promoted to in-place: the working clone never fetches it before checkout.
+    def test_tracking_ref_commit_sha_promote_without_clearing_storage(self, mock_githook, git_repo):
+        """Promoting a SHA-pinned tracking_ref to a new commit succeeds in-place.
 
-        This documents a known limitation rather than desired behavior -- it should start
-        passing once the fix tracked at https://github.com/apache/airflow/issues/71388 lands,
-        at which point this test should be updated to assert success instead.
+        The local working clone predates the new commit, so its object database can't
+        satisfy the checkout. The checkout runs inside ``_clone_repo_if_required``'s retry
+        block, which discards the stale clone and re-clones from the healthy local bare
+        mirror instead of failing until storage is cleared by hand.
         """
         repo_path, repo = git_repo
         mock_githook.return_value.repo_url = repo_path
@@ -761,8 +762,11 @@ class TestGitDagBundle:
         # Promote in-place: config change re-creates the bundle against the same local
         # storage. The new commit's objects were never fetched into the working clone.
         bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=second_commit.hexsha)
-        with pytest.raises(GitCommandError, match="reference is not a tree|unable to read tree"):
-            bundle.initialize()
+        bundle.initialize()
+        assert _version_str(bundle.get_current_version()) == second_commit.hexsha
+        files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
+        assert {"test_dag.py", "new_test.py"} == files_in_repo
+        assert_repo_is_closed(bundle)
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_tracking_ref_commit_sha_promote_succeeds_with_fresh_storage(self, mock_githook, git_repo):
@@ -789,6 +793,50 @@ class TestGitDagBundle:
         assert _version_str(bundle.get_current_version()) == second_commit.hexsha
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py", "new_test.py"} == files_in_repo
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_interrupted_clone_version_dir_is_recovered(self, mock_githook, git_repo):
+        """A version directory truncated by a killed `git clone` is repaired on next initialize().
+
+        `git clone` writes the .git skeleton (with the origin config) before it writes refs or
+        checks out the working tree, so a killed clone leaves a directory Git can open but that
+        cannot resolve the tracking ref. Because the checkout now runs inside the retry block,
+        initialize() discards that broken directory and re-clones from the healthy bare mirror
+        instead of failing forever.
+        """
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        version = repo.head.commit.hexsha
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id=CONN_HTTPS,
+            version=version,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+        )
+
+        # The healthy local bare mirror exists (created by a previous run); only the per-version
+        # clone was interrupted. Reproduce the killed-clone state: .git skeleton present, refs and
+        # packed-refs absent, HEAD unborn, working tree empty.
+        Repo.clone_from(str(repo_path), str(bundle.bare_repo_path), bare=True)
+        Repo.clone_from(
+            str(bundle.bare_repo_path), str(bundle.repo_path), multi_options=["--no-checkout"]
+        ).close()
+        shutil.rmtree(bundle.repo_path / ".git" / "refs")
+        (bundle.repo_path / ".git" / "refs").mkdir()
+        (bundle.repo_path / ".git" / "refs" / "heads").mkdir()
+        (bundle.repo_path / ".git" / "packed-refs").unlink(missing_ok=True)
+
+        assert (bundle.repo_path / ".git").exists()
+        assert not (bundle.repo_path / ".git" / "packed-refs").exists()
+        assert not any(p.is_file() for p in (bundle.repo_path / ".git" / "refs").rglob("*"))
+
+        bundle.initialize()
+
+        assert _version_str(bundle.get_current_version()) == version
+        files_in_repo = {f.name for f in bundle.repo_path.iterdir() if f.is_file()}
+        assert {"test_dag.py"} == files_in_repo
+        assert_repo_is_closed(bundle)
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_refresh_after_force_push_does_not_reclone(self, mock_githook, git_repo):
