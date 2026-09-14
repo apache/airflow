@@ -35,11 +35,11 @@ npm install apache-airflow-ts-sdk@0.1.0-beta1
 ## Task Handlers
 
 ```ts
-import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "apache-airflow-ts-sdk";
+import { Dag, DagRegistry, getClient, getContext, serveDags } from "apache-airflow-ts-sdk";
 
-export async function sayHello({ ctx, client }: TaskHandlerArgs) {
-  const greeting = await client.getVariable("greeting");
-  return { message: `Hello from ${ctx.taskId}: ${greeting}` };
+export async function sayHello() {
+  const greeting = await getClient().getVariable("greeting");
+  return { message: `Hello from ${getContext().taskId}: ${greeting}` };
 }
 
 const dag = new Dag("example_dag");
@@ -47,6 +47,9 @@ dag.task("say_hello", sayHello);
 
 await serveDags(new DagRegistry(dag));
 ```
+
+A handler is a plain function. `getContext()` and `getClient()` reach the runtime from inside the call,
+so a handler takes no SDK-supplied parameter.
 
 Non-`undefined` return values are pushed to XCom under the `"return_value"`
 key by the active runtime, matching Python `@task` behavior.
@@ -100,9 +103,10 @@ Airflow metadata in the bundle itself.
 TypeScript entrypoint:
 
 ```ts
-import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "apache-airflow-ts-sdk";
+import { Dag, DagRegistry, getClient, serveDags } from "apache-airflow-ts-sdk";
 
-export async function extract({ client }: TaskHandlerArgs) {
+export async function extract() {
+  const client = getClient();
   const connection = await client.getConnection("sales_db");
   const rowCount = Number((await client.getVariable("daily_row_count")) ?? "0");
 
@@ -112,8 +116,8 @@ export async function extract({ client }: TaskHandlerArgs) {
   };
 }
 
-export async function transform({ client }: TaskHandlerArgs) {
-  const extracted = await client.getXCom<{ rowCount: number }>({
+export async function transform() {
+  const extracted = await getClient().getXCom<{ rowCount: number }>({
     key: "return_value",
     taskId: "extract",
   });
@@ -144,8 +148,8 @@ marked removed at runtime. The registry itself holds no sockets and starts
 nothing, so a unit test can build one and dispatch through
 `registry.getTaskHandler(dagId, taskId)` without any runtime involved.
 
-`new Dag` and `dag.task` take a trailing options object — `spec` on both, plus
-`inputs` on a task. These are not used yet; do not set them.
+`new Dag` and `dag.task` take a trailing options object: `spec` on both, plus `inputs` on a task.
+These are not used yet; do not set them.
 
 For larger projects, declare each Dag in its own module and keep one Airflow
 entrypoint that serves them all:
@@ -195,13 +199,12 @@ one deployable file with no hand-written metadata sidecar.
 
 Options:
 
-- `--outdir <dir>` — output directory (default `dist`)
-- `--source <name>` — display name of the primary source file shown in the
-  Airflow UI (default: entry basename)
+- `--outdir <dir>`: output directory (default `dist`)
+- `--source <name>`: display name of the primary source file shown in the Airflow UI (default: entry basename)
 
 ## TaskClient
 
-Every task handler receives a `TaskClient` for task-time Airflow data access:
+`getClient()` returns a `TaskClient` for task-time Airflow data access, for as long as a handler is running:
 
 | Method                                           | Description         |
 | ------------------------------------------------ | ------------------- |
@@ -214,10 +217,9 @@ current task context when omitted.
 
 ## Cancellation
 
-`ctx.signal` is an `AbortSignal` controlled by the active runtime. Pass it to
-`fetch()`, timers, database clients, child processes, or any other API that
-accepts an abort signal so tasks can clean up cooperatively when Airflow
-terminates the task subprocess with SIGTERM or SIGINT.
+`getContext().signal` is an `AbortSignal` controlled by the active runtime.
+Pass it to `fetch()`, timers, database clients, child processes, or any other API that accepts an abort signal,
+so tasks can clean up cooperatively when Airflow terminates the task subprocess.
 
 ## Compatibility matrix
 
@@ -225,8 +227,7 @@ Which Airflow TaskInstance states and capabilities this SDK supports. This table
 [`capabilities.yaml`](https://github.com/apache/airflow/blob/main/ts-sdk/capabilities.yaml);
 the conformance dimensions are defined in the
 [Language SDK conformance spec](https://github.com/apache/airflow/blob/main/contributing-docs/30_new_language_sdk.rst).
-Do not edit the table by hand — update the manifest and run the
-`update-ts-sdk-readme-matrix` prek hook.
+Do not edit the table by hand. Update the manifest and run the `update-ts-sdk-readme-matrix` prek hook.
 
 <!-- BEGIN AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
 
@@ -275,13 +276,11 @@ Do not edit the table by hand — update the manifest and run the
 ## Links
 
 - [TypeScript SDK guide (staged docs)](https://airflow.staged.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/typescript.html)
-  — how Airflow runs TypeScript task handlers
+  (how Airflow runs TypeScript task handlers)
 - [API reference (staged)](https://airflow.staged.apache.org/docs/ts-sdk/stable/)
-  — generated from the TypeScript sources
-- [Source](https://github.com/apache/airflow/tree/main/ts-sdk) — the `ts-sdk/`
-  directory of the Apache Airflow monorepo
-- [Issues](https://github.com/apache/airflow/issues) — bug reports and feature
-  requests
+  (generated from the TypeScript sources)
+- [Source](https://github.com/apache/airflow/tree/main/ts-sdk): the `ts-sdk/` directory of the Apache Airflow monorepo
+- [Issues](https://github.com/apache/airflow/issues): bug reports and feature requests
 - [Website](https://airflow.apache.org) · [Slack](https://s.apache.org/airflow-slack)
 - [Developing this package](https://github.com/apache/airflow/blob/main/ts-sdk/DEVELOPMENT.md)
-  — local build, docs, and the release workflow
+  (local build, docs, and the release workflow)
