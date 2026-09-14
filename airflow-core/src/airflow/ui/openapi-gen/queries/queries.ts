@@ -3086,7 +3086,7 @@ export const useVariableServiceBulkVariables = <TData = Common.VariableServiceBu
 * @param data The data for the request.
 * @param data.assetId
 * @param data.before
-* @param data.partitionKey Delete queued events of partitioned assets whose Dag run for this partition key has not been created yet, instead of queued events of non-partitioned assets.
+* @param data.partitionKey Delete queued events of partitioned assets emitted for this partition key whose Dag run has not been created yet, instead of queued events of non-partitioned assets.
 * @returns void Successful Response
 * @throws ApiError
 */
@@ -3104,7 +3104,7 @@ export const useAssetServiceDeleteAssetQueuedEvents = <TData = Common.AssetServi
 * @param data The data for the request.
 * @param data.dagId
 * @param data.before
-* @param data.partitionKey Delete queued events of partitioned assets whose Dag run for this partition key has not been created yet, instead of queued events of non-partitioned assets.
+* @param data.partitionKey Delete queued events of partitioned assets emitted for this partition key whose Dag run has not been created yet, instead of queued events of non-partitioned assets.
 * @returns void Successful Response
 * @throws ApiError
 */
@@ -3124,7 +3124,7 @@ export const useAssetServiceDeleteDagAssetQueuedEvents = <TData = Common.AssetSe
 * @param data.dagId
 * @param data.assetId
 * @param data.before
-* @param data.partitionKey Delete queued events of partitioned assets whose Dag run for this partition key has not been created yet, instead of queued events of non-partitioned assets.
+* @param data.partitionKey Delete queued events of partitioned assets emitted for this partition key whose Dag run has not been created yet, instead of queued events of non-partitioned assets.
 * @returns void Successful Response
 * @throws ApiError
 */

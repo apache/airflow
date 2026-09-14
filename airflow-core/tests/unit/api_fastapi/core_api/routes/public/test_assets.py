@@ -2139,27 +2139,39 @@ class TestDeletePartitionedQueuedEvents(TestQueuedEventEndpoint):
         assert response.status_code == 204
         assert self._remaining(session) == (set(), set())
 
-    def test_partition_key_matches_dag_run_partition_key_not_source_key(
-        self, test_client, session, create_dummy_dag
+    @pytest.mark.parametrize(
+        "path_template",
+        [
+            pytest.param("/assets/{asset_id}/queuedEvents", id="asset"),
+            pytest.param("/dags/{dag_id}/assets/queuedEvents", id="dag"),
+            pytest.param("/dags/{dag_id}/assets/{asset_id}/queuedEvents", id="dag-asset"),
+        ],
+    )
+    def test_partition_key_matches_asset_event_partition_key_not_dag_run_partition_key(
+        self, test_client, session, create_dummy_dag, path_template
     ):
         dag, _ = create_dummy_dag()
         (asset,) = self.create_assets(session=session, num=1)
-        self._queue_partition(
+        apdr = self._queue_partition(
             session,
             dag_id=dag.dag_id,
             partition_key="2026-09-02",
             source_keys_by_asset_id={asset.id: ["2026-09-02T00", "2026-09-02T01"]},
         )
+        path = path_template.format(dag_id=dag.dag_id, asset_id=asset.id)
 
-        response = test_client.delete(
-            f"/dags/{dag.dag_id}/assets/queuedEvents", params={"partition_key": "2026-09-02T00"}
-        )
+        response = test_client.delete(path, params={"partition_key": "2026-09-02"})
         assert response.status_code == 404
         assert len(self._remaining(session)[1]) == 2
 
-        response = test_client.delete(
-            f"/dags/{dag.dag_id}/assets/queuedEvents", params={"partition_key": "2026-09-02"}
+        response = test_client.delete(path, params={"partition_key": "2026-09-02T00"})
+        assert response.status_code == 204
+        assert self._remaining(session) == (
+            {("2026-09-02", None)},
+            {(apdr.id, asset.id, "2026-09-02T01")},
         )
+
+        response = test_client.delete(path, params={"partition_key": "2026-09-02T01"})
         assert response.status_code == 204
         assert self._remaining(session) == (set(), set())
 
