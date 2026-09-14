@@ -397,6 +397,100 @@ class TestDagRun:
         dr.update_state(session=session)
         assert dr.state == DagRunState.FAILED
 
+    @pytest.mark.parametrize(
+        "limit_kwargs",
+        [
+            pytest.param({"max_active_tis_per_dag": 1}, id="max_active_tis_per_dag"),
+            pytest.param({"max_active_tis_per_dagrun": 1}, id="max_active_tis_per_dagrun"),
+        ],
+    )
+    def test_dagrun_deadlock_with_deleted_ti_and_concurrency_limit(self, dag_maker, session, limit_kwargs):
+        """While the run stays non-terminal it holds a ``max_active_runs`` slot, stalling the Dag."""
+        with dag_maker(schedule=datetime.timedelta(days=1), session=session):
+            op1 = EmptyOperator(task_id="A")
+            op2 = EmptyOperator(task_id="B", **limit_kwargs)
+            op2.set_upstream(op1)
+
+        dr = dag_maker.create_dagrun()
+
+        ti_op1: TI = dr.get_task_instance(task_id=op1.task_id, session=session)
+        ti_op2: TI = dr.get_task_instance(task_id=op2.task_id, session=session)
+        ti_op1.set_state(state=TaskInstanceState.SUCCESS, session=session)
+        ti_op2.set_state(state=None, session=session)
+        session.flush()
+
+        dr.update_state(session=session)
+        assert dr.state == DagRunState.RUNNING
+
+        # Mirrors DELETE /api/v2/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}.
+        session.delete(ti_op1)
+        session.flush()
+        session.expire_all()
+
+        dr.update_state(session=session)
+        assert dr.state == DagRunState.FAILED
+
+    def test_dagrun_no_deadlock_with_throttled_task(self, dag_maker, session):
+        """A concurrency limit is not a dependency, so a throttled task still counts as runnable."""
+        with dag_maker(schedule=datetime.timedelta(days=1), session=session):
+            EmptyOperator(task_id="T", max_active_tis_per_dag=1)
+
+        dr1 = dag_maker.create_dagrun(run_id="r1")
+        dr2 = dag_maker.create_dagrun(
+            run_id="r2",
+            logical_date=dr1.logical_date + datetime.timedelta(days=1),
+        )
+        dr1.get_task_instance(task_id="T", session=session).set_state(
+            state=TaskInstanceState.RUNNING, session=session
+        )
+        dr2.get_task_instance(task_id="T", session=session).set_state(state=None, session=session)
+        session.flush()
+
+        dr2.update_state(session=session)
+        assert dr2.state == DagRunState.RUNNING
+
+    def test_dagrun_no_deadlock_with_deleted_ti_and_depends_on_past(self, dag_maker, session):
+        """``depends_on_past`` is evaluated as a dependency, so such a task may yet become runnable."""
+        with dag_maker(schedule=datetime.timedelta(days=1), session=session):
+            op1 = EmptyOperator(task_id="A")
+            op2 = EmptyOperator(task_id="B", depends_on_past=True)
+            op2.set_upstream(op1)
+
+        dr = dag_maker.create_dagrun()
+
+        ti_op1: TI = dr.get_task_instance(task_id=op1.task_id, session=session)
+        ti_op2: TI = dr.get_task_instance(task_id=op2.task_id, session=session)
+        ti_op1.set_state(state=TaskInstanceState.SUCCESS, session=session)
+        ti_op2.set_state(state=None, session=session)
+        session.flush()
+        session.delete(ti_op1)
+        session.flush()
+        session.expire_all()
+
+        dr.update_state(session=session)
+        assert dr.state == DagRunState.RUNNING
+
+    def test_dagrun_no_deadlock_with_deleted_ti_and_deferred_task(self, dag_maker, session):
+        """A deferred task can still resume, so its run must not be treated as deadlocked."""
+        with dag_maker(schedule=datetime.timedelta(days=1), session=session):
+            op1 = EmptyOperator(task_id="A")
+            op2 = EmptyOperator(task_id="B", max_active_tis_per_dag=1)
+            op2.set_upstream(op1)
+
+        dr = dag_maker.create_dagrun()
+
+        ti_op1: TI = dr.get_task_instance(task_id=op1.task_id, session=session)
+        ti_op2: TI = dr.get_task_instance(task_id=op2.task_id, session=session)
+        ti_op1.set_state(state=TaskInstanceState.SUCCESS, session=session)
+        ti_op2.set_state(state=TaskInstanceState.DEFERRED, session=session)
+        session.flush()
+        session.delete(ti_op1)
+        session.flush()
+        session.expire_all()
+
+        dr.update_state(session=session)
+        assert dr.state == DagRunState.RUNNING
+
     def test_dagrun_no_deadlock_with_restarting(self, dag_maker, session):
         with dag_maker(schedule=datetime.timedelta(days=1)):
             op1 = EmptyOperator(task_id="upstream_task")

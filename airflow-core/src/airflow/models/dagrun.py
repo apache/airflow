@@ -1273,15 +1273,13 @@ class DagRun(Base, LoggingMixin):
 
             @property
             def should_schedule(self) -> bool:
+                # Task-level concurrency limits are not evaluated as dependencies on this path, so a
+                # throttled task already reports as runnable and cannot trip the deadlock check.
+                # Gating on them only suppressed that check, and the premature-TI pass guarding it,
+                # for the whole run -- stranding runs whose task instances can never run at all.
                 return (
                     bool(self.tis)
                     and all(not getattr(t.task, "depends_on_past", False) for t in self.tis if t.task)
-                    and all(
-                        getattr(t.task, "max_active_tis_per_dag", None) is None for t in self.tis if t.task
-                    )
-                    and all(
-                        getattr(t.task, "max_active_tis_per_dagrun", None) is None for t in self.tis if t.task
-                    )
                     and all(
                         t.state not in (TaskInstanceState.DEFERRED, TaskInstanceState.AWAITING_INPUT)
                         for t in self.tis
