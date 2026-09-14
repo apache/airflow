@@ -197,6 +197,49 @@ class TestLoadConnection:
 
             assert expected_connection_uris == connection_uris_by_conn_id
 
+    def test_env_file_should_load_json_serialized_connection(self):
+        content = (
+            'CONN_ID={"conn_type": "mysql", "description": "a description", "login": "user", '
+            '"password": "pass", "host": "host_1", "port": 3306, "schema": "db", '
+            '"extra": "{\\"param1\\": \\"val1\\"}"}'
+        )
+        with mock_local_file(content):
+            connection = local_filesystem.load_connections_dict("a.env")["CONN_ID"]
+
+        assert connection.conn_type == "mysql"
+        assert connection.description == "a description"
+        assert connection.login == "user"
+        assert connection.password == "pass"
+        assert connection.host == "host_1"
+        assert connection.port == 3306
+        assert connection.schema == "db"
+        assert connection.extra_dejson == {"param1": "val1"}
+
+    def test_env_file_json_connection_is_normalized_like_an_environment_variable(self):
+        with mock_local_file('CONN_ID={"conn_type": "postgresql", "port": "5432"}'):
+            connection = local_filesystem.load_connections_dict("a.env")["CONN_ID"]
+
+        assert connection.conn_type == "postgres"
+        assert connection.port == 5432
+
+    @pytest.mark.parametrize(
+        ("content", "expected_message"),
+        [
+            (
+                "CONN_ID={not json}",
+                r"Could not create connection 'CONN_ID' from JSON: Expecting property name",
+            ),
+            (
+                'CONN_ID={"AAA": "mysql://host_1"}',
+                r"Could not create connection 'CONN_ID' from JSON: .*unexpected keyword argument 'AAA'",
+            ),
+        ],
+    )
+    def test_env_file_invalid_json_connection(self, content, expected_message):
+        with mock_local_file(content):
+            with pytest.raises(ValueError, match=expected_message):
+                local_filesystem.load_connections_dict("a.env")
+
     @pytest.mark.parametrize(
         ("content", "expected_connection_uris"),
         [

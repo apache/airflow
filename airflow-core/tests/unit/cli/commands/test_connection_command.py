@@ -926,6 +926,48 @@ class TestCliImportConnections:
             }
             assert expected_imported == current_conns_as_dicts
 
+    def test_cli_connections_import_should_round_trip_env_file_exported_as_json(self, tmp_path, session):
+        merge_conn(
+            Connection(
+                conn_id="round_trip",
+                conn_type="mysql",
+                description="a description",
+                host="host",
+                login="airflow",
+                password="pass/word",
+                port=3306,
+                schema="airflow",
+                extra='{"foo": "bar"}',
+            ),
+        )
+        output_filepath = tmp_path / "connections.env"
+        connection_command.connections_export(
+            self.parser.parse_args(
+                [
+                    "connections",
+                    "export",
+                    output_filepath.as_posix(),
+                    "--serialization-format",
+                    "json",
+                ]
+            )
+        )
+        clear_db_connections(add_default_connections_back=False)
+
+        connection_command.connections_import(
+            self.parser.parse_args(["connections", "import", output_filepath.as_posix()])
+        )
+
+        imported = session.scalars(select(Connection).where(Connection.conn_id == "round_trip")).one()
+        assert imported.conn_type == "mysql"
+        assert imported.description == "a description"
+        assert imported.host == "host"
+        assert imported.login == "airflow"
+        assert imported.password == "pass/word"
+        assert imported.port == 3306
+        assert imported.schema == "airflow"
+        assert imported.extra_dejson == {"foo": "bar"}
+
     def test_cli_connections_import_should_not_overwrite_existing_connections(self, session, mocker):
         mocker.patch("os.path.exists", return_value=True)
         # Add a pre-existing connection "new3"
