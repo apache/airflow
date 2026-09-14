@@ -168,6 +168,28 @@ class TestConstructorFieldLogic:
                 1,
                 id="replace-of-another-object-is-not-sanctioned",
             ),
+            pytest.param(
+                "self.foo = foo\n"
+                "self.start_trigger_args = replace(self.start_trigger_args, trigger_kwargs={'foo': self.foo})",
+                0,
+                id="verbatim-copy-via-bare-replace",
+            ),
+            pytest.param(
+                "self.foo = foo\nself.start_trigger_args = factory.StartTriggerArgs(trigger_kwargs={'foo': self.foo})",
+                1,
+                id="start-trigger-args-constructor-must-be-a-bare-name",
+            ),
+            pytest.param(
+                "self.foo = foo\n"
+                "self.start_trigger_args = helper.replace(self.start_trigger_args, trigger_kwargs={'foo': self.foo})",
+                1,
+                id="replace-must-come-from-dataclasses-or-copy",
+            ),
+            pytest.param(
+                "self.foo = foo\nself.start_trigger_args = StartTriggerArgs(trigger_kwargs=helper.dict(foo=self.foo))",
+                1,
+                id="trigger-kwargs-dict-must-be-the-builtin",
+            ),
         ],
     )
     def test_flags_logic_but_not_sanctioned_patterns(self, ctor_body: str, expected: int):
