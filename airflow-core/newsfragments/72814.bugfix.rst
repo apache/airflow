@@ -1,0 +1,1 @@
+Stop failing every ``SCHEDULED`` task instance of a Dag when its serialized Dag cannot be read while evaluating task-level concurrency limits; such a lookup is usually transient, so the task instances are now left ``SCHEDULED`` and reconsidered on the next scheduling loop.
