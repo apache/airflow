@@ -26,7 +26,11 @@ from sqlalchemy import delete, func, select, update
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
-from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
+from airflow.api_fastapi.auth.managers.models.resource_details import (
+    AssetDetails,
+    DagAccessEntity,
+    DagDetails,
+)
 from airflow.api_fastapi.core_api.security import PermittedAssetEventFilter
 from airflow.models import DagModel
 from airflow.models.asset import (
@@ -369,7 +373,9 @@ class TestGetAssets(TestAssets):
         assert len(session.scalars(select(AssetModel)).all()) == 3
         assert len(session.scalars(select(AssetActive)).all()) == 2
 
-        with assert_queries_count(7):
+        # 8 rather than 7: resolving the caller's readable assets, so the list can be scoped
+        # to them, costs one additional query.
+        with assert_queries_count(8):
             response = test_client.get("/assets")
 
         assert response.status_code == 200
@@ -411,6 +417,22 @@ class TestGetAssets(TestAssets):
             ],
             "total_entries": 2,
         }
+
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets")
+    def test_should_return_only_assets_the_caller_may_read(
+        self, mock_get_authorized_assets, test_client, session
+    ):
+        self.create_assets(session=session, num=3)
+        mock_get_authorized_assets.return_value = {1, 3}
+
+        response = test_client.get("/assets")
+
+        mock_get_authorized_assets.assert_called_once_with(user=mock.ANY, method="GET")
+        assert response.status_code == 200
+        body = response.json()
+        assert [asset["id"] for asset in body["assets"]] == [1, 3]
+        # The count must be scoped too, so the existence of hidden assets does not leak.
+        assert body["total_entries"] == 2
 
     def test_should_respond_200_with_watchers(self, test_client, session):
         """Test that assets with watchers return the watcher information in the API response."""
@@ -587,7 +609,7 @@ class TestGetAssets(TestAssets):
         """
         _create_assets_with_team_references(session, num=5)
 
-        with assert_queries_count(9):
+        with assert_queries_count(10):
             response = test_client.get("/assets")
 
         assert response.status_code == 200
@@ -996,6 +1018,37 @@ class TestGetAssetEventsPerDagScoping(TestAssets):
         # The count must be scoped too, so the existence of hidden events does not leak.
         assert body["total_entries"] == len(expected_ids)
 
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets")
+    def test_endpoint_returns_only_events_of_assets_the_caller_may_read(
+        self, mock_get_authorized_assets, test_client, session
+    ):
+        """An event of an asset the caller cannot read is hidden even when its source Dag is readable.
+
+        An event whose asset has since been deleted has no name or uri left to authorize on and
+        stays visible, like an event with no source Dag.
+        """
+        mock_get_authorized_assets.return_value = {2}
+        self.create_assets(session=session, num=2)
+        session.add_all(
+            [
+                AssetEvent(id=1, asset_id=1, extra={}, source_dag_id="source_dag_id", timestamp=DEFAULT_DATE),
+                AssetEvent(id=2, asset_id=2, extra={}, source_dag_id="source_dag_id", timestamp=DEFAULT_DATE),
+                AssetEvent(id=3, asset_id=1, extra={}, timestamp=DEFAULT_DATE),
+                # Asset 99 does not exist any more.
+                AssetEvent(
+                    id=4, asset_id=99, extra={}, source_dag_id="source_dag_id", timestamp=DEFAULT_DATE
+                ),
+            ]
+        )
+        session.commit()
+
+        response = test_client.get("/assets/events")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert [event["id"] for event in body["asset_events"]] == [2, 4]
+        assert body["total_entries"] == 2
+
 
 class TestGetAssetEvents(TestAssets):
     def test_should_respond_200(self, test_client, session):
@@ -1007,9 +1060,9 @@ class TestGetAssetEvents(TestAssets):
         session.commit()
         assert len(assets) == 2
 
-        # 5 rather than 4: resolving the caller's readable Dags, so events can be scoped
-        # to them, costs one additional query — the same cost the queued-events routes pay.
-        with assert_queries_count(5):
+        # 6 rather than 4: resolving the caller's readable Dags and readable assets, so events
+        # can be scoped to them, costs one additional query each.
+        with assert_queries_count(6):
             response = test_client.get("/assets/events")
 
         assert response.status_code == 200
@@ -1632,7 +1685,9 @@ class TestGetAssetEndpoint(TestAssets):
         self.create_assets(num=1)
         assert session.scalars(select(func.count(AssetModel.id))).one() == 1
         tz_datetime_format = from_datetime_to_zulu_without_ms(DEFAULT_DATE)
-        with assert_queries_count(6):
+        # 7 rather than 6: resolving the asset's name and uri for the authorization check costs
+        # one additional query.
+        with assert_queries_count(7):
             response = test_client.get("/assets/1")
         assert response.status_code == 200
         assert response.json() == {
@@ -1650,6 +1705,23 @@ class TestGetAssetEndpoint(TestAssets):
             "watchers": [],
             "last_asset_event": {"id": None, "timestamp": None},
         }
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.is_authorized_asset"
+    )
+    def test_should_authorize_with_asset_name_and_uri(self, mock_is_authorized_asset, test_client):
+        """The auth manager receives the name and uri so it can authorize on more than the id."""
+        self.create_assets(num=1)
+        mock_is_authorized_asset.return_value = True
+
+        response = test_client.get("/assets/1")
+
+        assert response.status_code == 200
+        mock_is_authorized_asset.assert_called_once_with(
+            method="GET",
+            details=AssetDetails(id="1", name="simple1", uri="s3://bucket/key/1"),
+            user=mock.ANY,
+        )
 
     @provide_session
     def test_should_respond_200_with_watchers(self, test_client, *, session):
@@ -2512,7 +2584,9 @@ class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):
         (asset,) = self.create_assets(session=session, num=1)
         self._create_asset_dag_run_queues(dag_id, asset.id, session)
 
-        with assert_queries_count(3):
+        # 4 rather than 3: resolving the asset's name and uri for the authorization check costs
+        # one additional query.
+        with assert_queries_count(4):
             response = test_client.get(f"/assets/{asset.id}/queuedEvents")
 
         assert response.status_code == 200

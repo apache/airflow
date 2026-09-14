@@ -153,10 +153,13 @@ class Connection:
         else:
             self.__dict__.update(attrs.asdict(self.from_uri(uri, conn_id=conn_id), recurse=False))
 
-    def get_uri(self) -> str:
-        """Generate and return connection in URI format."""
-        from urllib.parse import parse_qsl
+    def _build_uri(self, extra_dejson: dict) -> str:
+        """
+        Build the connection URI given a pre-resolved extra_dejson dict.
 
+        Shared by ``get_uri`` (sync) and ``aget_uri`` (async) so the
+        URI-assembly logic lives in exactly one place.
+        """
         if self.conn_type:
             uri = f"{self.conn_type.lower().replace('_', '-')}://"
         else:
@@ -202,7 +205,6 @@ class Connection:
 
         if self.extra:
             try:
-                extra_dejson = self.extra_dejson
                 query: str | None = urlencode(extra_dejson)
             except TypeError:
                 query = None
@@ -213,14 +215,64 @@ class Connection:
 
         return uri
 
+    def get_uri(self) -> str:
+        """Generate and return connection in URI format."""
+        return self._build_uri(self.extra_dejson)
+
+    async def aget_uri(self) -> str:
+        """
+        Async version of ``get_uri``, safe for use inside an async task.
+
+        Calls ``aextra_dejson`` so that secret masking uses ``asend()``
+        instead of the synchronous ``send()``, preventing
+        ``DeadlockImminentError`` when invoked from within an async context.
+        """
+        return self._build_uri(await self.aextra_dejson())
+
     def get_hook(self, *, hook_params=None):
         """Return hook based on conn_type."""
         from airflow.sdk._shared.module_loading import import_string
 
-        hook = ProvidersManagerTaskRuntime().hooks.get(self.conn_type, None)
+        hooks = ProvidersManagerTaskRuntime().hooks
+        hook = hooks.get(self.conn_type, None)
 
         if hook is None:
-            raise AirflowException(f'Unknown hook type "{self.conn_type}"')
+            if not self.conn_type:
+                # A URI scheme cannot contain '_' (RFC 3986), so "foo_bar://h" parses with no
+                # scheme at all and leaves conn_type empty. Name that, instead of reporting an
+                # unknown hook type of "".
+                message = (
+                    f"Connection {self.conn_id!r} has no connection type, so no hook could be "
+                    "looked up. If it was defined as a URI, note that a URI scheme cannot "
+                    "contain '_' (RFC 3986) and such a URI parses with no scheme at all: use "
+                    "'-' in the URI instead, which is decoded back to '_' on read."
+                )
+            else:
+                message = f'Unknown hook type "{self.conn_type}"'
+                # get_uri() encodes '_' as '-' because RFC 3986 forbids '_' in a scheme, and
+                # reading a connection back from a URI or from JSON decodes it again, so both
+                # characters serialize to '-' and a connection type spelled one way cannot
+                # resolve a hook registered the other way. Hooks register under the
+                # connection-type verbatim, so look the other spelling up rather than asserting
+                # which one is right, and resolve it rather than testing for membership: a
+                # registered connection type maps to None when its hook cannot be imported, and
+                # naming a spelling that still will not resolve is worse than naming none.
+                alternative = (
+                    self.conn_type.replace("-", "_")
+                    if "-" in self.conn_type
+                    else self.conn_type.replace("_", "-")
+                )
+                if alternative != self.conn_type and hooks.get(alternative) is not None:
+                    message += f", but a hook is registered for {alternative!r}. "
+                    if "-" in self.conn_type:
+                        message += "Spell this connection's type with '_' to reach it."
+                    else:
+                        message += (
+                            "Reading a connection from a URI or from JSON decodes '-' back to "
+                            "'_', so this connection cannot reach that hook; the provider has "
+                            "to declare its connection-type with '_'."
+                        )
+            raise AirflowException(message)
         try:
             hook_class = import_string(hook.hook_class_name)
         except ImportError:
@@ -304,6 +356,25 @@ class Connection:
             else:
                 mask_secret(extra)
 
+        return extra
+
+    async def aextra_dejson(self) -> dict:
+        """
+        Async version of ``extra_dejson``, safe for use inside an async task.
+
+        Uses ``amask_secret`` instead of the synchronous ``mask_secret``, so calling
+        this from within an async context does not trigger ``DeadlockImminentError``.
+        """
+        from airflow.sdk.log import amask_secret
+
+        extra: dict = {}
+        if self.extra:
+            try:
+                extra = json.loads(self.extra)
+            except JSONDecodeError:
+                log.exception("Failed to deserialize extra property `extra`, returning empty dictionary")
+            else:
+                await amask_secret(extra)
         return extra
 
     def get_extra_dejson(self) -> dict:

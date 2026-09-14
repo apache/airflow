@@ -26,6 +26,9 @@
 Changelog
 ---------
 
+9.36.0
+......
+
 .. warning::
   The default waiter timeout of ``ComprehendCreateDocumentClassifierOperator`` was raised from
   20 minutes (``waiter_max_attempts=20``) to 60 minutes (``waiter_max_attempts=60``), because
@@ -33,6 +36,34 @@ Changelog
   for completion (the default, in both synchronous and deferrable mode), tasks that previously
   failed with a waiter timeout around the 20-minute mark now keep waiting for up to an hour.
   Pass ``waiter_max_attempts`` explicitly to restore the previous timeout.
+
+Features
+~~~~~~~~
+
+* ``Scope asset API responses to the assets a user may read (#72682)``
+* ``Add dedicated exceptions for AWS waiter failures and let triggers customize event translation (#72455)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix pickle round-trip of Amazon provider exceptions (#72824)``
+* ``Fix region_name being ignored by the Step Functions execution trigger (#72625)``
+* ``Pass verify and botocore_config to GlueJobCompleteTrigger (#72557)``
+* ``Skip GCS folder-marker keys in GCSToS3Operator (#72497)``
+* ``Fix EmrContainerSensor reporting success for an unknown job state (#72500)``
+* ``Fix SageMaker Unified Studio trigger hook config (#72453)``
+* ``Increase Comprehend document classifier timeout from 20 to 60 minutes (#71969)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix incorrect documented defaults in Amazon operators and sensors (#72315)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add failure-path and serialization tests for StepFunctionsExecutionCompleteTrigger (#72570)``
+   * ``Add tests for the AWS Batch executor boto schemas (#72609)``
+   * ``Ignore Amazon Linux preview AMIs in get_latest_ami_id (#72520)``
 
 9.35.1
 ......
