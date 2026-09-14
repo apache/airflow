@@ -128,6 +128,25 @@ _DIFF_V1_PUBLIC_TASK_FIELDS = frozenset(
     }
 )
 _DIFF_V1_REDACTED_SCHEMA_TASK_FIELDS = frozenset({"_arg_bindings"})
+# _get_category classifies task fields with these; every name must be a public task field or the
+# entry is unreachable, since a non-public field is aggregated under custom_fields before lookup.
+_DIFF_V1_TASK_ASSET_FIELDS = frozenset({"inlets", "outlets"})
+_DIFF_V1_TASK_PARAM_FIELDS = frozenset({"params"})
+_DIFF_V1_TASK_DEPENDENCY_FIELDS = frozenset({"downstream_task_ids"})
+_DIFF_V1_TASK_METADATA_FIELDS = frozenset(
+    {
+        "doc",
+        "doc_json",
+        "doc_md",
+        "doc_rst",
+        "doc_yaml",
+        "owner",
+        "ui_color",
+        "ui_fgcolor",
+        "_task_display_name",
+        "task_display_name",
+    }
+)
 _DIFF_V1_PUBLIC_PARTIAL_TASK_FIELDS = _DIFF_V1_PUBLIC_TASK_FIELDS | {"task_display_name"}
 # Classify every Dag schema field explicitly so new fields require a policy decision.
 _DIFF_V1_DAG_FIELD_CATEGORIES = {
@@ -175,12 +194,25 @@ _DIFF_V1_LEGACY_DAG_FIELD_CATEGORIES = {
     "schedule": "schedule",
     "schedule_interval": "schedule",
 }
-_REDACTED_RECURSIVE_MAPPING_PATHS = {
+_RECURSIVE_MAPPING_PATHS = {
     (),
     ("dag",),
-    ("dag", "task_group"),
     ("provenance",),
     *_KEYED_COLLECTION_PATHS,
+}
+_DIFF_V1_TASK_GROUP_METADATA_FIELDS = frozenset(
+    {"group_display_name", "tooltip", "doc_md", "ui_color", "ui_fgcolor"}
+)
+_DIFF_V1_PUBLIC_TASK_GROUP_FIELDS = _DIFF_V1_TASK_GROUP_METADATA_FIELDS | {
+    "_group_id",
+    "prefix_group_id",
+    "children",
+    "upstream_group_ids",
+    "downstream_group_ids",
+    "upstream_task_ids",
+    "downstream_task_ids",
+    "expand_input",
+    "is_mapped",
 }
 
 
@@ -264,6 +296,8 @@ def build_serialized_dag_diff(
 
     result["changes"] = collector.changes
     result["truncated"] = collector.is_truncated
+    if include_values:
+        result["values"] = {"status": "available"}
     return result
 
 
@@ -312,7 +346,7 @@ _MISSING = object()
 
 
 def validate_max_changes(max_changes: int) -> None:
-    if max_changes < 1:
+    if not isinstance(max_changes, int) or isinstance(max_changes, bool) or max_changes < 1:
         raise ValueError("max_changes must be a positive integer")
     if max_changes > MAX_ALLOWED_CHANGES:
         raise ValueError(f"max_changes must not exceed {MAX_ALLOWED_CHANGES}")
@@ -341,6 +375,9 @@ def _build_diff_result(base_schema_version: int | None, target_schema_version: i
         "mode": "observed_state",
         "changes": [],
         "truncated": False,
+        # Always present so that reading result["values"]["status"] is safe for every caller
+        # of every entry point, whatever the outcome.
+        "values": {"status": "unavailable"},
     }
 
 
@@ -365,6 +402,8 @@ def _canonicalize_payload_v1(data: dict[str, Any]) -> dict[str, Any]:
     payload["dag"] = {**dag_defaults, **payload["dag"]}
     for field in _DAG_CALLBACK_FIELDS & payload["dag"].keys():
         payload["dag"][field] = True
+    if "params" in payload["dag"]:
+        payload["dag"]["params"] = _normalize_params(payload["dag"]["params"])
     _apply_task_defaults(payload)
     payload.pop("__version", None)
     return _canonicalize_value(payload, path=())
@@ -376,6 +415,11 @@ def _apply_task_defaults(payload: dict[str, Any]) -> None:
         client_defaults = {}
     if not isinstance(client_defaults, Mapping):
         raise ValueError("client_defaults is not an object")
+
+    # Fail loudly on a section this version cannot fold in: dropping it would silently
+    # compare two payloads as equal when the unhandled defaults actually differ.
+    if unknown_sections := client_defaults.keys() - {"tasks"}:
+        raise ValueError(f"unsupported client_defaults sections: {sorted(unknown_sections)}")
 
     task_defaults = client_defaults.get("tasks", {})
     if not isinstance(task_defaults, Mapping):
@@ -393,6 +437,9 @@ def _apply_task_defaults(payload: dict[str, Any]) -> None:
     outer_schema_defaults = {
         field: value for field, value in schema_defaults.items() if field not in partial_fields
     }
+    # set_task_dag_references falls back to the Dag's dates, and the serializer elides a task date
+    # that already matches, so an absent task date means the Dag's date rather than a change.
+    inherited_dates = {field: payload["dag"].get(field) for field in ("start_date", "end_date")}
     tasks = payload["dag"].get("tasks", [])
     if not isinstance(tasks, list):
         raise ValueError("dag.tasks is not a list")
@@ -403,6 +450,9 @@ def _apply_task_defaults(payload: dict[str, Any]) -> None:
             dict(task["__var"]), dict(client_defaults)
         )
         upgraded_task = OperatorSerialization._upgrade_encoded_operator(encoded_task)
+        # Operator identity is selected before client defaults are applied during hydration.
+        upgraded_task["_is_mapped"] = bool(task["__var"].get("_is_mapped", False))
+        template_fields = upgraded_task.get("template_fields", [])
         if upgraded_task.get("_is_mapped"):
             task_data = {**outer_schema_defaults, **upgraded_task}
             partial_kwargs = task_data.get("partial_kwargs", {})
@@ -421,7 +471,6 @@ def _apply_task_defaults(payload: dict[str, Any]) -> None:
                 else:
                     effective_partial_kwargs[field] = _encode_partial_field_value(field, value)
             # Match populate_operator: partial values take precedence over outer task defaults.
-            template_fields = task_data.get("template_fields", [])
             for field in partial_fields & task_data.keys():
                 value = task_data.pop(field)
                 # Outer fields are already encoded unless template handling bypasses deserialization.
@@ -435,13 +484,76 @@ def _apply_task_defaults(payload: dict[str, Any]) -> None:
         else:
             task_data = {**schema_defaults, **upgraded_task}
             _normalize_retry_backoff(task_data)
+            for field in _OPERATOR_TIMEDELTA_FIELDS & task_data.keys():
+                value = task_data[field]
+                task_data[field] = (
+                    _encode_json_value(value)
+                    if field in template_fields and field in upgraded_task
+                    else _encode_partial_field_value(field, value)
+                )
+        for field, dag_date in inherited_dates.items():
+            if task_data.get(field) is None:
+                task_data[field] = _encode_partial_field_value(field, dag_date)
+            elif field in template_fields:
+                task_data[field] = _encode_json_value(task_data[field])
+            else:
+                task_data[field] = _encode_partial_field_value(field, task_data[field])
+        if "params" in task_data and "params" not in template_fields:
+            task_data["params"] = _normalize_params(task_data["params"])
         task["__var"] = task_data
 
 
+def _normalize_params(params: Any) -> Any:
+    """Normalize legacy Params without losing the order used by the trigger form."""
+    if isinstance(params, Mapping):
+        # 2.9.2 and earlier stored params as a JSON object instead of ordered pairs.
+        pairs: Any = params.items()
+    elif isinstance(params, list):
+        pairs = params
+    else:
+        return params
+
+    normalized: dict[str, Any] = {}
+    for pair in pairs:
+        if not isinstance(pair, (list, tuple)) or len(pair) != 2:
+            # Leave an unrecognised shape to the raw comparison rather than guessing at it.
+            return params
+        name, value = pair
+        if isinstance(value, Mapping) and "__class" in value:
+            value = {
+                "default": _normalize_param_attribute(value.get("default")),
+                "description": _normalize_param_attribute(value.get("description")),
+                "schema": _normalize_param_attribute(value.get("schema") or {}),
+                "source": _normalize_param_attribute(value.get("source")),
+            }
+        else:
+            value = {
+                "default": _encode_json_value(value),
+                "description": None,
+                "schema": _encode_json_value({}),
+                "source": None,
+            }
+        normalized[str(name)] = value
+    return [[name, value] for name, value in normalized.items()]
+
+
+def _normalize_param_attribute(value: Any) -> Any:
+    # Match _deserialize_param's legacy-encoding detection without hydrating user objects.
+    if isinstance(value, Mapping) and "__type" in value:
+        return value
+    if isinstance(value, list) and all(isinstance(item, Mapping) and "__type" in item for item in value):
+        return value
+    return _encode_json_value(value)
+
+
 def _encode_partial_field_value(field: str, value: Any) -> Any:
-    # Only partial kwargs and client defaults use field-specific timedelta deserialization.
     if field in _OPERATOR_TIMEDELTA_FIELDS and value is not None:
         return {"__type": "timedelta", "__var": value}
+    if field.endswith("_date") and value is not None and not isinstance(value, str):
+        return {"__type": "datetime", "__var": value}
+    if field == "resources":
+        # Resources serialize as a raw mapping; a plain dictionary has a dict envelope instead.
+        return value
     return _encode_json_value(value)
 
 
@@ -481,7 +593,7 @@ def _canonicalize_value(value: Any, *, path: tuple[str, ...]) -> Any:
                 for key, item in sorted(value.items(), key=lambda item: _canonicalize_mapping_key(item[0]))
             )
         }
-    if isinstance(value, list):
+    if isinstance(value, (list, tuple)):
         canonical_values = [_canonicalize_value(item, path=path) for item in value]
         if path == ("dag", "tasks"):
             return _canonicalize_keyed_list(canonical_values, _get_task_id, path)
@@ -511,13 +623,7 @@ def _canonicalize_keyed_list(
             ):
                 continue
             raise ValueError(f"duplicate key {key!r} in /{'/'.join(path)}")
-        canonical_value = value
-        if path == ("dag", "tasks") and isinstance(value, Mapping) and "__var" in value:
-            task_value = dict(value["__var"])
-            if "__type" in value:
-                task_value["__type"] = value["__type"]
-            canonical_value = task_value
-        keyed_values[key] = canonical_value
+        keyed_values[key] = value
     return {key: keyed_values[key] for key in sorted(keyed_values)}
 
 
@@ -557,11 +663,25 @@ def _collect_changes(
     path: tuple[str, ...],
     collector: _ChangeCollector,
 ) -> None:
+    if before is _MISSING and after is _MISSING:
+        return
     if isinstance(before, Mapping) and isinstance(after, Mapping):
-        if not collector.include_values and _is_task_mapping_path(path):
-            _collect_redacted_task_changes(before, after, path=path, collector=collector)
+        # The walk shape never depends on ``include_values``: authorization decides what each
+        # change carries, not which changes exist, so ``max_changes`` means one thing and a
+        # caller allowed values never receives a less complete change set than a redacted one.
+        if _is_task_mapping_path(path):
+            _collect_task_changes(before, after, path=path, collector=collector)
             return
-        if not collector.include_values and not _should_recurse_redacted_mapping(path):
+        if _is_task_group_mapping_path(path):
+            _collect_public_field_changes(
+                before,
+                after,
+                path=path,
+                public_fields=_DIFF_V1_PUBLIC_TASK_GROUP_FIELDS,
+                collector=collector,
+            )
+            return
+        if not _should_recurse_mapping(path):
             if not _is_json_equal(before, after):
                 collector.add(path=path, operation="changed", before=before, after=after)
             return
@@ -575,6 +695,15 @@ def _collect_changes(
         return
 
     if isinstance(before, list) and isinstance(after, list):
+        if (
+            _is_task_group_child_path(path)
+            and len(before) == len(after) == 2
+            and before[0] == after[0] == "taskgroup"
+            and isinstance(before[1], Mapping)
+            and isinstance(after[1], Mapping)
+        ):
+            _collect_changes(before[1], after[1], path=path + ("1",), collector=collector)
+            return
         if not _is_json_equal(before, after):
             collector.add(path=path, operation="changed", before=before, after=after)
         return
@@ -587,14 +716,38 @@ def _collect_changes(
         collector.add(path=path, operation="changed", before=before, after=after)
 
 
-def _collect_redacted_task_changes(
+def _collect_task_changes(
     before: Mapping[str, Any],
     after: Mapping[str, Any],
     *,
     path: tuple[str, ...],
     collector: _ChangeCollector,
 ) -> None:
-    public_fields = _DIFF_V1_PUBLIC_PARTIAL_TASK_FIELDS if len(path) == 4 else _DIFF_V1_PUBLIC_TASK_FIELDS
+    if len(path) == 3:
+        _collect_changes(
+            before.get("__type", _MISSING),
+            after.get("__type", _MISSING),
+            path=path + ("__type",),
+            collector=collector,
+        )
+        if collector.is_truncated:
+            return
+        before, after = before["__var"], after["__var"]
+        public_fields = _DIFF_V1_PUBLIC_TASK_FIELDS - {"__type"}
+    else:
+        public_fields = _DIFF_V1_PUBLIC_PARTIAL_TASK_FIELDS
+    _collect_public_field_changes(before, after, path=path, public_fields=public_fields, collector=collector)
+
+
+def _collect_public_field_changes(
+    before: Mapping[str, Any],
+    after: Mapping[str, Any],
+    *,
+    path: tuple[str, ...],
+    public_fields: frozenset[str] | set[str],
+    collector: _ChangeCollector,
+) -> None:
+    """Walk allowlisted fields one by one and report everything else as a single change."""
     keys = {str(key) for key in before} | {str(key) for key in after}
     for key in sorted(keys & public_fields):
         _collect_changes(
@@ -623,11 +776,44 @@ def _is_task_mapping_path(path: tuple[str, ...]) -> bool:
     )
 
 
-def _should_recurse_redacted_mapping(path: tuple[str, ...]) -> bool:
-    return path in _REDACTED_RECURSIVE_MAPPING_PATHS
+def _is_task_group_mapping_path(path: tuple[str, ...]) -> bool:
+    index = _get_task_group_field_index(path)
+    return index is not None and len(path) == index
+
+
+def _should_recurse_mapping(path: tuple[str, ...]) -> bool:
+    if path in _RECURSIVE_MAPPING_PATHS:
+        return True
+    index = _get_task_group_field_index(path)
+    return index is not None and path[index:] == ("children",)
+
+
+def _get_task_group_field_index(path: tuple[str, ...]) -> int | None:
+    if path[:2] != ("dag", "task_group"):
+        return None
+    index = 2
+    while len(path) >= index + 3 and path[index] == "children" and path[index + 2] == "1":
+        index += 3
+    return index
+
+
+def _is_task_group_child_path(path: tuple[str, ...]) -> bool:
+    index = _get_task_group_field_index(path)
+    return index is not None and len(path) == index + 2 and path[index] == "children"
 
 
 def _get_public_path(path: tuple[str, ...]) -> tuple[str, ...]:
+    if path[:2] == ("dag", "task_group"):
+        public_path = list(path)
+        index = 2
+        while len(path) >= index + 2 and path[index] == "children":
+            public_path[index + 1] = "*"
+            if len(path) < index + 3 or path[index + 2] != "1":
+                return tuple(public_path)
+            index += 3
+        if len(path) > index and path[index] not in _DIFF_V1_PUBLIC_TASK_GROUP_FIELDS:
+            public_path[index] = "custom_fields"
+        return tuple(public_path)
     if len(path) >= 3 and path[:2] in _KEYED_COLLECTION_PATHS:
         path = (*path[:2], "*", *path[3:])
     if len(path) >= 4 and path[:2] == ("dag", "tasks"):
@@ -675,71 +861,29 @@ def _get_category(path: tuple[str, ...]) -> str:
             field = lowered_path[4]
     elif lowered_path and lowered_path[0] == "dag":
         field = lowered_path[1] if len(lowered_path) >= 2 else ""
-        if (
-            field == "task_group"
-            and len(lowered_path) >= 3
-            and lowered_path[2]
-            in {
-                "group_display_name",
-                "tooltip",
-                "doc_md",
-                "ui_color",
-                "ui_fgcolor",
-            }
-        ):
-            return "metadata"
+        if field == "task_group":
+            index = _get_task_group_field_index(lowered_path)
+            if index is not None and len(lowered_path) > index:
+                if lowered_path[index] in _DIFF_V1_TASK_GROUP_METADATA_FIELDS:
+                    return "metadata"
         return _DIFF_V1_DAG_FIELD_CATEGORIES.get(
             field, _DIFF_V1_LEGACY_DAG_FIELD_CATEGORIES.get(field, "unknown")
         )
     else:
         return "unknown"
 
-    if field == "deadline":
-        return "deadline"
+    # Only task paths reach here: the Dag branch above returns its own category, so a Dag field
+    # name in these sets could never match. Anything unclassified falls back to the task default,
+    # which over-reports impact rather than under-reporting it.
     if field is not None and "callback" in field:
         return "callback"
-    if field in {"asset", "assets", "inlets", "outlets"}:
+    if field in _DIFF_V1_TASK_ASSET_FIELDS:
         return "asset"
-    if field in {"param", "params", "default_args"}:
+    if field in _DIFF_V1_TASK_PARAM_FIELDS:
         return "param"
-    if field in {
-        "dag_dependencies",
-        "dependencies",
-        "edge_info",
-        "upstream_task_ids",
-        "downstream_task_ids",
-    }:
+    if field in _DIFF_V1_TASK_DEPENDENCY_FIELDS:
         return "dependency"
-    if field in {
-        "schedule",
-        "schedule_interval",
-        "timetable",
-        "catchup",
-        "max_active_runs",
-        "max_active_tasks",
-        "dagrun_timeout",
-        "fail_fast",
-        "fail_stop",
-        "allowed_run_types",
-    }:
-        return "schedule"
-    if field in {
-        "tags",
-        "description",
-        "doc",
-        "doc_json",
-        "doc_md",
-        "doc_rst",
-        "doc_yaml",
-        "owner",
-        "owners",
-        "email",
-        "fileloc",
-        "ui_color",
-        "ui_fgcolor",
-        "_task_display_name",
-        "task_display_name",
-    }:
+    if field in _DIFF_V1_TASK_METADATA_FIELDS:
         return "metadata"
     return "task"
 
