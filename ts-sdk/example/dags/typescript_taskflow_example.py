@@ -17,16 +17,16 @@
 
 
 """
-A second Python-owned Dag served by the same TypeScript bundle.
+TaskFlow argument binding across the language boundary.
 
-``typescript_example`` shows the basics; this Dag exists so one bundle provides
-for two ``dag_id``s at once. Its ``build_message`` stub deliberately shares a
-``task_id`` with a task in ``typescript_example``: a handler binds the
-``(dag_id, task_id)`` pair, so the two are different tasks with different
-bodies. See ``src/taskflow.ts``.
+``typescript_example`` shows the basics; this Dag exercises binding itself.
+``summarize`` is called TaskFlow-style, and every argument its call passes
+reaches the TypeScript handler by name.
 
-Argument binding lands next: these stubs take no arguments yet, so the handlers
-read what they need from XCom explicitly.
+This Dag is also served by the same bundle as ``typescript_example``, and its
+``build_message`` stub deliberately shares a ``task_id`` with a task there: a
+handler binds the ``(dag_id, task_id)`` pair, so the two are different tasks
+with different bodies. See ``src/taskflow.ts``.
 """
 
 from __future__ import annotations
@@ -39,8 +39,14 @@ def make_totals():
     return {"orders": 12, "revenue": 3402.0}
 
 
+# `region_code` and `dry_run` are snake_case on purpose. Names bind by folding
+# on both sides, lowercased with underscores removed, so they reach the
+# handler's `regionCode` and `dryRun` with nothing declared on either side.
+#
+# The call below leaves `dry_run` at its default, so that binding arrives
+# flagged `from_default`; the handler cannot tell, and should not need to.
 @task.stub(queue="typescript")
-def summarize(): ...
+def summarize(region_code: str, currency: str, threshold: float, dry_run: bool = False): ...
 
 
 # Same task_id as `typescript_example.build_message`, on purpose.
@@ -55,7 +61,7 @@ def build_message(): ...
     tags=["typescript", "example", "taskflow"],
 )
 def typescript_taskflow_example():
-    make_totals() >> summarize() >> build_message()
+    make_totals() >> summarize("uk", "GBP", 280.0) >> build_message()
 
 
 typescript_taskflow_example()

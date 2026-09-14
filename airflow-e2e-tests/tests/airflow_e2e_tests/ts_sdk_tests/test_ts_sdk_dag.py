@@ -31,10 +31,13 @@ the volume-provided Node runtime, that Variable/Connection reads and Python <->
 TypeScript XCom round-trips work through the Task Execution API, and that
 coordinator-channel logs reach the task-log store.
 
-``typescript_taskflow_example`` confirms that one bundle provides for two
-``dag_id``s: its ``build_message`` shares a ``task_id`` with a task in
+``typescript_taskflow_example`` confirms two things. One bundle provides for
+two ``dag_id``s: its ``build_message`` shares a ``task_id`` with a task in
 ``typescript_example``, so a bundle that keyed dispatch on the task ID alone
-would run the wrong handler for one of them.
+would run the wrong handler for one of them. And the arguments its
+``summarize(...)`` call passes reach the TypeScript handler by name, folded
+across the snake_case/camelCase boundary, through a real supervisor rather than
+a stubbed client.
 """
 
 from __future__ import annotations
@@ -165,13 +168,31 @@ def test_second_dag_from_the_same_bundle_succeeded(completed_taskflow_run: _Comp
         )
 
 
-def test_summarize_xcom(completed_taskflow_run: _CompletedRun):
-    """``summarize`` reads ``make_totals``'s output and averages it."""
+def test_summarize_binds_its_call_arguments(completed_taskflow_run: _CompletedRun):
+    """Every argument the Dag's ``summarize("uk", "GBP", 280.0)`` call passes.
+
+    ``region_code`` and ``dry_run`` are snake_case in the ``@task.stub``
+    signature and camelCase in the handler, with nothing declared on either
+    side: folding is what carries them across. ``dry_run`` is left out of the
+    call, so it arrives from the stub's default.
+
+    A handler that received none of them would see ``undefined`` for each and
+    return nulls and ``NaN`` here rather than failing, which is why the whole
+    returned object is asserted.
+    """
     assert completed_taskflow_run.xcom("make_totals") == {"orders": 12, "revenue": 3402.0}
     value = completed_taskflow_run.xcom("summarize")
-    assert value == {"orders": 12, "averageOrder": 283.5, "currency": "GBP"}, (
-        f"unexpected 'summarize' return_value: {value!r}"
-    )
+    assert value == {
+        "regionCode": "uk",
+        "orders": 12,
+        "averageOrder": 283.5,
+        "currency": "GBP",
+        "passed": True,
+        "dryRun": False,
+    }, f"unexpected 'summarize' return_value: {value!r}"
+    # Written only when `dryRun` is false, so this also proves the defaulted
+    # boolean arrived as `false` rather than as `undefined`.
+    assert completed_taskflow_run.xcom("summarize", key="summary_line") == "uk: 12 orders"
 
 
 def test_same_task_id_under_two_dags_runs_its_own_handler(
@@ -191,5 +212,5 @@ def test_same_task_id_under_two_dags_runs_its_own_handler(
     )
     assert taskflow_value == {
         "dagId": _TASKFLOW_DAG_ID,
-        "message": "12 orders averaging 283.5 GBP",
+        "message": "uk: 12 orders averaging 283.5 GBP",
     }, f"unexpected 'typescript_taskflow_example.build_message' return_value: {taskflow_value!r}"

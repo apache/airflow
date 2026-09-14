@@ -24,10 +24,10 @@ import { brand, hasBrand } from "./brand.js";
 import type { TaskFunction } from "./task.js";
 
 // Assigned inside TaskHandler's static block, as Dag does for its tasks.
-let functionOf: (handler: TaskHandler) => TaskFunction;
+let functionOf: (handler: TaskHandler<never, unknown>) => TaskFunction;
 
 /** Internal: whether `value` is a TaskHandler built by any copy of this package. */
-export function isTaskHandler(value: unknown): value is TaskHandler {
+export function isTaskHandler(value: unknown): value is TaskHandler<never, unknown> {
   return hasBrand(value, "TaskHandler");
 }
 
@@ -62,18 +62,18 @@ function requireId(label: string, value: string): string {
  * one the way a natively declared task is wired is a compile error rather than
  * a runtime throw. For a native Dag, use {@link Dag} instead.
  */
-export class TaskHandler<TReturn = unknown> {
+export class TaskHandler<TArgs = void, TReturn = unknown> {
   /** Identifier of the Python Dag this task belongs to. */
   readonly dagId: string;
   /** Airflow task ID this handler implements, including any TaskGroup prefix. */
   readonly taskId: string;
-  readonly #handler: TaskFunction<TReturn>;
+  readonly #handler: TaskFunction<TArgs, TReturn>;
 
   static {
     functionOf = (handler) => handler.#handler as TaskFunction;
   }
 
-  constructor(dagId: string, taskId: string, handler: TaskFunction<TReturn>) {
+  constructor(dagId: string, taskId: string, handler: TaskFunction<TArgs, TReturn>) {
     this.dagId = requireId("dagId", dagId);
     this.taskId = requireId("taskId", taskId);
     if (typeof handler !== "function") {
@@ -92,6 +92,6 @@ export class TaskHandler<TReturn = unknown> {
  * private for the same reason `TaskRef` does not expose its handler: what a
  * handler binds is identity, and reaching the body is the runtime's business.
  */
-export function getTaskHandlerFunction(handler: TaskHandler): TaskFunction {
+export function getTaskHandlerFunction(handler: TaskHandler<never, unknown>): TaskFunction {
   return functionOf(handler);
 }

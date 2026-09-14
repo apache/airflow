@@ -58,6 +58,21 @@ await bundle.serve();
 Dags; dispatch keys on the `(dagId, taskId)` pair. `Dag` is the separate,
 native case, for a Dag declared in TypeScript rather than in Python.
 
+When the Python Dag calls a stub task TaskFlow-style, those arguments reach the
+handler by name. Names bind by folding on both sides, lowercased with underscores removed,
+so a Python `region_code` reaches a handler's `regionCode` with nothing declared:
+
+```ts
+interface TransformArgs {
+  regionCode: string;
+  threshold: number;
+}
+
+export async function transform({ regionCode, threshold }: TransformArgs) {
+  // ...
+}
+```
+
 ## Coordinators
 
 Airflow runs TypeScript task bundles through the Python-side `NodeCoordinator`

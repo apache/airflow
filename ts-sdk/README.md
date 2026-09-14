@@ -169,6 +169,53 @@ await new Bundle(
 mixture, so a bundle that collects what it provides across several modules can
 call it repeatedly instead of passing everything to the constructor.
 
+## TaskFlow arguments
+
+A Python Dag that calls a stub task TaskFlow-style passes those arguments straight to the handler,
+which destructures them by name:
+
+```python
+# the Python Dag
+@task.stub(queue="typescript")
+def transform(region_code: str, threshold: float, dry_run: bool = False): ...
+
+
+transform("uk", 0.75)
+```
+
+```ts
+interface TransformArgs {
+  regionCode: string;
+  threshold: number;
+  dryRun: boolean;
+}
+
+export async function transform({ regionCode, threshold, dryRun }: TransformArgs) {
+  // ...
+}
+```
+
+Names bind by **folding on both sides**, lowercased with underscores removed, so `region_code` reaches
+`regionCode`, `Name` reaches `name`, and `s3_uri` reaches `s3Uri` with nothing declared on either side.
+The Go SDK folds the same way, so one Python signature binds identically in either SDK.
+An argument the call leaves at its default arrives with the default's value.
+
+A name nothing folds to is **logged, not thrown**: a destructuring default (`{ runId = "manual" }`) is a
+legitimate miss, and the runtime cannot tell one from a typo.
+The warning names both what was requested and what the call actually delivered,
+and a failing task reports the same list.
+
+`Object.keys` and rest destructuring (`{ ...rest }`) yield Python's names, since the SDK has no
+TypeScript-side names to enumerate, and `in` folds like a read.
+Two Python names that fold to the same token fail the task at dispatch, naming both.
+
+An upstream's return value is not a bound argument unless the Python call passes it.
+Read one the task was not passed explicitly:
+
+```ts
+const rows = await getClient().getXCom<number>({ key: "return_value", taskId: "extract" });
+```
+
 `Dag` is for a Dag declared natively in TypeScript, which is still being built out.
 `new Dag` and `dag.task` take a trailing options object (`spec` on both, plus `inputs` on a task) that is not used yet.
 Do not set them, and do not mix a `Dag` and task handlers under one `dagId`: a native Dag owns its own tasks.

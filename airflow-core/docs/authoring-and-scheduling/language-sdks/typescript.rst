@@ -141,11 +141,54 @@ object (``spec`` on both, plus ``inputs`` on a task) that is not used yet; do no
 A task handler has no factory to call, so wiring one the way a natively declared task is wired is a
 compile error rather than a runtime throw.
 
+TaskFlow arguments
+~~~~~~~~~~~~~~~~~~
+
+A Python Dag that calls a stub task TaskFlow-style passes those arguments straight to the handler, which
+destructures them by name:
+
+.. code-block:: python
+
+    @task.stub(queue="typescript")
+    def transform(region_code: str, threshold: float, dry_run: bool = False): ...
+
+
+    transform("uk", 0.75)
+
+.. code-block:: typescript
+
+    interface TransformArgs {
+      regionCode: string;
+      threshold: number;
+      dryRun: boolean;
+    }
+
+    export async function transform({ regionCode, threshold, dryRun }: TransformArgs) {
+      // ...
+    }
+
+Names bind by **folding on both sides**, lowercased with underscores removed, so ``region_code`` reaches
+``regionCode``, ``Name`` reaches ``name``, and ``s3_uri`` reaches ``s3Uri`` with nothing declared on either side.
+The Go SDK folds identically, so one Python signature binds the same way in either SDK.
+An argument the call leaves at its default arrives carrying the default's value.
+
+A name nothing folds to is **logged, not thrown**: a destructuring default (``{ runId = "manual" }``) is a
+legitimate miss, and the runtime cannot tell one from a typo.
+The warning names both what the handler asked for and what the call actually delivered,
+and a failing task reports the same list.
+
+Two Python names that fold to the same token fail the task at dispatch, naming both.
+Neither could be reached, and picking either silently would hand the handler the wrong value.
+
+``Object.keys`` and rest destructuring (``{ ...rest }``) yield Python's names, since the SDK has no
+TypeScript-side names to enumerate; ``in`` folds like a read.
+
 .. note::
 
-  As with the other language SDKs, XCom *dependencies* are declared in the Python stub Dag (they define task
-  order). The value must still be read explicitly in TypeScript via ``getClient().getXCom``, and produced
-  either by the task's return value or by ``getClient().setXCom``.
+  An upstream's return value is not a bound argument unless the Python call passes it. As with the other
+  language SDKs, XCom *dependencies* declared with ``>>`` in the Python stub Dag define task order only.
+  Read a value the task was not passed explicitly via ``getClient().getXCom``, and produce one either by
+  the task's return value or by ``getClient().setXCom``.
 
 Coordinator configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~

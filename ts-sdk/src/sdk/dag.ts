@@ -165,9 +165,9 @@ export class Dag {
    * `taskId` must match the Dag-side operator's `task_id` exactly, including
    * any TaskGroup prefix. Returns this task's handle.
    */
-  task<TReturn = unknown>(
+  task<TArgs = void, TReturn = unknown>(
     taskId: string,
-    handler: TaskFunction<TReturn>,
+    handler: TaskFunction<TArgs, TReturn>,
     options: TaskOptions = {},
   ): TaskRef {
     if (typeof handler !== "function") {
