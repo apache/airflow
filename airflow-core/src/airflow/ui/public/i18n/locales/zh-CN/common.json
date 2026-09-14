@@ -216,7 +216,7 @@
   "presetFilters": {
     "deleteTitle": "删除预设筛选条件",
     "deleteWarning": "预设筛选条件仅保存在此浏览器中。",
-    "duplicate": "已有预设筛选条件 {{name}} 保存了相同的设置。",
+    "duplicate": "已有预设筛选条件 \"{{name}}\" 保存了相同的设置。",
     "empty": "暂无预设筛选条件",
     "info": {
       "default": "将预设筛选条件设为默认后，在未应用筛选条件的情况下进入此页面时，将自动应用该预设。",
@@ -244,7 +244,7 @@
       "bottom": "最下方",
       "top": "最上方"
     },
-    "tooltip": "按 {{hotkey}} 滚动到 {{direction}}"
+    "tooltip": "按 {{hotkey}} 滚动到{{direction}}"
   },
   "search": {
     "advanced": {
@@ -341,14 +341,14 @@
       "scrollBottom": "滚动到最下方",
       "scrollTop": "滚动到最上方",
       "searchDags": "搜索 $t(dag_other)",
-      "showHelp": "显示 $t(shortcuts.title)",
+      "showHelp": "显示$t(shortcuts.title)",
       "toggleExpand": "展开或收起所有分组",
       "toggleFullscreen": "切换全屏",
       "toggleGraphGrid": "切换图形与网格视图",
       "toggleSource": "切换来源显示",
-      "toggleTaskGroup": "展开或收起 $t(taskGroup_one)",
+      "toggleTaskGroup": "展开或收起$t(taskGroup_one)",
       "toggleTimestamp": "切换时间戳显示",
-      "toggleWrap": "切换 $t(wrap.wrap)"
+      "toggleWrap": "切换$t(wrap.wrap)"
     },
     "empty": "此页面没有可用的键盘快捷键。",
     "title": "键盘快捷键"
