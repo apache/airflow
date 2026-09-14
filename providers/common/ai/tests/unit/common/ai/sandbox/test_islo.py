@@ -16,6 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import os
+import signal
+import subprocess
+import time
+from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
@@ -33,9 +38,14 @@ from airflow.providers.common.ai.sandbox.base import (
     SandboxSpec,
     SandboxTerminalError,
 )
-from airflow.providers.common.ai.sandbox.islo import IsloSandboxBackend
+from airflow.providers.common.ai.sandbox.islo import (
+    _COMMAND_WRAPPER,
+    IsloSandboxBackend,
+    _bound_result_stream,
+)
 
-_BASE_HOOK_PATH = "airflow.providers.common.ai.sandbox.islo.BaseHook"
+_MODULE = "airflow.providers.common.ai.sandbox.islo"
+_BASE_HOOK_PATH = f"{_MODULE}.BaseHook"
 _ISLO_PATH = "islo.Islo"
 
 
@@ -43,7 +53,7 @@ def _connection(password="secret-key", host=None, extra=None):
     return SimpleNamespace(password=password, host=host, extra_dejson=extra or {})
 
 
-def _exec_result(status="completed", exit_code=0, stdout="0\n", stderr="0\n", truncated=False):
+def _exec_result(status="completed", exit_code=0, stdout="", stderr="", truncated=False):
     return SimpleNamespace(
         status=status, exit_code=exit_code, stdout=stdout, stderr=stderr, truncated=truncated
     )
@@ -197,6 +207,38 @@ class TestCreate:
         with pytest.raises(SandboxTerminalError, match="HTTP 503"):
             backend.create()
 
+    def test_a_failed_create_deletes_the_name_it_had_already_bound(self):
+        backend, client = _backend_with_client()
+        client.sandboxes.create_sandbox.side_effect = ApiError(status_code=503)
+
+        with pytest.raises(SandboxTerminalError):
+            backend.create()
+
+        # The server may have provisioned the microVM before failing to answer,
+        # and this name is the only handle that can still reclaim it.
+        requested = client.sandboxes.create_sandbox.call_args.kwargs["name"]
+        client.sandboxes.delete_sandbox.assert_called_once()
+        assert client.sandboxes.delete_sandbox.call_args.kwargs["sandbox_name"] == requested
+
+    def test_a_cleanup_failure_does_not_mask_the_original_create_error(self):
+        backend, client = _backend_with_client()
+        client.sandboxes.create_sandbox.side_effect = ApiError(status_code=503)
+        client.sandboxes.delete_sandbox.side_effect = ApiError(status_code=500)
+
+        with pytest.raises(SandboxTerminalError, match="HTTP 503"):
+            backend.create()
+
+    def test_spec_env_is_forwarded_so_it_is_never_silently_dropped(self):
+        backend, client = _backend_with_client()
+
+        backend.create(spec=SandboxSpec(env={"TOKEN": "value", "OTHER": "2"}))
+
+        # base.py treats dropping a SandboxSpec field as a contract violation.
+        assert client.sandboxes.create_sandbox.call_args.kwargs["env"] == {
+            "TOKEN": "value",
+            "OTHER": "2",
+        }
+
 
 class TestRunCommand:
     def test_polls_with_backoff(self):
@@ -205,7 +247,7 @@ class TestRunCommand:
             _exec_result(status="running"),
             _exec_result(status="running"),
             _exec_result(status="running"),
-            _exec_result(stdout="0\ndone"),
+            _exec_result(stdout="done"),
         ]
 
         with mock.patch("time.sleep", autospec=True) as sleep:
@@ -225,37 +267,59 @@ class TestRunCommand:
         command = client.sandboxes.exec_in_sandbox.call_args.kwargs["command"]
         assert command[:2] == ["sh", "-c"]
         assert user_command not in command[2]
-        assert command[4:] == [user_command, "1024"]
+        # One byte over the budget, so an over-budget stream proves truncation.
+        assert command[4:] == [user_command, "1025"]
 
-    def test_keeps_the_bounded_tail_and_truncation_flags(self):
+    def test_a_stream_within_budget_is_passed_through_untouched(self):
         backend, client = _backend_with_client()
-        client.sandboxes.get_exec_result.return_value = _exec_result(
-            stdout="1\nstdout-tail", stderr="1\nstderr-tail"
-        )
+        client.sandboxes.get_exec_result.return_value = _exec_result(stdout="a\nb\n", stderr="err\n")
 
         result = backend.run_command("box", "x", timeout=5, max_output_bytes=1024)
 
-        assert result.stdout == "stdout-tail"
-        assert result.stderr == "stderr-tail"
+        assert result.stdout == "a\nb\n"
+        assert result.stderr == "err\n"
+        assert not result.stdout_truncated
+        assert not result.stderr_truncated
+
+    def test_an_over_budget_stream_keeps_the_tail_and_reports_truncation(self):
+        backend, client = _backend_with_client()
+        client.sandboxes.get_exec_result.return_value = _exec_result(
+            stdout="line1\nline2\nline3\n", stderr="e1\ne2\ne3\n"
+        )
+
+        result = backend.run_command("box", "x", timeout=5, max_output_bytes=8)
+
+        assert result.stdout == "line3\n"
+        assert result.stderr == "e2\ne3\n"
         assert result.stdout_truncated
         assert result.stderr_truncated
 
-    def test_applies_a_utf8_byte_cap_as_a_second_defence(self):
+    def test_truncation_never_emits_a_partial_leading_line(self):
         backend, client = _backend_with_client()
-        client.sandboxes.get_exec_result.return_value = _exec_result(stdout="0\nééé")
+        # A byte-aligned cut of the last 4 bytes would land inside "line988".
+        client.sandboxes.get_exec_result.return_value = _exec_result(stdout="line988\nline989\n")
 
-        result = backend.run_command("box", "x", timeout=5, max_output_bytes=4)
+        result = backend.run_command("box", "x", timeout=5, max_output_bytes=12)
 
-        assert result.stdout == "éé"
+        assert result.stdout == "line989\n"
         assert result.stdout_truncated
 
-    def test_a_missing_wrapper_header_is_treated_as_truncated(self):
+    def test_a_single_line_over_budget_is_cut_rather_than_dropped(self):
         backend, client = _backend_with_client()
         client.sandboxes.get_exec_result.return_value = _exec_result(stdout="abcdef")
 
         result = backend.run_command("box", "x", timeout=5, max_output_bytes=3)
 
         assert result.stdout == "def"
+        assert result.stdout_truncated
+
+    def test_applies_the_byte_cap_on_utf8_boundaries(self):
+        backend, client = _backend_with_client()
+        client.sandboxes.get_exec_result.return_value = _exec_result(stdout="ééé")
+
+        result = backend.run_command("box", "x", timeout=5, max_output_bytes=4)
+
+        assert result.stdout == "éé"
         assert result.stdout_truncated
 
     def test_server_truncation_is_reported_for_both_streams(self):
@@ -277,13 +341,47 @@ class TestRunCommand:
         assert result.sandbox_terminated
         client.sandboxes.delete_sandbox.assert_called_once()
 
+    @mock.patch(f"{_MODULE}.log", autospec=True)
     @mock.patch.object(IsloSandboxBackend, "_await_exec", autospec=True, return_value=None)
-    def test_timeout_cleanup_failure_is_terminal(self, _await_exec):
+    def test_timeout_cleanup_failure_warns_and_leaves_the_ttl_to_reclaim(self, _await_exec, logger):
         backend, client = _backend_with_client()
         client.sandboxes.delete_sandbox.side_effect = ApiError(status_code=503)
 
-        with pytest.raises(SandboxTerminalError, match="deletion.*could not be confirmed"):
-            backend.run_command("box", "x", timeout=5, max_output_bytes=1024)
+        result = backend.run_command("box", "x", timeout=5, max_output_bytes=1024)
+
+        # A command that merely ran long must not fail the task because one
+        # cleanup call was refused; delete_after reclaims the microVM anyway.
+        assert result.timed_out
+        assert result.sandbox_terminated
+        assert "could not confirm its deletion" in logger.warning.call_args.args[0]
+
+    @pytest.mark.parametrize("status", ["cancelled", "dead", "something-new"])
+    def test_an_unrecognised_status_is_terminal_rather_than_still_running(self, status):
+        backend, client = _backend_with_client()
+        client.sandboxes.get_exec_result.return_value = _exec_result(status=status, exit_code=None)
+
+        result = backend.run_command("box", "x", timeout=5, max_output_bytes=1024)
+
+        # The vendor types status as a plain string, so the vocabulary can grow.
+        # Reading an unknown value as still-running would poll to the deadline
+        # and then destroy the sandbox, costing the agent its files.
+        assert result.exit_code == -1
+        assert not result.timed_out
+        assert not result.sandbox_terminated
+        client.sandboxes.delete_sandbox.assert_not_called()
+
+    @pytest.mark.parametrize("status", ["pending", "queued", "starting", "running"])
+    def test_in_flight_statuses_keep_polling(self, status):
+        backend, client = _backend_with_client()
+        client.sandboxes.get_exec_result.side_effect = [
+            _exec_result(status=status),
+            _exec_result(stdout="eventually\n"),
+        ]
+
+        with mock.patch("time.sleep", autospec=True):
+            result = backend.run_command("box", "x", timeout=60, max_output_bytes=1024)
+
+        assert result.stdout == "eventually\n"
 
     def test_server_timeout_also_destroys_the_sandbox(self):
         backend, client = _backend_with_client()
@@ -457,3 +555,133 @@ class TestDestroy:
 
         with pytest.raises(SandboxTerminalError, match="delete a sandbox"):
             backend.destroy("box")
+
+    def test_delete_keeps_the_sdk_retries(self):
+        backend, client = _backend_with_client()
+
+        backend.destroy("box")
+
+        # Deletion is idempotent and is the only call whose failure strands a
+        # microVM, so it must not be the one call that never retries.
+        options = client.sandboxes.delete_sandbox.call_args.kwargs["request_options"]
+        assert options["max_retries"] > 0
+
+
+def _run_wrapper(command: str, max_output_bytes: int, *, timeout: float = 30.0):
+    """Run the real wrapper through a local ``sh``, exactly as the backend invokes it."""
+    return subprocess.run(
+        [
+            "sh",
+            "-c",
+            _COMMAND_WRAPPER,
+            "airflow-sandbox",
+            command,
+            str(max_output_bytes + 1),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        check=False,
+    )
+
+
+class TestCommandWrapper:
+    """
+    Execute ``_COMMAND_WRAPPER`` for real, rather than asserting on its text.
+
+    Every other test in this module mocks ``exec_in_sandbox``, so without these
+    the wrapper only ever runs in the system test, which needs a live API key and
+    so does not run in ordinary CI. A local ``sh`` needs no Islo access at all.
+    """
+
+    def test_reports_stdout_stderr_and_the_exit_status_separately(self):
+        result = _run_wrapper("echo out; echo err >&2; exit 3", 1024)
+
+        assert result.stdout == "out\n"
+        assert result.stderr == "err\n"
+        assert result.returncode == 3
+
+    def test_a_backgrounded_process_does_not_hold_the_command_open(self):
+        # The command's foreground part finishes at once. Waiting for the capture
+        # to reach end-of-input would block until the backgrounded child exits,
+        # and past the deadline the backend destroys the sandbox -- so the agent
+        # would lose its files over a command that already finished.
+        start = time.monotonic()
+        result = _run_wrapper("sleep 20 & echo started", 1024)
+        elapsed = time.monotonic() - start
+
+        assert result.stdout == "started\n"
+        assert result.returncode == 0
+        assert elapsed < 5.0
+
+    def test_a_long_lived_daemon_does_not_hold_the_command_open(self):
+        start = time.monotonic()
+        result = _run_wrapper("nohup sleep 300 & echo server-started", 1024)
+        elapsed = time.monotonic() - start
+
+        assert result.stdout == "server-started\n"
+        assert elapsed < 5.0
+
+    def test_does_not_change_the_permissions_of_what_the_agent_creates(self, tmp_path):
+        result = _run_wrapper(f"cd {tmp_path} && touch a_file && mkdir a_dir && ls -ld a_dir a_file", 4096)
+
+        # A umask left in force for the agent's command would make these 700/600.
+        assert result.returncode == 0
+        modes = [line.split()[0] for line in result.stdout.strip().splitlines()]
+        assert all(mode.startswith(("drwxr-xr-x", "-rw-r--r--")) for mode in modes), result.stdout
+
+    def test_the_scratch_directory_is_private_while_in_use_and_gone_after(self, tmp_path):
+        scratch_root = Path(os.environ.get("TMPDIR", "/tmp"))
+        pattern = "airflow-sandbox-[0-9]*"
+        assert not list(scratch_root.glob(pattern)), "a previous run leaked a scratch directory"
+
+        process = subprocess.Popen(
+            ["sh", "-c", _COMMAND_WRAPPER, "airflow-sandbox", "sleep 2", "1024"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        try:
+            deadline = time.monotonic() + 5.0
+            scratch: list[Path] = []
+            while not scratch and time.monotonic() < deadline:
+                scratch = list(scratch_root.glob(pattern))
+                time.sleep(0.05)
+            assert scratch, "the wrapper never created its scratch directory"
+            # The capture files sit here, so the agent's command must not be able
+            # to hand them to another user in a shared image.
+            assert scratch[0].stat().st_mode & 0o777 == 0o700
+        finally:
+            process.communicate(timeout=30)
+
+        assert not list(scratch_root.glob(pattern))
+
+    def test_keeps_the_tail_and_never_a_partial_leading_line(self):
+        cap = 100
+        result = _run_wrapper("i=1; while [ $i -le 1000 ]; do echo line$i; i=$((i+1)); done", cap)
+
+        # The wrapper is asked for cap+1 bytes, so the backend can tell the
+        # stream was over budget; the first record must still be whole.
+        assert len(result.stdout.encode()) == cap + 1
+        payload, truncated = _bound_result_stream(result.stdout, cap, server_truncated=False)
+        assert truncated
+        assert payload.endswith("line1000\n")
+        assert all(line.startswith("line") for line in payload.splitlines())
+
+    def test_a_terminated_command_exits_nonzero_without_emitting_garbage(self):
+        process = subprocess.Popen(
+            ["sh", "-c", _COMMAND_WRAPPER, "airflow-sandbox", "sleep 30", "1024"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            start_new_session=True,
+        )
+        time.sleep(1.0)
+        # What stopping the microVM looks like from inside it.
+        os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+        stdout, _ = process.communicate(timeout=30)
+
+        # A trap that cleans up and then falls through would carry on with its
+        # scratch files already deleted and report a clean exit 0.
+        assert process.returncode != 0
+        assert stdout == ""

@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import logging
 import math
 import shlex
 import time
@@ -43,33 +44,40 @@ if TYPE_CHECKING:
 
     from airflow.providers.common.ai.sandbox.base import SandboxSpec
 
-_TERMINAL_EXEC_STATUSES = frozenset({"completed", "failed", "timeout"})
+log = logging.getLogger(__name__)
+
+# The vendor types ``status`` as a plain string on a model that allows extra
+# fields, so the vocabulary is open-ended. Track the statuses that mean "not
+# finished yet" instead of the ones that mean "finished": an unrecognised status
+# then reads as terminal, which surfaces a failure, rather than as still-running,
+# which would poll to the deadline and cost the agent its sandbox.
+_RUNNING_EXEC_STATUSES = frozenset({"pending", "queued", "starting", "running"})
 _POLL_INITIAL = 0.2
 _POLL_MAX = 2.0
 _POLL_BACKOFF = 1.5
 _FILE_OP_TIMEOUT = 120.0
 _HELPER_OUTPUT_CAP = 1024 * 1024
+# Runs the agent's command with each stream captured to a scratch file, then
+# emits only the last ``$2`` bytes of each. Keeping the tail is what the model
+# needs (a traceback and the exit status live at the end), and the vendor's own
+# 1 MB cap keeps the *head*, so bounding here is what puts a usable window in
+# front of the model rather than the start of a build log.
+#
+# Deliberately free of fifos, background jobs and ``wait``: a command that
+# backgrounds a process hands it the capture descriptor, so anything waiting for
+# end-of-input would block until that process exits -- ``sleep 20 & echo
+# started`` took 20s in a real microVM before this. Redirecting to files means
+# only the foreground command is waited on. The cost is that the scratch file
+# grows with total output, on the sandbox's own ephemeral disk.
 _COMMAND_WRAPPER = """\
-umask 077
 dir="${TMPDIR:-/tmp}/airflow-sandbox-$$"
-mkdir "$dir" || exit 70
-trap 'rm -rf "$dir"' EXIT HUP INT TERM
-mkfifo "$dir/out" "$dir/err" "$dir/out-tail" "$dir/err-tail" || exit 70
-tail -c "$2" <"$dir/out-tail" >"$dir/out-result" &
-out_tail_pid=$!
-tail -c "$2" <"$dir/err-tail" >"$dir/err-result" &
-err_tail_pid=$!
-tee "$dir/out-tail" <"$dir/out" | wc -c >"$dir/out-count" &
-out_drain_pid=$!
-tee "$dir/err-tail" <"$dir/err" | wc -c >"$dir/err-count" &
-err_drain_pid=$!
+mkdir -m 700 "$dir" || exit 70
+trap 'rm -rf "$dir"' EXIT
+trap 'rm -rf "$dir"; exit 143' HUP INT TERM
 sh -lc "$1" >"$dir/out" 2>"$dir/err"
 status=$?
-wait "$out_drain_pid" "$err_drain_pid" "$out_tail_pid" "$err_tail_pid" || exit 70
-if [ "$(cat "$dir/out-count")" -gt "$2" ]; then printf '1\\n'; else printf '0\\n'; fi
-cat "$dir/out-result"
-if [ "$(cat "$dir/err-count")" -gt "$2" ]; then printf '1\\n' >&2; else printf '0\\n' >&2; fi
-cat "$dir/err-result" >&2
+tail -c "$2" <"$dir/out"
+tail -c "$2" <"$dir/err" >&2
 exit "$status"
 """
 
@@ -94,18 +102,23 @@ def _translate_islo_errors(operation: str) -> Iterator[None]:
 
 
 def _bound_result_stream(text: str, max_bytes: int, *, server_truncated: bool) -> tuple[str, bool]:
-    flag, separator, payload = text.partition("\n")
-    if separator and flag in {"0", "1"}:
-        truncated = flag == "1" or server_truncated
-    else:
-        payload = text
-        truncated = True
+    """
+    Trim one stream to ``max_bytes``, keeping the tail, and report whether bytes were dropped.
 
-    encoded = payload.encode("utf-8")
+    The sandbox is asked for one byte more than the budget, so a stream that
+    comes back over budget is the signal that the guest had more to give.
+    """
+    encoded = text.encode("utf-8", errors="surrogatepass")
+    truncated = server_truncated
     if len(encoded) > max_bytes:
-        payload = encoded[-max_bytes:].decode("utf-8", errors="ignore")
+        encoded = encoded[-max_bytes:]
         truncated = True
-    return payload, truncated
+        # A byte-aligned cut usually lands mid-record, and the model must never
+        # be handed a fragment presented as a whole line.
+        newline = encoded.find(b"\n")
+        if newline != -1:
+            encoded = encoded[newline + 1 :]
+    return encoded.decode("utf-8", errors="replace"), truncated
 
 
 class IsloSandboxBackend(SandboxBackend):
@@ -122,8 +135,11 @@ class IsloSandboxBackend(SandboxBackend):
 
     File reads and writes use Islo's native streaming APIs. Directory listings
     and command-output bounding require common Unix command-line tools in the
-    sandbox image, including ``sh``, ``mkfifo``, ``tail``, ``tee`` and a ``find``
-    implementation with ``-printf`` support.
+    sandbox image: ``sh``, ``tail`` and a ``find`` implementation with
+    ``-printf`` support. Each command's output is captured to a scratch file in
+    the sandbox and only its last ``max_output_bytes`` are returned, so the
+    worker sees a bounded tail while the sandbox's own ephemeral disk absorbs
+    the rest.
 
     :param islo_conn_id: Airflow connection ID for Islo. ``None`` lets the SDK
         resolve credentials from its own environment variables (``ISLO_API_KEY``).
@@ -193,8 +209,10 @@ class IsloSandboxBackend(SandboxBackend):
             return self._client
 
     @staticmethod
-    def _request_options(*, timeout: float, chunk_size: int | None = None) -> dict[str, int]:
-        options = {"timeout_in_seconds": max(1, math.ceil(timeout)), "max_retries": 0}
+    def _request_options(
+        *, timeout: float, chunk_size: int | None = None, max_retries: int = 0
+    ) -> dict[str, int]:
+        options = {"timeout_in_seconds": max(1, math.ceil(timeout)), "max_retries": max_retries}
         if chunk_size is not None:
             options["chunk_size"] = chunk_size
         return options
@@ -220,12 +238,25 @@ class IsloSandboxBackend(SandboxBackend):
             if self._memory_mb is not None:
                 kwargs["memory_mb"] = self._memory_mb
             if spec is not None and spec.env:
+                # Verified against a live microVM: variables set here are visible
+                # to every later exec, including through the wrapper's login
+                # shell, so the spec is honored for the sandbox's whole life.
                 kwargs["env"] = dict(spec.env)
-            sandbox = self._get_client().sandboxes.create_sandbox(
-                name=_new_sandbox_name(),
-                request_options=self._request_options(timeout=_FILE_OP_TIMEOUT),
-                **kwargs,
-            )
+            # Bind the name before the call. If creation fails after the server
+            # provisioned the microVM -- a response timeout, a reset, a 5xx --
+            # this is the only handle that can still delete it, and without it
+            # the leak is neither cleanable nor traceable to a run.
+            name = _new_sandbox_name()
+            try:
+                sandbox = self._get_client().sandboxes.create_sandbox(
+                    name=name,
+                    request_options=self._request_options(timeout=_FILE_OP_TIMEOUT),
+                    **kwargs,
+                )
+            except BaseException:
+                with suppress(Exception):
+                    self.destroy(name)
+                raise
         return sandbox.name
 
     def _await_exec(self, sandbox: str, exec_id: str, *, deadline: float) -> Any:
@@ -239,7 +270,7 @@ class IsloSandboxBackend(SandboxBackend):
                     exec_id,
                     request_options=self._request_options(timeout=remaining),
                 )
-            if result.status in _TERMINAL_EXEC_STATUSES:
+            if result.status not in _RUNNING_EXEC_STATUSES:
                 return result
             time.sleep(min(interval, max(0.0, deadline - time.monotonic())))
             interval = min(interval * _POLL_BACKOFF, _POLL_MAX)
@@ -248,10 +279,17 @@ class IsloSandboxBackend(SandboxBackend):
     def _destroy_after_timeout(self, sandbox: str) -> None:
         try:
             self.destroy(sandbox)
-        except SandboxError as e:
-            raise SandboxTerminalError(
-                "The Islo command timed out and deletion of its sandbox could not be confirmed."
-            ) from e
+        except SandboxError:
+            # Warn rather than fail the task: the command merely ran long, and
+            # the server-side ``delete_after`` TTL reclaims the microVM whether
+            # or not this call landed. Failing here would turn a timeout the
+            # model can react to into a task failure over a transient error.
+            log.warning(
+                "Timed out running a command in Islo sandbox %s and could not confirm its deletion; "
+                "the server-side TTL will reclaim it.",
+                sandbox,
+                exc_info=True,
+            )
 
     def run_command(
         self, sandbox: str, command: str, *, timeout: float, max_output_bytes: int
@@ -263,7 +301,16 @@ class IsloSandboxBackend(SandboxBackend):
         with _translate_islo_errors("start a sandbox command"):
             response = client.sandboxes.exec_in_sandbox(
                 sandbox,
-                command=["sh", "-c", _COMMAND_WRAPPER, "airflow-sandbox", command, str(max_output_bytes)],
+                # One byte over the budget, so a stream that comes back over it
+                # is proof the guest had more to give.
+                command=[
+                    "sh",
+                    "-c",
+                    _COMMAND_WRAPPER,
+                    "airflow-sandbox",
+                    command,
+                    str(max_output_bytes + 1),
+                ],
                 timeout_secs=max(1, math.ceil(timeout)),
                 request_options=self._request_options(timeout=timeout),
             )
@@ -300,7 +347,7 @@ class IsloSandboxBackend(SandboxBackend):
             stderr_truncated=err_truncated,
         )
 
-    def _run_helper(self, sandbox: str, script: str, *, operation: str) -> str:
+    def _run_helper(self, sandbox: str, script: str, *, operation: str) -> SandboxExecResult:
         result = self.run_command(
             sandbox, script, timeout=_FILE_OP_TIMEOUT, max_output_bytes=_HELPER_OUTPUT_CAP
         )
@@ -308,7 +355,7 @@ class IsloSandboxBackend(SandboxBackend):
             raise SandboxTerminalError(f"The sandbox was destroyed after it timed out while {operation}.")
         if result.exit_code:
             raise SandboxError(result.stderr.strip() or f"Could not {operation}.")
-        return result.stdout
+        return result
 
     def _raise_file_not_found(self, sandbox: str, path: str, error: NotFoundError) -> None:
         with _translate_islo_errors("check a sandbox after a missing file response"):
@@ -367,13 +414,19 @@ class IsloSandboxBackend(SandboxBackend):
 
     def list_directory(self, sandbox: str, path: str) -> list[tuple[str, bool]]:
         quoted = shlex.quote(path)
-        listing = self._run_helper(
+        result = self._run_helper(
             sandbox,
             f"find -- {quoted} -maxdepth 1 -mindepth 1 -printf '%y %f\\0'",
             operation=f"list {path!r}",
         )
+        records = result.stdout.split("\0")
+        if result.stdout_truncated and records:
+            # These records are NUL-separated with no newlines, so the trim in
+            # _bound_result_stream cannot align the cut. Drop the leading one
+            # rather than report a mangled entry name the model cannot open.
+            records = records[1:]
         entries: list[tuple[str, bool]] = []
-        for record in listing.split("\0"):
+        for record in records:
             if not record:
                 continue
             kind, _, name = record.partition(" ")
@@ -388,7 +441,10 @@ class IsloSandboxBackend(SandboxBackend):
         try:
             client.sandboxes.delete_sandbox(
                 sandbox_name=sandbox,
-                request_options=self._request_options(timeout=_FILE_OP_TIMEOUT),
+                # Deletion is idempotent, and it is the one call whose failure
+                # strands a microVM, so let the SDK retry it rather than turning
+                # a single transient error into a leak.
+                request_options=self._request_options(timeout=_FILE_OP_TIMEOUT, max_retries=2),
             )
         except NotFoundError:
             return
