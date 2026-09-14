@@ -19,8 +19,9 @@ function make_mnt_writeable {
     set -euo pipefail
     set -x
     echo "Investigating node disks"
-    lsblk
-    sudo blkid
+    # Probes are diagnostic; an unformatted optional disk must not abort setup.
+    lsblk || true
+    sudo blkid || true
     echo "Checking free space!"
     df -H
     echo "Cleaning /mnt just in case it is not empty"
@@ -30,7 +31,10 @@ function make_mnt_writeable {
     # remain, preserve the old recursive ownership behavior for those entries.
     sudo rm -rf /mnt/*
     echo "Making sure that /mnt is writeable"
-    if sudo find /mnt -mindepth 1 -maxdepth 1 -print -quit | grep -q .; then
+    local remaining
+    # Assign outside the conditional so a failed scan cannot be mistaken for an empty directory.
+    remaining="$(sudo find /mnt -mindepth 1 -maxdepth 1 -print -quit)"
+    if [[ -n "${remaining}" ]]; then
         sudo chown -R "${USER}" /mnt
     else
         sudo chown "${USER}" /mnt

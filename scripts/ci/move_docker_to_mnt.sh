@@ -32,14 +32,19 @@ function cleanup_runner {
     # and make the idle nvme being used as well.
     if uname -i | grep -q x86_64; then
         local target_docker_volume_location="/mnt/var-lib-docker"
-        # This is faster than docker prune. make_mnt_writeable.sh runs immediately
-        # before this script in CI, so the target is a fresh directory and a recursive
-        # chown would only add an unnecessary filesystem walk.
+        # This is faster than docker prune. The normal caller has just cleaned /mnt.
+        # Retain the recursive ownership repair if another caller reuses a nonempty target.
         sudo systemctl stop docker
         sudo rm -rf /var/lib/docker
         sudo mkdir -p "${target_docker_volume_location}" /var/lib/docker
         sudo mount --bind "${target_docker_volume_location}" /var/lib/docker
-        sudo chown 0:0 "${target_docker_volume_location}"
+        local remaining
+        remaining="$(sudo find "${target_docker_volume_location}" -mindepth 1 -maxdepth 1 -print -quit)"
+        if [[ -n "${remaining}" ]]; then
+            sudo chown -R 0:0 "${target_docker_volume_location}"
+        else
+            sudo chown 0:0 "${target_docker_volume_location}"
+        fi
         sudo systemctl start docker
         echo "Checking free space after Docker relocation"
         df -H

@@ -144,7 +144,11 @@ jobs:
     timeout-minutes: ${{ fromJSON(inputs.job-timeout-minutes) }}
     name: "Migrations:${{ inputs.test-name }}:${{ matrix.backend-version }}:${{ matrix.python-version }}"
     runs-on: ${{ fromJSON(inputs.runners) }}
-    if: inputs.run-migration-tests == 'true' && inputs.test-group == 'core'
+    # No released Airflow supports Python 3.14 yet. Avoid allocating a runner for a 3.14-only call;
+    # mixed-version calls retain the matching per-step guard below.
+    if: >-
+      inputs.run-migration-tests == 'true' && inputs.test-group == 'core' &&
+      join(fromJSON(inputs.python-versions), ',') != '3.14'
     strategy:
       fail-fast: false
       max-parallel: 20
@@ -167,9 +171,10 @@ jobs:
       GITHUB_USERNAME: ${{ github.actor }}
       INCLUDE_SUCCESS_OUTPUTS: ${{ inputs.include-success-outputs }}
       PLATFORM: "${{ inputs.platform }}"
-      JOB_ID: "${{ inputs.test-group }}-migrations-${{ inputs.test-name }}-${{ inputs.backend }}-${{ matrix.backend-version }}-${{ matrix.python-version }}"
+      JOB_ID: "\
+        ${{ inputs.test-group }}-migrations-${{ inputs.test-name }}-\
+        ${{ inputs.backend }}-${{ matrix.backend-version }}-${{ matrix.python-version }}"
       MOUNT_SOURCES: "skip"
-      PARALLEL_TEST_TYPES: "Migrations"
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
       UPGRADE_BOTO: "${{ inputs.upgrade-boto }}"
       UPGRADE_SQLALCHEMY: "${{ inputs.upgrade-sqlalchemy }}"

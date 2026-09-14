@@ -144,14 +144,8 @@ jobs:
           cd ../api_fastapi/auth/managers/simple/ui
           pnpm install --frozen-lockfile
           pnpm build
-      - name: "Restore Playwright browser cache"
-        uses: apache/infrastructure-actions/stash/restore@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # restore/v1.0.0
-        id: restore-playwright-cache
-        with:
-          path: ~/.cache/ms-playwright/
-          key: >
-            cache-playwright-v1-${{ runner.os }}-${{ runner.arch }}-${{ env.BROWSER }}-
-            ${{ hashFiles('airflow-core/src/airflow/ui/pnpm-lock.yaml') }}
+      # Install only the tested engine. A separate browser archive duplicates network transfers;
+      # Playwright still needs to install the runner's OS dependencies on every job.
       - name: "Install selected Playwright browser and dependencies"
         working-directory: airflow-core/src/airflow/ui
         run: |
@@ -167,16 +161,6 @@ jobs:
               exit 1
               ;;
           esac
-      - name: "Save Playwright browser cache"
-        uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0
-        if: steps.restore-playwright-cache.outputs.stash-hit != 'true'
-        with:
-          path: ~/.cache/ms-playwright/
-          key: >
-            cache-playwright-v1-${{ runner.os }}-${{ runner.arch }}-${{ env.BROWSER }}-
-            ${{ hashFiles('airflow-core/src/airflow/ui/pnpm-lock.yaml') }}
-          if-no-files-found: 'error'
-          retention-days: '2'
       - name: "Test UI e2e tests"
         run: breeze testing ui-e2e-tests --browser "$BROWSER"
         env:

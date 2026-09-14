@@ -46,18 +46,17 @@ runs:
     - name: "Compute prek cache key"
       id: cache-key
       shell: bash
-      # Hook environments are reusable only when the platform, host Python, prek/uv versions,
-      # and the complete hook configuration are identical.
+      # Include the actual host ABI/OS and absolute environment paths, not only the target
+      # image platform. Restoring an archive is still followed by prek's environment validation.
       env:
         PLATFORM: ${{ inputs.platform }}
         UV_VERSION: ${{ steps.versions.outputs.uv-version }}
         PREK_VERSION: ${{ steps.versions.outputs.prek-version }}
-        PREK_CONFIG_HASH: ${{ hashFiles('**/.pre-commit-config.yaml') }}
-      run: |
-        PYTHON_VERSION=$(python3 -c 'import platform; print(platform.python_version())')
-        KEY="cache-prek-v10-${PLATFORM}-python${PYTHON_VERSION}-prek${PREK_VERSION}-uv${UV_VERSION}-${PREK_CONFIG_HASH}"
-        echo "Prek cache key: ${KEY}"
-        echo "key=${KEY}" >> "${GITHUB_OUTPUT}"
+        # Dependency changes in local hooks must not reuse an older environment identity.
+        PREK_CONFIG_HASH: >-
+          ${{ hashFiles('**/.pre-commit-config.yaml', '**/.pre-commit-hooks.yaml',
+          '**/pyproject.toml', '**/uv.lock', '**/setup.cfg', '**/setup.py') }}
+      run: python3 scripts/ci/prek_cache_key.py
     - name: "Install uv"
       shell: bash
       run: pip install "uv==${UV_VERSION}"
@@ -69,12 +68,15 @@ runs:
         UV_VERSION: ${{ steps.versions.outputs.uv-version }}
         PREK_VERSION: ${{ steps.versions.outputs.prek-version }}
       run: |
-        uv tool install prek==${PREK_VERSION} --with uv==${UV_VERSION}
+        uv tool install "prek==${PREK_VERSION}" --with "uv==${UV_VERSION}"
       working-directory: ${{ github.workspace }}
     # The stash contains only prek's cache. Preserve unrelated host caches (uv/pip/etc.) so later
     # setup in the same job does not needlessly download them again.
     - name: "Clear local prek cache before restore"
-      run: rm -rf ~/.cache/prek
+      run: |
+        rm -rf ~/.cache/prek
+        # Do not mistake a leftover tarball from an earlier invocation for this key's payload.
+        rm -f /tmp/cache-prek.tar.gz
       shell: bash
     - name: "Restore prek cache"
       # yamllint disable-line rule:line-length
@@ -92,9 +94,10 @@ runs:
           echo "tar-restored=false" >> "${GITHUB_OUTPUT}"
           exit 0
         fi
-        if tar -C ~ -xzf /tmp/cache-prek.tar.gz; then
+        if tar -C "${HOME}" -xzf /tmp/cache-prek.tar.gz && [[ -d "${HOME}/.cache/prek" ]]; then
           echo "Prek cache restored"
           echo "tar-restored=true" >> "${GITHUB_OUTPUT}"
+          echo "duration-seconds=${SECONDS}" >> "${GITHUB_OUTPUT}"
         else
           echo "Cache extraction failed; treating this as a miss"
           echo "tar-restored=false" >> "${GITHUB_OUTPUT}"
@@ -107,14 +110,17 @@ runs:
       if: >
         steps.restore-prek-cache.outputs.stash-hit != 'true'
         || steps.restore-prek-tar.outputs.tar-restored != 'true'
-    - name: Install prek hooks on cache miss
+    - name: Validate and install prek hooks
+      id: install-hooks
       shell: bash
-      # An exact, successfully extracted cache key already contains the hook environments.
-      # On a miss/corrupt cache, install them with bounded retries for transient download failures.
+      # A successfully extracted archive can still contain a partial or unusable environment.
+      # This is idempotent on a healthy hit; prek validates/reuses it and repairs misses normally.
+      # Keep the existing bounded retries for transient toolchain download failures.
       run: |
         max_attempts=4
         for attempt in $(seq 1 "${max_attempts}"); do
           if prek install-hooks; then
+            echo "duration-seconds=${SECONDS}" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
           if [[ "${attempt}" -eq "${max_attempts}" ]]; then
@@ -127,9 +133,6 @@ runs:
         echo "prek install-hooks failed after ${max_attempts} attempts" >&2
         exit 1
       working-directory: ${{ github.workspace }}
-      if: >
-        steps.restore-prek-cache.outputs.stash-hit != 'true'
-        || steps.restore-prek-tar.outputs.tar-restored != 'true'
     - name: "Show prek log"
       shell: bash
       run: cat ~/.cache/prek/prek.log || true
@@ -139,18 +142,30 @@ runs:
       shell: bash
       env:
         EVENT_NAME: ${{ github.event_name }}
+        SAVE_CACHE: ${{ inputs.save-cache }}
+        STASH_HIT: ${{ steps.restore-prek-cache.outputs.stash-hit }}
+        TAR_RESTORED: ${{ steps.restore-prek-tar.outputs.tar-restored }}
       run: |
         SAVE=false
-        if [[ "${{ inputs.save-cache }}" == "true" ]]; then
-          if [[ "${{ steps.restore-prek-cache.outputs.stash-hit }}" != "true" || \
-                "${{ steps.restore-prek-tar.outputs.tar-restored }}" != "true" || \
+        if [[ "${SAVE_CACHE}" == "true" ]]; then
+          if [[ "${STASH_HIT}" != "true" || "${TAR_RESTORED}" != "true" || \
                 "${EVENT_NAME}" == "schedule" ]]; then
             SAVE=true
           fi
         fi
         echo "save=${SAVE}" >> "${GITHUB_OUTPUT}"
     - name: "Prepare .tar file from prek cache"
-      run: tar -C ~ -czf /tmp/cache-prek.tar.gz .cache/prek
+      id: archive-prek
+      run: |
+        # Preserve permissions and links. Prefer bounded parallel compression when available;
+        # the gzip fallback requires no additional package installation on a cold runner.
+        if command -v pigz >/dev/null 2>&1; then
+          compressor=(pigz -1 -p 4)
+        else
+          compressor=(gzip -1)
+        fi
+        tar -C "${HOME}" -cf - .cache/prek | "${compressor[@]}" > /tmp/cache-prek.tar.gz
+        echo "duration-seconds=${SECONDS}" >> "${GITHUB_OUTPUT}"
       shell: bash
       if: steps.cache-policy.outputs.save == 'true'
     - name: "Save prek cache"
@@ -163,3 +178,26 @@ runs:
         # The payload is already gzip-compressed. Recompressing it only adds CPU time.
         compression-level: '0'
       if: steps.cache-policy.outputs.save == 'true'
+    - name: "Summarize prek cache preparation"
+      if: always()
+      shell: bash
+      env:
+        CACHE_KEY: ${{ steps.cache-key.outputs.key }}
+        STASH_HIT: ${{ steps.restore-prek-cache.outputs.stash-hit }}
+        TAR_RESTORED: ${{ steps.restore-prek-tar.outputs.tar-restored }}
+        RESTORE_SECONDS: ${{ steps.restore-prek-tar.outputs.duration-seconds }}
+        INSTALL_SECONDS: ${{ steps.install-hooks.outputs.duration-seconds }}
+        ARCHIVE_SECONDS: ${{ steps.archive-prek.outputs.duration-seconds }}
+        CACHE_SAVED: ${{ steps.cache-policy.outputs.save }}
+      run: |
+        {
+          printf '### Prek cache preparation\n\n'
+          printf 'Cache key: `%s`\n\n' "${CACHE_KEY}"
+          printf '| Phase | Result |\n| --- | --- |\n'
+          printf '| Stash hit | %s |\n' "${STASH_HIT:-not run}"
+          printf '| Archive restored | %s |\n' "${TAR_RESTORED:-not run}"
+          printf '| Extract (seconds) | %s |\n' "${RESTORE_SECONDS:-not run}"
+          printf '| Validate/install (seconds) | %s |\n' "${INSTALL_SECONDS:-not run}"
+          printf '| Compress (seconds) | %s |\n' "${ARCHIVE_SECONDS:-not run}"
+          printf '| Cache refresh selected | %s |\n' "${CACHE_SAVED:-not run}"
+        } >> "${GITHUB_STEP_SUMMARY}"
