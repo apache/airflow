@@ -2043,7 +2043,7 @@ class TestPostAssetEvents(TestAssets):
         response = test_client.post("/assets/events", json={"asset_id": asset.id})
 
         assert response.status_code == 200
-        mock_is_authorized_asset.assert_any_call(
+        mock_is_authorized_asset.assert_called_once_with(
             mock.ANY,
             method="POST",
             details=AssetDetails(id=str(asset.id), name="simple1", uri="s3://bucket/key/1"),
@@ -2058,8 +2058,7 @@ class TestPostAssetEvents(TestAssets):
         self, mock_is_authorized_asset, test_client, session
     ):
         (asset,) = self.create_assets(num=1, session=session)
-        # The route dependency has no asset id to check, so it passes; only the per-asset check denies.
-        mock_is_authorized_asset.side_effect = lambda self_, *, method, user, details=None: details.id is None
+        mock_is_authorized_asset.return_value = False
 
         response = test_client.post("/assets/events", json={"asset_id": asset.id})
 
@@ -2070,8 +2069,9 @@ class TestPostAssetEvents(TestAssets):
         response = unauthenticated_test_client.post("/assets/events", json={"asset_uri": "s3://bucket/key/1"})
         assert response.status_code == 401
 
-    def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.post("/assets/events", json={"asset_uri": "s3://bucket/key/1"})
+    def test_should_respond_403(self, unauthorized_test_client, session):
+        (asset,) = self.create_assets(num=1, session=session)
+        response = unauthorized_test_client.post("/assets/events", json={"asset_id": asset.id})
         assert response.status_code == 403
 
     def test_invalid_attr_not_allowed(self, test_client, session):
