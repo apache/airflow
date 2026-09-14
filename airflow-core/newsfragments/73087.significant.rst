@@ -1,0 +1,17 @@
+Cyclic TaskGroup dependencies now fail Dag parsing instead of failing later in Grid or Graph
+
+Dag parsing now rejects TaskGroups whose dependencies form a cycle when each group is treated as a single
+unit -- for example, a task in ``group1`` upstream of ``group2``'s root task while a task in ``group2`` is
+upstream of ``group1``'s root task. Task-level dependencies can be acyclic while this group-level
+projection still cycles, and downstream consumers such as Grid and Graph need an unambiguous group
+ordering.
+
+Before this change, a Dag with cyclic TaskGroup dependencies could parse and run its tasks normally. #69933
+fixed the group-level topological sort used by Grid and Graph to actually detect group-to-group and
+cross-group edges -- it previously ignored them and rendered an arbitrary, incorrect order instead of
+failing. That made a pre-existing cycle in a Dag's TaskGroups surface as an unhandled error from the Grid
+and Graph API endpoints rather than a rendering quirk. This change moves that failure to Dag parsing time
+instead, where it raises an import error naming the offending TaskGroup rather than a 500 response from the
+UI.
+
+Dags that previously parsed with cyclic TaskGroup dependencies must be restructured to remove the cycle.

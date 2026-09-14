@@ -586,9 +586,26 @@ Dependency relationships can be applied across all tasks in a TaskGroup with the
     group1() >> task3
 
 Dependencies between sibling tasks and TaskGroups must remain acyclic when each TaskGroup is treated as a
-single unit. For example, if any task in ``group1`` is upstream of a task in ``group2``, another task in
-``group2`` cannot be upstream of a task in ``group1``. Airflow reports this as a Dag parsing error even when
-the individual task dependencies do not form a cycle.
+single unit. This is evaluated using only edges that land on a TaskGroup's root tasks -- tasks with no
+upstream task inside that group -- so a cycle can exist at the group level even when the individual task
+dependencies form no cycle among themselves:
+
+.. code-block:: python
+
+    with TaskGroup("group1"):
+        source1 = EmptyOperator(task_id="source1")
+        sink1 = EmptyOperator(task_id="sink1")
+
+    with TaskGroup("group2"):
+        source2 = EmptyOperator(task_id="source2")
+        sink2 = EmptyOperator(task_id="sink2")
+
+    source1 >> sink2
+    source2 >> sink1
+
+``sink1`` and ``sink2`` are each a root of their own group (neither has an upstream task inside its own
+group), so this places ``group1`` both upstream and downstream of ``group2``. Airflow reports this as a Dag
+parsing error even though no individual task-to-task dependency forms a cycle.
 
 TaskGroup also supports ``default_args`` like Dag, it will overwrite the ``default_args`` in Dag level:
 
