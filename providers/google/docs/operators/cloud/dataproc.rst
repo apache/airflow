@@ -506,6 +506,21 @@ Managed Spark supports creating a batch workload.
 A batch can be created using:
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocCreateBatchOperator`.
 
+When you need a readable ID and retry-safe uniqueness, set ``batch_id_prefix`` instead of ``batch_id``.
+The operator appends a unique suffix to the prefix so retried task attempts do not fail with
+``ALREADY_EXISTS`` when submitting the batch.
+The prefix is used as-is (no normalization), and Dataproc validates the resulting batch ID.
+
+.. code-block:: python
+
+    DataprocCreateBatchOperator(
+        task_id="create_batch",
+        project_id=PROJECT_ID,
+        region=REGION,
+        batch=BATCH_CONFIG,
+        batch_id_prefix="example-managed-spark-batch",
+    )
+
 The executable example below still imports the compatibility name
 ``DataprocCreateBatchOperator``. The preferred alias for new code is
 ``ManagedSparkCreateBatchOperator``.
