@@ -848,6 +848,7 @@ def _is_json_equal(before: Any, after: Any) -> bool:
 
 
 def _get_digest(value: Any) -> str:
+    # SHA-256 provides a content fingerprint, not password protection.
     return f"sha256:{hashlib.sha256(_serialize_canonical_json(value).encode()).hexdigest()}"
 
 
