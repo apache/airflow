@@ -163,6 +163,48 @@ await new Bundle(
 
 Register `TaskHandler` and `Dag` values with the `register` method, or pass them to the `Bundle` constructor.
 
+## TaskFlow arguments
+
+A Python Dag that calls a stub task TaskFlow-style passes those arguments straight to the handler,
+which destructures them by name:
+
+```python
+# the Python Dag
+@task.stub(queue="typescript")
+def transform(region_code: str, threshold: float, dry_run: bool = False): ...
+
+
+transform("uk", 0.75)
+```
+
+```ts
+interface TransformArgs {
+  regionCode: string;
+  threshold: number;
+  dryRun: boolean;
+}
+
+export async function transform({ regionCode, threshold, dryRun }: TransformArgs) {
+  // ...
+}
+```
+
+Names bind by **folding on both sides**, lowercased with underscores removed, so `region_code` reaches
+`regionCode` and `s3_uri` reaches `s3Uri` with nothing declared on either side.
+An argument the call leaves at its default arrives with the default's value.
+
+A name nothing folds to is **logged, not thrown**, naming what the handler asked for and what the call
+delivered. Two Python names that fold to the same token fail the task.
+
+`Object.keys` and rest destructuring (`{ ...rest }`) yield Python's names, and `in` folds like a read.
+
+An upstream's return value is not a bound argument unless the Python call passes it.
+Read one the task was not passed explicitly:
+
+```ts
+const rows = await getClient().getXCom<number>({ key: "return_value", taskId: "extract" });
+```
+
 `Dag` is another interface, for a Dag declared natively in TypeScript, and is still a work in progress.
 
 Airflow launches the bundled entrypoint with `--comm=host:port` and
