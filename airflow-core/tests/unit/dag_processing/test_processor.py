@@ -512,6 +512,32 @@ def test_start_opts_into_fork_exec(monkeypatch, mocker, platform_uses_exec, targ
     assert base_start.call_args.kwargs["use_exec"] is expected_use_exec
 
 
+@pytest.mark.parametrize("option_value", ["True", "False"])
+def test_start_ignores_execute_tasks_new_python_interpreter(mocker, option_value):
+    """
+    ``[core] execute_tasks_new_python_interpreter`` is a task-process opt-in and must not reach the
+    parsing child, which only follows the platform gate (pinned to bare fork by ``_force_bare_fork``).
+    """
+    base_start = mocker.patch(
+        "airflow.sdk.execution_time.supervisor.WatchedSubprocess.start", return_value=MagicMock()
+    )
+    mocker.patch("airflow.dag_processing.processor._pre_import_airflow_modules")
+
+    with conf_vars({("core", "execute_tasks_new_python_interpreter"): option_value}):
+        DagFileProcessorProcess.start(
+            path="some_dag.py",
+            bundle_path=pathlib.Path("/tmp/bundle"),
+            bundle_name="testing",
+            dag_file_rel_path="some_dag.py",
+            callbacks=[],
+            client=MagicMock(spec=Client),
+            target=_parse_file_entrypoint,
+            logger=MagicMock(),
+        )
+
+    assert base_start.call_args.kwargs["use_exec"] is False
+
+
 def write_dag_in_a_fn_to_file(fn: Callable[[], None], folder: pathlib.Path) -> pathlib.Path:
     # Create the dag in a fn, and use inspect.getsource to write it to a file so that
     # a) the test dag is directly viewable here in the tests
