@@ -4169,12 +4169,14 @@ class TestDagRunHandleDagCallback:
         dr = dag_maker.create_dagrun()
         dr.dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
         run_version_id = dr.created_dag_version_id
-        ti = dr.get_task_instance("test_task")
+        ti = dr.get_task_instance("test_task", session=session)
         ti.dag_version_id = None
         if not run_keeps_version:
             dr.created_dag_version_id = None
         # Newer than the run's, so the two fallback sources are distinguishable.
-        latest_version = DagVersion.write_dag(dag_id=dr.dag_id, bundle_name="dag_maker", version_number=2)
+        latest_version = DagVersion.write_dag(
+            dag_id=dr.dag_id, bundle_name="dag_maker", version_number=2, session=session
+        )
         session.flush()
         assert latest_version.id != run_version_id
 
@@ -4198,7 +4200,7 @@ class TestDagRunHandleDagCallback:
 
         dr = dag_maker.create_dagrun()
         dr.dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
-        ti = dr.get_task_instance("test_task")
+        ti = dr.get_task_instance("test_task", session=session)
         ti.dag_version_id = None
         dr.created_dag_version_id = None
         session.flush()
@@ -4226,7 +4228,9 @@ class TestDagRunHandleDagCallback:
 
         dr = dag_maker.create_dagrun()
         dr.dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
-        ti = dr.get_task_instance("test_task")
+        # dag_maker writes exactly one version, so the run's is also the latest one.
+        expected_version_id = dr.created_dag_version_id
+        ti = dr.get_task_instance("test_task", session=session)
         ti.dag_version_id = None
         dr.created_dag_version_id = None
         session.flush()
@@ -4247,10 +4251,7 @@ class TestDagRunHandleDagCallback:
         assert context_received["reason"] == "task_failure"
         assert context_received["ti"].task_id == "test_task"
         assert context_received["ti"].run_id == dr.run_id
-        assert (
-            context_received["ti"].dag_version_id
-            == DagVersion.get_latest_version(dag.dag_id, session=session).id
-        )
+        assert context_received["ti"].dag_version_id == expected_version_id
 
     @pytest.mark.parametrize("strip_dag_version", [False, True])
     def test_produce_dag_callback_preserves_callers_transaction(self, dag_maker, session, strip_dag_version):
