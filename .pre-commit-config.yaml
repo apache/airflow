@@ -713,7 +713,13 @@ repos:
         name: Updates supported versions in documentation
         entry: ./scripts/ci/prek/supported_versions.py
         language: python
-        files: ^airflow-core/docs/installation/supported-versions\.rst$|^scripts/ci/prek/supported_versions\.py$|^README\.md$
+        files: >
+          (?x)
+          ^airflow-core/docs/installation/supported-versions\.rst$|
+          ^scripts/ci/prek/supported_versions\.py$|
+          ^README\.md$|
+          ^airflow-core/src/airflow/utils/docs\.py$|
+          ^airflow-core/src/airflow/ui/src/constants/latestPublishedAirflowVersion\.ts$
         pass_filenames: false
       - id: generate-api-permissions-doc
         name: Generate REST API permission reference documentation
