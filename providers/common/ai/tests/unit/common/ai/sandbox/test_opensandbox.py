@@ -287,6 +287,29 @@ class TestRunCommand:
 
         assert result.timed_out
 
+    @mock.patch("airflow.providers.common.ai.sandbox.opensandbox.time.monotonic", side_effect=[0.0, 0.2])
+    def test_negative_exit_well_inside_the_deadline_is_not_a_timeout(self, _monotonic):
+        """A signal kill is only a timeout when the call also outlived the deadline."""
+        backend, sandbox = _backend_with_sandbox()
+        sandbox.commands.run.return_value = _execution(exit_code=-9)
+
+        result = backend.run_command("box-1", "kill -9 $$", timeout=30, max_output_bytes=100)
+
+        assert not result.timed_out
+
+    def test_error_details_do_not_overwrite_streamed_stderr(self):
+        backend, sandbox = _backend_with_sandbox()
+
+        def run(_command, *, opts, handlers):
+            handlers.on_stderr(SimpleNamespace(text="real stderr"))
+            return _execution(exit_code=1, error=SimpleNamespace(traceback=["exit status 1"], value="1"))
+
+        sandbox.commands.run.side_effect = run
+
+        result = backend.run_command("box-1", "bad", timeout=9, max_output_bytes=100)
+
+        assert result.stderr == "real stderr\n"
+
     def test_missing_terminal_status_is_terminal(self):
         backend, sandbox = _backend_with_sandbox()
         sandbox.commands.run.return_value = _execution(exit_code=None)
@@ -408,6 +431,32 @@ class TestFileOperations:
 
         with pytest.raises(ValueError, match="max_bytes"):
             backend.read_file("box-1", "/w/a", max_bytes=0)
+
+
+class TestGetSandbox:
+    @mock.patch("opensandbox.SandboxSync.connect", autospec=True)
+    def test_uncached_sandbox_is_reconnected_and_then_cached(self, connect):
+        remote = mock.MagicMock(spec=["commands"])
+        remote.commands = mock.MagicMock(spec=["run"])
+        remote.commands.run.return_value = _execution(exit_code=0)
+        connect.return_value = remote
+        backend = OpenSandboxBackend()
+        backend._connection_config = mock.sentinel.connection_config
+
+        backend.run_command("remote", "echo hi", timeout=5, max_output_bytes=100)
+        backend.run_command("remote", "echo hi again", timeout=5, max_output_bytes=100)
+
+        connect.assert_called_once()
+        assert backend._sandboxes["remote"] is remote
+
+    @mock.patch("opensandbox.SandboxSync.connect", autospec=True)
+    def test_reconnect_failure_is_terminal(self, connect):
+        connect.side_effect = _api_error(503)
+        backend = OpenSandboxBackend()
+        backend._connection_config = mock.sentinel.connection_config
+
+        with pytest.raises(SandboxTerminalError, match="HTTP 503"):
+            backend.run_command("remote", "echo hi", timeout=5, max_output_bytes=100)
 
 
 class TestDestroy:
