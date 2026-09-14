@@ -93,6 +93,16 @@ config:
         version_added: 0.0.1
         example: ~
         default: ~
+      jwt_federated_client_ids:
+        description: |
+          Comma-separated allow-list of Keycloak client ids (``azp`` claim) permitted to
+          exchange a Keycloak-issued access token for an Airflow token via the
+          ``urn:ietf:params:oauth:grant-type:jwt-bearer`` grant at ``/auth/token``. Unset
+          or empty denies every caller.
+        type: string
+        version_added: 0.10.0
+        example: "team-platform-admin-sa,other-team-sa"
+        default: ~
       realm:
         description: |
           Realm configured in Keycloak associated to Airflow.
