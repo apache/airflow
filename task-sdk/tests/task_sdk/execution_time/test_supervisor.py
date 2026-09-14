@@ -4178,6 +4178,29 @@ class TestSignalRetryLogic:
 
         assert mock_watched_subprocess.final_state == TaskInstanceState.FAILED
 
+    def test_confirmed_terminal_state_takes_precedence_over_unobserved_exit_code(self, mocker):
+        """
+        A terminal state reported via message (e.g. SucceedTask) is authoritative even if
+        `wait()` never observed the subprocess's real exit code and defaulted it to 1 (see
+        `_monitor_subprocess`/`wait()` -- `_check_subprocess_exit` can lose the race against
+        socket closure under scheduling delay). Regression test for
+        https://github.com/apache/airflow/issues/65708: previously this returned UP_FOR_RETRY,
+        which caused a spurious `.finish()` call and a 409 against the already-correct DB row.
+        """
+        mock_watched_subprocess = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=mocker.Mock(),
+        )
+        mock_watched_subprocess._terminal_state = TaskInstanceState.SUCCESS
+        mock_watched_subprocess._exit_code = 1  # defaulted by wait(), not genuinely observed
+        mock_watched_subprocess._should_retry = True
+
+        assert mock_watched_subprocess.final_state == TaskInstanceState.SUCCESS
+
 
 def test_remote_logging_conn_caches_connection_not_client(monkeypatch):
     """Test that connection caching doesn't retain API client references."""
