@@ -1185,7 +1185,7 @@ exit 0
         assert op._handle_execution_date_fn(context) == DEFAULT_DATE
 
 
-def _api_server_error(status_code: int):
+def _api_server_error(status_code: int, message: str | None = None):
     """Build the error a task gets back when an execution API call fails."""
     from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
     from airflow.sdk.execution_time.comms import ErrorResponse
@@ -1193,7 +1193,12 @@ def _api_server_error(status_code: int):
     return AirflowRuntimeError(
         ErrorResponse(
             error=ErrorType.API_SERVER_ERROR,
-            detail={"status_code": status_code, "message": f"Server returned {status_code}"},
+            detail={
+                "status_code": status_code,
+                "message": f"Server returned {status_code}",
+                # the supervisor forwards the server's JSON body, which nests the HTTPException detail
+                "detail": {"detail": {"reason": "not_found", "message": message}} if message else None,
+            },
         )
     )
 
@@ -1665,24 +1670,22 @@ class TestExternalTaskSensorV3:
             )
 
         self.context["ti"].get_dr_count.side_effect = [0, 1]
-        # the existence probe (no ``states``) finds the task's instance; the state poll keeps waiting
-        self.context["ti"].get_ti_count.side_effect = lambda **kwargs: 0 if "states" in kwargs else 1
+        # the API knows the task (no 404), even though no instance has reached an allowed state yet
+        self.context["ti"].get_task_states.return_value = {}
+        self.context["ti"].get_ti_count.return_value = 0
 
         assert op.poke(self.context) is False  # no run yet: nothing can be checked
         assert op.poke(self.context) is False  # run exists: task verified, still waiting for its state
         assert op.poke(self.context) is False  # already verified: no further run lookup
 
         assert self.context["ti"].get_dr_count.call_count == 2
-        existence_probes = [
-            c for c in self.context["ti"].get_ti_count.call_args_list if "states" not in c.kwargs
-        ]
-        assert existence_probes == [
-            mock.call(dag_id="test_dag_parent", task_ids=["test_task"], logical_dates=[DEFAULT_DATE]),
-        ]
+        self.context["ti"].get_task_states.assert_called_once_with(
+            dag_id="test_dag_parent", task_ids=["test_task"], logical_dates=[DEFAULT_DATE]
+        )
 
     @pytest.mark.execution_timeout(10)
-    def test_check_existence_task_not_found_in_run(self, dag_maker):
-        """A run that exists but has no task instance for the awaited task fails the sensor."""
+    def test_check_existence_task_unknown_to_run_version(self, dag_maker):
+        """The execution API answers 404 for a task the awaited run's Dag version does not define."""
         with dag_maker("test_dag_child"):
             op = ExternalTaskSensor(
                 task_id="test_external_task_sensor_check",
@@ -1692,12 +1695,14 @@ class TestExternalTaskSensorV3:
             )
 
         self.context["ti"].get_dr_count.return_value = 1
-        self.context["ti"].get_ti_count.return_value = 0
+        self.context["ti"].get_task_states.side_effect = _api_server_error(
+            404, "Task missing_task not found in DAG test_dag_parent"
+        )
 
-        with pytest.raises(ExternalTaskNotFoundError, match="missing_task"):
+        with pytest.raises(ExternalTaskNotFoundError, match="missing_task.*not found in DAG"):
             op.poke(self.context)
 
-        self.context["ti"].get_ti_count.assert_called_once_with(
+        self.context["ti"].get_task_states.assert_called_once_with(
             dag_id="test_dag_parent", task_ids=["missing_task"], logical_dates=[DEFAULT_DATE]
         )
 
@@ -1714,30 +1719,31 @@ class TestExternalTaskSensorV3:
             )
 
         self.context["ti"].get_dr_count.return_value = 1
-        self.context["ti"].get_ti_count.return_value = 0
+        self.context["ti"].get_task_states.side_effect = _api_server_error(
+            404, "Task missing_task not found in DAG test_dag_parent"
+        )
 
         with pytest.raises(ExternalTaskNotFoundError, match="missing_task"):
             op.execute(context=self.context)
 
     @pytest.mark.execution_timeout(10)
-    def test_check_existence_task_group_not_found_in_run(self, dag_maker):
-        """A run that exists without any task instance of the awaited group fails the sensor."""
+    def test_check_existence_task_group_without_instances_keeps_waiting(self, dag_maker):
+        """A group the API knows but has no instances for yet is not reported missing."""
         with dag_maker("test_dag_child"):
             op = ExternalTaskSensor(
                 task_id="test_external_task_sensor_check",
                 external_dag_id="test_dag_parent",
-                external_task_group_id="missing_group",
+                external_task_group_id="test_group",
                 check_existence=True,
             )
 
         self.context["ti"].get_dr_count.return_value = 1
         self.context["ti"].get_task_states.return_value = {}
 
-        with pytest.raises(ExternalTaskGroupNotFoundError, match="missing_group"):
-            op.poke(self.context)
+        assert op.poke(self.context) is False
 
-        self.context["ti"].get_task_states.assert_called_once_with(
-            dag_id="test_dag_parent", task_group_id="missing_group", logical_dates=[DEFAULT_DATE]
+        self.context["ti"].get_task_states.assert_any_call(
+            dag_id="test_dag_parent", task_group_id="test_group", logical_dates=[DEFAULT_DATE]
         )
 
     @pytest.mark.execution_timeout(10)
@@ -1752,9 +1758,11 @@ class TestExternalTaskSensorV3:
             )
 
         self.context["ti"].get_dr_count.return_value = 1
-        self.context["ti"].get_task_states.side_effect = _api_server_error(404)
+        self.context["ti"].get_task_states.side_effect = _api_server_error(
+            404, "Task group missing_group not found in DAG test_dag_parent"
+        )
 
-        with pytest.raises(ExternalTaskGroupNotFoundError, match="missing_group"):
+        with pytest.raises(ExternalTaskGroupNotFoundError, match="missing_group.*not found in DAG"):
             op.poke(self.context)
 
     @pytest.mark.execution_timeout(10)

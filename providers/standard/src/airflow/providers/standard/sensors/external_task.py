@@ -177,10 +177,10 @@ class ExternalTaskSensor(BaseSensorOperator):
         external_task_id is None), and immediately cease waiting if the external task
         or DAG does not exist (default value: False).
         On Airflow 3 a worker has no database access, so tasks and task groups are checked
-        through the execution API against each awaited Dag run once that run exists: a run's
-        task instances are created together with it from the run's own Dag version. Until the
-        run exists the sensor keeps waiting. Whether the Dag itself is registered is not checked
-        on Airflow 3.
+        through the execution API against each awaited Dag run once that run exists: the API
+        reports a task or task group that the run's Dag version does not define. Until the run
+        exists the sensor keeps waiting, and so does it with an API server that does not report
+        unknown tasks. Whether the Dag itself is registered is not checked on Airflow 3.
     :param poke_interval: polling period in seconds to check for the status
     :param poll_interval: (DEPRECATED) use ``poke_interval`` instead
     :param deferrable: Run sensor in deferrable mode
@@ -569,9 +569,8 @@ class ExternalTaskSensor(BaseSensorOperator):
         Check that the awaited tasks or task group exist, through the execution API.
 
         A worker has no database access on Airflow 3, so unlike ``_check_for_existence`` this
-        relies on what the execution API exposes. A run's task instances are created together
-        with it from the run's own Dag version, so once an awaited run exists they answer
-        whether a task belongs to that run. While a run does not exist yet nothing can be
+        relies on what the execution API reports: a task or task group that the Dag version of
+        an existing awaited run does not define. While a run does not exist yet nothing can be
         concluded, so the check is repeated on later pokes until every awaited run has been seen.
 
         :param ti: the task instance running this sensor, used to reach the execution API

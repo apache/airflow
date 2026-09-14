@@ -158,6 +158,21 @@ def _get_count_by_matched_states(
     return count
 
 
+def _not_found_message(error: Any) -> str | None:
+    """Return the execution API's message when ``error`` wraps a 404 response, ``None`` for any other error."""
+    detail = error.error.detail or {}
+    if detail.get("status_code") != HTTPStatus.NOT_FOUND:
+        return None
+    # The supervisor forwards the server's JSON body under ``detail``; FastAPI nests an
+    # ``HTTPException`` detail under a ``detail`` key of its own.
+    payload = detail.get("detail")
+    while isinstance(payload, dict) and "message" not in payload and isinstance(payload.get("detail"), dict):
+        payload = payload["detail"]
+    if isinstance(payload, dict) and isinstance(payload.get("message"), str):
+        return payload["message"]
+    return str(detail.get("message") or "not found")
+
+
 def _check_external_task_existence(
     api: Any,
     *,
@@ -170,14 +185,17 @@ def _check_external_task_existence(
     """
     Verify that the awaited tasks or task group exist in the awaited Dag runs, through the execution API.
 
-    A Dag run's task instances are created together with the run, in the same transaction and
-    from the run's own Dag version, so once a run exists its task instances are the
-    version-accurate answer to whether a task belongs to it. Nothing can be concluded about a run
-    that does not exist yet, which is why the caller has to repeat the check until this function
-    returns True.
+    The execution API answers ``task-instances/states`` with 404 when the Dag version an existing
+    run resolves to defines neither the requested tasks nor the requested task group and the run
+    has no task instance for them (apache/airflow#73086). A normal answer means they exist for
+    that run, even while their task instances have not been created yet, so nothing is inferred
+    from task-instance counts. Nothing can be concluded about a run that does not exist yet,
+    which is why the caller repeats the check until this function returns True. API servers
+    without that validation answer normally for unknown tasks, in which case the sensor keeps
+    waiting as it did before.
 
-    :param api: an object exposing ``get_dr_count``, ``get_ti_count`` and ``get_task_states`` the
-        way ``RuntimeTaskInstance`` does: the running task instance, or the class itself.
+    :param api: an object exposing ``get_dr_count`` and ``get_task_states`` the way
+        ``RuntimeTaskInstance`` does: the running task instance, or the class itself.
     :param external_dag_id: The ID of the external Dag.
     :param external_task_ids: The task IDs that must exist in every awaited run.
     :param external_task_group_id: The task group ID that must exist in every awaited run.
@@ -185,9 +203,8 @@ def _check_external_task_existence(
     :param run_ids: Run IDs identifying the awaited runs.
     :return: True once every awaited run exists and passed the check, False while at least one
         awaited run does not exist yet.
-    :raises ExternalTaskNotFoundError: when an existing run has no task instance for one of the tasks.
-    :raises ExternalTaskGroupNotFoundError: when the Dag has no such task group, or an existing run
-        has no task instance for any task of the group.
+    :raises ExternalTaskNotFoundError: when the API reports one of the tasks missing from an awaited run.
+    :raises ExternalTaskGroupNotFoundError: when the API reports the task group missing from an awaited run.
     """
     from airflow.providers.standard.exceptions import (
         ExternalTaskGroupNotFoundError,
@@ -206,28 +223,29 @@ def _check_external_task_existence(
         if api.get_dr_count(dag_id=external_dag_id, **run_filter) == 0:
             all_runs_checked = False
             continue
-        for task_id in external_task_ids or ():
-            if api.get_ti_count(dag_id=external_dag_id, task_ids=[task_id], **run_filter) == 0:
+
+        if external_task_ids:
+            try:
+                api.get_task_states(dag_id=external_dag_id, task_ids=list(external_task_ids), **run_filter)
+            except AirflowRuntimeError as e:
+                if (message := _not_found_message(e)) is None:
+                    raise
                 raise ExternalTaskNotFoundError(
-                    f"The external task {task_id} in Dag {external_dag_id} does not exist for run {run_label}."
-                )
+                    f"The external tasks {list(external_task_ids)} in Dag {external_dag_id} "
+                    f"do not all exist for run {run_label}: {message}"
+                ) from None
 
         if external_task_group_id:
             try:
-                run_id_task_state_map = api.get_task_states(
+                api.get_task_states(
                     dag_id=external_dag_id, task_group_id=external_task_group_id, **run_filter
                 )
             except AirflowRuntimeError as e:
-                if (e.error.detail or {}).get("status_code") == HTTPStatus.NOT_FOUND:
-                    raise ExternalTaskGroupNotFoundError(
-                        f"The external task group '{external_task_group_id}' in Dag '{external_dag_id}' "
-                        "does not exist."
-                    ) from None
-                raise
-            if not any(run_id_task_state_map.values()):
+                if (message := _not_found_message(e)) is None:
+                    raise
                 raise ExternalTaskGroupNotFoundError(
                     f"The external task group '{external_task_group_id}' in Dag '{external_dag_id}' "
-                    f"does not exist for run {run_label}."
-                )
+                    f"does not exist for run {run_label}: {message}"
+                ) from None
 
     return all_runs_checked

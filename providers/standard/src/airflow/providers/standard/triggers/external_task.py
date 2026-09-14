@@ -52,8 +52,9 @@ class WorkflowTrigger(BaseTrigger):
     :param poke_interval: The interval (in seconds) for poking the external tasks.
     :param soft_fail: If True, the trigger will not fail the entire dag on external task failure.
     :param logical_dates: A list of logical dates for the external dag.
-    :param check_existence: If True, verify that the external tasks or task group exist in each
-        awaited Dag run once that run exists, and fire a ``not_found`` event otherwise. Airflow 3 only.
+    :param check_existence: If True, ask the execution API whether the external tasks or task group
+        exist in each awaited Dag run once that run exists, and fire a ``not_found`` event when it
+        reports them missing. Airflow 3 only.
     """
 
     def __init__(
