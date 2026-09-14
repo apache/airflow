@@ -122,6 +122,7 @@ def example_sandbox_toolset_opensandbox():
             toolsets=[
                 SandboxToolset(
                     OpenSandboxBackend(opensandbox_conn_id=None, sandbox_timeout=900),
+                    default_command_timeout=30.0,
                     max_command_timeout=30.0,
                 )
             ],

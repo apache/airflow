@@ -86,7 +86,11 @@ class _BoundedTail:
             self.truncated = True
 
     def add_message(self, message: Any) -> None:
-        self.add_text(message.text)
+        # execd streams one message per output line with the delimiter stripped,
+        # so the newline has to be put back or every line runs together. A blank
+        # line already arrives as "\n", hence the guard.
+        text = message.text
+        self.add_text(text if text.endswith("\n") else text + "\n")
 
     def get_text(self) -> str:
         return bytes(self._data).decode("utf-8", errors="ignore")
