@@ -237,6 +237,8 @@ class IterableOperator(BaseOperator):
         "expand_input",
         "partial_kwargs",
         "_log",
+        "_active_sub_operators",
+        "_active_sub_operators_lock",
     )
 
     def __init__(
