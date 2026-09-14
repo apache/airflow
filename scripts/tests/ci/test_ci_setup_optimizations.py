@@ -385,41 +385,23 @@ def test_parallel_cleanup_propagates_errors(fake_tools, failure):
     assert result.returncode != 0
 
 
-def test_migrations_keep_original_environment_axes_and_failure_requirement():
+def test_migrations_stay_in_an_existing_required_test_check():
     jobs = load_yaml(UNIT_WORKFLOW)["jobs"]
-    migrations, tests = jobs["migrations"], jobs["tests"]
-
-    def normalize(text):
-        return re.sub(r"\s+", "", text)
-
-    for axis in ("python-version", "backend-version", "exclude"):
-        assert normalize(migrations["strategy"]["matrix"][axis]) == normalize(
-            tests["strategy"]["matrix"][axis]
-        )
-    assert "test-types" not in migrations["strategy"]["matrix"]
-    for key in (
-        "BACKEND",
-        "BACKEND_VERSION",
-        "PLATFORM",
-        "PYTHON_MAJOR_MINOR_VERSION",
-        "DOWNGRADE_SQLALCHEMY",
-        "UPGRADE_SQLALCHEMY",
-        "DOWNGRADE_PENDULUM",
-        "FORCE_LOWEST_DEPENDENCIES",
-        "EXCLUDED_PROVIDERS",
-        "MOUNT_SOURCES",
-    ):
-        assert migrations["env"][key] == tests["env"][key]
-    assert "PARALLEL_TEST_TYPES" not in migrations["env"]
-    assert "needs" not in migrations and "needs" not in tests
-    assert "continue-on-error" not in migrations
-    assert migrations["strategy"]["fail-fast"] == "false"
-    step = next(step for step in migrations["steps"] if step.get("uses", "").endswith("/migration_tests"))
+    assert set(jobs) == {"tests"}
+    tests = jobs["tests"]
+    assert "continue-on-error" not in tests
+    assert tests["strategy"]["fail-fast"] == "false"
+    step = next(step for step in tests["steps"] if step.get("uses", "").endswith("/migration_tests"))
     assert step["with"]["python-version"] == "${{ matrix.python-version }}"
-    assert step["if"] == "matrix.python-version != '3.14'"
-    assert "inputs.run-migration-tests == 'true'" in migrations["if"]
-    assert "inputs.test-group == 'core'" in migrations["if"]
-    assert "join(fromJSON(inputs.python-versions), ',') != '3.14'" in migrations["if"]
+    condition = step["if"]
+    assert "inputs.run-migration-tests == 'true'" in condition
+    assert "inputs.test-group == 'core'" in condition
+    assert "matrix.python-version != '3.14'" in condition
+    assert (
+        "matrix.test-types.description == fromJSON(inputs.test-types-as-strings-in-json)[0].description"
+        in condition
+    )
+    assert "continue-on-error" not in step
 
 
 @pytest.mark.parametrize("python_versions", [("3.10",), ("3.14",), ("3.10", "3.12", "3.14")])
@@ -442,15 +424,10 @@ def test_migration_projection_keeps_each_eligible_environment_once(
         and not any(all(row.get(key) == value for key, value in entry.items()) for entry in excluded)
     ]
     expected = {(row["python-version"], row["backend-version"]) for row in retained}
-    matrix = [
-        {"python-version": py, "backend-version": db}
-        for py, db in itertools.product(python_versions, backend_versions)
-    ]
     actual = [
         (row["python-version"], row["backend-version"])
-        for row in matrix
-        if row["python-version"] != "3.14"
-        and not any(all(row.get(key) == value for key, value in entry.items()) for entry in excluded)
+        for row in retained
+        if row["test-types"] == "A"
     ]
     assert set(actual) == expected
     assert len(actual) == len(set(actual))
