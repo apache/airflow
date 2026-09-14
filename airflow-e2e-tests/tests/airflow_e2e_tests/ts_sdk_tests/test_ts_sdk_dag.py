@@ -38,7 +38,8 @@ would run the wrong handler for one of them. And the arguments its
 ``summarize(...)`` call passes reach the TypeScript handler by name, folded
 across the snake_case/camelCase boundary and with one upstream output pulled
 before the handler runs, through a real supervisor rather than a stubbed
-client.
+client. Its ``report`` task covers the other half: a handler that renames an
+argument explicitly with ``withArgNames``, for a name the Dag never used.
 """
 
 from __future__ import annotations
@@ -162,7 +163,12 @@ def test_second_dag_from_the_same_bundle_succeeded(completed_taskflow_run: _Comp
         f"expected the run to succeed; got {completed_taskflow_run.state!r}. "
         f"task states: {completed_taskflow_run.ti_states}"
     )
-    expected = {"make_totals": "success", "summarize": "success", "build_message": "success"}
+    expected = {
+        "make_totals": "success",
+        "summarize": "success",
+        "report": "success",
+        "build_message": "success",
+    }
     for task_id, want in expected.items():
         assert completed_taskflow_run.ti_states.get(task_id) == want, (
             f"{task_id!r} expected {want!r}. all task states: {completed_taskflow_run.ti_states}"
@@ -197,6 +203,24 @@ def test_summarize_binds_its_call_arguments(completed_taskflow_run: _CompletedRu
     # Written only when `dryRun` is false, so this also proves the defaulted
     # boolean arrived as `false` rather than as `undefined`.
     assert completed_taskflow_run.xcom("summarize", key="summary_line") == "uk: 12 orders"
+
+
+def test_report_binds_an_explicitly_renamed_argument(completed_taskflow_run: _CompletedRun):
+    """``report(summary, "nightly")`` reaches a handler that renamed one argument.
+
+    Python names it ``run_label``; the handler destructures ``label``, a word
+    the ``@task.stub`` signature never uses, so folding could not connect the
+    two and the binding is stated with ``withArgNames``. The handler throws
+    unless ``label`` is exactly ``"nightly"``, so a rename that did not take
+    effect fails this task rather than returning a null.
+
+    ``summary`` is not renamed: folding already covers it, which is the point
+    that keeps ``withArgNames`` rare.
+    """
+    value = completed_taskflow_run.xcom("report")
+    assert value == {"label": "nightly", "regionCode": "uk", "healthy": True}, (
+        f"unexpected 'report' return_value: {value!r}"
+    )
 
 
 def test_same_task_id_under_two_dags_runs_its_own_handler(

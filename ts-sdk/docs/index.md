@@ -73,6 +73,9 @@ export async function transform({ regionCode, threshold }: TransformArgs) {
 }
 ```
 
+`withArgNames` states a binding folding cannot reach, for a name the Python side never used.
+It should be rare, since folding covers ordinary spelling differences.
+
 ## Coordinators
 
 Airflow runs TypeScript task bundles through the Python-side `NodeCoordinator`

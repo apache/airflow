@@ -30,7 +30,7 @@
 // implements a task named `build_message`, exactly as the other Dag has, and
 // the two share nothing else.
 
-import { getClient, getContext } from "apache-airflow-ts-sdk";
+import { getClient, getContext, withArgNames } from "apache-airflow-ts-sdk";
 
 /** What `make_totals` returns on the Python side. */
 export interface Totals {
@@ -90,6 +90,44 @@ export async function summarize({
     dryRun,
   };
 }
+
+/** Every argument the Dag's `report(...)` call binds, as the handler wants them. */
+export interface ReportArgs {
+  summary: Summary;
+  /**
+   * The call's `run_label`.
+   *
+   * Not a spelling difference: Python never used the word "label", so folding
+   * could not connect the two and the binding is stated below.
+   */
+  label: string;
+}
+
+/**
+ * Renaming an argument the Python side named something else entirely.
+ *
+ * The mapping comes first, the handler second, and an entry beats folding.
+ * `summary` is not in the map because it does not need to be: folding already
+ * covers every ordinary spelling difference, which is why `withArgNames` should
+ * be rare in a real Dag.
+ *
+ * The map's keys are checked against `ReportArgs`, so `{ labl: "run_label" }`
+ * would be a compile error naming the right key.
+ */
+export const report = withArgNames(
+  { label: "run_label" },
+  async ({ summary, label }: ReportArgs) => {
+    if (label !== "nightly") {
+      throw new Error(`expected run label "nightly" but got "${label}"`);
+    }
+
+    return {
+      label,
+      regionCode: summary.regionCode,
+      healthy: summary.passed,
+    };
+  },
+);
 
 export async function buildSummaryMessage() {
   // Nothing was passed to this task, so its upstream's output is read

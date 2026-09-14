@@ -22,7 +22,9 @@ TaskFlow argument binding across the language boundary.
 ``typescript_example`` shows the basics; this Dag exercises binding itself.
 ``summarize`` is called TaskFlow-style, and every argument its call passes
 reaches the TypeScript handler by name, including ``make_totals``'s output,
-which the runtime pulls before the handler runs.
+which the runtime pulls before the handler runs. ``report`` shows the one case
+folding cannot cover: its handler wants a name the Dag never used, so it states
+that binding explicitly with ``withArgNames``.
 
 This Dag is also served by the same bundle as ``typescript_example``, and its
 ``build_message`` stub deliberately shares a ``task_id`` with a task there: a
@@ -52,6 +54,13 @@ def make_totals():
 def summarize(totals: dict, region_code: str, currency: str, threshold: float, dry_run: bool = False): ...
 
 
+# `run_label` is not a spelling difference. The handler wants to call it
+# `label`, a word this signature never uses, which is what `withArgNames` is
+# for; folding would never connect the two.
+@task.stub(queue="typescript")
+def report(summary: dict, run_label: str): ...
+
+
 # Same task_id as `typescript_example.build_message`, on purpose.
 @task.stub(queue="typescript")
 def build_message(): ...
@@ -64,7 +73,9 @@ def build_message(): ...
     tags=["typescript", "example", "taskflow"],
 )
 def typescript_taskflow_example():
-    summarize(make_totals(), "uk", "GBP", 280.0) >> build_message()
+    summary = summarize(make_totals(), "uk", "GBP", 280.0)
+    report(summary, "nightly")
+    summary >> build_message()
 
 
 typescript_taskflow_example()

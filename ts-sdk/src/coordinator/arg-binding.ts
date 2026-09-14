@@ -81,6 +81,8 @@ export interface ArgBindingDeps {
   readonly signal: AbortSignal;
   /** Where an unmatched name is reported. */
   readonly logs: LogChannel;
+  /** Renames the handler declared with `withArgNames`, which beat folding. */
+  readonly argNames: ReadonlyMap<string, string>;
 }
 
 /**
@@ -133,7 +135,7 @@ export async function resolveArgs(
     );
   const entries = pullsUpstream ? await abortable(resolveAll, deps.signal) : await resolveAll();
 
-  return { args: makeArgsProxy(names, byFold, new Map(entries), deps.logs), names };
+  return { args: makeArgsProxy(names, byFold, new Map(entries), deps), names };
 }
 
 /** Airflow omits `value` for a literal whose value is null. */
@@ -233,15 +235,24 @@ function abortError(signal: AbortSignal): Error {
  * has no way to know which spelling a handler will use: it sees Python's names
  * and nothing else. Folding on read means binding needs nothing declared on
  * either side, and no guess about the TypeScript name is ever materialized.
+ * It is also what lets a `withArgNames` entry take precedence, since the
+ * decision happens per read rather than once up front.
  */
 function makeArgsProxy(
   names: readonly string[],
   byFold: ReadonlyMap<string, string>,
   values: ReadonlyMap<string, JsonValue>,
-  logs: LogChannel,
+  deps: ArgBindingDeps,
 ): unknown {
-  const resolve = (property: string): string | undefined =>
-    values.has(property) ? property : byFold.get(foldArgName(property));
+  const { argNames, logs } = deps;
+  const resolve = (property: string): string | undefined => {
+    // An explicit rename wins, and does not fall back to folding: an author
+    // who stated a binding that is wrong should see the miss, not a value the
+    // SDK guessed at instead.
+    const renamed = argNames.get(property);
+    if (renamed !== undefined) return values.has(renamed) ? renamed : undefined;
+    return values.has(property) ? property : byFold.get(foldArgName(property));
+  };
 
   // A null prototype so a read never reaches Object.prototype: a Python
   // argument named `constructor` or `toString` must bind like any other, and a
@@ -259,6 +270,10 @@ function makeArgsProxy(
       // one from a typo.
       logs.warning("Task argument not bound by this task's call", {
         requested: property,
+        // The wire name the handler asked for, when it asked for one by name:
+        // a wrong `withArgNames` entry is otherwise indistinguishable here
+        // from an argument the call simply did not pass.
+        wire_name: argNames.get(property) ?? null,
         bound: [...names],
       });
       return undefined;

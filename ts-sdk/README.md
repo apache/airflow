@@ -240,6 +240,30 @@ A Python `int` beyond the ±9007199254740991 a JavaScript number holds exactly i
 It would arrive with its low digits already lost, and nothing downstream could notice,
 so carry such a value across the boundary as a string.
 
+### Explicit renames
+
+`withArgNames` states a binding when folding cannot reach it, for a name the Python side never used:
+a clearer word than the Dag chose, or a TypeScript reserved word like `enum`. Mapping first, handler second:
+
+```ts
+interface ReportArgs {
+  summary: Summary;
+  label: string; // Python calls this `run_label`
+}
+
+const report = withArgNames({ label: "run_label" }, async ({ summary, label }: ReportArgs) => {
+  // `label` is the call's `run_label`; `summary` folded as usual.
+});
+
+bundle.register(new TaskHandler("etl", "report", report));
+```
+
+An entry beats folding, and everything the map does not mention still folds,
+so `withArgNames` should be rare in a real Dag.
+The map's keys are checked against the handler's own parameter type,
+so `{ labl: "run_label" }` is a compile error naming the right key.
+Its values are Python names, which `tsc` cannot see and does not check.
+
 `Dag` is for a Dag declared natively in TypeScript, which is still being built out.
 `new Dag` and `dag.task` take a trailing options object (`spec` on both, plus `inputs` on a task) that is not used yet.
 Do not set them, and do not mix a `Dag` and task handlers under one `dagId`: a native Dag owns its own tasks.
