@@ -66,10 +66,10 @@ Embedding Model
     The embedding model and connection can also be overridden at the hook level
     via the ``embed_model_id`` and ``embed_conn_id`` parameters.
 
-    When the LLM and embedding model use different provider prefixes, configure
-    a separate ``embed_conn_id``. The hook does not reuse one provider's credentials
-    for another provider. Local ``sentence-transformers:`` embeddings are the exception:
-    they do not use provider credentials and can share the LLM connection.
+    When the LLM and embedding model use different providers, configure a separate
+    ``embed_conn_id``. Equivalent OpenAI and Azure chat/response prefixes can share
+    their provider's connection. Local ``sentence-transformers:`` embeddings can also
+    share the LLM connection because they do not use provider credentials.
 
 API Key (Password field)
     The API key for your model provider. Required for API-key-based providers
