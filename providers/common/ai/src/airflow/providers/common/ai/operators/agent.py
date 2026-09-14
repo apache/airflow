@@ -452,6 +452,9 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
                 f"prompt, or disable enable_hitl_review."
             )
 
+        # Coerced first so a bad rendered value fails before the expensive setup below.
+        usage_limits = coerce_usage_limits(self.usage_limits)
+
         self._durable_storage = None
         self._durable_counter = None
 
@@ -463,7 +466,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
 
         agent = self._build_agent()
 
-        run_kwargs: dict[str, Any] = {"usage_limits": coerce_usage_limits(self.usage_limits)}
+        run_kwargs: dict[str, Any] = {"usage_limits": usage_limits}
         history = self._resolve_message_history()
         if history is not None:
             run_kwargs["message_history"] = history
@@ -568,12 +571,13 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
 
     def regenerate_with_feedback(self, *, feedback: str, message_history: Any) -> tuple[str, Any]:
         """Re-run the agent with *feedback* appended to the conversation history."""
+        usage_limits = coerce_usage_limits(self.usage_limits)
         agent = self._build_agent()
         messages = message_history or []
         result = agent.run_sync(
             feedback,
             message_history=messages,
-            usage_limits=coerce_usage_limits(self.usage_limits),
+            usage_limits=usage_limits,
         )
         log_run_summary(self.log, result)
 

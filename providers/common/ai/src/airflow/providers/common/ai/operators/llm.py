@@ -176,10 +176,13 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         if self.require_approval:
             self.validate_approval_prompt()  # type: ignore[misc]
 
+        # Coerced first so a bad rendered value fails before the expensive setup below.
+        usage_limits = coerce_usage_limits(self.usage_limits)
+
         agent: Agent[object, Any] = self.llm_hook.create_agent(
             output_type=self.output_type, instructions=self.system_prompt, **self.agent_params
         )
-        result = agent.run_sync(self.prompt, usage_limits=coerce_usage_limits(self.usage_limits))
+        result = agent.run_sync(self.prompt, usage_limits=usage_limits)
         log_run_summary(self.log, result)
         output = result.output
 

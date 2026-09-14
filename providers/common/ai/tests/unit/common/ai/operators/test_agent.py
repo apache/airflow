@@ -135,6 +135,24 @@ class TestAgentOperatorValidation:
         assert op.hitl_poll_interval == 5.0
 
 
+class TestAgentOperatorCoercionOrder:
+    @patch.object(AgentOperator, "_build_agent", autospec=True)
+    def test_unparsable_usage_limits_fails_before_agent_is_built(self, mock_build_agent):
+        """Building the agent resolves the connection and every toolset, so an
+        uncoercible ``usage_limits`` has to fail ahead of it."""
+        op = AgentOperator(
+            task_id="test",
+            prompt="run",
+            llm_conn_id="my_llm",
+            usage_limits={"request_limit": "not-a-number"},
+        )
+
+        with pytest.raises(ValueError, match=r"usage_limits\['request_limit'\]"):
+            op.execute(context={})
+
+        mock_build_agent.assert_not_called()
+
+
 class TestAgentOperatorTemplateFields:
     def test_template_fields(self):
         expected = {
