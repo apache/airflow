@@ -458,6 +458,16 @@ class TestGCSTimeSpanFileTransformOperator:
         mock_blob = mock_bucket.blob.return_value
         return mock_client, mock_bucket, mock_blob
 
+    @staticmethod
+    def _setup_transform_process(mock_subprocess):
+        mock_proc = mock.MagicMock()
+        mock_proc.returncode = 0
+        mock_proc.stdout.readline = lambda: b""
+        mock_proc.wait.return_value = None
+        mock_subprocess.Popen.return_value.__enter__.return_value = mock_proc
+        mock_subprocess.PIPE = "pipe"
+        mock_subprocess.STDOUT = "stdout"
+
     @mock.patch("airflow.providers.google.cloud.operators.gcs.TemporaryDirectory")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.subprocess")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
@@ -1087,6 +1097,131 @@ class TestGCSTimeSpanFileTransformOperator:
         with pytest.raises(ValueError, match="escapes the temp directory"):
             op.execute(context=context)
         mock_blob.download_to_filename.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("num_attempts", "outcomes", "succeeds", "expected_sleeps"),
+        [
+            (1, [GoogleCloudError("fail")], False, []),
+            (2, [GoogleCloudError("fail"), GoogleCloudError("fail")], False, [2]),
+            (3, [GoogleCloudError("fail"), None], True, [2]),
+        ],
+    )
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.time.sleep")
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.TemporaryDirectory")
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.subprocess")
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
+    def test_download_honors_download_num_attempts(
+        self,
+        mock_hook,
+        mock_subprocess,
+        mock_tempdir,
+        mock_sleep,
+        num_attempts,
+        outcomes,
+        succeeds,
+        expected_sleeps,
+    ):
+        timespan_start = datetime(2015, 2, 1, tzinfo=timezone.utc)
+        context = {
+            "logical_date": timespan_start,
+            "data_interval_start": timespan_start,
+            "data_interval_end": timespan_start + timedelta(hours=1),
+            "ti": mock.Mock(),
+            "task": mock.MagicMock(),
+        }
+        mock_tempdir.return_value.__enter__.side_effect = ["source", "destination"]
+        mock_hook.return_value.list_by_timespan.return_value = ["file1"]
+        _, _, mock_blob = self._setup_gcs_client_chain(mock_hook)
+        mock_blob.download_to_filename.side_effect = outcomes
+        self._setup_transform_process(mock_subprocess)
+
+        op = GCSTimeSpanFileTransformOperator(
+            task_id=TASK_ID,
+            source_bucket="bucket",
+            source_prefix="prefix",
+            source_gcp_conn_id="",
+            destination_bucket="dest",
+            destination_prefix="dest",
+            destination_gcp_conn_id="",
+            transform_script="script.py",
+            download_num_attempts=num_attempts,
+        )
+
+        with (
+            mock.patch.object(Path, "glob") as path_glob,
+            mock.patch.object(Path, "is_file", return_value=True),
+        ):
+            path_glob.return_value.__iter__.return_value = []
+            if succeeds:
+                op.execute(context=context)
+            else:
+                with pytest.raises(GoogleCloudError):
+                    op.execute(context=context)
+
+        assert mock_blob.download_to_filename.call_count == len(outcomes)
+        assert [call.args[0] for call in mock_sleep.call_args_list] == expected_sleeps
+
+    @pytest.mark.parametrize(
+        ("num_attempts", "outcomes", "succeeds", "expected_sleeps"),
+        [
+            (1, [GoogleCloudError("fail")], False, []),
+            (2, [GoogleCloudError("fail"), None], True, [2]),
+        ],
+    )
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.time.sleep")
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.TemporaryDirectory")
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.subprocess")
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
+    def test_upload_honors_upload_num_attempts(
+        self,
+        mock_hook,
+        mock_subprocess,
+        mock_tempdir,
+        mock_sleep,
+        num_attempts,
+        outcomes,
+        succeeds,
+        expected_sleeps,
+    ):
+        timespan_start = datetime(2015, 2, 1, tzinfo=timezone.utc)
+        context = {
+            "logical_date": timespan_start,
+            "data_interval_start": timespan_start,
+            "data_interval_end": timespan_start + timedelta(hours=1),
+            "ti": mock.Mock(),
+            "task": mock.MagicMock(),
+        }
+        mock_tempdir.return_value.__enter__.side_effect = ["source", "destination"]
+        mock_hook.return_value.list_by_timespan.return_value = []
+        _, _, mock_blob = self._setup_gcs_client_chain(mock_hook)
+        mock_blob.upload_from_filename.side_effect = outcomes
+        self._setup_transform_process(mock_subprocess)
+
+        op = GCSTimeSpanFileTransformOperator(
+            task_id=TASK_ID,
+            source_bucket="bucket",
+            source_prefix="prefix",
+            source_gcp_conn_id="",
+            destination_bucket="dest",
+            destination_prefix="dest",
+            destination_gcp_conn_id="",
+            transform_script="script.py",
+            upload_num_attempts=num_attempts,
+        )
+
+        with (
+            mock.patch.object(Path, "glob") as path_glob,
+            mock.patch.object(Path, "is_file", return_value=True),
+        ):
+            path_glob.return_value.__iter__.return_value = [Path("destination/file1")]
+            if succeeds:
+                assert op.execute(context=context) == ["dest/file1"]
+            else:
+                with pytest.raises(GoogleCloudError):
+                    op.execute(context=context)
+
+        assert mock_blob.upload_from_filename.call_count == len(outcomes)
+        assert [call.args[0] for call in mock_sleep.call_args_list] == expected_sleeps
 
 
 class TestGCSDeleteBucketOperator:
