@@ -30,7 +30,7 @@ import sys
 from argparse import Namespace
 from collections.abc import Callable, Iterable
 from enum import Enum
-from functools import partial
+from functools import cached_property, partial
 from pathlib import Path
 from typing import Any, NamedTuple
 
@@ -642,7 +642,7 @@ class CommandFactory:
             "bool": bool,
             "str": str,
             "bytes": bytes,
-            "list": list,
+            "list": string_list_type,
             "dict": json_dict_type,
             "tuple": tuple,
             "set": set,
@@ -959,9 +959,15 @@ class CommandFactory:
                 )
             )
 
-    @property
+    @cached_property
     def group_commands(self) -> list[CLICommand]:
-        """List of GroupCommands generated for airflowctl."""
+        """
+        List of GroupCommands generated for airflowctl.
+
+        Cached because the builders below append to ``self.operations`` /
+        ``self.commands_map`` / ``self.group_commands_list``: recomputing would
+        duplicate every group and subcommand instead of replacing them.
+        """
         self._inspect_operations()
         self._create_args_map_from_operation()
         self._create_func_map_from_operation()

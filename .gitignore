@@ -132,15 +132,22 @@ ENV/
 *.iml
 
 # Claude Code — ignore local config/caches/worktrees, but keep the
-# tracked symlinks in .claude/skills/ that point at .agents/skills/.
+# tracked symlinks in .claude/skills/ that point at .agents/skills/,
+# and the committed apache-magpie plugin floor in settings.json
+# (per-machine settings belong in the ignored settings.local.json).
 .claude/*
+!.claude/settings.json
 !.claude/skills/
 .claude/skills/*
 !.claude/skills/aip-user-stories
 !.claude/skills/airflow-translations
 !.claude/skills/prepare-providers-documentation
 !.claude/skills/upgrade-fab-provider
-!.claude/skills/magpie-setup
+
+# Claude Code write-tracking scratch dirs. Created next to whatever
+# directory a tool call ran in, so they turn up anywhere in the tree —
+# the .claude/* rule above only covers the repo root.
+**/.claude/.cc-writes/
 
 # Kiro
 .kiro/
@@ -315,37 +322,19 @@ dev/registry/logos/
 dev/registry/modules.json
 dev/registry/providers.json
 
-# apache-magpie — gitignored snapshot of the framework, refreshed
-# by /magpie-setup upgrade. Build artefact, not source. No trailing
-# slash: in the main checkout this is a directory, but
-# /magpie-setup worktree-init makes it a symlink to the main's
-# snapshot, and a directory-only pattern would leave every worktree
-# showing it as untracked.
-/.apache-magpie
-
-# Per-machine local-pin file. Records what THIS machine fetched and
-# when. Compared against the committed .apache-magpie.lock to
-# detect drift.
-/.apache-magpie.local.lock
-
-# Per-machine session-state file. Records adopter-local persistence
-# anchors written by magpie skills (e.g. the session-history gist
-# URL written by pr-management-triage Step 6b, per
+# apache-magpie — per-machine session-state file. Records
+# adopter-local persistence anchors written by magpie skills
+# (e.g. the session-history gist URL written by
+# pr-management-triage Step 6b, per
 # https://github.com/apache/magpie/pull/343).
 /.apache-magpie.session-state.json
+
+# apache-magpie — per-developer configuration store. Personal
+# answers that shadow the project's committed
+# `.apache-magpie-overrides/` for this clone only.
+/.apache-magpie-local/
 
 # Per-machine project-scope Claude Code settings (sandbox-allowlist
 # absolute paths written by sandbox-add-project-root.sh; per
 # https://github.com/apache/magpie/issues/197).
 /.claude/settings.local.json
-
-# Symlinks created by /magpie-setup into the gitignored snapshot
-# (every framework skill is namespaced under the magpie- prefix).
-# The committed magpie-setup bootstrap is kept tracked by the
-# negation lines (the magpie-* glob would otherwise ignore it).
-/.agents/skills/magpie-*
-!/.agents/skills/magpie-setup
-/.claude/skills/magpie-*
-!/.claude/skills/magpie-setup
-/.github/skills/magpie-*
-!/.github/skills/magpie-setup

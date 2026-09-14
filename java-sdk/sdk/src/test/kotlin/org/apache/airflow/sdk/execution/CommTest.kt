@@ -35,6 +35,7 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
 import org.msgpack.core.MessagePack
+import org.msgpack.core.buffer.ArrayBufferInput
 import java.io.ByteArrayOutputStream
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
@@ -134,6 +135,84 @@ class CommsTest {
       packer.packNil()
     }
     return out.toByteArray()
+  }
+
+  private fun okResponseFrame(id: Int): ByteArray {
+    val out = ByteArrayOutputStream()
+    MessagePack.newDefaultPacker(out).use { packer ->
+      packer.packArrayHeader(3)
+      packer.packInt(id)
+      packer.packMapHeader(2)
+      packer.packString("type")
+      packer.packString("OKResponse")
+      packer.packString("ok")
+      packer.packBoolean(true)
+      packer.packNil()
+    }
+    return out.toByteArray()
+  }
+
+  // The supervisor answers a request that yields no result with a bare `[id]` frame.
+  private fun emptyResponseFrame(id: Int): ByteArray {
+    val out = ByteArrayOutputStream()
+    MessagePack.newDefaultPacker(out).use { packer ->
+      packer.packArrayHeader(1)
+      packer.packInt(id)
+    }
+    return out.toByteArray()
+  }
+
+  private fun errorResponseFrame(id: Int): ByteArray {
+    val out = ByteArrayOutputStream()
+    MessagePack.newDefaultPacker(out).use { packer ->
+      packer.packArrayHeader(3)
+      packer.packInt(id)
+      packer.packNil()
+      packer.packMapHeader(2)
+      packer.packString("type")
+      packer.packString("ErrorResponse")
+      packer.packString("detail")
+      packer.packMapHeader(1)
+      packer.packString("status_code")
+      packer.packInt(500)
+    }
+    return out.toByteArray()
+  }
+
+  private fun readRequest(fromClient: ByteChannel): RawFrame =
+    runBlocking {
+      val prefix = fromClient.readByteArray(4)
+      val payload = fromClient.readByteArray(Frame.parseLengthPrefix(prefix).toInt())
+      Frame.decodeRaw(ArrayBufferInput(payload))
+    }
+
+  /**
+   * Run one call on the public client against a fake supervisor that answers
+   * its single request with [response]. Returns the raw request body as sent
+   * on the wire and the exception the call threw, if any.
+   */
+  private fun roundTrip(
+    response: (Int) -> ByteArray,
+    call: (PublicClient) -> Unit,
+  ): Pair<Map<*, *>, Throwable?> {
+    val toClient = ByteChannel(autoFlush = true)
+    val fromClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, fromClient)
+    val client = PublicClient(StartupDetails(), CoordinatorClient(comm))
+
+    val requests = ConcurrentLinkedQueue<RawFrame>()
+    val server =
+      Thread {
+        val request = readRequest(fromClient)
+        requests.add(request)
+        runBlocking { toClient.writeFrame(response(request.id)) }
+      }
+    server.start()
+    val failure = runCatching { call(client) }.exceptionOrNull()
+    server.join()
+    comm.close()
+
+    return (requests.single().rawBody as Map<*, *>) to failure
   }
 
   private suspend fun ByteChannel.writeFrame(payload: ByteArray) {
@@ -261,6 +340,50 @@ class CommsTest {
     Assertions.assertTrue(errors.isEmpty(), "concurrent public-client calls failed: $errors")
     Assertions.assertEquals(n, results.size)
     comm.close()
+  }
+
+  @Test
+  @DisplayName("setVariable keeps a null description on the wire so the supervisor accepts the request")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun setVariableKeepsNullDescriptionOnTheWire() {
+    val (body, failure) = roundTrip(::emptyResponseFrame) { it.setVariable("k", "v") }
+
+    Assertions.assertNull(failure, "setVariable should return normally on an empty response, got $failure")
+    Assertions.assertEquals("PutVariable", body["type"])
+    Assertions.assertEquals("k", body["key"])
+    Assertions.assertEquals("v", body["value"])
+    Assertions.assertTrue(body.containsKey("description"), "description must be sent even when null: $body")
+    Assertions.assertNull(body["description"])
+  }
+
+  @Test
+  @DisplayName("setVariable sends the description when one is given")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun setVariableSendsDescription() {
+    val (body, failure) = roundTrip(::emptyResponseFrame) { it.setVariable("k", "v", "why") }
+
+    Assertions.assertNull(failure, "setVariable should return normally on an empty response, got $failure")
+    Assertions.assertEquals("why", body["description"])
+  }
+
+  @Test
+  @DisplayName("deleteVariable sends the key and accepts the supervisor's OK response")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun deleteVariableAcceptsOkResponse() {
+    val (body, failure) = roundTrip(::okResponseFrame) { it.deleteVariable("k") }
+
+    Assertions.assertNull(failure, "deleteVariable should return normally on OKResponse, got $failure")
+    Assertions.assertEquals("DeleteVariable", body["type"])
+    Assertions.assertEquals("k", body["key"])
+  }
+
+  @Test
+  @DisplayName("deleteVariable raises ApiError when the supervisor reports an error")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun deleteVariableRaisesApiErrorOnErrorResponse() {
+    val (_, failure) = roundTrip(::errorResponseFrame) { it.deleteVariable("k") }
+
+    Assertions.assertInstanceOf(ApiError::class.java, failure)
   }
 
   @Test

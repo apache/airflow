@@ -22,7 +22,7 @@ Don't spell out **Directed Acyclic Graph** except for historical context.
 
 - Install prek: `uv tool install prek`
 - Enable commit hooks: `prek install`
-- Install breeze shim (one-time, per machine): `scripts/tools/setup_breeze` — installs `~/.local/bin/breeze` that runs breeze via `uvx` from the current git worktree's `dev/breeze` (so each worktree, including ephemeral agent worktrees, gets its own breeze tied to its sources). See [ADR 0017](dev/breeze/doc/adr/0017-use-uvx-to-run-breeze-from-local-sources.md).
+- Install breeze shim (one-time, per machine): `scripts/tools/setup_breeze` — installs `~/.local/bin/breeze` that runs breeze via `uv run --locked` from the current git worktree's `dev/breeze`, with dependencies pinned by `dev/breeze/uv.lock` (so each worktree, including ephemeral agent worktrees, gets its own breeze tied to its sources). See [ADR 0017](dev/breeze/doc/adr/0017-use-uvx-to-run-breeze-from-local-sources.md).
 - **Never run pytest, python, or airflow commands directly on the host** — always use `breeze`.
 - Place temporary scripts in `dev/` (mounted as `/opt/airflow/dev/` inside Breeze).
 
@@ -140,7 +140,7 @@ reported as such are described in "What is NOT considered a security vulnerabili
 - Imports at top of file. Valid exceptions: circular imports, lazy loading for worker isolation, `TYPE_CHECKING` blocks.
 - Guard heavy type-only imports (e.g., `kubernetes.client`) with `TYPE_CHECKING` in multi-process code paths.
 - Define dedicated exception classes or use existing exceptions such as `ValueError` instead of raising the broad `AirflowException` directly. Each error case should have a specific exception type that conveys what went wrong. **Never add new direct `raise AirflowException(...)` usages — the community is actively reducing them, not adding more, and the `check-no-new-airflow-exceptions` prek hook enforces this across `airflow-core`, `airflow-ctl`, `task-sdk`, `providers`, and `shared`.** Prefer a Python built-in (`ValueError`, `TypeError`, `OSError`, …) or a dedicated class in the appropriate `exceptions.py`. The only acceptable way an `AirflowException` line may move is relocating an already-existing one verbatim during a refactor (e.g. moving code between files) — that is not a new usage. When you touch code that already raises `AirflowException`, prefer narrowing it to a more specific exception rather than leaving or duplicating it.
-- Translate domain-layer exceptions to `HTTPException` at FastAPI route boundaries. In `airflow-core/src/airflow/core_api/` route handlers, catch errors raised by domain code (e.g., `ValueError` from `airflow.state.metastore.MetastoreStateBackend` for a missing row or invalid input) and re-raise as `HTTPException` with the right status (`404` for not-found, `400` for invalid input). Otherwise they propagate as `500 Internal Server Error`, leaking internals and misleading clients.
+- Translate domain-layer exceptions to `HTTPException` at FastAPI route boundaries. In `airflow-core/src/airflow/api_fastapi/core_api/` route handlers, catch errors raised by domain code (e.g., `ValueError` from `airflow.state.metastore.MetastoreBackend` for a missing row or invalid input) and re-raise as `HTTPException` with the right status (`404` for not-found, `400` for invalid input). Otherwise they propagate as `500 Internal Server Error`, leaking internals and misleading clients.
 - Bulk `DELETE`/`UPDATE` in the scheduler loop or any synchronous interval task (e.g. `call_regular_interval` callbacks) must be batched with `LIMIT` and committed between batches — never issue a single unbounded bulk write against a user-driven table. Unbounded bulk writes hold row locks for the entire transaction (blocking concurrent writers) and stall the scheduler main loop. Filter columns used by the cleanup must be indexed. Follow the batching pattern in `airflow-core/src/airflow/utils/db_cleanup.py`.
 - Name functions and methods with action verbs: `get_`, `extract_`, `find_`, `compute_`, `build_`, etc. Avoid noun-only names like `_serialize_keys` or `_base_names` — they read as attributes, not callables. Predicates (`is_`, `has_`) are the one exception.
 - Apache License header on all new files (prek enforces this).
@@ -485,31 +485,36 @@ participating in that same PR/issue discussion.
 
 ## apache-magpie framework
 
-This repo adopts the [`apache/magpie`](https://github.com/apache/magpie)
-framework via the snapshot mechanism. The framework provides the
-`pr-management-*` skills (triage, code-review, stats, mentor); they are
-gitignored symlinks into the `.apache-magpie/` snapshot directory.
+This repo uses the [`apache/magpie`](https://github.com/apache/magpie)
+framework, installed from its plugin marketplace. The framework provides
+the `pr-management-*` skills (triage, code-review, stats, mentor) among
+others. Nothing framework-related is committed here — install it in your
+own agent harness. In Claude Code:
 
-A fresh clone needs the snapshot populated before any framework skill is
-invocable. Run `/magpie-setup` (or follow
-[`.claude/skills/magpie-setup/`](.claude/skills/magpie-setup/)) to fetch
-it per the committed [`.apache-magpie.lock`](.apache-magpie.lock). The
-contributor-facing summary of the adoption + setup flow lives in the
-[Agent-assisted contribution section of `README.md`](README.md#agent-assisted-contribution-apache-magpie).
+```text
+/plugin marketplace add apache/magpie
+/plugin install magpie-pr-management@apache-magpie
+```
 
-Adopter-specific modifications to framework-skill workflows live in
-[`.apache-magpie-overrides/`](.apache-magpie-overrides/) — never edit
-the snapshot directly. Framework changes go via PR to
+`magpie@apache-magpie` installs every family at once; other families
+(`magpie-security`, `magpie-release-management`, …) install individually.
+The contributor-facing summary lives in the [Agent-assisted contribution
+section of `README.md`](README.md#agent-assisted-contribution-apache-magpie).
+
+Airflow-specific modifications to framework-skill workflows live in
+[`.apache-magpie-overrides/`](.apache-magpie-overrides/) — the installed
+plugin reads them at run time. Never edit the installed plugin itself;
+framework changes go via PR to
 [`apache/magpie`](https://github.com/apache/magpie).
 
 ### Reviewing pull requests
 
-With apache-magpie installed locally, use the
-`magpie-pr-management-code-review` skill for PR code review. It posts
-findings as **inline review comments** anchored to `file:line`, presented
-**individually for accept/skip** before anything is submitted — prefer it
-over an ad-hoc review pass or a generic review command. A body-only review
-is the explicit opt-out (`inline:off`).
+With the `magpie-pr-management` plugin installed, use the
+`magpie-pr-management:pr-management-code-review` skill for PR code review.
+It posts findings as **inline review comments** anchored to `file:line`,
+presented **individually for accept/skip** before anything is submitted —
+prefer it over an ad-hoc review pass or a generic review command. A
+body-only review is the explicit opt-out (`inline:off`).
 
 ## Boundaries
 

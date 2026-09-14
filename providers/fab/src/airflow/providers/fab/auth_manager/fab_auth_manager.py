@@ -23,7 +23,7 @@ import warnings
 from contextlib import suppress
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
-from urllib.parse import urljoin
+from urllib.parse import urlencode, urljoin
 
 from cachetools import TTLCache, cachedmethod
 from fastapi import FastAPI
@@ -55,6 +55,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
 from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
 from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
 from airflow.models import Connection, DagModel, Pool, Variable
+from airflow.models.asset import AssetModel
 from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.common.compat.security.access_view import (
     AUDIT_LOGS_ALL_ACCESS_VIEW,
@@ -564,6 +565,26 @@ class FabAuthManager(BaseAuthManager[User]):
         ]
 
     @provide_session
+    def get_authorized_assets(
+        self,
+        *,
+        user: User,
+        method: ResourceMethod = "GET",
+        session: Session = NEW_SESSION,
+    ) -> set[int]:
+        """
+        Get the ids of the assets the user has access to.
+
+        Fab auth manager does not allow fine-grained access with assets. Thus, return all the asset ids.
+
+        :param user: the user
+        :param method: the method to filter on
+        :param session: the session
+        """
+        rows = session.execute(select(AssetModel.id)).scalars().all()
+        return set(rows)
+
+    @provide_session
     def get_authorized_connections(
         self,
         *,
@@ -685,7 +706,11 @@ class FabAuthManager(BaseAuthManager[User]):
 
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
-        return urljoin(self.apiserver_endpoint, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login/")
+        login_url = urljoin(self.apiserver_endpoint, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login/")
+        next_url = kwargs.get("next_url")
+        if next_url:
+            return f"{login_url}?{urlencode({'next': next_url})}"
+        return login_url
 
     def get_url_logout(self) -> str | None:
         """Return the logout page url."""
