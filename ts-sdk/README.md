@@ -209,12 +209,36 @@ and a failing task reports the same list.
 TypeScript-side names to enumerate, and `in` folds like a read.
 Two Python names that fold to the same token fail the task at dispatch, naming both.
 
-An upstream's return value is not a bound argument unless the Python call passes it.
-Read one the task was not passed explicitly:
+### Upstream outputs
+
+An argument the Python call fills from another task arrives as that task's value, not as a reference to it.
+The runtime pulls its `return_value` XCom before the handler runs, and pulls every such argument at once,
+so a task called with four upstream outputs waits for one round-trip rather than four:
+
+```python
+transform(extract(), "uk", 0.75)
+```
+
+```ts
+export async function transform({ rows, regionCode, threshold }: TransformArgs) {
+  // `rows` is what extract() returned.
+}
+```
+
+An upstream that pushed no output fails the task, naming both the argument and the task it came from:
+a task that returns nothing pushes no XCom, and an unbound argument would reach the handler as `undefined`.
+An upstream that pushed `null` binds `null`.
+
+Being upstream is not the same as being passed. An XCom dependency declared with `>>` defines task order only,
+so a value the call did not pass is read explicitly:
 
 ```ts
 const rows = await getClient().getXCom<number>({ key: "return_value", taskId: "extract" });
 ```
+
+A Python `int` beyond the ±9007199254740991 a JavaScript number holds exactly is refused rather than bound.
+It would arrive with its low digits already lost, and nothing downstream could notice,
+so carry such a value across the boundary as a string.
 
 `Dag` is for a Dag declared natively in TypeScript, which is still being built out.
 `new Dag` and `dag.task` take a trailing options object (`spec` on both, plus `inputs` on a task) that is not used yet.

@@ -36,8 +36,9 @@ two ``dag_id``s: its ``build_message`` shares a ``task_id`` with a task in
 ``typescript_example``, so a bundle that keyed dispatch on the task ID alone
 would run the wrong handler for one of them. And the arguments its
 ``summarize(...)`` call passes reach the TypeScript handler by name, folded
-across the snake_case/camelCase boundary, through a real supervisor rather than
-a stubbed client.
+across the snake_case/camelCase boundary and with one upstream output pulled
+before the handler runs, through a real supervisor rather than a stubbed
+client.
 """
 
 from __future__ import annotations
@@ -169,12 +170,15 @@ def test_second_dag_from_the_same_bundle_succeeded(completed_taskflow_run: _Comp
 
 
 def test_summarize_binds_its_call_arguments(completed_taskflow_run: _CompletedRun):
-    """Every argument the Dag's ``summarize("uk", "GBP", 280.0)`` call passes.
+    """Every argument ``summarize(make_totals(), "uk", "GBP", 280.0)`` passes.
 
     ``region_code`` and ``dry_run`` are snake_case in the ``@task.stub``
     signature and camelCase in the handler, with nothing declared on either
     side: folding is what carries them across. ``dry_run`` is left out of the
-    call, so it arrives from the stub's default.
+    call, so it arrives from the stub's default. ``totals`` takes
+    ``make_totals``'s output, so the runtime resolves that task's
+    ``return_value`` XCom before the handler is called. ``averageOrder`` below
+    is computed from it, and the handler never reads an XCom itself.
 
     A handler that received none of them would see ``undefined`` for each and
     return nulls and ``NaN`` here rather than failing, which is why the whole

@@ -21,7 +21,9 @@
 //
 // `summarize` shows argument binding: its Python `@task.stub` signature is
 // snake_case, the interface below is camelCase, and nothing is declared on
-// either side, because names bind by folding.
+// either side, because names bind by folding. Its `totals` argument takes
+// `make_totals`'s output, which the runtime pulls before the handler runs, so
+// the handler never touches XCom for it.
 //
 // The Dag is served by the same bundle as `typescript_example`, so the pair of
 // ids a handler binds is what tells its tasks apart. `buildSummaryMessage`
@@ -39,11 +41,13 @@ export interface Totals {
 /**
  * Every argument the Dag's `summarize(...)` call binds.
  *
- * Python spells these `region_code`, `currency`, `threshold` and `dry_run`.
- * Folding absorbs the difference, so this interface says what the handler
- * wants to read them as and nothing more.
+ * Python spells these `totals`, `region_code`, `currency`, `threshold` and
+ * `dry_run`. Folding absorbs the difference, so this interface says what the
+ * handler wants to read them as and nothing more. `totals` arrives as the
+ * upstream task's value, not as a reference to it.
  */
 export interface SummarizeArgs {
+  totals: Totals;
   regionCode: string;
   currency: string;
   threshold: number;
@@ -61,26 +65,17 @@ export interface Summary {
 }
 
 export async function summarize({
+  totals,
   regionCode,
   currency,
   threshold,
   dryRun,
 }: SummarizeArgs): Promise<Summary> {
-  const client = getClient();
-  // Read explicitly: an upstream's return value is not a bound argument unless
-  // the Python call passes it, and this Dag's `summarize(...)` call does not.
-  const totals = await client.getXCom<Totals>({
-    key: "return_value",
-    taskId: "make_totals",
-  });
-  if (totals === null) {
-    throw new Error(`task ${getContext().taskId} has no totals to summarize`);
-  }
   const average = totals.orders === 0 ? 0 : totals.revenue / totals.orders;
   const averageOrder = Number(average.toFixed(2));
 
   if (!dryRun) {
-    await client.setXCom({
+    await getClient().setXCom({
       key: "summary_line",
       value: `${regionCode}: ${totals.orders} orders`,
     });
@@ -97,6 +92,8 @@ export async function summarize({
 }
 
 export async function buildSummaryMessage() {
+  // Nothing was passed to this task, so its upstream's output is read
+  // explicitly: being upstream does not make a return value a bound argument.
   const ctx = getContext();
   const summary = await getClient().getXCom<Summary>({
     key: "return_value",

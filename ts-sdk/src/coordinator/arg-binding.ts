@@ -20,17 +20,29 @@
 // The TaskFlow call arguments Airflow captured for a task, delivered by name.
 //
 // A Python Dag declares a task that runs in another language with `@task.stub`
-// and calls it TaskFlow-style, as in `transform("uk", 0.75)`. Airflow
+// and calls it TaskFlow-style, as in `transform("uk", extract())`. Airflow
 // materializes that call site into an ordered, named spec and delivers it as
 // `StartupDetails.ti_context.arg_bindings`; this turns it back into the object
-// the handler destructures.
+// the handler destructures, pulling any upstream output the call passed.
 //
 // Names bind by folding on both sides, so nothing has to be declared for a
 // Python `region_code` to reach a handler's `regionCode`.
 
+import type { CoordinatorClient } from "./client.js";
 import type { LogChannel } from "./log-channel.js";
-import type { ArgBindings, TaskArgBinding } from "../generated/supervisor.js";
+import type {
+  ArgBindings,
+  ArgValueSchema,
+  TaskArgBinding,
+  XComArgBinding,
+} from "../generated/supervisor.js";
 import type { JsonValue } from "../sdk/client-types.js";
+
+/** The key an upstream task's return value is stored under, as Python `@task` does. */
+const RETURN_VALUE_KEY = "return_value";
+
+/** What Airflow stamps on an argument the Dag declared as a Python `int`. */
+const INT64_FORMAT = "int64";
 
 /**
  * Fold a name to the token both sides are matched on.
@@ -61,21 +73,37 @@ export interface BoundArgs {
 
 const EMPTY_ARGS: BoundArgs = { args: Object.freeze({}), names: Object.freeze([]) };
 
+/** What {@link resolveArgs} needs beyond the spec itself. */
+export interface ArgBindingDeps {
+  /** Used to pull the upstream outputs the call passed. */
+  readonly client: CoordinatorClient;
+  /** The task's abort signal, so a terminated task stops mid-pull. */
+  readonly signal: AbortSignal;
+  /** Where an unmatched name is reported. */
+  readonly logs: LogChannel;
+}
+
 /**
- * Decode `ti_context.arg_bindings` into the object a task handler receives.
+ * Resolve `ti_context.arg_bindings` into the object a task handler receives.
  *
- * A duplicate fold fails the task here, before the handler runs: two Python
- * names that fold to one token cannot both be reached, and picking either
- * silently would hand the handler the wrong value.
+ * Every rejection here fails the task, before the handler runs and before it
+ * could have written anything: a binding that cannot be honoured would
+ * otherwise reach the handler as `undefined` and corrupt the task's output
+ * rather than stopping it.
  */
-export function bindArgs(bindings: ArgBindings | undefined, logs: LogChannel): BoundArgs {
+export async function resolveArgs(
+  bindings: ArgBindings | undefined,
+  deps: ArgBindingDeps,
+): Promise<BoundArgs> {
   // Absent for an Airflow too old to send a spec, and for a task called with no
   // arguments. Both mean the handler's parameter has nothing in it.
   if (bindings == null || bindings.length === 0) return EMPTY_ARGS;
 
+  // Checked in full before anything is pulled, so a spec this SDK cannot
+  // honour costs no round-trip and leaves no half-resolved call behind.
   const names: string[] = [];
   const byFold = new Map<string, string>();
-  const values = new Map<string, JsonValue>();
+  let pullsUpstream = false;
   for (const binding of bindings) {
     const name = binding.name;
     const fold = foldArgName(name);
@@ -88,29 +116,38 @@ export function bindArgs(bindings: ArgBindings | undefined, logs: LogChannel): B
     }
     byFold.set(fold, name);
     names.push(name);
-    values.set(name, resolveBindingValue(binding));
+    checkBindable(binding);
+    pullsUpstream ||= binding.kind === "xcom";
   }
 
-  return { args: makeArgsProxy(names, byFold, values, logs), names };
+  // One pass over the spec with every upstream pull in flight at once: a task
+  // called with four upstream outputs should wait for one round-trip, not four.
+  const resolveAll = (): Promise<[string, JsonValue][]> =>
+    Promise.all(
+      bindings.map(async (binding): Promise<[string, JsonValue]> => [
+        binding.name,
+        binding.kind === "xcom"
+          ? await pullXComArg(binding, deps.client)
+          : literalValue(binding.value),
+      ]),
+    );
+  const entries = pullsUpstream ? await abortable(resolveAll, deps.signal) : await resolveAll();
+
+  return { args: makeArgsProxy(names, byFold, new Map(entries), deps.logs), names };
 }
 
-/** The value a binding carries, or a throw for one this SDK cannot honour.
- *
- *  A binding that cannot be honoured fails the task rather than being dropped:
- *  an unbound argument reaches the handler as `undefined`, which corrupts the
- *  task's output instead of stopping it. */
-function resolveBindingValue(binding: TaskArgBinding): JsonValue {
+/** Airflow omits `value` for a literal whose value is null. */
+function literalValue(value: unknown): JsonValue {
+  return (value ?? null) as JsonValue;
+}
+
+/** Refuse a binding this SDK cannot honour, before any of them is resolved. */
+function checkBindable(binding: TaskArgBinding): void {
   const { name } = binding;
+  if (binding.kind === "xcom") return;
   if (binding.kind === "literal") {
-    // Airflow omits `value` for a literal whose value is null.
-    return (binding.value ?? null) as JsonValue;
-  }
-  if (binding.kind === "xcom") {
-    throw new Error(
-      `Task argument "${name}" takes the output of upstream task "${binding.task_id}", but ` +
-        "XCom-backed arguments are not supported yet; read the value inside the handler " +
-        `instead, with getClient().getXCom({ key: "return_value", taskId: "${binding.task_id}" })`,
-    );
+    checkExactInteger(name, literalValue(binding.value), binding.value_schema);
+    return;
   }
   // Unreachable for the wire union as generated, so `binding` is `never` here.
   // A newer Airflow can add a kind, and skipping it would silently leave the
@@ -119,6 +156,73 @@ function resolveBindingValue(binding: TaskArgBinding): JsonValue {
   throw new Error(
     `Task argument "${name}" has binding kind ${JSON.stringify(kind)}, which this version ` +
       "of apache-airflow-ts-sdk cannot bind; upgrade it to match this Airflow release",
+  );
+}
+
+/** Pull the upstream task's output this argument was called with. */
+async function pullXComArg(binding: XComArgBinding, client: CoordinatorClient): Promise<JsonValue> {
+  const entry = await client.getXComEntry({ key: RETURN_VALUE_KEY, taskId: binding.task_id });
+  if (!entry.found) {
+    throw new Error(
+      `Task argument "${binding.name}" takes the output of upstream task "${binding.task_id}", ` +
+        `which pushed no ${RETURN_VALUE_KEY} XCom; a task that returns nothing pushes none`,
+    );
+  }
+  checkExactInteger(binding.name, entry.value, binding.value_schema);
+  return entry.value;
+}
+
+/**
+ * Refuse an integer JavaScript already failed to hold.
+ *
+ * Airflow stamps `format: "int64"` on an argument the Dag declared as a Python
+ * `int`, whose range is wider than the one a JavaScript `number` represents
+ * exactly. Binding such a value silently hands the handler a different number
+ * from the one the Dag produced, which nothing downstream can detect.
+ */
+function checkExactInteger(
+  name: string,
+  value: JsonValue,
+  schema: ArgValueSchema | null | undefined,
+): void {
+  if (schema?.["format"] !== INT64_FORMAT) return;
+  if (typeof value !== "number" || Math.abs(value) <= Number.MAX_SAFE_INTEGER) return;
+  throw new Error(
+    `Task argument "${name}" is a 64-bit integer of ${value}, beyond the ` +
+      `±${Number.MAX_SAFE_INTEGER} a JavaScript number holds exactly, so its low digits ` +
+      "are already lost; carry it across the language boundary as a string instead",
+  );
+}
+
+/**
+ * Run `work`, giving up as soon as `signal` aborts.
+ *
+ * The comm channel cannot cancel a request in flight, so this abandons the
+ * reply rather than the pull. It still matters: arguments resolve before the
+ * handler runs, which is the one stretch of a task's life with nothing else
+ * listening for termination, so a task killed mid-pull would otherwise sit out
+ * the runtime's force-exit grace period. `work` is a thunk so an
+ * already-aborted task issues no request at all.
+ */
+async function abortable<T>(work: () => Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) throw abortError(signal);
+  let onAbort!: () => void;
+  const aborted = new Promise<never>((_resolve, reject) => {
+    onAbort = () => reject(abortError(signal));
+  });
+  signal.addEventListener("abort", onAbort, { once: true });
+  try {
+    return await Promise.race([work(), aborted]);
+  } finally {
+    signal.removeEventListener("abort", onAbort);
+  }
+}
+
+function abortError(signal: AbortSignal): Error {
+  const reason: unknown = signal.reason;
+  return new Error(
+    "Aborted while resolving this task's arguments from its upstream tasks: " +
+      (reason instanceof Error ? reason.message : String(reason)),
   );
 }
 

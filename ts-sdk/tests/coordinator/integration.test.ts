@@ -440,6 +440,85 @@ describe("coordinator runtime integration", () => {
     expect(observed).toEqual({ regionCode: "uk", threshold: 0.75, dryRun: false });
   });
 
+  it("resolves an upstream output its Dag's call passed, before the handler runs", async () => {
+    // `summarize(make_totals(), "uk")` on the Python side: the runtime pulls
+    // the upstream's return_value itself rather than the handler doing it.
+    let observed: unknown = null;
+    bundle.register(
+      new TaskHandler(
+        "py_dag",
+        "upstream_bound",
+        async ({ totals, regionCode }: { totals: { orders: number }; regionCode: string }) => {
+          observed = { totals, regionCode };
+          return observed;
+        },
+      ),
+    );
+
+    const responder: Responder = (msgType, body) => {
+      if (msgType === "GetXCom") {
+        return {
+          body: { type: "XComResult", key: body["key"], value: { orders: 12 } },
+        };
+      }
+      if (msgType === "SetXCom") return { body: null };
+      return null;
+    };
+
+    const result = await driveSupervisor(
+      makeStartupDetails("upstream_bound", "py_dag", "r1", {
+        arg_bindings: [
+          { name: "totals", kind: "xcom", task_id: "make_totals" },
+          { name: "region_code", kind: "literal", value: "uk" },
+        ],
+      }),
+      responder,
+    );
+
+    expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+    expect(observed).toEqual({ totals: { orders: 12 }, regionCode: "uk" });
+    // Pulled under the same key Python `@task` pushes a return value to, and
+    // for the upstream the binding named rather than the running task.
+    expect(result.runtimeRequests.find((r) => r.type === "GetXCom")!.body).toMatchObject({
+      key: "return_value",
+      task_id: "make_totals",
+      dag_id: "py_dag",
+    });
+  });
+
+  it("fails the task when an upstream it was called with pushed no output", async () => {
+    // An unbound argument reaches the handler as `undefined` and corrupts its
+    // output, so this stops the task instead, before it ran.
+    let ran = false;
+    bundle.register(
+      new TaskHandler("py_dag", "missing_upstream", async () => {
+        ran = true;
+        return "should not run";
+      }),
+    );
+
+    const responder: Responder = (msgType) =>
+      msgType === "GetXCom" ? { body: { type: "ErrorResponse", error: "XCOM_NOT_FOUND" } } : null;
+
+    const result = await driveSupervisor(
+      makeStartupDetails("missing_upstream", "py_dag", "r1", {
+        arg_bindings: [{ name: "totals", kind: "xcom", task_id: "make_totals" }],
+      }),
+      responder,
+    );
+
+    expect(ran).toBe(false);
+    expect(result.firstResponse!.body).toMatchObject({ type: "TaskState", state: "failed" });
+    expect(result.runtimeRequests.filter((r) => r.type === "SetXCom")).toHaveLength(0);
+    expect(
+      result.logRecords.some(
+        (r) =>
+          r["event"] === "[ts-sdk.runtime] Cannot bind this task's call arguments" &&
+          String(r["error"]).includes("pushed no return_value XCom"),
+      ),
+    ).toBe(true);
+  });
+
   it("fails the task when two of its bound names fold alike", async () => {
     // Reported before the handler runs, so nothing it might have written to
     // XCom is at stake.
