@@ -206,6 +206,12 @@ def _delete_pending_partitioned_queued_events(
     return apdr_result.rowcount + pakl_result.rowcount
 
 
+def _queued_event_not_found_detail(subject: str, partition_key: str | None) -> str:
+    if partition_key is not None:
+        subject = f"{subject} and partition_key: `{partition_key}`"
+    return f"{subject} was not found"
+
+
 class OnlyActiveFilter(BaseParam[bool]):
     """Filter on asset activeness."""
 
@@ -806,7 +812,7 @@ def delete_asset_queued_events(
     if deleted == 0:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
-            detail=f"Queue event with asset_id: `{asset_id}` was not found",
+            detail=_queued_event_not_found_detail(f"Queue event with asset_id: `{asset_id}`", partition_key),
         )
 
 
@@ -848,7 +854,10 @@ def delete_dag_asset_queued_events(
         deleted = cast("CursorResult", session.execute(delete_statement)).rowcount
 
     if deleted == 0:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Queue event with dag_id: `{dag_id}` was not found")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            _queued_event_not_found_detail(f"Queue event with dag_id: `{dag_id}`", partition_key),
+        )
 
 
 @assets_router.delete(
@@ -893,5 +902,7 @@ def delete_dag_asset_queued_event(
     if deleted == 0:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
-            detail=f"Queued event with dag_id: `{dag_id}` and asset_id: `{asset_id}` was not found",
+            detail=_queued_event_not_found_detail(
+                f"Queued event with dag_id: `{dag_id}` and asset_id: `{asset_id}`", partition_key
+            ),
         )
