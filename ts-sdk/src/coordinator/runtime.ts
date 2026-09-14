@@ -23,10 +23,10 @@
 //
 //     node my-bundle.mjs --comm=host:port --logs=host:port
 //
-// where `my-bundle.mjs` is a user-bundled Node script that imports
-// the SDK, creates `Dag` objects, attaches a handler per task with
-// `dag.task(...)`, registers them on a `Bundle`, then awaits `bundle.serve()`.
-// Each handler runs inside a task scope, which is what `getContext()` and
+// where `my-bundle.mjs` is a user-bundled Node script that imports the SDK,
+// registers what it provides on a `Bundle` (a `TaskHandler` per Python-owned
+// task, a `Dag` per natively declared one), then awaits `bundle.serve()`. Each
+// handler runs inside a task scope, which is what `getContext()` and
 // `getClient()` read.
 //
 // Lifecycle:

@@ -37,7 +37,7 @@ The SDK is the ``apache-airflow-ts-sdk`` package (ESM-only). It is currently in 
 
 .. seealso::
 
-  For the full TypeScript API reference (``Dag``, ``Bundle``, the task handler getters,
+  For the full TypeScript API reference (``Bundle``, ``TaskHandler``, ``Dag``, the task handler getters,
   ``TaskClient``, supporting types, and exceptions),
   see the `TypeScript SDK API reference <https://airflow.apache.org/docs/ts-sdk/stable/>`__.
 
@@ -96,13 +96,13 @@ TypeScript implementation
 A task is an ordinary (usually ``async``) function taking no arguments:
 ``getContext()`` and ``getClient()`` reach the runtime from inside the call, so nothing the SDK supplies is a parameter.
 
-Create a ``Dag`` with the ``dag_id`` it implements, attach each handler with ``dag.task``,
-register it on a ``Bundle``, then serve it to Airflow with ``bundle.serve()``.
+Create a ``TaskHandler`` per task, binding the function to the ``dag_id`` and ``task_id`` it implements,
+register them on a ``Bundle``, then serve it to Airflow with ``bundle.serve()``.
 That top-level ``await`` makes the module a runnable bundle entry point.
 
 .. code-block:: typescript
 
-    import { Bundle, Dag, getClient } from "apache-airflow-ts-sdk";
+    import { Bundle, getClient, TaskHandler } from "apache-airflow-ts-sdk";
 
     export async function buildMessage() {
       const client = getClient();
@@ -114,25 +114,32 @@ That top-level ``await`` makes the module a runnable bundle entry point.
       return `${greeting ?? "hello from TypeScript"}; upstream=${upstream ?? "missing"}`;
     }
 
-    const dag = new Dag("typescript_example");
-    dag.task("build_message", buildMessage);
-
     const bundle = new Bundle();
-    bundle.register(dag);
+    bundle.register(new TaskHandler("typescript_example", "build_message", buildMessage));
     await bundle.serve();
 
-The ``dagId`` passed to ``new Dag(...)`` must match the ``dag_id`` of the Python Dag, and each ``taskId``
-passed to ``dag.task`` must match a ``@task.stub`` function in that Dag. What the bundle holds is its
-complete set of Dags; a second ``bundle.serve()`` call is rejected. A Dag left unregistered is not part of
-the packed bundle, and its tasks are marked removed at runtime.
+The ``dagId`` a handler binds must match the ``dag_id`` of the Python Dag, and the ``taskId`` a
+``@task.stub`` function in that Dag, including any TaskGroup prefix. Both are written out: nothing is
+derived from the handler function's name, which a bundler is free to rename or inline.
 
-``register`` is the bundle's one registration verb, and takes any number of items, so a bundle that
-collects what it provides across several modules can call it repeatedly instead of passing everything to
-the constructor. Registering holds no sockets and starts nothing, so a unit test can build a bundle and
-dispatch a handler through ``bundle.getTaskHandler(dagId, taskId)`` without a coordinator runtime.
+What the bundle holds is what it provides; a second ``bundle.serve()`` call is rejected, and a task left
+unregistered is not part of the packed bundle and is marked removed at runtime.
 
-``new Dag`` and ``dag.task`` take a trailing options object: ``spec`` on both, plus ``inputs`` on a task.
-These are not used yet; do not set them. Any other key is rejected.
+``register`` is the bundle's one registration verb and takes any number of items,
+so one bundle can provide for several Dags, and a bundle that collects what it provides across several
+modules can call it repeatedly instead of passing everything to the constructor.
+Dispatch keys on the ``(dagId, taskId)`` pair, so the same ``task_id`` under two Dags is two different handlers.
+Registering holds no sockets and starts nothing, so a unit test can build a bundle and dispatch a handler
+through ``bundle.getTaskHandler(dagId, taskId)`` without a coordinator runtime.
+
+``Dag`` is the separate, native case, for a Dag declared in TypeScript rather than in Python,
+and is still being built out.
+A ``dag_id`` is one or the other: a native ``Dag`` attaches its own tasks with ``dag.task``,
+so registering a task handler for it is rejected. ``new Dag`` and ``dag.task`` take a trailing options
+object (``spec`` on both, plus ``inputs`` on a task) that is not used yet; do not set them.
+
+A task handler has no factory to call, so wiring one the way a natively declared task is wired is a
+compile error rather than a runtime throw.
 
 .. note::
 

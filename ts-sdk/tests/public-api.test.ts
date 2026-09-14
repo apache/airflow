@@ -41,6 +41,7 @@ import {
   getClient,
   getContext,
   SUPERVISOR_API_VERSION,
+  TaskHandler,
   VariableNotFoundError,
 } from "../src/index.js";
 
@@ -155,6 +156,37 @@ describe("public API", () => {
     expectTypeOf<typeof sdk>().not.toHaveProperty("startCoordinator");
   });
 
+  it("exports TaskHandler as the mixed-language authoring surface", () => {
+    const transform = async () => "transformed";
+    const bundle = new Bundle(new TaskHandler("py_etl", "transform", transform));
+
+    expect(bundle.getTaskHandler("py_etl", "transform")).toBe(transform);
+    // Identity and a body, and no more: no schedule, no task order, no dag_id
+    // of its own to declare.
+    expectTypeOf<keyof TaskHandler>().toEqualTypeOf<"dagId" | "taskId">();
+    expectTypeOf<ConstructorParameters<typeof TaskHandler>>().toEqualTypeOf<
+      [string, string, TaskFunction<unknown>]
+    >();
+  });
+
+  it("does not let a task handler be wired the way a native task is", () => {
+    // The guarantee an earlier draft's separate MixedLangDag class existed to
+    // provide: a handler has no factory to call, so calling one is a compile
+    // error rather than a runtime throw.
+    const rejectsFactoryMisuse = () => {
+      const handler = new TaskHandler("py_etl", "transform", async () => undefined);
+      // @ts-expect-error a task handler is a value, not a callable task factory.
+      handler();
+      // @ts-expect-error dagId and taskId are positional, not an options object.
+      new TaskHandler({ dagId: "py_etl", taskId: "transform" }, async () => undefined);
+      // @ts-expect-error the task_id is always written out, never derived.
+      new TaskHandler("py_etl", async () => undefined);
+      // @ts-expect-error a handler does not expose the function it carries.
+      void handler.handler;
+    };
+    void rejectsFactoryMisuse;
+  });
+
   describe("the task-handler getters", () => {
     it("throw outside a handler, naming the accessor", () => {
       // The full scope behaviour is covered in tests/sdk/task-scope.test.ts;
@@ -194,7 +226,7 @@ describe("public API", () => {
     expectTypeOf<Bundle["serve"]>().toEqualTypeOf<() => Promise<void>>();
     expectTypeOf<Bundle["register"]>().toEqualTypeOf<(...items: Registerable[]) => void>();
     expectTypeOf<ConstructorParameters<typeof Bundle>>().toEqualTypeOf<Registerable[]>();
-    expectTypeOf<Registerable>().toEqualTypeOf<Dag>();
+    expectTypeOf<Registerable>().toEqualTypeOf<Dag | TaskHandler>();
     for (const name of ["serveDags", "DagRegistry"]) {
       expect(name in sdk).toBe(false);
     }

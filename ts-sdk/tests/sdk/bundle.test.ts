@@ -49,9 +49,9 @@ describe("Bundle", () => {
     );
   });
 
-  it("rejects constructor values that are not Dag instances", () => {
+  it("rejects constructor values that are neither a Dag nor a task handler", () => {
     expect(() => new Bundle({ dagId: "example_dag" } as unknown as Dag)).toThrowError(
-      /only Dag instances can be registered/,
+      /only Dag and TaskHandler instances can be registered/,
     );
   });
 
@@ -111,10 +111,10 @@ describe("Bundle", () => {
     expect(listBundleTasks(bundle)).toEqual([]);
   });
 
-  it("rejects values that are not Dag instances", () => {
+  it("rejects values that are neither a Dag nor a task handler", () => {
     const bundle = new Bundle();
     expect(() => bundle.register({ dagId: "example_dag" } as unknown as Dag)).toThrowError(
-      /only Dag instances can be registered/,
+      /only Dag and TaskHandler instances can be registered/,
     );
   });
 
