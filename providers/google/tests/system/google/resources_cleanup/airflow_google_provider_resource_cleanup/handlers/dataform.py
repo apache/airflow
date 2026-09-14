@@ -26,31 +26,31 @@ API_BASE = "https://dataform.googleapis.com/v1/"
 async def _delete_dataform_workflow_invocation(resource: dict, log_prefix: str):
     name = get_resource_path(resource)
     url_delete = f"{API_BASE}{name}"
-    await curl(url_delete, log_prefix)
+    await curl(url_delete, log_prefix=log_prefix)
 
 
 async def _delete_dataform_workspace(resource: dict, log_prefix: str):
     name = get_resource_path(resource)
     url_delete = f"{API_BASE}{name}"
-    await curl(url_delete, log_prefix)
+    await curl(url_delete, log_prefix=log_prefix)
 
 
 async def _delete_dataform_workflow_config(resource: dict, log_prefix: str):
     name = get_resource_path(resource)
     url_delete = f"{API_BASE}{name}"
-    await curl(url_delete, log_prefix)
+    await curl(url_delete, log_prefix=log_prefix)
 
 
 async def _delete_dataform_release_config(resource: dict, log_prefix: str):
     name = get_resource_path(resource)
     url_delete = f"{API_BASE}{name}"
-    await curl(url_delete, log_prefix)
+    await curl(url_delete, log_prefix=log_prefix)
 
 
 async def _delete_dataform_repository(resource: dict, log_prefix: str):
     name = get_resource_path(resource)
     url_delete = f"{API_BASE}{name}"
-    await curl(url_delete, log_prefix)
+    await curl(url_delete, log_prefix=log_prefix)
 
 
 class DataformDeleteHandler(BaseDeleteHandler):
