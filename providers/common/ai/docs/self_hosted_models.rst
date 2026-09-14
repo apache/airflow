@@ -294,9 +294,8 @@ Model identifier format
 
 The ``extra`` JSON's ``model`` value keeps the ``provider:model`` format the
 hook always expects, but which ``provider`` prefix to use depends on the
-endpoint (verified against ``pydantic-ai-slim`` 2.5.0, the version this
-guide was developed against, and 2.10.0, the latest at the time of
-writing):
+endpoint (verified against ``pydantic-ai-slim`` 2.23.0, the minimum this
+provider requires, and 2.31.1):
 
 - **vLLM** has no dedicated provider class in pydantic-ai -- ``openai:<model>``
   is the only option. pydantic-ai's ``openai`` provider class talks to

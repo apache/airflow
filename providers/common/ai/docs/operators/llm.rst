@@ -152,11 +152,15 @@ Common knobs on ``UsageLimits``:
   produced and billed — pydantic-ai checks the accumulated cost *after* each response and
   then fails the run with ``UsageLimitExceeded``. It protects you from further spend, not
   from the request that broke the budget; even a single-request run fails as soon as that
-  request's cost pushes the total over the limit. For self-hosted or unknown
-  models (e.g. Ollama, custom endpoints) pydantic-ai cannot price the response, so cost
-  is ``None`` and ``cost_limit`` is not enforced -- a ``CostNotFoundWarning`` is
-  emitted instead of failing the run. And like the other knobs
-  above, setting ``cost_limit``
+  request's cost pushes the total over the limit. Pricing is looked up by model
+  name, not by endpoint: a self-hosted deployment serving a model pydantic-ai
+  recognises is still priced, at that model's public list rates rather than at what
+  the deployment actually costs you. That covers vLLM, whose only working prefix is
+  ``openai:<model>`` (see :doc:`../self_hosted_models`).
+  A model pydantic-ai cannot price (``ollama:llama3.2``, a private fine-tune)
+  reports no cost at all, so ``cost_limit`` is not enforced there -- a
+  ``CostNotFoundWarning`` is emitted instead of failing the run. And like the other
+  knobs above, setting ``cost_limit``
   alone still inherits the ``request_limit=50`` default — see the ``request_limit`` note
   above. Note that ``cost_limit`` only caps the operator's own LLM calls --
   the meta-agent that ``LLMRetryPolicy`` runs to classify a failed task is a separate,
@@ -164,7 +168,11 @@ Common knobs on ``UsageLimits``:
 
 When the limit is hit pydantic-ai raises ``UsageLimitExceeded``, which
 propagates to Airflow as a task failure — Airflow's standard retry policy
-applies on top.
+applies on top. Every limit here bounds a single agent *run*, not a task: each
+Airflow task retry re-renders ``usage_limits`` and starts a fresh count, and for
+``AgentOperator`` so does each HITL regeneration. A ``cost_limit`` of
+``Decimal("0.50")`` caps one run, so it is not a bound on what the task spends in
+total.
 
 TaskFlow Decorator
 ------------------
