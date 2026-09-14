@@ -287,24 +287,19 @@ class PydanticAIHook(BaseHook):
         if provider_config is None:
             return PydanticAIHook._get_provider_kwargs(conn.password, conn.host, extra)
         if provider_config.replacement_fields:
-            self._warn_if_generic_fields_ignored(conn, provider_name, provider_config.replacement_fields)
+            ignored_fields = [
+                field for field, value in (("password", conn.password), ("host", conn.host)) if value
+            ]
+            if ignored_fields:
+                self.log.warning(
+                    "Connection fields are ignored for provider %r on connection %r; "
+                    "ignored fields: %s; configure these provider-specific values in extra: %s",
+                    provider_name,
+                    conn.conn_id,
+                    ignored_fields,
+                    list(provider_config.replacement_fields),
+                )
         return provider_config.get_kwargs(conn.password, conn.host, extra)
-
-    def _warn_if_generic_fields_ignored(
-        self, conn: Connection, provider_name: str | None, replacement_fields: tuple[str, ...]
-    ) -> None:
-        ignored_fields = [
-            field for field, value in (("password", conn.password), ("host", conn.host)) if value
-        ]
-        if ignored_fields:
-            self.log.warning(
-                "Connection fields are ignored for provider %r on connection %r; "
-                "ignored fields: %s; configure these provider-specific values in extra: %s",
-                provider_name,
-                conn.conn_id,
-                ignored_fields,
-                list(replacement_fields),
-            )
 
     def _get_provider_factory_for_model(
         self, conn: Connection, model_name: str, extra: dict[str, Any]
