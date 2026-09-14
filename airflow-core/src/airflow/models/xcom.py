@@ -389,6 +389,35 @@ class XComModel(TaskInstanceDependencies):
             # Already deserialized (e.g., set via Task Execution API)
             return result.value
 
+    @staticmethod
+    def deserialize_value_primitives(result: Any) -> Any:
+        """
+        Deserialize an XCom value to plain JSON types only.
+
+        Unlike :meth:`deserialize_value` this never runs the Airflow serialization
+        module, so a ``__classname__`` envelope in the stored value is returned as an
+        ordinary ``dict`` instead of being imported and instantiated.
+
+        This is what scheduler-side readers must use. XCom bytes are written by task
+        code, and the security model reserves the scheduler for code the Deployment
+        Manager installed -- so a value the scheduler consumes to make a scheduling
+        decision must never be able to construct objects in that process. Callers that
+        genuinely need the original Python object (task code pulling another task's
+        return value) keep using :meth:`deserialize_value`.
+
+        :param result: The XCom database row or object containing a ``value`` attribute.
+        :return: The value as plain JSON types (``dict``, ``list``, ``str``, ``int``,
+            ``float``, ``bool`` or ``None``).
+        """
+        if result.value is None:
+            return None
+
+        try:
+            return json.loads(result.value)
+        except (ValueError, TypeError):
+            # Already deserialized (e.g., set via Task Execution API)
+            return result.value
+
 
 class LazyXComSelectSequence(LazySelectSequence[Any]):
     """
@@ -404,6 +433,21 @@ class LazyXComSelectSequence(LazySelectSequence[Any]):
     @staticmethod
     def _process_row(row: Row) -> Any:
         return XComModel.deserialize_value(row)
+
+
+class LazyXComPrimitivesSelectSequence(LazyXComSelectSequence):
+    """
+    Like :class:`LazyXComSelectSequence`, but never reconstructs Python objects.
+
+    Used by scheduler-side XCom reads. See
+    :meth:`XComModel.deserialize_value_primitives`.
+
+    :meta private:
+    """
+
+    @staticmethod
+    def _process_row(row: Row) -> Any:
+        return XComModel.deserialize_value_primitives(row)
 
 
 __compat_imports = {
