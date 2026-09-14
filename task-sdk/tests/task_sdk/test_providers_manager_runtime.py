@@ -31,6 +31,7 @@ from airflow.sdk._shared.providers_discovery import (
     LazyDictWithCache,
     ProviderInfo,
 )
+from airflow.sdk.definitions.connection import Connection
 from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime, RemoteLoggingInfo
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker, skip_if_not_on_main
@@ -118,6 +119,10 @@ class TestProvidersManagerRuntime:
         assert sum("Inconsistency!" in entry["event"] for entry in self._caplog.entries) == 1
         assert (
             sum("read back under a different name" in entry["event"] for entry in self._caplog.entries) == 1
+        )
+        assert all(
+            "Inconsistency!" in entry["event"] or "read back under a different name" in entry["event"]
+            for entry in self._caplog.entries
         )
         assert "sftp" not in providers_manager._hooks_lazy_dict
 
@@ -213,9 +218,9 @@ class TestProvidersManagerRuntime:
             entry for entry in self._caplog.entries if "read back under a different name" in entry["event"]
         ]
         assert len(entries) == 1
-        assert entries[0]["connection_type"] == declared
+        assert entries[0]["connection_types"] == [declared]
         assert entries[0]["read_back_as"] == read_back_as
-        assert entries[0]["package"] == "apache-airflow-providers-dummy"
+        assert entries[0]["packages"] == ["apache-airflow-providers-dummy"]
 
     def test_warns_about_a_connection_type_a_uri_cannot_carry(self):
         """A type that is not a usable scheme is lost altogether rather than re-spelled."""
@@ -254,7 +259,7 @@ class TestProvidersManagerRuntime:
         assert len(entries) == 1
         assert entries[0]["connection_types"] == ["shared-name", "shared_name"]
         assert entries[0]["read_back_as"] == "shared_name"
-        assert sorted(entries[0]["packages"]) == [
+        assert entries[0]["packages"] == [
             "apache-airflow-providers-one",
             "apache-airflow-providers-two",
         ]
@@ -288,8 +293,6 @@ class TestProvidersManagerRuntime:
         The check models what get_uri() writes and what reading a connection back decodes,
         so it has to agree with actually doing it. This fails if either side changes.
         """
-        from airflow.sdk.definitions.connection import Connection
-
         uri = Connection(conn_id="c", conn_type=declared, host="host").get_uri()
 
         assert ProvidersManagerTaskRuntime._connection_type_as_stored(declared) == (

@@ -423,9 +423,9 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
         A hook registers under the ``connection-type`` string verbatim, while a connection
         read from a URI, from JSON, or rebuilt from the secrets cache presents the decoded
         form of that string. Where the two differ, the hook is unreachable for those
-        connections. A connection created directly through the UI, the REST API or the CLI
-        keeps the declared spelling and does resolve, which is what lets the mismatch go
-        unnoticed until a connection is served from somewhere else.
+        connections. A connection created directly through the UI, the REST API or
+        ``connections add --conn-type`` keeps the declared spelling and does resolve, which is
+        what lets the mismatch go unnoticed until a connection is served from somewhere else.
 
         Where two providers declare two spellings of one name it is worse than unreachable: a
         connection for either resolves whichever hook holds the decoded name, and because that
@@ -442,7 +442,7 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
             declared_by_stored_name.setdefault(stored_name, []).append(connection_type)
 
         for stored_name, declared in declared_by_stored_name.items():
-            if all(connection_type == stored_name for connection_type in declared):
+            if len(declared) == 1 and declared[0] == stored_name:
                 continue
             connection_types = sorted(declared)
             packages = [self._hook_provider_dict[name].package_name for name in connection_types]
@@ -465,8 +465,8 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
                 log.warning(
                     "A declared connection type is read back under a different name, so a "
                     "connection read from a URI or from JSON cannot reach its hook.",
-                    connection_type=connection_types[0],
-                    package=packages[0],
+                    connection_types=connection_types,
+                    packages=packages,
                     read_back_as=stored_name,
                 )
 
