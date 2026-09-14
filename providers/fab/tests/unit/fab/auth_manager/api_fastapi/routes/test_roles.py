@@ -30,6 +30,7 @@ from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import (
     RoleCollectionResponse,
     RoleResponse,
 )
+from airflow.providers.fab.www.extensions.init_appbuilder import AirflowAppBuilder
 
 
 @pytest.mark.db_test
@@ -633,3 +634,18 @@ class TestRoles:
             resp = test_client.get("/fab/v1/permissions", params={"limit": 0})
             assert resp.status_code == 200
             mock_permissions.get_permissions.assert_called_once_with(order_by="id", limit=33, offset=0)
+
+    def test_requests_reuse_the_auth_manager_flask_app(self, real_app_client):
+        auth_manager, client = real_app_client
+        flask_app, appbuilder = auth_manager.flask_app, auth_manager.appbuilder
+
+        with patch.object(
+            AirflowAppBuilder, "init_app", autospec=True, side_effect=AirflowAppBuilder.init_app
+        ) as init_app:
+            responses = [client.get("/fab/v1/roles") for _ in range(2)]
+
+        init_app.assert_not_called()
+        assert auth_manager.flask_app is flask_app
+        assert auth_manager.appbuilder is appbuilder
+        assert [response.status_code for response in responses] == [200, 200]
+        assert "Admin" in {role["name"] for role in responses[1].json()["roles"]}
