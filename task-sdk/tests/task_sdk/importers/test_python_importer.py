@@ -1,0 +1,236 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+"""Tests for PythonDagImporter."""
+
+from __future__ import annotations
+
+import logging
+import py_compile
+import signal
+import sys
+from types import SimpleNamespace
+from unittest import mock
+
+import pytest
+
+from airflow.sdk.exceptions import AirflowConfigException
+from airflow.sdk.importers import (
+    FileDagDefinition,
+    PythonDagImporter,
+)
+
+
+@pytest.fixture
+def mock_bundle(tmp_path):
+    bundle_dir = tmp_path / "bundle"
+    bundle_dir.mkdir(parents=True, exist_ok=True)
+    return SimpleNamespace(name="test_bundle", path=bundle_dir)
+
+
+class TestPythonDagImporter:
+    """Test the PythonDagImporter implementation."""
+
+    def test_import_successful_dag(self, mock_bundle):
+        dag_file = mock_bundle.path / "sample_dag.py"
+        dag_file.write_text("from airflow.sdk import DAG\ndag = DAG('test_dag_1')\n")
+
+        importer = PythonDagImporter()
+        definition = FileDagDefinition(path=dag_file)
+        result = importer.import_definition(definition, bundle=mock_bundle)
+
+        assert len(result.dags) == 1
+        assert result.dags[0].dag_id == "test_dag_1"
+        assert result.dags[0].bundle_name == "test_bundle"
+        assert result.dags[0].relative_fileloc == "sample_dag.py"
+        assert len(result.errors) == 0
+
+    def test_import_syntax_error_cleans_sys_modules(self, mock_bundle):
+        dag_file = mock_bundle.path / "bad_dag.py"
+        dag_file.write_text("from airflow.sdk import DAG\ndef broken(\n")
+
+        importer = PythonDagImporter()
+        result = importer.import_definition(FileDagDefinition(path=dag_file), bundle=mock_bundle)
+
+        assert len(result.errors) == 1
+        assert result.errors[0].error_type == "import"
+        assert not any("bad_dag" in m for m in sys.modules)
+
+    def test_skip_non_dag_file_in_safe_mode(self, mock_bundle):
+        helper_file = mock_bundle.path / "helper.py"
+        helper_file.write_text("def util(): return 42\n")
+
+        importer = PythonDagImporter()
+        definition = FileDagDefinition(path=helper_file)
+        result = importer.import_definition(definition, bundle=mock_bundle, safe_mode=True)
+
+        assert len(result.dags) == 0
+        assert len(result.errors) == 0
+        assert result.skipped_definitions == [definition]
+
+    @pytest.mark.parametrize(
+        ("safe_mode", "expected_files"),
+        [
+            (True, {"sample_dag.py"}),
+            (False, {"sample_dag.py", "helper.py"}),
+        ],
+    )
+    def test_list_dag_definitions(self, mock_bundle, safe_mode, expected_files):
+        dag_file = mock_bundle.path / "sample_dag.py"
+        dag_file.write_text("from airflow.sdk import DAG\ndag = DAG('test_dag_1')\n")
+        (mock_bundle.path / "helper.py").write_text("def helper():\n    return 42\n")
+        (mock_bundle.path / "notes.txt").write_text("hello")
+
+        importer = PythonDagImporter()
+        defs = list(importer.list_dag_definitions(mock_bundle, safe_mode=safe_mode))
+        assert {d.path.name for d in defs} == expected_files
+
+    @pytest.mark.parametrize(
+        ("filename", "is_bytecode", "expected_content"),
+        [
+            ("source_dag.py", False, "# My DAG\nfrom airflow.sdk import DAG\n"),
+            ("source_dag.pyc", True, "# Sourceless bytecode (.pyc) — source code not available\n"),
+        ],
+    )
+    def test_get_source_code(self, tmp_path, filename, is_bytecode, expected_content):
+        dag_file = tmp_path / filename
+        if is_bytecode:
+            dag_file.write_bytes(b"\x00\x00\x00\x00bytecode")
+        else:
+            dag_file.write_text(expected_content)
+
+        src = PythonDagImporter().get_source_code(FileDagDefinition(path=dag_file))
+        assert src.language == "python"
+        assert src.source_code == expected_content
+
+    def test_import_pyc_file(self, mock_bundle, tmp_path):
+        source_file = tmp_path / "compiled_dag.py"
+        source_file.write_text("from airflow.sdk import DAG\ndag = DAG('compiled_dag')\n")
+        pyc_file = mock_bundle.path / "compiled_dag.pyc"
+        py_compile.compile(str(source_file), cfile=str(pyc_file))
+
+        importer = PythonDagImporter()
+        result = importer.import_definition(FileDagDefinition(path=pyc_file), bundle=mock_bundle)
+
+        assert len(result.dags) == 1
+        assert result.dags[0].dag_id == "compiled_dag"
+        assert len(result.errors) == 0
+
+    def test_file_dag_definition_freshness_token(self, tmp_path):
+        dag_file = tmp_path / "fresh_dag.py"
+        dag_file.write_text("from airflow.sdk import DAG\n")
+        stat = dag_file.stat()
+        assert FileDagDefinition(path=dag_file).freshness_token == f"{stat.st_mtime_ns}-{stat.st_size}"
+
+    def test_python_importer_custom_extensions(self, mock_bundle):
+        importer = PythonDagImporter(extensions=[".custom_py"])
+        assert importer.can_handle("dag.custom_py")
+        assert not importer.can_handle("dag.py")
+        assert importer.supported_extensions == [".custom_py"]
+
+        dag_file = mock_bundle.path / "sample_dag.custom_py"
+        dag_file.write_text("from airflow.sdk import DAG\ndag = DAG('custom_py_dag')\n")
+        defs = list(importer.list_dag_definitions(mock_bundle))
+        assert len(defs) == 1
+        assert defs[0].path == dag_file
+
+    @pytest.mark.parametrize(
+        ("enable_traceback", "expect_traceback"),
+        [
+            (True, True),
+            (False, False),
+        ],
+    )
+    @mock.patch("airflow.sdk.importers.python_importer.conf")
+    def test_import_error_traceback_configuration(
+        self, mock_conf, enable_traceback, expect_traceback, mock_bundle
+    ):
+        mock_conf.getboolean.return_value = enable_traceback
+        mock_conf.getint.return_value = 2
+
+        dag_file = mock_bundle.path / "bad.py"
+        dag_file.write_text("from airflow.sdk import DAG\ndef broken(\n")
+
+        importer = PythonDagImporter()
+        result = importer.import_definition(FileDagDefinition(path=dag_file), bundle=mock_bundle)
+
+        assert len(result.errors) == 1
+        assert (result.errors[0].stacktrace is not None) == expect_traceback
+
+    def test_invalid_dagbag_import_timeout_raises_custom_exception(self, mock_bundle):
+        mock_settings = mock.MagicMock()
+        mock_settings.get_dagbag_import_timeout.return_value = "invalid_timeout_str"
+
+        importer = PythonDagImporter()
+        with (
+            mock.patch.dict("sys.modules", {"airflow": mock.MagicMock(settings=mock_settings)}),
+            pytest.raises(
+                AirflowConfigException,
+                match=r"Value \(invalid_timeout_str\) from get_dagbag_import_timeout must be int or float",
+            ),
+        ):
+            importer.import_definition(
+                FileDagDefinition(path=mock_bundle.path / "dag.py"),
+                bundle=mock_bundle,
+                safe_mode=False,
+            )
+
+    @mock.patch.object(PythonDagImporter, "_load_modules_from_file", side_effect=TypeError("unexpected None"))
+    def test_unexpected_type_error_captured_in_result_errors(self, mock_load, mock_bundle):
+        importer = PythonDagImporter()
+        result = importer.import_definition(
+            FileDagDefinition(path=mock_bundle.path / "dag.py"),
+            bundle=mock_bundle,
+        )
+
+        assert len(result.errors) == 1
+        assert result.errors[0].error_type == "import"
+        assert "unexpected None" in result.errors[0].message
+
+    def test_sigsegv_handler_registration_and_execution(self, mock_bundle):
+        dag_file = mock_bundle.path / "sample_dag.py"
+        dag_file.write_text("from airflow.sdk import DAG\ndag = DAG('test_dag')\n")
+
+        importer = PythonDagImporter()
+        registered_handler = None
+
+        def mock_signal_func(signum, handler):
+            nonlocal registered_handler
+            if signum == signal.SIGSEGV:
+                registered_handler = handler
+
+        with mock.patch("signal.signal", side_effect=mock_signal_func):
+            result = importer.import_definition(FileDagDefinition(path=dag_file), bundle=mock_bundle)
+            assert callable(registered_handler)
+
+            registered_handler(signal.SIGSEGV, None)
+            assert len(result.errors) == 1
+            assert result.errors[0].error_type == "segfault"
+            assert "Received SIGSEGV signal while processing" in result.errors[0].message
+
+    def test_sigsegv_handler_registration_failure_logged(self, mock_bundle, caplog):
+        dag_file = mock_bundle.path / "sample_dag.py"
+        dag_file.write_text("from airflow.sdk import DAG\ndag = DAG('test_dag')\n")
+
+        importer = PythonDagImporter()
+        with (
+            mock.patch("signal.signal", side_effect=ValueError("signal only works in main thread")),
+            caplog.at_level(logging.WARNING),
+        ):
+            result = importer.import_definition(FileDagDefinition(path=dag_file), bundle=mock_bundle)
+
+        assert len(result.dags) == 1
+        assert "SIGSEGV signal handler registration failed. Not in the main thread" in caplog.text

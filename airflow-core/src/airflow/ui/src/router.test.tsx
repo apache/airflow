@@ -19,10 +19,10 @@
 import { matchRoutes } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
-import { TabEntity } from "src/constants/tab";
+import { TabEntity, TaskInstanceTab } from "src/constants/tab";
 import { getTabPath } from "src/utils/tab";
 
-import { routerConfig } from "./router";
+import { routerConfig, taskInstanceRoutes } from "./router";
 
 const getAdditionalPath = (pathname: string) => {
   const matches = matchRoutes(routerConfig, pathname) ?? [];
@@ -58,5 +58,18 @@ describe("Dag route handles", () => {
     "/dags/example/unknown",
   ])("does not preserve a tab from %s", (pathname) => {
     expect(getAdditionalPath(pathname)).toBe("");
+  });
+});
+
+type RouteLike = { readonly children?: ReadonlyArray<RouteLike>; readonly path?: string };
+
+describe("taskInstanceRoutes stay in sync with the TaskInstanceTab enum", () => {
+  it("uses exactly the enum values as its named tab paths", () => {
+    const namedPaths = (taskInstanceRoutes as ReadonlyArray<RouteLike>)
+      .flatMap((route) => route.children ?? [route])
+      .map((route) => route.path)
+      .filter((path): path is string => path !== undefined && !path.startsWith("plugin/"));
+
+    expect(namedPaths.sort()).toStrictEqual(Object.values(TaskInstanceTab).sort());
   });
 });

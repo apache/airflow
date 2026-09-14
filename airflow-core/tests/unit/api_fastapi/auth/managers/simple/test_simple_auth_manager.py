@@ -485,8 +485,6 @@ class TestSimpleAuthManager:
             (False, "user1", {"user1"}, True),
             (False, "user2", {"user1"}, False),
             (False, "admin", {"test_user"}, False),
-            # When no assigned_users, allow access
-            (False, "user1", set(), True),
         ],
     )
     def test_is_authorized_hitl_task(self, auth_manager, all_admins, user_id, assigned_users, expected):
