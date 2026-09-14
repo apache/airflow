@@ -3802,7 +3802,7 @@ export type DeleteAssetQueuedEventsData = {
     assetId: number;
     before?: string | null;
     /**
-     * Delete queued events of partitioned assets whose Dag run for this partition key has not been created yet, instead of queued events of non-partitioned assets.
+     * Delete queued events of partitioned assets emitted for this partition key whose Dag run has not been created yet, instead of queued events of non-partitioned assets.
      */
     partitionKey?: string | null;
 };
@@ -3826,7 +3826,7 @@ export type DeleteDagAssetQueuedEventsData = {
     before?: string | null;
     dagId: string;
     /**
-     * Delete queued events of partitioned assets whose Dag run for this partition key has not been created yet, instead of queued events of non-partitioned assets.
+     * Delete queued events of partitioned assets emitted for this partition key whose Dag run has not been created yet, instead of queued events of non-partitioned assets.
      */
     partitionKey?: string | null;
 };
@@ -3846,7 +3846,7 @@ export type DeleteDagAssetQueuedEventData = {
     before?: string | null;
     dagId: string;
     /**
-     * Delete queued events of partitioned assets whose Dag run for this partition key has not been created yet, instead of queued events of non-partitioned assets.
+     * Delete queued events of partitioned assets emitted for this partition key whose Dag run has not been created yet, instead of queued events of non-partitioned assets.
      */
     partitionKey?: string | null;
 };
