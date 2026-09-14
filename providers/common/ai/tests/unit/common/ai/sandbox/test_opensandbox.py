@@ -244,10 +244,28 @@ class TestRunCommand:
         result = backend.run_command("box-1", "echo hi", timeout=9, max_output_bytes=6)
 
         assert result.exit_code == 3
-        assert result.stdout == "ééé"
-        assert result.stderr == "r-tail"
+        assert result.stdout == "éé\n"
+        assert result.stderr == "-tail\n"
         assert result.stdout_truncated
         assert result.stderr_truncated
+
+    def test_line_delimiters_are_restored(self):
+        """execd strips the delimiter from each streamed line; the tail must put it back."""
+        backend, sandbox = _backend_with_sandbox()
+
+        def run(_command, *, opts, handlers):
+            for text in ("first", "second", "\n", "third"):
+                handlers.on_stdout(SimpleNamespace(text=text))
+            handlers.on_stderr(SimpleNamespace(text="err one"))
+            handlers.on_stderr(SimpleNamespace(text="err two"))
+            return _execution(exit_code=0)
+
+        sandbox.commands.run.side_effect = run
+
+        result = backend.run_command("box-1", "printf ...", timeout=9, max_output_bytes=4096)
+
+        assert result.stdout == "first\nsecond\n\nthird\n"
+        assert result.stderr == "err one\nerr two\n"
 
     def test_execution_error_is_returned_on_stderr(self):
         backend, sandbox = _backend_with_sandbox()
