@@ -370,6 +370,35 @@ class TestStackdriverRemoteLogIO:
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="airflow.sdk.log only exists in Airflow 3+")
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id")
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.gcp_logging.Client")
+    def test_processors_survives_transport_send_failure(self, mock_client, mock_get_creds_and_project_id):
+        """A Cloud Logging IAM/gRPC error must not propagate out of the log processor.
+
+        This processor runs for every supervised component (scheduler, dag-processor,
+        triggerer, workers); letting a transport error propagate would crash the whole
+        process on a logging misconfiguration.
+        """
+        mock_get_creds_and_project_id.return_value = ("creds", "project_id")
+
+        mock_transport_type = mock.MagicMock()
+        mock_transport_type.return_value.send.side_effect = Exception("IAM permission denied")
+        with mock.patch("airflow.sdk.log.relative_path_from_logger", return_value="dag/task/1.log"):
+            io = StackdriverRemoteLogIO(
+                base_log_folder=self.local_log_location,
+                gcp_log_name="airflow",
+                transport_type=mock_transport_type,
+            )
+            proc = io.processors[0]
+
+            event = {"event": "hello world", "logger_name": "airflow.task"}
+            # Must not raise, despite transport.send() failing.
+            result = proc(mock.MagicMock(), "info", event)
+
+        assert result is event
+        mock_transport_type.return_value.send.assert_called_once()
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="airflow.sdk.log only exists in Airflow 3+")
+    @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id")
+    @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.gcp_logging.Client")
     def test_processors_skips_non_task_logger(self, mock_client, mock_get_creds_and_project_id):
         mock_get_creds_and_project_id.return_value = ("creds", "project_id")
 
