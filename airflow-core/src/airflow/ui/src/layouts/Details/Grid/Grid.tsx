@@ -17,7 +17,7 @@
  * under the License.
  */
 import type { RefObject } from "react";
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef } from "react";
 
 import { Box, Flex } from "@chakra-ui/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -87,7 +87,7 @@ export const Grid = ({
   const usesSharedScroll = Boolean(sharedScrollContainerRef && showGantt);
 
   const { openGroupIds, toggleGroupId } = useGroups();
-  const { dagId = "" } = useParams();
+  const { dagId = "", groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
   const [searchParams] = useSearchParams();
 
   const filterRoot = searchParams.get("root") ?? undefined;
@@ -189,6 +189,23 @@ export const Grid = ({
     overscan: 5,
     scrollPaddingStart: usesSharedScroll ? GANTT_ROW_OFFSET_PX : GRID_INNER_SCROLL_PADDING_START_PX,
   });
+
+  // Keep the selected task centered. Opening a task remounts the Grid a couple of times and each
+  // remount jumps scroll back to the top, so we just re-center on every mount. We look it up by
+  // task id instead of a saved pixel offset, so it still works when the rows move around.
+  useLayoutEffect(() => {
+    const anchorId = selectedTaskId ?? selectedGroupId;
+
+    if (anchorId === undefined || flatNodes.length === 0) {
+      return;
+    }
+    const index = flatNodes.findIndex((node) => node.id === anchorId);
+
+    if (index === -1) {
+      return;
+    }
+    rowVirtualizer.scrollToIndex(index, { align: "center" });
+  }, [selectedTaskId, selectedGroupId, flatNodes, rowVirtualizer]);
 
   const virtualItems = rowVirtualizer.getVirtualItems();
 
