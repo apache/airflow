@@ -125,6 +125,8 @@ The provider's extras split into a few groups:
 * **Agent tooling** — ``mcp``, ``skills``, ``code-mode``, ``shields``: MCP servers, Agent
   Skills, code-mode tool execution, and shield capabilities (input/output guards, tool
   guards, cost tracking).
+* **Sandboxing** — ``sandbox-opensandbox``: the OpenSandbox backend for
+  ``SandboxToolset``, running agent tools in a remote Docker or Kubernetes sandbox.
 * **Document loading** — ``pdf``, ``docx``, ``avro``, ``parquet``: file formats for
   document pipelines.
 * **Retrieval / SQL** — ``sql``, ``common.sql``, ``langchain``, ``llamaindex``: RAG and
