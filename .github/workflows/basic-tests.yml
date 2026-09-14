@@ -177,7 +177,6 @@ jobs:
       - name: "Run scripts tests"
         run: uv run --project . pytest --color=yes -n auto
         working-directory: ./scripts/
-
   tests-ui:
     timeout-minutes: 15
     name: React UI tests
@@ -208,7 +207,7 @@ jobs:
         with:
           path: airflow-core/src/airflow/ui/node_modules/
           # yamllint disable-line rule:line-length
-          key: cache-ui-node-modules-v1-${{ runner.os }}-${{ hashFiles('airflow-core/src/airflow/ui/**/pnpm-lock.yaml') }}
+          key: cache-ui-node-modules-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('airflow-core/src/airflow/ui/**/pnpm-lock.yaml') }}
         id: restore-eslint-cache-ui
       - run: cd airflow-core/src/airflow/ui && pnpm install --frozen-lockfile
       - run: cd airflow-core/src/airflow/ui && pnpm test
@@ -218,7 +217,7 @@ jobs:
         uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0
         with:
           path: airflow-core/src/airflow/ui/node_modules/
-          key: cache-ui-node-modules-v1-${{ runner.os }}-${{ hashFiles('airflow/ui/**/pnpm-lock.yaml') }}
+          key: cache-ui-node-modules-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('airflow-core/src/airflow/ui/**/pnpm-lock.yaml') }}
           if-no-files-found: 'error'
           retention-days: '2'
         if: steps.restore-eslint-cache-ui.outputs.stash-hit != 'true'
@@ -228,8 +227,9 @@ jobs:
         with:
           path: airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/node_modules/
           key: >
-            cache-simple-am-ui-node-modules-v1-
-            ${{ runner.os }}-${{ hashFiles('airflow/api_fastapi/auth/managers/simple/ui/**/pnpm-lock.yaml') }}
+            cache-simple-am-ui-node-modules-v2-
+            ${{ runner.os }}-${{ runner.arch }}-
+            ${{ hashFiles('airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/**/pnpm-lock.yaml') }}
         id: restore-eslint-cache-simple-am-ui
       - run: cd airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui && pnpm install --frozen-lockfile
       - run: cd airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui && pnpm test
@@ -240,8 +240,9 @@ jobs:
         with:
           path: airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/node_modules/
           key: >
-            cache-simple-am-ui-node-modules-v1-
-            ${{ runner.os }}-${{ hashFiles('airflow/api_fastapi/auth/managers/simple/ui/**/pnpm-lock.yaml') }}
+            cache-simple-am-ui-node-modules-v2-
+            ${{ runner.os }}-${{ runner.arch }}-
+            ${{ hashFiles('airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/**/pnpm-lock.yaml') }}
           if-no-files-found: 'error'
           retention-days: '2'
         if: steps.restore-eslint-cache-simple-am-ui.outputs.stash-hit != 'true'

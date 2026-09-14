@@ -137,6 +137,79 @@ on:  # yamllint disable-line rule:truthy
 permissions:
   contents: read
 jobs:
+  # Migration coverage is a property of a Python/database environment, not of a unit-test shard.
+  # Keep it in this reusable workflow so the caller's matrix semantics remain unchanged, but let it
+  # execute beside the core unit-test shards instead of serializing every shard behind migrations.
+  migrations:
+    timeout-minutes: ${{ fromJSON(inputs.job-timeout-minutes) }}
+    name: "Migrations:${{ inputs.test-name }}:${{ matrix.backend-version }}:${{ matrix.python-version }}"
+    runs-on: ${{ fromJSON(inputs.runners) }}
+    if: inputs.run-migration-tests == 'true' && inputs.test-group == 'core'
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        python-version: "${{ fromJSON(inputs.python-versions) }}"
+        backend-version: "${{ fromJSON(inputs.backend-versions) }}"
+        exclude: "${{ fromJSON(inputs.excludes) }}"
+    env:
+      BACKEND: "${{ inputs.backend }}"
+      BACKEND_VERSION: "${{ matrix.backend-version }}"
+      DB_RESET: "true"
+      DEBUG_RESOURCES: "${{ inputs.debug-resources }}"
+      DOWNGRADE_SQLALCHEMY: "${{ inputs.downgrade-sqlalchemy }}"
+      DOWNGRADE_PENDULUM: "${{ inputs.downgrade-pendulum }}"
+      ENABLE_COVERAGE: "${{ inputs.run-coverage }}"
+      EXCLUDED_PROVIDERS: "${{ inputs.excluded-providers-as-string }}"
+      FORCE_LOWEST_DEPENDENCIES: "${{ inputs.force-lowest-dependencies }}"
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      INCLUDE_SUCCESS_OUTPUTS: ${{ inputs.include-success-outputs }}
+      PLATFORM: "${{ inputs.platform }}"
+      JOB_ID: "${{ inputs.test-group }}-migrations-${{ inputs.test-name }}-${{ inputs.backend }}-${{ matrix.backend-version }}-${{ matrix.python-version }}"
+      MOUNT_SOURCES: "skip"
+      PARALLEL_TEST_TYPES: "Migrations"
+      PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
+      UPGRADE_BOTO: "${{ inputs.upgrade-boto }}"
+      UPGRADE_SQLALCHEMY: "${{ inputs.upgrade-sqlalchemy }}"
+      AIRFLOW_MONITOR_DELAY_TIME_IN_SECONDS: "${{ inputs.monitor-delay-time-in-seconds }}"
+      VERBOSE: "true"
+      DEFAULT_BRANCH: "${{ inputs.default-branch }}"
+      JOB_TIMEOUT_MINUTES: "${{ inputs.job-timeout-minutes }}"
+    steps:
+      - name: "Cleanup repo"
+        if: matrix.python-version != '3.14'
+        shell: bash
+        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        if: matrix.python-version != '3.14'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: "Make /mnt writeable"
+        if: matrix.python-version != '3.14'
+        run: ./scripts/ci/make_mnt_writeable.sh
+      - name: "Move docker to /mnt"
+        if: matrix.python-version != '3.14'
+        run: ./scripts/ci/move_docker_to_mnt.sh
+      - name: "Prepare breeze & CI image: ${{ matrix.python-version }}"
+        if: matrix.python-version != '3.14'
+        uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: ${{ inputs.platform }}
+          python: ${{ matrix.python-version }}
+          use-uv: ${{ inputs.use-uv }}
+          make-mnt-writeable-and-cleanup: false
+      - name: "Migration Tests: ${{ matrix.python-version }}:${{ matrix.backend-version }}"
+        if: matrix.python-version != '3.14'
+        uses: ./.github/actions/migration_tests
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: "Post migration failure"
+        uses: ./.github/actions/post_tests_failure
+        if: matrix.python-version != '3.14' && (failure() || cancelled())
+
   tests:
     # run_unit_tests.sh derives the tests' own timeout from what is left of this budget.
     timeout-minutes: ${{ fromJSON(inputs.job-timeout-minutes) }}
@@ -207,14 +280,6 @@ jobs:
           use-uv: ${{ inputs.use-uv }}
           # We do not want to clean up /mnt here - it's been already done before preparing image
           make-mnt-writeable-and-cleanup: false
-      - name: >
-          Migration Tests: ${{ matrix.python-version }}:${{ env.PARALLEL_TEST_TYPES }}
-        uses: ./.github/actions/migration_tests
-        with:
-          python-version: ${{ matrix.python-version }}
-        # Any new python version should be disabled below via `&& matrix.python-version != '3.xx'` until the first
-        # Airflow version that supports it is released - otherwise there's nothing to migrate back to.
-        if: inputs.run-migration-tests == 'true' && inputs.test-group == 'core' && matrix.python-version != '3.14'
       - name: >
           ${{ inputs.test-group }}:${{ inputs.test-scope }} Tests ${{ inputs.test-name }} ${{ matrix.backend-version }}
           Py${{ matrix.python-version }}:${{ env.PARALLEL_TEST_TYPES }}
