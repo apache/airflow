@@ -57,6 +57,11 @@ credentials for the store:
 
     hook_params = {"extensions": ["httpfs"]}
 
+.. note::
+
+    ``httpfs`` has to be present for that to work. Extension downloads are off by default, so either
+    pre-populate an extension directory or set ``autoinstall_extensions=True`` to let DuckDB fetch it.
+
 Supplying those credentials is backend-specific and this provider does not do it for you: DuckDB does
 not use the cloud SDKs, so it needs its own secret rather than the Airflow connection. Use the hook
 from the provider for your storage backend, which builds that secret from the credentials Airflow

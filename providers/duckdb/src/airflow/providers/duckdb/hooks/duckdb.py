@@ -54,10 +54,10 @@ class DuckDBHook(DbApiHook):
     Supplying a connection id other than the default asserts that it exists, a missing connection raises
     rather than quietly falling back to an in-memory database.
 
-    Extensions are loaded with ``LOAD`` first and only installed when that fails. DuckDB downloads
-    extensions from its extension repository on first use, so deployments without outbound internet
-    access should pre-populate an extension directory, point ``extension_directory`` at it and set
-    ``autoinstall_extensions=False`` to turn the network access off entirely.
+    Extensions are not downloaded at task runtime by default. DuckDB fetches them from its extension
+    repository on first use, which a deployment without outbound internet access cannot do and which
+    costs every worker the download. Pre-populate an extension directory, point ``extension_directory``
+    at it, and set ``autoinstall_extensions=True`` only if downloading on demand is acceptable.
 
     :param duckdb_conn_id: reference to a :ref:`DuckDB connection <howto/connection:duckdb>`. The
         default connection need not exist; when it is missing an in-memory database is used. Any other
@@ -67,9 +67,14 @@ class DuckDBHook(DbApiHook):
     :param extensions: extensions to load on connect, for example ``["httpfs", "iceberg"]``.
     :param extension_directory: directory DuckDB loads extensions from and installs them into.
         Point this at a pre-populated directory to avoid downloading extensions at task runtime.
-    :param autoinstall_extensions: whether an extension that is not installed locally may be
-        downloaded and installed. Set to ``False`` in environments without outbound internet access
-        so a missing extension fails loudly instead of hanging on a network call.
+    :param autoinstall_extensions: whether an extension that is not installed locally may be downloaded
+        from DuckDB's extension repository. Defaults to ``False``: a locked-down environment usually
+        cannot reach that repository, and downloading native code at task runtime is a decision worth
+        making explicitly. Set to ``True`` to allow it.
+    :param autoload_extensions: whether DuckDB may load an already-installed extension implicitly, so
+        that for example querying an ``s3://`` path pulls in ``httpfs`` without it being listed in
+        ``extensions``. Defaults to ``True``; this involves no download and no new code beyond what is
+        already present.
     :param allow_community_extensions: whether DuckDB may load community (third-party) extensions.
         Community extensions are native code from outside the DuckDB project, so this defaults to
         ``False``.
@@ -107,6 +112,7 @@ class DuckDBHook(DbApiHook):
         extensions: Sequence[str] | None = None,
         extension_directory: str | None = None,
         autoinstall_extensions: bool | None = None,
+        autoload_extensions: bool | None = None,
         allow_community_extensions: bool | None = None,
         memory_limit: str | None = None,
         threads: int | None = None,
@@ -123,6 +129,7 @@ class DuckDBHook(DbApiHook):
         self._extensions = list(extensions) if extensions is not None else None
         self._extension_directory = extension_directory
         self._autoinstall_extensions = autoinstall_extensions
+        self._autoload_extensions = autoload_extensions
         self._allow_community_extensions = allow_community_extensions
         self._memory_limit = memory_limit
         self._threads = threads
@@ -143,7 +150,11 @@ class DuckDBHook(DbApiHook):
 
     @property
     def autoinstall_extensions(self) -> bool:
-        return bool(self.resolve_parameter("autoinstall_extensions", self._autoinstall_extensions, True))
+        return bool(self.resolve_parameter("autoinstall_extensions", self._autoinstall_extensions, False))
+
+    @property
+    def autoload_extensions(self) -> bool:
+        return bool(self.resolve_parameter("autoload_extensions", self._autoload_extensions, True))
 
     @property
     def allow_community_extensions(self) -> bool:
@@ -254,7 +265,7 @@ class DuckDBHook(DbApiHook):
         """
         config: dict[str, Any] = {
             "autoinstall_known_extensions": self.autoinstall_extensions,
-            "autoload_known_extensions": self.autoinstall_extensions,
+            "autoload_known_extensions": self.autoload_extensions,
             "allow_community_extensions": self.allow_community_extensions,
         }
         for key, value in (

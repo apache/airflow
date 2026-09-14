@@ -151,12 +151,20 @@ class TestDuckDBHookExtensions:
     def test_install_only_happens_when_load_fails(self, mock_get_connection):
         conn = mock.MagicMock()
         conn.execute.side_effect = [duckdb.Error("not installed"), None, None]
-        DuckDBHook(extensions=["httpfs"]).load_extensions(conn)
+        DuckDBHook(extensions=["httpfs"], autoinstall_extensions=True).load_extensions(conn)
         assert [call.args[0] for call in conn.execute.call_args_list] == [
             "LOAD httpfs;",
             "INSTALL httpfs;",
             "LOAD httpfs;",
         ]
+
+    def test_a_missing_extension_raises_by_default(self, mock_get_connection):
+        """Downloads are off unless asked for, so a missing extension fails rather than fetching."""
+        conn = mock.MagicMock()
+        conn.execute.side_effect = duckdb.Error("not installed")
+        with pytest.raises(ValueError, match="autoinstall_extensions is disabled"):
+            DuckDBHook(extensions=["httpfs"]).load_extensions(conn)
+        assert conn.execute.call_count == 1
 
     def test_autoinstall_disabled_raises_an_actionable_error(self, mock_get_connection):
         conn = mock.MagicMock()
@@ -184,17 +192,22 @@ class TestDuckDBHookExtensions:
 
 @mock.patch(GET_CONNECTION, side_effect=AirflowNotFoundException("nope"))
 class TestDuckDBHookConnectConfig:
-    def test_extension_installation_is_on_by_default(self, mock_get_connection):
+    def test_extension_downloads_are_off_by_default(self, mock_get_connection):
+        """A locked-down environment usually cannot reach DuckDB's extension repository."""
         config = DuckDBHook().get_connect_config()
-        assert config["autoinstall_known_extensions"] is True
-        assert config["autoload_known_extensions"] is True
+        assert config["autoinstall_known_extensions"] is False
+
+    def test_implicit_loading_of_installed_extensions_is_on_by_default(self, mock_get_connection):
+        """Autoload involves no download, so it stays on: querying s3:// pulls in a present httpfs."""
+        assert DuckDBHook().get_connect_config()["autoload_known_extensions"] is True
 
     def test_community_extensions_are_disabled_by_default(self, mock_get_connection):
         assert DuckDBHook().get_connect_config()["allow_community_extensions"] is False
 
-    def test_disabling_autoinstall_turns_off_network_extension_loading(self, mock_get_connection):
-        config = DuckDBHook(autoinstall_extensions=False).get_connect_config()
-        assert config["autoinstall_known_extensions"] is False
+    def test_the_two_extension_settings_are_independent(self, mock_get_connection):
+        """Enabling downloads must not be the only way to keep implicit loading, and vice versa."""
+        config = DuckDBHook(autoinstall_extensions=True, autoload_extensions=False).get_connect_config()
+        assert config["autoinstall_known_extensions"] is True
         assert config["autoload_known_extensions"] is False
 
     def test_resource_limits_are_passed_through(self, mock_get_connection):
@@ -273,10 +286,17 @@ class TestDuckDBHookConnectionExtraResolution:
             ),
             pytest.param(
                 "autoinstall_extensions",
-                False,
+                True,
                 lambda h: h.autoinstall_extensions,
-                False,
+                True,
                 id="autoinstall_extensions",
+            ),
+            pytest.param(
+                "autoload_extensions",
+                False,
+                lambda h: h.autoload_extensions,
+                False,
+                id="autoload_extensions",
             ),
             pytest.param(
                 "allow_community_extensions",
@@ -316,6 +336,13 @@ class TestDuckDBHookConnectionExtraResolution:
                 id="autoinstall_extensions",
             ),
             pytest.param(
+                "autoload_extensions",
+                False,
+                True,
+                lambda h: h.autoload_extensions,
+                id="autoload_extensions",
+            ),
+            pytest.param(
                 "allow_community_extensions",
                 False,
                 True,
@@ -333,14 +360,18 @@ class TestDuckDBHookConnectionExtraResolution:
         with mock.patch(GET_CONNECTION, return_value=make_connection(extra={kwarg: extra_value})):
             assert probe(DuckDBHook(**{kwarg: explicit_value})) == explicit_value
 
-    def test_disabling_autoinstall_on_the_connection_reaches_the_duckdb_config(self):
-        """The deployment-hardening path: no runtime extension downloads, set once on the connection."""
-        with mock.patch(
-            GET_CONNECTION, return_value=make_connection(extra={"autoinstall_extensions": False})
-        ):
+    def test_enabling_autoinstall_on_the_connection_reaches_the_duckdb_config(self):
+        """Downloads are off by default, so a deployment that wants them opts in on the connection."""
+        with mock.patch(GET_CONNECTION, return_value=make_connection(extra={"autoinstall_extensions": True})):
             config = DuckDBHook().get_connect_config()
-        assert config["autoinstall_known_extensions"] is False
+        assert config["autoinstall_known_extensions"] is True
+        assert config["autoload_known_extensions"] is True
+
+    def test_disabling_autoload_on_the_connection_reaches_the_duckdb_config(self):
+        with mock.patch(GET_CONNECTION, return_value=make_connection(extra={"autoload_extensions": False})):
+            config = DuckDBHook().get_connect_config()
         assert config["autoload_known_extensions"] is False
+        assert config["autoinstall_known_extensions"] is False
 
 
 @mock.patch(GET_CONNECTION, side_effect=AirflowNotFoundException("nope"))

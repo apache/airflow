@@ -61,6 +61,18 @@ Extra (JSON)
     ``extensions`` *(list of strings, optional)*
         Extensions to load on connect, for example ``["httpfs", "iceberg"]``.
 
+    ``extension_directory`` *(string, optional)*
+        Directory DuckDB loads extensions from, and installs them into when downloads are enabled.
+
+    ``autoinstall_extensions`` *(bool, optional)*
+        Whether an extension that is not installed locally may be downloaded from DuckDB's extension
+        repository. Defaults to ``False``.
+
+    ``autoload_extensions`` *(bool, optional)*
+        Whether DuckDB may load an already-installed extension implicitly, so that querying an
+        ``s3://`` path, for example, pulls in ``httpfs`` without listing it in ``extensions``.
+        Defaults to ``True``.
+
     ``memory_limit`` *(string, optional)*
         Memory DuckDB may use, for example ``"2GB"``.
 
@@ -73,13 +85,16 @@ Extra (JSON)
     ``settings`` *(object, optional)*
         Additional DuckDB configuration options, passed through verbatim.
 
-.. warning:: **Extension loading reaches the network**
+.. warning:: **Extension downloads are off by default**
 
-    DuckDB downloads extensions from its extension repository the first time they are used. In an
-    environment without outbound internet access, pre-populate an extension directory, point
-    ``extension_directory`` at it and set ``autoinstall_extensions=False`` so a missing extension
-    fails with a clear error instead of hanging on a network call. Doing this also removes the
-    per-task download latency where egress *is* available.
+    DuckDB fetches extensions from its extension repository the first time they are used. That is not
+    possible in an environment without outbound internet access, and where it is possible it costs
+    every worker the download, so ``autoinstall_extensions`` defaults to ``False`` and a missing
+    extension fails with a clear error rather than reaching the network.
+
+    Pre-populate an extension directory and point ``extension_directory`` at it, or set
+    ``autoinstall_extensions=True`` if downloading on demand is acceptable. Loading an extension that
+    is already present needs neither setting.
 
 .. warning:: **Extensions are native code**
 
