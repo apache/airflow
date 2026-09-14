@@ -39,8 +39,10 @@ from airflow.models.asset import (
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
+    AssetPartitionDagRun,
     AssetWatcherModel,
     DagScheduleAssetReference,
+    PartitionedAssetKeyLog,
     TaskOutletAssetReference,
 )
 from airflow.models.base import ID_LEN
@@ -2003,6 +2005,284 @@ class TestDeleteDagDatasetQueuedEvents(TestQueuedEventEndpoint):
 
         assert response.status_code == 404
         assert response.json()["detail"] == "Queue event with dag_id: `dag` was not found"
+
+
+class TestDeletePartitionedQueuedEvents(TestQueuedEventEndpoint):
+    @pytest.fixture(autouse=True)
+    def clear_partitioned_queue(self, session):
+        session.execute(delete(PartitionedAssetKeyLog))
+        session.execute(delete(AssetPartitionDagRun))
+        session.commit()
+        yield
+        session.execute(delete(PartitionedAssetKeyLog))
+        session.execute(delete(AssetPartitionDagRun))
+        session.commit()
+
+    @staticmethod
+    def _queue_partition(
+        session,
+        *,
+        dag_id: str,
+        partition_key: str,
+        source_keys_by_asset_id: dict[int, list[str]],
+        created_dag_run_id: int | None = None,
+    ) -> AssetPartitionDagRun:
+        apdr = AssetPartitionDagRun(
+            target_dag_id=dag_id, partition_key=partition_key, created_dag_run_id=created_dag_run_id
+        )
+        session.add(apdr)
+        session.flush()
+        for asset_id, source_keys in source_keys_by_asset_id.items():
+            for source_key in source_keys:
+                event = AssetEvent(asset_id=asset_id, partition_key=source_key, timestamp=timezone.utcnow())
+                session.add(event)
+                session.flush()
+                session.add(
+                    PartitionedAssetKeyLog(
+                        asset_id=asset_id,
+                        asset_event_id=event.id,
+                        asset_partition_dag_run_id=apdr.id,
+                        source_partition_key=source_key,
+                        target_dag_id=dag_id,
+                        target_partition_key=partition_key,
+                    )
+                )
+        session.commit()
+        return apdr
+
+    @staticmethod
+    def _remaining(session) -> tuple[set[tuple[str, int | None]], set[tuple[int, int, str]]]:
+        session.expire_all()
+        apdrs = {
+            (apdr.partition_key, apdr.created_dag_run_id)
+            for apdr in session.scalars(select(AssetPartitionDagRun))
+        }
+        pakls = {
+            (pakl.asset_partition_dag_run_id, pakl.asset_id, pakl.source_partition_key)
+            for pakl in session.scalars(select(PartitionedAssetKeyLog))
+        }
+        return apdrs, pakls
+
+    def test_dag_endpoint_deletes_only_pending_partition_with_matching_key(
+        self, test_client, session, create_dummy_dag
+    ):
+        dag, _ = create_dummy_dag()
+        dag_run_id = session.scalar(select(DagRun.id).where(DagRun.dag_id == dag.dag_id))
+        asset_1, asset_2 = self.create_assets(session=session, num=2)
+        self._create_asset_dag_run_queues(dag.dag_id, asset_1.id, session)
+        self._queue_partition(
+            session,
+            dag_id=dag.dag_id,
+            partition_key="2026-09-02",
+            source_keys_by_asset_id={asset_1.id: ["2026-09-02"], asset_2.id: ["2026-09-02"]},
+        )
+        other = self._queue_partition(
+            session,
+            dag_id=dag.dag_id,
+            partition_key="2026-09-03",
+            source_keys_by_asset_id={asset_1.id: ["2026-09-03"]},
+        )
+        self._queue_partition(
+            session,
+            dag_id=dag.dag_id,
+            partition_key="2026-09-02",
+            source_keys_by_asset_id={},
+            created_dag_run_id=dag_run_id,
+        )
+
+        response = test_client.delete(
+            f"/dags/{dag.dag_id}/assets/queuedEvents", params={"partition_key": "2026-09-02"}
+        )
+
+        assert response.status_code == 204
+        apdrs, pakls = self._remaining(session)
+        assert apdrs == {("2026-09-03", None), ("2026-09-02", dag_run_id)}
+        assert pakls == {(other.id, asset_1.id, "2026-09-03")}
+        # Queued events of non-partitioned assets are left alone when a partition key is given.
+        assert len(session.scalars(select(AssetDagRunQueue)).all()) == 1
+        check_last_log(session, dag_id=dag.dag_id, event="delete_dag_asset_queued_events", logical_date=None)
+
+    @pytest.mark.parametrize(
+        "path_template",
+        [
+            pytest.param("/assets/{asset_id}/queuedEvents", id="asset"),
+            pytest.param("/dags/{dag_id}/assets/{asset_id}/queuedEvents", id="dag-asset"),
+        ],
+    )
+    def test_asset_endpoints_keep_partition_pending_until_no_asset_remains(
+        self, test_client, session, create_dummy_dag, path_template
+    ):
+        dag, _ = create_dummy_dag()
+        asset_1, asset_2 = self.create_assets(session=session, num=2)
+        apdr = self._queue_partition(
+            session,
+            dag_id=dag.dag_id,
+            partition_key="2026-09-02",
+            source_keys_by_asset_id={asset_1.id: ["2026-09-02"], asset_2.id: ["2026-09-02"]},
+        )
+
+        response = test_client.delete(
+            path_template.format(dag_id=dag.dag_id, asset_id=asset_1.id),
+            params={"partition_key": "2026-09-02"},
+        )
+
+        assert response.status_code == 204
+        apdrs, pakls = self._remaining(session)
+        assert apdrs == {("2026-09-02", None)}
+        assert pakls == {(apdr.id, asset_2.id, "2026-09-02")}
+
+        response = test_client.delete(
+            path_template.format(dag_id=dag.dag_id, asset_id=asset_2.id),
+            params={"partition_key": "2026-09-02"},
+        )
+
+        assert response.status_code == 204
+        assert self._remaining(session) == (set(), set())
+
+    def test_partition_key_matches_dag_run_partition_key_not_source_key(
+        self, test_client, session, create_dummy_dag
+    ):
+        dag, _ = create_dummy_dag()
+        (asset,) = self.create_assets(session=session, num=1)
+        self._queue_partition(
+            session,
+            dag_id=dag.dag_id,
+            partition_key="2026-09-02",
+            source_keys_by_asset_id={asset.id: ["2026-09-02T00", "2026-09-02T01"]},
+        )
+
+        response = test_client.delete(
+            f"/dags/{dag.dag_id}/assets/queuedEvents", params={"partition_key": "2026-09-02T00"}
+        )
+        assert response.status_code == 404
+        assert len(self._remaining(session)[1]) == 2
+
+        response = test_client.delete(
+            f"/dags/{dag.dag_id}/assets/queuedEvents", params={"partition_key": "2026-09-02"}
+        )
+        assert response.status_code == 204
+        assert self._remaining(session) == (set(), set())
+
+    def test_before_only_deletes_older_events(self, test_client, session, create_dummy_dag):
+        dag, _ = create_dummy_dag()
+        (asset,) = self.create_assets(session=session, num=1)
+        with time_machine.travel(DEFAULT_DATE, tick=False):
+            apdr = self._queue_partition(
+                session,
+                dag_id=dag.dag_id,
+                partition_key="us",
+                source_keys_by_asset_id={asset.id: ["us"]},
+            )
+        with time_machine.travel(DEFAULT_DATE + timedelta(hours=2), tick=False):
+            newer = AssetEvent(asset_id=asset.id, partition_key="us", timestamp=timezone.utcnow())
+            session.add(newer)
+            session.flush()
+            session.add(
+                PartitionedAssetKeyLog(
+                    asset_id=asset.id,
+                    asset_event_id=newer.id,
+                    asset_partition_dag_run_id=apdr.id,
+                    source_partition_key="us",
+                    target_dag_id=dag.dag_id,
+                    target_partition_key="us",
+                )
+            )
+            session.commit()
+
+        response = test_client.delete(
+            f"/assets/{asset.id}/queuedEvents",
+            params={
+                "partition_key": "us",
+                "before": from_datetime_to_zulu_without_ms(DEFAULT_DATE + timedelta(hours=1)),
+            },
+        )
+
+        assert response.status_code == 204
+        apdrs, _ = self._remaining(session)
+        assert apdrs == {("us", None)}
+        assert session.scalars(select(PartitionedAssetKeyLog.asset_event_id)).all() == [newer.id]
+
+    @pytest.mark.parametrize(
+        ("path_template", "expected_detail"),
+        [
+            pytest.param(
+                "/assets/{asset_id}/queuedEvents",
+                "Queue event with asset_id: `{asset_id}` was not found",
+                id="asset",
+            ),
+            pytest.param(
+                "/dags/{dag_id}/assets/queuedEvents",
+                "Queue event with dag_id: `{dag_id}` was not found",
+                id="dag",
+            ),
+            pytest.param(
+                "/dags/{dag_id}/assets/{asset_id}/queuedEvents",
+                "Queued event with dag_id: `{dag_id}` and asset_id: `{asset_id}` was not found",
+                id="dag-asset",
+            ),
+        ],
+    )
+    def test_should_respond_404_when_partition_already_created_dag_run(
+        self, test_client, session, create_dummy_dag, path_template, expected_detail
+    ):
+        dag, _ = create_dummy_dag()
+        dag_run_id = session.scalar(select(DagRun.id).where(DagRun.dag_id == dag.dag_id))
+        (asset,) = self.create_assets(session=session, num=1)
+        self._create_asset_dag_run_queues(dag.dag_id, asset.id, session)
+        self._queue_partition(
+            session,
+            dag_id=dag.dag_id,
+            partition_key="2026-09-02",
+            source_keys_by_asset_id={asset.id: ["2026-09-02"]},
+            created_dag_run_id=dag_run_id,
+        )
+
+        response = test_client.delete(
+            path_template.format(dag_id=dag.dag_id, asset_id=asset.id),
+            params={"partition_key": "2026-09-02"},
+        )
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == expected_detail.format(dag_id=dag.dag_id, asset_id=asset.id)
+        assert len(self._remaining(session)[1]) == 1
+        assert len(session.scalars(select(AssetDagRunQueue)).all()) == 1
+
+    def test_delete_does_not_read_back_deleted_row_keys(self, test_client, session, create_dummy_dag):
+        from sqlalchemy import event
+
+        import airflow.settings
+
+        dag, _ = create_dummy_dag()
+        (asset,) = self.create_assets(session=session, num=1)
+        self._queue_partition(
+            session,
+            dag_id=dag.dag_id,
+            partition_key="2026-09-02",
+            source_keys_by_asset_id={asset.id: ["2026-09-02"]},
+        )
+
+        executed_statements: list[str] = []
+
+        def capture(_conn, _cursor, statement, _parameters, _context, _executemany):
+            executed_statements.append(" ".join(statement.split()).upper())
+
+        event.listen(airflow.settings.engine, "before_cursor_execute", capture)
+        try:
+            response = test_client.delete(
+                f"/dags/{dag.dag_id}/assets/{asset.id}/queuedEvents",
+                params={"partition_key": "2026-09-02"},
+            )
+        finally:
+            event.remove(airflow.settings.engine, "before_cursor_execute", capture)
+
+        assert response.status_code == 204
+        deletes = [s for s in executed_statements if s.startswith("DELETE")]
+        assert len(deletes) == 2
+        assert [s for s in deletes if "RETURNING" in s] == [], "DELETE must not read back deleted keys"
+        after_first_delete = executed_statements[executed_statements.index(deletes[0]) :]
+        assert [s for s in after_first_delete if s.startswith("SELECT")] == [], (
+            "No SELECT may precede a DELETE to collect the keys it is about to remove"
+        )
 
 
 class TestPostAssetEvents(TestAssets):
