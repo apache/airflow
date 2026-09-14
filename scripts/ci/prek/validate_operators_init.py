@@ -352,13 +352,36 @@ def _collect_sanctioned_uses(ctor: ast.FunctionDef, template_fields: list[str]) 
     return sanctioned
 
 
+def _is_call_to(func: ast.expr, name: str, *, modules: tuple[str, ...] = ()) -> bool:
+    """
+    Check whether a call target is the bare name ``name`` or ``<module>.<name>`` for a listed module.
+
+    Any other qualifier (``helper.replace``, ``factory.StartTriggerArgs``) is rejected so an
+    unrelated callable cannot borrow a sanctioned name.
+
+    :param func: The ``func`` node of the call.
+    :param name: The callable name to match.
+    :param modules: Module names allowed as the attribute qualifier.
+    :return: True if the call target matches.
+    """
+    if isinstance(func, ast.Name):
+        return func.id == name
+    return (
+        isinstance(func, ast.Attribute)
+        and func.attr == name
+        and isinstance(func.value, ast.Name)
+        and func.value.id in modules
+    )
+
+
 def _is_start_trigger_args_assignment(target: ast.expr, value: ast.Call) -> bool:
     """
     Check whether an assignment rebuilds ``self.start_trigger_args``.
 
     Matches ``self.start_trigger_args = StartTriggerArgs(...)`` and
-    ``self.start_trigger_args = dataclasses.replace(self.start_trigger_args, ...)``. Aliased
-    imports and positional ``StartTriggerArgs`` arguments are deliberately not matched.
+    ``self.start_trigger_args = dataclasses.replace(self.start_trigger_args, ...)`` (also a bare
+    ``replace`` or ``copy.replace``). Aliased imports, other module qualifiers, and positional
+    ``StartTriggerArgs`` arguments are deliberately not matched.
 
     :param target: The assignment target.
     :param value: The assigned call.
@@ -366,11 +389,10 @@ def _is_start_trigger_args_assignment(target: ast.expr, value: ast.Call) -> bool
     """
     if not (isinstance(target, ast.Attribute) and _target_name(target) == "start_trigger_args"):
         return False
-    name = _resolve_base_name(value.func)
-    if name == "StartTriggerArgs":
+    if _is_call_to(value.func, "StartTriggerArgs"):
         return True
     return (
-        name == "replace"
+        _is_call_to(value.func, "replace", modules=("dataclasses", "copy"))
         and bool(value.args)
         and isinstance(value.args[0], ast.Attribute)
         and _target_name(value.args[0]) == "start_trigger_args"
@@ -396,7 +418,7 @@ def _iter_trigger_kwargs_items(call: ast.Call) -> Iterator[tuple[str | None, ast
                     (key.value if isinstance(key, ast.Constant) and isinstance(key.value, str) else None),
                     item,
                 )
-        elif isinstance(keyword.value, ast.Call) and _resolve_base_name(keyword.value.func) == "dict":
+        elif isinstance(keyword.value, ast.Call) and _is_call_to(keyword.value.func, "dict"):
             for inner in keyword.value.keywords:
                 yield inner.arg, inner.value
 
