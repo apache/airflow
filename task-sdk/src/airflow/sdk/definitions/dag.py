@@ -1181,10 +1181,16 @@ class DAG:
         for task_group in task_group_dict.values():
             try:
                 task_group.topological_sort(group_dict=task_group_dict)
-            except AirflowDagCycleException:
+            except AirflowDagCycleException as cycle_exc:
                 group_id = task_group.group_id or "<root>"
+                nodes_detail = (
+                    f" Nodes involved: {', '.join(cycle_exc.cyclic_node_ids)}"
+                    if cycle_exc.cyclic_node_ids
+                    else ""
+                )
                 raise AirflowDagCycleException(
-                    f"TaskGroup dependency cycle detected in Dag: {self.dag_id}. Faulty TaskGroup: {group_id}"
+                    f"TaskGroup dependency cycle detected in Dag: {self.dag_id}. "
+                    f"Faulty TaskGroup: {group_id}.{nodes_detail}"
                 ) from None
 
     def cli(self):

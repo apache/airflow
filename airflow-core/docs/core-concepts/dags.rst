@@ -607,6 +607,26 @@ dependencies form no cycle among themselves:
 group), so this places ``group1`` both upstream and downstream of ``group2``. Airflow reports this as a Dag
 parsing error even though no individual task-to-task dependency forms a cycle.
 
+The same "root task" rule can trip up a single group, without a second TaskGroup in sight. A task counts
+as a root of its group as soon as it has no upstream task *inside* that group -- even if it has an upstream
+task *outside* the group. Routing between two such tasks through an external task closes a cycle on the
+group itself:
+
+.. code-block:: python
+
+    with TaskGroup("group1"):
+        first = EmptyOperator(task_id="first")
+        second = EmptyOperator(task_id="second")
+
+    bridge = EmptyOperator(task_id="bridge")
+
+    first >> bridge >> second
+
+``second`` has no upstream task inside ``group1``, so it is a root of the group even though ``bridge`` sits
+outside it. ``group1`` is upstream of ``bridge`` (via ``first``) and downstream of ``bridge`` (via
+``second``'s root edge), which Airflow rejects the same way as the sibling-group example above -- even
+though this reads like an ordinary Dag with a single TaskGroup.
+
 TaskGroup also supports ``default_args`` like Dag, it will overwrite the ``default_args`` in Dag level:
 
 .. code-block:: python
