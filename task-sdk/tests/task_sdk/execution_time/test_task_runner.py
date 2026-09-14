@@ -179,6 +179,7 @@ from airflow.sdk.execution_time.task_runner import (
     _register_deserialization_allowed_classes,
     _run_execute_callable,
     _serialize_outlet_events,
+    _serialize_template_field,
     _xcom_push,
     detail_span,
     finalize,
@@ -192,6 +193,7 @@ from airflow.sdk.serde import deserialize
 from airflow.triggers.base import BaseEventTrigger, BaseTrigger, TriggerEvent
 from airflow.triggers.callback import CallbackTrigger
 from airflow.triggers.testing import SuccessTrigger
+from airflow.utils.file import get_unique_dag_module_name
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_operators import AirflowLink
@@ -3745,6 +3747,28 @@ class TestRuntimeTaskInstance:
         )
         assert response.dag_id == "test_dag"
         assert response.is_paused is False
+
+
+def _clean_rows(rows):
+    return rows
+
+
+class _LoadSettings:
+    pass
+
+
+@pytest.mark.parametrize(
+    "dag_file", ["/opt/airflow/releases/41/dags/etl.py", "/opt/airflow/releases/42/dags/etl.py"]
+)
+def test_serialize_template_field_markers_leave_out_dag_file_module(monkeypatch, dag_file):
+    """Markers for callables and objects defined in a Dag file must not depend on the file path."""
+    module_name = get_unique_dag_module_name(dag_file)
+    monkeypatch.setattr(_clean_rows, "__module__", module_name)
+    monkeypatch.setattr(_LoadSettings, "__module__", module_name)
+
+    result = _serialize_template_field({"transform": _clean_rows, "settings": _LoadSettings()}, "op_kwargs")
+
+    assert result == {"settings": "<_LoadSettings object>", "transform": "<callable _clean_rows>"}
 
 
 class TestXComAfterTaskExecution:
