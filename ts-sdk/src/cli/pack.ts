@@ -17,13 +17,11 @@
  * under the License.
  */
 
-// airflow-ts-pack: bundle a TypeScript entrypoint into the single-file
-// artifact NodeCoordinator consumes: `bundle.mjs` with metadata and an
-// integrity layout descriptor embedded in JavaScript comments.
+// airflow-ts-pack: bundle a TypeScript entrypoint into the single artifact NodeCoordinator consumes.
+// `bundle.min.mjs` carries the metadata and an integrity layout descriptor in JavaScript comments.
 //
-// Build first, then run the built bundle with --airflow-metadata so the
-// manifest comes from the bundle's own Dag registry and schema version,
-// never from a hand-written sidecar.
+// Build first, then run the built bundle with --airflow-metadata so the manifest comes from the
+// bundle's own Dag registry and schema version, never from a hand-written sidecar.
 
 import { execFileSync } from "node:child_process";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -37,26 +35,31 @@ import {
 import { encodeBundle } from "./bundle-encoder.js";
 import { warnOnSuspiciousIds } from "./validate.js";
 
-const BUNDLE_FILENAME = "bundle.mjs";
-// Write bundle.mjs only after the build and manifest checks succeed, so a
-// failed pack cannot leave a partial final artifact.
+// NodeCoordinator discovers bundles by this suffix, so keep the two in step.
+const BUNDLE_FILENAME = "bundle.min.mjs";
+// Write the bundle only after the build and manifest checks succeed, so a failed pack
+// cannot leave a partial artifact.
 const STAGING_FILENAME = "bundle.pack-staging.mjs";
 const MANIFEST_TIMEOUT_MS = 60_000;
 const MANIFEST_MAX_BUFFER_BYTES = 64 * 1024 * 1024;
 
-const USAGE = `Usage: airflow-ts-pack <entry> [--outdir <dir>] [--source <name>]
+const USAGE = `Usage: airflow-ts-pack <entry> [--outdir <dir> | --outfile <path>] [--source <name>]
 
-Bundles <entry> into <outdir>/${BUNDLE_FILENAME} with esbuild and embeds the
+Bundles <entry> into a minified ${BUNDLE_FILENAME} with esbuild and embeds the
 airflow metadata generated from the bundle's served Dags.
 
 Options:
-  --outdir <dir>   Output directory (default: dist)
-  --source <name>  Display name of the primary source file (default: <entry> basename)
+  --outdir <dir>    Output directory, holding ${BUNDLE_FILENAME} (default: dist)
+  --outfile <path>  Exact output path; its name must end in .min.mjs
+  --source <name>   Display name of the primary source file (default: <entry> basename)
 `;
+
+/** A bundle written without this suffix is invisible to NodeCoordinator. */
+const REQUIRED_OUTFILE_SUFFIX = ".min.mjs";
 
 export interface PackArgs {
   entry: string;
-  outdir: string;
+  outfile: string;
   source: string;
 }
 
@@ -66,14 +69,16 @@ function usageError(message: string): Error {
 
 export function parsePackArgs(argv: readonly string[]): PackArgs {
   let entry: string | null = null;
-  let outdir = "dist";
+  let outdir: string | null = null;
+  let outfile: string | null = null;
   let source: string | null = null;
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i]!;
-    if (arg === "--outdir" || arg === "--source") {
+    if (arg === "--outdir" || arg === "--outfile" || arg === "--source") {
       const value = argv[i + 1];
       if (!value) throw usageError(`${arg} requires a value`);
       if (arg === "--outdir") outdir = value;
+      else if (arg === "--outfile") outfile = value;
       else source = value;
       i += 1;
     } else if (arg.startsWith("-")) {
@@ -85,7 +90,20 @@ export function parsePackArgs(argv: readonly string[]): PackArgs {
     }
   }
   if (!entry) throw usageError("Missing entry file");
-  return { entry, outdir, source: source ?? path.basename(entry) };
+  // Silently preferring one would write the bundle somewhere the caller did not ask for.
+  if (outdir !== null && outfile !== null) {
+    throw usageError("--outdir and --outfile are mutually exclusive");
+  }
+  if (outfile !== null && !path.basename(outfile).endsWith(REQUIRED_OUTFILE_SUFFIX)) {
+    throw usageError(
+      `--outfile name must end in ${REQUIRED_OUTFILE_SUFFIX}; NodeCoordinator finds bundles by that suffix`,
+    );
+  }
+  return {
+    entry,
+    outfile: outfile ?? path.join(outdir ?? "dist", BUNDLE_FILENAME),
+    source: source ?? path.basename(entry),
+  };
 }
 
 function readSdkVersion(): string {
@@ -183,8 +201,8 @@ async function loadEsbuild(): Promise<typeof import("esbuild")> {
 
 export async function runPack(argv: readonly string[]): Promise<void> {
   const args = parsePackArgs(argv);
-  const bundlePath = path.join(args.outdir, BUNDLE_FILENAME);
-  const stagingPath = path.join(args.outdir, STAGING_FILENAME);
+  const bundlePath = args.outfile;
+  const stagingPath = path.join(path.dirname(bundlePath), STAGING_FILENAME);
   const { build } = await loadEsbuild();
 
   try {
@@ -194,6 +212,9 @@ export async function runPack(argv: readonly string[]): Promise<void> {
       platform: "node",
       format: "esm",
       target: "node22",
+      // A digest is only worth taking over an artifact nobody reads or edits in place.
+      minify: true,
+      // The manifest is read by running the staged bundle, so the metadata describes what ships.
       outfile: stagingPath,
     });
 
