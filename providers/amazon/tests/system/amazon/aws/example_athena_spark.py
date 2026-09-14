@@ -17,12 +17,11 @@
 
 from __future__ import annotations
 
-import os
-import time
 from datetime import datetime
 
 import boto3
 
+from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.providers.amazon.aws.operators.athena_spark import AthenaSparkOperator
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
@@ -43,13 +42,13 @@ except ImportError:
 
 from system.amazon.aws.utils import SystemTestContextBuilder
 
-sys_test_context_task = SystemTestContextBuilder().build()
-
 DAG_ID = "example_athena_spark"
 
 # The Spark workgroup is preconfigured test infrastructure; this DAG creates only the session.
 # Test runners can override the default by exporting ATHENA_SPARK_WORK_GROUP.
-ATHENA_SPARK_WORK_GROUP = os.environ.get("ATHENA_SPARK_WORK_GROUP", "airflow-athena-spark-test")
+ATHENA_SPARK_WORK_GROUP_KEY = "ATHENA_SPARK_WORK_GROUP"
+
+sys_test_context_task = SystemTestContextBuilder().add_variable(ATHENA_SPARK_WORK_GROUP_KEY).build()
 
 
 @task
@@ -64,20 +63,11 @@ def start_athena_spark_session(work_group: str) -> str:
 
 @task
 def wait_for_athena_spark_session(session_id: str) -> str:
-    client = boto3.client("athena")
-
-    while True:
-        response = client.get_session(SessionId=session_id)
-        state = response["Status"]["State"]
-
-        if state == "IDLE":
-            return session_id
-
-        if state in {"TERMINATED", "DEGRADED", "FAILED"}:
-            reason = response["Status"].get("StateChangeReason", "Unknown")
-            raise RuntimeError(f"Athena Spark session failed with state {state}. Reason: {reason}")
-
-        time.sleep(10)
+    AthenaHook().get_waiter("session_idle").wait(
+        SessionId=session_id,
+        WaiterConfig={"Delay": 10, "MaxAttempts": 60},
+    )
+    return session_id
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
@@ -93,8 +83,9 @@ with DAG(
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
+    athena_spark_work_group = test_context[ATHENA_SPARK_WORK_GROUP_KEY]
 
-    session_id = start_athena_spark_session(ATHENA_SPARK_WORK_GROUP)
+    session_id = start_athena_spark_session(athena_spark_work_group)
     idle_session_id = wait_for_athena_spark_session(session_id)
 
     # [START howto_operator_athena_spark]
@@ -110,10 +101,13 @@ with DAG(
     stop_session = stop_athena_spark_session(session_id)
 
     chain(
+        # TEST SETUP
         test_context,
         session_id,
         idle_session_id,
+        # TEST BODY
         run_spark_calculation,
+        # TEST TEARDOWN
         stop_session,
     )
 

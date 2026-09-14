@@ -441,6 +441,71 @@ class TestAthenaHook:
 
         assert reason == expected_reason
 
+    @mock.patch("airflow.providers.amazon.aws.hooks.athena.wait")
+    @mock.patch.object(AthenaHook, "get_waiter")
+    @mock.patch.object(
+        AthenaHook,
+        "check_spark_calculation_status",
+        return_value="COMPLETED",
+    )
+    def test_hook_poll_spark_calculation_status(
+        self,
+        mock_check_status,
+        mock_get_waiter,
+        mock_wait,
+    ):
+        result = self.athena.poll_spark_calculation_status(
+            calculation_execution_id=MOCK_DATA["calculation_execution_id"],
+            waiter_delay=5,
+            waiter_max_attempts=10,
+        )
+
+        mock_get_waiter.assert_called_once_with("calculation_complete")
+        mock_wait.assert_called_once_with(
+            waiter=mock_get_waiter.return_value,
+            waiter_delay=5,
+            waiter_max_attempts=10,
+            args={
+                "CalculationExecutionId": MOCK_DATA["calculation_execution_id"],
+            },
+            failure_message=(
+                f"Error while waiting for calculation {MOCK_DATA['calculation_execution_id']} to complete"
+            ),
+            status_message=(
+                f"Calculation execution ID "
+                f"{MOCK_DATA['calculation_execution_id']} is still in a non-terminal state"
+            ),
+            status_args=["Status.State"],
+        )
+        mock_check_status.assert_called_once_with(MOCK_DATA["calculation_execution_id"])
+        assert result == "COMPLETED"
+
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.athena.wait",
+        side_effect=RuntimeError("Waiter failed"),
+    )
+    @mock.patch.object(AthenaHook, "get_waiter")
+    @mock.patch.object(
+        AthenaHook,
+        "check_spark_calculation_status",
+        return_value="RUNNING",
+    )
+    def test_hook_poll_spark_calculation_status_returns_latest_state_after_waiter_error(
+        self,
+        mock_check_status,
+        mock_get_waiter,
+        mock_wait,
+    ):
+        result = self.athena.poll_spark_calculation_status(
+            calculation_execution_id=MOCK_DATA["calculation_execution_id"],
+            waiter_delay=0,
+            waiter_max_attempts=1,
+        )
+
+        mock_wait.assert_called_once()
+        mock_check_status.assert_called_once_with(MOCK_DATA["calculation_execution_id"])
+        assert result == "RUNNING"
+
     @mock.patch.object(AthenaHook, "get_conn")
     def test_hook_stop_spark_calculation(self, mock_conn):
         self.athena.stop_spark_calculation(calculation_execution_id=MOCK_DATA["calculation_execution_id"])

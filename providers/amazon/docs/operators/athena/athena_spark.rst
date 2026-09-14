@@ -49,6 +49,7 @@ this operator, please see the `Sample Dag <https://github.com/apache/airflow/blo
 
 .. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_athena_spark.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_athena_spark]
     :end-before: [END howto_operator_athena_spark]
 

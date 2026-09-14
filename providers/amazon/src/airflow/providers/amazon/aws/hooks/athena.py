@@ -353,8 +353,7 @@ class AthenaHook(AwsBaseHook):
         return self.get_conn().stop_query_execution(QueryExecutionId=query_execution_id)
 
     def _get_spark_calculation_status(self, response: dict[str, Any] | None) -> dict[str, Any]:
-        calculation_execution = (response or {}).get("CalculationExecution") or {}
-        return calculation_execution.get("Status") or (response or {}).get("Status") or {}
+        return (response or {}).get("Status") or {}
 
     def start_spark_calculation(
         self,
@@ -474,6 +473,44 @@ class AthenaHook(AwsBaseHook):
             use_cache=use_cache,
         )
         return self._get_spark_calculation_status(response).get("StateChangeReason")
+
+    def poll_spark_calculation_status(
+        self,
+        calculation_execution_id: str,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 120,
+    ) -> str | None:
+        """
+        Poll an Athena Spark calculation until it reaches a terminal state.
+
+        :param calculation_execution_id: ID of the submitted calculation.
+        :param waiter_delay: Seconds to wait between status checks. Defaults to 30.
+        :param waiter_max_attempts: Maximum number of status checks. Defaults to 120.
+        :return: The latest calculation state, or ``None`` if the response is malformed.
+        """
+        try:
+            wait(
+                waiter=self.get_waiter("calculation_complete"),
+                waiter_delay=waiter_delay,
+                waiter_max_attempts=waiter_max_attempts,
+                args={"CalculationExecutionId": calculation_execution_id},
+                failure_message=(
+                    f"Error while waiting for calculation {calculation_execution_id} to complete"
+                ),
+                status_message=(
+                    f"Calculation execution ID {calculation_execution_id} is still in a non-terminal state"
+                ),
+                status_args=["Status.State"],
+            )
+        except Exception as error:
+            # Return the latest state so the operator can distinguish failure from timeout.
+            self.log.warning(
+                "Exception while polling calculation status. Calculation execution ID: %s, exception: %s",
+                calculation_execution_id,
+                error,
+            )
+
+        return self.check_spark_calculation_status(calculation_execution_id)
 
     def stop_spark_calculation(self, calculation_execution_id: str) -> dict[str, Any]:
         """
