@@ -17,7 +17,7 @@
  under the License.
  -->
 
-# ADR-0010: Mixed-Language Dag Processing — Task Handlers Are Not Dags
+# ADR-0009: Mixed-Language Dag Processing — Task Handlers Are Not Dags
 
 ## Status
 
@@ -59,7 +59,7 @@ Terms follow the Language SDK spec (`task-sdk/docs/lang-sdk-spec.rst`, spec vers
 ```
 
 A `TaskHandlerRef` has no schedule, no task graph, and no `dag_id` of its own to persist. A `DagRef` has all three. Dag parsing draws on the `Dag` registrations
-([ADR-0009](0009-native-dag-processing.md)); validation draws on the `TaskHandler` registrations. Because both kinds share one bundle and one `register` verb, the bundle cannot be
+([ADR-0008](0008-native-dag-processing.md)); validation draws on the `TaskHandler` registrations. Because both kinds share one bundle and one `register` verb, the bundle cannot be
 the discriminator — the registration kind is. Appendix A gives the rejected alternative and why.
 
 ### One artifact, both kinds
@@ -176,7 +176,7 @@ DagFileProcessorProcess(etl.py)                                ← manager spawn
 
 The parse owns validation, not an importer. `PythonDagImporter` returns `airflow.sdk.DAG` objects and knows nothing about coordinators or queues, so `@task.stub` keeps working for
 any importer that can produce a Dag carrying stub tasks. `_parse_file` is also the only place where the whole file's Dags are visible at once, which is what lets one request cover
-every `dag_id` that resolved to the same artifact ([ADR-0008](0008-lang-sdk-parse-protocol.md)).
+every `dag_id` that resolved to the same artifact ([ADR-0010](0010-lang-sdk-parse-protocol.md)).
 
 Resolution goes through the coordinator registry, not the filesystem, so the Python Dag and the Lang-SDK artifact **do not need to be in the same DagBundle**. Nothing here needs an
 `airflow.sdk.DAG` round-trip either — validation compares against the Dag the Python parser already built. Appendix B states exactly what is compared.
@@ -210,8 +210,8 @@ There is no fourth row. A `TaskHandlerRef` has no Dag, so no `DagImporter` — a
 
 ## References
 
-- [ADR-0008](0008-lang-sdk-parse-protocol.md) — `parse_task_handler` and the `TaskHandlerParsingResult` shape this ADR compares against
-- [ADR-0009](0009-native-dag-processing.md) — the `Dag`-registration half, and the importer that persists it
+- [ADR-0010](0010-lang-sdk-parse-protocol.md) — `parse_task_handler` and the `TaskHandlerParsingResult` shape this ADR compares against
+- [ADR-0008](0008-native-dag-processing.md) — the `Dag`-registration half, and the importer that persists it
 - [ADR-0003](0003-pure-java-dags.md) — `BundleScanner` / `BuilderProcessor`, build-time artifact inventory
 - [ADR-0006](0006-no-lang-sdk-source-display.md) — no Lang-SDK source display for mixed-language Dags
 - [ADR-0007](0007-taskflow-across-language-boundary.md) — `arg_bindings` / `TaskArgBinding` / `ArgValueSchema`

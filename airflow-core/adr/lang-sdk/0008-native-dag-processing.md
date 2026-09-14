@@ -17,7 +17,7 @@
  under the License.
  -->
 
-# ADR-0009: Native Dag Processing — DagImporter Registration and Routing
+# ADR-0008: Native Dag Processing — DagImporter Registration and Routing
 
 ## Status
 
@@ -92,7 +92,7 @@ persist; it serves mixed-language work only. Appendix A covers the three modes i
 
 An importer runs inside the Dag-parsing child, so a native Lang-SDK Dag is parsed by a process the importer itself starts. That process is
 `LangSDKDagFileProcessorProcess`, which differs from the one the manager started only in the target callable it runs
-([ADR-0008](0008-lang-sdk-parse-protocol.md)).
+([ADR-0010](0010-lang-sdk-parse-protocol.md)).
 
 ```
 DagFileProcessorProcess(analytics.jar)                       ← manager spawns, as for any file
@@ -148,7 +148,7 @@ DagModelOperation → PERSIST
 
 - A Lang-SDK importer is never configured by hand. The runtime is declared once, in `[sdk] coordinators`, and the importer follows from it.
 - Routing a Lang-SDK artifact to its runtime becomes the importer registry's job. ADR-0004's `can_handle_dag_file` / `_resolve_processor_target` scan no longer decides which
-  process parses a file, and the coordinator method it drove is replaced by `parse_dag` ([ADR-0008](0008-lang-sdk-parse-protocol.md)).
+  process parses a file, and the coordinator method it drove is replaced by `parse_dag` ([ADR-0010](0010-lang-sdk-parse-protocol.md)).
 - One coordinator instance per DagBundle becomes a deployment constraint: two JDKs mean two `dag_bundle_name` values and two bundle-scoped registries. This is what keeps
   extension-keyed registration unambiguous.
 - A coordinator in `EXPLICIT_ROOT` mode cannot back a Dag importer. Its artifacts live outside any DagBundle, so nothing scans them. It still implements `get_dag_importer`; the
@@ -164,8 +164,8 @@ DagModelOperation → PERSIST
 
 ## References
 
-- [ADR-0008](0008-lang-sdk-parse-protocol.md) — `parse_dag` and the coordinator interface it belongs to
-- [ADR-0010](0010-mixed-language-dag-processing.md) — why `TaskHandler` registrations never reach a `DagImporter`
+- [ADR-0010](0010-lang-sdk-parse-protocol.md) — `parse_dag` and the coordinator interface it belongs to
+- [ADR-0009](0009-mixed-language-dag-processing.md) — why `TaskHandler` registrations never reach a `DagImporter`
 - [ADR-0003](0003-pure-java-dags.md) — `BundleScanner` / `BuilderProcessor`, build-time artifact inventory
 - [ADR-0004](0004-dag-parsing.md) — `can_handle_dag_file`, the subprocess bridge
 - [ADR-0006](0006-no-lang-sdk-source-display.md) — no Lang-SDK source display

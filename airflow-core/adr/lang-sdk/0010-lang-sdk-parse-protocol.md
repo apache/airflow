@@ -17,7 +17,7 @@
  under the License.
  -->
 
-# ADR-0008: Lang-SDK Parse Protocol — Handler Messages and Coordinator Verbs
+# ADR-0010: Lang-SDK Parse Protocol — Handler Messages and Coordinator Verbs
 
 ## Status
 
@@ -27,7 +27,7 @@ Proposed
 
 The Dag processor asks a Lang-SDK runtime two different questions. "Which Dags does this artifact define?" is answered over the messages [ADR-0004](0004-dag-parsing.md) already
 defines. "Which task handlers does this artifact register for a `dag_id` Python already owns?" has no answer in those messages, because a `TaskHandler` registration carries no Dag
-([ADR-0010](0010-mixed-language-dag-processing.md)).
+([ADR-0009](0009-mixed-language-dag-processing.md)).
 
 This ADR defines the request that carries the second question, the subprocess classes that carry both, and the two parse-side entry points on the coordinator.
 
@@ -106,7 +106,7 @@ class TaskHandlerParam:
 
 One request carries every `dag_id` that resolved to the same artifact under the same coordinator, so a file whose stubs all target one runtime costs one process. A `dag_id` the
 artifact registers nothing for is **omitted** from `task_handlers` rather than returned empty: the key set is not required to match `dag_ids`, because it is the union across
-coordinators that has to cover the stubs ([ADR-0010](0010-mixed-language-dag-processing.md)).
+coordinators that has to cover the stubs ([ADR-0009](0009-mixed-language-dag-processing.md)).
 
 `value_schema` reuses the `ArgValueSchema` definition `arg_bindings` already carries ([ADR-0007](0007-taskflow-across-language-boundary.md)), so both sides of a comparison are the
 same type. Two properties matter to validation: the field is nullable on both sides, and `params` is ordered. Appendix B says what that forces.
@@ -124,12 +124,12 @@ WatchedSubprocess
         │     │   target = _parse_file_entrypoint
         │     │   DagFileParseRequest → DagFileParsingResult
         │     │
-        │     └── LangSDKDagFileProcessorProcess                      (new — ADR-0009)
+        │     └── LangSDKDagFileProcessorProcess                      (new — ADR-0008)
         │           target = _parse_lang_sdk_dag_entrypoint
         │             └── coordinator.parse_dag() — spawn runtime, forward fd 0 ⇄ comm socket
         │           same request and result types as its base class
         │
-        └── SDKTaskHandlerProcessorProcess                            (new — ADR-0010)
+        └── SDKTaskHandlerProcessorProcess                            (new — ADR-0009)
               target = _parse_task_handler_entrypoint
                 └── coordinator.parse_task_handler() — same forwarding
               TaskHandlerParseRequest → TaskHandlerParsingResult
@@ -149,8 +149,8 @@ is the parent, or by relaying it up `SUPERVISOR_COMMS` when a Dag-parsing child 
 ```
 BaseCoordinator                          execution_time/coordinator.py
   ├── execute_task                       (shipped)
-  ├── parse_dag                          (new — native Dags, ADR-0009)
-  └── parse_task_handler                 (new — handlers, ADR-0010)
+  ├── parse_dag                          (new — native Dags, ADR-0008)
+  └── parse_task_handler                 (new — handlers, ADR-0009)
         │
 SubprocessCoordinator                    coordinators/_subprocess.py
   implements all three; each resolves (command, subprocess_schema_version)
@@ -178,7 +178,7 @@ Names follow the shipped `execute_task` / `_build_execute_task_command` pair and
   through however many relay hops lie between it and the manager.
 - `DagFileProcessorProcess` becomes a subclass. Its public surface does not move, but the shipped `_handle_request` and socket code shifts to `BaseParsingProcess`.
 - Neither verb is reached through ADR-0004's `can_handle_dag_file` scan. `parse_dag` is reached through the importer registered for the artifact's extension
-  ([ADR-0009](0009-native-dag-processing.md)); `parse_task_handler` through `queue → coordinator` ([ADR-0010](0010-mixed-language-dag-processing.md)).
+  ([ADR-0008](0008-native-dag-processing.md)); `parse_task_handler` through `queue → coordinator` ([ADR-0009](0009-mixed-language-dag-processing.md)).
 - Terms track Language SDK spec `1.0`. A spec rename of `TaskHandler` lands here too.
 
 ## References
@@ -186,8 +186,8 @@ Names follow the shipped `execute_task` / `_build_execute_task_command` pair and
 - [ADR-0004](0004-dag-parsing.md) — coordinator subprocess bridge, `DagFileParseRequest` / `DagFileParsingResult`, `can_handle_dag_file`
 - [ADR-0006](0006-no-lang-sdk-source-display.md) — no Lang-SDK source display
 - [ADR-0007](0007-taskflow-across-language-boundary.md) — `arg_bindings` / `TaskArgBinding` / `ArgValueSchema`
-- [ADR-0009](0009-native-dag-processing.md) — who calls `parse_dag`
-- [ADR-0010](0010-mixed-language-dag-processing.md) — who calls `parse_task_handler`, and what it compares the reply against
+- [ADR-0008](0008-native-dag-processing.md) — who calls `parse_dag`
+- [ADR-0009](0009-mixed-language-dag-processing.md) — who calls `parse_task_handler`, and what it compares the reply against
 - Language SDK spec (`task-sdk/docs/lang-sdk-spec.rst`)
 - `airflow-core/src/airflow/dag_processing/processor.py` — `DagFileProcessorProcess`, `ToManager` / `ToDagProcessor`
 - `task-sdk/src/airflow/sdk/execution_time/schema/` — supervisor schema version bundle, union registry, generated snapshot
@@ -229,5 +229,5 @@ Two prek hooks guard the generated snapshot. Their interaction on a first-introd
 says no `VersionChange` is required for a new body, while `check-supervisor-schemas-versions` fails when the snapshot moves and nothing under `versions/` was touched.
 
 Artifact roots are resolved per mode by `_init_root_source`, but published through `_get_scan_roots()`, which is scoped to an active task and raises outside one. Both parse-side
-commands need those roots with no `TaskInstance` in hand, so the scope that publishes them has to open for a parse as well as for a task. [ADR-0009](0009-native-dag-processing.md)
+commands need those roots with no `TaskInstance` in hand, so the scope that publishes them has to open for a parse as well as for a task. [ADR-0008](0008-native-dag-processing.md)
 covers the modes themselves.
