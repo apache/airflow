@@ -24,7 +24,7 @@ Dag File Processing refers to the process of reading the python files that defin
 There are two primary components involved in Dag file processing.  The ``DagFileProcessorManager`` is a process executing an infinite loop that determines which files need
 to be processed, and the ``DagFileProcessorProcess`` is a separate process that is started to convert an individual file into one or more Dag objects.
 
-The ``DagFileProcessorManager`` runs user codes. As a result, it runs as a standalone process by running the ``airflow dag-processor`` CLI command.
+The ``DagFileProcessorManager`` coordinates this work but never runs user code itself; it runs as a standalone process by running the ``airflow dag-processor`` CLI command.
 
 .. image:: /img/dag_file_processing_diagram.png
 

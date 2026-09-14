@@ -82,6 +82,17 @@ describe("Header", () => {
     expect(screen.queryByText("2024-08-22 19:00:00")).not.toBeInTheDocument();
   });
 
+  it("shows active runs against the maximum number of active runs", () => {
+    render(
+      <Wrapper>
+        <Header dag={{ ...mockDag, active_runs_count: 2, max_active_runs: 2 }} />
+      </Wrapper>,
+    );
+
+    expect(screen.getByText(i18n.t("common:dagDetails.activeRuns"))).toBeInTheDocument();
+    expect(screen.getByText("2 of 2")).toBeInTheDocument();
+  });
+
   it("shows the team alongside the owner when multi-team is enabled", () => {
     mockConfig.multi_team = true;
     render(

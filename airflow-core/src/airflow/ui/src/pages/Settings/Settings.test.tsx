@@ -22,7 +22,12 @@ import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { CLEAR_PREVENT_RUNNING_TASK_KEY, DEFAULT_GRAPH_DIRECTION_KEY } from "src/constants/localStorage";
+import {
+  CLEAR_PREVENT_RUNNING_TASK_KEY,
+  DEFAULT_GRAPH_DIRECTION_KEY,
+  DEFAULT_LANDING_PAGE_KEY,
+  DEFAULT_TASK_INSTANCE_TAB_KEY,
+} from "src/constants/localStorage";
 import { BaseWrapper } from "src/utils/Wrapper";
 
 import { Settings } from "./Settings";
@@ -45,6 +50,14 @@ beforeAll(async () => {
               title: "Clearing",
             },
             description: "browser only",
+            general: {
+              landingPage: {
+                helper: "helper",
+                label: "Landing page",
+                options: { dags: "Dags", dashboard: "DASHBOARD-OPT" },
+              },
+              title: "General",
+            },
             graph: {
               defaultDirection: { helper: "helper", label: "Default graph direction" },
               title: "Graph",
@@ -52,6 +65,10 @@ beforeAll(async () => {
             marking: {
               taskSelection: { helper: "helper", label: "Default mark selection" },
               title: "Marking",
+            },
+            taskInstance: {
+              defaultTab: { helper: "helper", label: "Default task instance tab" },
+              title: "Task Instance",
             },
             title: "Settings",
           },
@@ -62,6 +79,17 @@ beforeAll(async () => {
             directionLeft: "LEFT-LABEL",
             directionRight: "RIGHT-LABEL",
             directionUp: "UP-LABEL",
+          },
+        },
+        dag: {
+          tabs: {
+            assetEvents: "Asset Events",
+            auditLog: "Audit Log",
+            code: "Code",
+            details: "DETAILS-TAB",
+            logs: "Logs",
+            renderedTemplates: "Rendered Templates",
+            xcom: "XCom",
           },
         },
         dags: {
@@ -93,7 +121,12 @@ describe("Settings page", () => {
     expect(screen.getByText("Settings")).toBeInTheDocument();
 
     // Selects and the switch expose test ids.
-    for (const testId of ["default-graph-direction", "clear-prevent-running-task"]) {
+    for (const testId of [
+      "default-landing-page",
+      "default-graph-direction",
+      "default-task-instance-tab",
+      "clear-prevent-running-task",
+    ]) {
       expect(screen.getByTestId(testId)).toBeInTheDocument();
     }
 
@@ -110,9 +143,14 @@ describe("Settings page", () => {
     localStorage.setItem(DEFAULT_GRAPH_DIRECTION_KEY, JSON.stringify("DOWN"));
     localStorage.setItem(CLEAR_PREVENT_RUNNING_TASK_KEY, JSON.stringify(false));
 
+    localStorage.setItem(DEFAULT_TASK_INSTANCE_TAB_KEY, JSON.stringify("details"));
+    localStorage.setItem(DEFAULT_LANDING_PAGE_KEY, JSON.stringify("dashboard"));
+
     render(<Settings />, { wrapper: BaseWrapper });
 
+    expect(screen.getByTestId("default-landing-page")).toHaveTextContent("DASHBOARD-OPT");
     expect(screen.getByTestId("default-graph-direction")).toHaveTextContent("DOWN-LABEL");
+    expect(screen.getByTestId("default-task-instance-tab")).toHaveTextContent("DETAILS-TAB");
     expect(screen.getByTestId("clear-prevent-running-task")).toHaveAttribute("data-state", "unchecked");
   });
 });

@@ -298,9 +298,13 @@ function determine_airflow_to_use() {
         # Generate constraints from uv.lock and use them to install development dependencies
         # via the Python script. --no-cache is needed - otherwise there is possibility of
         # overriding temporary environments by multiple parallel processes
+        # --all-packages: without it the export only covers the root project's dependencies.
+        # Anything that only a workspace member's dependency group pulls in, such
+        # as mcp through common.ai's pydantic-ai-slim[mcp], stays unpinned and resolves fresh
+        # from PyPI instead of following uv.lock.
         local constraint_file="/tmp/constraints-from-lock.txt"
         uv export --frozen --no-hashes --no-emit-project --no-emit-workspace --no-editable --no-header \
-            --no-annotate > "${constraint_file}" 2>/dev/null || true
+            --no-annotate --all-packages > "${constraint_file}" 2>/dev/null || true
         uv run --no-cache /opt/airflow/scripts/in_container/install_development_dependencies.py \
            --constraint "${constraint_file}"
         # Some packages might leave legacy typing module which causes test issues
