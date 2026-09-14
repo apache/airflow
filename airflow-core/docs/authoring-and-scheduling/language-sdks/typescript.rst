@@ -175,6 +175,34 @@ one that pushed ``null`` binds ``null``.
 A Python ``int`` beyond the ±9007199254740991 a JavaScript number holds exactly is refused rather than
 bound, so carry such a value across the language boundary as a string.
 
+Explicit renames
+~~~~~~~~~~~~~~~~
+
+``withArgNames`` states a binding when folding cannot reach it, for a name the Python side never used:
+a clearer word than the Dag chose, or a TypeScript reserved word like ``enum``.
+The mapping comes first, the handler second:
+
+.. code-block:: typescript
+
+    interface ReportArgs {
+      summary: Summary;
+      label: string; // Python calls this `run_label`
+    }
+
+    const report = withArgNames({ label: "run_label" }, async ({ summary, label }: ReportArgs) => {
+      // `label` is the call's `run_label`; `summary` folded as usual.
+    });
+
+    bundle.register(new TaskHandler("etl", "report", report));
+
+An entry beats folding, and everything the map does not mention still folds,
+so ``withArgNames`` should be rare in a real Dag.
+A mapped name the call did not pass misses rather than falling back to folding.
+
+The map's keys are checked against the handler's own parameter type, so ``{ labl: "run_label" }`` is a
+compile error naming the right key. Its values are Python names, which ``tsc`` cannot see and does not
+check.
+
 .. note::
 
   Being upstream is not the same as being passed. As with the other language SDKs, an XCom *dependency*
