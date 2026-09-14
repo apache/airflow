@@ -286,10 +286,12 @@ describe("runPack", () => {
     expect(existsSync(path.join(outdir, "bundle.pack-staging.mjs"))).toBe(false);
   });
 
-  it("leaves no bundle behind when the entry serves no Dags", async () => {
+  it("leaves no bundle behind when the entry serves nothing", async () => {
     outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
 
-    await expect(runPack([EMPTY_ENTRY, "--outdir", outdir])).rejects.toThrow("served no Dags");
+    await expect(runPack([EMPTY_ENTRY, "--outdir", outdir])).rejects.toThrow(
+      "served nothing; register Dags or task handlers",
+    );
     expect(existsSync(path.join(outdir, "bundle.mjs"))).toBe(false);
     expect(existsSync(path.join(outdir, "bundle.pack-staging.mjs"))).toBe(false);
   });

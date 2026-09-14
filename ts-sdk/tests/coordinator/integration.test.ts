@@ -37,13 +37,15 @@ import {
 } from "../../src/coordinator/runtime.js";
 import { Dag } from "../../src/sdk/dag.js";
 import { Bundle } from "../../src/sdk/bundle.js";
+import { TaskHandler } from "../../src/sdk/task-handler.js";
 import { getClient, getContext } from "../../src/sdk/task.js";
 
 const testDag = new Dag("test_dag");
 const otherDag = new Dag("other_dag");
 // The bundle the runtime dispatches through. startCoordinator() is driven
 // directly rather than through bundle.serve(), so these tests can supply mock
-// socket addresses.
+// socket addresses. Both authoring kinds are registered in one call, since the
+// runtime dispatches through one lookup regardless of which put a task there.
 const bundle = new Bundle(testDag, otherDag);
 
 interface MockResult {
@@ -354,6 +356,51 @@ describe("coordinator runtime integration", () => {
       type: "RetryTask",
       retry_reason: "boom",
     });
+  });
+
+  it("dispatches to a task handler registered for a Python-owned Dag", async () => {
+    // The mixed-language path: no Dag object exists for `py_dag` on this side,
+    // only a handler bound to its dag_id and task_id.
+    let observedCtx: unknown = null;
+    bundle.register(
+      new TaskHandler("py_dag", "transform", async () => {
+        observedCtx = getContext();
+        return "transformed";
+      }),
+    );
+
+    const result = await driveSupervisor(makeStartupDetails("transform", "py_dag"));
+
+    expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+    expect(observedCtx).toMatchObject({ dagId: "py_dag", taskId: "transform" });
+    const setXComReqs = result.runtimeRequests.filter((r) => r.type === "SetXCom");
+    expect(setXComReqs[0]!.body).toMatchObject({
+      key: "return_value",
+      value: "transformed",
+      dag_id: "py_dag",
+      task_id: "transform",
+    });
+  });
+
+  it("keeps two Dags' same-named tasks apart when dispatching", async () => {
+    // Registration keys on the pair, and so must dispatch: the runtime is
+    // handed dag_id and task_id together and must not answer from the wrong one.
+    bundle.register(
+      new TaskHandler("pair_dag_a", "shared", async () => "from a"),
+      new TaskHandler("pair_dag_b", "shared", async () => "from b"),
+    );
+
+    for (const [dagId, expected] of [
+      ["pair_dag_a", "from a"],
+      ["pair_dag_b", "from b"],
+    ]) {
+      const result = await driveSupervisor(makeStartupDetails("shared", dagId));
+      expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+      expect(result.runtimeRequests.find((r) => r.type === "SetXCom")!.body).toMatchObject({
+        value: expected,
+        dag_id: dagId,
+      });
+    }
   });
 
   it("aborts the context signal on SIGTERM and reports a thrown task error", async () => {

@@ -34,7 +34,7 @@ export const REQUIRED_ROOT_FILES = ["LICENSE", "NOTICE", "README.md", "package.j
 // The Dag-authoring entrypoints a consumer must be able to reach from the package root.
 // The two getters are here because a handler cannot reach the runtime without them: a
 // published build that dropped them would still import, and fail at the first task.
-export const REQUIRED_ROOT_EXPORTS = ["Bundle", "Dag", "getClient", "getContext"];
+export const REQUIRED_ROOT_EXPORTS = ["Bundle", "Dag", "TaskHandler", "getClient", "getContext"];
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {

@@ -200,7 +200,9 @@ export async function runPack(argv: readonly string[]): Promise<void> {
     const manifest = readBundleManifest(stagingPath);
     const dagEntries = Object.entries(manifest.dags);
     if (dagEntries.length === 0) {
-      throw new Error(`${args.entry} served no Dags; register them with bundle.register(...)`);
+      throw new Error(
+        `${args.entry} served nothing; register Dags or task handlers with bundle.register(...)`,
+      );
     }
     // Warn rather than fail, as airflow-go-pack does: the shared schema allows a
     // Dag with no tasks.
