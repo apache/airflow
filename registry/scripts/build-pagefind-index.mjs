@@ -20,7 +20,7 @@
 import fs from 'fs';
 import * as pagefind from "pagefind";
 
-import { collectExternalServices } from '../src/_data/providerExternalServices.js';
+import { collectExternalServices, filterServicesForSearchText } from '../src/_data/providerExternalServices.js';
 
 async function buildPagefindIndex() {
   console.log('Building PageFind index with custom records...');
@@ -47,7 +47,11 @@ async function buildPagefindIndex() {
       .filter(Boolean)
       .join(' ');
     const externalServicesList = collectExternalServices(provider);
-    const externalServices = externalServicesList.join(' ');
+    // Colliding names (e.g. "AWS Bedrock") are dropped here only -- pagefind's
+    // length-normalised BM25 would otherwise let a mention in Common AI's much
+    // shorter record outrank the provider that actually implements it.
+    const searchTextServices = filterServicesForSearchText(externalServicesList, provider, providers.providers);
+    const externalServices = searchTextServices.join(' ');
 
     await index.addCustomRecord({
       url: `/providers/${provider.id}/${provider.version}/`,
