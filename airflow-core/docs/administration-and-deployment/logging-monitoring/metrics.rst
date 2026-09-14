@@ -42,6 +42,36 @@ then add the following lines to your configuration file e.g. ``airflow.cfg``
     statsd_port = 8125
     statsd_prefix = airflow
 
+Sending metrics over a Unix Domain Socket
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Metrics can be sent over a Unix Domain Socket instead of UDP by setting
+``statsd_socket_path``:
+
+.. code-block:: ini
+
+    [metrics]
+    statsd_on = True
+    statsd_socket_path = /var/run/statsd/statsd.sock
+    statsd_prefix = airflow
+
+When ``statsd_socket_path`` is set, ``statsd_host``, ``statsd_port``, and
+``statsd_ipv6`` are ignored.
+
+The standard StatsD backend uses a stream Unix socket. When the Datadog backend
+is enabled, both stream and datagram Unix sockets are supported:
+
+.. code-block:: ini
+
+    [metrics]
+    statsd_datadog_enabled = True
+    statsd_socket_path = /var/run/datadog/dsd.socket
+    statsd_prefix = airflow
+
+For maximum compatibility, configure a plain filesystem path. The Datadog
+backend additionally accepts ``unix://``, ``unixgram://``, and
+``unixstream://`` URLs.
+
 If you want to use a custom StatsD client instead of the default one provided by Airflow,
 the following key must be added to the configuration file alongside the module path of your
 custom StatsD client. This module must be available on your :envvar:`PYTHONPATH`.
@@ -50,6 +80,10 @@ custom StatsD client. This module must be available on your :envvar:`PYTHONPATH`
 
     [metrics]
     statsd_custom_client_path = x.y.customclient
+
+When ``statsd_socket_path`` is configured, a custom client must inherit from
+``statsd.UnixSocketStatsClient``. Otherwise, it must inherit from
+``statsd.StatsClient``.
 
 See :doc:`../modules_management` for details on how Python and Airflow manage modules.
 

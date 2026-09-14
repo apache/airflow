@@ -16,13 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { act, render, screen } from "@testing-library/react";
 import type { PropsWithChildren, RefObject } from "react";
 import { createRef } from "react";
+
+import { act, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ROW_HEIGHT } from "src/layouts/Details/Grid/constants";
 import type { GridTask } from "src/layouts/Details/Grid/utils";
+
 import { Wrapper } from "src/utils/Wrapper";
 
 import { GanttTimeline } from "./GanttTimeline";

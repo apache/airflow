@@ -21,8 +21,10 @@ import type { NodeProps, Node as NodeType } from "@xyflow/react";
 import { Link as RouterLink } from "react-router-dom";
 
 import { useDagServiceGetDag } from "openapi/queries";
-import { DagIcon } from "src/assets/DagIcon";
+
 import { TogglePause } from "src/components/TogglePause";
+
+import { DagIcon } from "src/assets/DagIcon";
 
 import { NodeWrapper } from "./NodeWrapper";
 import type { CustomNodeProps } from "./reactflowUtils";

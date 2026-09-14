@@ -17,10 +17,12 @@
 from __future__ import annotations
 
 import os
+from unittest import mock
 
 import pytest
 
 import airflow
+from airflow import settings
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
@@ -78,3 +80,16 @@ class TestCliUtils:
             flask_app = appbuilder.app
             # Ensure that the correct session interface is set (for 'database' auth backend)
             assert isinstance(flask_app.session_interface, AirflowDatabaseSessionInterface)
+
+    def test_flask_app_binds_to_the_metadata_engine(self):
+        """A second engine would bypass a ``create_metadata_engine`` override in local settings."""
+        with get_application_builder() as appbuilder:
+            db = appbuilder.app.extensions["sqlalchemy"]
+            assert db.engine is settings.engine
+
+    @mock.patch("airflow.settings.engine.dispose", autospec=True)
+    def test_metadata_engine_is_not_disposed(self, mock_dispose):
+        with get_application_builder():
+            pass
+
+        mock_dispose.assert_not_called()

@@ -41,6 +41,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf as airflow_conf
 from airflow.models.base import Base, StringID
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
@@ -394,6 +395,13 @@ class AssetModel(Base):
 
     def add_trigger(self, trigger: Trigger, watcher_name: str):
         self.watchers.append(AssetWatcherModel(name=watcher_name, trigger_id=trigger.id))
+
+    @staticmethod
+    @provide_session
+    def get_name_and_uri(asset_id: int, *, session: Session = NEW_SESSION) -> tuple[str, str] | None:
+        stmt = select(AssetModel.name, AssetModel.uri).where(AssetModel.id == asset_id)
+        row = session.execute(stmt).one_or_none()
+        return (row.name, row.uri) if row is not None else None
 
 
 class AssetActive(Base):

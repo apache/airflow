@@ -27,7 +27,7 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from sqlalchemy import delete, func, inspect as sa_inspect, select
+from sqlalchemy import delete, event, func, inspect as sa_inspect, select
 from sqlalchemy.exc import OperationalError, SAWarning
 
 import airflow.dag_processing.collection
@@ -39,6 +39,7 @@ from airflow.dag_processing.collection import (
     _get_latest_runs_stmt,
     _get_latest_runs_stmt_partitioned,
     _update_dag_tags,
+    _update_import_errors,
     update_dag_parsing_results_in_db,
 )
 from airflow.exceptions import SerializationError
@@ -1465,6 +1466,103 @@ class TestUpdateDagParsingResults:
             update_dag_parsing_results_in_db("testing", None, [dag], {}, 0.1, set(), session)
             orm_dag = session.get(DagModel, "dag_max_failed_runs_default")
             assert orm_dag.max_consecutive_failed_dag_runs == 6
+
+
+@pytest.mark.db_test
+class TestUpdateImportErrors:
+    """Tests for the ``_update_import_errors`` helper."""
+
+    @pytest.fixture(autouse=True)
+    def clean_import_errors(self):
+        clear_db_import_errors()
+        yield
+        clear_db_import_errors()
+
+    @pytest.fixture
+    def import_error_statements(self, session):
+        """
+        Collect every SQL statement issued against the ``import_error`` table.
+
+        Matching on the bare table name would also catch statements naming ``dag.has_import_errors``,
+        so match the positions where the table itself can appear.
+        """
+        statements: list[str] = []
+
+        def _capture(conn, cursor, statement, parameters, context, executemany):
+            lowered = statement.lower()
+            if any(f"{keyword} import_error" in lowered for keyword in ("from", "into", "update")):
+                statements.append(statement)
+
+        bind = session.get_bind()
+        event.listen(bind, "before_cursor_execute", _capture)
+        yield statements
+        event.remove(bind, "before_cursor_execute", _capture)
+
+    @staticmethod
+    def _selects(statements: list[str]) -> list[str]:
+        return [stmt for stmt in statements if stmt.lower().lstrip().startswith("select")]
+
+    def test_no_lookup_when_there_are_no_import_errors(self, session, import_error_statements):
+        session.add(ParseImportError(filename="broken.py", bundle_name="testing", stacktrace="boom"))
+        session.flush()
+        import_error_statements.clear()
+
+        # files_parsed is empty so no DELETE runs either: on backends without DELETE...RETURNING
+        # its synchronize_session fallback would emit a SELECT of its own and muddy the assertion.
+        _update_import_errors(
+            files_parsed=set(),
+            import_errors={},
+            session=session,
+        )
+
+        assert self._selects(import_error_statements) == []
+
+    @patch.object(ParseImportError, "full_file_path", return_value="broken.py")
+    def test_existing_error_lookup_is_bounded(self, _mock_full_path, session, import_error_statements):
+        session.add_all(
+            [
+                ParseImportError(filename="broken.py", bundle_name="testing", stacktrace="old"),
+                ParseImportError(filename="untouched.py", bundle_name="other", stacktrace="unrelated"),
+            ]
+        )
+        session.flush()
+        import_error_statements.clear()
+
+        _update_import_errors(
+            files_parsed={("testing", "broken.py")},
+            import_errors={("testing", "broken.py"): "new"},
+            session=session,
+        )
+
+        selects = self._selects(import_error_statements)
+        assert selects, "expected the existing-error lookup to run"
+        assert all("where" in stmt.lower() for stmt in selects), (
+            f"import_error must never be scanned unfiltered, got: {selects}"
+        )
+
+        rows = sorted(
+            (err.bundle_name, err.filename, err.stacktrace)
+            for err in session.scalars(select(ParseImportError))
+        )
+        assert rows == [
+            ("other", "untouched.py", "unrelated"),
+            ("testing", "broken.py", "new"),
+        ]
+
+    @patch.object(ParseImportError, "full_file_path", return_value="broken.py")
+    def test_new_errors_keep_their_own_bundle_name(self, _mock_full_path, session):
+        _update_import_errors(
+            files_parsed=set(),
+            import_errors={
+                ("bundle_a", "a.py"): "error a",
+                ("bundle_b", "b.py"): "error b",
+            },
+            session=session,
+        )
+        session.flush()
+
+        rows = {(err.bundle_name, err.filename) for err in session.scalars(select(ParseImportError))}
+        assert rows == {("bundle_a", "a.py"), ("bundle_b", "b.py")}
 
 
 @pytest.mark.db_test

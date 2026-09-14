@@ -21,7 +21,6 @@ import fcntl
 import logging
 import tempfile
 import threading
-import time
 from datetime import timedelta
 from pathlib import Path
 from unittest.mock import call, patch
@@ -138,61 +137,73 @@ def test_lock_exception_handling():
         assert acquired
 
 
+LOCK_WAIT_TIMEOUT = 10
+
+
 class LockTestHelper:
     def __init__(self, num, **kwargs):
         super().__init__(**kwargs)
         self.num = num
-        self.stop = None
-        self.did_lock = None
-        self.locker: BundleVersionLock
-
-    def lock_the_file(self):
+        self.stop = threading.Event()
+        self.did_lock = threading.Event()
         self.locker = BundleVersionLock(
             bundle_name="abc",
             bundle_version="this",
         )
+
+    def lock_the_file(self):
         with self.locker:
-            self.did_lock = True
+            self.did_lock.set()
             idx = 0
-            while not self.stop:
+            while not self.stop.wait(0.2):
                 idx += 1
-                time.sleep(0.2)
                 log.info("sleeping: idx=%s num=%s", idx, self.num)
         log.info("exit")
+
+    def start(self):
+        thread = threading.Thread(target=self.lock_the_file)
+        thread.start()
+        return thread
+
+    def wait_until_locked(self):
+        assert self.did_lock.wait(LOCK_WAIT_TIMEOUT), f"helper {self.num} never acquired the lock"
 
 
 class TestBundleVersionLock:
     def test_that_shared_lock_doesnt_block_shared_lock(self):
         """Verify that two things can lock file at same time."""
         lth1 = LockTestHelper(1)
-        t1 = threading.Thread(target=lth1.lock_the_file)
         lth2 = LockTestHelper(2)
-        t2 = threading.Thread(target=lth2.lock_the_file)
-        t1.start()
-        time.sleep(0.1)
-        assert lth1.did_lock is True
-        t2.start()
-        time.sleep(0.1)
-        assert lth2.did_lock is True
-        lth1.stop = True
-        lth2.stop = True
-        t1.join()
-        t2.join()
+        t1 = lth1.start()
+        t2 = None
+        try:
+            lth1.wait_until_locked()
+            t2 = lth2.start()
+            lth2.wait_until_locked()
+        finally:
+            lth1.stop.set()
+            lth2.stop.set()
+            t1.join(LOCK_WAIT_TIMEOUT)
+            if t2:
+                t2.join(LOCK_WAIT_TIMEOUT)
+        assert not t1.is_alive()
+        assert not t2.is_alive()
 
     def test_that_shared_lock_blocks_ex_lock(self):
         """Test that exclusive lock is impossible when in bundle lock context."""
         lth1 = LockTestHelper(1)
-        t1 = threading.Thread(target=lth1.lock_the_file)
-        t1.start()
-        time.sleep(0.1)
-        assert lth1.did_lock is True
-        with open(lth1.locker.lock_file_path, "a") as f:
-            fcntl.flock(f, fcntl.LOCK_SH)
-            fcntl.flock(f, fcntl.LOCK_UN)
-            with pytest.raises(BlockingIOError):  # <-- this is the important part
-                fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        lth1.stop = True
-        t1.join()
+        t1 = lth1.start()
+        try:
+            lth1.wait_until_locked()
+            with open(lth1.locker.lock_file_path, "a") as f:
+                fcntl.flock(f, fcntl.LOCK_SH)
+                fcntl.flock(f, fcntl.LOCK_UN)
+                with pytest.raises(BlockingIOError):  # <-- this is the important part
+                    fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        finally:
+            lth1.stop.set()
+            t1.join(LOCK_WAIT_TIMEOUT)
+        assert not t1.is_alive()
 
     def test_that_no_version_is_noop(self):
         with BundleVersionLock(

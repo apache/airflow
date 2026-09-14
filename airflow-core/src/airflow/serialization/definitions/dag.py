@@ -50,9 +50,12 @@ from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.tasklog import LogTemplate
-from airflow.sdk.definitions.deadline import VariableInterval
 from airflow.serialization.decoders import decode_deadline_alert
-from airflow.serialization.definitions.deadline import DeadlineAlertFields, SerializedReferenceModels
+from airflow.serialization.definitions.deadline import (
+    DeadlineAlertFields,
+    SerializedReferenceModels,
+    SerializedVariableInterval,
+)
 from airflow.serialization.definitions.param import SerializedParamsDict
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
@@ -79,6 +82,11 @@ if TYPE_CHECKING:
     from airflow.utils.types import DagRunTriggeredByType
 
 log = structlog.get_logger(__name__)
+
+_DAGRUN_REFERENCE_REQUIRED_COLUMNS = {
+    SerializedReferenceModels.DagRunLogicalDateDeadline: "logical_date",
+    SerializedReferenceModels.DagRunQueuedAtDeadline: "queued_at",
+}
 
 
 # TODO (GH-52141): Share definition with SDK?
@@ -754,7 +762,7 @@ class SerializedDAG:
 
             interval = deserialized_deadline_alert.interval
 
-            if isinstance(interval, VariableInterval):
+            if isinstance(interval, SerializedVariableInterval):
                 interval = interval.resolve()
 
             if isinstance(deserialized_deadline_alert.reference, SerializedReferenceModels.TYPES.DAGRUN):
@@ -785,6 +793,17 @@ class SerializedDAG:
                     stats.incr(
                         "deadline_alerts.deadline_created",
                         tags=prune_dict({"dag_id": self.dag_id, "team_name": team_name}),
+                    )
+                elif required_dagrun_column := _DAGRUN_REFERENCE_REQUIRED_COLUMNS.get(
+                    type(deserialized_deadline_alert.reference)
+                ):
+                    log.warning(
+                        "skipping deadline alert because the deadline reference evaluated to None",
+                        dag_id=self.dag_id,
+                        run_id=orm_dagrun.run_id,
+                        deadline_alert_id=deadline_alert.id,
+                        reference_type=deserialized_deadline_alert.reference.reference_name,
+                        required_dagrun_column=required_dagrun_column,
                     )
 
     @provide_session

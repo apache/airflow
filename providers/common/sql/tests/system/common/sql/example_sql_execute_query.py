@@ -18,9 +18,9 @@
 from __future__ import annotations
 
 from airflow import DAG
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.sdk import task
-from airflow.utils.timezone import datetime
 
 AIRFLOW_DB_METADATA_TABLE = "ab_role"
 connection_args = {
@@ -37,7 +37,7 @@ with DAG(
     "example_sql_execute_query",
     description="Example DAG for SQLExecuteQueryOperator.",
     default_args=connection_args,
-    start_date=datetime(2021, 1, 1),
+    start_date=timezone.datetime(2021, 1, 1),
     schedule=None,
     catchup=False,
 ) as dag:

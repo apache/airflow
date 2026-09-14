@@ -36,14 +36,13 @@ from pydantic import JsonValue, ValidationError
 from sqlalchemy import and_, func, or_, tuple_, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import DataError, NoResultFound, SQLAlchemyError
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import contains_eager, joinedload
 from sqlalchemy.sql import select
 from structlog.contextvars import bind_contextvars
 
 from airflow._shared.observability.traces import override_ids
 from airflow._shared.state import TaskScope
 from airflow._shared.timezones import timezone
-from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.db.dags import eager_load_teams
@@ -75,6 +74,7 @@ from airflow.api_fastapi.execution_api.security import (
     CurrentTIToken,
     ExecutionAPIRoute,
     get_team_name_for_ti,
+    issue_execution_token,
     require_auth,
 )
 from airflow.api_fastapi.execution_api.services.task_instances import (
@@ -272,7 +272,13 @@ def ti_run(
 
         if not dr:
             log.error("DagRun not found", dag_id=ti.dag_id, run_id=ti.run_id)
-            raise ValueError(f"DagRun with dag_id={ti.dag_id} and run_id={ti.run_id} not found.")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "reason": "not_found",
+                    "message": f"DagRun with dag_id={ti.dag_id} and run_id={ti.run_id} not found",
+                },
+            )
 
         # Send the keys to the SDK so that the client requests to clear those XComs from the server.
         # The reason we cannot do this here in the server is because we need to issue a purge on custom XCom backends
@@ -346,9 +352,7 @@ def ti_run(
 
     # JWTReissueMiddleware also writes Refreshed-API-Token but skips workload tokens, so we set it here for the workload→execution swap.
     if token.claims.scope == "workload":
-        generator: JWTGenerator = services.get(JWTGenerator)
-        execution_token = generator.generate(extras={"sub": str(task_instance_id), "scope": "execution"})
-        response.headers["Refreshed-API-Token"] = execution_token
+        issue_execution_token(services, response, sub=str(task_instance_id))
 
     return context
 
@@ -1215,7 +1219,7 @@ def get_previous_task_instance(
     query = (
         select(TI)
         .join(DR, (TI.dag_id == DR.dag_id) & (TI.run_id == DR.run_id))
-        .options(joinedload(TI.dag_run))
+        .options(contains_eager(TI.dag_run).load_only(DR.logical_date))
         .where(TI.dag_id == dag_id, TI.task_id == task_id, TI.map_index == map_index)
         .order_by(DR.logical_date.desc())
     )
@@ -1227,7 +1231,7 @@ def get_previous_task_instance(
     if state:
         query = query.where(TI.state == state)
 
-    ti = session.scalars(query).first()
+    ti = session.scalars(query.limit(1)).first()
 
     if not ti:
         return None

@@ -55,9 +55,13 @@ class TestTokenService:
         mock_get_keycloak_client.return_value = mock_keycloak_client
         mock_auth_manager = Mock()
         mock_get_auth_manager.return_value = mock_auth_manager
-        mock_auth_manager.generate_jwt.return_value = self.token
+        mock_auth_manager.generate_api_jwt.return_value = self.token
 
         assert create_token_for(username=self.test_username, password=self.test_password) == self.token
+        # API tokens must be minted with the Keycloak JWTs in their claims, since a
+        # header-authenticated client sends no cookies to supply them.
+        mock_auth_manager.generate_api_jwt.assert_called_once()
+        mock_auth_manager.generate_jwt.assert_not_called()
         mock_keycloak_client.token.assert_called_once_with(self.test_username, self.test_password)
         mock_keycloak_client.userinfo.assert_called_once_with(self.test_access_token)
 
@@ -83,6 +87,7 @@ class TestTokenService:
     @conf_vars(
         {
             ("api_auth", "jwt_expiration_time"): "10",
+            ("keycloak_auth_manager", "client_id"): "test_client",
         }
     )
     @patch("airflow.providers.keycloak.auth_manager.services.token.get_auth_manager")
@@ -103,7 +108,7 @@ class TestTokenService:
         mock_get_keycloak_client.return_value = mock_keycloak_client
         mock_auth_manager = Mock()
         mock_get_auth_manager.return_value = mock_auth_manager
-        mock_auth_manager.generate_jwt.return_value = self.token
+        mock_auth_manager.generate_api_jwt.return_value = self.token
 
         result = create_client_credentials_token(client_id=test_client_id, client_secret=test_client_secret)
 
@@ -117,6 +122,7 @@ class TestTokenService:
     @conf_vars(
         {
             ("api_auth", "jwt_expiration_time"): "10",
+            ("keycloak_auth_manager", "client_id"): "invalid_client",
         }
     )
     @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
@@ -133,3 +139,43 @@ class TestTokenService:
 
         assert exc_info.value.status_code == 403
         assert "Client credentials authentication failed" in exc_info.value.detail
+
+    @conf_vars(
+        {
+            ("api_auth", "jwt_expiration_time"): "10",
+            ("keycloak_auth_manager", "client_id"): "airflow",
+        }
+    )
+    @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
+    def test_create_token_client_credentials_rejects_other_client(self, mock_get_keycloak_client):
+        """Only the client Airflow is configured with may exchange credentials for a token."""
+        with pytest.raises(fastapi.exceptions.HTTPException) as exc_info:
+            create_client_credentials_token(
+                client_id="some_other_realm_client", client_secret="its_own_valid_secret"
+            )
+
+        assert exc_info.value.status_code == 403
+        # No exchange is attempted: the credentials are never sent to Keycloak, so the
+        # endpoint cannot be used to test whether another client's secret is valid.
+        mock_get_keycloak_client.assert_not_called()
+
+    @conf_vars(
+        {
+            ("api_auth", "jwt_expiration_time"): "10",
+            ("keycloak_auth_manager", "client_id"): "airflow",
+        }
+    )
+    @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
+    def test_create_token_client_credentials_rejection_is_indistinguishable(self, mock_get_keycloak_client):
+        """A wrong client id and a wrong secret must not be tellable apart."""
+        mock_keycloak_client = Mock()
+        mock_keycloak_client.token.side_effect = KeycloakAuthenticationError()
+        mock_get_keycloak_client.return_value = mock_keycloak_client
+
+        with pytest.raises(fastapi.exceptions.HTTPException) as wrong_secret:
+            create_client_credentials_token(client_id="airflow", client_secret="wrong")
+        with pytest.raises(fastapi.exceptions.HTTPException) as wrong_client:
+            create_client_credentials_token(client_id="other", client_secret="wrong")
+
+        assert wrong_secret.value.status_code == wrong_client.value.status_code
+        assert wrong_secret.value.detail == wrong_client.value.detail

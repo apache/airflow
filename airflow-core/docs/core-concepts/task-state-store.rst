@@ -32,6 +32,9 @@ Task State Store
 
 Task store is a persistent key/value store scoped to a single task instance (``dag_id`` + ``run_id`` + ``task_id`` + ``map_index``). It survives worker crashes and task retries within the same Dag run, making it suitable for storing external job IDs, intra-task checkpoints, and progress metadata.
 
+Because it outlives a worker crash and stays readable by the next attempt, the task state store is the mechanism behind :ref:`durable execution <concepts-durable-execution>`, where a task continues
+from where it stopped instead of repeating work or submitting a duplicate external job. Provider operators that advertise a ``durable`` parameter are built on the API described here.
+
 Data persisted via task state store is accessed through the task context via ``context["task_state_store"]`` and exposes the synchronous methods ``get``, ``set``, ``delete``, and ``clear``, plus the async counterparts ``aget``, ``aset``, ``adelete``, and ``aclear`` for use inside ``async`` tasks.
 
 
@@ -184,7 +187,7 @@ the default retention window.
 
 On a retry, the task finds the stored ``job_id`` and reattaches instead of submitting a duplicate job. Another example of this sort of logic can be found in `example_task_state_store.py <https://github.com/apache/airflow/blob/main/airflow-core/src/airflow/example_dags/example_task_state_store.py>`_.
 
-For ``BaseOperator`` subclasses, the :class:`~airflow.sdk.bases.resumablemixin.ResumableJobMixin` encapsulates this pattern. It persists the external job ID to task state store after submission and, on retry, reconnects to an active job or resubmits if the prior job reached a terminal failure state.
+For ``BaseOperator`` subclasses, the :class:`~airflow.sdk.bases.resumablejobmixin.ResumableJobMixin` encapsulates this pattern. It persists the external job ID to task state store after submission and, on retry, reconnects to an active job or resubmits if the prior job reached a terminal failure state.
 
 Intra-task checkpointing
 ~~~~~~~~~~~~~~~~~~~~~~~~

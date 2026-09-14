@@ -44,10 +44,10 @@ For example, specifying resources for scheduler container:
    :caption: values.yaml
 
    scheduler:
-      resources:
-      limits:
+     resources:
+       limits:
          cpu: 1
          memory: 1Gi
-      requests:
+       requests:
          cpu: 500m
          memory: 512Gi

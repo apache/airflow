@@ -99,6 +99,39 @@ class TestDb2Hook:
         assert "SECURITY=SSL" in call_args
         assert "SSLSERVERCERTIFICATE=/path/to/cert.crt" in call_args
 
+    @pytest.mark.parametrize(
+        ("extra", "expected_absent"),
+        [
+            ('{"SSLServerCertificate": null}', ["SSLSERVERCERTIFICATE=None", "SSLSERVERCERTIFICATE="]),
+            ('{"SECURITY": "SSL", "SSLServerCertificate": null}', ["SSLSERVERCERTIFICATE=None"]),
+        ],
+    )
+    @patch("airflow.providers.ibm.db2.hooks.db2.Db2Hook.get_connection")
+    def test_skips_none_extra_values(self, mock_get_connection, extra, expected_absent):
+        conn = Connection(
+            conn_id="db2_default",
+            conn_type="db2",
+            host="localhost",
+            login="db2user",
+            password="db2pass",
+            schema="testdb",
+            port=50000,
+            extra=extra,
+        )
+        mock_get_connection.return_value = conn
+        mock_ibm_db_dbi = MagicMock()
+        mock_ibm_db_dbi.connect.return_value = MagicMock()
+
+        with patch.dict(sys.modules, {"ibm_db_dbi": mock_ibm_db_dbi}):
+            hook = Db2Hook(db2_conn_id="db2_default")
+            hook.get_conn()
+            uri = hook.get_uri()
+
+        conn_str = mock_ibm_db_dbi.connect.call_args[0][0]
+        for absent in expected_absent:
+            assert absent not in conn_str
+            assert absent not in uri
+
     @patch("airflow.providers.ibm.db2.hooks.db2.Db2Hook.get_connection")
     def test_get_uri(self, mock_get_connection, mock_connection):
         """Test get_uri method."""

@@ -23,7 +23,6 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.utils import helpers
@@ -131,24 +130,24 @@ class TestHelpers:
                 "key with space",
                 "The key 'key with space' has to be made of alphanumeric "
                 "characters, dashes, dots and underscores exclusively",
-                AirflowException,
+                ValueError,
             ),
             (
                 "key_with_!",
                 "The key 'key_with_!' has to be made of alphanumeric "
                 "characters, dashes, dots and underscores exclusively",
-                AirflowException,
+                ValueError,
             ),
-            (" " * 251, f"The key: {' ' * 251} has to be less than 250 characters", AirflowException),
+            (" " * 251, "The key has to be less than 250 characters, not 251", ValueError),
             (
                 "my..key",
                 "The key 'my..key' must not contain consecutive dots ('..') to prevent path traversal",
-                AirflowException,
+                ValueError,
             ),
             (
                 "..",
                 "The key '..' must not contain consecutive dots ('..') to prevent path traversal",
-                AirflowException,
+                ValueError,
             ),
         ],
     )
@@ -241,6 +240,29 @@ class TestHelpers:
         d1 = {"a": None, "b": "", "c": "hi", "d": l1}
         d2 = {"a": None, "b": "", "c": d1, "d": l1, "e": [None, "", 0, d1, l1, [""]], "f": {}, "g": [""]}
         assert prune_dict(d2, mode=mode) == expected
+
+    @pytest.mark.parametrize(
+        ("func_name", "target_module"),
+        [
+            ("render_template_as_native", "airflow.sdk.definitions.context"),
+            ("render_template_to_string", "airflow.sdk.definitions.context"),
+            ("prevent_duplicates", "airflow.sdk.definitions.mappedoperator"),
+        ],
+    )
+    def test_deprecated_imports(self, func_name, target_module):
+        import importlib
+
+        with pytest.deprecated_call():
+            imported_func = getattr(helpers, func_name)
+        target_mod = importlib.import_module(target_module)
+        expected_func = getattr(target_mod, func_name)
+        assert imported_func is expected_func
+
+    def test_deprecated_imports_unknown_attribute(self):
+        with pytest.raises(
+            AttributeError, match="module 'airflow.utils.helpers' has no attribute 'non_existent_func'"
+        ):
+            _ = helpers.non_existent_func
 
 
 class MockJobRunner(BaseJobRunner):

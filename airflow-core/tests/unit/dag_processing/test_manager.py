@@ -23,6 +23,7 @@ import logging
 import os
 import random
 import re
+import selectors
 import shutil
 import signal
 import textwrap
@@ -261,10 +262,15 @@ def _statement_breakdown(counts: Counter[tuple[str, str]]) -> str:
 
 # Per persistence call, and per Dag in the file. A call leaves the serialized Dag alone while the
 # content is unchanged; once the hash has moved and [core] min_serialized_dag_update_interval has
-# lapsed it rewrites it, which costs two more statements per Dag and nothing extra per call.
-FIXED_PER_CALL = 10
+# lapsed it rewrites it, which costs two more statements per Dag and nothing extra per call. The
+# per-call price is a file that parsed cleanly: one reporting import errors also looks up whichever
+# of them are already recorded.
+FIXED_PER_CALL = 9
 UNCHANGED_PER_DAG = 3
 REWRITE_PER_DAG = 5
+# A file that failed to parse and so defines no Dags. Two of the five are import_error SELECTs: the
+# bounded lookup, and the listener re-reading the row the update beside it already had.
+IMPORT_ERROR_PER_CALL = 5
 
 SWEEP_FILES = 4
 # Calls the manager takes for that sweep: one per file today, 1 if a sweep is ever batched.
@@ -1517,6 +1523,72 @@ class TestDagFileProcessorManager:
 
         _, kwargs = mock_start.call_args
         assert kwargs["subprocess_logs_to_stdout"] is expected_subprocess_logs_to_stdout
+
+    def test_terminate_orphan_processes_kills_then_closes_processor(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        processor, _ = self.mock_processor()
+        file_info = DagFileInfo(
+            bundle_name="testing", rel_path=Path("removed.py"), bundle_path=TEST_DAGS_FOLDER
+        )
+        manager._processors = {file_info: processor}
+
+        call_order: list[str] = []
+        processor.close = mock.Mock(side_effect=lambda: call_order.append("close"))
+
+        with mock.patch.object(
+            type(processor), "kill", side_effect=lambda *_args, **_kwargs: call_order.append("kill")
+        ):
+            manager.terminate_orphan_processes(present=set())
+
+        assert call_order == ["kill", "close"]
+
+    def test_terminate_orphan_processes_does_not_dispatch_request_frames_after_kill(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        processor, _ = self.mock_processor()
+        request_sock, request_peer = socketpair()
+        real_selector = selectors.DefaultSelector()
+        try:
+            processor.selector = real_selector
+            processor._open_sockets[request_sock] = "requests"
+
+            file_info = DagFileInfo(
+                bundle_name="testing", rel_path=Path("removed.py"), bundle_path=TEST_DAGS_FOLDER
+            )
+            manager._processors = {file_info: processor}
+
+            request_handler = mock.Mock(return_value=False)
+
+            def on_close(sock):
+                real_selector.unregister(sock)
+
+            real_selector.register(request_sock, selectors.EVENT_READ, (request_handler, on_close))
+
+            with mock.patch.object(type(processor), "kill"):
+                manager.terminate_orphan_processes(present=set())
+
+            request_handler.assert_not_called()
+            with pytest.raises((KeyError, ValueError)):
+                real_selector.get_key(request_sock)
+        finally:
+            real_selector.close()
+            request_peer.close()
+
+    def test_kill_timed_out_processors_kills_then_closes_processor(self):
+        manager = DagFileProcessorManager(max_runs=1, processor_timeout=5)
+        start_time = time.monotonic() - manager.processor_timeout - 1
+        processor, _ = self.mock_processor(start_time=start_time)
+        file_info = DagFileInfo(bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER)
+        manager._processors = {file_info: processor}
+
+        call_order: list[str] = []
+        processor.close = mock.Mock(side_effect=lambda: call_order.append("close"))
+
+        with mock.patch.object(
+            type(processor), "kill", side_effect=lambda *_args, **_kwargs: call_order.append("kill")
+        ):
+            manager._kill_timed_out_processors()
+
+        assert call_order == ["kill", "close"]
 
     def test_kill_timed_out_processors_kill(self):
         manager = DagFileProcessorManager(max_runs=1, processor_timeout=5)
@@ -3607,6 +3679,24 @@ class TestDagFileProcessorManager:
             manager._collect_results()
         return sum(counts.values())
 
+    @staticmethod
+    def _measure_import_error_call(session, rel_path: str) -> Counter[tuple[str, str]]:
+        """Count one steady-state call for a file that fails to parse with its error already recorded."""
+        files_parsed = {("testing", rel_path)}
+        recorded = {("testing", rel_path): "boom"}
+        update_dag_parsing_results_in_db(
+            "testing", None, [], recorded, 0.1, set(), session, files_parsed=files_parsed
+        )
+        session.commit()
+
+        again = {("testing", rel_path): "boom again"}
+        with _count_statements(session) as counts:
+            update_dag_parsing_results_in_db(
+                "testing", None, [], again, 0.1, set(), session, files_parsed=files_parsed
+            )
+            session.flush()
+        return counts
+
     @pytest.mark.backend("postgres")
     @pytest.mark.parametrize("n_dags", [1, 5])
     @pytest.mark.parametrize(
@@ -3637,6 +3727,23 @@ class TestDagFileProcessorManager:
         assert total == expected, (
             f"a {n_dags}-Dag file costs {total} statements, expected {expected} "
             f"({FIXED_PER_CALL} per call + {per_dag} per Dag).\n{_statement_breakdown(counts)}"
+        )
+
+    @pytest.mark.backend("postgres")
+    def test_a_file_reporting_an_import_error_stays_within_its_budget(
+        self, session, testing_dag_bundle, tmp_path
+    ):
+        """
+        The path a clean parse skips: a file that looks up the errors already recorded for it.
+
+        Not comparable to ``FIXED_PER_CALL``, which is priced with Dags to write; this file has none.
+        """
+        counts = self._measure_import_error_call(session, "broken.py")
+
+        total = sum(counts.values())
+        assert total == IMPORT_ERROR_PER_CALL, (
+            f"a file reporting one import error costs {total}, expected {IMPORT_ERROR_PER_CALL}."
+            f"\n{_statement_breakdown(counts)}"
         )
 
     def test_a_sweep_pays_the_fixed_cost_once_per_call(self, session, testing_dag_bundle, tmp_path):
