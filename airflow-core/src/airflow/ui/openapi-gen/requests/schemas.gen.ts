@@ -4388,6 +4388,23 @@ export const $DAGWarningResponse = {
     description: 'Dag Warning serializer for responses.'
 } as const;
 
+export const $DagBundleRefreshResponse = {
+    properties: {
+        bundle_name: {
+            type: 'string',
+            title: 'Bundle Name'
+        },
+        refresh_generation: {
+            type: 'integer',
+            title: 'Refresh Generation'
+        }
+    },
+    type: 'object',
+    required: ['bundle_name', 'refresh_generation'],
+    title: 'DagBundleRefreshResponse',
+    description: 'Response acknowledging a Dag bundle refresh request.'
+} as const;
+
 export const $DagProcessorInfoResponse = {
     properties: {
         status: {
