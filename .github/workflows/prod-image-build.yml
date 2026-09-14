@@ -388,7 +388,7 @@ jobs:
           if-no-files-found: 'error'
           retention-days: '2'
         if: >-
-          !inputs.use-selected-image && steps.main-image.outputs.hit != 'true' &&
+          steps.main-image.outputs.hit != 'true' &&
           inputs.upload-image-artifact == 'true'
       - name: "Publish verified main PROD image"
         if: >-
