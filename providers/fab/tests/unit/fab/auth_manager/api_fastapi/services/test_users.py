@@ -556,14 +556,12 @@ class TestUsersService:
             password=password_mock,
         )
 
-        with patch(
-            "airflow.providers.fab.auth_manager.api_fastapi.services.users.generate_password_hash"
-        ) as mock_hash:
-            mock_hash.return_value = "hashed_password"
-            FABAuthManagerUsers.update_user("alice", patch_body, update_mask="password")
+        security_manager._hash_password.return_value = "hashed_password"
+        FABAuthManagerUsers.update_user("alice", patch_body, update_mask="password")
 
         password_mock.get_secret_value.assert_called_once()
-        mock_hash.assert_called_once_with("newpassword")
+        security_manager._hash_password.assert_called_once_with("newpassword")
+        assert user_obj.password == "hashed_password"
 
     # delete_user tests
 
