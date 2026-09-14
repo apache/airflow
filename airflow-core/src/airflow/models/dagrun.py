@@ -1850,7 +1850,7 @@ class DagRun(Base, LoggingMixin):
 
         def task_filter(task: Operator) -> bool:
             return task.task_id not in task_ids and (
-                self.run_type == DagRunType.BACKFILL_JOB
+                self.run_type in (DagRunType.BACKFILL_JOB, DagRunType.MANUAL)
                 or (
                     task.start_date is None
                     or self.logical_date is None

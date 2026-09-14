@@ -110,6 +110,9 @@ If your Dag logic needs the user-specified date for a manual run, use
 
 For upgrade guidance, see :ref:`data-interval-manual-triggering`.
 
+A task's ``start_date`` and ``end_date`` are also ignored for manual runs; like
+backfills, they bound only scheduled runs.
+
 Re-run Dag
 ''''''''''
 There can be cases where you will want to execute your Dag again. One such case is when the scheduled
