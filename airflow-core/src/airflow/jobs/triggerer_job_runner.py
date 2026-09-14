@@ -1402,7 +1402,8 @@ class TriggerRunner:
                 else:
                     trigger_name = f"ID {trigger_id}"
                     trigger_instance = trigger_class(**deserialised_kwargs)
-            except TypeError as err:
+            # Not BaseException: cancellation and shutdown must still reach the runner loop.
+            except Exception as err:
                 self.log.error("Trigger failed to inflate", error=err)
                 self.failed_triggers.append((trigger_id, err))
                 continue
