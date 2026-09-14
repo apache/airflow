@@ -25,62 +25,76 @@ Proposed
 
 ## Context
 
-The Dag processor asks a Lang-SDK runtime two different questions. "Which Dags does this artifact define?" is answered by the runtime standing in for the parser process, over the
-messages [ADR-0004](0004-dag-parsing.md) already defines. "Which task handlers does this artifact register for a `dag_id` Python already owns?" has no answer in those messages,
-because a `TaskHandler` registration carries no Dag ([ADR-0010](0010-mixed-language-dag-processing.md)).
+The Dag processor asks a Lang-SDK runtime two different questions. "Which Dags does this artifact define?" is answered over the messages [ADR-0004](0004-dag-parsing.md) already
+defines. "Which task handlers does this artifact register for a `dag_id` Python already owns?" has no answer in those messages, because a `TaskHandler` registration carries no Dag
+([ADR-0010](0010-mixed-language-dag-processing.md)).
 
-This ADR defines the channel and payload for the second question, and names both parse-side entry points on the coordinator.
+This ADR defines the request that carries the second question, the subprocess classes that carry both, and the two parse-side entry points on the coordinator.
 
 Terms follow the Language SDK spec (`task-sdk/docs/lang-sdk-spec.rst`, spec version `1.0`).
 
 ## Decision
 
-### Two conversations, two verbs
+### One channel shape, two request types
 
 ```
-parse_dag — bridge mode                      parse_task_handler — query mode
+parse_dag                                      parse_task_handler
 
-  manager                                      coordinator
-     │  DagFileParseRequest                       │  TaskHandlerParseRequest
-     ▼                                            ▼
-  coordinator   (raw byte forward)             runtime
-     ▼                                            │  TaskHandlerParsingResult
-  runtime                                         ▼
-     │  DagFileParsingResult                   coordinator
-     ▼
-  manager
+  parent process                                 parent process
+     │  DagFileParseRequest                          │  TaskHandlerParseRequest
+     ▼     (ToDagProcessor)                          ▼     (ToSDKTaskHandlerProcessor)
+  coordinator    (raw byte forward)               coordinator    (raw byte forward)
+     ▼                                               ▼
+  runtime                                         runtime
+     │  DagFileParsingResult                          │  TaskHandlerParsingResult
+     ▼     (ToManager)                                ▼     (ToManager)
+  parent process                                 parent process
 ```
 
-`parse_dag` forwards bytes and never reads the payload. `parse_task_handler` is itself the peer: it sends one request and decodes one reply. They are two methods, not one
-`parse(request)`, because a coordinator can serve handlers without serving native Dag parsing. Appendix A has the longer argument.
+Both verbs are byte forwarders: the coordinator spawns the runtime, wires `fd 0` to the comm socket, and never decodes the payload. The process that spawned the parse decodes the
+reply. They stay two methods, not one `parse(request)`, because a coordinator can serve handlers without serving native Dag parsing. Appendix A has the longer argument.
 
-### Handler declarations get their own unions
+### The reply travels on `ToManager`
 
 ```
-ToRuntime      = TaskHandlerParseRequest       coordinator → runtime
-ToCoordinator  = TaskHandlerParsingResult      runtime → coordinator
+_ParseSideResponses =                       shared tail — same members, same `type` discriminator
+    ConnectionResult | VariableResult | VariableKeysResult | TaskStatesResult
+  | PreviousDagRunResult | PreviousTIResult | PrevSuccessfulDagRunResult
+  | ErrorResponse | OKResponse | XComCountResponse | XComResult
+  | XComSequenceIndexResult | XComSequenceSliceResult
+
+ToDagProcessor             = DagFileParseRequest     | _ParseSideResponses      parent → child
+ToSDKTaskHandlerProcessor  = TaskHandlerParseRequest | _ParseSideResponses      parent → child   (new)
+
+ToManager                  = DagFileParsingResult | TaskHandlerParsingResult    child → parent
+                           | GetConnection | GetVariable | … | MaskSecret
 ```
 
-Not a field on `DagFileParseRequest`. Union membership is the only registration step in the supervisor schema package, so picking the union is the wire-contract decision. The
-existing pairs describe a runtime answering the manager; here the runtime answers the coordinator.
+`ToSDKTaskHandlerProcessor` is the only new union; `ToManager` gains one member. The two parent → child unions differ in exactly one member, because the child's questions about
+connections, variables and XComs do not depend on which parse it was asked for.
+
+`ToManager` is named for the process that usually holds the other end, but the role it describes is "whoever spawned this parse". The Dag processor manager fills it for
+`DagFileProcessorProcess`; a Dag-parsing child fills it for the two processes below, relaying anything that is not a parsing result up its own `ToManager` channel unchanged. That
+relay is only type-safe because both hops speak the same pair, which is the reason not to mint a separate `ToCoordinator`.
 
 ### Message shapes
 
 ```
 class TaskHandlerParseRequest:
-    file: str                          # the artifact the coordinator resolved
-    dag_id: str                        # scope: handlers bound to this dag_id only
+    file: str                          # the artifact resolved for this coordinator
+    dag_ids: list[str]                 # every Dag in the parsed file with stub tasks that resolved here
+    bundle_path: Path
+    bundle_name: str
     type: Literal["TaskHandlerParseRequest"]
 
 class TaskHandlerParsingResult:
     fileloc: str
-    task_handlers: list[TaskHandlerDeclaration]
+    task_handlers: dict[str, list[TaskHandlerDeclaration]]   # dag_id → its declarations
     import_errors: dict[str, str] | None = None
     warnings: list | None = None
     type: Literal["TaskHandlerParsingResult"]
 
 class TaskHandlerDeclaration:
-    dag_id: str
     task_id: str
     params: list[TaskHandlerParam]     # ordered — arg_bindings are positional
 
@@ -90,11 +104,45 @@ class TaskHandlerParam:
     required: bool                     # the handler declares no default
 ```
 
+One request carries every `dag_id` that resolved to the same artifact under the same coordinator, so a file whose stubs all target one runtime costs one process. A `dag_id` the
+artifact registers nothing for is **omitted** from `task_handlers` rather than returned empty: the key set is not required to match `dag_ids`, because it is the union across
+coordinators that has to cover the stubs ([ADR-0010](0010-mixed-language-dag-processing.md)).
+
 `value_schema` reuses the `ArgValueSchema` definition `arg_bindings` already carries ([ADR-0007](0007-taskflow-across-language-boundary.md)), so both sides of a comparison are the
 same type. Two properties matter to validation: the field is nullable on both sides, and `params` is ordered. Appendix B says what that forces.
 
 `task_handlers` is the counterpart to `DagFileParsingResult.serialized_dags`, but fully typed. `serialized_dags` is `list[LazyDeserializedDAG]`, which is an opaque object in the
 schema snapshot. A handler declaration carries no Dag, so it code-generates and schema-validates in every SDK, and nothing on this path needs a DagSerialization implementation.
+
+### Parse processes
+
+```
+WatchedSubprocess
+  └── BaseParsingProcess                       socket lifecycle · ToManager decoding · Get* handling
+        │                                      · log forwarding under dag_processor.*
+        ├── DagFileProcessorProcess                                   (shipped, now a subclass)
+        │     │   target = _parse_file_entrypoint
+        │     │   DagFileParseRequest → DagFileParsingResult
+        │     │
+        │     └── LangSDKDagFileProcessorProcess                      (new — ADR-0009)
+        │           target = _parse_lang_sdk_dag_entrypoint
+        │             └── coordinator.parse_dag() — spawn runtime, forward fd 0 ⇄ comm socket
+        │           same request and result types as its base class
+        │
+        └── SDKTaskHandlerProcessorProcess                            (new — ADR-0010)
+              target = _parse_task_handler_entrypoint
+                └── coordinator.parse_task_handler() — same forwarding
+              TaskHandlerParseRequest → TaskHandlerParsingResult
+```
+
+`BaseParsingProcess` is `DagFileProcessorProcess` minus the Dag-specific request and result: the comm socket, the `ToManager` decode, the `Get*` dispatch, and the
+`task.` → `dag_processor.` log-forwarder rename. The subclasses supply the first message they send, the result they collect, and the target the child runs.
+
+`LangSDKDagFileProcessorProcess` differs from its base in the target callable alone. Everything else — the request, the result, the socket, the logging — is inherited, because a
+native Lang-SDK Dag answers the same question a Python file does.
+
+Answering `Get*` needs a `Client`, which only the manager holds. `BaseParsingProcess` therefore resolves a request one of two ways: directly against `self.client` when the manager
+is the parent, or by relaying it up `SUPERVISOR_COMMS` when a Dag-parsing child is.
 
 ### Coordinator interface
 
@@ -123,9 +171,14 @@ Names follow the shipped `execute_task` / `_build_execute_task_command` pair and
 - The handler channel is typed; the Dag channel is opaque. Every SDK gets generated models for the declaration shape.
 - Each runtime implements a second request type instead of a new field on the existing one. A `DagRef` and a `TaskHandlerRef` have different shapes, so one request/result pair
   could not carry both.
-- `ToRuntime` / `ToCoordinator` extends the set of unions the supervisor schema package introspects. Regenerating the snapshot is what propagates the bodies into each SDK's
-  generated models.
-- `can_handle_dag_file` still gates native Dag parsing only. Handler queries resolve through the coordinator registry.
+- `ToSDKTaskHandlerProcessor` extends the set of unions the supervisor schema package introspects, from four to five. It adds two union members — `TaskHandlerParseRequest` and
+  `TaskHandlerParsingResult`, the latter carrying `TaskHandlerDeclaration` and `TaskHandlerParam` as nested definitions — because the shared responses are classes the registry
+  already holds.
+- Nothing in the protocol distinguishes a coordinator-backed parse from a Python one. A runtime's `Get*` request is answered by the same handlers that answer a Python parser's,
+  through however many relay hops lie between it and the manager.
+- `DagFileProcessorProcess` becomes a subclass. Its public surface does not move, but the shipped `_handle_request` and socket code shifts to `BaseParsingProcess`.
+- Neither verb is reached through ADR-0004's `can_handle_dag_file` scan. `parse_dag` is reached through the importer registered for the artifact's extension
+  ([ADR-0009](0009-native-dag-processing.md)); `parse_task_handler` through `queue → coordinator` ([ADR-0010](0010-mixed-language-dag-processing.md)).
 - Terms track Language SDK spec `1.0`. A spec rename of `TaskHandler` lands here too.
 
 ## References
@@ -136,23 +189,24 @@ Names follow the shipped `execute_task` / `_build_execute_task_command` pair and
 - [ADR-0009](0009-native-dag-processing.md) — who calls `parse_dag`
 - [ADR-0010](0010-mixed-language-dag-processing.md) — who calls `parse_task_handler`, and what it compares the reply against
 - Language SDK spec (`task-sdk/docs/lang-sdk-spec.rst`)
+- `airflow-core/src/airflow/dag_processing/processor.py` — `DagFileProcessorProcess`, `ToManager` / `ToDagProcessor`
 - `task-sdk/src/airflow/sdk/execution_time/schema/` — supervisor schema version bundle, union registry, generated snapshot
 - [AIP-108](https://cwiki.apache.org/confluence/x/pY4mGQ) — Language SDKs
 
 ## Appendix
 
-### Appendix A — Why two verbs and a separate channel
+### Appendix A — Why two verbs, and why one reply union
 
-The runtime plays two roles, and they differ in who it is talking to. Parsing native Dags, it replaces the parser process and answers the manager, which is exactly what the manager
-↔ parser unions describe. Answering a handler query, it is a short-lived child of the Python parser, and the manager is not a peer at all. Reusing the parser unions for both would
-make one union mean two different recipients, and a runtime could not tell from the union which role it was in.
+The two verbs differ in what they ask for and in which command starts the runtime, not in how they talk. Collapsing them into one `parse(request)` would hide a real deployment
+distinction: a coordinator can serve mixed-language handlers with no interest in native Dag parsing, and an absent method states that better than a runtime rejection does.
 
-The same split is why the verbs stay separate. Collapsing them into one `parse(request)` would hide a real deployment distinction: a coordinator can serve mixed-language handlers
-with no interest in native Dag parsing, and an absent method states that better than a runtime rejection does. The two also differ in mechanism — one is a byte forwarder that never
-decodes the payload, the other decodes a reply it asked for — so the shared code is the subprocess plumbing underneath, not the public method.
+The reply direction does not need the same split. An earlier draft gave handler parsing its own `ToRuntime` / `ToCoordinator` pair on the theory that the runtime was answering the
+coordinator rather than the manager. It is not: the coordinator forwards bytes in both directions and decodes nothing, so the peer at the far end of the socket is whichever process
+spawned the parse. Giving that peer two unions to decode would mean two `CommsDecoder` configurations, two relay paths for the identical `Get*` traffic, and two registry entries for
+bodies that never differ. Reusing `ToManager` leaves one reply union with one new member.
 
-A boolean on `DagFileParseRequest` was the alternative. It cannot work: a `DagRef` and a `TaskHandlerRef` are different payloads, not two subsets of one, so the flag would select
-between shapes the result type cannot both hold.
+A boolean on `DagFileParseRequest` was the other alternative. It cannot work: a `DagRef` and a `TaskHandlerRef` are different payloads, not two subsets of one, so the flag would
+select between shapes the result type cannot both hold.
 
 ### Appendix B — What the nullable, ordered parameter list forces
 
@@ -163,12 +217,13 @@ and falls back to name-and-arity otherwise. A strict comparison would turn every
 and both sides bind positionally.
 
 A declaration carries no class, method, or source location. [ADR-0006](0006-no-lang-sdk-source-display.md) rules out Lang-SDK source display, and putting it on the wire would
-invite a consumer to render it.
+invite a consumer to render it. It carries no `dag_id` either — the `task_handlers` key supplies it, so a declaration cannot disagree with the bucket it arrived in.
 
 ### Appendix C — Schema registration mechanics
 
 `registered_models_by_name()` in `task-sdk/src/airflow/sdk/execution_time/schema/` introspects a fixed set of unions — `ToTask` / `ToSupervisor` and `ToManager` / `ToDagProcessor`
-— so adding `ToRuntime` / `ToCoordinator` extends that set.
+— so adding `ToSDKTaskHandlerProcessor` extends that set to five. The shared responses appear in two unions now; the registry keys by class name and rejects two *distinct* classes
+under one name, so a member reached twice is not a clash.
 
 Two prek hooks guard the generated snapshot. Their interaction on a first-introduction body needs checking against the hooks rather than against that package's `AGENTS.md`: the doc
 says no `VersionChange` is required for a new body, while `check-supervisor-schemas-versions` fails when the snapshot moves and nothing under `versions/` was touched.
