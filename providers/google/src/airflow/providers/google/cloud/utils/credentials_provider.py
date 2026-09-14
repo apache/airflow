@@ -399,7 +399,10 @@ class _CredentialProvider(LoggingMixin):
 
         info = _get_info_from_credential_configuration_file(self.credential_config_file)
         info["subject_token_supplier"] = ClientCredentialsGrantFlowTokenSupplier(
-            oidc_issuer_url=self.idp_issuer_url, client_id=self.client_id, client_secret=self.client_secret
+            oidc_issuer_url=self.idp_issuer_url,
+            client_id=self.client_id,
+            client_secret=self.client_secret,
+            **(self.idp_extra_params_dict or {}),
         )
 
         scopes = list(self.scopes) if self.scopes else None
