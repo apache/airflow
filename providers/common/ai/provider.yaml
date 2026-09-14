@@ -483,6 +483,7 @@ operators:
     python-modules:
       - airflow.providers.common.ai.operators.agent
       - airflow.providers.common.ai.operators.llm
+      - airflow.providers.common.ai.operators.llm_batch
       - airflow.providers.common.ai.operators.llm_file_analysis
       - airflow.providers.common.ai.operators.llm_branch
       - airflow.providers.common.ai.operators.llm_sql
@@ -490,6 +491,11 @@ operators:
       - airflow.providers.common.ai.operators.document_loader
       - airflow.providers.common.ai.operators.llamaindex_embedding
       - airflow.providers.common.ai.operators.llamaindex_retrieval
+
+triggers:
+  - integration-name: Common AI
+    python-modules:
+      - airflow.providers.common.ai.triggers.llm_batch
 
 toolsets:
   - integration-name: Common AI
@@ -514,6 +520,8 @@ task-decorators:
     name: agent
   - class-name: airflow.providers.common.ai.decorators.llm.llm_task
     name: llm
+  - class-name: airflow.providers.common.ai.decorators.llm_batch.llm_batch_task
+    name: llm_batch
   - class-name: airflow.providers.common.ai.decorators.llm_file_analysis.llm_file_analysis_task
     name: llm_file_analysis
   - class-name: airflow.providers.common.ai.decorators.llm_branch.llm_branch_task
