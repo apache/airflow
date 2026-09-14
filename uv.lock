@@ -4645,6 +4645,9 @@ parquet = [
 pdf = [
     { name = "pypdf" },
 ]
+sandbox-ascii-box = [
+    { name = "ascii-box-sdk" },
+]
 shields = [
     { name = "pydantic-ai-shields" },
 ]
@@ -4687,6 +4690,7 @@ requires-dist = [
     { name = "apache-airflow-providers-git", marker = "extra == 'git'", editable = "providers/git" },
     { name = "apache-airflow-providers-git", marker = "extra == 'skills'", editable = "providers/git" },
     { name = "apache-airflow-providers-standard", editable = "providers/standard" },
+    { name = "ascii-box-sdk", marker = "extra == 'sandbox-ascii-box'", specifier = ">=0.0.29" },
     { name = "dataclasses-json", marker = "extra == 'llamaindex'", specifier = ">=0.6.7" },
     { name = "fastavro", marker = "python_full_version >= '3.14' and extra == 'avro'", specifier = ">=1.12.1" },
     { name = "fastavro", marker = "python_full_version < '3.14' and extra == 'avro'", specifier = ">=1.10.0" },
@@ -4709,7 +4713,7 @@ requires-dist = [
     { name = "python-docx", marker = "extra == 'docx'", specifier = ">=1.0.0" },
     { name = "sqlglot", marker = "extra == 'sql'", specifier = ">=30.0.0" },
 ]
-provides-extras = ["anthropic", "bedrock", "google", "openai", "mcp", "code-mode", "shields", "skills", "avro", "parquet", "sql", "common-sql", "langchain", "llamaindex", "pdf", "docx", "git"]
+provides-extras = ["anthropic", "bedrock", "google", "openai", "mcp", "code-mode", "shields", "skills", "sandbox-ascii-box", "avro", "parquet", "sql", "common-sql", "langchain", "llamaindex", "pdf", "docx", "git"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -9695,6 +9699,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/d4/ef/f2b3577e0ccb0bd05d5945844323981ecf160a151bfd836fff35b9c7f66c/asana-5.3.0.tar.gz", hash = "sha256:c267ce27de2fd2283111463ca44b2f2ac862c81f7f09918db6721727d7bbb0ee", size = 153764, upload-time = "2026-08-27T00:30:20.061Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/bb/32/171b994d9628fe78b0acf26946e79cdae7adb42aedfd5799cc605544150e/asana-5.3.0-py3-none-any.whl", hash = "sha256:f898952f3e483c41ed273f5d5d0d5566ee262ef58cfca5b853a74be1d4d7e582", size = 248197, upload-time = "2026-08-27T00:30:18.546Z" },
+]
+
+[[package]]
+name = "ascii-box-sdk"
+version = "0.0.35"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "python-dateutil" },
+    { name = "typing-extensions" },
+    { name = "urllib3" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ff/06/7a491204af450fe95690022d712387cced5cae74dbdc46b60fdbf71d8b37/ascii_box_sdk-0.0.35.tar.gz", hash = "sha256:320634b1ebf4827782ea54929ea82e70bf97f6f02a7e96794d7346fabddca443", size = 106459, upload-time = "2026-08-31T10:04:43.507Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0e/11/83a4d9b947e71459af4355a24012a3400ad349c570a0bc61aff651b1239d/ascii_box_sdk-0.0.35-py3-none-any.whl", hash = "sha256:66e7ec231dd147f86f1bb239bd45412743541097c594b9f69e6c344a1d4beb8e", size = 231903, upload-time = "2026-08-31T10:04:41.881Z" },
 ]
 
 [[package]]
