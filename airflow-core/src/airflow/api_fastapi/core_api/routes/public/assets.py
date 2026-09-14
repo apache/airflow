@@ -131,8 +131,8 @@ QueuedEventPartitionKeyQuery = Annotated[
     str | None,
     Query(
         description=(
-            "Delete queued events of partitioned assets whose Dag run for this partition key "
-            "has not been created yet, instead of queued events of non-partitioned assets."
+            "Delete queued events of partitioned assets emitted for this partition key whose "
+            "Dag run has not been created yet, instead of queued events of non-partitioned assets."
         ),
     ),
 ]
@@ -150,54 +150,59 @@ def _delete_pending_partitioned_queued_events(
     """
     Delete queued partitioned asset events whose Dag run has not been created yet.
 
-    The contributing ``PartitionedAssetKeyLog`` rows are deleted first. A pending
-    ``AssetPartitionDagRun`` is then deleted only once no contributing rows remain, so
-    clearing one asset of a multi-asset partition keeps the partition waiting for that
-    asset rather than dropping the progress made by the others.
+    ``partition_key`` is matched against the partition key of the asset event, as in
+    ``POST /assets/{asset_id}/materialize``, not against the partition key of the Dag run
+    the event would create; a partition mapper can make the two differ.
+
+    A pending ``AssetPartitionDagRun`` is deleted only when every contributing
+    ``PartitionedAssetKeyLog`` row is being deleted, so clearing some of the events of a
+    partition keeps the partition waiting for them rather than dropping the progress made
+    by the others.
 
     :return: The number of deleted rows across both tables.
     """
-    apdr_where_clause: list[ColumnElement[bool]] = [
-        AssetPartitionDagRun.created_dag_run_id.is_(None),
-        AssetPartitionDagRun.partition_key == partition_key,
-    ]
-    if dag_id is not None:
-        apdr_where_clause.append(AssetPartitionDagRun.target_dag_id == dag_id)
-    if permitted_dag_ids is not None:
-        apdr_where_clause.append(AssetPartitionDagRun.target_dag_id.in_(permitted_dag_ids))
-
     pakl_where_clause: list[ColumnElement[bool]] = [
-        PartitionedAssetKeyLog.asset_partition_dag_run_id.in_(
-            select(AssetPartitionDagRun.id).where(*apdr_where_clause)
-        )
+        PartitionedAssetKeyLog.source_partition_key == partition_key,
     ]
     if asset_id is not None:
         pakl_where_clause.append(PartitionedAssetKeyLog.asset_id == asset_id)
+    if dag_id is not None:
+        pakl_where_clause.append(PartitionedAssetKeyLog.target_dag_id == dag_id)
     if before is not None:
         pakl_where_clause.append(PartitionedAssetKeyLog.created_at < before)
+    if permitted_dag_ids is not None:
+        pakl_where_clause.append(PartitionedAssetKeyLog.target_dag_id.in_(permitted_dag_ids))
+    pakl_matches = and_(*pakl_where_clause)
+    pakl_of_apdr = PartitionedAssetKeyLog.asset_partition_dag_run_id == AssetPartitionDagRun.id
 
-    # Nothing is loaded into the session beforehand, so skip synchronizing it; the
-    # subquery criteria would otherwise make SQLAlchemy read back the deleted keys.
-    pakl_result = cast(
-        "CursorResult",
-        session.execute(
-            delete(PartitionedAssetKeyLog)
-            .where(*pakl_where_clause)
-            .execution_options(synchronize_session=False)
-        ),
-    )
+    # The pending partitions are deleted first, while their contributing rows still show
+    # which of them are fully cleared. Nothing is loaded into the session beforehand, so
+    # skip synchronizing it; the subquery criteria would otherwise make SQLAlchemy read
+    # back the deleted keys.
     apdr_result = cast(
         "CursorResult",
         session.execute(
             delete(AssetPartitionDagRun)
             .where(
-                *apdr_where_clause,
-                ~exists().where(PartitionedAssetKeyLog.asset_partition_dag_run_id == AssetPartitionDagRun.id),
+                AssetPartitionDagRun.created_dag_run_id.is_(None),
+                exists().where(pakl_of_apdr, pakl_matches),
+                ~exists().where(pakl_of_apdr, ~pakl_matches),
             )
             .execution_options(synchronize_session=False)
         ),
     )
-    return pakl_result.rowcount + apdr_result.rowcount
+    pakl_result = cast(
+        "CursorResult",
+        session.execute(
+            delete(PartitionedAssetKeyLog)
+            .where(
+                pakl_matches,
+                ~exists().where(pakl_of_apdr, AssetPartitionDagRun.created_dag_run_id.is_not(None)),
+            )
+            .execution_options(synchronize_session=False)
+        ),
+    )
+    return apdr_result.rowcount + pakl_result.rowcount
 
 
 class OnlyActiveFilter(BaseParam[bool]):
