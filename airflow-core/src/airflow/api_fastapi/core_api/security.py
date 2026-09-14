@@ -56,6 +56,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
 )
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.base import OrmClause
+from airflow.api_fastapi.core_api.datamodels.assets import CreateAssetEventsBody
 from airflow.api_fastapi.core_api.datamodels.common import (
     BulkAction,
     BulkActionOnExistence,
@@ -1082,18 +1083,39 @@ def _build_asset_details(asset_id: str | None) -> AssetDetails:
     return AssetDetails(id=asset_id, name=name, uri=uri)
 
 
-def requires_access_asset(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
-    def inner(
-        request: Request,
-        user: GetUserDep,
-    ) -> None:
-        details = _build_asset_details(request.path_params.get("asset_id"))
+def requires_access_asset(method: ResourceMethod, *, asset_id_from_body: bool = False) -> Callable[..., None]:
+    """
+    Authorize the caller on the asset targeted by the request.
+
+    :param method: the method to perform
+    :param asset_id_from_body: read ``asset_id`` from a ``CreateAssetEventsBody`` request body instead of
+        the path. The dependency parameter must be named ``body`` to share the route's body.
+    """
+
+    def _authorize(asset_id: str | None, user: BaseUser) -> None:
+        details = _build_asset_details(asset_id)
 
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_asset(
                 method=method, details=details, user=user
             ),
         )
+
+    if asset_id_from_body:
+
+        def inner_from_body(
+            body: CreateAssetEventsBody,
+            user: GetUserDep,
+        ) -> None:
+            _authorize(str(body.asset_id), user)
+
+        return inner_from_body
+
+    def inner(
+        request: Request,
+        user: GetUserDep,
+    ) -> None:
+        _authorize(request.path_params.get("asset_id"), user)
 
     return inner
 

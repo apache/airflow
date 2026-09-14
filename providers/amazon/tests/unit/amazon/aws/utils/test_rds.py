@@ -16,34 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-import threading
+from airflow.providers.amazon.aws.utils.rds import RdsDbType
 
 
-class ThreadSafeDict:
-    """Dictionary that uses a lock during operations, to ensure thread safety."""
-
-    def __init__(self):
-        self.sync_dict = {}
-        self.thread_lock = threading.Lock()
-
-    def set(self, key, value):
-        with self.thread_lock:
-            self.sync_dict[key] = value
-
-    def get(self, key):
-        with self.thread_lock:
-            return self.sync_dict.get(key)
-
-    def delete(self, key):
-        with self.thread_lock:
-            if key in self.sync_dict:
-                del self.sync_dict[key]
-
-    def clear(self):
-        with self.thread_lock:
-            self.sync_dict.clear()
-
-    def get_all(self):
-        with self.thread_lock:
-            # Return a copy to avoid exposing the internal dictionary.
-            return self.sync_dict.copy()
+def test_rds_db_type_values():
+    assert {db_type.name: db_type.value for db_type in RdsDbType} == {
+        "INSTANCE": "instance",
+        "CLUSTER": "cluster",
+    }

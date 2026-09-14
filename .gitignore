@@ -132,8 +132,11 @@ ENV/
 *.iml
 
 # Claude Code — ignore local config/caches/worktrees, but keep the
-# tracked symlinks in .claude/skills/ that point at .agents/skills/.
+# tracked symlinks in .claude/skills/ that point at .agents/skills/,
+# and the committed apache-magpie plugin floor in settings.json
+# (per-machine settings belong in the ignored settings.local.json).
 .claude/*
+!.claude/settings.json
 !.claude/skills/
 .claude/skills/*
 !.claude/skills/aip-user-stories
@@ -325,6 +328,11 @@ dev/registry/providers.json
 # pr-management-triage Step 6b, per
 # https://github.com/apache/magpie/pull/343).
 /.apache-magpie.session-state.json
+
+# apache-magpie — per-developer configuration store. Personal
+# answers that shadow the project's committed
+# `.apache-magpie-overrides/` for this clone only.
+/.apache-magpie-local/
 
 # Per-machine project-scope Claude Code settings (sandbox-allowlist
 # absolute paths written by sandbox-add-project-root.sh; per
