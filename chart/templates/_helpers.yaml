@@ -1219,3 +1219,12 @@ Usage:
           path: namespace
   {{- end }}
 {{- end -}}
+
+{{/*
+ Compute a ConfigMap or Secret checksum from its data only, for the checksum/* pod annotations.
+ The full manifest carries the helm.sh/chart label, which changes on every chart version bump and
+ would restart every Airflow component on upgrade even when no configuration changed.
+ */}}
+{{- define "airflow.configMapOrSecretContentHash" -}}
+{{ pick (include (print .ctx.Template.BasePath .name) .ctx | fromYaml) "data" "stringData" | toYaml | sha256sum }}
+{{- end -}}

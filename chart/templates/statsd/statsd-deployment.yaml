@@ -65,7 +65,7 @@ spec:
           {{- mustMerge .Values.statsd.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
       annotations:
-        checksum/statsd-config: {{ include (print $.Template.BasePath "/configmaps/statsd-configmap.yaml") . | sha256sum }}
+        checksum/statsd-config: {{ include "airflow.configMapOrSecretContentHash" (dict "ctx" . "name" "/configmaps/statsd-configmap.yaml") }}
         {{- if .Values.statsd.podAnnotations }}
           {{- tpl (toYaml .Values.statsd.podAnnotations) . | nindent 8 }}
         {{- end }}
