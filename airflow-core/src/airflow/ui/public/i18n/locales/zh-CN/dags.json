@@ -73,7 +73,7 @@
         "failed": "按下 shift+f 标记为失败",
         "success": "按下 shift+s 标记为成功"
       },
-      "title": "标记为 {{type}} 为 {{state}}"
+      "title": "标记 {{type}} 为 {{state}}"
     },
     "options": {
       "downstream": "下游",
