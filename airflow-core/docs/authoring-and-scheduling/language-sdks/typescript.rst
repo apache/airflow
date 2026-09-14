@@ -167,12 +167,20 @@ delivered. Two Python names that fold to the same token fail the task.
 
 ``Object.keys`` and rest destructuring (``{ ...rest }``) yield Python's names, and ``in`` folds like a read.
 
+An argument the call fills from another task, as in ``transform(extract(), "uk")``,
+arrives as that task's value rather than a reference to it.
+An upstream that pushed no output fails the task, naming both the argument and the task it came from;
+one that pushed ``null`` binds ``null``.
+
+A Python ``int`` beyond the ±9007199254740991 a JavaScript number holds exactly is refused rather than
+bound, so carry such a value across the language boundary as a string.
+
 .. note::
 
-  An upstream's return value is not a bound argument unless the Python call passes it. As with the other
-  language SDKs, XCom *dependencies* declared with ``>>`` in the Python stub Dag define task order only.
-  Read a value the task was not passed explicitly via ``getClient().getXCom``, and produce one either by
-  the task's return value or by ``getClient().setXCom``.
+  Being upstream is not the same as being passed. As with the other language SDKs, an XCom *dependency*
+  declared with ``>>`` in the Python stub Dag defines task order only. Read a value the call did not pass
+  explicitly via ``getClient().getXCom``, and produce one either by the task's return value or by
+  ``getClient().setXCom``.
 
 Coordinator configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~

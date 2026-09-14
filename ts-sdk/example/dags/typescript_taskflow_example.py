@@ -20,8 +20,9 @@
 TaskFlow argument binding across the language boundary.
 
 ``summarize`` is called TaskFlow-style, and every argument its call passes reaches the TypeScript
-handler by name. Its ``build_message`` stub shares a ``task_id`` with a task in ``typescript_example``
-on purpose: a handler binds the ``(dag_id, task_id)`` pair, so the two are different tasks.
+handler by name, including ``make_totals``'s output, which the runtime pulls before the handler runs.
+Its ``build_message`` stub shares a ``task_id`` with a task in ``typescript_example`` on purpose:
+a handler binds the ``(dag_id, task_id)`` pair, so the two are different tasks.
 See ``src/taskflow.ts``.
 """
 
@@ -37,10 +38,12 @@ def make_totals():
 
 # `region_code` and `dry_run` are snake_case on purpose: they reach the handler's
 # `regionCode` and `dryRun` by folding, with nothing declared on either side.
+# `totals` takes an upstream task's output, which the runtime resolves from that
+# task's `return_value` XCom before the handler is called.
 # The call below leaves `dry_run` at its default, and the handler receives that
 # value like any other.
 @task.stub(queue="typescript")
-def summarize(region_code: str, currency: str, threshold: float, dry_run: bool = False): ...
+def summarize(totals: dict, region_code: str, currency: str, threshold: float, dry_run: bool = False): ...
 
 
 # Same task_id as `typescript_example.build_message`, on purpose.
@@ -55,7 +58,7 @@ def build_message(): ...
     tags=["typescript", "example", "taskflow"],
 )
 def typescript_taskflow_example():
-    make_totals() >> summarize("uk", "GBP", 280.0) >> build_message()
+    summarize(make_totals(), "uk", "GBP", 280.0) >> build_message()
 
 
 typescript_taskflow_example()
