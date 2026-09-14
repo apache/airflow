@@ -2176,6 +2176,49 @@ class TestDeletePartitionedQueuedEvents(TestQueuedEventEndpoint):
         assert self._remaining(session) == (set(), set())
 
     @pytest.mark.parametrize(
+        "path_template",
+        [
+            pytest.param("/dags/{dag_id}/assets/queuedEvents", id="dag"),
+            pytest.param("/dags/{dag_id}/assets/{asset_id}/queuedEvents", id="dag-asset"),
+        ],
+    )
+    def test_dag_endpoints_only_delete_events_queued_for_that_dag(
+        self, test_client, session, create_dummy_dag, path_template
+    ):
+        create_dummy_dag()
+        (asset,) = self.create_assets(session=session, num=1)
+        self._queue_partition(
+            session,
+            dag_id="dag",
+            partition_key="2026-09-02",
+            source_keys_by_asset_id={asset.id: ["2026-09-02"]},
+        )
+        other = self._queue_partition(
+            session,
+            dag_id="other_dag",
+            partition_key="2026-09-02",
+            source_keys_by_asset_id={asset.id: ["2026-09-02"]},
+        )
+        self._queue_partition(
+            session, dag_id="other_dag", partition_key="2026-09-03", source_keys_by_asset_id={}
+        )
+
+        with mock.patch.object(
+            BaseAuthManager, "get_authorized_dag_ids", autospec=True, return_value={"dag", "other_dag"}
+        ):
+            response = test_client.delete(
+                path_template.format(dag_id="dag", asset_id=asset.id),
+                params={"partition_key": "2026-09-02"},
+            )
+
+        assert response.status_code == 204
+        session.expire_all()
+        assert {
+            (apdr.target_dag_id, apdr.partition_key) for apdr in session.scalars(select(AssetPartitionDagRun))
+        } == {("other_dag", "2026-09-02"), ("other_dag", "2026-09-03")}
+        assert set(session.scalars(select(PartitionedAssetKeyLog.asset_partition_dag_run_id))) == {other.id}
+
+    @pytest.mark.parametrize(
         ("readable_dags", "expected_status", "expected_remaining_dag_ids"),
         [
             pytest.param({"dag", "hidden_dag"}, 204, set(), id="both-dags-readable"),
