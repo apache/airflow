@@ -19,10 +19,12 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 import google.api_core.exceptions
+from google.api_core.client_options import ClientOptions
 from google.cloud.bigtable import Client, enums
 from google.cloud.bigtable.cluster import Cluster
 from google.cloud.bigtable.instance import Instance
@@ -58,6 +60,17 @@ class BigtableHook(GoogleBaseHook):
             **kwargs,
         )
         self._client: Client | None = None
+
+    def get_client_options(
+        self,
+        api_endpoint_override: str | None = None,
+    ) -> ClientOptions:
+        """Return the ClientOptions object for Google Bigtable Admin API."""
+        if not self.is_default_universe():
+            global_universe_domain = os.getenv("GOOGLE_CLOUD_UNIVERSE_DOMAIN")
+            # Force admin api endpoint for the non-default universe
+            return ClientOptions(api_endpoint=f"bigtableadmin.{global_universe_domain}")
+        return super().get_client_options(api_endpoint_override=api_endpoint_override)
 
     def _get_client(self, project_id: str) -> Client:
         if not self._client:
