@@ -130,7 +130,7 @@ export function isDag(value: unknown): value is Dag {
  * TypeScript Dag declaration.
  *
  * Constructing a Dag has no effect beyond the instance itself. Collect the ones
- * a bundle should serve in a `DagRegistry` and pass it to `serveDags(...)`.
+ * a bundle should serve on a `Bundle` and await `bundle.serve()`.
  */
 export class Dag {
   /** Identifier of this Dag. Must match the Python Dag's `dag_id`. */
