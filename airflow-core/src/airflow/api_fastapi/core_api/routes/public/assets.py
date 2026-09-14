@@ -20,8 +20,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, cast
 
-from fastapi import Depends, HTTPException, status
-from sqlalchemy import and_, delete, func, select
+from fastapi import Depends, HTTPException, Query, status
+from sqlalchemy import and_, delete, exists, func, select
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import joinedload, subqueryload
 
@@ -88,7 +88,9 @@ from airflow.models.asset import (
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
+    AssetPartitionDagRun,
     AssetWatcherModel,
+    PartitionedAssetKeyLog,
     TaskOutletAssetReference,
 )
 from airflow.models.dag import DagModel
@@ -99,7 +101,8 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import Result
-    from sqlalchemy.sql import Select
+    from sqlalchemy.orm import Session
+    from sqlalchemy.sql import ColumnElement, Select
 
 assets_router = AirflowRouter(tags=["Asset"])
 
@@ -122,6 +125,79 @@ def _generate_queued_event_where_clause(
     if permitted_dag_ids is not None:
         where_clause.append(AssetDagRunQueue.target_dag_id.in_(permitted_dag_ids))
     return where_clause
+
+
+QueuedEventPartitionKeyQuery = Annotated[
+    str | None,
+    Query(
+        description=(
+            "Delete queued events of partitioned assets whose Dag run for this partition key "
+            "has not been created yet, instead of queued events of non-partitioned assets."
+        ),
+    ),
+]
+
+
+def _delete_pending_partitioned_queued_events(
+    *,
+    partition_key: str,
+    session: Session,
+    asset_id: int | None = None,
+    dag_id: str | None = None,
+    before: datetime | str | None = None,
+    permitted_dag_ids: set[str] | None = None,
+) -> int:
+    """
+    Delete queued partitioned asset events whose Dag run has not been created yet.
+
+    The contributing ``PartitionedAssetKeyLog`` rows are deleted first. A pending
+    ``AssetPartitionDagRun`` is then deleted only once no contributing rows remain, so
+    clearing one asset of a multi-asset partition keeps the partition waiting for that
+    asset rather than dropping the progress made by the others.
+
+    :return: The number of deleted rows across both tables.
+    """
+    apdr_where_clause: list[ColumnElement[bool]] = [
+        AssetPartitionDagRun.created_dag_run_id.is_(None),
+        AssetPartitionDagRun.partition_key == partition_key,
+    ]
+    if dag_id is not None:
+        apdr_where_clause.append(AssetPartitionDagRun.target_dag_id == dag_id)
+    if permitted_dag_ids is not None:
+        apdr_where_clause.append(AssetPartitionDagRun.target_dag_id.in_(permitted_dag_ids))
+
+    pakl_where_clause: list[ColumnElement[bool]] = [
+        PartitionedAssetKeyLog.asset_partition_dag_run_id.in_(
+            select(AssetPartitionDagRun.id).where(*apdr_where_clause)
+        )
+    ]
+    if asset_id is not None:
+        pakl_where_clause.append(PartitionedAssetKeyLog.asset_id == asset_id)
+    if before is not None:
+        pakl_where_clause.append(PartitionedAssetKeyLog.created_at < before)
+
+    # Nothing is loaded into the session beforehand, so skip synchronizing it; the
+    # subquery criteria would otherwise make SQLAlchemy read back the deleted keys.
+    pakl_result = cast(
+        "CursorResult",
+        session.execute(
+            delete(PartitionedAssetKeyLog)
+            .where(*pakl_where_clause)
+            .execution_options(synchronize_session=False)
+        ),
+    )
+    apdr_result = cast(
+        "CursorResult",
+        session.execute(
+            delete(AssetPartitionDagRun)
+            .where(
+                *apdr_where_clause,
+                ~exists().where(PartitionedAssetKeyLog.asset_partition_dag_run_id == AssetPartitionDagRun.id),
+            )
+            .execution_options(synchronize_session=False)
+        ),
+    )
+    return pakl_result.rowcount + apdr_result.rowcount
 
 
 class OnlyActiveFilter(BaseParam[bool]):
@@ -712,14 +788,24 @@ def delete_asset_queued_events(
     readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
     before: OptionalDateTimeQuery = None,
+    partition_key: QueuedEventPartitionKeyQuery = None,
 ):
     """Delete queued asset events for an asset."""
-    where_clause = _generate_queued_event_where_clause(
-        asset_id=asset_id, before=before, permitted_dag_ids=readable_dags_filter.value
-    )
-    delete_stmt = delete(AssetDagRunQueue).where(*where_clause)
-    result = cast("CursorResult", session.execute(delete_stmt))
-    if result.rowcount == 0:
+    if partition_key is not None:
+        deleted = _delete_pending_partitioned_queued_events(
+            partition_key=partition_key,
+            asset_id=asset_id,
+            before=before,
+            permitted_dag_ids=readable_dags_filter.value,
+            session=session,
+        )
+    else:
+        where_clause = _generate_queued_event_where_clause(
+            asset_id=asset_id, before=before, permitted_dag_ids=readable_dags_filter.value
+        )
+        delete_stmt = delete(AssetDagRunQueue).where(*where_clause)
+        deleted = cast("CursorResult", session.execute(delete_stmt)).rowcount
+    if deleted == 0:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             detail=f"Queue event with asset_id: `{asset_id}` was not found",
@@ -746,15 +832,24 @@ def delete_dag_asset_queued_events(
     readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
     before: OptionalDateTimeQuery = None,
+    partition_key: QueuedEventPartitionKeyQuery = None,
 ):
-    where_clause = _generate_queued_event_where_clause(
-        dag_id=dag_id, before=before, permitted_dag_ids=readable_dags_filter.value
-    )
+    if partition_key is not None:
+        deleted = _delete_pending_partitioned_queued_events(
+            partition_key=partition_key,
+            dag_id=dag_id,
+            before=before,
+            permitted_dag_ids=readable_dags_filter.value,
+            session=session,
+        )
+    else:
+        where_clause = _generate_queued_event_where_clause(
+            dag_id=dag_id, before=before, permitted_dag_ids=readable_dags_filter.value
+        )
+        delete_statement = delete(AssetDagRunQueue).where(*where_clause)
+        deleted = cast("CursorResult", session.execute(delete_statement)).rowcount
 
-    delete_statement = delete(AssetDagRunQueue).where(*where_clause)
-    result = cast("CursorResult", session.execute(delete_statement))
-
-    if result.rowcount == 0:
+    if deleted == 0:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Queue event with dag_id: `{dag_id}` was not found")
 
 
@@ -779,14 +874,25 @@ def delete_dag_asset_queued_event(
     readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
     before: OptionalDateTimeQuery = None,
+    partition_key: QueuedEventPartitionKeyQuery = None,
 ):
     """Delete a queued asset event for a Dag."""
-    where_clause = _generate_queued_event_where_clause(
-        dag_id=dag_id, before=before, asset_id=asset_id, permitted_dag_ids=readable_dags_filter.value
-    )
-    delete_statement = delete(AssetDagRunQueue).where(*where_clause)
-    result = cast("CursorResult", session.execute(delete_statement))
-    if result.rowcount == 0:
+    if partition_key is not None:
+        deleted = _delete_pending_partitioned_queued_events(
+            partition_key=partition_key,
+            dag_id=dag_id,
+            asset_id=asset_id,
+            before=before,
+            permitted_dag_ids=readable_dags_filter.value,
+            session=session,
+        )
+    else:
+        where_clause = _generate_queued_event_where_clause(
+            dag_id=dag_id, before=before, asset_id=asset_id, permitted_dag_ids=readable_dags_filter.value
+        )
+        delete_statement = delete(AssetDagRunQueue).where(*where_clause)
+        deleted = cast("CursorResult", session.execute(delete_statement)).rowcount
+    if deleted == 0:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             detail=f"Queued event with dag_id: `{dag_id}` and asset_id: `{asset_id}` was not found",
