@@ -102,6 +102,7 @@ class GCSToGoogleDriveOperator(BaseOperator):
         move_object: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        subject: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -113,6 +114,7 @@ class GCSToGoogleDriveOperator(BaseOperator):
         self.move_object = move_object
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.subject = subject
         self.gcs_hook: GCSHook | None = None
         self.gdrive_hook: GoogleDriveHook | None = None
 
@@ -124,6 +126,7 @@ class GCSToGoogleDriveOperator(BaseOperator):
         self.gdrive_hook = GoogleDriveHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
+            subject=self.subject,
         )
 
         if WILDCARD in self.source_object:
