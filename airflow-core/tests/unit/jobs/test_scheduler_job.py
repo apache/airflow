@@ -2188,8 +2188,8 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
-    def test_queued_task_instances_fails_with_missing_dag(self, dag_maker, session):
-        """Check that task instances of missing DAGs are failed"""
+    def test_queued_task_instances_remain_scheduled_with_missing_dag(self, dag_maker, session):
+        """Keep task instances scheduled when their serialized DAG is temporarily unavailable."""
         dag_id = "SchedulerJobTest.test_find_executable_task_instances_not_in_dagbag"
         task_id_1 = "dummy"
         task_id_2 = "dummydummy"
@@ -2216,7 +2216,7 @@ class TestSchedulerJob:
         assert len(res) == 0
         tis = dr.get_task_instances(session=session)
         assert len(tis) == 2
-        assert all(ti.state == State.FAILED for ti in tis)
+        assert all(ti.state == State.SCHEDULED for ti in tis)
 
     def test_nonexistent_pool(self, dag_maker):
         dag_id = "SchedulerJobTest.test_nonexistent_pool"
