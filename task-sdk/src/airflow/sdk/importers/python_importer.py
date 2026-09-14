@@ -14,18 +14,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Python DAG importer - imports DAGs from Python files."""
+
+"""
+Python DAG importers.
+
+These importers can import DAGs from Python files and from zip archive members.
+"""
 
 from __future__ import annotations
 
 import functools
-import importlib.machinery
+import importlib.abc
 import importlib.util
 import logging
-import os
+import marshal
+import signal
 import sys
 import traceback
 import warnings
+import zipfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -42,10 +49,12 @@ from airflow.sdk.importers.base import (
     DagImportResult,
     DagImportWarning,
     DagSourceCode,
+    FileDagDefinition,
     _normalize_extensions,
     find_file_dag_definitions,
     get_file_suffix,
 )
+from airflow.sdk.importers.zip_importer import ZipFileDagDefinition
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -56,12 +65,60 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-class PythonDagImporter(AbstractDagImporter):
+class _DefinitionSourceLoader(importlib.abc.SourceLoader):
     """
-    Importer for Python DAG files.
+    A SourceLoader that executes a DagDefinition straight from its bytes.
 
-    This is the default importer registered with the DagImporterRegistry. It handles
-    .py files containing Python DAGs.
+    It needs no file on disk: :meth:`.get_data`` returns the definition's
+    source, and :meth:`get_filename` reports the definition's repr, so
+    ``__file__`` and tracebacks stay meaningful.
+
+    Bytecode caching is left disabled (the inherited ``path_stats`` raises
+    ``OSError``) since it's not particularly useful in dag processors.
+    """
+
+    def __init__(self, definition: DagDefinition) -> None:
+        self._definition = definition
+
+    def get_filename(self, fullname: str) -> str:
+        return repr(self._definition)
+
+    def get_data(self, path: str) -> bytes:
+        return self._definition.read_bytes()
+
+
+class _DefinitionBytecodeLoader(importlib.abc.Loader):
+    """
+    Execute a definition's compiled bytecode (``.pyc``) straight from its bytes.
+
+    The bytes-based counterpart of :class:`importlib.machinery.SourcelessFileLoader`
+    (which is file-backed); reading through the definition keeps archive members from
+    being extracted just to run them.
+    """
+
+    def __init__(self, definition: DagDefinition) -> None:
+        self._definition = definition
+
+    def get_filename(self, fullname: str) -> str:
+        return repr(self._definition)
+
+    def get_code(self, fullname: str) -> Any:
+        data = self._definition.read_bytes()
+        if len(data) < 16 or data[:4] != importlib.util.MAGIC_NUMBER:
+            raise ImportError(f"Incompatible or corrupt bytecode for {self._definition!r}")
+        return marshal.loads(data[16:])
+
+    def exec_module(self, module: ModuleType) -> None:
+        exec(self.get_code(module.__name__), module.__dict__)
+
+
+class PythonDagImporter(AbstractDagImporter[FileDagDefinition | ZipFileDagDefinition]):
+    """
+    Importer for Python DAG sources.
+
+    This is the default importer registered with the DagImporterRegistry for
+    ``.py`` and ``.pyc`` files. The importer can import both from plain files
+    from the local filesystem, or members inside a zip archive.
     """
 
     supported_extensions = [".py", ".pyc"]
@@ -78,41 +135,43 @@ class PythonDagImporter(AbstractDagImporter):
     def list_dag_definitions(
         self,
         bundle: BaseDagBundle,
-        *,
-        safe_mode: bool = True,
-    ) -> Iterator[DagDefinition]:
-        """List Python DAG definitions in a bundle matching supported extensions."""
-        yield from find_file_dag_definitions(bundle.path, self.supported_extensions, safe_mode=safe_mode)
+    ) -> Iterator[FileDagDefinition | ZipFileDagDefinition]:
+        """
+        List Python DAG files in a bundle matching supported extensions.
+
+        This does not look for members inside zip archives. Definition discovery
+        of zip archives is done inside :class:`..zip_importer.ZipImporter`
+        instead.
+        """
+        if bundle.path.is_dir():
+            yield from find_file_dag_definitions(bundle.path, self.supported_extensions)
+
+    def might_contain_dag(
+        self,
+        definition: FileDagDefinition | ZipFileDagDefinition,
+        safe_mode: bool,
+    ) -> bool:
+        """Cheap heuristic for whether the definition may contain Airflow DAGs."""
+        if isinstance(definition, FileDagDefinition):
+            return might_contain_dag(str(definition.path), safe_mode, conf=conf)
+        with zipfile.ZipFile(definition.zip_path) as archive:
+            return might_contain_dag(definition.file_path, safe_mode, zip_file=archive, conf=conf)
 
     def import_definition(
         self,
-        definition: DagDefinition,
+        definition: FileDagDefinition | ZipFileDagDefinition,
         bundle: BaseDagBundle,
         *,
         safe_mode: bool = True,
     ) -> DagImportResult:
-        """
-        Import DAGs from a Python DAG definition.
-
-        :param definition: The definition to import from.
-        :param bundle: The DAG bundle containing the definition.
-        :param safe_mode: If True, skip files that don't appear to contain DAGs.
-        :return: DagImportResult with imported DAGs and any errors.
-        """
+        """Import DAGs from a Python DAG definition."""
         result = DagImportResult(definition=definition)
         DagContext.autoregistered_dags.clear()
         captured_warnings: list[warnings.WarningMessage] = []
 
         try:
             with warnings.catch_warnings(record=True) as captured_warnings:
-                with definition.as_file() as local_path:
-                    filepath = os.fspath(local_path)
-                    modules = self._load_modules_from_file(
-                        filepath,
-                        safe_mode,
-                        result,
-                        bundle=bundle,
-                    )
+                modules = self._load_modules_from_file(definition, safe_mode, result, bundle=bundle)
         except AirflowConfigException:
             # Configuration errors (e.g., invalid timeout type) should propagate
             raise
@@ -140,12 +199,7 @@ class PythonDagImporter(AbstractDagImporter):
                 )
             )
 
-        self._process_modules(
-            modules,
-            result,
-            bundle=bundle,
-        )
-
+        self._process_modules(modules, result, bundle=bundle)
         return result
 
     def get_source_code(self, definition: DagDefinition) -> DagSourceCode:
@@ -155,68 +209,50 @@ class PythonDagImporter(AbstractDagImporter):
                 source_code="# Sourceless bytecode (.pyc) — source code not available\n",
                 language="python",
             )
-        return DagSourceCode(
-            source_code=definition.read_text(encoding="utf-8"),
-            language="python",
-        )
-
-    def might_contain_dag(self, file_path: str | Path, safe_mode: bool = True) -> bool:
-        """Check whether a file might contain Airflow DAGs according to safe mode heuristics."""
-        if not safe_mode:
-            return True
-        return might_contain_dag(str(file_path), safe_mode, conf=conf)
+        return DagSourceCode(source_code=definition.read_text(encoding="utf-8"), language="python")
 
     def _load_modules_from_file(
         self,
-        filepath: str,
+        definition: FileDagDefinition | ZipFileDagDefinition,
         safe_mode: bool,
         result: DagImportResult,
         bundle: BaseDagBundle,
     ) -> list[ModuleType]:
-        definition = result.definition
-
-        import signal
-
-        def sigsegv_handler(signum, frame):
-            msg = f"Received SIGSEGV signal while processing {filepath}."
+        def _handle_sigsegv(signum, frame):
+            msg = f"Received SIGSEGV signal while processing {definition!r}."
             log.error(msg)
             result.errors.append(
-                DagImportError(
-                    source_reference=repr(definition),
-                    message=msg,
-                    error_type="segfault",
-                )
+                DagImportError(source_reference=repr(definition), message=msg, error_type="segfault")
             )
 
         try:
-            signal.signal(signal.SIGSEGV, sigsegv_handler)
+            signal.signal(signal.SIGSEGV, _handle_sigsegv)
         except (ValueError, AttributeError):
             log.warning("SIGSEGV signal handler registration failed. Not in the main thread")
 
-        if not self.might_contain_dag(filepath, safe_mode):
-            log.debug("File %s assumed to contain no DAGs. Skipping.", filepath)
-            if definition is not None:
-                result.skipped_definitions.append(definition)
+        if not self.might_contain_dag(definition, safe_mode):
+            log.debug("Source %r assumed to contain no DAGs. Skipping.", definition)
+            result.skipped_definitions.append(definition)
             return []
 
-        log.debug("Importing %s (bundle: %s)", filepath, bundle.name)
-        mod_name = get_unique_dag_module_name(filepath)
+        log.debug("Importing %r (bundle: %s)", definition, bundle.name)
+        mod_name = get_unique_dag_module_name(repr(definition))
 
         if mod_name in sys.modules:
             del sys.modules[mod_name]
 
         DagContext.current_autoregister_module_name = mod_name
 
-        def parse(mod_name: str, filepath: str) -> list[ModuleType]:
+        def parse() -> list[ModuleType]:
             try:
-                loader: importlib.machinery.SourceFileLoader | importlib.machinery.SourcelessFileLoader
-                if Path(filepath).suffix.lower() == ".pyc":
-                    loader = importlib.machinery.SourcelessFileLoader(mod_name, filepath)
+                loader: importlib.abc.Loader
+                if get_file_suffix(definition) == ".pyc":
+                    loader = _DefinitionBytecodeLoader(definition)
                 else:
-                    loader = importlib.machinery.SourceFileLoader(mod_name, filepath)
+                    loader = _DefinitionSourceLoader(definition)
                 spec = importlib.util.spec_from_loader(mod_name, loader)
                 new_module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
-                sys.modules[spec.name] = new_module  # type: ignore[union-attr]
+                sys.modules[mod_name] = new_module
                 loader.exec_module(new_module)
                 return [new_module]
             except KeyboardInterrupt:
@@ -225,7 +261,7 @@ class PythonDagImporter(AbstractDagImporter):
             except BaseException as e:
                 sys.modules.pop(mod_name, None)
                 DagContext.autoregistered_dags.clear()
-                log.exception("Failed to import: %s", filepath)
+                log.exception("Failed to import: %r", definition)
                 if self._dagbag_import_error_tracebacks:
                     stacktrace = traceback.format_exc(limit=-self._dagbag_import_error_traceback_depth)
                 else:
@@ -244,7 +280,7 @@ class PythonDagImporter(AbstractDagImporter):
         try:
             from airflow import settings  # noqa: SDK002
 
-            dagbag_import_timeout = settings.get_dagbag_import_timeout(filepath)
+            dagbag_import_timeout = settings.get_dagbag_import_timeout(repr(definition))
         except (ImportError, AttributeError):
             dagbag_import_timeout = 30.0
 
@@ -254,16 +290,16 @@ class PythonDagImporter(AbstractDagImporter):
             )
 
         if dagbag_import_timeout <= 0:
-            return parse(mod_name, filepath)
+            return parse()
 
         timeout_msg = (
-            f"DagBag import timeout for {filepath} after {dagbag_import_timeout}s.\n"
+            f"DagBag import timeout for {definition!r} after {dagbag_import_timeout}s.\n"
             "Please take a look at these docs to improve your DAG import time:\n"
             "* https://airflow.apache.org/docs/apache-airflow/stable/best-practices.html#top-level-python-code\n"
             "* https://airflow.apache.org/docs/apache-airflow/stable/best-practices.html#reducing-dag-complexity"
         )
         with timeout(seconds=dagbag_import_timeout, error_message=timeout_msg):
-            return parse(mod_name, filepath)
+            return parse()
 
     def _process_modules(
         self,

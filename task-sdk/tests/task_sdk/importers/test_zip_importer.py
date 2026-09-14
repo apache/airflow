@@ -32,10 +32,10 @@ from airflow.sdk.importers import (
     DagImportResult,
     DagSourceCode,
     FileDagDefinition,
-    PythonDagImporter,
     ZipFileDagDefinition,
     ZipImporter,
 )
+from airflow.sdk.importers.python_importer import PythonDagImporter
 
 
 class CustomInternalNonExtensionImporter(AbstractDagImporter):
@@ -57,6 +57,16 @@ class CustomInternalNonExtensionImporter(AbstractDagImporter):
         return DagSourceCode(source_code="", language="text")
 
 
+def _import_all(importer, bundle):
+    """Enumerate an importer's definitions and import each, aggregating dags/errors."""
+    dags, errors = [], []
+    for definition in importer.list_dag_definitions(bundle):
+        result = importer.import_definition(definition, bundle=bundle)
+        dags.extend(result.dags)
+        errors.extend(result.errors)
+    return dags, errors
+
+
 class TestZipImporter:
     """Test the ZipImporter composite implementation."""
 
@@ -64,22 +74,28 @@ class TestZipImporter:
     def mock_bundle(self, tmp_path):
         return SimpleNamespace(name="test_bundle", path=tmp_path)
 
-    @pytest.mark.parametrize(
-        ("safe_mode", "expected_count"),
-        [
-            (True, 1),
-            (False, 2),
-        ],
-    )
-    def test_list_dag_definitions(self, mock_bundle, safe_mode, expected_count):
+    def test_list_dag_definitions(self, mock_bundle):
         zip_path = mock_bundle.path / "sample.zip"
         with zipfile.ZipFile(zip_path, "w") as z:
             z.writestr("dag.py", "from airflow.sdk import DAG\n")
         (mock_bundle.path / "corrupt.zip").write_bytes(b"not a valid zip and no dag markers")
 
-        definitions = list(ZipImporter().list_dag_definitions(mock_bundle, safe_mode=safe_mode))
-        assert len(definitions) == expected_count
-        assert any(d.path == zip_path for d in definitions)
+        # The unreadable archive is skipped during discovery; the valid archive yields its member.
+        definitions = list(ZipImporter().list_dag_definitions(mock_bundle))
+        assert len(definitions) == 1
+        assert definitions[0].zip_path == zip_path
+        assert definitions[0].file_path == "dag.py"
+
+    def test_list_prefers_source_over_pyc_and_skips_pycache(self, mock_bundle):
+        zip_path = mock_bundle.path / "compiled.zip"
+        with zipfile.ZipFile(zip_path, "w") as z:
+            z.writestr("foo.py", "from airflow.sdk import DAG\n")
+            z.writestr("foo.pyc", b"compiled")  # side-by-side -> skipped
+            z.writestr("bar.pyc", b"compiled")  # sourceless -> kept
+            z.writestr("__pycache__/foo.cpython-311.pyc", b"compiled")  # cache -> skipped
+
+        definitions = list(ZipImporter().list_dag_definitions(mock_bundle))
+        assert sorted(d.file_path for d in definitions) == ["bar.pyc", "foo.py"]
 
     def test_import_zip_archive_with_dags(self, mock_bundle):
         zip_path = mock_bundle.path / "sample_dags.zip"
@@ -87,11 +103,11 @@ class TestZipImporter:
             z.writestr("dag_a.py", "from airflow.sdk import DAG\ndag = DAG('zip_dag_a')\n")
             z.writestr("helper.py", "def util(): return 1\n")
 
-        result = ZipImporter().import_definition(FileDagDefinition(path=zip_path), bundle=mock_bundle)
-        assert len(result.dags) == 1
-        assert result.dags[0].dag_id == "zip_dag_a"
-        assert result.dags[0].bundle_name == "test_bundle"
-        assert len(result.errors) == 0
+        dags, errors = _import_all(ZipImporter(), mock_bundle)
+        assert len(dags) == 1
+        assert dags[0].dag_id == "zip_dag_a"
+        assert dags[0].bundle_name == "test_bundle"
+        assert len(errors) == 0
 
     def test_import_zip_archive_with_pyc_dag(self, mock_bundle, tmp_path):
         source_file = tmp_path / "compiled_dag.py"
@@ -104,10 +120,10 @@ class TestZipImporter:
             z.write(pyc_file, arcname="compiled_dag.pyc")
 
         importer = ZipImporter()
-        result = importer.import_definition(FileDagDefinition(path=zip_path), bundle=mock_bundle)
-        assert len(result.dags) == 1
-        assert result.dags[0].dag_id == "zip_pyc_dag"
-        assert len(result.errors) == 0
+        dags, errors = _import_all(importer, mock_bundle)
+        assert len(dags) == 1
+        assert dags[0].dag_id == "zip_pyc_dag"
+        assert len(errors) == 0
 
         src = importer.get_source_code(ZipFileDagDefinition(zip_path=zip_path, file_path="compiled_dag.pyc"))
         assert src.language == "python"
@@ -121,18 +137,17 @@ class TestZipImporter:
             z.writestr("../evil_dag.py", "from airflow.sdk import DAG\ndag = DAG('evil_dag')\n")
             z.writestr("valid_dag.py", "from airflow.sdk import DAG\ndag = DAG('valid_dag')\n")
 
-        result = ZipImporter().import_definition(FileDagDefinition(path=zip_path), bundle=mock_bundle)
-        assert len(result.dags) == 1
-        assert result.dags[0].dag_id == "valid_dag"
+        dags, _ = _import_all(ZipImporter(), mock_bundle)
+        assert len(dags) == 1
+        assert dags[0].dag_id == "valid_dag"
         assert not (mock_bundle.path.parent / "evil_dag.py").exists()
 
     def test_corrupted_zip_file(self, mock_bundle):
         bad_zip = mock_bundle.path / "corrupted.zip"
         bad_zip.write_bytes(b"not a real zip")
 
-        result = ZipImporter().import_definition(FileDagDefinition(path=bad_zip), bundle=mock_bundle)
-        assert len(result.errors) == 1
-        assert result.errors[0].error_type == "zip_read_error"
+        # An unreadable archive is skipped during discovery -- it yields no definitions.
+        assert list(ZipImporter().list_dag_definitions(mock_bundle)) == []
 
     def test_get_source_code_reads_member_not_archive(self, tmp_path):
         zip_path = tmp_path / "source_dags.zip"
@@ -178,9 +193,9 @@ class TestZipImporter:
         with zipfile.ZipFile(zip_path, "w") as z:
             z.writestr("dag.custom_py", "from airflow.sdk import DAG\ndag = DAG('custom_zip_dag')\n")
 
-        res = importer.import_definition(FileDagDefinition(path=zip_path), bundle=mock_bundle)
-        assert len(res.dags) == 1
-        assert res.dags[0].dag_id == "custom_zip_dag"
+        dags, _ = _import_all(importer, mock_bundle)
+        assert len(dags) == 1
+        assert dags[0].dag_id == "custom_zip_dag"
 
     def test_zip_importer_internal_importers_from_dict(self):
         importer = ZipImporter(
@@ -232,6 +247,6 @@ class TestZipImporter:
         with zipfile.ZipFile(zip_path, "w") as z:
             z.writestr("my_workflow_file", "steps:\n  - run: echo hello\n")
 
-        res = importer.import_definition(FileDagDefinition(path=zip_path), bundle=mock_bundle)
-        assert len(res.dags) == 1
-        assert res.dags[0].dag_id == "workflow_dag"
+        dags, _ = _import_all(importer, mock_bundle)
+        assert len(dags) == 1
+        assert dags[0].dag_id == "workflow_dag"

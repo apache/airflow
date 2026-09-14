@@ -22,6 +22,7 @@ import logging
 import py_compile
 import signal
 import sys
+import zipfile
 from types import SimpleNamespace
 from unittest import mock
 
@@ -31,6 +32,7 @@ from airflow.sdk.exceptions import AirflowConfigException
 from airflow.sdk.importers import (
     FileDagDefinition,
     PythonDagImporter,
+    ZipFileDagDefinition,
 )
 
 
@@ -81,22 +83,61 @@ class TestPythonDagImporter:
         assert len(result.errors) == 0
         assert result.skipped_definitions == [definition]
 
-    @pytest.mark.parametrize(
-        ("safe_mode", "expected_files"),
-        [
-            (True, {"sample_dag.py"}),
-            (False, {"sample_dag.py", "helper.py"}),
-        ],
-    )
-    def test_list_dag_definitions(self, mock_bundle, safe_mode, expected_files):
+    def test_skip_non_dag_zip_member_in_safe_mode(self, mock_bundle):
+        # Exercises the zip-member branch of might_contain_dag on the merged importer:
+        # a member with no DAG markers is skipped at import (not discovery), landing in
+        # skipped_definitions -- mirroring the file case, and proving PythonDagImporter
+        # accepts a ZipFileDagDefinition directly.
+        zip_path = mock_bundle.path / "helpers.zip"
+        with zipfile.ZipFile(zip_path, "w") as z:
+            z.writestr("helper.py", "def util():\n    return 42\n")
+
+        importer = PythonDagImporter()
+        definition = ZipFileDagDefinition(zip_path=zip_path, file_path="helper.py")
+        result = importer.import_definition(definition, bundle=mock_bundle, safe_mode=True)
+
+        assert len(result.dags) == 0
+        assert len(result.errors) == 0
+        assert result.skipped_definitions == [definition]
+
+    def test_import_corrupt_pyc_captured_as_error(self, mock_bundle):
+        # A .pyc whose header is not valid CPython bytecode must surface as an import
+        # error (from _DefinitionBytecodeLoader's magic check), not crash the importer.
+        # safe_mode=False bypasses the content heuristic so the loader actually runs.
+        bad_pyc = mock_bundle.path / "broken.pyc"
+        bad_pyc.write_bytes(b"this is not valid python bytecode at all!!")
+
+        importer = PythonDagImporter()
+        definition = FileDagDefinition(path=bad_pyc)
+        result = importer.import_definition(definition, bundle=mock_bundle, safe_mode=False)
+
+        assert len(result.dags) == 0
+        assert len(result.errors) == 1
+        assert result.errors[0].error_type == "import"
+
+    def test_list_dag_definitions(self, mock_bundle):
+        # Discovery is identity-only: every extension match is returned regardless of whether
+        # the file actually contains a DAG. The content decision (helper.py has no DAG) is made
+        # later, at import_definition -- see test_skip_non_dag_file_in_safe_mode.
         dag_file = mock_bundle.path / "sample_dag.py"
         dag_file.write_text("from airflow.sdk import DAG\ndag = DAG('test_dag_1')\n")
         (mock_bundle.path / "helper.py").write_text("def helper():\n    return 42\n")
         (mock_bundle.path / "notes.txt").write_text("hello")
 
         importer = PythonDagImporter()
-        defs = list(importer.list_dag_definitions(mock_bundle, safe_mode=safe_mode))
-        assert {d.path.name for d in defs} == expected_files
+        defs = list(importer.list_dag_definitions(mock_bundle))
+        assert {d.path.name for d in defs} == {"sample_dag.py", "helper.py"}
+
+    def test_list_prefers_source_over_pyc_and_skips_pycache(self, mock_bundle):
+        (mock_bundle.path / "foo.py").write_text("from airflow.sdk import DAG\n")
+        (mock_bundle.path / "foo.pyc").write_bytes(b"compiled")  # side-by-side -> skipped
+        (mock_bundle.path / "bar.pyc").write_bytes(b"compiled")  # sourceless -> kept
+        cache = mock_bundle.path / "__pycache__"
+        cache.mkdir()
+        (cache / "foo.cpython-311.pyc").write_bytes(b"compiled")  # cache -> skipped
+
+        defs = list(PythonDagImporter().list_dag_definitions(mock_bundle))
+        assert sorted(d.path.name for d in defs) == ["bar.pyc", "foo.py"]
 
     @pytest.mark.parametrize(
         ("filename", "is_bytecode", "expected_content"),
