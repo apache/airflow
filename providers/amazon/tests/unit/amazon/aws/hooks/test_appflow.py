@@ -23,7 +23,10 @@ from unittest.mock import ANY
 
 import pytest
 
-from airflow.providers.amazon.aws.hooks.appflow import AppflowHook
+from airflow.providers.amazon.aws.hooks.appflow import (
+    MAX_EXECUTION_RECORDS_PER_PAGE,
+    AppflowHook,
+)
 
 from tests_common.test_utils.compat import timezone
 
@@ -71,9 +74,50 @@ def test_conn_attributes(hook):
 def test_run_flow(hook):
     with mock.patch("airflow.providers.amazon.aws.waiters.base_waiter.BaseBotoWaiter.waiter"):
         hook.run_flow(flow_name=FLOW_NAME, poll_interval=0)
-    hook.conn.describe_flow_execution_records.assert_called_with(flowName=FLOW_NAME)
+    hook.conn.describe_flow_execution_records.assert_called_with(
+        flowName=FLOW_NAME, maxResults=MAX_EXECUTION_RECORDS_PER_PAGE
+    )
     assert hook.conn.describe_flow_execution_records.call_count == 1
     hook.conn.start_flow.assert_called_once_with(flowName=FLOW_NAME)
+
+
+def test_run_flow_execution_record_on_a_later_page(hook):
+    """The execution we just started is not necessarily on the first page of records."""
+    first_page = {
+        "flowExecutions": [
+            {"executionId": f"other_{i}", "executionStatus": "Successful"}
+            for i in range(MAX_EXECUTION_RECORDS_PER_PAGE)
+        ],
+        "nextToken": "token-1",
+    }
+    second_page = {
+        "flowExecutions": [
+            {
+                "executionId": EXECUTION_ID,
+                "executionResult": {"recordsProcessed": 1},
+                "executionStatus": "Successful",
+            }
+        ]
+    }
+    hook.conn.describe_flow_execution_records.side_effect = [first_page, second_page]
+
+    with mock.patch("airflow.providers.amazon.aws.waiters.base_waiter.BaseBotoWaiter.waiter"):
+        hook.run_flow(flow_name=FLOW_NAME, poll_interval=0)
+
+    assert hook.conn.describe_flow_execution_records.call_count == 2
+    hook.conn.describe_flow_execution_records.assert_called_with(
+        nextToken="token-1", flowName=FLOW_NAME, maxResults=MAX_EXECUTION_RECORDS_PER_PAGE
+    )
+
+
+def test_run_flow_without_a_matching_execution_record(hook):
+    """A missing record must not fail a run that AppFlow reported as complete."""
+    hook.conn.describe_flow_execution_records.return_value = {"flowExecutions": []}
+
+    with mock.patch("airflow.providers.amazon.aws.waiters.base_waiter.BaseBotoWaiter.waiter"):
+        hook.run_flow(flow_name=FLOW_NAME, poll_interval=0)
+
+    assert hook.conn.describe_flow_execution_records.call_count == 1
 
 
 def test_update_flow_filter(hook):
