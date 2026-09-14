@@ -31,6 +31,9 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from airflow.sdk.types import Operator
+    from airflow.serialization.definitions.mappedoperator import Operator as SerializedOperator
+
 
 def generate_run_id() -> str:
     if AIRFLOW_V_3_0_PLUS:
@@ -38,7 +41,7 @@ def generate_run_id() -> str:
     return DagRun.generate_run_id(run_type=DagRunType.MANUAL, execution_date=timezone.utcnow())  # type: ignore[call-arg]
 
 
-def mock_context(task, run_id: str | None = None) -> Context:
+def mock_context(task: Operator | SerializedOperator, run_id: str | None = None) -> Context:
     from airflow.models import TaskInstance
     from airflow.utils.session import NEW_SESSION
 
@@ -50,6 +53,29 @@ def mock_context(task, run_id: str | None = None) -> Context:
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
             self.values: dict[str, Any] = {}
+
+        async def axcom_pull(
+            self,
+            task_ids: str | Iterable[str] | None = None,
+            dag_id: str | None = None,
+            key: str = XCOM_RETURN_KEY,
+            include_prior_dates: bool = False,
+            session: Session = NEW_SESSION,
+            *,
+            map_indexes: int | Iterable[int] | None = None,
+            default: Any = None,
+            run_id: str | None = None,
+        ) -> Any:
+            return self.xcom_pull(
+                task_ids=task_ids,
+                dag_id=dag_id,
+                key=key,
+                include_prior_dates=include_prior_dates,
+                session=session,
+                map_indexes=map_indexes,
+                default=default,
+                run_id=run_id,
+            )
 
         def xcom_pull(
             self,
@@ -68,13 +94,18 @@ def mock_context(task, run_id: str | None = None) -> Context:
                 key += f"_{map_indexes}"
             return values.get(key, default)
 
+        async def axcom_push(self, key: str, value: Any, session: Session = NEW_SESSION, **kwargs) -> None:
+            self.xcom_push(key=key, value=value, session=session, **kwargs)
+
         def xcom_push(self, key: str, value: Any, session: Session = NEW_SESSION, **kwargs) -> None:
             key = f"{self.task_id}_{self.dag_id}_{key}"
             if self.map_index is not None and self.map_index >= 0:
                 key += f"_{self.map_index}"
             values[key] = value
 
+    values["task"] = task
     values["ti"] = create_task_instance(task, dag_version_id=mock.MagicMock(), ti_type=MockedTaskInstance)
+    values["task_instance"] = values["ti"]
     values["run_id"] = generate_run_id() if run_id is None else run_id
 
     return Context(values)  # type: ignore[misc]

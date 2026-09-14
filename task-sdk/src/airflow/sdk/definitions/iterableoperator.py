@@ -402,7 +402,8 @@ class IterableOperator(BaseOperator):
             seen_oids=set(),
         )
 
-    async def _xcom_push(self, task: IndexedTaskInstance, value: Any) -> None:
+    @classmethod
+    async def axcom_push(cls, task: IndexedTaskInstance, value: Any) -> None:
         await task.axcom_push(key=BaseXCom.XCOM_RETURN_KEY, value=value)
 
     def _run_tasks(
@@ -530,7 +531,7 @@ class IterableOperator(BaseOperator):
                 task.task_id,
                 indexed_task_state.try_number,
             )
-            await self._xcom_push(task, indexed_task_state.result)
+            await self.axcom_push(task, indexed_task_state.result)
             if indexed_task_state.outlet_events:
                 _replay_outlet_events(context["outlet_events"], indexed_task_state.outlet_events)
             return task, None, None
@@ -554,7 +555,7 @@ class IterableOperator(BaseOperator):
             if serialized_outlet_events:
                 indexed_task_state.outlet_events = serialized_outlet_events
             await task.aset_state(indexed_task_state)
-            await self._xcom_push(task, indexed_task_state.result)
+            await self.axcom_push(task, indexed_task_state.result)
             _merge_outlet_events(context["outlet_events"], outlet_events)
             return task, result, None
         except BaseException as e:
