@@ -1239,7 +1239,7 @@ class TestIterableOperator:
         context = mock_context(task=iterable_op)
         mock_xcom_get_one(context)
 
-        with pytest.raises(BaseExceptionGroup):
+        with pytest.raises(AirflowFailException, match="attempted to reschedule"):
             iterable_op.execute(context=context)
 
 
