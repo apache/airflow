@@ -35,7 +35,7 @@
       "pendingRequiredActions": "待操作的任务实例 ({{count}})"
     },
     "openReviewDrawer": "打开审核侧栏",
-    "pageLimitHint": "此处仅显示前几项操作。点击 $t(review.viewAll) 可查看全部。",
+    "pageLimitHint": "此处仅显示前几项操作。点击 \"$t(review.viewAll)\" 可查看全部。",
     "viewAll": "查看所有待操作的任务实例"
   },
   "state": {
