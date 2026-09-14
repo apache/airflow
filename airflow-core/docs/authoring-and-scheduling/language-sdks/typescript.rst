@@ -37,7 +37,7 @@ The SDK is the ``apache-airflow-ts-sdk`` package (ESM-only). It is currently in 
 
 .. seealso::
 
-  For the full TypeScript API reference (``Dag``, ``DagRegistry``, ``serveDags``, the task handler getters,
+  For the full TypeScript API reference (``Dag``, ``Bundle``, the task handler getters,
   ``TaskClient``, supporting types, and exceptions),
   see the `TypeScript SDK API reference <https://airflow.apache.org/docs/ts-sdk/stable/>`__.
 
@@ -97,12 +97,12 @@ A task is an ordinary (usually ``async``) function taking no arguments:
 ``getContext()`` and ``getClient()`` reach the runtime from inside the call, so nothing the SDK supplies is a parameter.
 
 Create a ``Dag`` with the ``dag_id`` it implements, attach each handler with ``dag.task``,
-collect the Dags in a ``DagRegistry``, then serve them to Airflow with ``serveDags``.
+register it on a ``Bundle``, then serve it to Airflow with ``bundle.serve()``.
 That top-level ``await`` makes the module a runnable bundle entry point.
 
 .. code-block:: typescript
 
-    import { Dag, DagRegistry, getClient, serveDags } from "apache-airflow-ts-sdk";
+    import { Bundle, Dag, getClient } from "apache-airflow-ts-sdk";
 
     export async function buildMessage() {
       const client = getClient();
@@ -117,16 +117,19 @@ That top-level ``await`` makes the module a runnable bundle entry point.
     const dag = new Dag("typescript_example");
     dag.task("build_message", buildMessage);
 
-    await serveDags(new DagRegistry(dag));
+    const bundle = new Bundle();
+    bundle.register(dag);
+    await bundle.serve();
 
 The ``dagId`` passed to ``new Dag(...)`` must match the ``dag_id`` of the Python Dag, and each ``taskId``
-passed to ``dag.task`` must match a ``@task.stub`` function in that Dag. The registry passed to
-``serveDags`` is the bundle's complete set of Dags; a second ``serveDags`` call is rejected. A Dag left out
-of the registry is not part of the packed bundle, and its tasks are marked removed at runtime.
+passed to ``dag.task`` must match a ``@task.stub`` function in that Dag. What the bundle holds is its
+complete set of Dags; a second ``bundle.serve()`` call is rejected. A Dag left unregistered is not part of
+the packed bundle, and its tasks are marked removed at runtime.
 
-``DagRegistry`` holds no sockets and starts nothing, so a unit test can build one and dispatch a handler
-through ``registry.getTaskHandler(dagId, taskId)`` without a coordinator runtime. A bundle that collects
-its Dags across several modules can add them incrementally with ``registry.register(...)``.
+``register`` is the bundle's one registration verb, and takes any number of items, so a bundle that
+collects what it provides across several modules can call it repeatedly instead of passing everything to
+the constructor. Registering holds no sockets and starts nothing, so a unit test can build a bundle and
+dispatch a handler through ``bundle.getTaskHandler(dagId, taskId)`` without a coordinator runtime.
 
 ``new Dag`` and ``dag.task`` take a trailing options object: ``spec`` on both, plus ``inputs`` on a task.
 These are not used yet; do not set them. Any other key is rejected.

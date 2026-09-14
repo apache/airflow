@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Dag, DagRegistry, getClient, serveDags } from "apache-airflow-ts-sdk";
+import { Bundle, Dag, getClient } from "apache-airflow-ts-sdk";
 
 const dag = new Dag("typescript_example");
 
@@ -53,4 +53,6 @@ export async function readConnection() {
 dag.task("build_message", buildMessage);
 dag.task("read_connection", readConnection);
 
-await serveDags(new DagRegistry(dag));
+const bundle = new Bundle();
+bundle.register(dag);
+await bundle.serve();

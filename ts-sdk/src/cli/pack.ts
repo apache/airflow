@@ -18,7 +18,7 @@
  */
 
 // airflow-ts-pack: bundle a TypeScript entrypoint into the single-file
-// artifact NodeCoordinator consumes — `bundle.mjs` with metadata and an
+// artifact NodeCoordinator consumes: `bundle.mjs` with metadata and an
 // integrity layout descriptor embedded in JavaScript comments.
 //
 // Build first, then run the built bundle with --airflow-metadata so the
@@ -200,7 +200,7 @@ export async function runPack(argv: readonly string[]): Promise<void> {
     const manifest = readBundleManifest(stagingPath);
     const dagEntries = Object.entries(manifest.dags);
     if (dagEntries.length === 0) {
-      throw new Error(`${args.entry} served no Dags; pass them to serveDags(new DagRegistry(...))`);
+      throw new Error(`${args.entry} served no Dags; register them with bundle.register(...)`);
     }
     // Warn rather than fail, as airflow-go-pack does: the shared schema allows a
     // Dag with no tasks.

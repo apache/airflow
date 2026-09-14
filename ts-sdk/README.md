@@ -35,7 +35,7 @@ npm install apache-airflow-ts-sdk@0.1.0-beta1
 ## Task Handlers
 
 ```ts
-import { Dag, DagRegistry, getClient, getContext, serveDags } from "apache-airflow-ts-sdk";
+import { Bundle, Dag, getClient, getContext } from "apache-airflow-ts-sdk";
 
 export async function sayHello() {
   const greeting = await getClient().getVariable("greeting");
@@ -45,7 +45,9 @@ export async function sayHello() {
 const dag = new Dag("example_dag");
 dag.task("say_hello", sayHello);
 
-await serveDags(new DagRegistry(dag));
+const bundle = new Bundle();
+bundle.register(dag);
+await bundle.serve();
 ```
 
 A handler is a plain function. `getContext()` and `getClient()` reach the runtime from inside the call,
@@ -103,7 +105,7 @@ Airflow metadata in the bundle itself.
 TypeScript entrypoint:
 
 ```ts
-import { Dag, DagRegistry, getClient, serveDags } from "apache-airflow-ts-sdk";
+import { Bundle, Dag, getClient } from "apache-airflow-ts-sdk";
 
 export async function extract() {
   const client = getClient();
@@ -131,22 +133,23 @@ const salesPipeline = new Dag("sales_pipeline");
 salesPipeline.task("extract", extract);
 salesPipeline.task("transform", transform);
 
-await serveDags(new DagRegistry(salesPipeline));
+const bundle = new Bundle();
+bundle.register(salesPipeline);
+await bundle.serve();
 ```
 
 The Python stub defines the Dag dependency graph. The TypeScript handler does
 the work and uses `TaskClient` for task-time Airflow data access. Create a
 `Dag` with the Python Dag's `dag_id` and attach each handler with the stub
 task's `task_id`. The handler function is the reusable task implementation;
-`dag.task` binds that handler to a Python stub task identity, a `DagRegistry`
-collects the Dags this bundle can execute, and `serveDags` serves them to
-Airflow.
+`dag.task` binds that handler to a Python stub task identity, a `Bundle` holds
+what this bundle process provides, and `bundle.serve()` serves it to Airflow.
 
-`serveDags` is the entrypoint, and the registry it is given is the whole bundle:
-a Dag left out of the registry is not part of the bundle, and its tasks are
-marked removed at runtime. The registry itself holds no sockets and starts
-nothing, so a unit test can build one and dispatch through
-`registry.getTaskHandler(dagId, taskId)` without any runtime involved.
+`bundle.serve()` is the entrypoint, and what the bundle holds is the whole
+bundle: a Dag left unregistered is not part of it, and its tasks are marked
+removed at runtime. Registering holds no sockets and starts nothing, so a unit
+test can build a bundle and dispatch through
+`bundle.getTaskHandler(dagId, taskId)` without any runtime involved.
 
 `new Dag` and `dag.task` take a trailing options object: `spec` on both, plus `inputs` on a task.
 These are not used yet; do not set them.
@@ -157,18 +160,18 @@ entrypoint that serves them all:
 ```ts
 import { salesDag } from "./sales/dag";
 import { billingDag } from "./billing/dag";
-import { DagRegistry, serveDags } from "apache-airflow-ts-sdk";
+import { Bundle } from "apache-airflow-ts-sdk";
 
-await serveDags(new DagRegistry(salesDag, billingDag));
+await new Bundle(salesDag, billingDag).serve();
 ```
 
-A bundle that collects its Dags across several modules can add them
-incrementally with `registry.register(...)` instead of passing them all to the
-constructor.
+`register` is the bundle's one registration verb: a bundle that collects what it
+provides across several modules can call it repeatedly instead of passing
+everything to the constructor.
 
 Airflow launches the bundled entrypoint with `--comm=host:port` and
-`--logs=host:port`. `serveDags()` connects to those sockets, receives the task
-startup message, finds the registered handler for the Dag/task pair, and
+`--logs=host:port`. `bundle.serve()` connects to those sockets, receives the
+task startup message, finds the registered handler for the Dag/task pair, and
 reports the terminal task state back to Airflow.
 
 See [`example/`](https://github.com/apache/airflow/tree/main/ts-sdk/example) for
