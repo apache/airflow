@@ -623,3 +623,79 @@ class EmrServerlessCancelJobsTrigger(AwsBaseWaiterTrigger):
     def hook_instance(self) -> AwsGenericHook:
         """This property is added for backward compatibility."""
         return self.hook()
+
+
+class EmrServerlessSessionTrigger(AwsBaseWaiterTrigger):
+    """
+    Poll an EMR Serverless interactive session until it reaches a ready state.
+
+    :param application_id: The ID of the EMR Serverless application.
+    :param session_id: The ID of the interactive session being polled.
+    :param waiter_delay: polling period in seconds to check for the status
+    :param waiter_max_attempts: The maximum number of attempts to be made
+    :param aws_conn_id: Reference to AWS connection id
+    """
+
+    def __init__(
+        self,
+        *,
+        application_id: str,
+        session_id: str,
+        waiter_delay: int = 10,
+        waiter_max_attempts: int = 60,
+        aws_conn_id: str | None = "aws_default",
+    ) -> None:
+        super().__init__(
+            serialized_fields={"application_id": application_id, "session_id": session_id},
+            waiter_name="serverless_session_ready",
+            waiter_args={"applicationId": application_id, "sessionId": session_id},
+            failure_message="EMR Serverless session failed to start",
+            status_message="EMR Serverless session status is",
+            status_queries=["session.state"],
+            return_key="session_id",
+            return_value=session_id,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+
+    def hook(self) -> AwsGenericHook:
+        return EmrServerlessHook(self.aws_conn_id)
+
+
+class EmrServerlessStopSessionTrigger(AwsBaseWaiterTrigger):
+    """
+    Poll an EMR Serverless interactive session until it is terminated.
+
+    :param application_id: The ID of the EMR Serverless application.
+    :param session_id: The ID of the interactive session being polled.
+    :param waiter_delay: polling period in seconds to check for the status
+    :param waiter_max_attempts: The maximum number of attempts to be made
+    :param aws_conn_id: Reference to AWS connection id
+    """
+
+    def __init__(
+        self,
+        *,
+        application_id: str,
+        session_id: str,
+        waiter_delay: int = 10,
+        waiter_max_attempts: int = 60,
+        aws_conn_id: str | None = "aws_default",
+    ) -> None:
+        super().__init__(
+            serialized_fields={"application_id": application_id, "session_id": session_id},
+            waiter_name="serverless_session_terminated",
+            waiter_args={"applicationId": application_id, "sessionId": session_id},
+            failure_message="EMR Serverless session failed to terminate",
+            status_message="EMR Serverless session status is",
+            status_queries=["session.state"],
+            return_key="session_id",
+            return_value=session_id,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+
+    def hook(self) -> AwsGenericHook:
+        return EmrServerlessHook(self.aws_conn_id)

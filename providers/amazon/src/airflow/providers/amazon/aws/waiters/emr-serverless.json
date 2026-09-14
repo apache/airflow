@@ -152,6 +152,62 @@
                     "state": "success"
                 }
             ]
+        },
+        "serverless_session_ready": {
+            "operation": "GetSession",
+            "delay": 10,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "session.state",
+                    "expected": "STARTED",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "session.state",
+                    "expected": "IDLE",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "session.state",
+                    "expected": "FAILED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "session.state",
+                    "expected": "TERMINATING",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "session.state",
+                    "expected": "TERMINATED",
+                    "state": "failure"
+                }
+            ]
+        },
+        "serverless_session_terminated": {
+            "operation": "GetSession",
+            "delay": 10,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "session.state",
+                    "expected": "TERMINATED",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "session.state",
+                    "expected": "FAILED",
+                    "state": "failure"
+                }
+            ]
         }
     }
 }
