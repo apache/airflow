@@ -21,6 +21,7 @@ from __future__ import annotations
 import dataclasses
 import functools
 import math
+import types
 import typing
 from collections.abc import Callable
 from decimal import Decimal, InvalidOperation
@@ -28,18 +29,37 @@ from typing import Any
 
 from pydantic_ai.usage import UsageLimits
 
+# ``X | None`` resolves to ``types.UnionType``; ``Optional[X]`` to ``typing.Union``.
+# Those are the only subscripted shapes this module can reduce to a single type.
+_UNION_ORIGINS = frozenset({typing.Union, types.UnionType})
+
 
 def _resolve_field_type(field: str, hint: Any) -> type:
     # Only ``X`` or ``X | None`` are supported shapes -- anything else (a Union of
     # two real types, a parameterized generic, a Literal, ...) has no single
     # unambiguous coercion target, so it must raise here rather than silently
     # picking one member and hiding the ambiguity behind a tripwire that never fires.
+    origin = typing.get_origin(hint)
+    if origin is not None and origin not in _UNION_ORIGINS:
+        # Checked before the arity reduction below, which cannot tell a Union from
+        # any other subscripted generic: ``list[int]`` also has exactly one
+        # argument, so it would otherwise resolve to ``int`` and coerce a rendered
+        # string into the element type of a container field.
+        raise TypeError(f"UsageLimits.{field} has an unsupported annotation {hint!r}")
     args = [arg for arg in typing.get_args(hint) if arg is not type(None)]
     if not args:
         resolved = hint
     elif len(args) == 1:
         resolved = args[0]
     else:
+        raise TypeError(f"UsageLimits.{field} has an unsupported annotation {hint!r}")
+    if typing.get_origin(resolved) is not None:
+        # ``list[int] | None`` passes the top-level check (its origin is a union)
+        # and then reduces to ``list[int]``, which is a ``type`` instance on
+        # Python 3.10 -- only 3.11+ made ``isinstance(list[int], type)`` False
+        # (gh-101162). Without this the annotation the comment above names as
+        # rejected would resolve to a container type on the oldest supported
+        # Python, and a rendered value would reach ``UsageLimits`` unchecked.
         raise TypeError(f"UsageLimits.{field} has an unsupported annotation {hint!r}")
     if not isinstance(resolved, type):
         raise TypeError(f"UsageLimits.{field} resolved to a non-type {resolved!r}")
@@ -83,14 +103,55 @@ def _coerce_decimal(field: str, value: str) -> Decimal:
     return parsed
 
 
+# CPython refuses ``int(str)`` above this many digits (the CVE-2020-10735
+# mitigation). ``int(Decimal)`` carries no such guard, so converting a parsed
+# ``Decimal`` has to apply the bound itself: without it, "1E+100000" spends
+# unbounded CPU building a six-figure-digit integer, and the field-named error
+# this module promises is replaced by CPython's own "Exceeds the limit" message
+# raised out of the ``{value!r}`` formatting.
+_MAX_INT_DIGITS = 4300
+
+
+def _decimal_to_int(field: str, parsed: Decimal, shown: object) -> int:
+    if parsed != parsed.to_integral_value():
+        raise ValueError(
+            f"usage_limits[{field!r}] must be an integer (got {shown!r}); "
+            "if it is templated, check the rendered value."
+        )
+    if parsed.adjusted() >= _MAX_INT_DIGITS:
+        raise ValueError(
+            f"usage_limits[{field!r}] has too many digits to be a usage limit "
+            f"(10**{parsed.adjusted()}); if it is templated, check the rendered value."
+        )
+    return int(parsed)
+
+
 def _coerce_int(field: str, value: str) -> int:
     try:
         return int(value)
     except ValueError:
+        pass
+    # ``int()`` accepts only an integer literal, but the native path accepts any
+    # integral number (a bare ``5.0`` or ``Decimal("5.0")`` becomes ``5``). Jinja's
+    # ``/`` is true division, so ``{{ a / b }}`` renders "5.0" for a whole-number
+    # result -- without this fallback the same expression would be accepted under
+    # ``render_template_as_native_obj=True`` and rejected under the default
+    # renderer. Parse through ``Decimal`` so the two paths agree.
+    try:
+        parsed = Decimal(value)
+    except InvalidOperation:
         raise ValueError(
             f"usage_limits[{field!r}] must be an integer (got {value!r}); "
             "if it is templated, check the rendered value."
         ) from None
+    if not parsed.is_finite():
+        # Reported as "not finite" rather than "not an integer" so a templated
+        # "inf" reads the same as the bare ``float("inf")`` the native path rejects.
+        raise ValueError(
+            f"usage_limits[{field!r}] must be a finite number (got {value!r}); "
+            "a non-finite value would silently disable that limit."
+        ) from None
+    return _decimal_to_int(field, parsed, value)
 
 
 # Deliberately the same vocabulary as ``airflow.utils.strings.TRUE_LIKE_VALUES`` so a
@@ -219,12 +280,7 @@ def _coerce_value(field: str, value: Any) -> Any:
         # non-integral one has the same truncation/rounding ambiguity. A
         # non-finite Decimal deliberately falls through unchanged so the finite
         # check in _validate_range below reports it, not this branch.
-        if value != value.to_integral_value():
-            raise ValueError(
-                f"usage_limits[{field!r}] must be an integer (got {value!r}); "
-                "if it is templated, check the rendered value."
-            )
-        value = int(value)
+        value = _decimal_to_int(field, value, value)
     elif field_type is bool and not isinstance(value, bool):
         # ``bool`` has no numeric range to validate, so it sits outside the
         # ``field_type in (Decimal, int)`` gate below -- but that means a value

@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import dataclasses
 from decimal import Decimal
-from typing import Literal
+from typing import Literal, Optional
 
 import pytest
 from pydantic_ai.usage import UsageLimits
@@ -135,6 +135,59 @@ class TestCoerceUsageLimitsTemplatedDict:
         in _coerce_value -- not covered by this test.)"""
         result = coerce_usage_limits({"request_limit": None})
         assert result.request_limit is None
+
+
+class TestCoerceUsageLimitsIntegralStrings:
+    """An int field must treat a templated value and the literal it renders from
+    alike. Jinja's ``/`` is true division, so ``{{ a / b }}`` renders "5.0" for a
+    whole-number result -- under ``render_template_as_native_obj=True`` that
+    arrives as the float ``5.0`` and is accepted, so the string spelling must be
+    accepted too rather than making the outcome depend on a Dag-level flag."""
+
+    @pytest.mark.parametrize(
+        ("native", "templated", "expected"),
+        [
+            pytest.param(5.0, "5.0", 5, id="trailing-zero"),
+            pytest.param(1e3, "1e3", 1000, id="exponent"),
+            pytest.param(Decimal("5.0"), "5.000", 5, id="decimal"),
+        ],
+    )
+    def test_integral_string_matches_native(self, native, templated, expected):
+        from_native = coerce_usage_limits({"request_limit": native}).request_limit
+        from_string = coerce_usage_limits({"request_limit": templated}).request_limit
+        assert from_native == from_string == expected
+        assert isinstance(from_string, int)
+
+    @pytest.mark.parametrize("value", [2.5, "2.5"], ids=["native", "templated"])
+    def test_non_integral_rejected_on_both_paths(self, value):
+        with pytest.raises(ValueError, match="must be an integer"):
+            coerce_usage_limits({"request_limit": value})
+
+    @pytest.mark.parametrize("value", ["inf", "-inf", "nan"], ids=["inf", "-inf", "nan"])
+    def test_non_finite_string_reports_as_non_finite(self, value):
+        """``Decimal`` parses these, so they must be reported the way the native
+        ``float("inf")`` path reports them, not as "not an integer"."""
+        with pytest.raises(ValueError, match="finite"):
+            coerce_usage_limits({"request_limit": value})
+
+    @pytest.mark.parametrize(
+        "value",
+        ["1E+100000", "-1E+100000", Decimal("1E+100000")],
+        ids=["string", "negative-string", "native-decimal"],
+    )
+    def test_absurd_magnitude_reports_instead_of_converting(self, value):
+        """``int(Decimal)`` skips the digit ceiling CPython applies to ``int(str)``.
+
+        Without an explicit bound this spends unbounded CPU building the integer
+        and then fails inside the error message's own ``{value!r}`` with CPython's
+        "Exceeds the limit (4300 digits)", not this module's field-named error.
+        """
+        with pytest.raises(ValueError, match="too many digits"):
+            coerce_usage_limits({"request_limit": value})
+
+    def test_unparsable_string_still_reports_as_non_integer(self):
+        with pytest.raises(ValueError, match="must be an integer"):
+            coerce_usage_limits({"request_limit": "abc"})
 
 
 class TestCoerceUsageLimitsInvalidValues:
@@ -410,14 +463,60 @@ class TestResolveFieldType:
         with pytest.raises(TypeError, match="unsupported annotation"):
             _resolve_field_type("some_field", int | str | None)
 
-    def test_parameterized_generic_raises(self):
+    @pytest.mark.parametrize(
+        "hint",
+        [
+            pytest.param(dict[str, int], id="dict"),
+            pytest.param(list[int], id="list"),
+            pytest.param(set[str], id="set"),
+            pytest.param(tuple[int], id="tuple"),
+            pytest.param(Literal["a"], id="literal"),
+        ],
+    )
+    def test_parameterized_generic_raises(self, hint):
+        """Rejected for *being* a subscripted generic, not for its arity.
+
+        ``dict[str, int]`` would be caught by the two-argument check alone, but
+        ``list[int]`` and ``set[str]`` have exactly one argument, so without an
+        origin check they reduce to their element type and a rendered string
+        gets coerced into ``int``/``str`` for what is really a container field.
+        """
         with pytest.raises(TypeError, match="unsupported annotation"):
-            _resolve_field_type("some_field", dict[str, int])
+            _resolve_field_type("some_field", hint)
+
+    @pytest.mark.parametrize(
+        "hint",
+        [
+            pytest.param(list[int] | None, id="pep604"),
+            # Not `X | None`: this is the `typing.Union` half of `_UNION_ORIGINS`,
+            # which is a distinct origin from `types.UnionType` and needs its own case.
+            pytest.param(Optional[list[int]], id="typing-optional"),  # noqa: UP045
+        ],
+    )
+    def test_optional_generic_raises(self, hint):
+        """A generic wrapped in ``| None`` must be rejected on every supported Python.
+
+        The union passes the top-level origin check and reduces to ``list[int]``,
+        which is a ``type`` instance on 3.10 and only stopped being one in 3.11
+        (gh-101162). Without checking the reduced member this resolved to a
+        container type on the oldest supported Python while passing on 3.12.
+        """
+        with pytest.raises(TypeError, match="unsupported annotation"):
+            _resolve_field_type("some_field", hint)
+
+    @pytest.mark.parametrize(
+        "hint",
+        [pytest.param(int | None, id="union-none"), pytest.param(int, id="bare")],
+    )
+    def test_supported_shapes_still_resolve(self, hint):
+        """The origin check must not reject the two shapes the module supports."""
+        assert _resolve_field_type("some_field", hint) is int
 
     def test_non_type_resolution_raises(self):
-        """A single-member ``Literal`` resolves to a value, not a type."""
+        """An unsubscripted annotation that is not a type still raises -- e.g. an
+        unresolved string forward reference, which has no origin and no args."""
         with pytest.raises(TypeError, match="resolved to a non-type"):
-            _resolve_field_type("some_field", Literal["a"])
+            _resolve_field_type("some_field", "NotAType")
 
 
 class TestLazyFieldTypeResolution:
