@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { UseQueryResult } from "@tanstack/react-query";
-import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagBundleService, DagParsingService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagWarningType, ReprocessBehavior } from "../requests/types.gen";
 export type AssetServiceGetAssetsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssets>>;
 export type AssetServiceGetAssetsQueryResult<TData = AssetServiceGetAssetsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
@@ -290,6 +290,28 @@ export const UseDagSourceServiceGetDagSourceKeyFn = ({ accept, dagId, versionNum
   dagId: string;
   versionNumber?: number;
 }, queryKey?: Array<unknown>) => [useDagSourceServiceGetDagSourceKey, ...(queryKey ?? [{ accept, dagId, versionNumber }])];
+export type DagBundleServiceGetDagBundlesDefaultResponse = Awaited<ReturnType<typeof DagBundleService.getDagBundles>>;
+export type DagBundleServiceGetDagBundlesQueryResult<TData = DagBundleServiceGetDagBundlesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useDagBundleServiceGetDagBundlesKey = "DagBundleServiceGetDagBundles";
+export const UseDagBundleServiceGetDagBundlesKeyFn = ({ limit, offset, orderBy }: {
+  limit?: number;
+  offset?: number;
+  orderBy?: string[];
+} = {}, queryKey?: Array<unknown>) => [useDagBundleServiceGetDagBundlesKey, ...(queryKey ?? [{ limit, offset, orderBy }])];
+export type DagBundleServiceGetDagBundleDefaultResponse = Awaited<ReturnType<typeof DagBundleService.getDagBundle>>;
+export type DagBundleServiceGetDagBundleQueryResult<TData = DagBundleServiceGetDagBundleDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useDagBundleServiceGetDagBundleKey = "DagBundleServiceGetDagBundle";
+export const UseDagBundleServiceGetDagBundleKeyFn = ({ bundleName }: {
+  bundleName: string;
+}, queryKey?: Array<unknown>) => [useDagBundleServiceGetDagBundleKey, ...(queryKey ?? [{ bundleName }])];
+export type DagBundleServiceGetDagBundleFilesDefaultResponse = Awaited<ReturnType<typeof DagBundleService.getDagBundleFiles>>;
+export type DagBundleServiceGetDagBundleFilesQueryResult<TData = DagBundleServiceGetDagBundleFilesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useDagBundleServiceGetDagBundleFilesKey = "DagBundleServiceGetDagBundleFiles";
+export const UseDagBundleServiceGetDagBundleFilesKeyFn = ({ bundleName, limit, offset }: {
+  bundleName: string;
+  limit?: number;
+  offset?: number;
+}, queryKey?: Array<unknown>) => [useDagBundleServiceGetDagBundleFilesKey, ...(queryKey ?? [{ bundleName, limit, offset }])];
 export type DagStatsServiceGetDagStatsDefaultResponse = Awaited<ReturnType<typeof DagStatsService.getDagStats>>;
 export type DagStatsServiceGetDagStatsQueryResult<TData = DagStatsServiceGetDagStatsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagStatsServiceGetDagStatsKey = "DagStatsServiceGetDagStats";

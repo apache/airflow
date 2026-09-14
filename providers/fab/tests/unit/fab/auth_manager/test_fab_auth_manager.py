@@ -885,6 +885,26 @@ class TestFabAuthManager:
                 if hasattr(MenuItem, "DEADLINES")
                 else []
             ),
+            # Dag bundle visibility rides on Dag access, so the menu entry is mapped onto
+            # RESOURCE_DAG. The mapping is load-bearing rather than cosmetic: unmapped items fall
+            # back to the enum value as a resource name, and "Dag Bundles" is not a FAB resource,
+            # so dropping the mapping would silently hide the entry for every FAB deployment.
+            *(
+                [
+                    (
+                        [MenuItem.DAG_BUNDLES],
+                        [(ACTION_CAN_ACCESS_MENU, RESOURCE_DAG)],
+                        [MenuItem.DAG_BUNDLES],
+                    ),
+                    (
+                        [MenuItem.DAG_BUNDLES],
+                        [(ACTION_CAN_ACCESS_MENU, "Dag Bundles")],
+                        [],
+                    ),
+                ]
+                if hasattr(MenuItem, "DAG_BUNDLES")
+                else []
+            ),
             (
                 [],
                 [],

@@ -74,6 +74,7 @@ from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.backfill import Backfill
 from airflow.models.dag import DagModel, DagRun, DagTag
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TI
@@ -361,6 +362,21 @@ class PermittedBackfillFilter(PermittedDagFilter):
         return select.where(Backfill.dag_id.in_(self.value or set()))
 
 
+class PermittedDagBundleFilter(PermittedDagFilter):
+    """A parameter that filters Dag bundles to the ones holding a Dag the user may read."""
+
+    def to_orm(self, statement: Select) -> Select:
+        # A bundle carries no per-Dag key to authorize on, so it is scoped by the Dags inside it.
+        # Filtering in the query keeps unauthorized rows out of the count and pagination as well.
+        # A bundle from which no Dag has ever parsed is therefore invisible until one does, and one
+        # whose Dags have since been removed stays visible while a stale ``DagModel`` row names it.
+        return statement.where(
+            DagBundleModel.name.in_(
+                select(DagModel.bundle_name).where(DagModel.dag_id.in_(self.value or set()))
+            )
+        )
+
+
 def permitted_dag_filter_factory(
     method: ResourceMethod, filter_class=PermittedDagFilter
 ) -> Callable[[BaseUser, BaseAuthManager], PermittedDagFilter]:
@@ -394,6 +410,9 @@ ReadableDagWarningsFilterDep = Annotated[
 ]
 ReadableTIFilterDep = Annotated[
     PermittedTIFilter, Depends(permitted_dag_filter_factory("GET", PermittedTIFilter))
+]
+ReadableDagBundlesFilterDep = Annotated[
+    PermittedDagBundleFilter, Depends(permitted_dag_filter_factory("GET", PermittedDagBundleFilter))
 ]
 
 
