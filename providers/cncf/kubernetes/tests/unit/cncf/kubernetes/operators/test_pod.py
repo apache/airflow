@@ -1229,6 +1229,61 @@ class TestKubernetesPodOperator:
             k.execute(context=context)
 
     @pytest.mark.parametrize(
+        ("base_container_exit_code", "expect_failure"),
+        [
+            pytest.param(0, False, id="base-succeeded"),
+            pytest.param(1, True, id="base-failed"),
+        ],
+    )
+    @patch(f"{POD_MANAGER_CLASS}.delete_pod")
+    @patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod")
+    def test_cleanup_with_user_sidecar_uses_base_container_status(
+        self,
+        find_pod_mock,
+        await_pod_completion_mock,
+        delete_pod_mock,
+        base_container_exit_code,
+        expect_failure,
+    ):
+        """
+        A user-supplied sidecar leaves the pod in Running after the base container exits, so cleanup
+        has to read the outcome off the base container rather than the non-terminal pod phase.
+        """
+        base_status = MagicMock()
+        base_status.name = "base"
+        base_status.state.terminated.exit_code = base_container_exit_code
+        base_status.state.terminated.message = "task failed" if base_container_exit_code else None
+
+        sidecar_status = MagicMock()
+        sidecar_status.name = "sidecar"
+        sidecar_status.state.running = True
+        sidecar_status.state.terminated = None
+
+        remote_pod = MagicMock()
+        remote_pod.status.phase = "Running"
+        remote_pod.status.container_statuses = [base_status, sidecar_status]
+        remote_pod.metadata.name = "pod-with-user-sidecar"
+        remote_pod.metadata.namespace = "default"
+        base_spec, sidecar_spec = MagicMock(), MagicMock()
+        base_spec.name, sidecar_spec.name = "base", "sidecar"
+        remote_pod.spec.containers = [base_spec, sidecar_spec]
+
+        await_pod_completion_mock.return_value = remote_pod
+        find_pod_mock.return_value = remote_pod
+
+        k = KubernetesPodOperator(task_id="task")
+
+        context = create_context(k)
+        context["ti"].xcom_push = MagicMock()
+
+        if expect_failure:
+            with pytest.raises(AirflowException, match="task failed"):
+                k.execute(context=context)
+        else:
+            k.execute(context=context)
+
+    @pytest.mark.parametrize(
         ("task_kwargs", "should_be_deleted"),
         [
             pytest.param({}, True, id="default"),  # default values

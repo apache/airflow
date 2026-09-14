@@ -58,6 +58,7 @@ def pod_factory():
         terminated: bool = False,
         waiting_reason: str | None = None,
         waiting_message: str | None = None,
+        sidecar_names: tuple[str, ...] = (),
     ) -> mock.MagicMock:
         pod = mock.MagicMock()
         pod.status.phase = pod_phase
@@ -69,8 +70,13 @@ def pod_factory():
             mock.MagicMock(reason=waiting_reason, message=waiting_message or "") if waiting_reason else None
         )
         pod.status.container_statuses = [cs]
-        c_spec = mock.MagicMock(name=container_name)
-        pod.spec.containers = [c_spec]
+        # ``name`` is reserved by the MagicMock constructor, so it has to be assigned afterwards for
+        # ``spec.containers[*].name`` to read back as the container name rather than a child mock.
+        pod.spec.containers = []
+        for name in (container_name, *sidecar_names):
+            c_spec = mock.MagicMock()
+            c_spec.name = name
+            pod.spec.containers.append(c_spec)
         return pod
 
     return _make
@@ -1366,6 +1372,25 @@ class TestPodManager:
 
         result = self.pod_manager.await_pod_completion(
             pod=mock.MagicMock(), istio_enabled=False, container_name="base", do_xcom_push=True
+        )
+
+        assert result is running2
+        assert mock_sleep.call_count == 1
+
+    @mock.patch("time.sleep")
+    def test_await_pod_completion_breaks_on_user_sidecar_container_completed(self, mock_sleep, pod_factory):
+        """A user-supplied sidecar keeps the pod Running, so the completed base container ends the wait."""
+        running1 = pod_factory(
+            pod_phase=PodPhase.RUNNING, container_name="base", terminated=False, sidecar_names=("sidecar",)
+        )
+        running2 = pod_factory(
+            pod_phase=PodPhase.RUNNING, container_name="base", terminated=True, sidecar_names=("sidecar",)
+        )
+
+        self.pod_manager.read_pod = mock.MagicMock(side_effect=[running1, running2])
+
+        result = self.pod_manager.await_pod_completion(
+            pod=mock.MagicMock(), istio_enabled=False, container_name="base", do_xcom_push=False
         )
 
         assert result is running2

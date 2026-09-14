@@ -25,7 +25,37 @@ from airflow.providers.cncf.kubernetes.utils.container import (
     container_is_running,
     container_is_succeeded,
     container_is_terminated,
+    has_sidecar_containers,
 )
+
+
+def pod_with_containers(*names: str, init_containers: tuple[str, ...] = ()) -> SimpleNamespace:
+    return SimpleNamespace(
+        spec=SimpleNamespace(
+            containers=[SimpleNamespace(name=name) for name in names],
+            init_containers=[SimpleNamespace(name=name) for name in init_containers],
+        )
+    )
+
+
+@pytest.mark.parametrize(
+    ("remote_pod", "result"),
+    [
+        pytest.param(None, False, id="None remote_pod"),
+        pytest.param(SimpleNamespace(spec=None), False, id="None remote_pod.spec"),
+        pytest.param(pod_with_containers(), False, id="empty remote_pod.spec.containers"),
+        pytest.param(pod_with_containers("base"), False, id="base container only"),
+        pytest.param(pod_with_containers("base", "sidecar"), True, id="base and sidecar"),
+        pytest.param(pod_with_containers("base", "istio-proxy"), True, id="base and istio proxy"),
+        pytest.param(
+            pod_with_containers("base", init_containers=("init",)),
+            False,
+            id="init containers are not sidecars",
+        ),
+    ],
+)
+def test_has_sidecar_containers(remote_pod, result):
+    assert has_sidecar_containers(remote_pod, "base") is result
 
 
 @pytest.mark.parametrize(
