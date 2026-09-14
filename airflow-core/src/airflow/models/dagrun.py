@@ -1520,6 +1520,12 @@ class DagRun(Base, LoggingMixin):
 
         ``session`` is required, not defaulted: ``settings.Session`` is a ``scoped_session``,
         so acquiring one here would hand back the caller's own and then commit and close it.
+
+        Unlike ``_ensure_ti_has_dag_version_id`` in the scheduler, the stand-in is reported
+        but never written back: this path only describes a task instance to a callback, and
+        healing the row belongs to the paths that own it. The consequence is that a purge
+        which heals the row to the latest version first wins, and the run's own version is
+        then never reported here.
         """
         from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance as TIDataModel
         from airflow.models.dag_version import DagVersion
@@ -1528,23 +1534,30 @@ class DagRun(Base, LoggingMixin):
             return TIDataModel.model_validate(relevant_ti, from_attributes=True)
 
         dag_version_id = self.created_dag_version_id
-        if dag_version_id is None:
-            latest_dag_version = DagVersion.get_latest_version(self.dag_id, session=session)
-            dag_version_id = latest_dag_version.id if latest_dag_version else None
-        if dag_version_id is None:
-            self.log.warning(
-                "Task instance %s has no dag_version_id and Dag %s has no version to stand in; "
-                "omitting last_ti from the Dag callback context.",
+        if dag_version_id is not None:
+            self.log.info(
+                "Task instance %s has no dag_version_id; reporting it under the run's version %s "
+                "in the Dag callback context.",
                 relevant_ti,
-                self.dag_id,
+                dag_version_id,
             )
-            return None
-        self.log.warning(
-            "Task instance %s has no dag_version_id (pre-versioning record); "
-            "reporting it as %s in the Dag callback context.",
-            relevant_ti,
-            dag_version_id,
-        )
+        else:
+            latest_dag_version = DagVersion.get_latest_version(self.dag_id, session=session)
+            if latest_dag_version is None:
+                self.log.warning(
+                    "Task instance %s has no dag_version_id and Dag %s has no version to stand in; "
+                    "omitting last_ti from the Dag callback context.",
+                    relevant_ti,
+                    self.dag_id,
+                )
+                return None
+            dag_version_id = latest_dag_version.id
+            self.log.info(
+                "Task instance %s and its run both have no dag_version_id (pre-versioning records); "
+                "reporting it under the latest version %s in the Dag callback context.",
+                relevant_ti,
+                dag_version_id,
+            )
         # The datamodel rejects a null version, so the stand-in has to be spliced in
         # before validation rather than copied onto a validated model.
         values = {
