@@ -2260,17 +2260,17 @@ class TestDeletePartitionedQueuedEvents(TestQueuedEventEndpoint):
         [
             pytest.param(
                 "/assets/{asset_id}/queuedEvents",
-                "Queue event with asset_id: `{asset_id}` was not found",
+                "Queue event with asset_id: `{asset_id}` and partition_key: `2026-09-02` was not found",
                 id="asset",
             ),
             pytest.param(
                 "/dags/{dag_id}/assets/queuedEvents",
-                "Queue event with dag_id: `{dag_id}` was not found",
+                "Queue event with dag_id: `{dag_id}` and partition_key: `2026-09-02` was not found",
                 id="dag",
             ),
             pytest.param(
                 "/dags/{dag_id}/assets/{asset_id}/queuedEvents",
-                "Queued event with dag_id: `{dag_id}` and asset_id: `{asset_id}` was not found",
+                "Queued event with dag_id: `{dag_id}` and asset_id: `{asset_id}` and partition_key: `2026-09-02` was not found",
                 id="dag-asset",
             ),
         ],
