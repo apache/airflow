@@ -168,29 +168,13 @@ _PROVIDER_DISPATCH_MIN_VERSIONS: dict[str, tuple[str, str]] = {
     "opensearch": ("apache-airflow-providers-opensearch", "1.12.0"),
 }
 
-# Scheme of ``[logging] remote_base_log_folder``; the key ProvidersManager dispatches on.
-# Set below when remote logging is enabled.
-_configured_scheme: str = ""
-
 
 def _warn_legacy_remote_logging(remote_log_io: type, scheme: str) -> None:
-    """
-    Warn when this legacy branch, rather than provider dispatch, is what configures remote logging.
-
-    ``airflow.logging_config._get_logging_config`` imports this module for its
-    ``DEFAULT_LOGGING_CONFIG`` dict on every stock deployment, so the chain below still runs
-    even when ProvidersManager scheme dispatch has already built the real handler. Warning
-    unconditionally would therefore fire for every operator, including those with nothing left
-    to migrate, so a branch warns only when dispatch cannot supersede it:
-
-    * the installed provider predates ``from_config``, and so registers no scheme; or
-    * ``[logging] remote_base_log_folder`` carries no scheme to dispatch on -- a bare
-      ``wasb-logs`` path, or Elasticsearch/OpenSearch selected through their ``host`` option.
-    """
+    """Warn when this legacy branch, rather than provider dispatch, is what configures remote logging."""
     distribution, min_version = _PROVIDER_DISPATCH_MIN_VERSIONS[scheme]
     provider_supports_dispatch = hasattr(remote_log_io, "from_config")
 
-    if provider_supports_dispatch and _configured_scheme == scheme:
+    if provider_supports_dispatch and urlsplit(remote_base_log_folder).scheme == scheme:
         return
 
     if not provider_supports_dispatch:
@@ -206,9 +190,8 @@ def _warn_legacy_remote_logging(remote_log_io: type, scheme: str) -> None:
         )
 
     warnings.warn(
-        f"Remote logging for {scheme!r} is being configured by the if/elif chain in "
-        f"airflow_local_settings.py. That chain is deprecated and will be removed in Airflow 4, "
-        f"after which remote logging is resolved only through provider registration. {remedy}",
+        f"Remote logging for {scheme!r} is using Airflow core's built-in backend discovery, "
+        f"which Airflow 4 removes in favour of provider-based discovery. {remedy}",
         RemovedInAirflow4Warning,
         stacklevel=2,
     )
@@ -225,7 +208,6 @@ if REMOTE_LOGGING:
     # HDFS path should start with "hdfs://"
     # just to help Airflow select correct handler
     remote_base_log_folder: str = conf.get_mandatory_value("logging", "remote_base_log_folder")
-    _configured_scheme = urlsplit(remote_base_log_folder).scheme
     remote_task_handler_kwargs = conf.getjson("logging", "remote_task_handler_kwargs", fallback={})
     if not isinstance(remote_task_handler_kwargs, dict):
         raise ValueError(
