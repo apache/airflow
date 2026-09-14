@@ -154,12 +154,14 @@ def _delete_pending_partitioned_queued_events(
     ``POST /assets/{asset_id}/materialize``, not against the partition key of the Dag run
     the event would create; a partition mapper can make the two differ.
 
-    A pending ``AssetPartitionDagRun`` is deleted only when every contributing
-    ``PartitionedAssetKeyLog`` row is being deleted, so clearing some of the events of a
-    partition keeps the partition waiting for them rather than dropping the progress made
-    by the others.
+    Only events of an existing ``AssetPartitionDagRun`` whose Dag run has not been created
+    yet are deleted; ``PartitionedAssetKeyLog`` rows left behind once their Dag run was
+    deleted are history, not queued events. Pending ``AssetPartitionDagRun`` rows left
+    without any contributing events are deleted afterwards, so clearing some of the events
+    of a partition keeps the partition waiting for them rather than dropping the progress
+    made by the others.
 
-    :return: The number of deleted rows across both tables.
+    :return: The number of deleted queued events.
     """
     pakl_where_clause: list[ColumnElement[bool]] = [
         PartitionedAssetKeyLog.source_partition_key == partition_key,
@@ -172,37 +174,34 @@ def _delete_pending_partitioned_queued_events(
         pakl_where_clause.append(PartitionedAssetKeyLog.created_at < before)
     if permitted_dag_ids is not None:
         pakl_where_clause.append(PartitionedAssetKeyLog.target_dag_id.in_(permitted_dag_ids))
-    pakl_matches = and_(*pakl_where_clause)
     pakl_of_apdr = PartitionedAssetKeyLog.asset_partition_dag_run_id == AssetPartitionDagRun.id
 
-    # The pending partitions are deleted first, while their contributing rows still show
-    # which of them are fully cleared. Nothing is loaded into the session beforehand, so
-    # skip synchronizing it; the subquery criteria would otherwise make SQLAlchemy read
-    # back the deleted keys.
-    apdr_result = cast(
-        "CursorResult",
-        session.execute(
-            delete(AssetPartitionDagRun)
-            .where(
-                AssetPartitionDagRun.created_dag_run_id.is_(None),
-                exists().where(pakl_of_apdr, pakl_matches),
-                ~exists().where(pakl_of_apdr, ~pakl_matches),
-            )
-            .execution_options(synchronize_session=False)
-        ),
-    )
+    # Nothing is loaded into the session beforehand, so skip synchronizing it; the subquery
+    # criteria would otherwise make SQLAlchemy read back the deleted keys.
     pakl_result = cast(
         "CursorResult",
         session.execute(
             delete(PartitionedAssetKeyLog)
             .where(
-                pakl_matches,
-                ~exists().where(pakl_of_apdr, AssetPartitionDagRun.created_dag_run_id.is_not(None)),
+                *pakl_where_clause,
+                exists().where(pakl_of_apdr, AssetPartitionDagRun.created_dag_run_id.is_(None)),
             )
             .execution_options(synchronize_session=False)
         ),
     )
-    return apdr_result.rowcount + pakl_result.rowcount
+
+    apdr_where_clause: list[ColumnElement[bool]] = [
+        AssetPartitionDagRun.created_dag_run_id.is_(None),
+        ~exists().where(pakl_of_apdr),
+    ]
+    if dag_id is not None:
+        apdr_where_clause.append(AssetPartitionDagRun.target_dag_id == dag_id)
+    if permitted_dag_ids is not None:
+        apdr_where_clause.append(AssetPartitionDagRun.target_dag_id.in_(permitted_dag_ids))
+    session.execute(
+        delete(AssetPartitionDagRun).where(*apdr_where_clause).execution_options(synchronize_session=False)
+    )
+    return pakl_result.rowcount
 
 
 def _queued_event_not_found_detail(subject: str, partition_key: str | None) -> str:

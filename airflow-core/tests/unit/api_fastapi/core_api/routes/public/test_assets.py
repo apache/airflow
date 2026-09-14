@@ -2300,6 +2300,30 @@ class TestDeletePartitionedQueuedEvents(TestQueuedEventEndpoint):
         assert len(self._remaining(session)[1]) == 1
         assert len(session.scalars(select(AssetDagRunQueue)).all()) == 1
 
+    def test_should_respond_404_for_events_of_deleted_dag_run(self, test_client, session, create_dummy_dag):
+        dag, _ = create_dummy_dag()
+        dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag.dag_id))
+        (asset,) = self.create_assets(session=session, num=1)
+        self._queue_partition(
+            session,
+            dag_id=dag.dag_id,
+            partition_key="2026-09-02",
+            source_keys_by_asset_id={asset.id: ["2026-09-02"]},
+            created_dag_run_id=dag_run.id,
+        )
+        session.delete(dag_run)
+        session.commit()
+        apdrs, pakls = self._remaining(session)
+        assert apdrs == set()
+        assert len(pakls) == 1
+
+        response = test_client.delete(
+            f"/assets/{asset.id}/queuedEvents", params={"partition_key": "2026-09-02"}
+        )
+
+        assert response.status_code == 404
+        assert len(self._remaining(session)[1]) == 1
+
     def test_delete_does_not_read_back_deleted_row_keys(self, test_client, session, create_dummy_dag):
         from sqlalchemy import event
 
