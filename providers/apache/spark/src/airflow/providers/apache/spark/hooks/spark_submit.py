@@ -517,20 +517,11 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         # Mask any password related fields in application args with key value pair
         # where key contains password (case insensitive), e.g. HivePassword='abc'
         connection_cmd_masked = re.sub(
-            r"("
-            r"\S*?"  # Match all non-whitespace characters before...
-            r"(?:secret|password)"  # ...literally a "secret" or "password"
-            # word (not capturing them).
-            r"\S*?"  # All non-whitespace characters before either...
-            r"(?:=|\s+)"  # ...an equal sign or whitespace characters
-            # (not capturing them).
-            r"(['\"]?)"  # An optional single or double quote.
-            r")"  # This is the end of the first capturing group.
-            r"(?:(?!\2\s).)*"  # All characters between optional quotes
-            # (matched above); if the value is quoted,
-            # it may contain whitespace.
-            r"(\2)",  # Optional matching quote.
-            r"\1******\3",
+            r"(\b\w*(?:secret|password)\w*(?:=|\s+))"  # key part (word boundary prevents catastrophic backtracking)
+            r"(['\"]?)"  # optional opening quote
+            r"(\S+)"  # value (non-space, no backtracking)
+            r"(\2)",  # optional closing quote
+            r"\1\2******\2",
             " ".join(connection_cmd),
             flags=re.I,
         )
