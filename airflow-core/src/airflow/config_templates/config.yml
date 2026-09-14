@@ -2846,8 +2846,9 @@ scheduler:
       see_also: ":ref:`scheduler:ha:tunables`"
     max_dagruns_per_loop_to_schedule:
       description: |
-        How many DagRuns should a scheduler examine (and lock) when scheduling
-        and queuing tasks.
+        How many Dag runs a scheduler considers per scheduling loop. Each candidate
+        is locked and revalidated immediately before scheduling, then committed
+        separately so its locks are released before processing the next candidate.
       example: ~
       version_added: 2.0.0
       type: integer
