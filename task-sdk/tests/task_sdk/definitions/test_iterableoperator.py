@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import asyncio
-import copy
 from datetime import timedelta
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
@@ -42,6 +41,7 @@ from airflow.sdk import (
 )
 from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_RETRIES
 from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput, ListOfDictsExpandInput
+from airflow.sdk.definitions.context import clone_context
 from airflow.sdk.definitions.iterableoperator import IterableOperator
 from airflow.sdk.exceptions import (
     AirflowFailException,
@@ -171,7 +171,7 @@ class MockOperator(BaseOperator):
 
     def execute(self, context):
         """Execute the operator and return passed arguments as tuple if do_xcom_push is True."""
-        expected = copy.deepcopy(context)
+        expected = clone_context(context)
 
         if self.raise_exception is not None:
             raise self.raise_exception
