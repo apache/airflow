@@ -154,7 +154,7 @@ jobs:
       - name: "Checkout target branch"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          ref: ${{ inputs.checkout-ref }}
+          ref: ${{ inputs.publish-main-image && github.sha || inputs.checkout-ref }}  # pin trigger commit
           persist-credentials: false
       - name: "Free up disk space"
         shell: bash
