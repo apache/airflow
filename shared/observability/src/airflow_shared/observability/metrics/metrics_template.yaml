@@ -773,6 +773,13 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "scheduler.task_instance_heartbeat_timeout_scan_duration"
+    description: "Milliseconds spent scanning for task instances without a recent heartbeat. The scheduler
+      does not heartbeat while this scan runs, so a slow scan shows up as a delayed scheduler heartbeat."
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "triggerer.trigger_queue_delay"
     description: "Time in milliseconds between a trigger workload being queued and being processed by
       the TriggerRunner."
