@@ -84,7 +84,12 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies
 from airflow.models.dag_version import DagVersion
-from airflow.models.deadline import Deadline, ReferenceModels
+from airflow.models.deadline import (
+    DAGRUN_QUEUED_TIMING,
+    EVALUATION_TIMING_FIELD,
+    Deadline,
+    ReferenceModels,
+)
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 
 # Import HITLDetail at runtime so SQLAlchemy can resolve the relationship
@@ -240,8 +245,13 @@ def _recalculate_dagrun_queued_at_deadlines(
         .where(
             Deadline.dagrun_id == dagrun.id,
             Deadline.missed == false(),
-            DeadlineAlertModel.reference[ReferenceModels.REFERENCE_TYPE_FIELD].as_string()
-            == ReferenceModels.DagRunQueuedAtDeadline.__name__,
+            or_(
+                DeadlineAlertModel.reference[EVALUATION_TIMING_FIELD].as_string() == DAGRUN_QUEUED_TIMING,
+                # Alerts serialized before the timing was persisted only identify the built-in
+                # queued reference by name.
+                DeadlineAlertModel.reference[ReferenceModels.REFERENCE_TYPE_FIELD].as_string()
+                == ReferenceModels.DagRunQueuedAtDeadline.__name__,
+            ),
         )
     ).all()
 

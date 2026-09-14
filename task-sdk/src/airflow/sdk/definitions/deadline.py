@@ -38,6 +38,13 @@ logger = logging.getLogger(__name__)
 # Field name used in serialization - must be in sync with SerializedReferenceModels.REFERENCE_TYPE_FIELD
 REFERENCE_TYPE_FIELD = "reference_type"
 
+# Field name holding the evaluation timing of a reference in its serialized form.
+EVALUATION_TIMING_FIELD = "evaluation_timing"
+
+# Values stored under EVALUATION_TIMING_FIELD; they mirror the DeadlineReference.TYPES names.
+DAGRUN_CREATED_TIMING = "DAGRUN_CREATED"
+DAGRUN_QUEUED_TIMING = "DAGRUN_QUEUED"
+
 
 class BaseDeadlineReference(ABC):
     """
@@ -51,6 +58,10 @@ class BaseDeadlineReference(ABC):
     reference must be decorated with ``@deadline_reference`` and listed in the ``deadline_references``
     attribute of an ``AirflowPlugin``; see :external:doc:`howto/deadline-alerts`.
     """
+
+    # Set by ``register_custom_reference`` and persisted by the serializer, because the in-memory
+    # ``DeadlineReference.TYPES`` registry only exists in the process that ran the Dag file.
+    evaluation_timing: str = DAGRUN_CREATED_TIMING
 
     @property
     def reference_name(self) -> str:
@@ -89,6 +100,8 @@ class DagRunLogicalDateDeadline(BaseDeadlineReference):
 
 class DagRunQueuedAtDeadline(BaseDeadlineReference):
     """A deadline that returns when a DagRun was queued."""
+
+    evaluation_timing: str = DAGRUN_QUEUED_TIMING
 
 
 @dataclass
@@ -319,8 +332,10 @@ class DeadlineReference:
         # Add to appropriate deadline_reference_type classification
         if deadline_reference_type is cls.TYPES.DAGRUN_CREATED:
             cls.TYPES.DAGRUN_CREATED = cls.TYPES.DAGRUN_CREATED + (reference_class,)
+            reference_class.evaluation_timing = DAGRUN_CREATED_TIMING
         elif deadline_reference_type is cls.TYPES.DAGRUN_QUEUED:
             cls.TYPES.DAGRUN_QUEUED = cls.TYPES.DAGRUN_QUEUED + (reference_class,)
+            reference_class.evaluation_timing = DAGRUN_QUEUED_TIMING
         else:
             raise ValueError(
                 f"Invalid deadline reference type {deadline_reference_type}; "
