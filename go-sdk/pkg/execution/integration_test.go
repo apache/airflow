@@ -20,10 +20,12 @@ package execution
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -658,6 +660,73 @@ func TestServeStartupDetailsEndToEnd(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("Serve did not return after task completion")
 	}
+}
+
+func TestServeUsesSupervisorLogLevelEnvironment(t *testing.T) {
+	t.Setenv(loggingLevelEnv, "ERROR")
+	t.Setenv(namespaceLevelsEnv, "example=DEBUG")
+
+	commAddr, logsAddr, commCh, logsCh, cleanup := startSupervisor(t)
+	defer cleanup()
+
+	provider := &fakeProvider{
+		register: func(r bundlev1.Registry) error {
+			r.AddDag("dag1").AddTaskWithName("logging", func(logger *slog.Logger) error {
+				logger.Info("global filtered")
+				logger.WithGroup("example.child").Debug("namespace debug")
+				logger.WithGroup("unrelated").Warn("unrelated filtered")
+				logger.Error("global error")
+				return nil
+			})
+			return nil
+		},
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- Serve(provider, commAddr, logsAddr) }()
+
+	commConn := <-commCh
+	defer commConn.Close()
+	logsConn := <-logsCh
+	defer logsConn.Close()
+	require.NoError(t, commConn.SetDeadline(time.Now().Add(10*time.Second)))
+	require.NoError(t, logsConn.SetDeadline(time.Now().Add(10*time.Second)))
+
+	payload, err := encodeRequest(0, map[string]any{
+		"type": "StartupDetails",
+		"ti": map[string]any{
+			"id":         "550e8400-e29b-41d4-a716-446655440000",
+			"dag_id":     "dag1",
+			"task_id":    "logging",
+			"run_id":     "run1",
+			"try_number": 1,
+		},
+		"bundle_info": map[string]any{"name": "fake", "version": "1.0"},
+	})
+	require.NoError(t, err)
+	require.NoError(t, writeFrame(commConn, payload))
+
+	frame, err := readFrame(commConn)
+	require.NoError(t, err)
+	require.True(t, isNilRaw(frame.Err))
+	assert.Equal(t, "SucceedTask", peekBodyType(frame.Body))
+
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("Serve did not return after task completion")
+	}
+
+	output, err := io.ReadAll(logsConn)
+	require.NoError(t, err)
+	var events []string
+	for line := range strings.Lines(string(output)) {
+		var entry map[string]any
+		require.NoError(t, json.Unmarshal([]byte(line), &entry))
+		events = append(events, entry["event"].(string))
+	}
+	assert.Equal(t, []string{"namespace debug", "global error"}, events)
 }
 
 // TestServeClientRoundTripEndToEnd drives a task that calls back into the

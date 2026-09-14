@@ -285,6 +285,14 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         self._durable_storage: DurableStorageProtocol | None = None
         self._durable_counter: DurableStepCounter | None = None
 
+        # Checked ahead of the combination rules below. On a core older than 3.1 the core
+        # version is the real blocker, and reporting a combination error first would send the
+        # user to drop an argument that was never the problem -- they would hit this anyway.
+        if enable_hitl_review and not AIRFLOW_V_3_1_PLUS:
+            raise AirflowOptionalProviderFeatureException(
+                "Human in the loop functionality needs Airflow 3.1+."
+            )
+
         if durable and enable_hitl_review:
             raise ValueError("durable=True and enable_hitl_review=True cannot be used together.")
 
@@ -297,15 +305,17 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
             # replay. Reject the combination rather than silently mis-replaying.
             raise ValueError("durable=True and code_mode=True cannot be used together.")
 
+        if message_history is not None and enable_hitl_review:
+            # The post-review transcript is not recoverable today (run_hitl_review
+            # returns only the final string), so emitting the pre-review transcript
+            # would silently drop the human-approved turns. Block until HITL can
+            # surface the final message history.
+            raise ValueError("message_history and enable_hitl_review=True cannot be used together.")
+
         self.enable_hitl_review = enable_hitl_review
         self.max_hitl_iterations = max_hitl_iterations
         self.hitl_timeout = hitl_timeout
         self.hitl_poll_interval = hitl_poll_interval
-
-        if self.enable_hitl_review and not AIRFLOW_V_3_1_PLUS:
-            raise AirflowOptionalProviderFeatureException(
-                "Human in the loop functionality needs Airflow 3.1+."
-            )
 
     @cached_property
     def llm_hook(self) -> PydanticAIHook:
@@ -421,12 +431,6 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         )
 
     def execute(self, context: Context) -> Any:
-        # message_history is a template field; validate the combination after rendering.
-        if self.message_history is not None and self.enable_hitl_review:
-            # run_hitl_review returns only the final string, so the pre-review transcript would drop
-            # the human-approved turns. Block until HITL can surface the final message history.
-            raise ValueError("message_history and enable_hitl_review=True cannot be used together.")
-
         if self.enable_hitl_review and not isinstance(self.prompt, str):
             raise TypeError(
                 f"{type(self).__name__}: enable_hitl_review=True is not supported "

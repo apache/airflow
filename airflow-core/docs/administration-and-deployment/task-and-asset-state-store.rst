@@ -83,15 +83,15 @@ Number of rows deleted per batch during garbage collection cleanup. Set to ``0``
 
 .. _task-and-asset-state-store:worker-backends:
 
-Worker-side backend (``[workers] state_backend``)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Worker-side backend (``[workers] state_store_backend``)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A separate, optional config key under ``[workers]`` lets you route task state store and asset state store values through a worker-side backend before they reach the API server.
 
 .. code-block:: ini
 
     [workers]
-    state_backend = mypackage.state.S3StateBackend
+    state_store_backend = mypackage.state.S3StateBackend
 
 When this is set, ``TaskStateStoreAccessor.set()`` calls ``serialize_task_state_store_to_ref()`` on the worker-side backend before sending the returned value (a reference to the actual storage) to the Execution API, and ``get()`` calls ``deserialize_task_state_store_from_ref()`` after receiving the stored reference from the Execution API. See `Custom worker-side backends`_ below.
 
@@ -138,6 +138,26 @@ Each method receives a ``scope`` argument that is either a :class:`~airflow.sdk.
             elif isinstance(scope, AssetScope):
                 return self._asset_store.get(scope, key)
 
+If the storage client is synchronous, implement the async methods by offloading the sync work to a worker thread rather than calling it inline, so callers on an event loop (``async`` tasks and watcher triggers) are not blocked:
+
+.. code-block:: python
+
+    import asyncio
+
+
+    class MyBackend(BaseStoreBackend):
+        async def aget(self, scope, key, *, session=None):
+            return await asyncio.to_thread(self.get, scope, key)
+
+        async def aset(self, scope, key, value, *, expires_at=None, session=None):
+            await asyncio.to_thread(self.set, scope, key, value, expires_at=expires_at, session=session)
+
+        async def adelete(self, scope, key, *, session=None):
+            await asyncio.to_thread(self.delete, scope, key, session=session)
+
+        async def aclear(self, scope, *, all_map_indices=False, session=None):
+            await asyncio.to_thread(self.clear, scope, all_map_indices=all_map_indices, session=session)
+
 :class:`~airflow.sdk.state.AssetScope` has three optional fields: ``asset_id`` (integer, server-side only), ``name``, and ``uri``. At least one must be set. Server-side operations (REST API calls) provide ``asset_id``. Worker-side operations provide ``name`` or ``uri`` (workers do not have access to the integer ``asset_id``).
 
 Configure the class via ``[state_store] backend``:
@@ -151,7 +171,7 @@ Configure the class via ``[state_store] backend``:
 Custom worker-side backends
 ----------------------------
 
-Worker-side backends extend ``BaseStoreBackend`` with two pairs of serialization hooks. They are configured separately via ``[workers] state_backend`` and run *on the worker process*, not on the API server. This lets you store large payloads or credentialed data directly using worker infrastructure while only a compact reference string is kept in the database.
+Worker-side backends extend ``BaseStoreBackend`` with two pairs of serialization hooks. They are configured separately via ``[workers] state_store_backend`` and run *on the worker process*, not on the API server. This lets you store large payloads or credentialed data directly using worker infrastructure while only a compact reference string is kept in the database.
 
 Override four serialization hooks from :class:`~airflow.sdk.state.BaseStoreBackend`:
 

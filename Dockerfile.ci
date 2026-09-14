@@ -1430,9 +1430,13 @@ function determine_airflow_to_use() {
         # Generate constraints from uv.lock and use them to install development dependencies
         # via the Python script. --no-cache is needed - otherwise there is possibility of
         # overriding temporary environments by multiple parallel processes
+        # --all-packages: without it the export only covers the root project's dependencies.
+        # Anything that only a workspace member's dependency group pulls in, such
+        # as mcp through common.ai's pydantic-ai-slim[mcp], stays unpinned and resolves fresh
+        # from PyPI instead of following uv.lock.
         local constraint_file="/tmp/constraints-from-lock.txt"
         uv export --frozen --no-hashes --no-emit-project --no-emit-workspace --no-editable --no-header \
-            --no-annotate > "${constraint_file}" 2>/dev/null || true
+            --no-annotate --all-packages > "${constraint_file}" 2>/dev/null || true
         uv run --no-cache /opt/airflow/scripts/in_container/install_development_dependencies.py \
            --constraint "${constraint_file}"
         # Some packages might leave legacy typing module which causes test issues
@@ -1772,7 +1776,7 @@ ENV DEV_APT_COMMAND=${DEV_APT_COMMAND} \
 
 ARG AIRFLOW_PYTHON_VERSION="3.13.15"
 ENV AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION}
-ENV GOLANG_MAJOR_MINOR_VERSION="1.27.0"
+ENV GOLANG_MAJOR_MINOR_VERSION="1.27.1"
 ENV TEMURIN_VERSION="11"
 ENV NODEJS_VERSION="22.23.1"
 # keep this in sync with package.json files
@@ -1934,8 +1938,8 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=26.2.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.12.5
-ARG AIRFLOW_PREK_VERSION="0.4.14"
+ARG AIRFLOW_UV_VERSION=0.12.10
+ARG AIRFLOW_PREK_VERSION="0.5.2"
 
 # UV_LINK_MODE=copy is needed since we are using cache mounted from the host
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
