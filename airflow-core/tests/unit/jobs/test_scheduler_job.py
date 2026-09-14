@@ -135,6 +135,10 @@ from airflow.sdk import (
     task,
 )
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
+from airflow.sdk.definitions.deadline import (
+    DeadlineAlert as DeadlineAlertDefinition,
+    DeadlineReference,
+)
 from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.encoders import ensure_serialized_asset
@@ -4257,6 +4261,60 @@ class TestSchedulerJob:
 
         session.rollback()
         session.close()
+
+    @pytest.mark.parametrize("fire_on_failure", [True, False])
+    @time_machine.travel(DEFAULT_DATE, tick=False)
+    def test_dagrun_timeout_handles_opted_in_deadline(self, fire_on_failure, dag_maker, session):
+        with dag_maker(
+            dag_id=f"test_dagrun_timeout_deadline_{fire_on_failure}",
+            dagrun_timeout=datetime.timedelta(seconds=60),
+            deadline=DeadlineAlertDefinition(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=timedelta(minutes=5),
+                callback=SyncCallback("classpath.notify"),
+                fire_on_failure=fire_on_failure,
+            ),
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy")
+
+        dag_run = dag_maker.create_dagrun(start_date=DEFAULT_DATE - datetime.timedelta(days=1))
+        serialized_dag = session.scalar(
+            select(SerializedDagModel)
+            .where(SerializedDagModel.dag_id == dag_run.dag_id)
+            .order_by(SerializedDagModel.created_at.desc())
+        )
+        assert serialized_dag is not None
+        deadline_alert = DeadlineAlert(
+            serialized_dag_id=serialized_dag.id,
+            reference={"type": "dagrun_queued_at"},
+            interval={"seconds": 300},
+            callback_def={"classpath": "classpath.notify", "kwargs": {}},
+            fire_on_failure=fire_on_failure,
+        )
+        session.add(deadline_alert)
+        session.flush()
+        deadline = Deadline(
+            deadline_time=timezone.utcnow() + timedelta(hours=1),
+            callback=SyncCallback("classpath.notify"),
+            dagrun_id=dag_run.id,
+            dag_id=dag_run.dag_id,
+            deadline_alert_id=deadline_alert.id,
+        )
+        session.add(deadline)
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        self.job_runner._schedule_dag_run(dag_run, session)
+        session.flush()
+
+        session.refresh(deadline)
+        assert deadline.missed is fire_on_failure
+        assert deadline.callback.state == (
+            CallbackState.PENDING if fire_on_failure else CallbackState.SCHEDULED
+        )
 
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
     def test_dagrun_timeout_duration_metric_has_run_type(self, mock_get_backend, dag_maker):
