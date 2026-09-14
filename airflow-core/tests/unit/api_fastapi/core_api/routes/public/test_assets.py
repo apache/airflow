@@ -2175,6 +2175,47 @@ class TestDeletePartitionedQueuedEvents(TestQueuedEventEndpoint):
         assert response.status_code == 204
         assert self._remaining(session) == (set(), set())
 
+    @pytest.mark.parametrize(
+        ("readable_dags", "expected_status", "expected_remaining_dag_ids"),
+        [
+            pytest.param({"dag", "hidden_dag"}, 204, set(), id="both-dags-readable"),
+            pytest.param({"dag"}, 204, {"hidden_dag"}, id="one-dag-readable"),
+            pytest.param(set(), 404, {"dag", "hidden_dag"}, id="no-dag-readable"),
+        ],
+    )
+    def test_only_deletes_events_queued_for_readable_dags(
+        self,
+        test_client,
+        session,
+        create_dummy_dag,
+        readable_dags,
+        expected_status,
+        expected_remaining_dag_ids,
+    ):
+        create_dummy_dag()
+        (asset,) = self.create_assets(session=session, num=1)
+        for dag_id in ("dag", "hidden_dag"):
+            self._queue_partition(
+                session,
+                dag_id=dag_id,
+                partition_key="2026-09-02",
+                source_keys_by_asset_id={asset.id: ["2026-09-02"]},
+            )
+
+        with mock.patch.object(
+            BaseAuthManager, "get_authorized_dag_ids", autospec=True, return_value=readable_dags
+        ):
+            response = test_client.delete(
+                f"/assets/{asset.id}/queuedEvents", params={"partition_key": "2026-09-02"}
+            )
+
+        assert response.status_code == expected_status
+        session.expire_all()
+        assert set(session.scalars(select(AssetPartitionDagRun.target_dag_id))) == expected_remaining_dag_ids
+        assert (
+            set(session.scalars(select(PartitionedAssetKeyLog.target_dag_id))) == expected_remaining_dag_ids
+        )
+
     def test_before_only_deletes_older_events(self, test_client, session, create_dummy_dag):
         dag, _ = create_dummy_dag()
         (asset,) = self.create_assets(session=session, num=1)
