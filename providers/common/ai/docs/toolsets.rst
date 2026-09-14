@@ -764,9 +764,9 @@ agent code is isolated by a hardware boundary rather than a shared kernel.
    cannot satisfy the last one at all.
 
    Treat it as the backend you develop and test a sandboxed agent against, then
-   run something else in production. A hosted backend plugs in through
-   :class:`~airflow.providers.common.ai.sandbox.SandboxBackend`, but none ships
-   with the provider yet.
+   run something else in production -- the OpenSandbox backend below, or any
+   other hosted backend that plugs in through
+   :class:`~airflow.providers.common.ai.sandbox.SandboxBackend`.
 
    **Orphans are not reclaimed automatically.** There is no server-side TTL. If
    the worker is killed outright, the microVM and its workspace directory
@@ -806,6 +806,56 @@ Constructor parameters:
   ``"unknown"`` (default) makes ``create`` refuse any spec asking for a network
   guarantee this backend cannot make. Set ``"deny-all"`` after running
   ``sbx policy init deny-all``, or ``"allow-all"`` to state that egress is open.
+
+OpenSandbox backend
+^^^^^^^^^^^^^^^^^^^
+
+:class:`~airflow.providers.common.ai.sandbox.OpenSandboxBackend` runs sandboxes
+through an `OpenSandbox <https://open-sandbox.ai/>`__ server. OpenSandbox can be
+deployed with Docker or Kubernetes; Airflow workers use its HTTP API and do not
+need access to the container runtime.
+
+Install the SDK extra::
+
+    pip install "apache-airflow-providers-common-ai[sandbox-opensandbox]"
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.sandbox import OpenSandboxBackend
+
+    SandboxToolset(OpenSandboxBackend(opensandbox_conn_id="opensandbox_default"))
+
+Use a generic Airflow connection, resolved lazily on first use:
+
+- ``host`` and ``port``: OpenSandbox lifecycle API address.
+- ``schema``: ``http`` or ``https``. Default ``http``.
+- ``password``: API key, when the server requires one.
+- Extra ``request_timeout``: HTTP request timeout in seconds. Default ``30``.
+- Extra ``use_server_proxy``: whether file and command calls route through the
+  lifecycle server. Default ``true`` and recommended for remote workers.
+
+Set ``opensandbox_conn_id=None`` to let the SDK read
+``OPEN_SANDBOX_DOMAIN`` and ``OPEN_SANDBOX_API_KEY`` instead.
+
+``SandboxSpec.env`` and network policy are enforced at sandbox creation. The
+default spec becomes deny-all egress; ``allow_egress_to`` becomes explicit
+allow rules. OpenSandbox rejects the creation if its configured runtime cannot
+enforce the requested policy, so the backend never silently provisions a less
+restricted sandbox. Network policy requires the server's egress sidecar.
+
+The server, runtime, and image remain deployment choices. The default Docker
+runtime shares the host kernel; choose a stronger runtime such as Kata when the
+threat model requires a VM boundary. The backend uses server-side command
+deadlines, a server-side sandbox lifetime, streamed bounded output, and native
+file operations.
+
+Constructor parameters:
+
+- ``image``: Sandbox image. Default ``"python:3.12-slim"``.
+- ``cpu`` and ``memory``: Resource limits. Defaults ``"1"`` and ``"2Gi"``.
+- ``sandbox_timeout``: Server-side lifetime in seconds. Default ``3600``.
+- ``ready_timeout``: Provisioning and reconnect timeout. Default ``120``.
+- ``use_server_proxy``: Overrides the connection extra when set.
 
 Bringing your own backend
 ^^^^^^^^^^^^^^^^^^^^^^^^^
