@@ -31,20 +31,30 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 
-def _make_job(**overrides) -> EdgeJobModel:
-    kwargs = {
-        "dag_id": "test_dag",
-        "task_id": "test_task",
-        "run_id": "test_run",
-        "map_index": -1,
-        "try_number": 1,
-        "state": TaskInstanceState.QUEUED,
-        "queue": "default",
-        "concurrency_slots": 1,
-        "command": "{}",
-    }
-    kwargs.update(overrides)
-    return EdgeJobModel(**kwargs)
+def _make_job(
+    *,
+    map_index: int = -1,
+    try_number: int = 1,
+    queued_dttm: datetime | None = None,
+    edge_worker: str | None = None,
+    last_update: datetime | None = None,
+    team_name: str | None = None,
+) -> EdgeJobModel:
+    return EdgeJobModel(
+        dag_id="test_dag",
+        task_id="test_task",
+        run_id="test_run",
+        map_index=map_index,
+        try_number=try_number,
+        state=TaskInstanceState.QUEUED,
+        queue="default",
+        concurrency_slots=1,
+        command="{}",
+        queued_dttm=queued_dttm,
+        edge_worker=edge_worker,
+        last_update=last_update,
+        team_name=team_name,
+    )
 
 
 def test_key_builds_task_instance_key():

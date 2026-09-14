@@ -30,18 +30,22 @@ if TYPE_CHECKING:
 CHUNK_TIME = datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
 
 
-def _make_log_chunk(**overrides) -> EdgeLogsModel:
-    kwargs = {
-        "dag_id": "test_dag",
-        "task_id": "test_task",
-        "run_id": "test_run",
-        "map_index": -1,
-        "try_number": 1,
-        "log_chunk_time": CHUNK_TIME,
-        "log_chunk_data": "log line 1\n",
-    }
-    kwargs.update(overrides)
-    return EdgeLogsModel(**kwargs)
+def _make_log_chunk(
+    *,
+    map_index: int = -1,
+    try_number: int = 1,
+    log_chunk_time: datetime = CHUNK_TIME,
+    log_chunk_data: str = "log line 1\n",
+) -> EdgeLogsModel:
+    return EdgeLogsModel(
+        dag_id="test_dag",
+        task_id="test_task",
+        run_id="test_run",
+        map_index=map_index,
+        try_number=try_number,
+        log_chunk_time=log_chunk_time,
+        log_chunk_data=log_chunk_data,
+    )
 
 
 def test_constructor_maps_all_fields():

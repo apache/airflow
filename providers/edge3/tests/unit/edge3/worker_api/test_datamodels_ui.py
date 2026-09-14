@@ -34,28 +34,22 @@ from airflow.providers.edge3.worker_api.datamodels_ui import (
 from airflow.utils.state import TaskInstanceState
 
 
-def _make_worker(**overrides) -> Worker:
-    kwargs = {
-        "worker_name": "worker-1",
-        "state": EdgeWorkerState.IDLE,
-        "sysinfo": {"status": 20},
-    }
-    kwargs.update(overrides)
-    return Worker(**kwargs)
+def _make_worker() -> Worker:
+    return Worker(worker_name="worker-1", state=EdgeWorkerState.IDLE, sysinfo={"status": 20})
 
 
-def _make_job(**overrides) -> Job:
-    kwargs = {
-        "dag_id": "test_dag",
-        "task_id": "test_task",
-        "run_id": "test_run",
-        "map_index": -1,
-        "try_number": 1,
-        "state": TaskInstanceState.RUNNING,
-        "queue": "default",
-    }
-    kwargs.update(overrides)
-    return Job(**kwargs)
+def _make_job(*, queued_dttm: datetime | None = None, edge_worker: str | None = None) -> Job:
+    return Job(
+        dag_id="test_dag",
+        task_id="test_task",
+        run_id="test_run",
+        map_index=-1,
+        try_number=1,
+        state=TaskInstanceState.RUNNING,
+        queue="default",
+        queued_dttm=queued_dttm,
+        edge_worker=edge_worker,
+    )
 
 
 class TestWorker:

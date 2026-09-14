@@ -55,16 +55,14 @@ MOCK_COMMAND = {
 }
 
 
-def _make_job_base(**overrides) -> EdgeJobBase:
-    kwargs = {
-        "dag_id": "test_dag",
-        "task_id": "test_task",
-        "run_id": "test_run",
-        "map_index": -1,
-        "try_number": 1,
-    }
-    kwargs.update(overrides)
-    return EdgeJobBase(**kwargs)
+def _make_job_base(*, map_index: int = -1, try_number: int = 1) -> EdgeJobBase:
+    return EdgeJobBase(
+        dag_id="test_dag",
+        task_id="test_task",
+        run_id="test_run",
+        map_index=map_index,
+        try_number=try_number,
+    )
 
 
 def test_edge_job_base_key_builds_task_instance_key():

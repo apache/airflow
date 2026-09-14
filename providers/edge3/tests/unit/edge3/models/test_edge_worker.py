@@ -169,6 +169,7 @@ class TestEdgeWorkerModelQueues:
 
         worker.add_queues(["gpu", "default"])
 
+        assert worker.queues is not None
         assert sorted(worker.queues) == ["default", "gpu"]
 
     def test_remove_queues_ignores_absent_queue(self):
@@ -200,8 +201,14 @@ class TestWorkerLifecycleOperations:
         session.commit()
 
     @staticmethod
-    def _get_worker(session: Session, worker_name: str) -> EdgeWorkerModel | None:
+    def _find_worker(session: Session, worker_name: str) -> EdgeWorkerModel | None:
         return session.scalar(select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name))
+
+    @classmethod
+    def _get_worker(cls, session: Session, worker_name: str) -> EdgeWorkerModel:
+        worker = cls._find_worker(session, worker_name)
+        assert worker is not None
+        return worker
 
     def test_request_maintenance_sets_state_and_comment(self, session: Session):
         request_maintenance("running-worker", "planned upgrade", session=session)
@@ -246,7 +253,7 @@ class TestWorkerLifecycleOperations:
     def test_remove_worker_deletes_offline_worker(self, session: Session):
         remove_worker("offline-worker", session=session)
 
-        assert self._get_worker(session, "offline-worker") is None
+        assert self._find_worker(session, "offline-worker") is None
 
     def test_remove_worker_rejects_active_worker(self, session: Session):
         with pytest.raises(TypeError, match="Cannot remove edge worker"):
@@ -256,6 +263,7 @@ class TestWorkerLifecycleOperations:
         add_worker_queues("running-worker", ["gpu"], session=session)
 
         worker = self._get_worker(session, "running-worker")
+        assert worker.queues is not None
         assert sorted(worker.queues) == ["default", "gpu"]
 
     def test_remove_worker_queues_removes_queue(self, session: Session):
