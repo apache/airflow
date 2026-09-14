@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
 from copy import deepcopy
 from unittest import mock
 from unittest.mock import PropertyMock, call
@@ -1060,11 +1061,144 @@ class TestGKEStartPodOperator:
             logging_interval=None,
             last_log_time=mock_last_log_time,
             use_dns_endpoint=False,
+            trigger_kwargs={},
         )
         mock_defer.assert_called_once_with(
             trigger=mock_trigger.return_value,
             method_name="trigger_reentry",
+            timeout=None,
         )
+
+    @mock.patch(GKE_OPERATORS_PATH.format("GKEStartPodOperator.defer"))
+    @mock.patch(GKE_OPERATORS_PATH.format("GKEClusterAuthDetails.fetch_cluster_info"))
+    @mock.patch(GKE_OPERATORS_PATH.format("GKEHook"))
+    @mock.patch(GKE_OPERATORS_PATH.format("GKEStartPodTrigger"))
+    @mock.patch(GKE_OPERATORS_PATH.format("timezone.utcnow"))
+    def test_invoke_defer_method_passes_execution_deadline_when_execution_timeout_set(
+        self, mock_utcnow, mock_trigger, mock_cluster_hook, mock_fetch_cluster_info, mock_defer
+    ):
+        """
+        ``execution_timeout`` is converted into an absolute ``_execution_deadline``
+        anchored on ``ti.start_date`` and propagated to the trigger via
+        ``trigger_kwargs``.
+        """
+        import time_machine
+
+        execution_timeout = datetime.timedelta(seconds=300)
+        operator = GKEStartPodOperator(
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            cluster_name=GKE_CLUSTER_NAME,
+            task_id=TEST_TASK_ID,
+            name=K8S_POD_NAME,
+            namespace=K8S_NAMESPACE,
+            image=TEST_IMAGE,
+            on_finish_action=OnFinishAction.KEEP_POD,
+            gcp_conn_id=TEST_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            deferrable=True,
+            execution_timeout=execution_timeout,
+        )
+        operator.pod = make_pod()
+        mock_fetch_cluster_info.return_value = GKE_CLUSTER_URL, GKE_SSL_CA_CERT
+
+        ti_mock = mock.MagicMock()
+        ti_start = datetime.datetime(2026, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        ti_mock.start_date = ti_start
+        context = {"ti": ti_mock}
+
+        # Freeze at ``ti_start + 30s`` → remaining=270s. ``defer.timeout`` =
+        # remaining + max(60, poll_interval * 2) = 270 + 60 = 330s for default
+        # poll_interval=2.
+        elapsed = datetime.timedelta(seconds=30)
+        with time_machine.travel(ti_start + elapsed, tick=False):
+            operator.invoke_defer_method(context=context)
+
+        expected_deadline = int((ti_start + execution_timeout).timestamp())
+        trigger_call_kwargs = mock_trigger.call_args[1]
+        assert trigger_call_kwargs["trigger_kwargs"]["_execution_deadline"] == expected_deadline
+        assert mock_defer.call_args[1]["timeout"] == datetime.timedelta(seconds=270 + 60)
+
+    @mock.patch(GKE_OPERATORS_PATH.format("GKEStartPodOperator.defer"))
+    @mock.patch(GKE_OPERATORS_PATH.format("GKEClusterAuthDetails.fetch_cluster_info"))
+    @mock.patch(GKE_OPERATORS_PATH.format("GKEHook"))
+    @mock.patch(GKE_OPERATORS_PATH.format("GKEStartPodTrigger"))
+    @mock.patch(GKE_OPERATORS_PATH.format("timezone.utcnow"))
+    def test_invoke_defer_method_no_deadline_when_execution_timeout_not_set(
+        self, mock_utcnow, mock_trigger, mock_cluster_hook, mock_fetch_cluster_info, mock_defer
+    ):
+        """
+        Without ``execution_timeout``, ``_execution_deadline`` is absent from
+        ``trigger_kwargs`` and no backstop timeout is set on defer.
+        """
+        operator = GKEStartPodOperator(
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            cluster_name=GKE_CLUSTER_NAME,
+            task_id=TEST_TASK_ID,
+            name=K8S_POD_NAME,
+            namespace=K8S_NAMESPACE,
+            image=TEST_IMAGE,
+            on_finish_action=OnFinishAction.KEEP_POD,
+            gcp_conn_id=TEST_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            deferrable=True,
+        )
+        operator.pod = make_pod()
+        mock_fetch_cluster_info.return_value = GKE_CLUSTER_URL, GKE_SSL_CA_CERT
+
+        context = {"ti": mock.MagicMock()}
+
+        operator.invoke_defer_method(context=context)
+
+        trigger_call_kwargs = mock_trigger.call_args[1]
+        assert "_execution_deadline" not in trigger_call_kwargs["trigger_kwargs"]
+        assert mock_defer.call_args[1]["timeout"] is None
+
+    @mock.patch(GKE_OPERATORS_PATH.format("GKEStartPodOperator.defer"))
+    @mock.patch(GKE_OPERATORS_PATH.format("GKEClusterAuthDetails.fetch_cluster_info"))
+    @mock.patch(GKE_OPERATORS_PATH.format("GKEHook"))
+    @mock.patch(GKE_OPERATORS_PATH.format("GKEStartPodTrigger"))
+    @mock.patch(GKE_OPERATORS_PATH.format("timezone.utcnow"))
+    def test_invoke_defer_method_preserves_existing_trigger_kwargs(
+        self, mock_utcnow, mock_trigger, mock_cluster_hook, mock_fetch_cluster_info, mock_defer
+    ):
+        """
+        User-provided ``trigger_kwargs`` values must not be discarded when
+        ``_execution_deadline`` is injected.
+        """
+        import time_machine
+
+        execution_timeout = datetime.timedelta(seconds=120)
+        operator = GKEStartPodOperator(
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            cluster_name=GKE_CLUSTER_NAME,
+            task_id=TEST_TASK_ID,
+            name=K8S_POD_NAME,
+            namespace=K8S_NAMESPACE,
+            image=TEST_IMAGE,
+            on_finish_action=OnFinishAction.KEEP_POD,
+            gcp_conn_id=TEST_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            deferrable=True,
+            execution_timeout=execution_timeout,
+        )
+        operator.trigger_kwargs = {"_redefer_count": 1}
+        operator.pod = make_pod()
+        mock_fetch_cluster_info.return_value = GKE_CLUSTER_URL, GKE_SSL_CA_CERT
+
+        ti_mock = mock.MagicMock()
+        ti_start = datetime.datetime(2026, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        ti_mock.start_date = ti_start
+        context = {"ti": ti_mock}
+
+        with time_machine.travel(ti_start, tick=False):
+            operator.invoke_defer_method(context=context)
+
+        trigger_call_kwargs = mock_trigger.call_args[1]
+        assert trigger_call_kwargs["trigger_kwargs"]["_redefer_count"] == 1
+        assert "_execution_deadline" in trigger_call_kwargs["trigger_kwargs"]
 
 
 class TestGKEStartJobOperator:
