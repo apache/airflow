@@ -268,7 +268,9 @@ so there is one file to deploy, with no separate manifest or ``node_modules``.
 The code is minified because an integrity digest is only worth taking over an artifact nobody is expected to
 read or edit in place. Identifier names are preserved (esbuild's ``keepNames``) so handler names still appear
 in the stack traces a failing task reports, and the ``/*! */`` license banners of bundled dependencies are
-kept.
+kept. Because the shipped code is not the code anyone wrote, the packer also embeds the entry module verbatim
+in a ``/*# airflowSource ... #*/`` block comment, verified by its own digest, so Airflow has something
+readable to display for the Dag. Only the entry module is embedded, not the modules it imports.
 
 The ``.mjs`` extension is required, not cosmetic: a ``.js`` file is an ES module only by Node's syntax
 detection, which is unavailable before Node 22.7 and skipped entirely when an enclosing ``package.json``

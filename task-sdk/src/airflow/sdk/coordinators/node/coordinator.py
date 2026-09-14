@@ -28,7 +28,7 @@ import structlog
 
 from airflow.sdk.coordinators._bundle_metadata import ResolvedBundle, convert_roots, walk_files
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
-from airflow.sdk.coordinators.node._bundle_reader import read_bundle
+from airflow.sdk.coordinators.node._bundle_reader import read_bundle, read_bundle_source
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -126,6 +126,22 @@ class NodeCoordinator(SubprocessCoordinator):
         converter=convert_roots,
         validator=attrs.validators.min_len(1),
     )
+
+    @staticmethod
+    def get_source_code(bundle_path: pathlib.Path) -> str:
+        """
+        Return the verified entrypoint source embedded in *bundle_path*.
+
+        The bundle ships minified, so its executable region is not the code anyone wrote.
+
+        Nothing calls this yet. It is shaped for
+        :meth:`~airflow.sdk.importers.base.AbstractDagImporter.get_source_code`, which needs native
+        TypeScript Dag serialization before a TypeScript importer can exist.
+
+        :param bundle_path: Path to the ``*.min.mjs`` bundle to read.
+        :raises ValueError: If the bundle carries no readable embedded source.
+        """
+        return read_bundle_source(bundle_path)
 
     def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
         bundle = _Bundle.find(self.bundles_root, what.dag_id)

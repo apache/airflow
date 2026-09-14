@@ -184,10 +184,12 @@ airflow-ts-pack src/main.ts --outdir dist
 It bundles the entrypoint into a minified `dist/bundle.min.mjs` with esbuild, then runs that bundle with
 `--airflow-metadata` so it reports its own registered Dag/task pairs and supervisor schema version. The manifest is
 embedded as a compact JSON `//# airflowMetadata=...` comment after a leading compact JSON `//# airflowBundle=...`
-layout descriptor. The descriptor records fixed-width byte ranges and SHA-256 digests for the metadata and the
-bundled code, so a coordinator can detect corruption before using either region. These digests do not authenticate
-who produced the bundle, because someone who can replace the content can also replace its digests. The result is one
-deployable file with no hand-written metadata sidecar.
+layout descriptor, and the entry module is embedded verbatim in a `/*# airflowSource ... #*/` block comment so
+Airflow has something readable to show for a bundle whose shipped code is minified. The descriptor records
+fixed-width byte ranges and SHA-256 digests for the metadata, the source, and the bundled code, so a coordinator can
+detect corruption before using any region. These digests do not authenticate who produced the bundle, because
+someone who can replace the content can also replace its digests. The result is one deployable file with no
+hand-written metadata sidecar.
 
 Pass `--outfile <path>` instead of `--outdir` to name the artifact yourself, so one bundle directory can hold several
 bundles. The name must still end in `.min.mjs`, which is how `NodeCoordinator` finds bundles, and the `.mjs` half is

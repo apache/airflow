@@ -98,6 +98,22 @@ class TestNodeCoordinatorExecuteTaskCommand:
         assert schema_version == SCHEMA_VERSION
 
 
+class TestNodeCoordinatorSourceCode:
+    def test_returns_the_embedded_entrypoint_source(self, tmp_path):
+        source = b'/** A Dag. */\nexport const x = "*/";\n'
+        bundle = write_bundle(tmp_path, "sales", source=source)
+
+        assert NodeCoordinator.get_source_code(bundle) == source.decode()
+
+    def test_rejects_a_bundle_whose_source_was_tampered_with(self, tmp_path):
+        bundle = write_bundle(tmp_path, "sales")
+        layout = read_layout(bundle)
+        mutate_byte(bundle, int(layout["source"]["start"], 16))  # type: ignore[index, call-overload]
+
+        with pytest.raises(ValueError, match="source SHA-256 mismatch"):
+            NodeCoordinator.get_source_code(bundle)
+
+
 class TestBundleFind:
     @pytest.mark.parametrize(
         "name",
