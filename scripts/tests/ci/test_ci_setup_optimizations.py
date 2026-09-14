@@ -28,7 +28,6 @@ from pathlib import Path
 
 import pytest
 import yaml
-
 from ci import prek_cache_key
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -90,7 +89,7 @@ def fake_tools(tmp_path):
     log = tmp_path / "commands.log"
     command = tools / "command"
     command.write_text(
-        r'''#!/usr/bin/env bash
+        r"""#!/usr/bin/env bash
 name="${0##*/}"
 printf '%s\n' "${name} $*" >> "${COMMAND_LOG}"
 if [[ -n "${FAIL_MATCH:-}" && "${name} $*" == *"${FAIL_MATCH}"* ]]; then
@@ -102,7 +101,7 @@ fi
 if [[ "${name}" == "uname" ]]; then
     printf '%s\n' "${TEST_ARCH:-x86_64}"
 fi
-'''
+"""
     )
     command.chmod(0o755)
     for name in ("sudo", "df", "lsblk", "uname", "prek", "pnpm", "sleep"):
@@ -180,11 +179,13 @@ def test_cache_key_appends_output(identity_inputs, sandbox, monkeypatch):
 
 @pytest.mark.parametrize(
     "save,hit,restored,event",
-    itertools.product(
-        ("true", "false"),
-        ("true", "false", ""),
-        ("true", "false", ""),
-        ("pull_request", "schedule", "push"),
+    list(
+        itertools.product(
+            ("true", "false"),
+            ("true", "false", ""),
+            ("true", "false", ""),
+            ("pull_request", "schedule", "push"),
+        )
     ),
 )
 def test_cache_refresh_policy(sandbox, save, hit, restored, event):
@@ -424,11 +425,7 @@ def test_migration_projection_keeps_each_eligible_environment_once(
         and not any(all(row.get(key) == value for key, value in entry.items()) for entry in excluded)
     ]
     expected = {(row["python-version"], row["backend-version"]) for row in retained}
-    actual = [
-        (row["python-version"], row["backend-version"])
-        for row in retained
-        if row["test-types"] == "A"
-    ]
+    actual = [(row["python-version"], row["backend-version"]) for row in retained if row["test-types"] == "A"]
     assert set(actual) == expected
     assert len(actual) == len(set(actual))
 
@@ -449,9 +446,8 @@ def test_parallel_compressor_and_failure_propagation(sandbox, tmp_path, fail):
     tools.mkdir()
     compressor = tools / "pigz"
     compressor.write_text(
-        '#!/usr/bin/env bash\n'
-        'printf "%s\n" "$*" > "${COMPRESSOR_ARGS}"\n'
-        + ("exit 42\n" if fail else "exec gzip -1\n")
+        "#!/usr/bin/env bash\n"
+        'printf "%s\n" "$*" > "${COMPRESSOR_ARGS}"\n' + ("exit 42\n" if fail else "exec gzip -1\n")
     )
     compressor.chmod(0o755)
     args = tmp_path / "compressor-args"
