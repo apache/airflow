@@ -164,7 +164,7 @@ def get_merged_defaults(
 
     if task_default_args:
         if not isinstance(task_default_args, collections.abc.Mapping):
-            raise TypeError(f"default_args must be a mapping, got {type(task_params)}")
+            raise TypeError(f"default_args must be a mapping, got {type(task_default_args)}")
         args.update(task_default_args)
         with contextlib.suppress(KeyError):
             if params_from_default_args := ParamsDict(task_default_args["params"] or {}):

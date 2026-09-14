@@ -153,7 +153,10 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
         if isinstance(kwargs, Sequence):
             for item in kwargs:
                 if not isinstance(item, (XComArg, Mapping)):
-                    raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
+                    raise TypeError(
+                        f"expected XComArg or list[dict], "
+                        f"not {type(kwargs).__name__} containing {type(item).__name__}"
+                    )
         elif not isinstance(kwargs, XComArg):
             raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
 
