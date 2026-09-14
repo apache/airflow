@@ -154,7 +154,7 @@ Common knobs on ``UsageLimits``:
   from the request that broke the budget; even a single-request run fails as soon as that
   request's cost pushes the total over the limit. Pricing is looked up by model
   name, not by endpoint: a self-hosted deployment serving a model pydantic-ai
-  recognises is still priced, at that model's public list rates rather than at what
+  recognizes is still priced, at that model's public list rates rather than at what
   the deployment actually costs you. That covers vLLM, whose only working prefix is
   ``openai:<model>`` (see :doc:`../self_hosted_models`).
   A model pydantic-ai cannot price (``ollama:llama3.2``, a private fine-tune)
