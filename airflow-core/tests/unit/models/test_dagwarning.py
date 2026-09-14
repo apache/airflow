@@ -75,3 +75,6 @@ class TestDagWarning:
         # Assert that the delete method was called twice
         assert delete_mock.call_count == 2
         assert self.session_mock.execute.call_count == 2
+        # Committing is the caller's responsibility (see #12818); a shared session passed in
+        # here must not be committed on the caller's behalf.
+        self.session_mock.commit.assert_not_called()
