@@ -64,10 +64,11 @@ Embedding Models
 Set ``embed_model_id`` on the hook or ``embed_model`` in the connection's extra JSON,
 then call ``get_embedder()``. Use ``embed_conn_id`` when the embedding provider uses
 different credentials or an endpoint from the LLM provider; it defaults to
-``llm_conn_id``. Different LLM and embedding provider prefixes require separate
-connections so credentials cannot be reused for the wrong provider. Local
-``sentence-transformers:`` embeddings are the exception because they do not use
-provider credentials. The resolved ``Embedder`` is cached on the hook instance.
+``llm_conn_id``. Different LLM and embedding providers require separate connections
+so credentials cannot be reused for the wrong provider. Equivalent OpenAI and Azure
+chat/response prefixes can share their provider's embedding connection. Local
+``sentence-transformers:`` embeddings can also share the LLM connection because they
+do not use provider credentials. The resolved ``Embedder`` is cached on the hook instance.
 
 .. code-block:: python
 

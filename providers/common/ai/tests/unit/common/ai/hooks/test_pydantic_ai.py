@@ -1394,6 +1394,27 @@ class TestPydanticAIHookGetEmbedder:
 
         mock_infer_embedding_model.assert_not_called()
 
+    @pytest.mark.parametrize(
+        ("llm_model_id", "embed_model_id"),
+        [
+            ("openai-chat:gpt-4o", "openai:text-embedding-3-small"),
+            ("openai-responses:gpt-5", "openai:text-embedding-3-small"),
+            ("azure-responses:gpt-5", "azure:text-embedding-3-small"),
+        ],
+    )
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
+    def test_provider_aliases_can_share_embedding_connection(
+        self, mock_infer_embedding_model, llm_model_id, embed_model_id
+    ):
+        mock_infer_embedding_model.return_value = MagicMock(spec=EmbeddingModel)
+        hook = PydanticAIHook(model_id=llm_model_id, embed_model_id=embed_model_id)
+        conn = Connection(conn_id="pydanticai_default", conn_type="pydanticai")
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.get_embedder()
+
+        mock_infer_embedding_model.assert_called_once_with(embed_model_id)
+
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
     def test_local_embedding_does_not_receive_connection_credentials(self, mock_infer_embedding_model):
         mock_infer_embedding_model.return_value = MagicMock(spec=EmbeddingModel)

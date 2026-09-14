@@ -34,6 +34,18 @@ from airflow.providers.common.compat.sdk import AirflowNotFoundException, BaseHo
 
 OutputT = TypeVar("OutputT")
 
+_PROVIDER_CREDENTIAL_ALIASES = {
+    "azure-responses": "azure",
+    "openai-chat": "openai",
+    "openai-responses": "openai",
+}
+
+
+def _get_credential_provider(provider: str | None) -> str | None:
+    if provider is None:
+        return None
+    return _PROVIDER_CREDENTIAL_ALIASES.get(provider, provider)
+
 
 @dataclass(frozen=True)
 class _ProviderConnectionConfig:
@@ -334,7 +346,9 @@ class PydanticAIHook(BaseHook):
         embed_provider, _ = parse_model_id(embed_model_name)
         if embed_provider == "sentence-transformers":
             return
-        if llm_provider != embed_provider:
+        llm_credential_provider = _get_credential_provider(llm_provider)
+        embed_credential_provider = _get_credential_provider(embed_provider)
+        if llm_credential_provider != embed_credential_provider:
             raise ValueError(
                 f"Connection {self.embed_conn_id!r} configures different LLM and embedding providers "
                 f"({llm_provider!r} and {embed_provider!r}). Set embed_conn_id to a separate connection "
