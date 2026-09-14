@@ -49,6 +49,7 @@ import { GroupTaskInstance } from "src/pages/GroupTaskInstance";
 import { HITLTaskInstances } from "src/pages/HITLTaskInstances";
 import { Jobs } from "src/pages/Jobs";
 import { LandingPage } from "src/pages/LandingPage";
+import { LegacyTreeRedirect } from "src/pages/LegacyTreeRedirect";
 import { MappedTaskInstance } from "src/pages/MappedTaskInstance";
 import { Details as MappedTaskInstanceDetails } from "src/pages/MappedTaskInstance/Details";
 import { Plugins } from "src/pages/Plugins";
@@ -120,6 +121,10 @@ export const routerConfig = [
       {
         element: <DagsList />,
         path: "dags",
+      },
+      {
+        element: <LegacyTreeRedirect />,
+        path: "tree",
       },
       {
         element: (
