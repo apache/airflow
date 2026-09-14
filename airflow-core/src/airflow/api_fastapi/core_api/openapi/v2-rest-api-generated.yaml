@@ -3343,9 +3343,15 @@ paths:
 
 
         A bundle is visible to a user who can read at least one Dag recorded against
-        it, so one from
+        it. A bundle
 
-        which no Dag has ever parsed successfully is not listed at all.'
+        holding no registered Dag at all has nothing to authorize against, so it is
+        listed only for
+
+        a user holding the admin-by-default ``AccessView.IMPORT_ERRORS_ALL`` -- the
+        same view that
+
+        governs import errors for a file that never registered a Dag.'
       operationId: get_dag_bundles
       security:
       - OAuth2PasswordBearer: []
