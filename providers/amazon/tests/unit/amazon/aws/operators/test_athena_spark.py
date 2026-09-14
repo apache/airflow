@@ -115,14 +115,14 @@ class TestAthenaSparkOperator:
 
     @mock.patch.object(AthenaHook, "get_spark_calculation_info")
     @mock.patch.object(AthenaHook, "get_spark_calculation_state_change_reason", return_value=None)
-    @mock.patch.object(AthenaHook, "check_spark_calculation_status", side_effect=("COMPLETED",))
+    @mock.patch.object(AthenaHook, "poll_spark_calculation_status", return_value="COMPLETED")
     @mock.patch.object(AthenaHook, "start_spark_calculation", return_value=ATHENA_CALCULATION_ID)
     @mock.patch.object(AthenaHook, "get_conn")
     def test_execute_success(
         self,
         mock_conn,
         mock_start_spark_calculation,
-        mock_check_spark_calculation_status,
+        mock_poll_spark_calculation_status,
         mock_get_spark_calculation_state_change_reason,
         mock_get_spark_calculation_info,
     ):
@@ -137,7 +137,11 @@ class TestAthenaSparkOperator:
             client_request_token=MOCK_DATA["client_request_token"],
         )
 
-        assert mock_check_spark_calculation_status.call_count == 1
+        mock_poll_spark_calculation_status.assert_called_once_with(
+            ATHENA_CALCULATION_ID,
+            waiter_delay=self.athena.waiter_delay,
+            waiter_max_attempts=self.athena.waiter_max_attempts,
+        )
         mock_get_spark_calculation_state_change_reason.assert_called_once_with(ATHENA_CALCULATION_ID)
         mock_get_spark_calculation_info.assert_called_once_with(ATHENA_CALCULATION_ID)
 
@@ -151,45 +155,15 @@ class TestAthenaSparkOperator:
         assert result["result_type"] == "application/vnd.aws.athena.v1+json"
 
     @mock.patch.object(AthenaHook, "get_spark_calculation_info")
-    @mock.patch.object(AthenaHook, "get_spark_calculation_state_change_reason", return_value=None)
-    @mock.patch.object(
-        AthenaHook,
-        "check_spark_calculation_status",
-        side_effect=("RUNNING", "COMPLETED"),
-    )
-    @mock.patch.object(AthenaHook, "start_spark_calculation", return_value=ATHENA_CALCULATION_ID)
-    @mock.patch.object(AthenaHook, "get_conn")
-    def test_execute_poll_then_success(
-        self,
-        mock_conn,
-        mock_start_spark_calculation,
-        mock_check_spark_calculation_status,
-        mock_get_spark_calculation_state_change_reason,
-        mock_get_spark_calculation_info,
-    ):
-        mock_get_spark_calculation_info.return_value = _calculation_info("COMPLETED")
-
-        result = self.athena.execute({})
-
-        mock_start_spark_calculation.assert_called_once_with(
-            session_id=MOCK_DATA["session_id"],
-            code_block=MOCK_DATA["code_block"],
-            description=None,
-            client_request_token=MOCK_DATA["client_request_token"],
-        )
-        assert mock_check_spark_calculation_status.call_count == 2
-        assert result["state"] == "COMPLETED"
-
-    @mock.patch.object(AthenaHook, "get_spark_calculation_info")
     @mock.patch.object(AthenaHook, "get_spark_calculation_state_change_reason", return_value="Job failed")
-    @mock.patch.object(AthenaHook, "check_spark_calculation_status", return_value="FAILED")
+    @mock.patch.object(AthenaHook, "poll_spark_calculation_status", return_value="FAILED")
     @mock.patch.object(AthenaHook, "start_spark_calculation", return_value=ATHENA_CALCULATION_ID)
     @mock.patch.object(AthenaHook, "get_conn")
     def test_execute_failure(
         self,
         mock_conn,
         mock_start_spark_calculation,
-        mock_check_spark_calculation_status,
+        mock_poll_spark_calculation_status,
         mock_get_spark_calculation_state_change_reason,
         mock_get_spark_calculation_info,
     ):
@@ -204,18 +178,25 @@ class TestAthenaSparkOperator:
             description=None,
             client_request_token=MOCK_DATA["client_request_token"],
         )
+
+        mock_poll_spark_calculation_status.assert_called_once_with(
+            ATHENA_CALCULATION_ID,
+            waiter_delay=self.athena.waiter_delay,
+            waiter_max_attempts=self.athena.waiter_max_attempts,
+        )
+
         assert mock_get_spark_calculation_state_change_reason.call_count == 1
 
     @mock.patch.object(AthenaHook, "get_spark_calculation_info")
     @mock.patch.object(AthenaHook, "get_spark_calculation_state_change_reason", return_value="Canceled")
-    @mock.patch.object(AthenaHook, "check_spark_calculation_status", return_value="CANCELED")
+    @mock.patch.object(AthenaHook, "poll_spark_calculation_status", return_value="CANCELED")
     @mock.patch.object(AthenaHook, "start_spark_calculation", return_value=ATHENA_CALCULATION_ID)
     @mock.patch.object(AthenaHook, "get_conn")
     def test_execute_cancelled(
         self,
         mock_conn,
         mock_start_spark_calculation,
-        mock_check_spark_calculation_status,
+        mock_poll_spark_calculation_status,
         mock_get_spark_calculation_state_change_reason,
         mock_get_spark_calculation_info,
     ):
@@ -231,15 +212,23 @@ class TestAthenaSparkOperator:
             client_request_token=MOCK_DATA["client_request_token"],
         )
 
+        mock_poll_spark_calculation_status.assert_called_once_with(
+            ATHENA_CALCULATION_ID,
+            waiter_delay=self.athena.waiter_delay,
+            waiter_max_attempts=self.athena.waiter_max_attempts,
+        )
+
+        assert mock_get_spark_calculation_state_change_reason.call_count == 1
+
     @mock.patch.object(AthenaHook, "stop_spark_calculation")
-    @mock.patch.object(AthenaHook, "check_spark_calculation_status", return_value="RUNNING")
+    @mock.patch.object(AthenaHook, "poll_spark_calculation_status", return_value="RUNNING")
     @mock.patch.object(AthenaHook, "start_spark_calculation", return_value=ATHENA_CALCULATION_ID)
     @mock.patch.object(AthenaHook, "get_conn")
     def test_execute_timeout(
         self,
         mock_conn,
         mock_start_spark_calculation,
-        mock_check_spark_calculation_status,
+        mock_poll_spark_calculation_status,
         mock_stop_spark_calculation,
     ):
         with pytest.raises(RuntimeError):
@@ -251,17 +240,23 @@ class TestAthenaSparkOperator:
             description=None,
             client_request_token=MOCK_DATA["client_request_token"],
         )
-        assert mock_check_spark_calculation_status.call_count == self.athena.waiter_max_attempts
+
+        mock_poll_spark_calculation_status.assert_called_once_with(
+            ATHENA_CALCULATION_ID,
+            waiter_delay=self.athena.waiter_delay,
+            waiter_max_attempts=self.athena.waiter_max_attempts,
+        )
+
         mock_stop_spark_calculation.assert_called_once_with(ATHENA_CALCULATION_ID)
 
-    @mock.patch.object(AthenaHook, "check_spark_calculation_status", return_value=None)
+    @mock.patch.object(AthenaHook, "poll_spark_calculation_status", return_value=None)
     @mock.patch.object(AthenaHook, "start_spark_calculation", return_value=ATHENA_CALCULATION_ID)
     @mock.patch.object(AthenaHook, "get_conn")
     def test_execute_malformed_status(
         self,
         mock_conn,
         mock_start_spark_calculation,
-        mock_check_spark_calculation_status,
+        mock_poll_spark_calculation_status,
     ):
         with pytest.raises(RuntimeError, match="Malformed or missing status"):
             self.athena.execute({})

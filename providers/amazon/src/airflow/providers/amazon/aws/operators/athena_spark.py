@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import time
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
@@ -112,39 +111,24 @@ class AthenaSparkOperator(AwsBaseOperator[AthenaHook]):
 
         self.log.info("Calculation submitted. CalculationExecutionId: %s", calculation_execution_id)
 
-        final_state = self._poll_until_terminal(calculation_execution_id)
-        return self._handle_terminal_state(calculation_execution_id, final_state)
+        final_state = self.hook.poll_spark_calculation_status(
+            calculation_execution_id,
+            waiter_delay=self.waiter_delay,
+            waiter_max_attempts=self.waiter_max_attempts,
+        )
 
-    def _poll_until_terminal(self, calculation_execution_id: str) -> str:
-        """Poll calculation status until a terminal state or timeout."""
-        for attempt in range(1, self.waiter_max_attempts + 1):
-            state = self.hook.check_spark_calculation_status(calculation_execution_id)
+        if final_state is None:
+            self._stop_calculation(calculation_execution_id)
+            raise RuntimeError(f"Malformed or missing status for calculation {calculation_execution_id}.")
 
-            if state is None:
-                raise RuntimeError(
-                    f"Malformed or missing status for calculation {calculation_execution_id}. "
-                    "Cannot continue polling."
-                )
-
-            self.log.info(
-                "CalculationExecutionId: %s, current state: %s (attempt %d/%d)",
-                calculation_execution_id,
-                state,
-                attempt,
-                self.waiter_max_attempts,
+        if final_state not in AthenaHook.SPARK_TERMINAL_STATES:
+            self._stop_calculation(calculation_execution_id)
+            raise RuntimeError(
+                f"Polling timed out after {self.waiter_max_attempts} attempts for calculation "
+                f"{calculation_execution_id}."
             )
 
-            if state in AthenaHook.SPARK_TERMINAL_STATES:
-                return state
-
-            if attempt != self.waiter_max_attempts:
-                time.sleep(self.waiter_delay)
-
-        self._stop_calculation(calculation_execution_id)
-        raise RuntimeError(
-            f"Polling timed out after {self.waiter_max_attempts} attempts for calculation "
-            f"{calculation_execution_id}. Use execution_timeout or increase waiter_max_attempts."
-        )
+        return self._handle_terminal_state(calculation_execution_id, final_state)
 
     def _stop_calculation(self, calculation_execution_id: str) -> None:
         self.log.info("Stopping Athena Spark calculation %s", calculation_execution_id)
