@@ -51,6 +51,7 @@ from opentelemetry.trace import get_current_span
 from pytest_unordered import unordered
 from structlog.typing import FilteringBoundLogger
 from task_sdk import FAKE_BUNDLE, make_client
+from task_sdk.execution_time import exec_probe_target
 from uuid6 import uuid7
 
 from airflow.executors.workloads import BundleInfo
@@ -4714,8 +4715,6 @@ def test_fork_exec_bootstrap_runs_an_importable_target_end_to_end(
     suite stubs plugin loading in-process (conftest ``_get_plugins``), which a bare-forked
     child inherits and a fresh interpreter cannot.
     """
-    from task_sdk.execution_time import exec_probe_target
-
     tests_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     monkeypatch.setenv(
         "PYTHONPATH", os.pathsep.join(p for p in (tests_dir, os.environ.get("PYTHONPATH", "")) if p)
@@ -4760,8 +4759,6 @@ class TestChildExecMain:
 
     def test_prelude_survives_an_interpreter_without_ctypes(self):
         """Without _ctypes the prelude must fall through to the logged fallback, not kill the task."""
-        import subprocess
-
         probe = (
             "import sys\nsys.modules['_ctypes'] = None\n" + supervisor._CHILD_EXEC_PRELUDE + "print('ok')\n"
         )
