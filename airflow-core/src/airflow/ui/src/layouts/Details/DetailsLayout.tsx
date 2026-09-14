@@ -24,12 +24,7 @@ import { useReactFlow } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { LuFileWarning } from "react-icons/lu";
-import {
-  Panel,
-  PanelGroup,
-  PanelResizeHandle,
-  type ImperativePanelGroupHandle,
-} from "react-resizable-panels";
+import { Group, Panel, Separator, useDefaultLayout, useGroupRef } from "react-resizable-panels";
 import { Outlet, useParams, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
@@ -97,7 +92,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
   const { dagId = "", runId } = useParams();
   const { data: dag } = useDagServiceGetDag({ dagId });
   const [dagView, setDagView] = useLocalStorage<DagView>(DEFAULT_DAG_VIEW_KEY, "grid");
-  const panelGroupRef = useRef<ImperativePanelGroupHandle | null>(null);
+  const panelGroupRef = useGroupRef();
   // Root for the delegated grid/gantt crosshair-hover handler (covers both the
   // grid and the gantt so their shared row highlight stays in sync, with no
   // React re-render on hover).
@@ -222,6 +217,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
   const panelViewKey = dagView === "gantt" ? "grid" : dagView;
   const minSize = dagView === "gantt" && Boolean(runId) ? 35 : 6;
   const defaultSize = Math.max(dagView === "graph" ? 70 : 20, minSize);
+  const { defaultLayout, onLayoutChanged } = useDefaultLayout({ id: `${panelViewKey}-${direction}` });
 
   return (
     <GroupsProvider dagId={dagId}>
@@ -271,14 +267,24 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
               {direction === "ltr" ? <FaChevronLeft /> : <FaChevronRight />}
             </IconButton>
           ) : undefined}
-          <PanelGroup
-            autoSaveId={`${panelViewKey}-${direction}`}
+          <Group
+            defaultLayout={defaultLayout}
             dir={direction}
-            direction="horizontal"
+            groupRef={panelGroupRef}
             key={`${panelViewKey}-${direction}`}
-            ref={panelGroupRef}
+            onLayoutChanged={(layout, meta) => {
+              onLayoutChanged(layout, meta);
+              // Programmatic setLayout() from PanelButtons handles its own fit-view; only
+              // fit here for user-driven resizes, otherwise the two callers double-fit.
+              if (meta.isUserInteraction) {
+                const zoom = getZoom();
+
+                void fitView({ maxZoom: zoom, minZoom: zoom });
+              }
+            }}
+            orientation="horizontal"
           >
-            <Panel defaultSize={defaultSize} id="main-panel" minSize={minSize} order={1}>
+            <Panel defaultSize={defaultSize} id="main-panel" minSize={minSize}>
               <Flex
                 bg={dagView === "graph" ? undefined : "bg.muted"}
                 borderColor="bg.muted"
@@ -374,16 +380,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
             </Panel>
             {!isRightPanelCollapsed && (
               <>
-                <PanelResizeHandle
-                  className="resize-handle"
-                  onDragging={(isDragging) => {
-                    if (!isDragging) {
-                      const zoom = getZoom();
-
-                      void fitView({ maxZoom: zoom, minZoom: zoom });
-                    }
-                  }}
-                >
+                <Separator className="resize-handle">
                   <Box
                     _hover={{ bg: "info.solid" }}
                     alignItems="center"
@@ -412,9 +409,9 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                       {direction === "ltr" ? <FaChevronRight /> : <FaChevronLeft />}
                     </IconButton>
                   </Box>
-                </PanelResizeHandle>
+                </Separator>
 
-                <Panel defaultSize={dagView === "graph" ? 30 : 80} id="details-panel" minSize={20} order={2}>
+                <Panel defaultSize={dagView === "graph" ? 30 : 80} id="details-panel" minSize={20}>
                   <Box
                     display="flex"
                     flexDirection="column"
@@ -454,7 +451,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                 </Panel>
               </>
             )}
-          </PanelGroup>
+          </Group>
         </Box>
       </Box>
     </GroupsProvider>

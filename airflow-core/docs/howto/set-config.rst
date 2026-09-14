@@ -103,7 +103,6 @@ The following config options support this ``_cmd`` and ``_secret`` version:
 * ``broker_url`` in ``[celery]`` section
 * ``flower_basic_auth`` in ``[celery]`` section
 * ``result_backend`` in ``[celery]`` section
-* ``password`` in ``[atlas]`` section
 * ``smtp_password`` in ``[smtp]`` section
 * ``secret_key`` in ``[api]`` section
 * ``jwt_secret`` in ``[api_auth]`` section

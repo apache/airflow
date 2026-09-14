@@ -20,6 +20,7 @@ from __future__ import annotations
 from email.message import Message
 from unittest.mock import Mock
 
+import jsonschema
 import pytest
 
 from airflow_shared.providers_discovery import (
@@ -144,3 +145,144 @@ def test_discover_all_providers_preserves_commas_in_project_url(monkeypatch):
     assert providers["apache-airflow-providers-test"].data["documentation-url"] == (
         "https://example.invalid/docs?query=a,b"
     )
+
+
+def _provider_entry(package_name, provider_info):
+    metadata = Message()
+    metadata["Name"] = package_name
+    dist = Mock(metadata=metadata, version="1.0.0")
+    entry_point = Mock()
+    entry_point.load.return_value = lambda: provider_info
+    return entry_point, dist
+
+
+def _valid_provider_info(package_name):
+    return {"package-name": package_name, "name": package_name, "description": package_name}
+
+
+class TestDiscoveryIsolatesABadProvider:
+    """
+    ``provider_schema_validator.validate()`` used to be called unwrapped, so one provider with
+    malformed metadata aborted discovery for every provider in the process: everything after it
+    in entry-point order was never registered, and ``initialize_providers_list()`` raised on
+    that and every later call.
+
+    These drive the real schema validator rather than a mock, so they cannot be satisfied by
+    catching an exception type that jsonschema never raises.
+    """
+
+    # Mirrors the parts of provider_info.schema.json these tests depend on: 'package-name' is
+    # not required, and `triggers` items are closed with additionalProperties: false. Defined
+    # here rather than loaded from the real schema because that load imports airflow, which
+    # this distribution's own test environment deliberately does not install.
+    SCHEMA = {
+        "type": "object",
+        "properties": {
+            "package-name": {"type": "string"},
+            "name": {"type": "string"},
+            "description": {"type": "string"},
+            "triggers": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "integration-name": {"type": "string"},
+                        "python-modules": {"type": "array", "items": {"type": "string"}},
+                    },
+                    "additionalProperties": False,
+                },
+            },
+        },
+        "required": ["name", "description"],
+    }
+
+    @classmethod
+    def _real_validator(cls):
+        return jsonschema.validators.validator_for(cls.SCHEMA)(cls.SCHEMA)
+
+    @classmethod
+    def _discover(cls, entries):
+        monkeypatched = pytest.MonkeyPatch()
+        monkeypatched.setattr(providers_discovery_module, "entry_points_with_dist", lambda group: entries)
+        providers: dict = {}
+        try:
+            discover_all_providers_from_packages(providers, cls._real_validator())
+        finally:
+            monkeypatched.undo()
+        return providers
+
+    def test_the_fixture_schema_matches_the_assumptions_these_tests_rely_on(self):
+        validator = self._real_validator()
+        # 'package-name' absent still validates, which is what makes the guard below reachable.
+        validator.validate({"name": "n", "description": "d"})
+        with pytest.raises(jsonschema.ValidationError):
+            validator.validate(
+                {
+                    "name": "n",
+                    "description": "d",
+                    "triggers": [{"integration-name": "x", "unrecognised-key": "v"}],
+                }
+            )
+
+    def test_schema_invalid_provider_is_skipped_and_the_others_still_load(self):
+        # An unrecognised key inside a `triggers` item is one of the few substructures the
+        # runtime schema closes with additionalProperties: false, so this really is invalid.
+        bad_info = _valid_provider_info("apache-airflow-providers-bad")
+        bad_info["triggers"] = [{"integration-name": "x", "python-modules": ["m"], "unrecognised-key": "v"}]
+
+        providers = self._discover(
+            [
+                _provider_entry(
+                    "apache-airflow-providers-first",
+                    _valid_provider_info("apache-airflow-providers-first"),
+                ),
+                _provider_entry("apache-airflow-providers-bad", bad_info),
+                _provider_entry(
+                    "apache-airflow-providers-last",
+                    _valid_provider_info("apache-airflow-providers-last"),
+                ),
+            ]
+        )
+
+        assert sorted(providers) == [
+            "apache-airflow-providers-first",
+            "apache-airflow-providers-last",
+        ]
+
+    def test_provider_without_a_package_name_is_skipped(self):
+        # 'package-name' is not in the runtime schema's required list, so this validates and
+        # would otherwise reach an unguarded subscript.
+        no_name = {"name": "nameless", "description": "nameless"}
+
+        providers = self._discover(
+            [
+                _provider_entry("apache-airflow-providers-nameless", no_name),
+                _provider_entry(
+                    "apache-airflow-providers-last",
+                    _valid_provider_info("apache-airflow-providers-last"),
+                ),
+            ]
+        )
+
+        assert sorted(providers) == ["apache-airflow-providers-last"]
+
+    def test_a_broken_schema_is_not_reported_as_every_provider_being_malformed(self):
+        # A validator-side defect must stay loud instead of being swallowed once per provider.
+        validator = Mock()
+        validator.validate.side_effect = jsonschema.exceptions.SchemaError("bad schema")
+        monkeypatched = pytest.MonkeyPatch()
+        monkeypatched.setattr(
+            providers_discovery_module,
+            "entry_points_with_dist",
+            lambda group: [
+                _provider_entry(
+                    "apache-airflow-providers-first",
+                    _valid_provider_info("apache-airflow-providers-first"),
+                )
+            ],
+        )
+        try:
+            with pytest.raises(jsonschema.exceptions.SchemaError):
+                discover_all_providers_from_packages({}, validator)
+        finally:
+            monkeypatched.undo()

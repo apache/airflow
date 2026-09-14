@@ -55,9 +55,13 @@ class TestTokenService:
         mock_get_keycloak_client.return_value = mock_keycloak_client
         mock_auth_manager = Mock()
         mock_get_auth_manager.return_value = mock_auth_manager
-        mock_auth_manager.generate_jwt.return_value = self.token
+        mock_auth_manager.generate_api_jwt.return_value = self.token
 
         assert create_token_for(username=self.test_username, password=self.test_password) == self.token
+        # API tokens must be minted with the Keycloak JWTs in their claims, since a
+        # header-authenticated client sends no cookies to supply them.
+        mock_auth_manager.generate_api_jwt.assert_called_once()
+        mock_auth_manager.generate_jwt.assert_not_called()
         mock_keycloak_client.token.assert_called_once_with(self.test_username, self.test_password)
         mock_keycloak_client.userinfo.assert_called_once_with(self.test_access_token)
 
@@ -104,7 +108,7 @@ class TestTokenService:
         mock_get_keycloak_client.return_value = mock_keycloak_client
         mock_auth_manager = Mock()
         mock_get_auth_manager.return_value = mock_auth_manager
-        mock_auth_manager.generate_jwt.return_value = self.token
+        mock_auth_manager.generate_api_jwt.return_value = self.token
 
         result = create_client_credentials_token(client_id=test_client_id, client_secret=test_client_secret)
 

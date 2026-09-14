@@ -27,6 +27,24 @@
 Changelog
 ---------
 
+9.6.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use parameterized queries in HiveStatsCollectionOperator (#66751)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable ruff B023 (function-uses-loop-variable) and fix violations (#70640)``
+   * ``Use common.compat.sdk for the remaining provider timezone imports (#71209)``
+   * ``Fix typos across contributor and provider documentation (#71884)``
+   * ``Collect the test classes pytest silently skipped (#71643)``
+   * ``Prepare providers release 2026-08-18 (#71794)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Update changelog with better wording (#71161)``
+
 9.6.1
 .....
 
