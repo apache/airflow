@@ -56,7 +56,7 @@ PIP package                                   Version required
 ``apache-airflow``                            ``>=2.11.0``
 ``apache-airflow-providers-common-compat``    ``>=1.10.1``
 ``cryptography``                              ``>=44.0.3``
-``apache-airflow-providers-cncf-kubernetes``  ``>=5.1.0``
+``apache-airflow-providers-cncf-kubernetes``  ``>=9.0.0``
 ============================================  ==================
 
 The changelog for the provider package can be found in the

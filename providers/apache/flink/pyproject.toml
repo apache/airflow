@@ -66,7 +66,7 @@ dependencies = [
     # airflow if we do not have overlapping version. We could set minimum version to 46.0.0 when we drop
     # support for Airflow 3.1.
     "cryptography>=44.0.3",
-    "apache-airflow-providers-cncf-kubernetes>=5.1.0",
+    "apache-airflow-providers-cncf-kubernetes>=9.0.0",
 ]
 
 [dependency-groups]
