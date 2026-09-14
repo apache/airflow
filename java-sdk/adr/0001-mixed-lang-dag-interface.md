@@ -36,7 +36,7 @@ This ADR only answers: given that spec, what does the Java code a user writes lo
 
 ## Decision
 
-The annotation is `@Builder.TaskHandler(dagId, taskId)`, not `@Builder.Task(id)`. Python declares the
+The annotation is `@Builder.TaskHandler(dag, task)`, not `@Builder.Task(id)`. Python declares the
 task with `@task.stub` and Java supplies only its body, so the two are different things and should
 not share a name: `@Builder.Dag`/`@Builder.Task` stay with the native surface, where Java owns the
 Dag ([ADR-0002](0002-native-dag-interface.md)). Python owns both ids too, so a handler names the pair
@@ -49,7 +49,7 @@ code reads it.
 ### 1. Annotation based with positional injection
 
 ```java
-@Builder.TaskHandler(dagId = "etl", taskId = "score")
+@Builder.TaskHandler(dag = "etl", task = "score")
 public long score(Client client, long rows, double threshold, List<String> regions) { ... }
 ```
 
@@ -83,7 +83,7 @@ public static class ReportInput implements TaskInput {
   public long transformed;
 }
 
-@Builder.TaskHandler(dagId = "etl", taskId = "report")
+@Builder.TaskHandler(dag = "etl", task = "report")
 public void report(ReportInput input) {
   log.log(INFO, "Report {0} for transformed value {1}", input.runLabel, input.transformed);
   if (!"nightly".equals(input.runLabel)) {
@@ -145,9 +145,10 @@ One verb, overloaded, and everything registers as a class: nothing is constructe
   in code the processor writes and type-checks — without asking a Dag author to track argument
   order by hand.
 - `@Builder.XCom` is retired; the Python call site is the only source of data-flow wiring.
-- Renaming the shipped `@Builder.Task` to `@Builder.TaskHandler(dagId, taskId)` for this surface
+- Renaming the shipped `@Builder.Task` to `@Builder.TaskHandler(dag, task)` for this surface
   breaks existing mixed-language Dags, which change one annotation and name the Dag they belong to.
-- The public surface is not final until the open question above is resolved.
+- `Client`/`Context` are injected as method arguments. This follows the same rule the native surface settles
+  ([ADR-0002](0002-native-dag-interface.md)), so one injection model spans both surfaces.
 
 ## Appendix: Implementation Notes
 
