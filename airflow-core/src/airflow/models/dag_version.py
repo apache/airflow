@@ -318,24 +318,18 @@ class DagVersion(Base):
         target_version = versions[target_version_number]
         base_data, base_unavailable_reason = _get_serialized_diff_data(base_version.serialized_dag)
         target_data, target_unavailable_reason = _get_serialized_diff_data(target_version.serialized_dag)
-        include_values = values_status == "available"
         if unavailable_reason := base_unavailable_reason or target_unavailable_reason:
-            result = build_unavailable_dag_diff(
+            return build_unavailable_dag_diff(
                 base_data=base_data, target_data=target_data, reason=unavailable_reason
             )
-        else:
-            result = build_serialized_dag_diff(
-                base_data=base_data,
-                target_data=target_data,
-                base_provenance=_get_provenance(base_version),
-                target_provenance=_get_provenance(target_version),
-                include_values=include_values,
-                max_changes=max_changes,
-            )
-        # Emitted whatever the outcome so that reading result["values"]["status"] is always safe.
-        values_available = include_values and result["mode"] == "observed_state"
-        result["values"] = {"status": "available" if values_available else "unavailable"}
-        return result
+        return build_serialized_dag_diff(
+            base_data=base_data,
+            target_data=target_data,
+            base_provenance=_get_provenance(base_version),
+            target_provenance=_get_provenance(target_version),
+            include_values=values_status == "available",
+            max_changes=max_changes,
+        )
 
 
 def _get_serialized_diff_data(

@@ -366,10 +366,11 @@ class TestDagVersionGetDiff:
         ("max_changes", "expected_message"),
         [
             (0, "max_changes must be a positive integer"),
+            (1.5, "max_changes must be a positive integer"),
             (MAX_ALLOWED_CHANGES + 1, f"max_changes must not exceed {MAX_ALLOWED_CHANGES}"),
         ],
     )
-    def test_rejects_out_of_range_change_bound_before_querying(
+    def test_rejects_invalid_change_bound_before_querying(
         self, dag_id, session, max_changes, expected_message
     ):
         with assert_queries_count(0):
