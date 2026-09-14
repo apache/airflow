@@ -137,7 +137,7 @@ tests/*
 scripts/*
 images/*
 dev/*
-.*\.iml
+**/*.iml
 out/*
 airflow-build-dockerfile*
 
