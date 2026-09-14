@@ -1101,6 +1101,70 @@ class TestDagRun:
         runs = fetch().all()
         assert runs == []
 
+    def test_get_queued_dag_runs_includes_cancelled_backfill_runs(self, session, testing_dag_bundle):
+        """Cleared queued runs from a cancelled backfill must schedule despite stale is_paused."""
+        from airflow.models.backfill import Backfill, BackfillDagRun
+
+        dag = DAG(
+            dag_id="test_cancelled_backfill",
+            schedule="@daily",
+            catchup=True,
+            start_date=DEFAULT_DATE,
+        )
+        EmptyOperator(task_id="t1", dag=dag, owner="airflow")
+
+        orm_dag = DagModel(
+            dag_id=dag.dag_id,
+            bundle_name="testing",
+            has_task_concurrency_limits=False,
+            next_dagrun=DEFAULT_DATE,
+            next_dagrun_create_after=DEFAULT_DATE + datetime.timedelta(days=1),
+            is_stale=False,
+        )
+        session.add(orm_dag)
+        session.flush()
+
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+        logical_date = DEFAULT_DATE
+        data_interval = infer_automated_data_interval(scheduler_dag.timetable, logical_date)
+        backfill = Backfill(
+            dag_id=dag.dag_id,
+            from_date=logical_date,
+            to_date=logical_date + datetime.timedelta(days=1),
+            is_paused=True,
+            completed_at=timezone.utcnow(),
+        )
+        session.add(backfill)
+        session.flush()
+
+        dr = scheduler_dag.create_dagrun(
+            run_id=scheduler_dag.timetable.generate_run_id(
+                run_type=DagRunType.BACKFILL_JOB,
+                run_after=logical_date,
+                data_interval=data_interval,
+            ),
+            run_type=DagRunType.BACKFILL_JOB,
+            logical_date=logical_date,
+            data_interval=data_interval,
+            run_after=data_interval.end,
+            state=DagRunState.QUEUED,
+            backfill_id=backfill.id,
+            triggered_by=DagRunTriggeredByType.TEST,
+            session=session,
+        )
+        session.add(
+            BackfillDagRun(
+                backfill_id=backfill.id,
+                dag_run_id=dr.id,
+                logical_date=logical_date,
+                sort_ordinal=1,
+            )
+        )
+        session.commit()
+
+        runs = DagRun.get_queued_dag_runs_to_set_running(session).all()
+        assert runs == [dr]
+
     @mock.patch("airflow._shared.observability.metrics.stats.timing")
     def test_no_scheduling_delay_for_nonscheduled_runs(self, stats_mock, session, testing_dag_bundle):
         """
