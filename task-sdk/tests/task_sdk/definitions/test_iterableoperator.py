@@ -151,7 +151,7 @@ def mock_context(task, run_id: str | None = None) -> Context:
 class MockOperator(BaseOperator):
     """Mock operator for testing IterableOperator expansion."""
 
-    template_fields = ("arg1",)
+    template_fields = ("arg1", "arg2", "arg3")
 
     def __init__(
         self,
@@ -180,10 +180,9 @@ class MockOperator(BaseOperator):
             raise RuntimeError
         if not self.do_xcom_push:
             return None
-        result = self.arg1, self.arg2, self.arg3
 
         assert context == expected, "Context was unexpectedly mutated during task execution"
-        return result
+        return self.arg1, self.arg2, self.arg3
 
 
 class MockOutletEventOperator(BaseOperator):
@@ -466,7 +465,7 @@ class TestIterableOperator:
         MappedOperator.__attrs_post_init__ does for a normal mapped task."""
         with DAG("test_dag") as dag:
             upstream = MockOperator(task_id="upstream", dag=dag)
-            expand_input = ListOfDictsExpandInput([{"a": 1}])
+            expand_input = ListOfDictsExpandInput([{"arg1": 1}])
             mapped_op = MockOperator.partial(
                 task_id="my_task",
                 dag=dag,
@@ -486,7 +485,7 @@ class TestIterableOperator:
 
             @task_group
             def tg(va):
-                expand_input = ListOfDictsExpandInput([{"a": 1}])
+                expand_input = ListOfDictsExpandInput([{"arg1": 1}])
                 mapped_op = MockOperator.partial(
                     task_id="my_task",
                     dag=dag,
@@ -1131,7 +1130,7 @@ class TestIterableOperator:
         A UserWarning is emitted when the wrapped operator is sync, since TimeoutPosix won't fire
         in worker threads."""
         with DAG("test_dag") as dag:
-            expand_input = ListOfDictsExpandInput([{"a": 1}])
+            expand_input = ListOfDictsExpandInput([{"arg1": 1}])
             execution_timeout = timedelta(seconds=7)
             mapped_op = create_mapped_operator(
                 dag, expand_input, task_id="timeout_task", execution_timeout=execution_timeout
