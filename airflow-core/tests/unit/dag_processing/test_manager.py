@@ -428,6 +428,20 @@ class TestDagFileProcessorManager:
         assert [e.filename for e in import_errors] == ["test_zip.zip/broken_dag.py"]
 
     @pytest.mark.usefixtures("clear_parse_import_errors")
+    def test_clear_import_errors_for_missing_files_skips_null_filename(self, session, tmp_path):
+        for filename in (None, "deleted_dag.py"):
+            session.add(ParseImportError(filename=filename, bundle_name="testing"))
+        session.flush()
+
+        manager = DagFileProcessorManager(max_runs=1)
+        manager.clear_import_errors_for_missing_files(
+            bundle_name="testing", bundle_path=tmp_path, session=session
+        )
+        session.flush()
+
+        assert session.scalars(select(ParseImportError.filename)).all() == [None]
+
+    @pytest.mark.usefixtures("clear_parse_import_errors")
     def test_clear_orphaned_import_errors_keeps_zip_inner_file_errors(self, session, tmp_path):
         zip_path = tmp_path / "test_zip.zip"
         _create_zip_bundle_with_valid_and_broken_dags(zip_path)

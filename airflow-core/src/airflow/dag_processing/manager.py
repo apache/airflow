@@ -1089,6 +1089,8 @@ class DagFileProcessorManager(LoggingMixin):
                 .options(load_only(ParseImportError.filename))
             )
             for error in errors:
+                if error.filename is None:
+                    continue
                 path = bundle_path / error.filename
                 fileloc = str(path)
                 # An entry inside an archive is left for the next refresh, which can open the
