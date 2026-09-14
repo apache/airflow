@@ -90,13 +90,13 @@ Parameters
    * - ``embedding_kwargs``
      - Additional keyword arguments passed to the embedding model constructor
        when ``embed_model`` is a string or omitted. Options such as
-       ``dimensions`` must match those used to build the index. Supports
-       templating; set the Dag's ``render_template_as_native_obj=True`` when
-       templating typed values such as ``dimensions`` so they remain integers
-       instead of strings. ``model`` and ``model_name`` are reserved; configure
-       the model with ``embed_model`` instead. ``input``, ``model``, and
-       ``model_name`` are also reserved inside ``additional_kwargs`` because the
-       hook supplies the input and model identity for each request.
+       ``dimensions`` must match those used to build the index. Templated, so
+       binding an upstream task's output resolves to the native dictionary
+       before execute and preserves typed values such as integer ``dimensions``.
+       Values are forwarded without filtering. Connection credentials take
+       precedence at the top level, but nested options supported by the underlying
+       library can override hook-provided request values, including credentials,
+       the model, and the input. Only pass trusted values.
    * - ``top_k``
      - Number of top similarity results to return (default 5).
 

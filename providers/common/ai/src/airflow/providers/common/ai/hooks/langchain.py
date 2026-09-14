@@ -69,10 +69,11 @@ class LangChainHook(BaseHook):
         (e.g. ``"openai:text-embedding-3-small"``). Overrides
         ``extra["embed_model"]`` on the connection.
     :param embedding_kwargs: Additional keyword arguments to pass to the embedding
-        model constructor. Connection ``api_key`` and ``base_url`` values take
-        precedence over matching values. ``model``, ``model_name``, and ``provider``
-        are reserved; configure the embedding model and provider with ``embed_model``
-        instead.
+        model constructor without filtering. Values can override hook-provided
+        settings, including the provider selection, endpoint, and credentials.
+        Connection ``api_key`` and ``base_url`` values take precedence over the
+        same top-level keys, but the underlying integration may accept alternative
+        or nested options that take precedence. Only pass trusted values.
     """
 
     conn_name_attr = "llm_conn_id"
@@ -170,13 +171,6 @@ class LangChainHook(BaseHook):
         Uses ``embed_conn_id`` if set (falls back to ``llm_conn_id``).
         """
         from langchain.embeddings import init_embeddings
-
-        reserved_keys = sorted(self.embedding_kwargs.keys() & {"model", "model_name", "provider"})
-        if reserved_keys:
-            raise ValueError(
-                f"embedding_kwargs must not contain reserved keys {reserved_keys}; "
-                "use embed_model to configure the model and provider instead"
-            )
 
         conn = self.get_connection(self.embed_conn_id)
         model_id = self._resolve_model_id(

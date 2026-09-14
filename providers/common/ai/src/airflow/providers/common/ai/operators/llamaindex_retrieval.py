@@ -73,11 +73,11 @@ class LlamaIndexRetrievalOperator(BaseOperator):
     :param embed_conn_id: Optional separate Airflow connection ID for the
         embedding provider. Falls back to ``llm_conn_id`` when ``None``.
     :param embedding_kwargs: Additional keyword arguments passed to the embedding
-        model constructor when ``embed_model`` is a string or omitted. Options
-        that affect vector dimensions must match those used to build the index.
-        ``model`` and ``model_name`` are reserved; use ``embed_model`` instead.
-        ``input``, ``model``, and ``model_name`` are also reserved inside
-        ``additional_kwargs``.
+        model constructor without filtering when ``embed_model`` is a string or
+        omitted. Options that affect vector dimensions must match those used to
+        build the index. Nested options supported by the underlying library can
+        override hook-provided request values, including credentials, the model,
+        and the input. Only pass trusted values.
     :param top_k: Number of top results to retrieve.
     """
 

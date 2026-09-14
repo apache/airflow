@@ -95,10 +95,10 @@ class LlamaIndexHook(BaseHook):
         ``extra["llm_model"]`` on the connection. Required when calling
         :meth:`get_llm`.
     :param embedding_kwargs: Additional keyword arguments to pass to the embedding
-        model constructor. Connection ``api_key`` and ``api_base`` values take
-        precedence over matching values. ``model`` and ``model_name`` are reserved;
-        configure the embedding model with ``embed_model`` instead. ``input``,
-        ``model``, and ``model_name`` are also reserved inside ``additional_kwargs``.
+        model constructor without filtering. Connection ``api_key`` and ``api_base``
+        values take precedence at the top level, but nested options supported by the
+        underlying library can override hook-provided request values, including
+        credentials, the model, and the input. Only pass trusted values.
     """
 
     conn_name_attr = "llm_conn_id"
@@ -180,20 +180,6 @@ class LlamaIndexHook(BaseHook):
             from llama_index.embeddings.openai import OpenAIEmbedding
         except ImportError as e:
             raise AirflowOptionalProviderFeatureException(e)
-
-        reserved_keys = sorted(self.embedding_kwargs.keys() & {"model", "model_name"})
-        if reserved_keys:
-            raise ValueError(
-                f"embedding_kwargs must not contain reserved keys {reserved_keys}; use embed_model instead"
-            )
-        additional_kwargs = self.embedding_kwargs.get("additional_kwargs")
-        if isinstance(additional_kwargs, dict):
-            reserved_request_keys = sorted(additional_kwargs.keys() & {"input", "model", "model_name"})
-            if reserved_request_keys:
-                raise ValueError(
-                    "embedding_kwargs['additional_kwargs'] must not contain reserved keys "
-                    f"{reserved_request_keys}; model identity and input are managed by the hook"
-                )
 
         conn = self.get_connection(self.embed_conn_id)
         model_id = self._resolve_model(

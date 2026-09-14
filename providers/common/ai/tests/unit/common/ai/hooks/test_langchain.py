@@ -54,6 +54,10 @@ def _conn(password: str = "", host: str = "", extra: dict | None = None) -> Magi
     return mock_conn
 
 
+def _init_embeddings(model: str, *, provider: str | None = None, **kwargs):
+    return {"model": model, "provider": provider, "kwargs": kwargs}
+
+
 class TestLangChainHookInit:
     def test_default_params(self):
         hook = LangChainHook()
@@ -239,20 +243,32 @@ class TestGetEmbeddingModel:
         )
         assert "Connection parameters override embedding_kwargs values: ['api_key']" in caplog.messages
 
-    @pytest.mark.parametrize("reserved_key", ["model", "model_name", "provider"])
     @patch("langchain.embeddings.init_embeddings")
     @patch.object(LangChainHook, "get_connection")
-    def test_rejects_reserved_embedding_kwargs(self, mock_get_conn, mock_init_embeddings, reserved_key):
+    def test_embedding_kwargs_overrides_provider(self, mock_get_conn, mock_init_embeddings):
+        mock_get_conn.return_value = _conn()
+        mock_init_embeddings.side_effect = _init_embeddings
         hook = LangChainHook(
             embed_model="openai:text-embedding-3-small",
-            embedding_kwargs={reserved_key: "other-model"},
+            embedding_kwargs={"provider": "custom-provider"},
         )
 
-        with pytest.raises(ValueError, match=rf"reserved keys.*{reserved_key}.*use embed_model"):
-            hook.get_embedding_model()
+        result = hook.get_embedding_model()
 
-        mock_get_conn.assert_not_called()
-        mock_init_embeddings.assert_not_called()
+        assert result["provider"] == "custom-provider"
+
+    @patch("langchain.embeddings.init_embeddings")
+    @patch.object(LangChainHook, "get_connection")
+    def test_model_in_embedding_kwargs_raises(self, mock_get_conn, mock_init_embeddings):
+        mock_get_conn.return_value = _conn()
+        mock_init_embeddings.side_effect = _init_embeddings
+        hook = LangChainHook(
+            embed_model="openai:text-embedding-3-small",
+            embedding_kwargs={"model": "other-model"},
+        )
+
+        with pytest.raises(TypeError, match="multiple values.*model"):
+            hook.get_embedding_model()
 
     @patch("langchain.embeddings.init_embeddings")
     @patch.object(LangChainHook, "get_connection")

@@ -125,7 +125,14 @@ class TestEmbeddingOperatorExecute:
             embedding_kwargs={"dimensions": 128},
         )
 
-    def test_byo_embed_model_bypasses_hook(self, _li, caplog):
+    @pytest.mark.parametrize(
+        ("embedding_kwargs", "expect_warning"),
+        [
+            (None, False),
+            ({"dimensions": 128}, True),
+        ],
+    )
+    def test_byo_embed_model_bypasses_hook(self, _li, caplog, embedding_kwargs, expect_warning):
         # `embed_model` is a non-string instance -> hook is bypassed and the
         # user's instance does the embedding.
         byo = _byo_embedding(vectors=[[0.5]])
@@ -135,15 +142,14 @@ class TestEmbeddingOperatorExecute:
             task_id="test",
             documents=[{"text": "doc"}],
             embed_model=byo,
-            embedding_kwargs={"dimensions": 128},
+            embedding_kwargs=embedding_kwargs,
         )
         result = op.execute(context=MagicMock())
 
         byo.get_text_embedding_batch.assert_called_once()
         assert result["chunks"][0]["vector"] == [0.5]
-        assert (
-            "embedding_kwargs is ignored when embed_model is a pre-built embedding model" in caplog.messages
-        )
+        warning = "embedding_kwargs is ignored when embed_model is a pre-built embedding model"
+        assert any(warning in record.message for record in caplog.records) is expect_warning
 
     def test_invalid_embed_model_raises_typeerror(self, _li):
         # An object that's neither None/str nor duck-types as BaseEmbedding

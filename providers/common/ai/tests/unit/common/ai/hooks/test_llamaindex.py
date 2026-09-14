@@ -177,38 +177,28 @@ class TestGetEmbeddingModel:
         warning = f"OpenAIEmbedding ignores unsupported embedding_kwargs: ['{embedding_kwarg}']"
         assert (warning in caplog.messages) is expect_warning
 
-    @pytest.mark.parametrize("reserved_key", ["model", "model_name"])
-    @patch("llama_index.embeddings.openai.OpenAIEmbedding")
     @patch.object(LlamaIndexHook, "get_connection")
-    def test_rejects_reserved_embedding_kwargs(self, mock_get_conn, mock_cls, reserved_key):
+    def test_embedding_kwargs_overrides_model_name(self, mock_get_conn):
+        mock_get_conn.return_value = _conn(password="sk-test")
         hook = LlamaIndexHook(
             embed_model="text-embedding-3-small",
-            embedding_kwargs={reserved_key: "other-model"},
+            embedding_kwargs={"model_name": "custom-value"},
         )
 
-        with pytest.raises(ValueError, match=rf"reserved keys.*{reserved_key}.*use embed_model"):
-            hook.get_embedding_model()
+        embedding_model = hook.get_embedding_model()
 
-        mock_get_conn.assert_not_called()
-        mock_cls.assert_not_called()
+        assert embedding_model.model_name == "custom-value"
 
-    @pytest.mark.parametrize("reserved_key", ["input", "model", "model_name"])
-    @patch("llama_index.embeddings.openai.OpenAIEmbedding")
     @patch.object(LlamaIndexHook, "get_connection")
-    def test_rejects_reserved_additional_kwargs(self, mock_get_conn, mock_cls, reserved_key):
+    def test_model_in_embedding_kwargs_raises(self, mock_get_conn):
+        mock_get_conn.return_value = _conn(password="sk-test")
         hook = LlamaIndexHook(
             embed_model="text-embedding-3-small",
-            embedding_kwargs={"additional_kwargs": {reserved_key: "overridden-value"}},
+            embedding_kwargs={"model": "other-model"},
         )
 
-        with pytest.raises(
-            ValueError,
-            match=rf"additional_kwargs.*reserved keys.*{reserved_key}.*managed by the hook",
-        ):
+        with pytest.raises(TypeError, match="multiple values.*model"):
             hook.get_embedding_model()
-
-        mock_get_conn.assert_not_called()
-        mock_cls.assert_not_called()
 
     @patch("llama_index.embeddings.openai.OpenAIEmbedding")
     @patch.object(LlamaIndexHook, "get_connection")

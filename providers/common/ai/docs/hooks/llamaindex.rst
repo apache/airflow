@@ -112,12 +112,11 @@ Parameters
    * - ``embedding_kwargs``
      - ``None``
      - Additional keyword arguments passed to ``OpenAIEmbedding``, for example
-       ``{"dimensions": 128}``. Connection ``api_key`` and ``api_base`` values
-       take precedence over matching values. ``model`` and ``model_name`` are
-       reserved; configure the model with ``embed_model`` instead. ``input``,
-       ``model``, and ``model_name`` are also reserved inside
-       ``additional_kwargs`` because the hook supplies the input and model identity
-       for each embedding request.
+       ``{"dimensions": 128}``. Values are forwarded without filtering.
+       Connection ``api_key`` and ``api_base`` values take precedence at the top
+       level, but nested options supported by the underlying library can override
+       hook-provided request values, including credentials, the model, and the
+       input. Only pass trusted values.
    * - ``llm_model``
      - ``None`` (falls back to ``extra["llm_model"]``)
      - LLM model name, e.g. ``gpt-4o``. Required when calling ``get_llm()``.
