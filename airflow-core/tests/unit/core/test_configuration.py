@@ -57,7 +57,10 @@ from tests_common.test_utils.fake_secrets_backend import (
     FAKE_CONFIG_BACKEND_PATH,
     FAKE_UNREACHABLE_BACKEND_PATH,
 )
-from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+from tests_common.test_utils.markers import (
+    skip_if_celery_not_installed,
+    skip_if_force_lowest_dependencies_marker,
+)
 from tests_common.test_utils.reset_warning_registry import reset_warning_registry
 from unit.utils.test_config import (
     remove_all_configurations,
@@ -1908,18 +1911,18 @@ def test_provider_configuration_toggle_with_context_manager():
 
     assert conf._use_providers_configuration is True
     # With providers enabled, the provider value is returned via the fallback lookup chain.
-    assert conf.get("celery", "celery_app_name") == "airflow.providers.celery.executors.celery_executor"
+    assert conf.get("standard", "venv_install_method") == "auto"
 
     with conf.make_sure_configuration_loaded(with_providers=False):
         assert conf._use_providers_configuration is False
         with pytest.raises(
             AirflowConfigException,
-            match=re.escape("section/key [celery/celery_app_name] not found in config"),
+            match=re.escape("section/key [standard/venv_install_method] not found in config"),
         ):
-            conf.get("celery", "celery_app_name")
+            conf.get("standard", "venv_install_method")
     # After the context manager exits, provider config is restored.
     assert conf._use_providers_configuration is True
-    assert conf.get("celery", "celery_app_name") == "airflow.providers.celery.executors.celery_executor"
+    assert conf.get("standard", "venv_install_method") == "auto"
 
 
 @skip_if_force_lowest_dependencies_marker
@@ -1955,14 +1958,34 @@ def test_validate_sqlite3_version(sqlite_version_info, expect_error, monkeypatch
             test_conf._validate_sqlite3_version()
 
 
+# Sections a provider contributes; their metadata is only registered when that provider is installed.
+PROVIDER_SECTION_SKIP_MARKS: dict[str, pytest.MarkDecorator] = {
+    "celery": skip_if_celery_not_installed,
+    "celery_kubernetes_executor": skip_if_celery_not_installed,
+}
+
+
+def build_provider_metadata_params(rows: list[tuple]):
+    """Build parametrize entries that skip rows whose provider is not installed."""
+    return [
+        pytest.param(
+            section,
+            option,
+            *rest,
+            id=f"{section}.{option}",
+            marks=PROVIDER_SECTION_SKIP_MARKS.get(section, ()),
+        )
+        for section, option, *rest in rows
+    ]
+
+
 @skip_if_force_lowest_dependencies_marker
 class TestProviderConfigPriority:
     """Tests that conf.get and conf.has_option respect provider metadata and cfg fallbacks with correct priority."""
 
     @pytest.mark.parametrize(
         ("section", "option", "expected"),
-        PROVIDER_METADATA_CONFIG_OPTIONS,
-        ids=[f"{s}.{o}" for s, o, _ in PROVIDER_METADATA_CONFIG_OPTIONS],
+        build_provider_metadata_params(PROVIDER_METADATA_CONFIG_OPTIONS),
     )
     def test_get_returns_provider_metadata_value(self, section, option, expected):
         """conf.get returns provider metadata (provider.yaml) values."""
@@ -1983,8 +2006,7 @@ class TestProviderConfigPriority:
 
     @pytest.mark.parametrize(
         ("section", "option", "expected"),
-        PROVIDER_METADATA_CONFIG_OPTIONS,
-        ids=[f"{s}.{o}" for s, o, _ in PROVIDER_METADATA_CONFIG_OPTIONS],
+        build_provider_metadata_params(PROVIDER_METADATA_CONFIG_OPTIONS),
     )
     def test_has_option_true_for_provider_metadata(self, section, option, expected):
         """conf.has_option returns True for options defined in provider metadata."""
@@ -2011,8 +2033,7 @@ class TestProviderConfigPriority:
 
     @pytest.mark.parametrize(
         ("section", "option", "metadata_value", "cfg_value"),
-        PROVIDER_METADATA_OVERRIDES_CFG_FALLBACK,
-        ids=[f"{s}.{o}" for s, o, _, _ in PROVIDER_METADATA_OVERRIDES_CFG_FALLBACK],
+        build_provider_metadata_params(PROVIDER_METADATA_OVERRIDES_CFG_FALLBACK),
     )
     def test_provider_metadata_overrides_cfg_fallback(self, section, option, metadata_value, cfg_value):
         """Provider metadata values take priority over provider_config_fallback_defaults.cfg values."""
@@ -2023,8 +2044,7 @@ class TestProviderConfigPriority:
 
     @pytest.mark.parametrize(
         ("section", "option", "metadata_value", "cfg_value"),
-        PROVIDER_METADATA_OVERRIDES_CFG_FALLBACK,
-        ids=[f"{s}.{o}" for s, o, _, _ in PROVIDER_METADATA_OVERRIDES_CFG_FALLBACK],
+        build_provider_metadata_params(PROVIDER_METADATA_OVERRIDES_CFG_FALLBACK),
     )
     def test_get_default_value_priority(self, section, option, metadata_value, cfg_value):
         """get_default_value checks provider metadata before cfg fallback."""
@@ -2098,6 +2118,7 @@ class TestProviderConfigPriority:
         with conf_vars({("celery", "celery_app_name"): custom_value}):
             assert conf.get("celery", "celery_app_name") == custom_value
 
+    @skip_if_celery_not_installed
     def test_getsection_returns_env_var_only_provider_section(self, monkeypatch):
         """Env vars are picked up for a provider section whose keys all default to None."""
         from airflow.settings import conf
