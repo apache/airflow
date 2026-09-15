@@ -23,11 +23,13 @@ from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
-from fastapi import HTTPException
+from fastapi import FastAPI, HTTPException
+from fastapi.testclient import TestClient
 from sqlalchemy import delete, select
 
 from airflow import __version__ as airflow_version
-from airflow.providers.common.compat.sdk import Stats, timezone
+from airflow.api_fastapi.auth.tokens import JWTGenerator
+from airflow.providers.common.compat.sdk import Stats, conf, timezone
 from airflow.providers.edge3 import __version__ as edge_provider_version
 from airflow.providers.edge3.cli.worker import EdgeWorker
 from airflow.providers.edge3.models.edge_worker import (
@@ -35,6 +37,7 @@ from airflow.providers.edge3.models.edge_worker import (
     EdgeWorkerState,
     set_worker_concurrency,
 )
+from airflow.providers.edge3.worker_api.auth import jwt_validator
 from airflow.providers.edge3.worker_api.datamodels import WorkerQueueUpdateBody, WorkerStateBody
 from airflow.providers.edge3.worker_api.routes.worker import (
     _assert_version,
@@ -42,6 +45,7 @@ from airflow.providers.edge3.worker_api.routes.worker import (
     register,
     set_state,
     update_queues,
+    worker_router,
 )
 
 from tests_common.test_utils.config import conf_vars
@@ -77,6 +81,44 @@ class TestWorkerApiRoutes:
         assert _version("1.2.3") == (1, 2, 3)
         assert _version("1.2.3rc1") == (1, 2, 3)
         assert _version("1.2.3.dev0") == (1, 2, 3)
+
+    @conf_vars({("api_auth", "jwt_secret"): "edge-version-test-secret"})
+    @pytest.mark.parametrize(
+        ("field", "minimum_key"),
+        [
+            ("airflow_version", "minimum_acceptable_core_version_for_workers"),
+            ("edge_provider_version", "minimum_acceptable_edge_version_for_workers"),
+        ],
+    )
+    @pytest.mark.parametrize("method", ["POST", "PATCH"])
+    @pytest.mark.parametrize("invalid_source", ["worker", "server"])
+    def test_invalid_version_http_status(self, session: Session, field, minimum_key, method, invalid_source):
+        session.commit()
+        app = FastAPI()
+        app.include_router(worker_router, prefix="/edge_worker/v1")
+        path = "/edge_worker/v1/worker/version_test"
+        token = JWTGenerator(
+            secret_key=conf.get("api_auth", "jwt_secret"), valid_for=60, audience="api"
+        ).generate(extras={"method": "worker/version_test"})
+        body = {
+            "state": EdgeWorkerState.STARTING,
+            "jobs_active": 0,
+            "queues": ["default"],
+            "sysinfo": dict(self.MOCK_SYSINFO),
+        }
+        jwt_validator.cache_clear()
+        try:
+            with TestClient(app, raise_server_exceptions=False, headers={"Authorization": token}) as client:
+                if method == "PATCH":
+                    assert client.post(path, json=body).status_code == 200
+                body["sysinfo"][field] = "invalid-version" if invalid_source == "worker" else "0.0.0"
+                minimum = "0.0.0" if invalid_source == "worker" else "invalid-version"
+                with conf_vars({("edge", minimum_key): minimum}):
+                    response = client.request(method=method, url=path, json=body)
+        finally:
+            jwt_validator.cache_clear()
+
+        assert response.status_code == (400 if invalid_source == "worker" else 500)
 
     def test_assert_version(self):
         from airflow import __version__ as airflow_version
