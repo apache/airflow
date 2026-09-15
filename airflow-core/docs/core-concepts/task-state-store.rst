@@ -152,6 +152,52 @@ Async counterparts of ``get``, ``set``, ``delete``, and ``clear`` for use inside
 
 Calling the synchronous ``get``/``set``/``delete``/``clear`` from inside an ``async`` task blocks the event loop and defeats the concurrency the coroutine was written for. Use the ``a``-prefixed methods there instead.
 
+Using ``task_state_store`` inside a Trigger
+-------------------------------------------
+
+A trigger belonging to a deferred task can read and write that task's state store from within ``run()``. The triggerer injects ``self.task_state_store`` before ``run()`` is called, scoped to the task instance that deferred, which is the same namespace the operator's ``execute()`` and ``execute_complete()`` see. It is not available during ``__init__`` or ``serialize()``, only from within ``run()``.
+
+It is ``None`` on a trigger with no task instance (an asset watcher), which reaches asset state through ``self.asset_state_store`` instead (see :doc:`asset-state-store`).
+
+.. code-block:: python
+
+    import asyncio
+    from collections.abc import AsyncIterator
+    from typing import Any
+
+    from airflow.triggers.base import BaseEventTrigger, TriggerEvent
+
+
+    class WaitForJobTrigger(BaseEventTrigger):
+        def __init__(self, job_id: str, waiter_delay: int, **kwargs):
+            super().__init__(**kwargs)
+            self.job_id = job_id
+            self.waiter_delay = waiter_delay
+
+        def serialize(self) -> tuple[str, dict[str, Any]]:
+            return (
+                f"{self.__class__.__module__}.{self.__class__.__qualname__}",
+                {"job_id": self.job_id, "waiter_delay": self.waiter_delay},
+            )
+
+        async def run(self) -> AsyncIterator[TriggerEvent]:
+            # Record job id before the first poll, so a triggerer restart reconnects to it instead of resubmitting
+            await self.task_state_store.aset("external_id", self.job_id)
+
+            while True:
+                status = await self._poll_status(self.job_id)
+                if status in ("SUCCEEDED", "FAILED"):
+                    yield TriggerEvent({"status": status, "job_id": self.job_id})
+                    return
+
+                await asyncio.sleep(self.waiter_delay)
+
+``run()`` is a coroutine, and every trigger on a triggerer shares one event loop, so use the async accessors there. The synchronous methods also work, but they hold the loop for the whole round-trip to the API server.
+
+.. note::
+
+    ``retention`` on ``set``/``aset`` behaves the same as it does in a task, and a trigger that writes a key its operator later reads should agree with that operator on the key name (the two share one namespace).
+
 Some Example Use Cases
 ----------------------
 
@@ -285,7 +331,7 @@ If the worker process crashes, the task instance is retried. Task store data wri
 Deferrable tasks
 ~~~~~~~~~~~~~~~~
 
-Once a task defers, the Triggerer handles continuity across poke cycles. Use task state store in deferrable tasks only when you need to survive an operator-initiated clear, not for normal poke continuity.
+Once a task defers, the Triggerer handles continuity across poke cycles, so there is no need to checkpoint every poke to the task state store. Reach for it when the state has to outlive the trigger itself: surviving an operator-initiated clear, or letting a triggerer restart reconnect to an already-submitted remote job rather than resubmitting it. The trigger writes that state through ``self.task_state_store`` (see `Using task_state_store inside a Trigger`_), into the same namespace the operator reads in ``execute_complete()``.
 
 
 Mapped tasks

@@ -78,27 +78,37 @@ from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.sdk import DAG, Asset, BaseHook, BaseOperator
 from airflow.sdk.api.client import Client
-from airflow.sdk.api.datamodels._generated import AssetStateStoreResponse
+from airflow.sdk.api.datamodels._generated import AssetStateStoreResponse, TaskStateStoreResponse
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time import supervisor
 from airflow.sdk.execution_time.comms import (
     AssetStateStoreResult,
     ClearAssetStateStoreByName,
     ClearAssetStateStoreByUri,
+    ClearTaskStateStore,
     DeleteAssetStateStoreByName,
     DeleteAssetStateStoreByUri,
+    DeleteTaskStateStore,
     ErrorResponse,
     GetAssetStateStoreByName,
     GetAssetStateStoreByUri,
+    GetTaskStateStore,
     OKResponse,
     SetAssetStateStoreByName,
     SetAssetStateStoreByUri,
+    SetTaskStateStore,
+    TaskStateStoreResult,
     ToSupervisor,
     ToTask,
     _RequestFrame,
     _ResponseFrame,
 )
-from airflow.sdk.execution_time.context import AssetStateStoreAccessors
+from airflow.sdk.execution_time.context import (
+    NEVER_EXPIRE,
+    AssetStateStoreAccessors,
+    TaskStateStoreAccessor,
+)
+from airflow.sdk.state import TaskScope
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.triggers.base import BaseEventTrigger, BaseTrigger, TriggerEvent
 from airflow.triggers.shared_stream import SharedStreamProducer
@@ -1015,6 +1025,245 @@ async def test_create_triggers_asset_state_store_accessor_reads_and_writes(
 
     runner.triggers[14]["task"].cancel()
     await runner.cleanup_finished_triggers()
+
+
+@pytest.fixture
+def make_deferred_trigger():
+    """Factory fixture: call with a list to get a BaseTrigger subclass that appends each new instance."""
+
+    def factory(injected_instances):
+        class DeferredTrigger(BaseTrigger):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                injected_instances.append(self)
+
+            def serialize(self):
+                return (f"{type(self).__module__}.{type(self).__qualname__}", {})
+
+            async def run(self):
+                yield TriggerEvent("done")
+
+        return DeferredTrigger
+
+    return factory
+
+
+def _ti_dto(map_index=-1):
+    return TaskInstanceDTO(
+        id=uuid.uuid4(),
+        dag_version_id=uuid.uuid4(),
+        task_id="my_task",
+        dag_id="test_dag",
+        run_id="test_run",
+        try_number=1,
+        map_index=map_index,
+        pool_slots=1,
+        queue="default",
+        priority_weight=1,
+    )
+
+
+@pytest.mark.asyncio
+@patch("airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath")
+async def test_create_triggers_injects_task_state_store_scoped_to_the_deferring_ti(
+    mock_get_classpath, session, make_deferred_trigger
+):
+    """task_state_store is populated, and scoped to the task instance that deferred."""
+    injected_instances = []
+    mock_get_classpath.return_value = make_deferred_trigger(injected_instances)
+    ti = _ti_dto(map_index=3)
+
+    runner = TriggerRunner()
+    runner.to_create.append(
+        workloads.RunTrigger.model_construct(
+            id=20,
+            ti=ti,
+            classpath="fake.DeferredTrigger",
+            encrypted_kwargs="{}",
+        )
+    )
+
+    await runner.create_triggers()
+
+    assert len(injected_instances) == 1
+    store = injected_instances[0].task_state_store
+    assert isinstance(store, TaskStateStoreAccessor)
+    assert store._ti_id == ti.id
+    assert store._scope == TaskScope(dag_id="test_dag", run_id="test_run", task_id="my_task", map_index=3)
+
+    runner.triggers[20]["task"].cancel()
+    await runner.cleanup_finished_triggers()
+
+
+@pytest.mark.asyncio
+@patch("airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath")
+async def test_create_triggers_task_state_store_none_for_watcher(
+    mock_get_classpath, session, make_watcher_trigger
+):
+    """A watcher has no task instance, so there is nothing to scope a task store to."""
+    injected_instances = []
+    mock_get_classpath.return_value = make_watcher_trigger(injected_instances)
+
+    runner = TriggerRunner()
+    runner.to_create.append(
+        workloads.RunTrigger.model_construct(
+            id=22,
+            ti=None,
+            classpath="fake.WatcherTrigger",
+            encrypted_kwargs="{}",
+            watched_assets={"asset_a": "s3://bucket/a"},
+        )
+    )
+
+    await runner.create_triggers()
+
+    assert injected_instances[0].task_state_store is None
+
+    runner.triggers[22]["task"].cancel()
+    await runner.cleanup_finished_triggers()
+
+
+@pytest.mark.asyncio
+@patch("airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath")
+async def test_create_triggers_task_state_store_accessor_reads_and_writes(
+    mock_get_classpath, session, mock_supervisor_comms, make_deferred_trigger
+):
+    """task_state_store accessor sends correct SUPERVISOR_COMMS messages on get() and set()."""
+    injected_instances = []
+    mock_get_classpath.return_value = make_deferred_trigger(injected_instances)
+    ti = _ti_dto()
+
+    runner = TriggerRunner()
+    runner.to_create.append(
+        workloads.RunTrigger.model_construct(
+            id=23,
+            ti=ti,
+            classpath="fake.DeferredTrigger",
+            encrypted_kwargs="{}",
+        )
+    )
+
+    await runner.create_triggers()
+
+    store = injected_instances[0].task_state_store
+
+    mock_supervisor_comms.send.return_value = TaskStateStoreResult(value="job-123")
+    assert store.get("external_id") == "job-123"
+    mock_supervisor_comms.send.assert_called_with(GetTaskStateStore(ti_id=ti.id, key="external_id"))
+
+    store.set("external_id", "job-456", retention=NEVER_EXPIRE)
+    mock_supervisor_comms.send.assert_called_with(
+        SetTaskStateStore(ti_id=ti.id, key="external_id", value="job-456", expires_at=None)
+    )
+
+    runner.triggers[23]["task"].cancel()
+    await runner.cleanup_finished_triggers()
+
+
+@pytest.mark.asyncio
+@patch("airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath")
+async def test_create_triggers_task_state_store_accessor_awaits_async_methods(
+    mock_get_classpath, session, mock_supervisor_comms, make_deferred_trigger
+):
+    """The async accessors reach the supervisor through asend, so a trigger's run() never blocks the loop."""
+    injected_instances = []
+    mock_get_classpath.return_value = make_deferred_trigger(injected_instances)
+    ti = _ti_dto()
+
+    runner = TriggerRunner()
+    runner.to_create.append(
+        workloads.RunTrigger.model_construct(
+            id=24,
+            ti=ti,
+            classpath="fake.DeferredTrigger",
+            encrypted_kwargs="{}",
+        )
+    )
+
+    await runner.create_triggers()
+
+    store = injected_instances[0].task_state_store
+
+    mock_supervisor_comms.asend.return_value = TaskStateStoreResult(value="job-123")
+    assert await store.aget("external_id") == "job-123"
+    mock_supervisor_comms.asend.assert_awaited_with(GetTaskStateStore(ti_id=ti.id, key="external_id"))
+
+    await store.aset("external_id", "job-456", retention=NEVER_EXPIRE)
+    mock_supervisor_comms.asend.assert_awaited_with(
+        SetTaskStateStore(ti_id=ti.id, key="external_id", value="job-456", expires_at=None)
+    )
+
+    await store.adelete("external_id")
+    mock_supervisor_comms.asend.assert_awaited_with(DeleteTaskStateStore(ti_id=ti.id, key="external_id"))
+
+    await store.aclear()
+    mock_supervisor_comms.asend.assert_awaited_with(ClearTaskStateStore(ti_id=ti.id))
+
+    runner.triggers[24]["task"].cancel()
+    await runner.cleanup_finished_triggers()
+
+
+class TestTriggerSupervisorTaskStateStore:
+    """Supervisor side of the task-state-store round trip, mirroring the asset tests below."""
+
+    @pytest.fixture
+    def supervisor(self, jobless_supervisor, mocker):
+        jobless_supervisor.client = mocker.MagicMock(spec=Client)
+        mocker.patch.object(TriggerRunnerSupervisor, "send_msg")
+        return jobless_supervisor
+
+    @staticmethod
+    def _handle(supervisor, msg):
+        supervisor._handle_request(msg, log=MagicMock(spec=FilteringBoundLogger), req_id=7)
+
+    def test_get_wraps_response_and_replies(self, supervisor):
+        ti_id = uuid.uuid4()
+        supervisor.client.task_state_store.get.return_value = TaskStateStoreResponse(value="job-123")
+
+        self._handle(supervisor, GetTaskStateStore(ti_id=ti_id, key="external_id"))
+
+        supervisor.client.task_state_store.get.assert_called_once_with(ti_id, "external_id")
+        supervisor.send_msg.assert_called_once_with(
+            TaskStateStoreResult(value="job-123"), request_id=7, error=None
+        )
+
+    def test_get_passes_through_not_found_error(self, supervisor):
+        err = ErrorResponse(error=ErrorType.TASK_STORE_NOT_FOUND, detail={"key": "external_id"})
+        supervisor.client.task_state_store.get.return_value = err
+
+        self._handle(supervisor, GetTaskStateStore(ti_id=uuid.uuid4(), key="external_id"))
+
+        supervisor.send_msg.assert_called_once_with(err, request_id=7, error=None)
+
+    def test_set(self, supervisor):
+        ti_id = uuid.uuid4()
+        expires_at = timezone.utcnow()
+
+        self._handle(
+            supervisor,
+            SetTaskStateStore(ti_id=ti_id, key="external_id", value="job-123", expires_at=expires_at),
+        )
+
+        supervisor.client.task_state_store.set.assert_called_once_with(
+            ti_id, "external_id", "job-123", expires_at=expires_at
+        )
+        supervisor.send_msg.assert_called_once_with(OKResponse(ok=True), request_id=7, error=None)
+
+    def test_delete(self, supervisor):
+        ti_id = uuid.uuid4()
+
+        self._handle(supervisor, DeleteTaskStateStore(ti_id=ti_id, key="external_id"))
+
+        supervisor.client.task_state_store.delete.assert_called_once_with(ti_id, "external_id")
+        supervisor.send_msg.assert_called_once_with(OKResponse(ok=True), request_id=7, error=None)
+
+    def test_clear(self, supervisor):
+        ti_id = uuid.uuid4()
+
+        self._handle(supervisor, ClearTaskStateStore(ti_id=ti_id))
+
+        supervisor.client.task_state_store.clear.assert_called_once_with(ti_id)
+        supervisor.send_msg.assert_called_once_with(OKResponse(ok=True), request_id=7, error=None)
 
 
 class TestTriggerSupervisorAssetStateStore:

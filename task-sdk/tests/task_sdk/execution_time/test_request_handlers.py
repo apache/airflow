@@ -16,34 +16,45 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from unittest.mock import MagicMock
+from uuid import uuid4
 
 import pytest
 
 from airflow.sdk.api import client as sdk_client
-from airflow.sdk.api.datamodels._generated import AssetStateStoreResponse
+from airflow.sdk.api.datamodels._generated import AssetStateStoreResponse, TaskStateStoreResponse
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     AssetStateStoreResult,
     ClearAssetStateStoreByName,
     ClearAssetStateStoreByUri,
+    ClearTaskStateStore,
     DeleteAssetStateStoreByName,
     DeleteAssetStateStoreByUri,
+    DeleteTaskStateStore,
     ErrorResponse,
     GetAssetStateStoreByName,
     GetAssetStateStoreByUri,
+    GetTaskStateStore,
     SetAssetStateStoreByName,
     SetAssetStateStoreByUri,
+    SetTaskStateStore,
+    TaskStateStoreResult,
 )
 from airflow.sdk.execution_time.request_handlers import (
     handle_clear_asset_state_store_by_name,
     handle_clear_asset_state_store_by_uri,
+    handle_clear_task_state_store,
     handle_delete_asset_state_store_by_name,
     handle_delete_asset_state_store_by_uri,
+    handle_delete_task_state_store,
     handle_get_asset_state_store_by_name,
     handle_get_asset_state_store_by_uri,
+    handle_get_task_state_store,
     handle_set_asset_state_store_by_name,
     handle_set_asset_state_store_by_uri,
+    handle_set_task_state_store,
 )
 
 
@@ -163,5 +174,66 @@ def test_asset_store_delegates_to_client(client, handler, msg, call_kwargs, meth
     result, dump_opts = handler(client, msg(**call_kwargs))
 
     getattr(client.asset_state_store, method).assert_called_once_with(**call_kwargs)
+    assert result is None
+    assert dump_opts == {}
+
+
+def test_get_task_state_store_wraps_response_as_result(client):
+    ti_id = uuid4()
+    client.task_state_store.get.return_value = TaskStateStoreResponse(value="job-123")
+
+    result, dump_opts = handle_get_task_state_store(client, GetTaskStateStore(ti_id=ti_id, key="external_id"))
+
+    client.task_state_store.get.assert_called_once_with(ti_id, "external_id")
+    assert result == TaskStateStoreResult(value="job-123")
+    assert dump_opts == {}
+
+
+def test_get_task_state_store_passes_through_error_response(client):
+    err = ErrorResponse(error=ErrorType.TASK_STORE_NOT_FOUND, detail={"key": "external_id"})
+    client.task_state_store.get.return_value = err
+
+    result, dump_opts = handle_get_task_state_store(
+        client, GetTaskStateStore(ti_id=uuid4(), key="external_id")
+    )
+
+    assert result is err
+    assert dump_opts == {}
+
+
+def test_set_task_state_store_delegates_to_client(client):
+    ti_id = uuid4()
+    expires_at = datetime(2026, 6, 11, tzinfo=timezone.utc)
+
+    result, dump_opts = handle_set_task_state_store(
+        client,
+        SetTaskStateStore(ti_id=ti_id, key="external_id", value="job-123", expires_at=expires_at),
+    )
+
+    client.task_state_store.set.assert_called_once_with(
+        ti_id, "external_id", "job-123", expires_at=expires_at
+    )
+    assert result is None
+    assert dump_opts == {}
+
+
+def test_delete_task_state_store_delegates_to_client(client):
+    ti_id = uuid4()
+
+    result, dump_opts = handle_delete_task_state_store(
+        client, DeleteTaskStateStore(ti_id=ti_id, key="external_id")
+    )
+
+    client.task_state_store.delete.assert_called_once_with(ti_id, "external_id")
+    assert result is None
+    assert dump_opts == {}
+
+
+def test_clear_task_state_store_delegates_to_client(client):
+    ti_id = uuid4()
+
+    result, dump_opts = handle_clear_task_state_store(client, ClearTaskStateStore(ti_id=ti_id))
+
+    client.task_state_store.clear.assert_called_once_with(ti_id)
     assert result is None
     assert dump_opts == {}
