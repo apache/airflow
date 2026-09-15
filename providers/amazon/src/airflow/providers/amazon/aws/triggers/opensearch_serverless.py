@@ -46,6 +46,9 @@ class OpenSearchServerlessCollectionActiveTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int = 60,
         waiter_max_attempts: int = 20,
         aws_conn_id: str | None = None,
+	region_name: str | None = None,
+	verify: bool | str | None = None,
+	botocore_config: dict | None = None,
     ) -> None:
         if not exactly_one(collection_id is None, collection_name is None):
             raise AttributeError("Either collection_ids or collection_names must be provided, not both.")
@@ -53,7 +56,6 @@ class OpenSearchServerlessCollectionActiveTrigger(AwsBaseWaiterTrigger):
         super().__init__(
             serialized_fields={"collection_id": collection_id, "collection_name": collection_name},
             waiter_name="collection_available",
-            # waiter_args is a dict[str, Any], allow a possible list of None (it is caught above)
             waiter_args={"ids": [collection_id]} if collection_id else {"names": [collection_name]},
             failure_message="OpenSearch Serverless Collection creation failed.",
             status_message="Status of OpenSearch Serverless Collection is",
@@ -67,7 +69,15 @@ class OpenSearchServerlessCollectionActiveTrigger(AwsBaseWaiterTrigger):
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
+            region_name=region_name,
+            verify=verify,
+            botocore_config=botocore_config,
         )
 
     def hook(self) -> AwsGenericHook:
-        return OpenSearchServerlessHook(aws_conn_id=self.aws_conn_id)
+        return OpenSearchServerlessHook(
+	aws_conn_id=self.aws_conn_id,
+	region_name=self.region_name,
+	verify=self.verify,
+	config=self.botocore_config,
+	)
