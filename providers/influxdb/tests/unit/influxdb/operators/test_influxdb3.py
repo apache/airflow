@@ -117,8 +117,8 @@ class TestInfluxDB3Operator:
     @pytest.mark.parametrize(
         ("event", "match"),
         [
-            (None, "did not return an event"),
-            ({"status": "cancelled"}, "unexpected status"),
+            pytest.param(None, "did not return an event", id="missing-event"),
+            pytest.param({"status": "cancelled"}, "unexpected status", id="unexpected-status"),
         ],
     )
     def test_execute_complete_invalid_event(self, event, match):
