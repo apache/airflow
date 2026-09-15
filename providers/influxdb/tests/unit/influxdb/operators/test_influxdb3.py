@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
 from unittest import mock
 
 import pytest
@@ -69,6 +70,7 @@ class TestInfluxDB3Operator:
             sql='SELECT "duration" FROM "pyexample"',
             influxdb3_conn_id="influxdb3_default",
             deferrable=True,
+            execution_timeout=timedelta(minutes=7),
         )
 
         with pytest.raises(TaskDeferred) as exc:
@@ -77,6 +79,7 @@ class TestInfluxDB3Operator:
         assert isinstance(exc.value.trigger, InfluxDB3QueryTrigger)
         assert exc.value.trigger.sql == 'SELECT "duration" FROM "pyexample"'
         assert exc.value.trigger.influxdb3_conn_id == "influxdb3_default"
+        assert exc.value.timeout == timedelta(minutes=7)
         assert exc.value.method_name == "execute_complete"
         mock_hook_class.assert_not_called()
 
