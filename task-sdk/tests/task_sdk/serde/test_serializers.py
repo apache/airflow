@@ -267,6 +267,24 @@ class TestSerializers:
         with pytest.raises(TypeError, match=msg):
             deserialize(klass, ver, value)
 
+    @pytest.mark.parametrize(
+        ("classname", "value"),
+        [
+            pytest.param("uuid.UUID", "12345678-1234-5678-1234-567812345678", id="uuid"),
+            pytest.param("datetime.timedelta", 60.0, id="timedelta"),
+            pytest.param("datetime.datetime", {"timestamp": 1657505443.0, "tz": None}, id="datetime"),
+        ],
+    )
+    def test_deserialize_rejects_a_newer_version(self, classname, value):
+        """A payload written by a newer Airflow must not be read under the old assumptions.
+
+        serde dispatches a registered classname straight to its serializer, and the version
+        guard in ``serde.deserialize`` covers only the attr/dataclass fallback, so each
+        serializer has to make the check itself. uuid and datetime were the two missing it.
+        """
+        with pytest.raises(TypeError, match=r"serialized 999 of .* > \d+"):
+            deserialize({CLASSNAME: classname, VERSION: 999, DATA: value})
+
     def test_params(self):
         i = ParamsDict({"x": Param(default="value", description="there is a value", key="test")})
         e = serialize(i)
