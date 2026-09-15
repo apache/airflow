@@ -279,7 +279,6 @@ class TestCreate:
         ):
             backend.create(spec=SandboxSpec(block_network=False))
 
-
     @mock.patch("ascii_box_sdk.wait_until_ready", autospec=True)
     def test_wrapped_create_response_remains_supported(self, _wait_ready):
         backend, api = _backend_with_api()
