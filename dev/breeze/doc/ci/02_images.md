@@ -32,6 +32,7 @@
   - [CI image build arguments](#ci-image-build-arguments)
   - [Running the CI image](#running-the-ci-image)
 - [Naming conventions for stored images](#naming-conventions-for-stored-images)
+- [Reusing production dependency layers](#reusing-production-dependency-layers)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -576,6 +577,39 @@ percent-encoded when you access them via UI (/ = %2F)
 - \<BRANCH\> might be either "main" or "v2-\*-test"
 - \<X.Y\> - Python version (Major + Minor).Should be one of \["3.10", "3.11", "3.12", "3.13", "3.14" \].
 
+
+# Reusing production dependency layers
+
+Production images must install the current checkout's wheels, including compiled UI assets.
+A complete image from another commit is suitable only when its installed application inputs match.
+For wheel builds, `PROD_IMAGE_DEPENDENCY_CACHE=true` enables a separate dependency installation
+layer. Breeze prepares deterministic metadata-only copies of the local Airflow wheels, retaining
+`METADATA` and `WHEEL`, including dependency requirements, extras, Python compatibility and wheel
+tags. Package code, entry points and UI assets are excluded from these temporary wheels.
+
+The Docker build installs the metadata wheels using the normal resolver and constraints policy,
+then uninstalls the placeholders. It copies and installs the actual wheels in a subsequent layer,
+again using the resolver and `pip check`. Consequently source changes reuse installed dependencies
+while package metadata and constraint changes invalidate the dependency layer. The cached layer
+contains no previous Airflow application files, so deleted Python modules and UI assets cannot
+survive through reuse. Source distributions use the regular installation path because their
+metadata can require executing a build backend. Normal builds remain unchanged unless this
+optimization is enabled.
+
+The intermediate layer must survive transfer to a fresh runner. Breeze accepts these production
+build environment variables:
+
+| Variable | Meaning |
+|----------|---------|
+| `PROD_IMAGE_DEPENDENCY_CACHE` | Set to `true` to prepare metadata wheels for context distribution builds. |
+| `PROD_IMAGE_BUILD_CACHE_FROM` | Directory containing an imported BuildKit local cache. |
+| `PROD_IMAGE_BUILD_CACHE_TO` | Separate output directory for a BuildKit local cache, exported with `mode=max`. |
+
+These cache directories are BuildKit artifacts, not images accepted by `docker load` or
+`breeze prod-image load`. `mode=max` preserves intermediate build layers that an inline cache
+would omit. Use separate input and output directories, and do not restore PR-generated caches
+into trusted main publishers. Publishers must periodically rebuild dependencies without importing
+an older dependency cache so changes in external constraints and unpinned dependencies are refreshed.
 
 ----
 
