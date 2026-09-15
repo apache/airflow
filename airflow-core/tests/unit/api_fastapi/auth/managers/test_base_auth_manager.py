@@ -887,3 +887,6 @@ class TestBaseAuthManager:
         user = BaseAuthManagerUserTest(name=user_id)
         result = auth_manager.is_authorized_hitl_task(assigned_users=assigned_users, user=user)
         assert result == expected
+
+    def test_get_fastapi_middlewares(self, auth_manager):
+        assert auth_manager.get_fastapi_middlewares() == []

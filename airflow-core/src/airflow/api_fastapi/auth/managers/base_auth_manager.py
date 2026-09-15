@@ -143,6 +143,9 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
                     stacklevel=2,
                 )
 
+    use_jwt_middleware: bool = True
+    """Should this auth manager use the middleware from ``get_jwt_refresh_middleware()``."""
+
     @abstractmethod
     def deserialize_user(self, token: dict[str, Any]) -> T:
         """Create a user object from dict."""
@@ -183,6 +186,12 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         method.
         """
         return []
+
+    def get_jwt_refresh_middleware(self) -> tuple[_MiddlewareFactory[Any], dict[str, Any]]:
+        """Return the JWTRefreshMiddleware to refresh the Airflow JWT token."""
+        from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware
+
+        return JWTRefreshMiddleware, {}
 
     def generate_jwt(
         self, user: T, *, expiration_time_in_seconds: int = conf.getint("api_auth", "jwt_expiration_time")
