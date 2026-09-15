@@ -2348,7 +2348,7 @@ class TestOpenLineageListenerAirflow3:
 
         Such a sensor re-runs to poke again without incrementing ``try_number``, so the run id is
         unchanged and a second START would show consumers the same run entering RUNNING twice. Any
-        operator can accumulate ``TaskReschedule`` rows though, because a missing-DAG startup failure
+        operator can accumulate ``TaskReschedule`` rows though, because a missing-Dag startup failure
         writes them before any listener hook fires, and those attempts have emitted nothing yet.
         """
         listener, task_instance = self._create_listener_and_task_instance()
