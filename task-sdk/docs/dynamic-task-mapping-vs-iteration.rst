@@ -17,7 +17,7 @@
 
 .. _sdk-dynamic-task-mapping-vs-iteration:
 
-Dynamic Task Mapping vs Task Iteration
+Dynamic Task Mapping vs Iterable Tasks
 ======================================
 
 .. versionadded:: 3.4.0
@@ -28,12 +28,12 @@ Airflow provides two complementary ways to process collections of data:
   Each item becomes a separate Task Instance that can run on a different worker,
   giving you horizontal scalability and per-item observability.
 
-- **Task Iteration (TI)** improves concurrency **within a single task**.
+- **Iterable Tasks (IT)** improves concurrency **within a single task**.
   All items are processed inside one Task Instance on one worker, eliminating
   scheduling overhead and — when combined with async operators — enabling true
   I/O multiplexing through a shared event loop.
 
-In short: **DTM spreads load across workers; TI speeds up work within one worker.**
+In short: **DTM spreads load across workers; IT speeds up work within one worker.**
 
 While both approaches allow you to apply an operation over a collection,
 they differ significantly in execution model, scheduler impact, and observability.
@@ -62,7 +62,7 @@ difference between the two approaches:
 
 The ~60× improvement stems from eliminating per-item scheduling overhead and
 sharing a single event loop for concurrent I/O. This is the kind of workload
-where TI excels: many small, I/O-bound operations processed within one task.
+where IT excels: many small, I/O-bound operations processed within one task.
 
 Dynamic Task Mapping (DTM)
 --------------------------
@@ -115,10 +115,10 @@ With 100 Pokémon the scheduler creates 100 Task Instances, each occupying
 a worker slot. This is fine for small lists, but for thousands of items the
 scheduler and database overhead becomes significant.
 
-Task Iteration (TI)
+Iterable Tasks (IT)
 ----------------------------
 
-Task Iteration allows you to iterate over an iterable (typically an XCom result)
+Iterable Tasks allows you to iterate over an iterable (typically an XCom result)
 *within a single Task Instance*, applying an operator multiple times without creating
 separate Task Instances.
 
@@ -133,7 +133,7 @@ Key characteristics:
 - Iterations share the same execution context (e.g., memory, event loop).
 - Particularly well suited for async operators and high-throughput workloads.
 
-The same Pokémon fetching problem can be solved with TI. Here, a single Task
+The same Pokémon fetching problem can be solved with IT. Here, a single Task
 Instance processes all Pokémon concurrently using the sync
 :class:`~airflow.providers.http.operators.http.HttpOperator`:
 
@@ -227,18 +227,18 @@ difference is negligible, but for hundreds or thousands of items the
 concurrent approach is dramatically faster — see the
 :ref:`benchmarks above <sdk-dynamic-task-mapping-vs-iteration>`.
 
-Why Task Iteration?
+Why Iterable Tasks?
 ---------------------------
 
-TI is designed to address limitations of Dynamic Task Mapping in specific scenarios:
+IT is designed to address limitations of Dynamic Task Mapping in specific scenarios:
 
 - **Scheduler scalability**:
   DTM creates one Task Instance per item, which can put pressure on the scheduler
-  for very large datasets. TI avoids this by keeping execution within a single task.
+  for very large datasets. IT avoids this by keeping execution within a single task.
 
 - **Async multiplexing**:
-  With Python-native async support in Airflow 3.2, TI allows multiple
-  operations to share the same event loop within a single Task Instance.
+  With Python-native async support in Airflow 3.2, IT allows multiple
+  operations to share the same event loop (and connection) within a single Task Instance.
   This enables efficient multiplexing of I/O-bound workloads.
 
 - **Lower overhead**:
@@ -250,13 +250,13 @@ TI is designed to address limitations of Dynamic Task Mapping in specific scenar
   cannot leverage a custom XCom backend to offload large payloads. This makes
   triggerers a bottleneck for sustained high-load async execution or workloads
   that return large results. Dynamic Task Mapping with deferrable operators
-  amplifies the problem further. TI sidesteps triggerers entirely — iterations
+  amplifies the problem further. IT sidesteps triggerers entirely — iterations
   execute on workers, which scale more effectively and support custom XCom
   backends.
 
   For more on deferred vs async trade-offs, see :doc:`deferred-vs-async-operators`.
 
-TI is especially useful for patterns such as:
+IT is especially useful for patterns such as:
 
 - API pagination
 - Bulk HTTP or database calls
@@ -266,7 +266,7 @@ TI is especially useful for patterns such as:
 Hooks as Building Blocks
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-TI encourages a pattern where DAG authors call **hooks** directly from
+IT encourages a pattern where DAG authors call **hooks** directly from
 ``@task``-decorated functions rather than relying on operators. Operators are
 wrappers around hooks and sometimes expose only a subset of the hook's
 capabilities. By calling hooks directly, users gain full control over
@@ -275,9 +275,10 @@ concurrency, error handling, and batching.
 For example, instead of using ``HttpOperator`` in deferrable mode (which
 delegates to the triggerer for a single request at a time), an async
 ``@task`` can call :class:`~airflow.providers.http.hooks.http.HttpAsyncHook`
-directly to perform many concurrent requests. With TI, the framework
+directly to perform many concurrent requests. With IT, the framework
 handles the iteration, concurrency, and event-loop management
-automatically — the DAG author only writes the per-item logic.
+automatically — the DAG author only writes the per-item logic and decides
+which strategy it wants to use.
 
 This "hooks as building blocks" approach is especially powerful with async
 hooks, where the shared event loop enables concurrent I/O without any
@@ -294,7 +295,7 @@ Comparison
 
    * - Aspect
      - Dynamic Task Mapping (DTM)
-     - Task Iteration (TI)
+     - Iterable Tasks (IT)
    * - Task Instances
      - One per item
      - Single Task Instance
@@ -319,6 +320,9 @@ Comparison
    * - Triggerer dependency
      - Deferrable mapped tasks rely on triggerers
      - No triggerers involved
+   * - Deferral / reschedule
+     - Supported (each item has its own task instance)
+     - Not supported (raises a non-retryable failure)
    * - XCom backend
      - Workers support custom XCom backends
      - Workers support custom XCom backends (triggerers do not)
@@ -354,45 +358,45 @@ Prefer DTM when:
 - Tasks are long-running or resource-intensive.
 - Work should be distributed across multiple workers.
 - Scheduling decisions should be made per item.
+- You need deferrable operators or reschedule-mode sensors — these work natively with DTM,
+  since each mapped item has its own task instance to defer or reschedule.
 
-When to Use Task Iteration
+When to Use Iterable Tasks
 -----------------------------------
 
-Prefer TI when:
+Prefer IT when:
 
 - You are processing large numbers of small items.
 - Scheduler overhead becomes a concern.
 - You are using async operators and want to leverage a shared event loop.
 - Workloads are I/O-bound and benefit from multiplexing.
 - Fine-grained observability per item is not required.
-- You want retries to skip already-succeeded items instead of reprocessing everything — completed
-  items are checkpointed in the task state store, so a retry only re-runs the pending/failed ones.
 
-When **not** to use TI
+When **not** to use IT
 -----------------------
 
-Avoid Task Iteration when:
+Avoid Iterable Tasks when:
 
-- You need per-item failure isolation (a fatal error in one item still fails the whole task
-  instance for that attempt, even though a retry only re-runs the checkpointed pending/failed
-  items rather than everything).
 - Each item represents a long-running or heavy computation.
 - You require detailed visibility per item in the Airflow UI.
 - Work must be distributed across multiple worker nodes.
+- Sub-tasks need to defer (deferrable operators) or reschedule (reschedule-mode sensors) — a
+  sub-task index has no task instance of its own to defer or reschedule against, so either raises
+  a non-retryable failure instead of pausing.
 
 .. tip::
 
-   TI is a **third execution option** alongside Dynamic Task Mapping and
+   IT is a **third execution option** alongside Dynamic Task Mapping and
    deferrable operators. It is not intended as a replacement for either.
    Triggerers remain the right choice for long-running polling or waiting tasks
    (e.g., monitoring a remote job or waiting for a Kubernetes pod to complete).
 
-Combining DTM and TI (Dynamic Task Batching)
+Combining DTM and IT (Dynamic Task Batching)
 ---------------------------------------------
 
-DTM and TI are not mutually exclusive in principle. The *Dynamic Task Batching*
+DTM and IT are not mutually exclusive in principle. The *Dynamic Task Batching*
 pattern uses DTM to fan a large dataset out across ``size`` task instances,
-where each mapped task instance then iterates over its share using TI.
+where each mapped task instance then iterates over its share using IT.
 
 For example, downloading 17,000 files with ``.batch(size=17).iterate(url=urls)``
 creates 17 task instances via DTM. Each task instance streams the *same*
@@ -422,10 +426,12 @@ This pattern would provide:
 Relationship with Async Operators
 ----------------------------------
 
-TI complements async operators introduced in Airflow 3.2.
+IT complements async operators introduced in Airflow 3.2 and is the natural next step in that
+evolution: async operators make a single I/O call non-blocking, while IT applies that same
+non-blocking call repeatedly across a dataset within one task.
 
 - Async operators allow concurrent I/O within a single task.
-- TI allows you to *apply an operator repeatedly* over a dataset within that same task.
+- IT allows you to *apply an operator repeatedly* over a dataset within that same task.
 
 Together, they enable patterns such as:
 
@@ -434,9 +440,9 @@ Together, they enable patterns such as:
 - Streaming data processing
 
 Unlike Dynamic Task Mapping, where each mapped task runs in its own execution context,
-TI allows all iterations to share the same event loop, enabling true multiplexing.
+IT allows all iterations to share the same event loop, enabling true multiplexing.
 
-Because TI executes on workers rather than triggerers, it also benefits from the
+Because IT executes on workers rather than triggerers, it also benefits from the
 full worker environment: custom XCom backends, Edge Worker support, and the
 scalability of execution frameworks such as Celery.
 
@@ -445,9 +451,9 @@ For more details on async execution, see :doc:`deferred-vs-async-operators`.
 Future Outlook
 --------------
 
-As Python's async ecosystem evolves, TI tasks will benefit from improved
+As Python's async ecosystem evolves, IT tasks will benefit from improved
 introspection and tooling. For example, Python 3.14 introduces new
 `asyncio introspection capabilities <https://docs.python.org/3/whatsnew/3.14.html#whatsnew314-asyncio-introspection>`_
 that could eventually enable structured progress reporting in the Airflow UI
-for TI tasks — providing per-item visibility without the overhead of per-item
+for IT tasks — providing per-item visibility without the overhead of per-item
 task instances.
