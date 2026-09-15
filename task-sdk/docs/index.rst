@@ -40,6 +40,8 @@ To install the Task SDK, run:
 
    pip install apache-airflow-task-sdk
 
+.. _getting-started:
+
 Getting Started
 ^^^^^^^^^^^^^^^
 Define a basic Dag and task in just a few lines of Python:
@@ -177,3 +179,4 @@ For the full public API reference, see the :doc:`api` page.
   api
   concepts
   executable-bundle-spec
+  ts-bundle-spec

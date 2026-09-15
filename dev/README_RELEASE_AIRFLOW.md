@@ -388,7 +388,7 @@ export AIRFLOW_REPO_ROOT=$(pwd)
 ```
 
 - Install `breeze` command (recommended — installs a shim at `~/.local/bin/breeze` that runs
-  breeze via `uvx` from the current git worktree's `dev/breeze`; see
+  breeze via `uv run --locked` from the current git worktree's `dev/breeze`; see
   [ADR 0017](breeze/doc/adr/0017-use-uvx-to-run-breeze-from-local-sources.md)):
 
 ```shell script

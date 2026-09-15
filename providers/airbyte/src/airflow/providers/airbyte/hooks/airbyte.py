@@ -20,6 +20,9 @@ from __future__ import annotations
 import time
 from typing import Any, TypeVar
 
+# Stays on httpx (not httpx2): the client built below is handed to airbyte-api, which builds
+# and sends httpx.Request objects through it, and the two packages' classes are distinct.
+# Migrate once airbyte-api moves to httpx2; tracked at https://github.com/apache/airflow/issues/70522
 import httpx
 from airbyte_api import AirbyteAPI
 from airbyte_api.api import CancelJobRequest, GetJobRequest

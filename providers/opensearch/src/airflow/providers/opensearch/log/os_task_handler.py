@@ -186,6 +186,11 @@ def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
 def get_os_kwargs_from_config() -> dict[str, Any]:
     open_search_config = conf.getsection("opensearch_configs")
     kwargs_dict = {key: value for key, value in open_search_config.items()} if open_search_config else {}
+    # ``ca_certs`` defaults to an empty string, which means "not configured". opensearch-py only uses its
+    # default CA bundle when the argument is left out entirely. Passing an empty string instead makes it
+    # raise ImproperlyConfigured when both ``use_ssl`` and ``verify_certs`` are enabled.
+    if not kwargs_dict.get("ca_certs"):
+        kwargs_dict.pop("ca_certs", None)
     return kwargs_dict
 
 

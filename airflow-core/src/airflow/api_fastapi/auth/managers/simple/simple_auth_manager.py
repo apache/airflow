@@ -387,10 +387,6 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
             # In all-admin mode, everyone is allowed
             return True
 
-        # If no assigned_users specified, allow access
-        if not assigned_users:
-            return True
-
         # Delegate to parent class for the actual authorization check
         return super().is_authorized_hitl_task(assigned_users=assigned_users, user=user)
 

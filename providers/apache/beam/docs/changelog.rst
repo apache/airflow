@@ -26,6 +26,33 @@
 Changelog
 ---------
 
+6.2.4
+.....
+
+Misc
+~~~~
+
+* ``Bump minimum apache-beam version to 2.76.0 (#61926, #66952)``
+* ``Fix Apache Beam hook type error with mypy 2.2.0 typeshed (#69946)``
+* ``Add Python 3.14 Support (#63520)``
+* ``Add Apache Airflow Provider Registry (#62261)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update changelog with better wording (#71161)``
+* ``Replace DAG with Dag in the Apache provider documentation (#66153)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Auto-sync provider README.rst Requirements with pyproject.toml (#67669)``
+   * ``Revert "Apply AIR201-style replacements (#65197)" (#66712)``
+   * ``Apply AIR201-style replacements (#65197)``
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+   * ``Fix stale system test documentation links (#65071)``
+
 6.2.3
 .....
 
