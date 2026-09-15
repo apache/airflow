@@ -10,13 +10,11 @@
   "filters": {
     "allRunTypes": "Tous les types de Run",
     "allStates": "Tous les états",
-    "anyRunState": "N'importe quel Run",
     "favorite": {
       "all": "Tous",
       "favorite": "Favoris",
       "unfavorite": "Non favoris"
     },
-    "lastRunState": "Dernier Run",
     "noTimetableTypesFound": "Aucun type de calendrier trouvé",
     "paused": {
       "active": "Actif",

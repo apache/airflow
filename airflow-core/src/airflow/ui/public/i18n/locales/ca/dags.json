@@ -10,8 +10,6 @@
   "filters": {
     "allRunTypes": "Tots els tipus d'execució",
     "allStates": "Tots els estats",
-    "anyRunState": "Qualsevol execució",
-    "anyRunStatePlaceholder": "Seleccionar qualsevol estat d'execució…",
     "favorite": {
       "all": "Tots",
       "favorite": "Favorits",
@@ -19,8 +17,6 @@
     },
     "favoriteState": "Estat de favorit",
     "favoriteStatePlaceholder": "Seleccionar l'estat de favorit…",
-    "lastRunState": "Última execució",
-    "lastRunStatePlaceholder": "Seleccionar l'estat de l'última execució…",
     "noTimetableTypesFound": "No s'han trobat tipus de calendari",
     "paused": {
       "active": "Actius",
