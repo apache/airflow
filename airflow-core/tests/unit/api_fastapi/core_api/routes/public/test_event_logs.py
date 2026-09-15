@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 from unittest import mock
 
@@ -30,7 +31,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
 from airflow.models.log import Log
 from airflow.utils.session import NEW_SESSION, provide_session
 
-from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects
 from tests_common.test_utils.db import clear_db_logs, clear_db_runs
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu, from_datetime_to_zulu_without_ms
 
@@ -56,6 +57,18 @@ EVENT_WITHOUT_DTTM = "EVENT_WITHOUT_DTTM"
 EVENT_NON_EXISTED_ID = 9999
 TEAM_EVENT = "TEAM_EVENT"
 TEAM_NAME = "TEST_TEAM"
+
+
+def _assert_selects_only_display_name_columns(statements: list[str]) -> None:
+    (sql,) = [sql for sql in statements if "task_instance_1" in sql]
+    select_clause = sql.split(" FROM ", 1)[0]
+    assert set(re.findall(r"\bdag_1\.(\w+)", select_clause)) == {"dag_id", "dag_display_name"}
+    assert set(re.findall(r"\btask_instance_1\.(\w+)", select_clause)) == {
+        "id",
+        "task_id",
+        "task_display_name",
+    }
+    assert "dag_run" not in sql
 
 
 class TestEventLogsEndpoint:
@@ -198,6 +211,13 @@ class TestGetEventLog(TestEventLogsEndpoint):
         }
 
         assert response.json() == expected_json
+
+    def test_get_event_log_selects_only_display_name_columns(self, test_client, setup):
+        with capture_orm_selects("log") as statements:
+            response = test_client.get(f"/eventLogs/{setup[TASK_INSTANCE_EVENT].id}")
+
+        assert response.status_code == 200
+        _assert_selects_only_display_name_columns(statements)
 
     def test_get_event_log_returns_the_recorded_team(self, test_client, session):
         event_log = Log(event="cli_triggerer", team_name=TEAM_NAME)
@@ -425,6 +445,13 @@ class TestGetEventLogs(TestEventLogsEndpoint):
         assert resp_json["total_entries"] == expected_total_entries
         for event_log, expected_event in zip(resp_json["event_logs"], expected_events):
             assert event_log["event"] == expected_event
+
+    def test_get_event_logs_selects_only_display_name_columns(self, test_client):
+        with capture_orm_selects("log") as statements:
+            response = test_client.get("/eventLogs")
+
+        assert response.status_code == 200
+        _assert_selects_only_display_name_columns(statements)
 
     @provide_session
     def test_get_event_logs_excludes_logs_without_dttm(
