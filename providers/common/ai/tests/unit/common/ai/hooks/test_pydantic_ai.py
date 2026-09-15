@@ -525,9 +525,29 @@ class TestPydanticAIAzureHook:
     def test_hook_name(self):
         assert "Azure" in PydanticAIAzureHook.hook_name
 
-    def test_ui_field_behaviour_relabels_host(self):
+    def test_ui_metadata(self):
+        expected_placeholders = {
+            "host": "https://<resource>.openai.azure.com/openai/v1",
+            "extra": '{"model": "azure:gpt-4o"}',
+        }
+        expected_api_version_description = (
+            "Azure OpenAI API version (e.g. 2024-07-01-preview). Set when the endpoint path does not "
+            "end in /v1 and the host is not *.models.ai.azure.com. Falls back to OPENAI_API_VERSION."
+        )
+
         behaviour = PydanticAIAzureHook.get_ui_field_behaviour()
         assert behaviour["relabeling"].get("host") == "Azure Endpoint"
+        assert behaviour["placeholders"] == expected_placeholders
+
+        connection_types = get_provider_info()["connection-types"]
+        azure_connection_type = next(
+            c for c in connection_types if c["connection-type"] == "pydanticai_azure"
+        )
+        assert azure_connection_type["ui-field-behaviour"]["placeholders"] == expected_placeholders
+        assert (
+            azure_connection_type["conn-fields"]["api_version"]["description"]
+            == expected_api_version_description
+        )
 
     def test_get_provider_kwargs_maps_azure_endpoint(self):
         hook = PydanticAIAzureHook.__new__(PydanticAIAzureHook)
@@ -596,6 +616,22 @@ class TestPydanticAIAzureHook:
             azure_endpoint="https://myresource.openai.azure.com",
             api_version="2024-07-01-preview",
         )
+
+    def test_get_conn_accepts_v1_endpoint_without_api_version(self):
+        conn = Connection(
+            conn_id="azure_test",
+            conn_type="pydanticai_azure",
+            password="azure-key",
+            host="https://myresource.openai.azure.com/openai/v1",
+            extra=json.dumps({"model": "azure:gpt-4o"}),
+        )
+        hook = PydanticAIAzureHook(llm_conn_id="azure_test")
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            model = hook.get_conn()
+
+        assert model.system == "azure"
+        assert model.base_url.rstrip("/") == "https://myresource.openai.azure.com/openai/v1"
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     def test_get_conn_falls_back_to_env_auth_when_no_kwargs(self, mock_infer_model):
