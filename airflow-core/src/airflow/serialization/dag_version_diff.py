@@ -15,14 +15,119 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Observed-state diffs for serialized Dag payloads."""
+"""
+Observed-state diffs for serialized Dag payloads.
+
+Diff schema v1 -- the wire format every entry point here returns.
+:func:`build_serialized_dag_diff` and :func:`build_unavailable_dag_diff` both return one
+dictionary in the shape described below, and ``DIFF_SCHEMA_VERSION`` is the version of that
+shape: bump it whenever a client-observable part of this contract changes.
+
+Top-level keys, all always present:
+
+* ``diff_schema_version`` -- ``int``, the value of ``DIFF_SCHEMA_VERSION``.
+* ``serialized_dag_schema_versions`` -- ``{"base": int | None, "target": int | None}``, the
+  ``__version`` each stored payload carried. ``None`` means the key was absent or not an
+  integer; ``bool`` is rejected, so ``__version: true`` reads as ``None`` and never as
+  version 1. A version in ``SUPPORTED_SERIALIZED_DAG_SCHEMA_VERSIONS`` is upgraded to the
+  newest supported version before anything is compared.
+* ``mode`` -- ``"observed_state"`` when the two payloads were compared, ``"unavailable"``
+  when no comparison happened.
+* ``changes`` -- the change records described below, ordered by the deterministic walk.
+  Always empty when ``mode`` is ``"unavailable"``.
+* ``truncated`` -- ``True`` when more underlying changes exist than ``max_changes`` allowed.
+  Always ``False`` when ``mode`` is ``"unavailable"``.
+* ``values`` -- ``{"status": "available" | "unavailable"}``. ``"available"`` only for an
+  ``"observed_state"`` result whose caller authorized value disclosure, so
+  ``result["values"]["status"]`` is safe to read on every result of every entry point.
+
+``unavailable_reason`` is the one conditional key: present exactly when ``mode`` is
+``"unavailable"``. :func:`build_serialized_dag_diff` produces:
+
+* ``serialized_dag_missing`` -- one side has no stored payload.
+* ``serialized_dag_schema_version_missing`` -- one side carries no usable ``__version``.
+* ``unsupported_serialized_dag_schema_version:<n>`` -- ``<n>`` is the first unsupported
+  version found, base before target.
+* ``serialized_dag_canonicalization_failed`` -- a payload could not be normalized (malformed
+  structure, an unsupported ``client_defaults`` section, an unencodable value).
+* ``serialized_dag_recursion_limit_exceeded`` -- the comparison walk ran too deep.
+* ``serialized_dag_json_encoding_failed`` -- a value could not be encoded as canonical JSON.
+
+:meth:`~airflow.models.dag_version.DagVersion.get_diff` reuses
+``serialized_dag_decode_failed``, for a stored payload that will not decompress or parse, and
+``deadline_alert_missing``, for a payload that references a deadline alert row that is gone.
+:func:`build_unavailable_dag_diff` passes its caller's reason through unchanged, so a new
+caller extends this list rather than inventing an undocumented value.
+
+Each change record carries these keys in both disclosure modes:
+
+* ``path`` -- a JSON-Pointer-style path into a synthetic document with two roots: ``/dag``
+  (the canonicalized serialized Dag, with ``__version`` dropped and client defaults folded
+  into the tasks) and ``/provenance`` (the provenance mapping the caller supplied --
+  ``bundle_name``, ``bundle_version`` and ``version_data`` from ``get_diff``). ``~`` and
+  ``/`` inside a component are escaped as ``~0`` and ``~1``.
+* ``operation`` -- ``"added"``, ``"removed"`` or ``"changed"``.
+* ``category`` -- a :data:`DiffCategory`: ``task`` for task definitions and the Dag fields
+  that shape task execution, ``dependency`` for ``dag_dependencies`` and downstream task
+  ids, ``schedule`` for timetable, dates and concurrency, ``param`` for params,
+  ``asset`` for task inlets and outlets, ``deadline`` for deadline alerts,
+  ``callback`` for callback presence, ``metadata`` for descriptive and display fields,
+  ``authorization`` for ``access_control``, ``provenance`` for everything under
+  ``/provenance`` plus the file and bundle locators, and ``unknown`` for anything
+  unclassified. ``_DIFF_V1_DAG_FIELD_CATEGORIES`` is the authoritative Dag-field mapping;
+  an unclassified task field falls back to ``task``, which over-reports impact.
+* ``impact`` -- a :data:`DiffImpact` derived from ``category``: ``provenance``, ``metadata``
+  and ``authorization`` carry through unchanged, every operational category becomes
+  ``execution``, and ``unknown`` stays ``unknown``.
+* ``occurrence_count`` -- how many underlying changes the record stands for.
+
+A caller that authorized values (``include_values=True``, ``values.status`` ``"available"``)
+additionally gets:
+
+* ``before_digest`` / ``after_digest`` -- ``"sha256:<hex>"`` over the canonical JSON of that
+  side, or ``None`` when that side is missing. Both keys are always present.
+* ``before_value`` / ``after_value`` -- the canonicalized value, which is the stored one after
+  schema and client defaults are folded in and params are normalized. ``before_value`` is absent from
+  an ``added`` record and ``after_value`` from a ``removed`` one, which is how a missing side
+  is told apart from a stored ``null``.
+
+``path`` and ``occurrence_count`` also differ between the modes. A redacted record reports the
+public path: members of keyed collections (``/dag/tasks``, ``/dag/dag_dependencies``,
+``/dag/tags``, ``/dag/allowed_run_types`` and task group children) collapse to ``*`` instead
+of naming a task, tag or group, and records sharing a public path and operation are merged
+into one whose ``occurrence_count`` counts the merged changes. An authorized record keeps the
+identifying component and always has an ``occurrence_count`` of 1. Fields outside the v1 task
+and task group allowlists are aggregated into a single ``custom_fields`` record in both modes,
+so a private serializer field is never named by either. A top-level key outside the v1 root
+allowlist is likewise reported as ``/custom_fields`` when redacted, while an authorized record
+keeps its real root path.
+
+``max_changes`` bounds how many underlying changes either mode admits, so authorization decides
+what a change carries and never which changes exist. Admission is what the bound limits, not
+the record count: a redacted diff can stop admitting while holding fewer records than the
+bound, because several admitted changes merged into one record. A change reaching a group
+already in the result is counted without consuming a new record, so repeats keep accumulating
+until a change that needs a new record stops the walk.
+
+``truncated`` reports that such a change was dropped. When it is ``False`` every changed path
+is present with an exact ``occurrence_count``. When it is ``True`` the walk stopped early: some
+paths are absent rather than unchanged, and every ``occurrence_count`` is a lower bound, since
+occurrences after the stop were never reached.
+
+Typed dictionaries for the result and the change record are deliberately deferred -- the
+record shape varies with disclosure mode, so modelling it belongs with the REST layer that
+exposes it. :data:`DiffCategory` and :data:`DiffImpact` are stable enough to generate enums
+from today.
+"""
 
 from __future__ import annotations
 
 import copy
 import hashlib
 import json
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, MutableMapping
+from contextlib import suppress
+from dataclasses import dataclass
 from datetime import timedelta
 from enum import Enum
 from typing import Any, Literal
@@ -45,6 +150,21 @@ DEFAULT_MAX_CHANGES = 500
 MAX_ALLOWED_CHANGES = 5000
 SUPPORTED_SERIALIZED_DAG_SCHEMA_VERSIONS = frozenset((1, 2, 3))
 
+DiffCategory = Literal[
+    "asset",
+    "authorization",
+    "callback",
+    "deadline",
+    "dependency",
+    "metadata",
+    "param",
+    "provenance",
+    "schedule",
+    "task",
+    "unknown",
+]
+DiffImpact = Literal["authorization", "execution", "metadata", "provenance", "unknown"]
+
 _ORDER_INSENSITIVE_LIST_PATHS = {
     ("dag", "tags"),
     ("dag", "allowed_run_types"),
@@ -54,6 +174,9 @@ _KEYED_COLLECTION_PATHS = {
     ("dag", "dag_dependencies"),
     *_ORDER_INSENSITIVE_LIST_PATHS,
 }
+# Canonicalization folds away __version and client_defaults and adds provenance, so these are the
+# only top-level sections the walk is allowed to name.
+_DIFF_V1_PUBLIC_ROOT_FIELDS = frozenset({"dag", "provenance"})
 _CUSTOM_TASK_FIELDS_PATH_COMPONENT = "custom_fields"
 # This allowlist is part of diff schema v1. Serializer schema changes must not
 # silently change the paths visible to callers of the diff API.
@@ -98,6 +221,7 @@ _DIFF_V1_PUBLIC_TASK_FIELDS = frozenset(
         "ignore_first_depends_on_past",
         "inlets",
         "is_setup",
+        "is_stub",
         "is_teardown",
         "map_index_template",
         "max_active_tis_per_dag",
@@ -139,8 +263,7 @@ _DIFF_V1_PUBLIC_TASK_FIELDS = frozenset(
     }
 )
 _DIFF_V1_REDACTED_SCHEMA_TASK_FIELDS = frozenset({"_arg_bindings"})
-# _get_category classifies task fields with these; every name must be a public task field or the
-# entry is unreachable, since a non-public field is aggregated under custom_fields before lookup.
+# Task-field categories used by _get_category.
 _DIFF_V1_TASK_ASSET_FIELDS = frozenset({"inlets", "outlets"})
 _DIFF_V1_TASK_PARAM_FIELDS = frozenset({"params"})
 _DIFF_V1_TASK_DEPENDENCY_FIELDS = frozenset({"downstream_task_ids"})
@@ -161,7 +284,7 @@ _DIFF_V1_TASK_METADATA_FIELDS = frozenset(
 )
 _DIFF_V1_PUBLIC_PARTIAL_TASK_FIELDS = _DIFF_V1_PUBLIC_TASK_FIELDS | {"task_display_name"}
 # Classify every Dag schema field explicitly so new fields require a policy decision.
-_DIFF_V1_DAG_FIELD_CATEGORIES = {
+_DIFF_V1_DAG_FIELD_CATEGORIES: dict[str, DiffCategory] = {
     "_concurrency": "schedule",
     "_processor_dags_folder": "provenance",
     "access_control": "authorization",
@@ -173,8 +296,12 @@ _DIFF_V1_DAG_FIELD_CATEGORIES = {
     "dag_id": "metadata",
     "dagrun_timeout": "schedule",
     "deadline": "deadline",
-    "default_args": "param",
+    # Operator construction defaults, not Dag params. Compared as one opaque leaf, so the impact
+    # stays conservative: the same value can carry retries and pool beside owner and doc_md.
+    "default_args": "task",
     "description": "metadata",
+    # Decides whether a run pins a bundle version, so it changes which code later runs execute
+    # and whether triggering a historical version is allowed at all.
     "disable_bundle_versioning": "task",
     "doc_md": "metadata",
     "edge_info": "metadata",
@@ -199,12 +326,13 @@ _DIFF_V1_DAG_FIELD_CATEGORIES = {
     "timetable": "schedule",
     "timezone": "schedule",
 }
-_DIFF_V1_LEGACY_DAG_FIELD_CATEGORIES = {
+# Fields dropped from the current schema that a stored payload can still carry. Every entry must
+# survive _canonicalize_payload_v1, or it classifies nothing.
+_DIFF_V1_LEGACY_DAG_FIELD_CATEGORIES: dict[str, DiffCategory] = {
     "fail_stop": "schedule",
     "on_failure_callback": "callback",
     "on_success_callback": "callback",
     "schedule": "schedule",
-    "schedule_interval": "schedule",
 }
 _RECURSIVE_MAPPING_PATHS = {
     (),
@@ -250,18 +378,18 @@ def build_serialized_dag_diff(
     max_changes: int = DEFAULT_MAX_CHANGES,
 ) -> dict[str, Any]:
     """
-    Build a bounded, deterministic diff from two stored serialized Dag payloads.
+    Compare two serialized Dag payloads and their provenance deterministically.
 
-    Raw values, digests, and value-derived path components are returned only when
-    ``include_values`` is true. Callers must authorize disclosure of the entire
-    serialized payload, including access-control role names and permission mappings,
-    before enabling it.
+    Callers must authorize disclosure of the entire serialized payload, including
+    access-control roles and permissions, before setting ``include_values=True``.
+    This exposes canonicalized values, digests, and identifying path components.
 
-    ``max_changes`` limits underlying structural changes identically in both disclosure
-    modes. Redacted records with the same public path and operation are grouped, with
-    ``occurrence_count`` counting included changes; authorized records each have a count
-    of one. When ``truncated`` is true, counts are lower bounds and other paths may be
-    absent. Grouping preserves the order of first occurrence in the deterministic walk.
+    ``max_changes`` limits underlying changes admitted to the result. Redacted changes
+    with the same public path and operation share a record. Repeats can be counted past
+    the limit until a change needing a new record stops the walk. When ``truncated`` is
+    true, some paths are absent and occurrence counts are lower bounds.
+
+    An ``unavailable`` result includes the reason comparison failed.
     """
     validate_max_changes(max_changes)
 
@@ -332,11 +460,12 @@ class _ChangeCollector:
         self.count = 0
         self.max_changes = max_changes
         self.include_values = include_values
+        self._truncated = False
         self._redacted_changes: dict[tuple[tuple[str, ...], str], dict[str, Any]] = {}
 
     @property
     def is_truncated(self) -> bool:
-        return self.count > self.max_changes
+        return self._truncated
 
     def add(
         self,
@@ -347,13 +476,15 @@ class _ChangeCollector:
         after: Any,
     ) -> None:
         self.count += 1
-        if self.is_truncated:
-            return
-
         public_path = _get_public_path(path)
         key = (public_path, operation)
         if not self.include_values and (existing := self._redacted_changes.get(key)) is not None:
+            # Counting a repeat of an already disclosed path adds no record and reveals no new
+            # path, so it stays exact past the bound instead of silently undercounting.
             existing["occurrence_count"] += 1
+            return
+        if self.count > self.max_changes:
+            self._truncated = True
             return
 
         category = _get_category(public_path)
@@ -409,8 +540,7 @@ def _build_diff_result(base_schema_version: int | None, target_schema_version: i
         "mode": "observed_state",
         "changes": [],
         "truncated": False,
-        # Always present so that reading result["values"]["status"] is safe for every caller
-        # of every entry point, whatever the outcome.
+        # Always present so reading result["values"]["status"] is safe on every outcome.
         "values": {"status": "unavailable"},
     }
 
@@ -443,6 +573,46 @@ def _canonicalize_payload_v1(data: dict[str, Any]) -> dict[str, Any]:
     return _canonicalize_value(payload, path=())
 
 
+@dataclass(frozen=True)
+class _TaskDefaultSets:
+    """The default sets that every task in one payload is folded against."""
+
+    schema_defaults: Mapping[str, Any]
+    outer_schema_defaults: Mapping[str, Any]
+    partial_schema_defaults: Mapping[str, Any]
+    partial_fields: frozenset[str]
+    client_task_defaults: Mapping[str, Any]
+    inherited_dates: Mapping[str, Any]
+
+
+def _build_task_default_sets(
+    payload: dict[str, Any], client_task_defaults: Mapping[str, Any]
+) -> _TaskDefaultSets:
+    # get_schema_defaults is lru_cache'd and hands back the very mapping the live Dag-hydration path
+    # reads, so every use of it in this module must stay read-only. Mutating it in place would
+    # corrupt Dag hydration process-wide, not merely produce a wrong diff.
+    schema_defaults = DagSerialization.get_schema_defaults("operator")
+    partial_fields = (
+        SerializedBaseOperator.get_serialized_fields() - SerializedMappedOperator.get_serialized_fields()
+    )
+    return _TaskDefaultSets(
+        schema_defaults=schema_defaults,
+        outer_schema_defaults={
+            field: value for field, value in schema_defaults.items() if field not in partial_fields
+        },
+        # A mapped task resolves these through partial_kwargs, so their defaults have to be applied
+        # there and encoded like any other partial value rather than left at the outer level.
+        partial_schema_defaults={
+            field: value for field, value in schema_defaults.items() if field in partial_fields
+        },
+        partial_fields=partial_fields,
+        client_task_defaults=client_task_defaults,
+        # set_task_dag_references falls back to the Dag's dates, and the serializer elides a task date
+        # that already matches, so an absent task date means the Dag's date rather than a change.
+        inherited_dates={field: payload["dag"].get(field) for field in ("start_date", "end_date")},
+    )
+
+
 def _apply_task_defaults(payload: dict[str, Any]) -> None:
     client_defaults = payload.pop("client_defaults", None)
     if client_defaults is None:
@@ -455,86 +625,123 @@ def _apply_task_defaults(payload: dict[str, Any]) -> None:
     if unknown_sections := client_defaults.keys() - {"tasks"}:
         raise ValueError(f"unsupported client_defaults sections: {sorted(unknown_sections)}")
 
-    task_defaults = client_defaults.get("tasks", {})
-    if not isinstance(task_defaults, Mapping):
+    client_task_defaults = client_defaults.get("tasks", {})
+    if not isinstance(client_task_defaults, Mapping):
         raise ValueError("client_defaults.tasks is not an object")
 
-    schema_defaults = DagSerialization.get_schema_defaults("operator")
-    partial_fields = (
-        SerializedBaseOperator.get_serialized_fields() - SerializedMappedOperator.get_serialized_fields()
-    )
-    # A mapped task resolves these through partial_kwargs, so their defaults have to be applied
-    # there and encoded like any other partial value rather than left at the outer level.
-    partial_schema_defaults = {
-        field: value for field, value in schema_defaults.items() if field in partial_fields
-    }
-    outer_schema_defaults = {
-        field: value for field, value in schema_defaults.items() if field not in partial_fields
-    }
-    # set_task_dag_references falls back to the Dag's dates, and the serializer elides a task date
-    # that already matches, so an absent task date means the Dag's date rather than a change.
-    inherited_dates = {field: payload["dag"].get(field) for field in ("start_date", "end_date")}
+    defaults = _build_task_default_sets(payload, client_task_defaults)
     tasks = payload["dag"].get("tasks", [])
     if not isinstance(tasks, list):
         raise ValueError("dag.tasks is not a list")
     for task in tasks:
-        if not isinstance(task, dict) or not isinstance(task.get("__var"), Mapping):
-            raise ValueError("task entry is not an object")
-        encoded_task = OperatorSerialization._apply_defaults_to_encoded_op(
-            dict(task["__var"]), dict(client_defaults)
-        )
-        upgraded_task = OperatorSerialization._upgrade_encoded_operator(encoded_task)
-        # Operator identity is selected before client defaults are applied during hydration.
-        upgraded_task["_is_mapped"] = bool(task["__var"].get("_is_mapped", False))
+        upgraded_task = _upgrade_task_entry(task, client_defaults)
         template_fields = upgraded_task.get("template_fields", [])
         if upgraded_task.get("_is_mapped"):
-            task_data = {**outer_schema_defaults, **upgraded_task}
-            partial_kwargs = task_data.get("partial_kwargs", {})
-            if not isinstance(partial_kwargs, Mapping):
-                raise ValueError("partial_kwargs is not an object")
-            # populate_operator only folds client defaults into partial_kwargs when the payload
-            # carries the key, so an absent one leaves the top-level value as the effective value.
-            effective_partial_kwargs = (
-                {field: _encode_partial_field_value(field, value) for field, value in task_defaults.items()}
-                if "partial_kwargs" in task_data
-                else {}
-            )
-            for field, value in partial_kwargs.items():
-                if isinstance(value, Mapping) and "__type" in value and "__var" in value:
-                    effective_partial_kwargs[field] = value
-                else:
-                    effective_partial_kwargs[field] = _encode_partial_field_value(field, value)
-            # Match populate_operator: partial values take precedence over outer task defaults.
-            for field in partial_fields & task_data.keys():
-                value = task_data.pop(field)
-                # Outer fields are already encoded unless template handling bypasses deserialization.
-                if field in template_fields:
-                    value = _encode_json_value(value)
-                effective_partial_kwargs.setdefault(field, value)
-            for field, value in partial_schema_defaults.items():
-                effective_partial_kwargs.setdefault(field, _encode_partial_field_value(field, value))
-            task_data["partial_kwargs"] = effective_partial_kwargs
-            _normalize_retry_backoff(effective_partial_kwargs)
+            task_data = _build_mapped_task_data(upgraded_task, template_fields, defaults)
         else:
-            task_data = {**schema_defaults, **upgraded_task}
-            _normalize_retry_backoff(task_data)
-            for field in _OPERATOR_TIMEDELTA_FIELDS & task_data.keys():
-                value = task_data[field]
-                task_data[field] = (
-                    _encode_json_value(value)
-                    if field in template_fields and field in upgraded_task
-                    else _encode_partial_field_value(field, value)
-                )
-        for field, dag_date in inherited_dates.items():
-            if task_data.get(field) is None:
-                task_data[field] = _encode_partial_field_value(field, dag_date)
-            elif field in template_fields:
-                task_data[field] = _encode_json_value(task_data[field])
-            else:
-                task_data[field] = _encode_partial_field_value(field, task_data[field])
+            task_data = _build_unmapped_task_data(upgraded_task, template_fields, defaults)
+        _apply_inherited_dates(task_data, template_fields, defaults)
         if "params" in task_data and "params" not in template_fields:
             task_data["params"] = _normalize_params(task_data["params"])
         task["__var"] = task_data
+
+
+def _upgrade_task_entry(task: Any, client_defaults: Mapping[str, Any]) -> dict[str, Any]:
+    if not isinstance(task, dict) or not isinstance(task.get("__var"), Mapping):
+        raise ValueError("task entry is not an object")
+    encoded_task = OperatorSerialization._apply_defaults_to_encoded_op(
+        dict(task["__var"]), dict(client_defaults)
+    )
+    upgraded_task = OperatorSerialization._upgrade_encoded_operator(encoded_task)
+    # Operator identity is selected before client defaults are applied during hydration.
+    upgraded_task["_is_mapped"] = bool(task["__var"].get("_is_mapped", False))
+    return upgraded_task
+
+
+def _build_mapped_task_data(
+    upgraded_task: dict[str, Any], template_fields: Any, defaults: _TaskDefaultSets
+) -> dict[str, Any]:
+    task_data = {**defaults.outer_schema_defaults, **upgraded_task}
+    effective_partial_kwargs = _build_effective_partial_kwargs(task_data, template_fields, defaults)
+    task_data["partial_kwargs"] = effective_partial_kwargs
+    _normalize_retry_backoff(effective_partial_kwargs)
+    return task_data
+
+
+def _build_effective_partial_kwargs(
+    task_data: dict[str, Any], template_fields: Any, defaults: _TaskDefaultSets
+) -> dict[str, Any]:
+    """Resolve a mapped task's partial_kwargs, consuming the outer fields that move into them."""
+    partial_kwargs = task_data.get("partial_kwargs", {})
+    if not isinstance(partial_kwargs, Mapping):
+        raise ValueError("partial_kwargs is not an object")
+    # populate_operator only folds client defaults into partial_kwargs when the payload
+    # carries the key, so an absent one leaves the top-level value as the effective value.
+    effective_partial_kwargs = (
+        {
+            field: _encode_partial_field_value(field, value)
+            for field, value in defaults.client_task_defaults.items()
+        }
+        if "partial_kwargs" in task_data
+        else {}
+    )
+    for field, value in partial_kwargs.items():
+        effective_partial_kwargs[field] = (
+            value if _is_encoded_partial_value(value) else _encode_partial_field_value(field, value)
+        )
+    # Match populate_operator: partial values take precedence over outer task defaults.
+    for field in defaults.partial_fields & task_data.keys():
+        value = task_data.pop(field)
+        # Outer fields are already encoded unless template handling bypasses deserialization.
+        if field in template_fields:
+            value = _encode_json_value(value)
+        effective_partial_kwargs.setdefault(field, value)
+    for field, value in defaults.partial_schema_defaults.items():
+        effective_partial_kwargs.setdefault(field, _encode_partial_field_value(field, value))
+    return effective_partial_kwargs
+
+
+def _build_unmapped_task_data(
+    upgraded_task: dict[str, Any], template_fields: Any, defaults: _TaskDefaultSets
+) -> dict[str, Any]:
+    task_data = {**defaults.schema_defaults, **upgraded_task}
+    _normalize_retry_backoff(task_data)
+    for field in _OPERATOR_TIMEDELTA_FIELDS & task_data.keys():
+        value = task_data[field]
+        task_data[field] = (
+            _encode_json_value(value)
+            if field in template_fields and field in upgraded_task
+            else _encode_partial_field_value(field, value)
+        )
+    return task_data
+
+
+def _apply_inherited_dates(
+    task_data: dict[str, Any], template_fields: Any, defaults: _TaskDefaultSets
+) -> None:
+    for field, dag_date in defaults.inherited_dates.items():
+        if task_data.get(field) is None:
+            task_data[field] = _encode_partial_field_value(field, dag_date)
+        elif field in template_fields:
+            task_data[field] = _encode_json_value(task_data[field])
+        else:
+            task_data[field] = _encode_partial_field_value(field, task_data[field])
+
+
+# These two predicates deliberately disagree on what counts as already encoded, because the
+# serializer sites they mirror disagree: keep them apart rather than "aligning" them.
+def _is_encoded_partial_value(value: Any) -> bool:
+    # _deserialize_partial_kwargs only takes the full-deserialization path with BOTH keys present.
+    return isinstance(value, Mapping) and "__type" in value and "__var" in value
+
+
+def _is_encoded_param_attribute(value: Any) -> bool:
+    # _deserialize_param detects a legacy encoding from "__type" alone, with no "__var" required.
+    if isinstance(value, Mapping):
+        return "__type" in value
+    if isinstance(value, list):
+        return all(isinstance(item, Mapping) and "__type" in item for item in value)
+    return False
 
 
 def _normalize_params(params: Any) -> Any:
@@ -573,9 +780,7 @@ def _normalize_params(params: Any) -> Any:
 
 def _normalize_param_attribute(value: Any) -> Any:
     # Match _deserialize_param's legacy-encoding detection without hydrating user objects.
-    if isinstance(value, Mapping) and "__type" in value:
-        return value
-    if isinstance(value, list) and all(isinstance(item, Mapping) and "__type" in item for item in value):
+    if _is_encoded_param_attribute(value):
         return value
     return _encode_json_value(value)
 
@@ -603,7 +808,10 @@ def _encode_json_value(value: Any) -> Any:
 def _normalize_retry_backoff(task_fields: dict[str, Any]) -> None:
     if "retry_exponential_backoff" in task_fields:
         value = task_fields["retry_exponential_backoff"]
-        task_fields["retry_exponential_backoff"] = 2.0 if value is True else float(value)
+        # A non-numeric stored value stays as it is so the comparison reports just this field
+        # instead of collapsing the whole diff to a canonicalization failure.
+        with suppress(TypeError, ValueError):
+            task_fields["retry_exponential_backoff"] = 2.0 if value is True else float(value)
 
 
 def _canonicalize_value(value: Any, *, path: tuple[str, ...]) -> Any:
@@ -678,14 +886,18 @@ def _get_string_key(value: Any) -> str:
 
 
 def _get_dependency_key(dependency: Any) -> str:
-    if not isinstance(dependency, Mapping):
+    if not isinstance(dependency, MutableMapping):
         raise ValueError("dependency entry is not an object")
+    # DagDependency.node_id identifies an edge by the components below alone, and ``label`` only
+    # mirrors state compared elsewhere (a task's _task_display_name, or an asset name already inside
+    # dependency_id). Keying on it turns a rename into one edge removed and another added; leaving
+    # it in the entry turns two entries on one edge into duplicates that fail canonicalization.
+    dependency.pop("label", None)
     components = (
         dependency.get("dependency_type"),
         dependency.get("dependency_id"),
         dependency.get("source"),
         dependency.get("target"),
-        dependency.get("label"),
     )
     return json.dumps(components, ensure_ascii=False, separators=(",", ":"))
 
@@ -700,9 +912,7 @@ def _collect_changes(
     if before is _MISSING and after is _MISSING:
         return
     if isinstance(before, Mapping) and isinstance(after, Mapping):
-        # The walk shape never depends on ``include_values``: authorization decides what each
-        # change carries, not which changes exist, so ``max_changes`` means one thing and a
-        # caller allowed values never receives a less complete change set than a redacted one.
+        # Never branch on ``include_values`` here; see build_serialized_dag_diff.
         if _is_task_mapping_path(path):
             _collect_task_changes(before, after, path=path, collector=collector)
             return
@@ -837,6 +1047,10 @@ def _is_task_group_child_path(path: tuple[str, ...]) -> bool:
 
 
 def _get_public_path(path: tuple[str, ...]) -> tuple[str, ...]:
+    if path and path[0] not in _DIFF_V1_PUBLIC_ROOT_FIELDS:
+        # Root is the one level no allowlisted walk covers, so an unrecognised section name would
+        # otherwise be the single path component a redacted caller receives verbatim.
+        return (_CUSTOM_TASK_FIELDS_PATH_COMPONENT,)
     if path[:2] == ("dag", "task_group"):
         public_path = list(path)
         index = 2
@@ -846,7 +1060,9 @@ def _get_public_path(path: tuple[str, ...]) -> tuple[str, ...]:
                 return tuple(public_path)
             index += 3
         if len(path) > index and path[index] not in _DIFF_V1_PUBLIC_TASK_GROUP_FIELDS:
-            public_path[index] = "custom_fields"
+            # Unreachable by construction (_collect_public_field_changes aggregates non-public group
+            # keys first), but truncating like the task branch stops a future caller leaking a key.
+            return (*public_path[:index], _CUSTOM_TASK_FIELDS_PATH_COMPONENT)
         return tuple(public_path)
     if len(path) >= 3 and path[:2] in _KEYED_COLLECTION_PATHS:
         path = (*path[:2], "*", *path[3:])
@@ -883,23 +1099,27 @@ def _is_json_equal(before: Any, after: Any) -> bool:
 
 def _get_digest(value: Any) -> str:
     # SHA-256 provides a content fingerprint, not password protection.
-    return f"sha256:{hashlib.sha256(_serialize_canonical_json(value).encode()).hexdigest()}"
+    # Stored payloads can carry escaped lone surrogates, which strict UTF-8 refuses to encode;
+    # surrogatepass keeps them digestible without altering the bytes of any other payload.
+    canonical_json = _serialize_canonical_json(value).encode("utf-8", errors="surrogatepass")
+    return f"sha256:{hashlib.sha256(canonical_json).hexdigest()}"
 
 
-def _get_category(path: tuple[str, ...]) -> str:
-    lowered_path = tuple(component.lower() for component in path)
-    if lowered_path and lowered_path[0] == "provenance":
+def _get_category(path: tuple[str, ...]) -> DiffCategory:
+    # Matched case-sensitively: every classified name is a schema field name, so a differently
+    # cased key is a different key and belongs in "unknown" rather than borrowing a category.
+    if path and path[0] == "provenance":
         return "provenance"
-    if lowered_path[:2] == ("dag", "tasks"):
-        field = lowered_path[3] if len(lowered_path) >= 4 else None
-        if field == "partial_kwargs" and len(lowered_path) >= 5:
-            field = lowered_path[4]
-    elif lowered_path and lowered_path[0] == "dag":
-        field = lowered_path[1] if len(lowered_path) >= 2 else ""
+    if path[:2] == ("dag", "tasks"):
+        field = path[3] if len(path) >= 4 else None
+        if field == "partial_kwargs" and len(path) >= 5:
+            field = path[4]
+    elif path and path[0] == "dag":
+        field = path[1] if len(path) >= 2 else ""
         if field == "task_group":
-            index = _get_task_group_field_index(lowered_path)
-            if index is not None and len(lowered_path) > index:
-                if lowered_path[index] in _DIFF_V1_TASK_GROUP_METADATA_FIELDS:
+            index = _get_task_group_field_index(path)
+            if index is not None and len(path) > index:
+                if path[index] in _DIFF_V1_TASK_GROUP_METADATA_FIELDS:
                     return "metadata"
         return _DIFF_V1_DAG_FIELD_CATEGORIES.get(
             field, _DIFF_V1_LEGACY_DAG_FIELD_CATEGORIES.get(field, "unknown")
@@ -907,9 +1127,7 @@ def _get_category(path: tuple[str, ...]) -> str:
     else:
         return "unknown"
 
-    # Only task paths reach here: the Dag branch above returns its own category, so a Dag field
-    # name in these sets could never match. Anything unclassified falls back to the task default,
-    # which over-reports impact rather than under-reporting it.
+    # Unclassified task fields fall back to "task", over-reporting impact rather than under it.
     if field is not None and "callback" in field:
         return "callback"
     if field in _DIFF_V1_TASK_ASSET_FIELDS:
@@ -923,7 +1141,7 @@ def _get_category(path: tuple[str, ...]) -> str:
     return "task"
 
 
-def _get_impact(category: str) -> str:
+def _get_impact(category: DiffCategory) -> DiffImpact:
     if category in {"provenance", "metadata", "authorization"}:
         return category
     if category in {"task", "dependency", "schedule", "param", "asset", "deadline", "callback"}:
