@@ -1,1 +1,0 @@
-Fixed a race where a task instance already confirmed ``success`` by the worker could still be redundantly marked ``up_for_retry`` due to an unobserved subprocess exit code overriding the already-reported terminal state.

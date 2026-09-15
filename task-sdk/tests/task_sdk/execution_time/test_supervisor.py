@@ -4178,14 +4178,23 @@ class TestSignalRetryLogic:
 
         assert mock_watched_subprocess.final_state == TaskInstanceState.FAILED
 
-    def test_confirmed_terminal_state_takes_precedence_over_unobserved_exit_code(self, mocker):
+    @pytest.mark.parametrize("should_retry", [True, False])
+    def test_confirmed_terminal_state_takes_precedence_over_later_nonzero_exit_code(
+        self, mocker, should_retry
+    ):
         """
-        A terminal state reported via message (e.g. SucceedTask) is authoritative even if
-        `wait()` never observed the subprocess's real exit code and defaulted it to 1 (see
-        `_monitor_subprocess`/`wait()` -- `_check_subprocess_exit` can lose the race against
-        socket closure under scheduling delay). Regression test for
-        https://github.com/apache/airflow/issues/65708: previously this returned UP_FOR_RETRY,
-        which caused a spurious `.finish()` call and a 409 against the already-correct DB row.
+        A terminal state reported via message (e.g. SucceedTask) is authoritative even if the
+        subprocess is later killed with a genuinely non-zero exit code -- e.g.
+        `_handle_process_overtime_if_needed()` sending SIGTERM once `_terminal_state` is already
+        set. Regression test for https://github.com/apache/airflow/issues/65708.
+
+        Only `should_retry=False` actually reproduces the original crash: with
+        `should_retry=True` the pre-fix code already returned UP_FOR_RETRY, which is in
+        STATES_SENT_DIRECTLY, so `update_task_state_if_needed()` would already skip `.finish()`.
+        The crash needs `should_retry=False`, where the pre-fix code fell through to FAILED,
+        which is *not* in that set -- triggering a spurious `.finish()` call and a 409 against
+        the already-correct DB row. Both values are asserted here so the fix is pinned for
+        either configuration, not just the value that happens to match the new state.
         """
         mock_watched_subprocess = ActivitySubprocess(
             process_log=mocker.MagicMock(),
@@ -4196,10 +4205,13 @@ class TestSignalRetryLogic:
             client=mocker.Mock(),
         )
         mock_watched_subprocess._terminal_state = TaskInstanceState.SUCCESS
-        mock_watched_subprocess._exit_code = 1  # defaulted by wait(), not genuinely observed
-        mock_watched_subprocess._should_retry = True
+        mock_watched_subprocess._exit_code = 1  # genuinely observed, e.g. from a SIGTERM kill
+        mock_watched_subprocess._should_retry = should_retry
 
         assert mock_watched_subprocess.final_state == TaskInstanceState.SUCCESS
+
+        mock_watched_subprocess.update_task_state_if_needed()
+        mock_watched_subprocess.client.task_instances.finish.assert_not_called()
 
 
 def test_remote_logging_conn_caches_connection_not_client(monkeypatch):

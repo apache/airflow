@@ -1806,10 +1806,15 @@ class ActivitySubprocess(WatchedSubprocess):
 
         If the subprocess reported a terminal state via message (TaskState, SucceedTask,
         RetryTask, etc.) before exiting, that message is authoritative and takes precedence
-        over the exit code, even if `_check_subprocess_exit` hasn't observed the process's
-        real exit code yet (`wait()` defaults an unobserved exit code to 1, which must not be
-        allowed to override an already-confirmed terminal state). Only fall back to deriving
-        the state from the exit code when no terminal message was ever received.
+        over the exit code -- even over a genuinely non-zero one. This matters when the
+        subprocess is killed *after* it already reported success or another terminal state,
+        e.g. `_handle_process_overtime_if_needed()` sending SIGTERM once `_terminal_state` is
+        set: without this precedence, a real (non-defaulted) non-zero exit code would override
+        an already-confirmed terminal state and re-derive a stale one from the exit code alone,
+        triggering a redundant `update_task_state_if_needed()` -> `.finish()` call that 409s
+        against the row the earlier message-driven update already wrote correctly. Only fall
+        back to deriving the state from the exit code when no terminal message was ever
+        received at all.
 
         Not valid before the process has finished.
         """
