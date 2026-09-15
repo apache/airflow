@@ -279,7 +279,7 @@ class TestPythonDagImporter:
                 safe_mode=False,
             )
 
-    @mock.patch.object(PythonDagImporter, "_load_modules_from_file", side_effect=TypeError("unexpected None"))
+    @mock.patch.object(PythonDagImporter, "_load_modules", side_effect=TypeError("unexpected None"))
     def test_unexpected_type_error_captured_in_result_errors(self, mock_load, mock_bundle):
         importer = PythonDagImporter()
         result = importer.import_definition(

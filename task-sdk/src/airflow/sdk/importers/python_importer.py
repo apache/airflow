@@ -171,7 +171,7 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
 
         try:
             with warnings.catch_warnings(record=True) as captured_warnings:
-                modules = self._load_modules_from_file(definition, safe_mode, result, bundle=bundle)
+                modules = self._load_modules(definition, safe_mode, result, bundle=bundle)
         except AirflowConfigException:
             # Configuration errors (e.g., invalid timeout type) should propagate
             raise
@@ -211,7 +211,7 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
             )
         return DagSourceCode(source_code=definition.read_text(encoding="utf-8"), language="python")
 
-    def _load_modules_from_file(
+    def _load_modules(
         self,
         definition: FileDagDefinition,
         safe_mode: bool,
