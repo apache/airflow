@@ -24,16 +24,17 @@ from airflow.providers.influxdb.triggers.influxdb3 import InfluxDB3QueryTrigger
 from airflow.triggers.base import TriggerEvent
 
 SQL = 'SELECT "duration" FROM "pyexample"'
+CONN_ID = "test_influxdb3_conn"
 
 
 class TestInfluxDB3QueryTrigger:
     def test_serialization(self):
         """Trigger round-trips its constructor arguments."""
-        trigger = InfluxDB3QueryTrigger(sql=SQL, influxdb3_conn_id="influxdb3_default")
+        trigger = InfluxDB3QueryTrigger(sql=SQL, influxdb3_conn_id=CONN_ID)
         classpath, kwargs = trigger.serialize()
 
         assert classpath == "airflow.providers.influxdb.triggers.influxdb3.InfluxDB3QueryTrigger"
-        assert kwargs == {"sql": SQL, "influxdb3_conn_id": "influxdb3_default"}
+        assert kwargs == {"sql": SQL, "influxdb3_conn_id": CONN_ID}
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.influxdb.triggers.influxdb3.InfluxDB3Hook", autospec=True)
