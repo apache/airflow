@@ -280,10 +280,6 @@ class TestXComIterable:
     def make_iterable(self, length: int = 0, map_index: int | None = None) -> XComIterable:
         return XComIterable(task_id="task", dag_id="dag", run_id="run", map_index=map_index, length=length)
 
-    # ------------------------------------------------------------------
-    # append
-    # ------------------------------------------------------------------
-
     @patch.object(XCom, "set")
     def test_append_calls_xcom_set_with_correct_key(self, mock_set):
         iterable = self.make_iterable()
@@ -327,10 +323,6 @@ class TestXComIterable:
         assert iterable._index == 0
         assert iterable.length == 0
 
-    # ------------------------------------------------------------------
-    # aappend
-    # ------------------------------------------------------------------
-
     @pytest.mark.asyncio
     @patch.object(XCom, "aset", new_callable=AsyncMock)
     async def test_aappend_calls_xcom_aset_with_correct_key(self, mock_aset):
@@ -367,10 +359,6 @@ class TestXComIterable:
         assert iterable._index == 0
         assert iterable.length == 0
 
-    # ------------------------------------------------------------------
-    # serialize / deserialize / index reset
-    # ------------------------------------------------------------------
-
     def test_serialize_returns_expected_dict(self):
         iterable = self.make_iterable(length=3, map_index=1)
         assert iterable.serialize() == {
@@ -402,10 +390,6 @@ class TestXComIterable:
         iterable = XComIterable.deserialize(data, version=1)
         iterable.append("new_value")
         assert mock_set.call_args.kwargs["key"] == f"{BaseXCom.XCOM_RETURN_KEY}_3"
-
-    # ------------------------------------------------------------------
-    # flatten
-    # ------------------------------------------------------------------
 
     @patch.object(XCom, "get_one")
     def test_flatten_expands_list_items(self, mock_get_one):
@@ -491,11 +475,6 @@ class TestXComIterable:
             return page() if callable(page) else page
 
         return _get_one
-
-    # ------------------------------------------------------------------
-
-    # FlattenedXComIterable __len__ / __getitem__
-    # ------------------------------------------------------------------
 
     @patch.object(XCom, "get_one")
     def test_flatten_len_counts_flattened_items_not_pages(self, mock_get_one):
