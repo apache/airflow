@@ -32,8 +32,9 @@ from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
 
 import structlog
 from sqlalchemy import delete, false, func, insert, select, tuple_, update
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import joinedload, load_only
+from sqlalchemy.orm.exc import StaleDataError
 
 from airflow._shared.timezones.timezone import utcnow
 from airflow.assets.manager import asset_manager
@@ -288,7 +289,7 @@ def _serialize_dag_capturing_errors(
             _sync_dag_perms(dag, session=session)
 
         return []
-    except OperationalError:
+    except (DBAPIError, StaleDataError):
         raise
     except Exception:
         log.exception("Failed to write serialized DAG dag_id=%s fileloc=%s", dag.dag_id, dag.fileloc)
@@ -507,13 +508,13 @@ def update_dag_parsing_results_in_db(
 
     ``import_errors`` will be updated in place with an new errors
 
+    Retries roll back the entire session and replay this publication. Callers must use a transaction
+    dedicated to this publication.
+
     :param files_parsed: Set of (bundle_name, relative_fileloc) tuples for all files that were parsed.
         If None, will be inferred from dags and import_errors. Passing this explicitly ensures that
         import errors are cleared for files that were parsed but no longer contain DAGs.
     """
-    # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.bulk_sync_to_db' in case
-    # of any Operational Errors
-    # In case of failures, provide_session handles rollback
     try:
         duplicate_warnings = _build_duplicate_dag_id_warnings(dags, bundle_name, session)
     except Exception:
@@ -553,7 +554,8 @@ def update_dag_parsing_results_in_db(
                             _prefetched=prefetched_metadata.get(dag.dag_id),
                         )
                     )
-            except OperationalError:
+                session.flush()
+            except (DBAPIError, StaleDataError):
                 session.rollback()
                 raise
             # Only now we are "complete" do we update import_errors - don't want to record errors from
@@ -587,6 +589,7 @@ class DagModelOperation(NamedTuple):
 
     def find_orm_dags(self, *, session: Session) -> dict[str, DagModel]:
         """Find existing DagModel objects from DAG objects."""
+        # Reserialization and per-file parsing can reach the same Dags in different orders.
         stmt: Select[Unpack[tuple[DagModel]]] = with_row_locks(
             (
                 select(DagModel)
@@ -596,6 +599,7 @@ class DagModelOperation(NamedTuple):
                 .options(joinedload(DagModel.schedule_asset_alias_references))
                 .options(joinedload(DagModel.task_outlet_asset_references))
                 .options(joinedload(DagModel.dag_owner_links))
+                .order_by(DagModel.dag_id)
             ),
             of=DagModel,
             session=session,
@@ -609,7 +613,7 @@ class DagModelOperation(NamedTuple):
             for model in _create_orm_dags(
                 bundle_name=self.bundle_name,
                 bundle_version=self.bundle_version,
-                dags=(dag for dag_id, dag in self.dags.items() if dag_id not in orm_dags),
+                dags=(dag for dag_id, dag in sorted(self.dags.items()) if dag_id not in orm_dags),
                 session=session,
             )
         )
@@ -865,6 +869,7 @@ class AssetModelOperation(NamedTuple):
         # Optimization: skip all database calls if no assets were collected.
         if not self.assets:
             return {}
+        # Metadata updates acquire locks at flush; unchanged shared assets need no write lock.
         orm_assets: dict[tuple[str, str], AssetModel] = {
             (am.name, am.uri): am
             for am in session.scalars(
@@ -875,14 +880,16 @@ class AssetModelOperation(NamedTuple):
             asset = self.assets[key]
             model.group = asset.group
             model.extra = asset.extra
+        to_create = sorted(
+            (asset for name_uri, asset in self.assets.items() if name_uri not in orm_assets),
+            key=lambda asset: (asset.name, asset.uri),
+        )
         orm_assets.update(
             ((model.name, model.uri), model)
-            for model in asset_manager.create_assets(
-                [asset for name_uri, asset in self.assets.items() if name_uri not in orm_assets],
-                session=session,
-            )
+            for model in asset_manager.create_assets(to_create, session=session)
         )
-        return orm_assets
+        # Preserve collection order for activation when candidates share a name or URI.
+        return {key: orm_assets[key] for key in self.assets}
 
     def sync_asset_aliases(self, *, session: Session) -> dict[str, AssetAliasModel]:
         # Optimization: skip all database calls if no asset aliases were collected.
@@ -899,7 +906,10 @@ class AssetModelOperation(NamedTuple):
         orm_aliases.update(
             (model.name, model)
             for model in asset_manager.create_asset_aliases(
-                [alias for name, alias in self.asset_aliases.items() if name not in orm_aliases],
+                sorted(
+                    (alias for name, alias in self.asset_aliases.items() if name not in orm_aliases),
+                    key=lambda alias: alias.name,
+                ),
                 session=session,
             )
         )
