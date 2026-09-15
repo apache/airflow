@@ -191,6 +191,47 @@ The same optional ``interval`` argument as CronTriggerTimetable_ is also availab
         pass
 
 
+.. _JitteredCronTimetable:
+
+JitteredCronTimetable
+^^^^^^^^^^^^^^^^^^^^^
+
+This is a CronTriggerTimetable_ that offsets each Dag's fire time by a deterministic, per-Dag jitter.
+It is useful when many Dags share the same cron expression -- for example every ``@daily`` Dag resolves
+to ``0 0 * * *`` and would otherwise fire at exactly midnight, creating a "thundering herd" that can
+overload the scheduler and workers at that instant. Each Dag is shifted by a fixed offset drawn from
+``[0, max_jitter)`` so the runs are spread out.
+
+The offset is derived from ``seed`` (a stable, unique-per-Dag string -- the Dag id is a natural choice),
+so the same seed always maps to the same offset and runs stay predictable across scheduler restarts and
+serialization. ``data_interval`` and ``logical_date`` semantics are inherited from CronTriggerTimetable_;
+only the wall-clock fire time is shifted.
+
+.. code-block:: python
+
+    from datetime import timedelta
+
+    from airflow.timetables.trigger import JitteredCronTimetable
+
+
+    # Fires daily, offset by a fixed amount in [0, 1h) unique to this Dag.
+    @dag(
+        schedule=JitteredCronTimetable(
+            "0 0 * * *",
+            timezone="UTC",
+            seed="example_dag",
+            max_jitter=timedelta(hours=1),
+        ),
+        ...,
+    )
+    def example_dag():
+        pass
+
+Keep ``max_jitter`` smaller than the gap to the next cron boundary so the shift cannot push a run's
+``logical_date`` across a day or period boundary. With the defaults (``seed=""``, ``max_jitter=0``) the
+offset is zero and the timetable behaves exactly like CronTriggerTimetable_.
+
+
 .. _DeltaDataIntervalTimetable:
 
 DeltaDataIntervalTimetable
