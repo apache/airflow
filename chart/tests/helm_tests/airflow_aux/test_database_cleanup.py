@@ -344,9 +344,11 @@ class TestDatabaseCleanup:
         )
 
         assert jmespath.search("spec.jobTemplate.spec.template.metadata.labels", docs[0]) == {
-            "tier": "airflow",
-            "component": "database-cleanup",
-            "release": "release-name",
+            "app.kubernetes.io/component": "database-cleanup",
+            "app.kubernetes.io/instance": "release-name",
+            "app.kubernetes.io/name": "airflow",
+            "app.kubernetes.io/part-of": "airflow",
+            "app.kubernetes.io/version": "3.3.1",
             "project": "airflow",
         }
 
