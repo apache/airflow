@@ -208,7 +208,7 @@ def roles_import(args):
             # ``roles_export`` emits one entry per (role, resource) pair, so a role name
             # repeats across entries; ``add_role`` returns the existing role after the first.
             appbuilder.sm.add_role(role_dict["name"])
-            if not role_dict["action"] or not role_dict["resource"]:
+            if not role_dict.get("action") or not role_dict.get("resource"):
                 continue
             __roles_add_or_remove_permissions(
                 Namespace(
