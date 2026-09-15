@@ -45,7 +45,9 @@ from airflow.cli.cli_config import (
     core_commands,
 )
 from airflow.cli.utils import CliConflictError
-from airflow.exceptions import AirflowException
+from airflow.configuration import conf
+from airflow.exceptions import AirflowConfigException, AirflowException
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.helpers import partition
 
@@ -58,6 +60,32 @@ if TYPE_CHECKING:
 airflow_commands = core_commands.copy()  # make a copy to prevent bad interactions in tests
 
 log = logging.getLogger(__name__)
+
+# Executors and auth managers shipped in airflow-core define no CLI commands of their own. Skipping them
+# by module prefix keeps the default configuration from importing any executor or auth manager class.
+_CORE_EXECUTORS_PACKAGE = "airflow.executors."
+_CORE_AUTH_MANAGERS_PACKAGE = "airflow.api_fastapi.auth.managers."
+
+
+def _exclude_registered_commands(
+    commands: Iterable[CLICommand], registered_names: set[str], source: str
+) -> list[CLICommand]:
+    """
+    Drop commands whose name is already registered, and record the names of the commands kept.
+
+    A subclass of a provider executor or auth manager inherits ``get_cli_commands``, so the same command can
+    come from a provider ``cli`` section and from an imported class, or from two imported classes. Only the
+    first one is kept, otherwise the duplicate is reported as a conflict.
+    """
+    result: list[CLICommand] = []
+    for command in commands:
+        if command.name in registered_names:
+            log.debug("Skipping CLI command '%s' from %s: already registered.", command.name, source)
+            continue
+        registered_names.add(command.name)
+        result.append(command)
+    return result
+
 
 # AIRFLOW_PACKAGE_NAME is set when generating docs and we don't want to load provider commands when generating airflow-core CLI docs
 if not os.environ.get("AIRFLOW_PACKAGE_NAME", None):
@@ -76,6 +104,11 @@ if not os.environ.get("AIRFLOW_PACKAGE_NAME", None):
         log.warning("Failed to load CLI commands from providers: %s", e)
         # do not re-raise for the same reason as above
 
+    # Core commands are left out so that a class redefining one still fails the conflict check below
+    registered_command_names = {command.name for command in airflow_commands} - {
+        command.name for command in core_commands
+    }
+
     WARNING_TEMPLATE = """
 Please define the 'cli' section in the 'get_provider_info' for custom {component} to avoid this warning.
 For community providers, please update to the version that support 'cli' section.
@@ -84,10 +117,10 @@ For more details, see https://airflow.apache.org/docs/apache-airflow-providers/c
 Providers with {component} missing 'cli' section in 'get_provider_info': {not_defined_cli_dict}
     """
 
-    # compat loading for older providers that define get_cli_commands methods on Executors
+    # compat loading for executors that do not register CLI commands through a provider "cli" section:
+    # older providers, and custom executors configured by module path without being packaged as a provider
     try:
-        # if there is any executor_provider not in cli_provider, we have to do compat loading
-        # we use without check to avoid actual loading in this check
+        # warn about providers that still rely on compat loading; "without check" avoids importing them here
         executors_not_defined_cli = {
             executor_name: executor_provider
             for executor_name, executor_provider in providers_manager.executor_without_check
@@ -99,29 +132,36 @@ Providers with {component} missing 'cli' section in 'get_provider_info': {not_de
                     component="executors", not_defined_cli_dict=str(executors_not_defined_cli)
                 )
             )
-            from airflow.executors.executor_loader import ExecutorLoader
+        executors_defined_cli = {
+            executor_name for executor_name, _ in providers_manager.executor_without_check
+        } - executors_not_defined_cli.keys()
 
-            for executor_name in ExecutorLoader.get_executor_names(validate_teams=False):
-                # Skip if the executor already has CLI commands defined via the 'cli' section in provider.yaml
-                if executor_name.module_path not in executors_not_defined_cli:
-                    log.debug(
-                        "Skipping loading for '%s' as it is defined in 'cli' section.",
-                        executor_name.module_path,
-                    )
-                    continue
+        for executor_name in ExecutorLoader.get_executor_names(validate_teams=False):
+            if executor_name.module_path in executors_defined_cli or executor_name.module_path.startswith(
+                _CORE_EXECUTORS_PACKAGE
+            ):
+                log.debug(
+                    "Skipping loading for '%s' as its CLI commands are registered elsewhere.",
+                    executor_name.module_path,
+                )
+                continue
 
-                try:
-                    executor, _ = ExecutorLoader.import_executor_cls(executor_name)
-                    airflow_commands.extend(executor.get_cli_commands())
-                except Exception:
-                    log.exception("Failed to load CLI commands from executor: %s", executor_name)
-                    log.error(
-                        "Ensure all dependencies are met and try again. If using a Celery based executor install "
-                        "a 3.3.0+ version of the Celery provider. If using a Kubernetes executor, install a "
-                        "7.4.0+ version of the CNCF provider"
+            try:
+                executor, _ = ExecutorLoader.import_executor_cls(executor_name)
+                airflow_commands.extend(
+                    _exclude_registered_commands(
+                        executor.get_cli_commands(), registered_command_names, executor_name.module_path
                     )
-                    # Do not re-raise the exception since we want the CLI to still function for
-                    # other commands.
+                )
+            except Exception:
+                log.exception("Failed to load CLI commands from executor: %s", executor_name)
+                log.error(
+                    "Ensure all dependencies are met and try again. If using a Celery based executor install "
+                    "a 3.3.0+ version of the Celery provider. If using a Kubernetes executor, install a "
+                    "7.4.0+ version of the CNCF provider"
+                )
+                # Do not re-raise the exception since we want the CLI to still function for
+                # other commands.
 
     except Exception as e:
         log.warning(
@@ -129,10 +169,9 @@ Providers with {component} missing 'cli' section in 'get_provider_info': {not_de
             e,
         )
 
-    # compat loading for older providers that define get_cli_commands methods on AuthManagers
+    # compat loading for auth managers, following the same rules as for executors
     try:
-        # if there is any auth_manager not in cli_provider, we have to do compat loading
-        # we use without check to avoid actual loading in this check
+        # warn about providers that still rely on compat loading; "without check" avoids importing them here
         auth_managers_not_defined_cli = {
             auth_manager_name: auth_manager_provider
             for auth_manager_name, auth_manager_provider in providers_manager.auth_manager_without_check
@@ -144,27 +183,33 @@ Providers with {component} missing 'cli' section in 'get_provider_info': {not_de
                     component="auth manager", not_defined_cli_dict=str(auth_managers_not_defined_cli)
                 )
             )
+        auth_managers_defined_cli = {
+            auth_manager_name for auth_manager_name, _ in providers_manager.auth_manager_without_check
+        } - auth_managers_not_defined_cli.keys()
 
-            from airflow.configuration import conf
-            from airflow.exceptions import AirflowConfigException
+        auth_manager_cls_path = conf.get(section="core", key="auth_manager")
 
-            auth_manager_cls_path = conf.get(section="core", key="auth_manager")
+        if not auth_manager_cls_path:
+            raise AirflowConfigException(
+                "No auth manager defined in the config. Please specify one using section/key [core/auth_manager]."
+            )
 
-            if not auth_manager_cls_path:
-                raise AirflowConfigException(
-                    "No auth manager defined in the config. Please specify one using section/key [core/auth_manager]."
+        if auth_manager_cls_path not in auth_managers_defined_cli and not auth_manager_cls_path.startswith(
+            _CORE_AUTH_MANAGERS_PACKAGE
+        ):
+            try:
+                auth_manager_cls = import_string(auth_manager_cls_path)
+                auth_manager = auth_manager_cls()
+                airflow_commands.extend(
+                    _exclude_registered_commands(
+                        auth_manager.get_cli_commands(), registered_command_names, auth_manager_cls_path
+                    )
                 )
-
-            if auth_manager_cls_path in auth_managers_not_defined_cli:
-                try:
-                    auth_manager_cls = import_string(auth_manager_cls_path)
-                    auth_manager = auth_manager_cls()
-                    airflow_commands.extend(auth_manager.get_cli_commands())
-                except Exception:
-                    log.exception("Failed to load CLI commands from auth manager: %s", auth_manager_cls)
-                    log.error("Ensure all dependencies are met and try again.")
-                    # Do not re-raise the exception since we want the CLI to still function for
-                    # other commands.
+            except Exception:
+                log.exception("Failed to load CLI commands from auth manager: %s", auth_manager_cls_path)
+                log.error("Ensure all dependencies are met and try again.")
+                # Do not re-raise the exception since we want the CLI to still function for
+                # other commands.
     except Exception as e:
         log.warning(
             "Failed to load CLI commands from auth managers that didn't define `get_cli_commands` in `.cli.definition`: %s",
