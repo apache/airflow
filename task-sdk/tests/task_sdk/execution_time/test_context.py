@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta, timezone as dt_timezone
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -1300,20 +1301,17 @@ class TestAsyncVariableContext:
     async def test_async_get_variable_from_api(
         self, deserialize_json, value, expected_value, mock_supervisor_comms
     ):
-        """_async_get_variable fetches from the Execution API via ExecutionAPISecretsBackend (sync send)."""
-        mock_supervisor_comms.send.return_value = VariableResult(key="my_key", value=value)
+        """_async_get_variable fetches from the Execution API via ExecutionAPISecretsBackend (async asend)."""
+        mock_supervisor_comms.asend.return_value = VariableResult(key="my_key", value=value)
 
         result = await _async_get_variable("my_key", deserialize_json=deserialize_json)
 
         assert result == expected_value
-        mock_supervisor_comms.send.assert_called()
+        mock_supervisor_comms.asend.assert_called()
 
     @pytest.mark.asyncio
     async def test_async_get_variable_from_secrets_backend(self, mock_supervisor_comms):
         """_async_get_variable returns the value from a secrets backend without calling asend."""
-        from unittest.mock import AsyncMock, patch
-
-        mock_supervisor_comms.asend = AsyncMock()
 
         class MockBackend:
             def get_variable(self, key: str):
@@ -1332,8 +1330,6 @@ class TestAsyncVariableContext:
     @pytest.mark.asyncio
     async def test_async_get_variable_not_found_raises(self, mock_supervisor_comms):
         """_async_get_variable raises AirflowRuntimeError when the variable does not exist."""
-        from unittest.mock import patch
-
         with patch(
             "airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded", autospec=True
         ) as mock_load:
@@ -1360,10 +1356,7 @@ class TestAsyncVariableContext:
     )
     async def test_async_set_variable(self, key, value, description, serialize_json, mock_supervisor_comms):
         """_async_set_variable sends PutVariable via asend."""
-        import json as _json
-        from unittest.mock import AsyncMock, patch
-
-        mock_supervisor_comms.asend = AsyncMock(return_value=None)
+        mock_supervisor_comms.asend.return_value = None
 
         with patch(
             "airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded", autospec=True
@@ -1371,7 +1364,7 @@ class TestAsyncVariableContext:
             mock_load.return_value = []
             await _async_set_variable(key, value, description, serialize_json=serialize_json)
 
-        expected_value = _json.dumps(value, indent=2) if serialize_json else value
+        expected_value = json.dumps(value, indent=2) if serialize_json else value
         mock_supervisor_comms.asend.assert_called_once_with(
             PutVariable(key=key, value=expected_value, description=description)
         )
@@ -1379,9 +1372,7 @@ class TestAsyncVariableContext:
     @pytest.mark.asyncio
     async def test_async_delete_variable(self, mock_supervisor_comms):
         """_async_delete_variable sends DeleteVariable via asend."""
-        from unittest.mock import AsyncMock
-
-        mock_supervisor_comms.asend = AsyncMock(return_value=OKResponse(ok=True))
+        mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
 
         await _async_delete_variable("my_key")
 
@@ -1398,11 +1389,7 @@ class TestAsyncVariableContext:
     )
     async def test_async_get_variable_keys(self, prefix, keys, mock_supervisor_comms):
         """_async_get_variable_keys fetches all keys matching the prefix in one page."""
-        from unittest.mock import AsyncMock
-
-        mock_supervisor_comms.asend = AsyncMock(
-            return_value=VariableKeysResult(keys=keys, total_entries=len(keys))
-        )
+        mock_supervisor_comms.asend.return_value = VariableKeysResult(keys=keys, total_entries=len(keys))
 
         result = await _async_get_variable_keys(prefix=prefix)
 
@@ -1414,18 +1401,14 @@ class TestAsyncVariableContext:
     @pytest.mark.asyncio
     async def test_async_get_variable_keys_paginates(self, mock_supervisor_comms):
         """_async_get_variable_keys accumulates results across multiple pages."""
-        from unittest.mock import AsyncMock
-
         from airflow.sdk.execution_time.context import _VARIABLE_KEYS_PAGE_SIZE
 
         page1 = [f"k{i}" for i in range(_VARIABLE_KEYS_PAGE_SIZE)]
         page2 = ["last_key"]
-        mock_supervisor_comms.asend = AsyncMock(
-            side_effect=[
-                VariableKeysResult(keys=page1, total_entries=_VARIABLE_KEYS_PAGE_SIZE + 1),
-                VariableKeysResult(keys=page2, total_entries=_VARIABLE_KEYS_PAGE_SIZE + 1),
-            ]
-        )
+        mock_supervisor_comms.asend.side_effect = [
+            VariableKeysResult(keys=page1, total_entries=_VARIABLE_KEYS_PAGE_SIZE + 1),
+            VariableKeysResult(keys=page2, total_entries=_VARIABLE_KEYS_PAGE_SIZE + 1),
+        ]
 
         result = await _async_get_variable_keys(prefix=None)
 
@@ -1435,10 +1418,8 @@ class TestAsyncVariableContext:
     @pytest.mark.asyncio
     async def test_async_get_variable_keys_raises_on_error(self, mock_supervisor_comms):
         """_async_get_variable_keys raises AirflowRuntimeError on an ErrorResponse."""
-        from unittest.mock import AsyncMock
-
-        mock_supervisor_comms.asend = AsyncMock(
-            return_value=ErrorResponse(error=ErrorType.GENERIC_ERROR, detail={"message": "boom"})
+        mock_supervisor_comms.asend.return_value = ErrorResponse(
+            error=ErrorType.GENERIC_ERROR, detail={"message": "boom"}
         )
 
         with pytest.raises(AirflowRuntimeError):
@@ -1447,9 +1428,7 @@ class TestAsyncVariableContext:
     @pytest.mark.asyncio
     async def test_async_get_variable_keys_raises_on_unexpected_response(self, mock_supervisor_comms):
         """_async_get_variable_keys raises TypeError for an unrecognised response type."""
-        from unittest.mock import AsyncMock
-
-        mock_supervisor_comms.asend = AsyncMock(return_value=VariableResult(key="x", value="y"))
+        mock_supervisor_comms.asend.return_value = VariableResult(key="x", value="y")
 
         with pytest.raises(TypeError, match="Unexpected response type"):
             await _async_get_variable_keys(prefix="x_")

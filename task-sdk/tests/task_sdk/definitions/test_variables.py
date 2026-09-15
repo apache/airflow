@@ -219,7 +219,7 @@ class TestAsyncVariables:
         ],
     )
     async def test_avar_get(self, deserialize_json, value, expected_value, mock_supervisor_comms):
-        mock_supervisor_comms.send.return_value = VariableResult(key="my_key", value=value)
+        mock_supervisor_comms.asend.return_value = VariableResult(key="my_key", value=value)
 
         var = await Variable.aget(key="my_key", deserialize_json=deserialize_json)
         assert var == expected_value
