@@ -46,10 +46,31 @@ from airflow_breeze.utils.packages import (
     get_short_package_name,
     get_suspended_provider_folders,
     get_suspended_provider_ids,
+    load_pyproject_toml,
+    regenerate_pyproject_toml,
     render_template,
     validate_provider_info_with_runtime_schema,
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
+
+
+@pytest.mark.parametrize("provider_id", ["elasticsearch", "opensearch"])
+def test_regenerate_pyproject_preserves_bundled_shared_code(tmp_path, provider_id):
+    details = get_provider_details(provider_id)
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text((details.root_provider_path / "pyproject.toml").read_text())
+    context = get_provider_jinja_context(provider_id, current_release_version="1.0.0", version_suffix="")
+
+    regenerate_pyproject_toml(context, details._replace(root_provider_path=tmp_path), version_suffix=None)
+
+    generated = load_pyproject_toml(pyproject)
+    assert generated["tool"]["airflow"]["shared_distributions"] == ["apache-airflow-shared-search"]
+    targets = generated["tool"]["hatch"]["build"]["targets"]
+    assert targets["sdist"]["force-include"] == {
+        "../../shared/search/src/airflow_shared/search": f"src/airflow/providers/{provider_id}/_shared/search"
+    }
+    assert "provider.yaml" in targets["sdist"]["include"]
+    assert "custom" not in targets
 
 
 def test_get_available_packages():

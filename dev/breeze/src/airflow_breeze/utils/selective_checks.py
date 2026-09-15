@@ -25,7 +25,7 @@ import sys
 from collections import defaultdict
 from enum import Enum, auto
 from functools import cached_property
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, TypeVar
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
@@ -70,7 +70,11 @@ from airflow_breeze.utils.console import console_print, get_console
 from airflow_breeze.utils.exclude_from_matrix import excluded_combos
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
-from airflow_breeze.utils.packages import get_available_distributions, get_suspended_provider_ids
+from airflow_breeze.utils.packages import (
+    get_available_distributions,
+    get_shared_distribution_to_providers_map,
+    get_suspended_provider_ids,
+)
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_DEVEL_COMMON_PATH,
     AIRFLOW_PROVIDERS_ROOT_PATH,
@@ -229,10 +233,13 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         FileGroupForCi.REMOTE_LOGGING_E2E_ELASTICSEARCH_FILES: [
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/remote_log_elasticsearch_tests/.*",
             r"^providers/elasticsearch/.*",
+            # Vendored into the provider as _shared/search; edits show up under shared/, not providers/.
+            r"^shared/search/.*",
         ],
         FileGroupForCi.REMOTE_LOGGING_E2E_OPENSEARCH_FILES: [
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/remote_log_opensearch_tests/.*",
             r"^providers/opensearch/.*",
+            r"^shared/search/.*",
         ],
         FileGroupForCi.EVENT_DRIVEN_E2E_FILES: [
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/event_driven_tests/.*",
@@ -632,6 +639,21 @@ def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
         # if devel-common changes, we want to run tests for all providers, as they might start failing
         return "Providers"
     return None
+
+
+def find_providers_using_shared_distribution(changed_file: str) -> tuple[str, ...]:
+    """
+    Find providers that vendor the shared distribution a changed file belongs to.
+
+    A shared library is symlinked into its consumers, so git reports edits to it under
+    ``shared/<dist>/`` and never under ``providers/`` - meaning path-based provider lookup misses
+    the providers that actually ship the code.
+    """
+    path_parts = PurePosixPath(changed_file).parts
+    if len(path_parts) < 2 or path_parts[0] != "shared":
+        return ()
+    distribution = f"apache-airflow-shared-{path_parts[1].replace('_', '-')}"
+    return get_shared_distribution_to_providers_map().get(distribution, ())
 
 
 def _match_files_with_regexps(files: tuple[str, ...], matched_files, matching_regexps):
@@ -1385,10 +1407,18 @@ class SelectiveChecks:
             FileGroupForCi.ALL_PROVIDERS_DISTRIBUTION_CONFIG_FILES, CI_FILE_GROUP_MATCHES
         )
         assets_source_files = self._matching_files(FileGroupForCi.ASSET_FILES, CI_FILE_GROUP_MATCHES)
+        # Shared-library edits are reported under shared/, so they match none of the provider file
+        # groups above even though providers vendor and ship that code.
+        vendored_shared_files = [
+            changed_file
+            for changed_file in self._files
+            if find_providers_using_shared_distribution(changed_file)
+        ]
         if (
             len(all_providers_source_files) == 0
             and len(all_providers_distribution_config_files) == 0
             and len(assets_source_files) == 0
+            and len(vendored_shared_files) == 0
             and not self.run_api_tests
         ):
             # IF API tests are needed, that will trigger extra provider checks
@@ -1972,6 +2002,12 @@ class SelectiveChecks:
                     suspended_providers.add(provider)
                 else:
                     affected_providers.add(provider)
+            else:
+                for shared_provider in find_providers_using_shared_distribution(changed_file):
+                    if shared_provider not in get_provider_dependencies():
+                        suspended_providers.add(shared_provider)
+                    else:
+                        affected_providers.add(shared_provider)
         if self.run_api_tests:
             affected_providers.add("fab")
         if self.run_ol_tests:
