@@ -21,12 +21,12 @@ from __future__ import annotations
 import contextlib
 import functools
 import logging
+import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
-from airflow.sdk._shared.module_loading.dag_file import might_contain_dag
 from airflow.sdk._shared.module_loading.file_discovery import find_path_from_directory
 from airflow.sdk.configuration import conf
 from airflow.sdk.exceptions import AirflowConfigException
@@ -40,6 +40,8 @@ if TYPE_CHECKING:
     from airflow.sdk import DAG
 
 log = logging.getLogger(__name__)
+
+DefT = TypeVar("DefT", bound="DagDefinition")
 
 
 class DagDefinition(ABC):
@@ -76,8 +78,24 @@ class DagDefinition(ABC):
         """Return string representation used by import error and warning objects."""
 
 
-@dataclass
 class FileDagDefinition(DagDefinition):
+    """
+    A DAG definition backed by a named, file-like resource.
+
+    Adds a filename ``suffix`` to the base content interface -- the trait that makes a
+    source routable by file extension -- so extension-based importers can work against
+    any file-like definition (a real file, an archive member, or a future variant)
+    without recognizing concrete types.
+    """
+
+    @property
+    @abstractmethod
+    def suffix(self) -> str:
+        """Lowercased file extension including the leading dot (for example ``.py``)."""
+
+
+@dataclass
+class FilesystemDagDefinition(FileDagDefinition):
     """A DAG definition backed by a file on the local filesystem."""
 
     path: Path
@@ -97,6 +115,10 @@ class FileDagDefinition(DagDefinition):
             return str(self.path.relative_to(root))
         except ValueError:
             return str(self.path)
+
+    @property
+    def suffix(self) -> str:
+        return self.path.suffix.lower()
 
     def read_bytes(self) -> bytes:
         return self.path.read_bytes()
@@ -190,8 +212,14 @@ def _get_importer_extensions(importer: AbstractDagImporter) -> list[str]:
     return []
 
 
-class AbstractDagImporter(ABC):
-    """Abstract base class for DAG importers."""
+class AbstractDagImporter(ABC, Generic[DefT]):
+    """
+    Abstract base for DAG importers, generic over the definition type it emits.
+
+    :meth:`.list_dag_definitions` yields definitions of :class:`DagDefinition`
+    subtypes, and those same objects are fed back to :meth:`import_definition`,
+    so a concrete importer only ever deals with its own definition type.
+    """
 
     @abstractmethod
     def can_handle(self, definition: DagDefinition | str | Path) -> bool:
@@ -201,15 +229,13 @@ class AbstractDagImporter(ABC):
     def list_dag_definitions(
         self,
         bundle: BaseDagBundle,
-        *,
-        safe_mode: bool = True,
-    ) -> Iterator[DagDefinition]:
-        """List DAG definitions in a bundle that this importer can handle."""
+    ) -> Iterator[DefT]:
+        """List DAG definitions in a bundle that this importer can handle (identity-only discovery)."""
 
     @abstractmethod
     def import_definition(
         self,
-        definition: DagDefinition,
+        definition: DefT,
         bundle: BaseDagBundle,
         *,
         safe_mode: bool = True,
@@ -222,21 +248,31 @@ class AbstractDagImporter(ABC):
 
 
 def get_file_suffix(definition: DagDefinition | str | Path) -> str | None:
-    """Extract lowercase file suffix from a definition, path, or filename."""
-    path = (
-        definition
-        if isinstance(definition, (str, Path))
-        else getattr(definition, "path", getattr(definition, "file_path", None))
-    )
-    return Path(path).suffix.lower() if path else None
+    """Extract the lowercase file suffix from a file-like definition, path, or filename."""
+    match definition:
+        case Path():
+            return definition.suffix.lower()
+        case str():
+            return os.path.splitext(definition)[-1].lower()
+        case FileDagDefinition():
+            return definition.suffix
+    return None
 
 
 def find_file_dag_definitions(
     bundle_path: Path,
     supported_extensions: Iterable[str],
-    safe_mode: bool = True,
-) -> Iterator[DagDefinition]:
-    """Find file DAG definitions in a bundle matching given extensions and respecting .airflowignore."""
+) -> Iterator[FilesystemDagDefinition]:
+    """
+    Discover file DAG definitions in a bundle by *identity* alone.
+
+    This walk decides purely from the file's name and path -- extension, ``.airflowignore``,
+    and the Python source/bytecode pairing -- and never reads a file's contents. Deciding
+    whether a discovered file actually contains a DAG is content-based work that belongs to
+    :meth:`AbstractDagImporter.import_definition` (via ``might_contain_dag`` and the parse
+    itself), so that importers whose validity can only be determined by attempting the import
+    behave the same way.
+    """
     ignore_file_syntax = conf.get_mandatory_value("core", "DAG_IGNORE_FILE_SYNTAX", fallback="glob")
     supported_exts = _normalize_extensions(supported_extensions)
 
@@ -249,9 +285,15 @@ def find_file_dag_definitions(
         if path.suffix.lower() not in supported_exts:
             continue
 
-        if safe_mode and not might_contain_dag(str(path), safe_mode, conf=conf):
+        # Skip compiled-bytecode caches, and prefer source over a side-by-side .pyc, so a
+        # module and its compiled form are never both imported (a .pyc is used only when
+        # there is no matching .py, i.e. sourceless distribution).
+        if "__pycache__" in path.parts:
             continue
-        yield FileDagDefinition(path=path)
+        if path.suffix.lower() == ".pyc" and path.with_suffix(".py").exists():
+            continue
+
+        yield FilesystemDagDefinition(path=path)
 
 
 @dataclass(frozen=True)
@@ -312,9 +354,9 @@ class DagImporterRegistry:
     is logged. The built-in PythonDagImporter handles .py and ZipImporter handles .zip files.
     """
 
-    _extension_importers: dict[str, AbstractDagImporter]
+    _extension_importers: dict[str, AbstractDagImporter[Any]]
     _extension_specs: dict[str, _ImporterSpec]
-    _ordered_importers: list[AbstractDagImporter]
+    _ordered_importers: list[AbstractDagImporter[Any]]
 
     def __init__(self, register_defaults: bool = True) -> None:
         self._extension_importers = {}
@@ -344,7 +386,7 @@ class DagImporterRegistry:
 
         return registry
 
-    def register(self, importer: AbstractDagImporter, extensions: list[str] | None = None) -> None:
+    def register(self, importer: AbstractDagImporter[Any], extensions: list[str] | None = None) -> None:
         """
         Register an importer.
 
@@ -377,7 +419,7 @@ class DagImporterRegistry:
                 self._warn_and_evict_extension(ext_lower, spec.classpath)
                 self._extension_specs[ext_lower] = spec
 
-    def get_importer(self, definition: DagDefinition | str | Path) -> AbstractDagImporter | None:
+    def get_importer(self, definition: DagDefinition | str | Path) -> AbstractDagImporter[Any] | None:
         """Get the appropriate importer for a definition or file, or None if unsupported."""
         suffix = get_file_suffix(definition)
         if suffix:
@@ -424,7 +466,7 @@ class DagImporterRegistry:
         self.register(ZipImporter())
 
     @staticmethod
-    def _instantiate_spec(spec: _ImporterSpec) -> AbstractDagImporter:
+    def _instantiate_spec(spec: _ImporterSpec) -> AbstractDagImporter[Any]:
         from airflow.sdk._shared.module_loading import import_string
 
         try:

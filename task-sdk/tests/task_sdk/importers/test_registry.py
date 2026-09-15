@@ -32,10 +32,10 @@ from airflow.sdk.importers import (
     DagImportError,
     DagImportResult,
     DagSourceCode,
-    FileDagDefinition,
+    FilesystemDagDefinition,
     PythonDagImporter,
-    ZipFileDagDefinition,
     ZipImporter,
+    ZipMemberDagDefinition,
     find_file_dag_definitions,
     get_file_suffix,
     get_importer_registry,
@@ -380,8 +380,8 @@ class TestDagImporterRegistry:
             ("path/to/FOO.PY", ".py"),
             (Path("archive.ZIP"), ".zip"),
             ("no_extension", ""),
-            (FileDagDefinition(path=Path("my_dag.py")), ".py"),
-            (ZipFileDagDefinition(zip_path=Path("a.zip"), file_path="nested/workflow.py"), ".py"),
+            (FilesystemDagDefinition(path=Path("my_dag.py")), ".py"),
+            (ZipMemberDagDefinition(zip_path=Path("a.zip"), file_path="nested/workflow.py"), ".py"),
             (None, None),
         ],
     )
@@ -416,17 +416,13 @@ class TestDagImporterRegistry:
     def test_dag_import_error_format_message(self, error, expected):
         assert error.format_message() == expected
 
-    @pytest.mark.parametrize(
-        ("safe_mode", "expected_files"),
-        [
-            (True, {"workflow.py"}),
-            (False, {"workflow.py", "script.py"}),
-        ],
-    )
-    def test_find_file_dag_definitions_safe_mode(self, tmp_path, safe_mode, expected_files):
+    def test_find_file_dag_definitions_is_identity_only(self, tmp_path):
+        # Discovery matches on extension alone and never reads file contents, so a .py with no
+        # DAG (script.py) is returned just like a real DAG file; only the .csv is filtered out
+        # (wrong extension). Content-based filtering happens later at import_definition.
         (tmp_path / "workflow.py").write_text("from airflow.sdk import DAG\n")
         (tmp_path / "script.py").write_text("print('hello')\n")
         (tmp_path / "data.csv").write_text("a,b,c\n")
 
-        definitions = list(find_file_dag_definitions(tmp_path, [".py"], safe_mode=safe_mode))
-        assert {d.path.name for d in definitions} == expected_files
+        definitions = list(find_file_dag_definitions(tmp_path, [".py"]))
+        assert {d.path.name for d in definitions} == {"workflow.py", "script.py"}

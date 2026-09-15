@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import os
 import sys
 import tempfile
 import threading
@@ -36,6 +37,7 @@ from airflow.sdk.importers.base import (
     DagImportError,
     DagImportResult,
     DagSourceCode,
+    FileDagDefinition,
     _get_importer_extensions,
     _normalize_extensions,
     _parse_importer_specs,
@@ -69,7 +71,7 @@ def _temporary_sys_path(path: str) -> Generator[None, None, None]:
 
 
 @dataclass
-class ZipFileDagDefinition(DagDefinition):
+class ZipMemberDagDefinition(FileDagDefinition):
     """A DAG definition backed by a file inside a ZIP archive."""
 
     zip_path: Path
@@ -90,6 +92,10 @@ class ZipFileDagDefinition(DagDefinition):
                 return f"{self.zip_path.relative_to(root)}:{self.file_path}"
         return f"{self.zip_path}:{self.file_path}"
 
+    @property
+    def suffix(self) -> str:
+        return os.path.splitext(self.file_path)[-1].lower()
+
     def read_bytes(self) -> bytes:
         if self._content is None:
             with zipfile.ZipFile(self.zip_path) as z:
@@ -98,8 +104,7 @@ class ZipFileDagDefinition(DagDefinition):
 
     @contextlib.contextmanager
     def as_file(self) -> Generator[Path, None, None]:
-        suffix = Path(self.file_path).suffix
-        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as f:
+        with tempfile.NamedTemporaryFile(suffix=self.suffix, delete=False) as f:
             f.write(self.read_bytes())
             temp_path = Path(f.name)
         try:
@@ -112,22 +117,22 @@ class ZipFileDagDefinition(DagDefinition):
         return f"{self.zip_path}:{self.file_path}"
 
 
-class ZipImporter(AbstractDagImporter):
+class ZipImporter(AbstractDagImporter[ZipMemberDagDefinition]):
     """Composite importer responsible for routing archive members to internal importers."""
 
     supported_extensions = [".zip"]
 
     def __init__(
         self,
-        internal_importers: dict[str, AbstractDagImporter | dict[str, Any]]
+        internal_importers: dict[str, AbstractDagImporter[Any] | dict[str, Any]]
         | list[dict[str, Any]]
         | None = None,
         extensions: list[str] | None = None,
     ) -> None:
         if extensions is not None:
             self.supported_extensions = _normalize_extensions(extensions)
-        self._internal_extension_importers: dict[str, AbstractDagImporter] = {}
-        self._ordered_internal_importers: list[AbstractDagImporter] = []
+        self._internal_extension_importers: dict[str, AbstractDagImporter[Any]] = {}
+        self._ordered_internal_importers: list[AbstractDagImporter[Any]] = []
 
         if internal_importers is None:
             from airflow.sdk.importers.python_importer import PythonDagImporter
@@ -166,72 +171,73 @@ class ZipImporter(AbstractDagImporter):
     def list_dag_definitions(
         self,
         bundle: BaseDagBundle,
-        *,
-        safe_mode: bool = True,
-    ) -> Iterator[DagDefinition]:
-        """List zip archive DAG definitions in a bundle matching supported extensions."""
-        yield from find_file_dag_definitions(bundle.path, self.supported_extensions, safe_mode=safe_mode)
+    ) -> Iterator[ZipMemberDagDefinition]:
+        """
+        List importable members across the bundle's zip archives.
+
+        Each member is yielded as a plain ZipMemberDagDefinition; import_definition
+        re-resolves the internal importer from the member's extension.
+        """
+        for archive in find_file_dag_definitions(bundle.path, self.supported_extensions):
+            try:
+                with zipfile.ZipFile(archive.path) as z:
+                    member_names = z.namelist()
+            except Exception as e:
+                log.warning("Skipping unreadable ZIP archive %s: %s", archive.path, e)
+                continue
+
+            member_set = set(member_names)
+            for member_name in member_names:
+                if member_name.endswith("/") or member_name.startswith("__MACOSX/"):
+                    continue
+                # ZipSlip defence: reject traversal or absolute member names.
+                member_path = Path(member_name)
+                if member_path.is_absolute() or ".." in member_path.parts:
+                    log.warning(
+                        "Skipping zip member %r in %s: directory traversal patterns detected",
+                        member_name,
+                        archive.path,
+                    )
+                    continue
+
+                # Skip compiled-bytecode caches, and prefer source over a side-by-side .pyc,
+                # so a member and its compiled form are never both imported.
+                if "__pycache__" in member_path.parts:
+                    continue
+                if member_name.endswith(".pyc") and member_name[:-1] in member_set:
+                    continue
+
+                if self._get_internal_importer(member_name) is None:
+                    continue
+                yield ZipMemberDagDefinition(zip_path=archive.path, file_path=member_name)
 
     def import_definition(
         self,
-        definition: DagDefinition,
+        definition: ZipMemberDagDefinition,
         bundle: BaseDagBundle,
         *,
         safe_mode: bool = True,
     ) -> DagImportResult:
         """
-        Import DAGs from a ZIP archive by routing its members to internal importers.
+        Import a single archive member.
 
-        The archive itself is placed on ``sys.path`` so Python imports between
-        members resolve via ``zipimport``. A real file is materialized on demand
-        with :meth:`.as_file()` for internal importers.
+        The internal importer is resolved from the member's extension, and the archive
+        is placed on ``sys.path`` so Python imports between members resolve via
+        ``zipimport``.
         """
-        result = DagImportResult(definition=definition)
-
-        with definition.as_file() as local_zip_path:
-            try:
-                with zipfile.ZipFile(local_zip_path) as z:
-                    member_names = z.namelist()
-            except Exception as e:
-                result.errors.append(
-                    DagImportError(
-                        source_reference=definition.get_relative_loc(bundle.path),
-                        message=f"Failed to read ZIP archive: {e}",
-                        error_type="zip_read_error",
-                    )
+        importer = self._get_internal_importer(definition.file_path)
+        if importer is None:
+            result = DagImportResult(definition=definition)
+            result.errors.append(
+                DagImportError(
+                    source_reference=definition.get_relative_loc(bundle.path),
+                    message=f"No internal importer registered for zip member {definition.file_path}",
+                    error_type="import",
                 )
-                return result
-
-            with _temporary_sys_path(str(local_zip_path)):
-                for member_name in member_names:
-                    if member_name.endswith("/") or member_name.startswith("__MACOSX/"):
-                        continue
-                    # ZipSlip defence: reject traversal or absolute member names.
-                    member_path = Path(member_name)
-                    if member_path.is_absolute() or ".." in member_path.parts:
-                        log.warning(
-                            "Skipping zip member %r in %s: directory traversal patterns detected",
-                            member_name,
-                            definition,
-                        )
-                        continue
-
-                    importer = self._get_internal_importer(member_name)
-                    if importer is None:
-                        continue
-
-                    nested_def = ZipFileDagDefinition(zip_path=local_zip_path, file_path=member_name)
-                    if not importer.can_handle(nested_def):
-                        continue
-
-                    member_result = importer.import_definition(nested_def, bundle, safe_mode=safe_mode)
-                    result.dags.extend(member_result.dags)
-                    result.errors.extend(member_result.errors)
-                    result.warnings.extend(member_result.warnings)
-                    result.skipped_definitions.extend(member_result.skipped_definitions)
-                    result.dependencies.extend(member_result.dependencies)
-
-        return result
+            )
+            return result
+        with _temporary_sys_path(str(definition.zip_path)):
+            return importer.import_definition(definition, bundle, safe_mode=safe_mode)
 
     def get_source_code(self, definition: DagDefinition) -> DagSourceCode:
         """
@@ -248,7 +254,9 @@ class ZipImporter(AbstractDagImporter):
             raise ValueError(f"No internal importer to read source for {definition!r}")
         return importer.get_source_code(definition)
 
-    def _register_internal(self, importer: AbstractDagImporter, extensions: list[str] | None = None) -> None:
+    def _register_internal(
+        self, importer: AbstractDagImporter[Any], extensions: list[str] | None = None
+    ) -> None:
         if importer not in self._ordered_internal_importers:
             self._ordered_internal_importers.append(importer)
         exts = extensions if extensions is not None else _get_importer_extensions(importer)
