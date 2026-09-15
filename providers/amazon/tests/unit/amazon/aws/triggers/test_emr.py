@@ -30,6 +30,7 @@ from airflow.providers.amazon.aws.triggers.emr import (
     EmrServerlessCancelJobsTrigger,
     EmrServerlessCreateApplicationTrigger,
     EmrServerlessDeleteApplicationTrigger,
+    EmrServerlessSessionTrigger,
     EmrServerlessStartApplicationTrigger,
     EmrServerlessStartJobTrigger,
     EmrServerlessStopApplicationTrigger,
@@ -572,3 +573,32 @@ class TestEmrServerlessCancelJobsTrigger:
             "waiter_max_attempts": 60,
             "aws_conn_id": "aws_default",
         }
+
+
+class TestEmrServerlessSessionTrigger:
+    def test_serialization(self):
+        trigger = EmrServerlessSessionTrigger(
+            application_id="test_application_id",
+            session_id="test_session_id",
+            waiter_delay=10,
+            waiter_max_attempts=60,
+            aws_conn_id="aws_default",
+        )
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrServerlessSessionTrigger"
+        assert kwargs == {
+            "application_id": "test_application_id",
+            "session_id": "test_session_id",
+            "waiter_delay": 10,
+            "waiter_max_attempts": 60,
+            "aws_conn_id": "aws_default",
+        }
+
+    def test_hook_returns_serverless_hook(self):
+        from airflow.providers.amazon.aws.hooks.emr import EmrServerlessHook
+
+        trigger = EmrServerlessSessionTrigger(
+            application_id="test_application_id",
+            session_id="test_session_id",
+        )
+        assert isinstance(trigger.hook(), EmrServerlessHook)
