@@ -49,8 +49,8 @@ Prerequisites
 -------------
 
 * Node.js 22 or later must be available on the Airflow worker nodes.
-* The packed bundle (a single ``bundle.mjs`` file, see :ref:`typescript-sdk/build`) must be accessible from
-  the worker, under a directory the coordinator scans.
+* The packed bundle (a single ``bundle.min.mjs`` file, see :ref:`typescript-sdk/build`) must be accessible
+  from the worker, under a directory the coordinator scans.
 * The ``apache-airflow-task-sdk`` package (installed with Airflow) provides the coordinator; no additional
   Python packages are needed.
 * In the TypeScript project, install the ``apache-airflow-ts-sdk`` npm package to author task handlers:
@@ -125,7 +125,7 @@ of the registry is not part of the packed bundle, and its tasks are marked remov
 through ``registry.getTaskHandler(dagId, taskId)`` without a coordinator runtime. A bundle that collects
 its Dags across several modules can add them incrementally with ``registry.register(...)``.
 
-``new Dag`` and ``dag.task`` take a trailing options object — ``spec`` on both, plus ``inputs`` on a task.
+``new Dag`` and ``dag.task`` take a trailing options object: ``spec`` on both, plus ``inputs`` on a task.
 These are not used yet; do not set them. Any other key is rejected.
 
 .. note::
@@ -160,8 +160,8 @@ task instance.
 
 .. note::
 
-  The coordinator runs inside the Airflow worker, so the ``[sdk]`` config (and the packed ``bundle.mjs``
-  files in ``bundles_root``) only need to be present wherever tasks actually execute. With
+  The coordinator runs inside the Airflow worker, so the ``[sdk]`` config (and the packed ``*.min.mjs``
+  bundles in ``bundles_root``) only need to be present wherever tasks actually execute. With
   ``CeleryExecutor``, setting them on the Celery workers is sufficient. With ``LocalExecutor``, tasks run
   inside the scheduler process, so they must be present where the scheduler can read them. The API server
   and Dag processor do not need them.
@@ -179,7 +179,7 @@ Every task handler receives a single ``TaskHandlerArgs`` object:
      - Value
    * - ``ctx``
      - The task's execution context: ``dagId``, ``taskId`` (including any TaskGroup prefix), ``runId``,
-       ``tryNumber``, ``mapIndex`` (``-1`` for an unmapped task), and ``signal`` — an ``AbortSignal`` that
+       ``tryNumber``, ``mapIndex`` (``-1`` for an unmapped task), and ``signal``, an ``AbortSignal`` that
        fires when Airflow terminates the task. Pass ``signal`` to ``fetch()``, timers, or other APIs that
        accept an ``AbortSignal`` for cooperative cancellation.
    * - ``client``
@@ -192,18 +192,18 @@ retries if configured on the stub.
 The ``TaskClient`` surface
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-* ``getVariable(key)`` — returns the Variable as a string, or ``null`` when it is missing;
+* ``getVariable(key)``: returns the Variable as a string, or ``null`` when it is missing;
   ``getVariableOrThrow(key)`` throws ``VariableNotFoundError`` instead, matching Python ``Variable.get``
   with no default.
-* ``getConnection(connId)`` — returns a ``ConnectionResult`` with fields ``id`` and ``type``, plus the
+* ``getConnection(connId)``: returns a ``ConnectionResult`` with fields ``id`` and ``type``, plus the
   optional fields ``host``, ``schema``, ``login``, ``password``, ``port``, and ``extra`` (each may be
   missing or ``null``), or ``null`` when the connection does not exist;
   ``getConnectionOrThrow(connId)`` throws ``ConnectionNotFoundError`` instead, matching Python
   ``BaseHook.get_connection``.
-* ``getXCom<T>({key, ...})`` — reads an XCom value, or ``null`` when it is missing. The locator fields
+* ``getXCom<T>({key, ...})``: reads an XCom value, or ``null`` when it is missing. The locator fields
   (``dagId``, ``runId``, ``taskId``, ``mapIndex``) default to the current task; pass ``taskId`` to read an
   upstream task's XCom. See :ref:`typescript-sdk/types` for how the stored JSON maps to JavaScript types.
-* ``setXCom({key, value, ...})`` — publishes an XCom value.
+* ``setXCom({key, value, ...})``: publishes an XCom value.
 
 Logging
 -------
@@ -260,10 +260,21 @@ Building and packaging
 ----------------------
 
 ``airflow-ts-pack`` (shipped with the SDK) bundles the entry module and all of its imports with esbuild into
-a single self-contained ESM file, ``bundle.mjs``, and embeds the manifest (the ``dag_id`` and ``task_id``
-map plus the supervisor schema version) after a leading compact JSON ``//# airflowBundle=...`` layout header.
-The layout records the byte ranges and SHA-256 digests of the manifest and executable code — one file to
-deploy, with no separate manifest or ``node_modules``.
+a single self-contained, minified ESM file, ``bundle.min.mjs``, and embeds the manifest (the ``dag_id`` and
+``task_id`` map plus the supervisor schema version) after a leading compact JSON ``//# airflowBundle=...``
+layout header. The layout records the byte ranges and SHA-256 digests of the manifest and executable code,
+so there is one file to deploy, with no separate manifest or ``node_modules``.
+
+The code is minified because an integrity digest is only worth taking over an artifact nobody is expected to
+read or edit in place. Identifier names are preserved (esbuild's ``keepNames``) so handler names still appear
+in the stack traces a failing task reports, and the ``/*! */`` license banners of bundled dependencies are
+kept. Because the shipped code is not the code anyone wrote, the packer also embeds the entry module verbatim
+in a ``/*# airflowSource ... #*/`` block comment, verified by its own digest, so Airflow has something
+readable to display for the Dag. Only the entry module is embedded, not the modules it imports.
+
+The ``.mjs`` extension is required, not cosmetic: a ``.js`` file is an ES module only by Node's syntax
+detection, which is unavailable before Node 22.7 and skipped entirely when an enclosing ``package.json``
+declares ``"type": "commonjs"``.
 
 ``esbuild`` is an optional peer dependency: packing is build-time only, so the runtime install of
 ``apache-airflow-ts-sdk`` skips it, and it must be installed separately before running ``airflow-ts-pack``.
@@ -273,16 +284,25 @@ deploy, with no separate manifest or ``node_modules``.
     npm install --save-dev esbuild
     npx airflow-ts-pack src/main.ts --outdir dist
 
-Use ``--outdir <dir>`` to choose the output directory (default ``dist``) and ``--source <name>`` to set the
-source name displayed in the Airflow UI (default: the entry file's basename).
+Use ``--outdir <dir>`` to choose the output directory (default ``dist``), ``--outfile <path>`` to name the
+artifact exactly, which helps when one ``bundles_root`` holds several bundles, and ``--source <name>`` to set
+the source name displayed in the Airflow UI (default: the entry file's basename). ``--outdir`` and
+``--outfile`` are mutually exclusive, and an ``--outfile`` name must end in ``.min.mjs`` so the coordinator
+can find it.
 
 Deploying
 ~~~~~~~~~
 
-Copy or mount ``bundle.mjs`` into a directory listed in the coordinator's ``bundles_root``.
-:class:`~airflow.sdk.coordinators.node.NodeCoordinator` searches the configured directories in order and
-launches the first integrity-verified bundle whose metadata declares the task instance's Dag. If multiple
-bundles declare the same Dag, the first configured match wins.
+Copy or mount the bundle into a directory listed in the coordinator's ``bundles_root``.
+:class:`~airflow.sdk.coordinators.node.NodeCoordinator` searches the configured directories in order,
+recursively, and launches the first integrity-verified ``*.min.mjs`` bundle whose metadata declares the task
+instance's Dag. The artifact's name does not matter beyond that suffix, so one root can hold several bundles
+and a Dag is routed to whichever declares it. If multiple bundles declare the same Dag, the first configured
+root wins, and within a root the first in sorted path order.
+
+Keep ``bundles_root`` directories to deployed Airflow bundles. Every ``*.min.mjs`` file under them is opened
+and verified, and any that is not a usable bundle is named in the error raised when no bundle declares the
+requested Dag.
 
 .. _typescript-sdk/coordinator-config:
 
@@ -301,8 +321,8 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - Description
    * - ``bundles_root``
      - *(required)*
-     - One or more directories searched, in order, for an integrity-verified ``bundle.mjs`` that declares
-       the requested Dag. Accepts a string, a path, or a list of strings/paths.
+     - One or more directories searched recursively, in order, for an integrity-verified ``*.min.mjs``
+       bundle that declares the requested Dag. Accepts a string, a path, or a list of strings/paths.
    * - ``node_executable``
      - ``"node"``
      - Path to the ``node`` binary. Defaults to ``node`` on ``$PATH``.
