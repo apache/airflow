@@ -21,29 +21,37 @@ from __future__ import annotations
 import importlib
 import inspect
 import json
+import warnings
 from unittest import mock
 
 import pytest
 
 from airflow.config_templates import airflow_local_settings
+from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.utils.log.file_task_handler import FileTaskHandler
 
 from tests_common.test_utils.config import conf_vars
 
+REMOTE_IO_PATHS = {
+    "s3": "airflow.providers.amazon.aws.log.s3_task_handler.S3RemoteLogIO",
+    "cloudwatch": "airflow.providers.amazon.aws.log.cloudwatch_task_handler.CloudWatchRemoteLogIO",
+    "gs": "airflow.providers.google.cloud.log.gcs_task_handler.GCSRemoteLogIO",
+    "stackdriver": "airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverRemoteLogIO",
+    "wasb": "airflow.providers.microsoft.azure.log.wasb_task_handler.WasbRemoteLogIO",
+    "oss": "airflow.providers.alibaba.cloud.log.oss_task_handler.OSSRemoteLogIO",
+    "hdfs": "airflow.providers.apache.hdfs.log.hdfs_task_handler.HdfsRemoteLogIO",
+    "elasticsearch": "airflow.providers.elasticsearch.log.es_task_handler.ElasticsearchRemoteLogIO",
+    "opensearch": "airflow.providers.opensearch.log.os_task_handler.OpensearchRemoteLogIO",
+}
+
 REMOTE_IO_PROVIDERS = [
-    ("s3://bucket/path", "airflow.providers.amazon.aws.log.s3_task_handler.S3RemoteLogIO"),
-    ("wasb-logs", "airflow.providers.microsoft.azure.log.wasb_task_handler.WasbRemoteLogIO"),
-    ("gs://bucket/path", "airflow.providers.google.cloud.log.gcs_task_handler.GCSRemoteLogIO"),
-    (
-        "cloudwatch://arn:aws:logs:us-east-1:0:log-group:foo",
-        "airflow.providers.amazon.aws.log.cloudwatch_task_handler.CloudWatchRemoteLogIO",
-    ),
-    ("oss://bucket/path", "airflow.providers.alibaba.cloud.log.oss_task_handler.OSSRemoteLogIO"),
-    ("hdfs://host/path", "airflow.providers.apache.hdfs.log.hdfs_task_handler.HdfsRemoteLogIO"),
-    (
-        "stackdriver://host/path",
-        "airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverRemoteLogIO",
-    ),
+    ("s3://bucket/path", REMOTE_IO_PATHS["s3"]),
+    ("wasb-logs", REMOTE_IO_PATHS["wasb"]),
+    ("gs://bucket/path", REMOTE_IO_PATHS["gs"]),
+    ("cloudwatch://arn:aws:logs:us-east-1:0:log-group:foo", REMOTE_IO_PATHS["cloudwatch"]),
+    ("oss://bucket/path", REMOTE_IO_PATHS["oss"]),
+    ("hdfs://host/path", REMOTE_IO_PATHS["hdfs"]),
+    ("stackdriver://host/path", REMOTE_IO_PATHS["stackdriver"]),
 ]
 REMOTE_IO_IDS = ["s3", "wasb", "gcs", "cloudwatch", "oss", "hdfs", "stackdriver"]
 
@@ -163,3 +171,134 @@ def test_file_handler_params_introspected_correctly():
     """The introspected FileTaskHandler params include the expected kwargs."""
     init_params = set(inspect.signature(FileTaskHandler.__init__).parameters) - {"self", "base_log_folder"}
     assert {"max_bytes", "backup_count", "delay"} <= init_params
+
+
+DISPATCHABLE_BACKENDS = [
+    pytest.param("s3://bucket/path", {}, REMOTE_IO_PATHS["s3"], id="s3"),
+    pytest.param(
+        "cloudwatch://arn:aws:logs:us-east-1:0:log-group:foo",
+        {},
+        REMOTE_IO_PATHS["cloudwatch"],
+        id="cloudwatch",
+    ),
+    pytest.param("gs://bucket/path", {}, REMOTE_IO_PATHS["gs"], id="gs"),
+    pytest.param("wasb://logs", {}, REMOTE_IO_PATHS["wasb"], id="wasb"),
+    pytest.param("stackdriver://host/path", {}, REMOTE_IO_PATHS["stackdriver"], id="stackdriver"),
+    pytest.param("oss://bucket/path", {}, REMOTE_IO_PATHS["oss"], id="oss"),
+    pytest.param("hdfs://host/path", {}, REMOTE_IO_PATHS["hdfs"], id="hdfs"),
+    pytest.param(
+        "elasticsearch://es.example.com:9200",
+        {("elasticsearch", "host"): "es.example.com:9200"},
+        REMOTE_IO_PATHS["elasticsearch"],
+        id="elasticsearch",
+    ),
+    pytest.param(
+        "opensearch://os.example.com:9200",
+        {("elasticsearch", "host"): "", ("opensearch", "host"): "os.example.com:9200"},
+        REMOTE_IO_PATHS["opensearch"],
+        id="opensearch",
+    ),
+]
+
+UNDISPATCHABLE_BACKENDS = [
+    pytest.param("wasb-logs", {}, REMOTE_IO_PATHS["wasb"], "wasb", id="wasb-bare-path"),
+    pytest.param(
+        "",
+        {("elasticsearch", "host"): "es.example.com:9200"},
+        REMOTE_IO_PATHS["elasticsearch"],
+        "elasticsearch",
+        id="elasticsearch-selected-by-host",
+    ),
+    pytest.param(
+        "",
+        {("elasticsearch", "host"): "", ("opensearch", "host"): "os.example.com:9200"},
+        REMOTE_IO_PATHS["opensearch"],
+        "opensearch",
+        id="opensearch-selected-by-host",
+    ),
+]
+
+
+class _PreDispatchRemoteLogIO:
+    """Stand-in for a provider release predating ``from_config``, which registers no scheme."""
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+
+def _reload_with(remote_base, extra_conf):
+    return conf_vars(
+        {
+            ("logging", "remote_logging"): "True",
+            ("logging", "remote_base_log_folder"): remote_base,
+            **extra_conf,
+        }
+    )
+
+
+@pytest.mark.parametrize(("remote_base", "extra_conf", "remote_io_path"), DISPATCHABLE_BACKENDS)
+def test_no_deprecation_warning_when_provider_dispatch_supersedes_branch(
+    remote_base, extra_conf, remote_io_path, restore_local_settings
+):
+    """A current provider plus a scheme URL means ProvidersManager owns resolution: stay quiet."""
+    pytest.importorskip(remote_io_path.rsplit(".", 1)[0])
+    with (
+        mock.patch(remote_io_path),
+        _reload_with(remote_base, extra_conf),
+        warnings.catch_warnings(),
+    ):
+        warnings.simplefilter("error", RemovedInAirflow4Warning)
+        importlib.reload(airflow_local_settings)
+
+
+@pytest.mark.parametrize(("remote_base", "extra_conf", "remote_io_path"), DISPATCHABLE_BACKENDS)
+def test_warns_to_upgrade_provider_when_from_config_is_missing(
+    remote_base, extra_conf, remote_io_path, restore_local_settings
+):
+    """A provider without ``from_config`` registers no scheme, so this branch is load-bearing."""
+    pytest.importorskip(remote_io_path.rsplit(".", 1)[0])
+    with (
+        mock.patch(remote_io_path, new=_PreDispatchRemoteLogIO),
+        _reload_with(remote_base, extra_conf),
+        pytest.warns(RemovedInAirflow4Warning, match="Upgrade apache-airflow-providers-"),
+    ):
+        importlib.reload(airflow_local_settings)
+
+
+@pytest.mark.parametrize(("remote_base", "extra_conf", "remote_io_path", "scheme"), UNDISPATCHABLE_BACKENDS)
+def test_warns_to_set_scheme_url_when_dispatch_cannot_match(
+    remote_base, extra_conf, remote_io_path, scheme, restore_local_settings
+):
+    """A current provider is not enough: without a scheme URL there is nothing to dispatch on."""
+    pytest.importorskip(remote_io_path.rsplit(".", 1)[0])
+    with (
+        mock.patch(remote_io_path),
+        _reload_with(remote_base, extra_conf),
+        pytest.warns(RemovedInAirflow4Warning, match=f'remote_base_log_folder to a "{scheme}://" URL'),
+    ):
+        importlib.reload(airflow_local_settings)
+
+
+def test_no_deprecation_warning_when_remote_logging_disabled(restore_local_settings):
+    """The chain does not run at all without remote logging, so nothing may be deprecated."""
+    with (
+        conf_vars({("logging", "remote_logging"): "False"}),
+        warnings.catch_warnings(),
+    ):
+        warnings.simplefilter("error", RemovedInAirflow4Warning)
+        importlib.reload(airflow_local_settings)
+
+
+def test_every_legacy_branch_has_a_documented_min_version():
+    """Each scheme the chain can warn about must resolve to a distribution and version."""
+    assert set(airflow_local_settings._PROVIDER_DISPATCH_MIN_VERSIONS) == {
+        "s3",
+        "cloudwatch",
+        "gs",
+        "stackdriver",
+        "wasb",
+        "oss",
+        "hdfs",
+        "elasticsearch",
+        "opensearch",
+    }
