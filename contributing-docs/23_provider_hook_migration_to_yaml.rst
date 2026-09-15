@@ -109,6 +109,28 @@ supported field options, see
           type: string
           default: "my-project"
 
+Toolset metadata is defined under the separate top-level ``toolsets`` key:
+
+toolsets.external-services
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Per-module list of external services each toolset reaches, added as a sibling of
+``python-modules`` inside a ``toolsets`` entry. Like the connection-type
+``external-services`` key above, this is intended to be surfaced as a table on the
+registry's provider version page, and the list is representative, not exhaustive. Every
+``module`` value must also appear in that entry's ``python-modules`` list.
+
+.. code-block:: yaml
+
+    toolsets:
+      - integration-name: Common AI
+        python-modules:
+          - airflow.providers.common.ai.toolsets.hook
+        external-services:
+          - module: airflow.providers.common.ai.toolsets.hook
+            services:
+              - Any Airflow connection, through its provider hook
+
 Migration Tool
 --------------
 
