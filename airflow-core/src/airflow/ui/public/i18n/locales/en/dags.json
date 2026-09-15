@@ -71,6 +71,7 @@
       "button": "Mark {{type}} as...",
       "buttonTooltip": {
         "failed": "Press shift+f to mark as failed",
+        "skipped": "Mark as skipped",
         "success": "Press shift+s to mark as success"
       },
       "title": "Mark {{type}} as {{state}}"
