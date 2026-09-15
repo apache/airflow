@@ -82,6 +82,11 @@ class _DefinitionSourceLoader(importlib.abc.SourceLoader):
         return repr(self._definition)
 
     def get_data(self, path: str) -> bytes:
+        # The machinery only asks for get_filename(), i.e. the module's own
+        # source. Any other path is a sibling-resource request this bytes-backed
+        # loader can't serve, so fail loud instead of returning the DAG source.
+        if path != self.get_filename(path):
+            raise FileNotFoundError(path)
         return self._definition.read_bytes()
 
 

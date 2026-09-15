@@ -40,6 +40,7 @@ from airflow.sdk.importers import (
     PythonDagImporter,
     ZipMemberDagDefinition,
 )
+from airflow.sdk.importers.python_importer import _DefinitionSourceLoader
 
 
 @pytest.fixture
@@ -155,6 +156,21 @@ class TestPythonDagImporter:
         assert len(result.dags) == 0
         assert len(result.errors) == 1
         assert result.errors[0].error_type == "import"
+
+    def test_source_loader_get_data_rejects_foreign_path(self):
+        # get_data serves the module's own source, but a sibling-resource request must fail
+        # loud rather than return the DAG source for it.
+        class _Def:
+            def read_bytes(self) -> bytes:
+                return b"SOURCE = 1"
+
+            def __repr__(self) -> str:
+                return "mydef"
+
+        loader = _DefinitionSourceLoader(_Def())
+        assert loader.get_data(loader.get_filename("mydef")) == b"SOURCE = 1"
+        with pytest.raises(FileNotFoundError):
+            loader.get_data("some/other/config.json")
 
     def test_import_pyc_with_non_code_payload_captured_as_error(self, mock_bundle):
         # A .pyc with a valid magic header but a payload that unmarshals to a non-code
