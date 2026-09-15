@@ -93,6 +93,26 @@ class Pool(Base):
         return str(self.pool)
 
     @staticmethod
+    def get_include_deferred_override() -> bool | None:
+        """
+        Get the cluster-wide ``include_deferred`` value fixed via config, if any.
+
+        When ``[core] pool_include_deferred`` is set, its value applies to every pool and takes
+        precedence over the per-pool ``include_deferred`` column. Returns None when unset.
+        """
+        from airflow.configuration import conf
+
+        if conf.get("core", "pool_include_deferred", fallback=""):
+            return conf.getboolean("core", "pool_include_deferred")
+        return None
+
+    @property
+    def effective_include_deferred(self) -> bool:
+        """The ``include_deferred`` value in effect: the cluster-wide config value when fixed, else the pool's own."""
+        override = Pool.get_include_deferred_override()
+        return self.include_deferred if override is None else override
+
+    @staticmethod
     @provide_session
     def get_pools(*, session: Session = NEW_SESSION) -> Sequence[Pool]:
         """Get all pools."""
@@ -146,6 +166,10 @@ class Pool(Base):
             raise ValueError(
                 "team_name cannot be set when multi_team mode is disabled. Please contact your administrator."
             )
+
+        include_deferred_override = Pool.get_include_deferred_override()
+        if include_deferred_override is not None:
+            include_deferred = include_deferred_override
 
         pool = session.scalar(select(Pool).filter_by(pool=name))
         if pool is None:
@@ -201,6 +225,7 @@ class Pool(Base):
 
         pools: dict[str, PoolStats] = {}
         pool_includes_deferred: dict[str, bool] = {}
+        include_deferred_override = Pool.get_include_deferred_override()
 
         # The below type annotation is acceptable on SQLA2.1, but not on 2.0
         query: Select[str, int, bool] = select(Pool.pool, Pool.slots, Pool.include_deferred)  # type: ignore[type-arg]
@@ -214,7 +239,9 @@ class Pool(Base):
             pools[pool_name] = PoolStats(
                 total=total_slots, running=0, queued=0, open=0, deferred=0, scheduled=0
             )
-            pool_includes_deferred[pool_name] = include_deferred
+            pool_includes_deferred[pool_name] = (
+                include_deferred if include_deferred_override is None else include_deferred_override
+            )
 
         allowed_execution_states = EXECUTION_STATES | {
             TaskInstanceState.DEFERRED,
@@ -291,7 +318,7 @@ class Pool(Base):
         )
 
     def get_occupied_states(self):
-        if self.include_deferred:
+        if self.effective_include_deferred:
             return EXECUTION_STATES | {
                 TaskInstanceState.DEFERRED,
             }

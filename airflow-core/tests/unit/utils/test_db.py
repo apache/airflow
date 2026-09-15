@@ -35,6 +35,7 @@ from sqlalchemy import Column, Integer, MetaData, Table, delete, select
 
 from airflow import settings
 from airflow.models import Base as airflow_base
+from airflow.models.pool import Pool
 from airflow.models.team import Team
 from airflow.utils.db import (
     AutocommitEngineForMySQL,
@@ -55,6 +56,7 @@ from airflow.utils.db_manager import RunDBManager
 from airflow.utils.session import create_session
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_pools
 
 pytestmark = pytest.mark.db_test
 
@@ -87,6 +89,16 @@ def initialized_db():
         initdb(session=session)
     yield
     settings.Session.remove()
+
+
+def test_add_default_pool_uses_include_deferred_override():
+    try:
+        with conf_vars({("core", "pool_include_deferred"): "True"}):
+            # clear_db_pools deletes all pools and calls add_default_pool_if_not_exists
+            clear_db_pools()
+            assert Pool.get_default_pool().include_deferred is True
+    finally:
+        clear_db_pools()
 
 
 class TestDb:

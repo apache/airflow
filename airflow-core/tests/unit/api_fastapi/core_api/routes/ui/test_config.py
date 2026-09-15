@@ -70,6 +70,7 @@ expected_config_response = {
     "theme": THEME,
     "multi_team": False,
     "rerun_with_latest_version": None,
+    "pool_include_deferred": None,
 }
 
 
@@ -170,6 +171,16 @@ class TestGetConfig:
         response = unauthorized_test_client.get("/config")
         assert response.status_code == 200
         assert response.json() == expected_config_response
+
+    @pytest.mark.parametrize(
+        ("conf_value", "expected"),
+        [("True", True), ("False", False)],
+    )
+    def test_pool_include_deferred_reflects_config(self, mock_config_data, test_client, conf_value, expected):
+        with conf_vars({("core", "pool_include_deferred"): conf_value}):
+            response = test_client.get("/config")
+        assert response.status_code == 200
+        assert response.json()["pool_include_deferred"] is expected
 
     def test_should_response_200_with_all_color_tokens(self, mock_config_data_all_colors, test_client):
         """Theme with gray, black, and white tokens (in addition to brand) passes validation and round-trips."""
