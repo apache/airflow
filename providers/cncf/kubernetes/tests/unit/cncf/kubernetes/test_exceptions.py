@@ -18,7 +18,14 @@ from __future__ import annotations
 
 import sys
 
+import pytest
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_0_PLUS, reason="airflow.exceptions re-exports these from the provider on Airflow 3.0+"
+)
 class TestExceptions:
     def setup_method(self):
         self.old_modules = dict(sys.modules)

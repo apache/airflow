@@ -23,7 +23,6 @@ from copy import deepcopy
 from unittest import mock
 
 import pytest
-from kubernetes.client import Configuration, models as k8s
 from sqlalchemy import text
 from sqlalchemy.exc import StatementError
 
@@ -46,11 +45,18 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.markers import skip_if_kubernetes_client_not_installed
 
 pytestmark = pytest.mark.db_test
 
-
-TEST_POD = k8s.V1Pod(spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base")]))
+try:
+    from kubernetes.client import Configuration, models as k8s
+except ImportError:
+    Configuration = None  # type: ignore[assignment]
+    k8s = None  # type: ignore[assignment]
+    TEST_POD = None
+else:
+    TEST_POD = k8s.V1Pod(spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base")]))
 
 
 class TestGetDialectName:
@@ -219,6 +225,7 @@ class TestSqlAlchemyUtils:
         settings.engine.dispose()
 
 
+@skip_if_kubernetes_client_not_installed
 class TestExecutorConfigType:
     @pytest.mark.parametrize(
         ("input", "expected"),
