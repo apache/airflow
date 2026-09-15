@@ -126,3 +126,30 @@ class Secret(K8SModel):
 
     def __repr__(self):
         return f"Secret({self.deploy_type}, {self.deploy_target}, {self.secret}, {self.key})"
+
+
+class KubernetesConnectionSecret(Secret):
+    """
+    Defines a Kubernetes Secret populated from an Airflow connection.
+
+    Unlike :class:`Secret`, which references a Kubernetes secret that already exists,
+    ``KubernetesConnectionSecret`` describes a secret that
+    :class:`~airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator` creates for
+    the task's pod, using ``conn_id``'s serialized URI as the secret value. The generated
+    Kubernetes secret is given a unique, per-task-instance name and is deleted once the pod's
+    lifecycle ends, so the connection's credentials never outlive the task that used them.
+
+    :param deploy_type: The type of secret deploy in Kubernetes, either `env` or `volume`.
+    :param deploy_target: The environment variable when `deploy_type` is `env`, or file path
+        when `deploy_type` is `volume`, where the connection URI is exposed.
+    :param conn_id: ID of the Airflow connection whose credentials should be exposed to the pod.
+    :param key: Key under which the connection's URI is stored in the generated Kubernetes
+        secret. Defaults to ``"conn_uri"``.
+    """
+
+    def __init__(self, deploy_type: str, deploy_target: str, conn_id: str, key: str = "conn_uri"):
+        super().__init__(deploy_type=deploy_type, deploy_target=deploy_target, secret=None, key=key)
+        self.conn_id = conn_id
+
+    def __repr__(self):
+        return f"KubernetesConnectionSecret({self.deploy_type}, {self.deploy_target}, {self.conn_id}, {self.key})"
