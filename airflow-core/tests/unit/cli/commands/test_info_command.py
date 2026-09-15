@@ -20,7 +20,9 @@ import contextlib
 import importlib
 import logging
 import os
+import platform
 from io import StringIO
+from unittest import mock
 
 import pytest
 
@@ -40,6 +42,9 @@ class TestPiiAnonymizer:
     def test_should_remove_pii_from_path(self):
         home_path = os.path.expanduser("~/airflow/config")
         assert self.instance.process_path(home_path) == "${HOME}/airflow/config"
+
+    def test_should_remove_pii_from_hostname(self):
+        assert self.instance.process_hostname("test-hostname") == "${HOSTNAME}"
 
     @pytest.mark.parametrize(
         ("before", "after"),
@@ -114,6 +119,27 @@ class TestAirflowInfo:
         instance = info_command.AirflowInfo(info_command.NullAnonymizer())
         expected = {"uname", "architecture", "OS", "python_location", "locale", "python_version"}
         assert self.unique_items(instance._system_info) == expected
+
+    @staticmethod
+    def _fake_uname(node: str):
+        return platform.uname_result(
+            system="Linux", node=node, release="6.1.0", version="#1 SMP", machine="x86_64"
+        )
+
+    @mock.patch("airflow.cli.commands.info_command.platform.uname")
+    def test_system_info_anonymizes_uname_hostname(self, mock_uname):
+        mock_uname.return_value = self._fake_uname("test-hostname")
+        instance = info_command.AirflowInfo(info_command.PiiAnonymizer())
+        system_info = dict(instance._system_info)
+        assert "test-hostname" not in system_info["uname"]
+        assert "node='${HOSTNAME}'" in system_info["uname"]
+
+    @mock.patch("airflow.cli.commands.info_command.platform.uname")
+    def test_system_info_keeps_uname_hostname_without_anonymizer(self, mock_uname):
+        mock_uname.return_value = self._fake_uname("test-hostname")
+        instance = info_command.AirflowInfo(info_command.NullAnonymizer())
+        system_info = dict(instance._system_info)
+        assert "node='test-hostname'" in system_info["uname"]
 
     def test_paths_info(self):
         instance = info_command.AirflowInfo(info_command.NullAnonymizer())

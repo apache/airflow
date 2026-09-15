@@ -50,6 +50,9 @@ class Anonymizer(Protocol):
     def process_url(self, value) -> str:
         """Remove pii from URL."""
 
+    def process_hostname(self, value) -> str:
+        """Remove pii from hostname."""
+
 
 class NullAnonymizer(Anonymizer):
     """Do nothing."""
@@ -57,7 +60,7 @@ class NullAnonymizer(Anonymizer):
     def _identity(self, value) -> str:
         return value
 
-    process_path = process_username = process_url = _identity
+    process_path = process_username = process_url = process_hostname = _identity
 
     del _identity
 
@@ -81,6 +84,11 @@ class PiiAnonymizer(Anonymizer):
         if not value:
             return value
         return f"{value[0]}...{value[-1]}"
+
+    def process_hostname(self, value) -> str:
+        if not value:
+            return value
+        return "${HOSTNAME}"
 
     def process_url(self, value) -> str:
         if not value:
@@ -252,6 +260,7 @@ class AirflowInfo:
         operating_system = OperatingSystem.get_current()
         arch = Architecture.get_current()
         uname = platform.uname()
+        uname = uname._replace(node=self.anonymizer.process_hostname(uname.node))
         _locale = locale.getlocale()
         python_location = self.anonymizer.process_path(sys.executable)
         python_version = sys.version.replace("\n", " ")
