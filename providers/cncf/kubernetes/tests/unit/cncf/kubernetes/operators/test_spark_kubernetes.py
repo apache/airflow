@@ -1272,7 +1272,8 @@ class TestSparkKubernetesOperator:
 
         mock_execute_async.assert_called_once_with(context)
         mock_parent_execute.assert_not_called()
-        assert result is None
+        # The deferrable result carries the XCom sidecar output, so it has to reach the caller.
+        assert result is mock_execute_async.return_value
 
     def test_execute_non_deferrable_calls_super(
         self,
