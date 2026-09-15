@@ -155,3 +155,4 @@
 - providers/google/tests/unit/google/cloud/hooks/test_datacatalog.py::TestCloudDataCatalogMissingProjectIdHook::test_update_tag
 - providers/google/tests/unit/google/cloud/hooks/test_datacatalog.py::TestCloudDataCatalogMissingProjectIdHook::test_update_tag_template
 - providers/google/tests/unit/google/cloud/hooks/test_datacatalog.py::TestCloudDataCatalogMissingProjectIdHook::test_update_tag_template_field
+- providers/google/tests/unit/google/cloud/operators/test_dataproc.py::TestsClusterGenerator

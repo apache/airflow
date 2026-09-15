@@ -62,6 +62,7 @@ from airflow.providers.google.cloud.triggers.dataproc import (
     DataprocSubmitTrigger,
 )
 from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.triggers.base import StartTriggerArgs
 
@@ -75,6 +76,11 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
 
 
+@deprecated(
+    planned_removal_date="September 1, 2027",
+    reason="This helper class is being removed alongside the deprecated 'CreateCluster' class.",
+    category=AirflowProviderDeprecationWarning,
+)
 class PreemptibilityType(Enum):
     """Contains possible Type values of Preemptibility applicable for every secondary worker of Cluster."""
 
@@ -84,6 +90,11 @@ class PreemptibilityType(Enum):
     NON_PREEMPTIBLE = "NON_PREEMPTIBLE"
 
 
+@deprecated(
+    planned_removal_date="September 1, 2027",
+    reason="This helper class is being removed alongside the deprecated 'CreateCluster' class.",
+    category=AirflowProviderDeprecationWarning,
+)
 @dataclass
 class InstanceSelection:
     """
@@ -103,6 +114,11 @@ class InstanceSelection:
     rank: int = 0
 
 
+@deprecated(
+    planned_removal_date="September 1, 2027",
+    reason="This helper class is being removed alongside the deprecated 'CreateCluster' class.",
+    category=AirflowProviderDeprecationWarning,
+)
 @dataclass
 class InstanceFlexibilityPolicy:
     """
@@ -117,6 +133,14 @@ class InstanceFlexibilityPolicy:
     instance_selection_list: list[InstanceSelection]
 
 
+@deprecated(
+    planned_removal_date="September 1, 2027",
+    reason="Since passing cluster parameters by keyword in the DataprocCreateClusterOperator is scheduled "
+    "for deletion, there is no longer a need to maintain the 'ClusterGenerator' helper class.",
+    instructions="Please pass 'cluster_config' or 'virtual_cluster_config' directly as "
+    "DataprocCreateClusterOperator arguments.",
+    category=AirflowProviderDeprecationWarning,
+)
 class ClusterGenerator:
     """
     Create a new Dataproc Cluster.
@@ -718,7 +742,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
                 f"Passing cluster parameters by keywords to `{type(self).__name__}` will be deprecated. "
                 "Please provide cluster_config object using `cluster_config` parameter. "
                 "You can use `airflow.dataproc.ClusterGenerator.generate_cluster` "
-                "method to obtain cluster object. Planned removal date: October 5, 2026.",
+                "method to obtain cluster object. Planned removal date: September 1, 2027.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
