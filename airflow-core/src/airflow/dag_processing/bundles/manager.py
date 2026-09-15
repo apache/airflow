@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any, cast
 from itsdangerous import URLSafeSerializer
 from pydantic import BaseModel, ValidationError
 from sqlalchemy import and_, delete, exists, or_, select, update
+from sqlalchemy.orm import selectinload
 
 from airflow._shared.module_loading import import_string
 from airflow.configuration import conf
@@ -342,16 +343,30 @@ class DagBundlesManager(LoggingMixin):
                     self.log.debug("Signed URL template for bundle %s", bundle_name)
             return new_template_, new_params_
 
-        stored = {b.name: b for b in session.scalars(select(DagBundleModel)).all()}
+        # ``teams`` is eager-loaded because ``bundle_to_team`` below touches it for every stored
+        # bundle, which would otherwise be one lazy-load round-trip each.
+        stored = {
+            b.name: b
+            for b in session.scalars(select(DagBundleModel).options(selectinload(DagBundleModel.teams))).all()
+        }
         bundle_to_team = {
             bundle.name: bundle.teams[0].name if len(bundle.teams) == 1 else None
             for bundle in stored.values()
         }
 
+        teams_by_name: dict[str, Team] = {}
+        if configured_team_names := {
+            config.team_name for config in self._bundle_config.values() if config.team_name
+        }:
+            teams_by_name = {
+                team.name: team
+                for team in session.scalars(select(Team).where(Team.name.in_(configured_team_names)))
+            }
+
         for name, config in self._bundle_config.items():
             team: Team | None = None
             if config.team_name:
-                team = session.scalars(select(Team).where(Team.name == config.team_name)).one_or_none()
+                team = teams_by_name.get(config.team_name)
                 if not team:
                     raise _bundle_item_exc(f"Team '{config.team_name}' does not exist")
 
