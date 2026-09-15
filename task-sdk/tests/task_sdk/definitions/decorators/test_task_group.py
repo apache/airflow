@@ -383,3 +383,28 @@ def test_task_group_display_name_used_as_label():
     p = pipeline()
 
     assert p.task_group_dict["tg"].label == "my_custom_name"
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "expected"),
+    [
+        pytest.param(5, "expected XComArg or list[dict], not int", id="bad-container"),
+        pytest.param(
+            [{"a": 1}, 5],
+            "expected XComArg or list[dict], not list containing int",
+            id="bad-element",
+        ),
+        # str/bytes are Sequences, so they take the element loop -- the message must still name
+        # the argument the user actually passed, not what iterating it happens to yield.
+        pytest.param("abc", "expected XComArg or list[dict], not str containing str", id="str"),
+        pytest.param(b"ab", "expected XComArg or list[dict], not bytes containing int", id="bytes"),
+    ],
+)
+def test_expand_kwargs_type_error_names_the_offender(kwargs, expected):
+    @task_group()
+    def tg(a=None): ...
+
+    with pytest.raises(TypeError) as ctx:
+        tg.expand_kwargs(kwargs)
+
+    assert str(ctx.value) == expected

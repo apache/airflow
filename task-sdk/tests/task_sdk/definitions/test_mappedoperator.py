@@ -842,3 +842,31 @@ def test_mapped_operator_in_task_group_no_duplicate_prefix():
 
     # The unmapped operator should have the same task_id, not a duplicate prefix
     assert unmapped.task_id == "tg1.mapped_task", f"Expected 'tg1.mapped_task' but got '{unmapped.task_id}'"
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "expected"),
+    [
+        pytest.param(5, "expected XComArg or list[dict], not int", id="bad-container"),
+        pytest.param(
+            [{"a": 1}, 5],
+            "expected XComArg or list[dict], not list containing int",
+            id="bad-element",
+        ),
+        # str/bytes are Sequences, so they take the element loop -- the message must still name
+        # the argument the user actually passed, not what iterating it happens to yield.
+        pytest.param("abc", "expected XComArg or list[dict], not str containing str", id="str"),
+        pytest.param(b"ab", "expected XComArg or list[dict], not bytes containing int", id="bytes"),
+    ],
+)
+def test_expand_kwargs_type_error_names_the_offender(kwargs, expected):
+    class MyOperator(BaseOperator):
+        def __init__(self, a=None, **kw):
+            super().__init__(**kw)
+
+        def execute(self, context): ...
+
+    with pytest.raises(TypeError) as ctx:
+        MyOperator.partial(task_id="t").expand_kwargs(kwargs)
+
+    assert str(ctx.value) == expected
