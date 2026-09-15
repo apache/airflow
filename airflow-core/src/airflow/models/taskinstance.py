@@ -1948,6 +1948,14 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         except Exception:
             log.exception("error calling listener")
 
+        if ti.state == TaskInstanceState.UP_FOR_RETRY:
+            try:
+                get_listener_manager().hook.on_task_instance_up_for_retry(
+                    previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
+                )
+            except Exception:
+                log.exception("error calling listener")
+
         return ti
 
     @staticmethod

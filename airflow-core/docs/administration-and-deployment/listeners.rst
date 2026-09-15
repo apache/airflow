@@ -96,6 +96,19 @@ of a :class:`~airflow.sdk.execution_time.task_runner.RuntimeTaskInstance` instan
     :start-after: [START howto_listen_ti_failure_task]
     :end-before: [END howto_listen_ti_failure_task]
 
+- ``on_task_instance_up_for_retry``
+
+Fired when a task instance is set to ``UP_FOR_RETRY`` after a failure, i.e. it still has retries
+left. This fires in addition to ``on_task_instance_failed`` (which continues to fire for both the
+retry and terminal-failure cases, unchanged, for backward compatibility) — use this hook instead
+of filtering ``on_task_instance_failed`` by ``task_instance.state`` if you only care about a
+task's automatic retries, or only its terminal failures.
+
+.. exampleinclude:: /../src/airflow/example_dags/plugins/event_listener.py
+    :language: python
+    :start-after: [START howto_listen_ti_up_for_retry_task]
+    :end-before: [END howto_listen_ti_up_for_retry_task]
+
 - ``on_task_instance_skipped``
 
 .. exampleinclude:: /../src/airflow/example_dags/plugins/event_listener.py
@@ -206,4 +219,6 @@ List of changes in the listener interfaces since 2.8.0 when they were introduced
 |                 | ``on_task_instance_success``               | ``task_instance`` object is now an instance of ``RuntimeTaskInstance`` when on worker and ``TaskInstance`` when on API server |
 +-----------------+--------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------+
 | 3.2.0           | ``on_task_instance_skipped``               | New listener method added to the interface                                                                                    |
++-----------------+--------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------+
+| 3.4.0           | ``on_task_instance_up_for_retry``          | New listener method added to the interface                                                                                    |
 +-----------------+--------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------+
