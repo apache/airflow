@@ -760,6 +760,11 @@ class TestEksDeleteClusterOperator:
         with pytest.raises(TaskDeferred):
             self.delete_cluster_operator.execute({})
 
+    def test_execute_complete_when_trigger_yields_deleted(self, caplog):
+        # EksDeleteClusterTrigger yields {"status": "deleted"}, not "success".
+        self.delete_cluster_operator.execute_complete(context={}, event={"status": "deleted"})
+        assert "Cluster deleted successfully." in caplog
+
     @mock.patch("time.sleep", return_value=None)
     @mock.patch.object(Waiter, "wait")
     @mock.patch.object(EksHook, "list_nodegroups")
