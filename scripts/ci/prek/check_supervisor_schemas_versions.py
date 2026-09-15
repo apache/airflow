@@ -76,6 +76,20 @@ def get_changed_files(filenames: list[str]) -> list[str]:
     return [f for f in result.stdout.strip().splitlines() if f]
 
 
+def get_clean_git_env() -> dict[str, str]:
+    """Return an environment without Git-local variables inherited from hooks."""
+    env = os.environ.copy()
+    result = subprocess.run(
+        ["git", "rev-parse", "--local-env-vars"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    for name in result.stdout.splitlines():
+        env.pop(name, None)
+    return env
+
+
 def dump_snapshot(cwd: Path) -> str:
     """Run ``dump_supervisor_schemas.py`` in *cwd* and return its stdout."""
     result = subprocess.run(
@@ -92,6 +106,7 @@ def dump_snapshot(cwd: Path) -> str:
             str(DUMP_SCRIPT),
         ],
         cwd=cwd,
+        env=get_clean_git_env(),
         capture_output=True,
         text=True,
         check=False,
@@ -106,10 +121,13 @@ def _upstream_has_schema() -> bool:
     target_branch = get_target_branch()
     remote = get_remote_for_main()
     ref = f"{remote}/{target_branch}"
-    subprocess.run(["git", "fetch", remote, target_branch], capture_output=True, check=False)
+    subprocess.run(
+        ["git", "fetch", remote, target_branch], env=get_clean_git_env(), capture_output=True, check=False
+    )
     # ``git cat-file -e`` exits zero iff the path exists at the ref.
     result = subprocess.run(
         ["git", "cat-file", "-e", f"{ref}:{VERSIONS_PREFIX}__init__.py"],
+        env=get_clean_git_env(),
         capture_output=True,
         check=False,
     )
@@ -122,13 +140,21 @@ def dump_snapshot_from_main() -> str:
     remote = get_remote_for_main()
     ref = f"{remote}/{target_branch}"
     worktree_path = Path(tempfile.mkdtemp()) / "airflow-main"
-    subprocess.run(["git", "fetch", remote, target_branch], capture_output=True, check=False)
-    subprocess.run(["git", "worktree", "add", str(worktree_path), ref], capture_output=True, check=True)
+    subprocess.run(
+        ["git", "fetch", remote, target_branch], env=get_clean_git_env(), capture_output=True, check=False
+    )
+    subprocess.run(
+        ["git", "worktree", "add", str(worktree_path), ref],
+        env=get_clean_git_env(),
+        capture_output=True,
+        check=True,
+    )
     try:
         return dump_snapshot(worktree_path)
     finally:
         subprocess.run(
             ["git", "worktree", "remove", "--force", str(worktree_path)],
+            env=get_clean_git_env(),
             capture_output=True,
             check=False,
         )
