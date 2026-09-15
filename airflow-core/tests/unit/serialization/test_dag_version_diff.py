@@ -35,6 +35,7 @@ from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOpe
 from airflow.providers.standard.sensors.date_time import DateTimeSensor, DateTimeSensorAsync
 from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 from airflow.sdk import DAG, Asset, ExceptionRetryPolicy, Param, TaskGroup, task as sdk_task, task_group
+from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions.operator_resources import Resources
 from airflow.serialization import dag_version_diff
 from airflow.serialization.dag_version_diff import (
@@ -3300,6 +3301,94 @@ def _build_operator_flag_payload(shape: str) -> dict[str, Any]:
         else:
             PythonOperator(task_id="secret_task", python_callable=_return_private_before)
     return _serialize_dag(dag)
+
+
+class _TemplatedPartialOperator(BaseOperator):
+    """An unmapped operator whose own execution input happens to be called partial_kwargs."""
+
+    template_fields = ("partial_kwargs",)
+
+    def __init__(self, *, partial_kwargs, **kwargs):
+        super().__init__(**kwargs)
+        self.partial_kwargs = partial_kwargs
+
+    def execute(self, context):
+        return self.partial_kwargs["owner"]
+
+
+@pytest.mark.parametrize("include_values", [False, True])
+def test_build_diff_keeps_partial_kwargs_opaque_across_a_mapping_change(include_values):
+    """One mapped side is not enough: the unmapped side's keys are still its own input."""
+    payloads = []
+    for is_mapped, owner in ((False, "first"), (True, "second")):
+        task: dict[str, Any] = {"task_id": "extract", "partial_kwargs": {"owner": owner}}
+        if is_mapped:
+            task["_is_mapped"] = True
+        payloads.append(_build_payload(tasks=[task]))
+
+    result = build_serialized_dag_diff(
+        base_data=payloads[0], target_data=payloads[1], include_values=include_values
+    )
+
+    task_id = "extract" if include_values else "*"
+    assert not [change for change in result["changes"] if "partial_kwargs" in change["path"]], (
+        "an unmapped side's keys must not be named"
+    )
+    assert (f"/dag/tasks/{task_id}/custom_fields", "task", "execution") in [
+        (change["path"], change["category"], change["impact"]) for change in result["changes"]
+    ]
+
+
+@pytest.mark.parametrize("include_values", [False, True])
+def test_build_diff_keeps_an_unmapped_templated_partial_kwargs_opaque(include_values):
+    """
+    partial_kwargs is only mapped configuration when the task is actually mapped.
+
+    Reading an unmapped operator's templated dictionary as operator fields classified its
+    execution input by whichever field name a key collided with, and named a key its author
+    chose rather than leaving it inside the withheld value.
+    """
+    payloads = []
+    for owner in ("first", "second"):
+        with DAG("templated_partial", schedule=None) as dag:
+            _TemplatedPartialOperator(task_id="extract", partial_kwargs={"owner": owner})
+        payloads.append(_serialize_dag(dag))
+    assert _get_task(payloads[0])["partial_kwargs"] == {"owner": "first"}
+    assert not _get_task(payloads[0]).get("_is_mapped", False), "the task is not mapped"
+
+    result = build_serialized_dag_diff(
+        base_data=payloads[0], target_data=payloads[1], include_values=include_values
+    )
+
+    task_id = "extract" if include_values else "*"
+    assert [(change["path"], change["category"], change["impact"]) for change in result["changes"]] == [
+        (f"/dag/tasks/{task_id}/custom_fields", "task", "execution")
+    ]
+
+
+@pytest.mark.parametrize("include_values", [False, True])
+@pytest.mark.parametrize(
+    ("field", "expected_category", "expected_impact"),
+    [("pool", "task", "execution"), ("owner", "metadata", "metadata")],
+)
+def test_build_diff_classifies_a_mapped_task_partial_kwarg_per_field(
+    field, expected_category, expected_impact, include_values
+):
+    payloads = []
+    for value in ("before", "after"):
+        with DAG("mapped_partial", schedule=None) as dag:
+            BashOperator.partial(task_id="extract", **{field: value}).expand(bash_command=["a", "b"])
+        payloads.append(_serialize_dag(dag))
+    assert _get_task(payloads[0])["_is_mapped"] is True
+
+    result = build_serialized_dag_diff(
+        base_data=payloads[0], target_data=payloads[1], include_values=include_values
+    )
+
+    task_id = "extract" if include_values else "*"
+    assert [(change["path"], change["category"], change["impact"]) for change in result["changes"]] == [
+        (f"/dag/tasks/{task_id}/partial_kwargs/{field}", expected_category, expected_impact)
+    ]
 
 
 @pytest.mark.parametrize("include_values", [False, True])
