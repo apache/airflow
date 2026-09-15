@@ -188,7 +188,11 @@ config_list: list[_TableConfig] = [
         keep_last_group_by=["dag_id"],
         dependent_tables=["task_instance", "task_state_store", "deadline"],
     ),
-    _TableConfig(table_name="asset_event", recency_column_name="timestamp", dag_id_column_name="dag_id"),
+    _TableConfig(
+        table_name="asset_event",
+        recency_column_name="timestamp",
+        dag_id_column_name="source_dag_id",
+    ),
     # Carries no foreign key, so rows are left behind when the partition Dag run they describe
     # is cascade-deleted with its dag_run. Only such orphans may be purged: rows whose partition
     # Dag run still exists are the evidence the scheduler evaluates to decide when that pending
@@ -208,7 +212,7 @@ config_list: list[_TableConfig] = [
     _TableConfig(
         table_name="task_instance",
         recency_column_name="start_date",
-        dependent_tables=["task_instance_history", "xcom"],
+        dependent_tables=["task_instance_history", "xcom", "task_reschedule"],
         dag_id_column_name="dag_id",
     ),
     _TableConfig(
@@ -219,7 +223,7 @@ config_list: list[_TableConfig] = [
         recency_column_name="expires_at",
         dag_id_column_name="dag_id",
     ),
-    _TableConfig(table_name="task_reschedule", recency_column_name="start_date", dag_id_column_name="dag_id"),
+    _TableConfig(table_name="task_reschedule", recency_column_name="start_date"),
     _TableConfig(table_name="xcom", recency_column_name="timestamp", dag_id_column_name="dag_id"),
     _TableConfig(table_name="_xcom_archive", recency_column_name="timestamp", dag_id_column_name="dag_id"),
     _TableConfig(
