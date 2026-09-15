@@ -197,6 +197,14 @@ class MockOperator(BaseOperator):
         return self.arg1, self.arg2, self.arg3
 
 
+class MockOperatorWithCustomName(MockOperator):
+    """MockOperator subclass with a custom display name, mimicking a @task-decorated callable,
+    used to verify IterableOperator.operator_name forwards the wrapped operator's own
+    operator_name rather than falling back to this wrapper's task_type."""
+
+    custom_operator_name = "@mock_task"
+
+
 class MockOutletEventOperator(BaseOperator):
     """Operator that records an outlet asset event on execute, used to test that
     IterableOperator merges/replays per-sub-task outlet events (see ``_run_task``)."""
@@ -381,6 +389,19 @@ class TestIterableOperator:
 
             assert isinstance(iterable_op, IterableOperator)
             assert iterable_op.task_type == "MockOperator"
+
+    def test_operator_name(self):
+        """Test that IterableOperator forwards the wrapped operator's operator_name (e.g. a
+        @task-decorated callable's custom_operator_name), not just its own task_type."""
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"a": 1}])
+            iterable_op = create_iterable_operator(
+                dag, expand_input, operator_class=MockOperatorWithCustomName
+            )
+
+            assert isinstance(iterable_op, IterableOperator)
+            assert iterable_op.task_type == "MockOperatorWithCustomName"
+            assert iterable_op.operator_name == "@mock_task"
 
     def test_forwards_params_weight_rule_and_retry_policy(self):
         """Test that IterableOperator forwards params, weight_rule, and retry_policy from the
