@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import os
+import shutil
 import sys
 from copy import deepcopy
 from pathlib import Path
@@ -811,10 +813,13 @@ def clean_docker_context_files():
         console_print("[info]Cleaning docker-context-files[/]")
     if get_dry_run():
         return
-    context_files_to_delete = DOCKER_CONTEXT_PATH.rglob("*")
+    context_files_to_delete = DOCKER_CONTEXT_PATH.iterdir()
     for file_to_delete in context_files_to_delete:
         if file_to_delete.name != ".README.md":
-            file_to_delete.unlink(missing_ok=True)
+            if file_to_delete.is_dir() and not file_to_delete.is_symlink():
+                shutil.rmtree(file_to_delete)
+            else:
+                file_to_delete.unlink(missing_ok=True)
 
 
 def check_docker_context_files(install_distributions_from_context: bool):
@@ -881,6 +886,18 @@ def run_build_production_image(
             " or preparing buildx cache![/]\n"
         )
         return 1, "Error: building multi-platform image without --push."
+    if (
+        os.environ.get("PROD_IMAGE_DEPENDENCY_CACHE") == "true"
+        and prod_image_params.install_distributions_from_context
+    ):
+        # Breeze must bootstrap without packaging installed; load it only for an actual build.
+        from airflow_breeze.utils.prod_image_dependencies import prepare_dependency_context
+
+        dependency_context = prepare_dependency_context(
+            AIRFLOW_ROOT_PATH / "docker-context-files", prod_image_params.python
+        )
+        if dependency_context is not None:
+            prod_image_params.dependency_context = str(dependency_context.relative_to(AIRFLOW_ROOT_PATH))
     get_console(output=output).print(f"\n[info]Building PROD Image for {param_description}\n")
     if prod_image_params.prepare_buildx_cache:
         build_command_result = build_cache(image_params=prod_image_params, output=output)

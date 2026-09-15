@@ -67,6 +67,7 @@ on:  # yamllint disable-line rule:truthy
         default: 60
 
 permissions:
+  actions: read
   contents: read
 jobs:
   distributions-tests:

@@ -1,0 +1,76 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: Resolve a compatible main image
+description: Fingerprint the checkout and select a verified main artifact without downloading its image
+inputs:
+  kind:
+    description: Artifact kind
+    required: true
+  python:
+    description: Python version
+    required: true
+  platform:
+    description: Docker platform
+    required: true
+  base-image:
+    description: Previously resolved immutable Debian base reference
+    default: ""
+  constraints-file:
+    description: Actual production constraints used by the build
+    default: ""
+  publish:
+    description: Compute publication inputs even when reuse is disabled
+    default: "false"
+  disabled:
+    description: Force a normal build
+    default: "false"
+outputs:
+  publication-exists:
+    description: Whether this publisher run already uploaded the exact image identity
+    value: ${{ steps.resolve.outputs.publication-exists }}
+  built-image-name:
+    description: Name for this run's fallback image artifact
+    value: ${{ steps.resolve.outputs.built-image-name }}
+  base-image:
+    description: Immutable Debian base reference used for this fingerprint
+    value: ${{ steps.resolve.outputs.base-image }}
+  hit:
+    description: Whether a compatible artifact was selected
+    value: ${{ steps.resolve.outputs.hit }}
+  artifact-name:
+    description: Name for publishing an image with these inputs
+    value: ${{ steps.resolve.outputs.artifact-name }}
+  selection-name:
+    description: Name of the per-run selection artifact
+    value: ${{ steps.resolve.outputs.selection-name }}
+runs:
+  using: composite
+  steps:
+    - name: Fingerprint and resolve
+      id: resolve
+      shell: bash
+      env:
+        IMAGE_KIND: ${{ inputs.kind }}
+        IMAGE_PYTHON: ${{ inputs.python }}
+        IMAGE_PLATFORM: ${{ inputs.platform }}
+        IMAGE_BASE: ${{ inputs.base-image }}
+        IMAGE_CONSTRAINTS_FILE: ${{ inputs.constraints-file }}
+        IMAGE_PUBLISH: ${{ inputs.publish }}
+        IMAGE_REUSE_DISABLED: ${{ inputs.disabled }}
+      run: ./scripts/ci/resolve_main_image.sh

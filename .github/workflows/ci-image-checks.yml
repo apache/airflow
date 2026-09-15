@@ -114,6 +114,7 @@ on:  # yamllint disable-line rule:truthy
 
 
 permissions:
+  actions: read
   contents: read
 jobs:
   static-checks:
@@ -344,6 +345,7 @@ jobs:
     timeout-minutes: 150
     name: "Publish documentation and validate versions"
     permissions:
+      actions: read
       id-token: write
       contents: read
     needs: build-docs

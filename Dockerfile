@@ -1949,6 +1949,7 @@ ENV PATH=${PATH}:/opt/mssql-tools/bin
 # By default we do not install from docker context files but if we decide to install from docker context
 # files, we should override those variables to "docker-context-files"
 ARG DOCKER_CONTEXT_FILES="Dockerfile"
+ARG DOCKER_CONTEXT_DEPENDENCY_FILES=${DOCKER_CONTEXT_FILES}
 ARG AIRFLOW_IMAGE_TYPE
 ARG AIRFLOW_HOME
 ARG AIRFLOW_USER_HOME_DIR
@@ -1958,7 +1959,7 @@ RUN adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-passw
        --quiet "airflow" --uid "${AIRFLOW_UID}" --gid "0" --home "${AIRFLOW_USER_HOME_DIR}" && \
     mkdir -p ${AIRFLOW_HOME} && chown -R "airflow:0" "${AIRFLOW_USER_HOME_DIR}" ${AIRFLOW_HOME}
 
-COPY --chown=${AIRFLOW_UID}:0 ${DOCKER_CONTEXT_FILES} /docker-context-files
+COPY --chown=${AIRFLOW_UID}:0 ${DOCKER_CONTEXT_DEPENDENCY_FILES} /docker-context-files
 
 USER airflow
 
@@ -2054,19 +2055,10 @@ ARG INSTALL_DISTRIBUTIONS_FROM_CONTEXT="false"
 # from eager-upgraded constraints by the CI builds
 ARG USE_CONSTRAINTS_FOR_CONTEXT_DISTRIBUTIONS="false"
 
-# In case of Production build image segment we want to pre-install main version of airflow
-# dependencies from GitHub so that we do not have to always reinstall it from the scratch.
-# The Airflow and providers are uninstalled, only dependencies remain
-# the cache is only used when "upgrade to newer dependencies" is not set to automatically
-# account for removed dependencies (we do not install them in the first place) and in case
-# INSTALL_DISTRIBUTIONS_FROM_CONTEXT is not set (because then caching it from main makes no sense).
-
 # By default PIP installs everything to ~/.local and it's also treated as VIRTUALENV
 ENV VIRTUAL_ENV="${AIRFLOW_USER_HOME_DIR}/.local"
 ENV PATH="/usr/python/bin:$PATH"
 RUN bash /scripts/docker/install_packaging_tools.sh; bash /scripts/docker/create_prod_venv.sh
-
-COPY --chown=airflow:0 ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}
 
 # Add extra python dependencies
 ARG ADDITIONAL_PYTHON_DEPS=""
@@ -2089,6 +2081,20 @@ COPY --from=scripts install_from_docker_context_files.sh install_airflow_when_bu
 ARG TARGETARCH
 # Value to be able to easily change cache id and therefore use a bare new cache
 ARG DEPENDENCY_CACHE_EPOCH="11"
+
+ARG INSTALL_CONTEXT_DEPENDENCIES_ONLY="false"
+# Metadata-only wheels preserve resolver inputs, so source and UI changes can reuse this layer.
+# Uninstall the placeholders before copying real wheels to keep removed application files out of the image.
+RUN --mount=type=cache,id=prod-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/tmp/.cache/,uid=${AIRFLOW_UID} \
+    if [[ ${INSTALL_CONTEXT_DEPENDENCIES_ONLY} == "true" ]]; then \
+        bash /scripts/docker/install_from_docker_context_files.sh; \
+        readarray -t metadata_distributions < /docker-context-files/metadata-distributions.txt; \
+        pip uninstall --yes "${metadata_distributions[@]}"; \
+        rm -rf /docker-context-files/*; \
+    fi
+
+COPY --chown=${AIRFLOW_UID}:0 ${DOCKER_CONTEXT_FILES} /docker-context-files
+COPY --chown=airflow:0 ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}
 
 # hadolint ignore=SC2086, SC2010, DL3042
 RUN --mount=type=cache,id=prod-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/tmp/.cache/,uid=${AIRFLOW_UID} \
