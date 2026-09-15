@@ -1614,7 +1614,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     task = dag.get_task(ti.task_id)
                 except Exception:
                     cls.logger().exception("Marking task instance %s as %s", ti, state)
-                    ti.set_state(state)
+                    ti.set_state(state, session=session)
                     continue
                 ti.task = task
                 if task.has_on_retry_callback or task.has_on_failure_callback:
@@ -1666,7 +1666,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
                     # Adjust max_tries to allow retry beyond normal limits (like clearing does)
                     ti.max_tries = ti.try_number + ti.task.retries
-                    ti.set_state(None)
+                    ti.set_state(None, session=session)
                     continue
 
                 # Send email notification request to DAG processor via DB

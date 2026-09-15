@@ -621,6 +621,45 @@ class TestSchedulerJob:
         # Verify try_number wasn't changed (scheduler doesn't increment it here)
         assert ti1.try_number == 4, "try_number should remain unchanged"
 
+    @pytest.mark.parametrize(
+        ("ti_state", "event_state", "dag_not_found"),
+        [
+            pytest.param(TaskInstanceState.RESTARTING, State.SUCCESS, False, id="cleared-task-terminated"),
+            pytest.param(TaskInstanceState.QUEUED, State.FAILED, True, id="dag-not-found"),
+        ],
+    )
+    def test_process_executor_events_sets_state_in_callers_transaction(
+        self, dag_maker, ti_state, event_state, dag_not_found
+    ):
+        """
+        Setting a task instance's state must not commit the caller's transaction.
+
+        ``settings.Session`` is scoped, so ``ti.set_state()`` without ``session`` resolved to the
+        scheduler's own session and ``create_session()`` committed and closed it on exit. That released
+        the scheduler's row locks mid-batch and detached the task instances still to be processed, so
+        changes made to them afterwards were never written.
+        """
+        session = settings.Session()
+        with dag_maker(dag_id="test_executor_events_callers_transaction", fileloc="/test_path1/"):
+            task1 = EmptyOperator(task_id="test_task", retries=2)
+        ti1 = dag_maker.create_dagrun().get_task_instance(task1.task_id)
+        ti1.state = ti_state
+        session.merge(ti1)
+        session.commit()
+
+        executor = MockExecutor(do_update=False)
+        job_runner = SchedulerJobRunner(Job(), executors=[executor])
+        if dag_not_found:
+            job_runner.scheduler_dag_bag = mock.MagicMock()
+            job_runner.scheduler_dag_bag.get_dag_for_run.side_effect = Exception("failed")
+        executor.event_buffer[ti1.key] = event_state, None
+
+        job_runner._process_executor_events(executor=executor, session=session)
+        session.rollback()
+
+        ti1.refresh_from_db(session=session)
+        assert ti1.state == ti_state
+
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
     def test_process_executor_events_with_no_callback(self, mock_get_backend, mock_task_callback, dag_maker):
