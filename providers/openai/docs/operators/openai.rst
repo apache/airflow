@@ -124,8 +124,13 @@ know about yet. Options worth knowing about:
   by ``execute``. Use ``OpenAIHook`` directly to access it.
 - ``metadata``: a mapping of key-value pairs attached to the response for your own bookkeeping.
 - ``max_output_tokens``: an upper bound on the number of tokens the model can generate, including
-  reasoning tokens as well as visible output tokens.
-- ``max_tool_calls``: an upper bound on the number of built-in tool calls the model can make.
+  reasoning tokens as well as visible output tokens. Prefer the operator's own ``max_output_tokens``
+  parameter (see above) instead of setting this key here: the operator parameter is templated, this
+  ``response_kwargs`` key is not, and setting the same ceiling in both places raises when the
+  operator is constructed.
+- ``max_tool_calls``: an upper bound on the number of built-in tool calls the model can make. Same
+  trade-off as ``max_output_tokens`` above: prefer the operator's own, templated ``max_tool_calls``
+  parameter instead of this non-templated ``response_kwargs`` key.
 
 .. note::
 

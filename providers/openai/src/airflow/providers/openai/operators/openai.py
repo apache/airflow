@@ -109,7 +109,7 @@ class OpenAIResponseOperator(BaseOperator):
         completes, so this operator logs a warning and the returned output text may be empty, while
         ``stream=True`` returns an object without ``status`` or ``output_text``, so the task raises
         ``AttributeError``. See :ref:`howto/operator:OpenAIResponseOperator` for these and other
-        options this operator can pass through, such as ``truncation`` and ``max_output_tokens``.
+        options this operator can pass through, such as ``truncation`` and ``metadata``.
     :param max_output_tokens: Optional upper bound on the number of tokens generated for the
         response. Templated, so it renders to a string; accepts an ``int`` or a string containing one.
         Must be a positive integer -- an invalid value raises instead of silently disabling the
