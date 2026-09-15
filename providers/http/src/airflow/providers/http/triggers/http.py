@@ -223,6 +223,7 @@ class HttpSensorTrigger(BaseTrigger):
     :param initial_delay: Time to sleep before the first request. Used when the
         sensor re-defers after evaluating ``response_check`` on the worker, so
         consecutive attempts keep the ``poke_interval`` pacing.
+    :param should_return_response: Whether to include the serialized HTTP response in the trigger event.
     """
 
     def __init__(
@@ -235,6 +236,7 @@ class HttpSensorTrigger(BaseTrigger):
         extra_options: dict[str, Any] | None = None,
         poke_interval: float = 5.0,
         initial_delay: float = 0.0,
+        should_return_response: bool = False,
     ):
         super().__init__()
         self.endpoint = endpoint
@@ -245,6 +247,7 @@ class HttpSensorTrigger(BaseTrigger):
         self.http_conn_id = http_conn_id
         self.poke_interval = poke_interval
         self.initial_delay = initial_delay
+        self.should_return_response = should_return_response
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize HttpTrigger arguments and classpath."""
@@ -259,6 +262,7 @@ class HttpSensorTrigger(BaseTrigger):
                 "http_conn_id": self.http_conn_id,
                 "poke_interval": self.poke_interval,
                 "initial_delay": self.initial_delay,
+                "should_return_response": self.should_return_response,
             },
         )
 
@@ -277,13 +281,17 @@ class HttpSensorTrigger(BaseTrigger):
                         headers=self.headers,
                         extra_options=self.extra_options,
                     )
-                    response = await HttpTrigger._convert_response(client_response)
-                yield TriggerEvent(
-                    {
-                        "status": "success",
-                        "response": HttpResponseSerializer.serialize(response),
-                    }
-                )
+                    if self.should_return_response:
+                        response = await HttpTrigger._convert_response(client_response)
+                if self.should_return_response:
+                    yield TriggerEvent(
+                        {
+                            "status": "success",
+                            "response": HttpResponseSerializer.serialize(response),
+                        }
+                    )
+                else:
+                    yield TriggerEvent(True)
                 return
             except AirflowException as exc:
                 if str(exc).startswith("404"):

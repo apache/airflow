@@ -26,6 +26,7 @@ from airflow.providers.common.compat.sdk import (
     BaseSensorOperator,
     PokeReturnValue,
     conf,
+    timezone,
 )
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.providers.http.triggers.http import HttpResponseSerializer, HttpSensorTrigger
@@ -170,14 +171,17 @@ class HttpSensor(BaseSensorOperator):
         result = self.poke(context)
 
         if not result:
-            self._defer(initial_delay=self.poke_interval if self.response_check else 0)
+            self._defer(context=context, initial_delay=self.poke_interval if self.response_check else 0)
         # Keep sync mode's contract of returning the xcom value from a truthy PokeReturnValue.
         if isinstance(result, PokeReturnValue):
             return result.xcom_value
 
-    def _defer(self, initial_delay: float = 0.0) -> None:
+    def _defer(self, context: Context, initial_delay: float = 0.0) -> None:
+        remaining_timeout = max(
+            self.timeout - (timezone.utcnow() - context["ti"].start_date).total_seconds(), 0
+        )
         self.defer(
-            timeout=timedelta(seconds=self.timeout),
+            timeout=timedelta(seconds=remaining_timeout),
             trigger=HttpSensorTrigger(
                 endpoint=self.endpoint,
                 http_conn_id=self.http_conn_id,
@@ -187,6 +191,7 @@ class HttpSensor(BaseSensorOperator):
                 extra_options=self.extra_options,
                 poke_interval=self.poke_interval,
                 initial_delay=initial_delay,
+                should_return_response=bool(self.response_check),
             ),
             method_name="execute_complete",
         )
@@ -207,7 +212,7 @@ class HttpSensor(BaseSensorOperator):
 
             if not result:
                 # The check did not pass yet; hand polling back to the triggerer.
-                self._defer(initial_delay=self.poke_interval)
+                self._defer(context=context, initial_delay=self.poke_interval)
             if isinstance(result, PokeReturnValue):
                 self.log.info("%s completed successfully.", self.task_id)
                 return result.xcom_value

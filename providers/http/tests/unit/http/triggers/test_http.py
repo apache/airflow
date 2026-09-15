@@ -216,6 +216,7 @@ class TestHttpSensorTrigger:
             "extra_options": TEST_EXTRA_OPTIONS,
             "poke_interval": 5.0,
             "initial_delay": 0.0,
+            "should_return_response": False,
         }
 
     @pytest.mark.asyncio
@@ -223,6 +224,7 @@ class TestHttpSensorTrigger:
     async def test_yields_serialized_response_on_success(self, mock_hook, sensor_trigger, client_response):
         """The event carries the response so the sensor can evaluate response_check on the worker."""
         mock_hook.return_value.run.return_value = self._mock_run_result(client_response)
+        sensor_trigger.should_return_response = True
         response = await HttpTrigger._convert_response(client_response)
 
         generator = sensor_trigger.run()
@@ -230,6 +232,19 @@ class TestHttpSensorTrigger:
         assert actual == TriggerEvent(
             {"status": "success", "response": HttpResponseSerializer.serialize(response)}
         )
+
+    @pytest.mark.asyncio
+    @mock.patch(HTTP_PATH.format("HttpAsyncHook"))
+    @mock.patch.object(HttpTrigger, "_convert_response", autospec=True)
+    async def test_does_not_return_response_when_not_requested(
+        self, mock_convert_response, mock_hook, sensor_trigger, client_response
+    ):
+        mock_hook.return_value.run.return_value = self._mock_run_result(client_response)
+
+        generator = sensor_trigger.run()
+        actual = await generator.asend(None)
+        assert actual == TriggerEvent(True)
+        mock_convert_response.assert_not_awaited()
 
     @pytest.mark.asyncio
     @mock.patch(HTTP_PATH.format("asyncio.sleep"))

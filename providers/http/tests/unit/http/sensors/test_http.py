@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest import mock
 from unittest.mock import patch
 
@@ -368,25 +369,29 @@ class TestHttpSensorAsync:
         "airflow.providers.http.sensors.http.HttpSensor.poke",
         return_value=False,
     )
-    def test_execute_is_deferred(self, mock_poke):
+    def test_execute_is_deferred(self, mock_poke, time_machine):
         """
         Asserts that a task is deferred and a HttpTrigger will be fired
         when the HttpSensor is executed in deferrable mode.
         """
 
+        time_machine.move_to(DEFAULT_DATE, tick=False)
         task = HttpSensor(task_id="run_now", endpoint="test-endpoint", deferrable=True)
+        context = {"ti": SimpleNamespace(start_date=DEFAULT_DATE)}
 
         with pytest.raises(TaskDeferred) as exc:
-            task.execute({})
+            task.execute(context)
 
         assert isinstance(exc.value.trigger, HttpSensorTrigger), "Trigger is not a HttpTrigger"
+        assert exc.value.trigger.should_return_response is False
 
     @mock.patch(
         "airflow.providers.http.sensors.http.HttpSensor.poke",
         return_value=False,
     )
-    def test_execute_defers_when_response_check_is_not_none(self, mock_poke):
+    def test_execute_defers_when_response_check_is_not_none(self, mock_poke, time_machine):
         """A response_check must not force the sensor back onto the synchronous path."""
+        time_machine.move_to(DEFAULT_DATE, tick=False)
         task = HttpSensor(
             task_id="run_now",
             endpoint="test-endpoint",
@@ -394,10 +399,13 @@ class TestHttpSensorAsync:
             poke_interval=42,
             deferrable=True,
         )
+        context = {"ti": SimpleNamespace(start_date=DEFAULT_DATE)}
         with pytest.raises(TaskDeferred) as exc:
-            task.execute({})
+            task.execute(context)
         assert isinstance(exc.value.trigger, HttpSensorTrigger)
         assert exc.value.trigger.initial_delay == 42
+        assert exc.value.trigger.should_return_response is True
+        assert exc.value.timeout.total_seconds() == task.timeout
 
     @mock.patch(
         "airflow.providers.http.sensors.http.HttpSensor.poke",
@@ -432,19 +440,24 @@ class TestHttpSensorAsync:
         )
         assert task.execute_complete(context={}, event=self._make_event()) is None
 
-    def test_execute_complete_response_check_fails_defers_again(self):
+    def test_execute_complete_response_check_fails_defers_again(self, time_machine):
+        time_machine.move_to(DEFAULT_DATE, tick=False)
         task = HttpSensor(
             task_id="run_now",
             endpoint="test-endpoint",
             response_check=lambda response: "other" in response.text,
             poke_interval=42,
+            timeout=300,
             deferrable=True,
         )
+        context = {"ti": SimpleNamespace(start_date=DEFAULT_DATE)}
+        time_machine.shift(120)
         with pytest.raises(TaskDeferred) as exc:
-            task.execute_complete(context={}, event=self._make_event())
+            task.execute_complete(context=context, event=self._make_event())
         assert isinstance(exc.value.trigger, HttpSensorTrigger)
         # Re-deferring must keep the poke_interval pacing instead of refiring immediately.
         assert exc.value.trigger.initial_delay == 42
+        assert exc.value.timeout.total_seconds() == 180
 
     def test_execute_complete_response_check_receives_response(self):
         seen = {}
