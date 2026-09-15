@@ -371,6 +371,13 @@ class IterableOperator(BaseOperator):
         return self._operator.task_type
 
     @property
+    def operator_name(self) -> str:
+        # Same forwarding as task_type above: self._operator already resolves to the wrapped
+        # operator's display name (e.g. a @task-decorated callable's custom_operator_name),
+        # so report that instead of falling back to this wrapper's own task_type.
+        return self._operator.operator_name
+
+    @property
     def task_retries(self) -> int:
         return self._operator.retries or 0
 
