@@ -636,8 +636,9 @@ at all.
        a package, or fix its own failing script by reading the traceback
      - ``SandboxToolset``
    * - Produce a large artifact for a downstream task
-     - Not an agent at all. Drive a backend from a ``@task``, as shown under
-       :ref:`sandbox-credentials`
+     - Not an agent at all. Drive a backend from a ``@task``. See
+       :ref:`sandbox-limitations` for why, and the example under
+       :ref:`Controlling what the sandbox gets <sandbox-credentials>`
 
 The clearest case for a sandbox is the last clause of that third row: an agent
 that debugs its own code. It has to run something, read the real error, and try again,
@@ -676,7 +677,8 @@ Four boundaries exist, from smallest to largest:
    * - **The whole task**
      - The complete Airflow task, supervisor included, as
        ``KubernetesExecutor`` does.
-     - Everything, including Airflow's own worker context and connections.
+     - Everything outside the task. Not the task from its own code: the
+       agent and what it runs are both inside this boundary.
 
 ``SandboxToolset`` is the first row. Being precise about what that means:
 
@@ -882,6 +884,57 @@ That yields ``py_run_command``, ``node_run_command`` and so on. Without a
 prefix on at least one of them, the run fails at startup with a duplicate tool
 name. Give the model instructions on which one to use for what, or it will guess.
 
+.. _sandbox-limitations:
+
+Limitations
+^^^^^^^^^^^
+
+These apply to every backend, not just the hosted one. Read them before designing
+a Dag around an agent with a sandbox, because three of them decide whether the
+design works at all.
+
+**Nothing survives the run.** The sandbox is created on the model's first tool
+call and destroyed when the agent run ends. A task retry starts from an empty
+sandbox, and so does every other attempt.
+
+**Do not combine a sandbox with** ``durable=True``. Durable execution caches each
+tool result and replays it on a retry without calling the backend, so a replayed
+``write_file`` reports success while no sandbox exists, and the first call that
+misses the cache then runs against a fresh empty one. The model is handed a
+filesystem that does not match what it was just told, and nothing raises. The
+combination is not currently rejected, so it is on you to avoid it.
+
+**Do not combine a sandbox with** ``enable_hitl_review=True``. Regeneration after
+reviewer feedback starts a second agent run, and the first run's sandbox was
+destroyed when that run ended. The regenerated agent gets an empty sandbox while
+its own history describes files it wrote earlier. This is not currently rejected
+either.
+
+**The tools are text-only in both directions.** ``write_file`` takes a string and
+``read_file`` renders what it read as UTF-8 with undecodable bytes replaced, so a
+parquet, an image, or any other binary cannot survive a round trip through an
+agent at any size, well under the byte caps.
+
+**An artifact can only leave through the model's context.** ``run_command`` keeps
+50 KiB per stream and ``read_file`` transfers at most ``max_read_bytes``, 5 MiB by
+default. If the agent must produce a file for a downstream task, either have the
+sandboxed code write it to object storage itself, which needs egress to your
+bucket and credentials in the spec, or do not use an agent: drive a backend from a
+``@task``, as under :ref:`Controlling what the sandbox gets <sandbox-credentials>`.
+
+**An agent's sandbox cannot take a credential from an Airflow connection or a
+secrets backend.** ``SandboxSpec.env`` is the only channel and it is fixed when
+the Dag file is parsed, so the value has to be a literal in the Dag file. Reading
+a connection beside it would run in the Dag processor on every parse, which is not
+what you want for a secret. Driving a backend from a ``@task`` is the only route
+that resolves a connection at run time.
+
+**Anything you do inject is visible downstream.** Model-generated code can read
+``SandboxSpec.env`` and print it, and a tool result travels into the model's
+context, the task log, and whatever the agent returns to XCom. Treat a credential
+given to a sandbox as disclosed to the model and to everything that records the
+run, and scope it accordingly.
+
 Modal backend (hosted)
 ^^^^^^^^^^^^^^^^^^^^^^
 
@@ -922,7 +975,9 @@ constructs the backend parses fine without credentials present.
 
 Constructor parameters:
 
-- ``image``: Registry tag for the sandbox image. Default ``"python:3.12-slim"``.
+- ``image``: Registry tag for the sandbox image, or a prepared ``modal.Image``
+  carrying pre-installed packages, which is how an agent gets a library without
+  needing egress. Default ``"python:3.12-slim"``.
 - ``app_name``: Modal app the sandboxes are created under. Default
   ``"airflow-sandbox"``.
 - ``create_app_if_missing``: Create that app if it does not exist. Default ``True``.

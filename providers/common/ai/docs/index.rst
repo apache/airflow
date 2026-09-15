@@ -54,9 +54,10 @@ tools aren't locked out either: pydantic-ai ships ``pydantic_ai.ext.langchain.La
 upstream, which wraps LangChain tools for a common.ai agent, and the provider's own
 :func:`~airflow.providers.common.ai.toolsets.langchain_bridge.airflow_toolset_to_langchain_tools`
 converts the other way — Airflow-managed toolsets into LangChain tools (see :doc:`toolsets`).
-The AI step is orchestrated by Airflow: the model calls, the agent loop, and any tools all
-run in the Airflow worker, where they get retries, logging, and observability like any other
-task.
+The AI step is orchestrated by Airflow: the model calls, the agent loop, and any tools
+run in the Airflow worker by default, where they get retries, logging, and observability like
+any other task. The exception is :ref:`SandboxToolset <sandbox-limitations>`, which exists so
+that code the *model* writes runs somewhere else.
 
 Use it when a Dag needs:
 
@@ -65,6 +66,7 @@ Use it when a Dag needs:
 * **Branching on a model's decision** — :doc:`LLMBranchOperator <operators/llm_branch>`.
 * **Agents with tools** — :doc:`AgentOperator <operators/agent>` runs a multi-turn agent loop
   in the worker, calling Airflow-defined :doc:`toolsets <toolsets>` (SQL, hooks, MCP servers,
+  a sandboxed shell and filesystem,
   :ref:`Agent Skills <agent-skills>`), optionally collapsed into a single sandboxed
   :ref:`code mode <code-mode>` call, with optional human-in-the-loop review and durable step
   replay — if the task retries after a failure, completed steps are replayed from cache

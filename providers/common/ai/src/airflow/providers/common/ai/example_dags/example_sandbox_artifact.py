@@ -31,7 +31,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from airflow.providers.common.compat.sdk import dag, task
+from airflow.providers.common.compat.sdk import ObjectStoragePath, dag, task
 
 SCRIPT = """
 import json, platform
@@ -54,11 +54,11 @@ MIB = 1024 * 1024
     tags=["example", "sandbox"],
 )
 def example_sandbox_artifact():
-    """Produce a file inside a sandbox and bring it back into Airflow."""
+    """Produce a file inside a sandbox and land it where a downstream task can read it."""
 
     # [START howto_sandbox_artifact_task]
     @task
-    def build_report() -> dict:
+    def build_report() -> str:
         # Task-only dependencies stay out of the Dag-parsing process.
         from airflow.providers.common.ai.sandbox import ModalSandboxBackend, SandboxSpec
         from airflow.providers.common.compat.sdk import BaseHook
@@ -97,7 +97,13 @@ def example_sandbox_artifact():
             # owning teardown, including when the block above raises.
             backend.destroy(sandbox)
 
-        return {"bytes": len(raw), "report": raw.decode()}
+        # Land the bytes somewhere durable and hand on the location. Returning the
+        # artifact itself would push it through XCom, which stops working at the
+        # sizes this pattern exists to serve.
+        target = ObjectStoragePath("file:///tmp/airflow-sandbox-demo/report.json")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(raw)
+        return str(target)
 
     # [END howto_sandbox_artifact_task]
 
