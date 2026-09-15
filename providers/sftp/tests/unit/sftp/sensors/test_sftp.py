@@ -353,3 +353,13 @@ class TestSFTPSensor:
         context = {"ds": "1970-01-01"}
         sftp_sensor.poke(context)
         sftp_hook_mock.return_value.get_mod_time.assert_not_called()
+
+    def test_sftp_conn_id_is_templated(self):
+        sensor = SFTPSensor(
+            task_id="test_sftp_sensor",
+            path="/tmp/file.txt",
+            sftp_conn_id="{{ conn_id }}",
+        )
+        assert "sftp_conn_id" in sensor.template_fields
+        sensor.render_template_fields({"conn_id": "sftp_staging"})
+        assert sensor.sftp_conn_id == "sftp_staging"

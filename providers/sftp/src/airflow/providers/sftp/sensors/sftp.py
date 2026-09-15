@@ -46,7 +46,7 @@ class SFTPSensor(BaseSensorOperator):
 
     :param path: Remote file or directory path
     :param file_pattern: The pattern that will be used to match the file (fnmatch format)
-    :param sftp_conn_id: The connection to run the sensor against
+    :param sftp_conn_id: The connection to run the sensor against. (templated)
     :param newer_than: DateTime for which the file or file path should be newer than, comparison is inclusive
     :param python_callable: Optional callable that will be called after files are found. The callable
         will receive the found files list in ``op_kwargs['files_found']`` if ``op_kwargs`` is provided
@@ -64,6 +64,7 @@ class SFTPSensor(BaseSensorOperator):
         "path",
         "file_pattern",
         "newer_than",
+        "sftp_conn_id",
     )
 
     def __init__(
