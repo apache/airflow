@@ -32,6 +32,7 @@ from airflow.providers.apache.beam.hooks.beam import (
     BeamAsyncHook,
     BeamHook,
     beam_options_to_args,
+    process_fd,
     run_beam_command,
 )
 from airflow.providers.common.compat.sdk import AirflowException
@@ -408,12 +409,11 @@ class TestBeamRunner:
         fake_stderr_fd.readline.side_effect = [
             b"apache-beam-stderr-1",
             b"apache-beam-stderr-2",
-            StopIteration,
             b"apache-beam-stderr-3",
-            StopIteration,
             b"apache-beam-other-stderr",
+            b"",
         ]
-        fake_stdout_fd.readline.side_effect = [b"apache-beam-stdout", StopIteration]
+        fake_stdout_fd.readline.side_effect = [b"apache-beam-stdout", b""]
         mock_select.side_effect = [
             ([fake_stderr_fd], None, None),
             (None, None, None),
@@ -439,6 +439,36 @@ class TestBeamRunner:
         assert "apache-beam-stderr-2" in warn_messages
         assert "apache-beam-stderr-3" in warn_messages
         assert "apache-beam-other-stderr" in warn_messages
+
+    def test_process_fd_reads_one_line_without_draining(self):
+        fake_logger = logging.getLogger("fake-beam-process-fd-logger")
+        mock_proc = MagicMock(name="FakeProc")
+        mock_proc.stderr = MagicMock(name="FakeStderr")
+        mock_proc.stdout = MagicMock(name="FakeStdout")
+        mock_proc.stdout.readline.side_effect = [b"apache-beam-stdout-1", b"apache-beam-stdout-2"]
+
+        process_fd(mock_proc, mock_proc.stdout, fake_logger)
+
+        mock_proc.stdout.readline.assert_called_once_with()
+
+    @mock.patch("subprocess.Popen")
+    @mock.patch("select.select")
+    def test_beam_wait_for_done_checks_dataflow_job_id_after_select_timeout(self, mock_select, mock_popen):
+        fake_logger = logging.getLogger("fake-beam-wait-for-done-logger")
+        mock_proc = MagicMock(name="FakeProc")
+        mock_proc.stderr = MagicMock(name="FakeStderr")
+        mock_proc.stdout = MagicMock(name="FakeStdout")
+        mock_proc.poll.side_effect = AssertionError("poll should not run after job id is resolved")
+        mock_popen.return_value = mock_proc
+        mock_select.return_value = ([], None, None)
+        is_dataflow_job_id_exist_callback = MagicMock(return_value=True)
+
+        run_beam_command(
+            ["fake", "cmd"], fake_logger, is_dataflow_job_id_exist_callback=is_dataflow_job_id_exist_callback
+        )
+
+        is_dataflow_job_id_exist_callback.assert_called_once_with()
+        mock_proc.poll.assert_not_called()
 
 
 class TestBeamOptionsToArgs:
