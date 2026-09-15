@@ -294,6 +294,8 @@ _DIFF_V1_TASK_METADATA_FIELDS = frozenset(
 _DIFF_V1_PUBLIC_PARTIAL_TASK_FIELDS = _DIFF_V1_PUBLIC_TASK_FIELDS | {"task_display_name"}
 _DEFAULT_ARGS_PATH = ("dag", "default_args")
 _RETRY_BACKOFF_FIELD = "retry_exponential_backoff"
+# Dag fields the schema gives no default for, added after the first serializer versions.
+_ABSENT_AS_NULL_DAG_FIELDS = ("allowed_run_types", "deadline")
 # These hydrate to sets (_deserialize_operator_field for a task, TaskGroup.*_ids.update for a group),
 # so a reordered stored list means the same edges and must not read as a dependency change.
 _SET_VALUED_ID_FIELDS = frozenset(
@@ -592,6 +594,14 @@ def _canonicalize_payload_v1(data: dict[str, Any]) -> dict[str, Any]:
     # absent side would reach the walk as a missing value and report the whole mapping as one
     # opaque change, which is how adding the very first entry would escape per-key classification.
     payload["dag"].setdefault("default_args", {"__type": "dict", "__var": {}})
+    # Neither field has a schema default to fill the gap in, so a producer that predates them omits
+    # the key while the current one writes an explicit null. Both hydrate the same, and a diff that
+    # spans an upgrade would otherwise report an added execution change on every Dag.
+    for field in _ABSENT_AS_NULL_DAG_FIELDS:
+        payload["dag"].setdefault(field, None)
+    if payload["dag"].get("allowed_run_types") == []:
+        # An empty restriction list hydrates to None, the same as no restriction at all.
+        payload["dag"]["allowed_run_types"] = None
     _apply_task_defaults(payload)
     payload.pop("__version", None)
     return _canonicalize_value(payload, path=())
@@ -835,6 +845,21 @@ def _encode_json_value(value: Any) -> Any:
     return value
 
 
+def _is_group_dependency_path(path: tuple[str, ...]) -> bool:
+    """
+    Identify a dependency id list that belongs to a task group itself.
+
+    Canonicalization paths carry no list indices, so a group's own fields sit under repeated
+    ``children/<group_id>`` pairs. Requiring that exact shape keeps the normalization off a mapped
+    group's ``expand_input``, where a user argument's order and multiplicity decide how many task
+    instances run. A task group declares no template fields, so nothing else needs guarding.
+    """
+    if path[:2] != ("dag", "task_group") or path[-1] not in _SET_VALUED_ID_FIELDS:
+        return False
+    nesting = path[2:-1]
+    return len(nesting) % 2 == 0 and all(name == "children" for name in nesting[::2])
+
+
 def _sort_id_list(value: Any) -> Any:
     """Order a stored id list the way its hydrated set compares, leaving any other shape alone."""
     if isinstance(value, list) and all(isinstance(item, str) for item in value):
@@ -880,8 +905,7 @@ def _canonicalize_value(value: Any, *, path: tuple[str, ...]) -> Any:
             return _canonicalize_keyed_list(canonical_values, _get_dependency_key, path)
         if path in _ORDER_INSENSITIVE_LIST_PATHS:
             return _canonicalize_keyed_list(canonical_values, _get_string_key, path)
-        if path[:2] == ("dag", "task_group") and path[-1] in _SET_VALUED_ID_FIELDS:
-            # A task group declares no template fields, so this is always the stored id list.
+        if _is_group_dependency_path(path):
             return _sort_id_list(canonical_values)
         return canonical_values
     return value
