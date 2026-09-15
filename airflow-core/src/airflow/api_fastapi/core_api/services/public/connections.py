@@ -44,7 +44,7 @@ def update_orm_from_pydantic(
     # Not all fields match and some need setters, therefore copy partly manually via setters
     non_update_fields = {"connection_id", "conn_id"}
     setter_fields = {"password", "extra"}
-    fields_set = pydantic_conn.model_fields_set
+    fields_set = set(pydantic_conn.model_fields_set)
     if "schema_" in fields_set:  # Alias is not resolved correctly, need to patch
         fields_set.remove("schema_")
         fields_set.add("schema")
@@ -56,17 +56,14 @@ def update_orm_from_pydantic(
         if key in fields_to_update:
             setattr(orm_conn, key, val)
 
-    if (not update_mask and "password" in pydantic_conn.model_fields_set) or (
-        update_mask and "password" in update_mask
-    ):
+    # Fields may be omitted by individual entities in a shared mask.
+    if "password" in fields_set and (not update_mask or "password" in update_mask):
         if pydantic_conn.password is None:
             orm_conn.set_password(pydantic_conn.password)
         else:
             merged_password = merge(pydantic_conn.password, orm_conn.password, "password")
             orm_conn.set_password(merged_password)
-    if (not update_mask and "extra" in pydantic_conn.model_fields_set) or (
-        update_mask and "extra" in update_mask
-    ):
+    if "extra" in fields_set and (not update_mask or "extra" in update_mask):
         if pydantic_conn.extra is None or orm_conn.extra is None:
             orm_conn.set_extra(pydantic_conn.extra)
             return
@@ -164,7 +161,7 @@ class BulkConnectionService(BulkService[ConnectionBody]):
                         )
                     ConnectionBody(**connection.model_dump())
 
-                    update_orm_from_pydantic(old_connection, connection)
+                    update_orm_from_pydantic(old_connection, connection, action.update_mask)
                     results.success.append(connection.connection_id)
 
         except HTTPException as e:
