@@ -60,6 +60,10 @@ Schema (optional)
 Use DNS SRV Lookup (optional)
     Treat the Host field as a DNS SRV record name and resolve the target host/port at request time.
 
+    Targets are tried in `RFC 2782 <https://www.rfc-editor.org/rfc/rfc2782>`__ order: lowest priority
+    first, weighted random within the same priority. If a connection to a target cannot be established,
+    the request fails over to the next target.
+
 Extra (optional)
     Specify headers and default requests parameters in json format.
     Following default requests parameters are taken into account:
@@ -92,4 +96,4 @@ parameter:
 
 .. code-block:: bash
 
-   export AIRFLOW_CONN_HTTP_DEFAULT='https://_http._tcp.example.com/https?srv_lookup=true'
+   export AIRFLOW_CONN_HTTP_DEFAULT='http://_http._tcp.example.com/https?srv_lookup=true'
