@@ -76,10 +76,11 @@ class LangChainHook(BaseHook):
         ``provider`` takes precedence over the provider inferred from
         ``embed_model``. When ``provider`` is set, LangChain treats the entire
         ``embed_model`` value as the model name rather than parsing a
-        ``provider:name`` identifier. Connection ``api_key`` and ``base_url``
-        values take precedence over the same top-level keys, but the underlying
-        integration may accept alternative or nested options that take precedence.
-        Only pass trusted values.
+        ``provider:name`` identifier. The hook logs a warning when both forms are
+        supplied. Connection ``api_key`` and ``base_url`` values take precedence
+        over the same top-level keys, but the underlying integration may accept
+        alternative or nested options that take precedence. Only pass trusted
+        values.
     """
 
     conn_name_attr = "llm_conn_id"
@@ -189,6 +190,11 @@ class LangChainHook(BaseHook):
         overridden_keys = sorted(self.embedding_kwargs.keys() & connection_kwargs.keys())
         if overridden_keys:
             self.log.warning("Connection parameters override embedding_kwargs values: %s", overridden_keys)
+        if self.embedding_kwargs.get("provider") is not None and ":" in model_id:
+            self.log.warning(
+                "embedding_kwargs['provider'] takes precedence over the provider prefix in embed_model; "
+                "pass an unprefixed model name"
+            )
         kwargs = {**self.embedding_kwargs, **connection_kwargs}
         return init_embeddings(model_id, **kwargs)
 

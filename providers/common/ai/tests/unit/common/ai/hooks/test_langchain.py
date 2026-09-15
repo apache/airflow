@@ -243,19 +243,34 @@ class TestGetEmbeddingModel:
         )
         assert "Connection parameters override embedding_kwargs values: ['api_key']" in caplog.messages
 
+    @pytest.mark.parametrize(
+        ("embed_model", "expect_warning"),
+        [
+            ("openai:text-embedding-3-small", True),
+            ("text-embedding-3-small", False),
+        ],
+    )
     @patch("langchain.embeddings.init_embeddings")
     @patch.object(LangChainHook, "get_connection")
-    def test_embedding_kwargs_overrides_provider(self, mock_get_conn, mock_init_embeddings):
+    def test_embedding_kwargs_provider_warning(
+        self, mock_get_conn, mock_init_embeddings, caplog, embed_model, expect_warning
+    ):
         mock_get_conn.return_value = _conn()
         mock_init_embeddings.side_effect = _init_embeddings
         hook = LangChainHook(
-            embed_model="openai:text-embedding-3-small",
+            embed_model=embed_model,
             embedding_kwargs={"provider": "custom-provider"},
         )
 
         result = hook.get_embedding_model()
 
+        assert result["model"] == embed_model
         assert result["provider"] == "custom-provider"
+        warning = (
+            "embedding_kwargs['provider'] takes precedence over the provider prefix in embed_model; "
+            "pass an unprefixed model name"
+        )
+        assert (warning in caplog.messages) is expect_warning
 
     @patch("langchain.embeddings.init_embeddings")
     @patch.object(LangChainHook, "get_connection")

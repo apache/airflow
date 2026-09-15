@@ -166,10 +166,11 @@ Parameters
        and credentials. In particular, ``provider`` takes precedence over the
        provider inferred from ``embed_model``. When ``provider`` is set,
        LangChain treats the entire ``embed_model`` value as the model name rather
-       than parsing a ``provider:name`` identifier. Connection ``api_key`` and
-       ``base_url`` values take precedence over the same top-level keys, but the
-       underlying integration may accept alternative or nested options that take
-       precedence. Only pass trusted values.
+       than parsing a ``provider:name`` identifier. The hook logs a warning when
+       both forms are supplied. Connection ``api_key`` and ``base_url`` values
+       take precedence over the same top-level keys, but the underlying integration
+       may accept alternative or nested options that take precedence. Only pass
+       trusted values.
 
 .. seealso::
    `langchain.embeddings.init_embeddings <https://reference.langchain.com/python/langchain/embeddings/base/init_embeddings>`__
