@@ -227,6 +227,41 @@ In the ``values.yaml`` below secret-related parameters should be adjusted like:
         # The maximum number of server connections to the result backend database from PgBouncer
         resultBackendPoolSize: 5
 
+Creating the first user
+-----------------------
+
+The chart does not create an Airflow user for you.
+
+Earlier versions ran a create-user job by default that provisioned an ``admin`` account
+with the password ``admin``. Those credentials were the same on every installation, so
+anything able to reach the API server -- by default any workload in the cluster, since
+``networkPolicies.enabled`` is ``false`` -- could sign in with the Admin role.
+
+``createUserJob`` is therefore disabled by default and the chart ships no default
+username or password. Enabling the job without supplying both fails the render with a
+message saying so, rather than creating an account with well-known credentials.
+
+Create the user yourself after installing:
+
+.. code-block:: bash
+
+    kubectl exec -it deploy/<RELEASE_NAME>-api-server -- \
+      airflow users create -r Admin -u <username> -e <email> -f <first> -l <last> -p <password>
+
+Or enable the job with credentials of your own:
+
+.. code-block:: yaml
+
+    createUserJob:
+      enabled: true
+      defaultUser:
+        username: <username>
+        password: <password>
+
+Values files are frequently committed to source control, so where your deployment
+tooling supports it, supply the password from a Kubernetes Secret rather than writing it
+into ``values.yaml``.
+
 API Secret Key
 --------------
 
