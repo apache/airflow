@@ -43,7 +43,7 @@ import { TaskNames } from "./TaskNames";
 import { GANTT_ROW_OFFSET_PX, GRID_HEADER_HEIGHT_PX, GRID_HEADER_PADDING_PX, ROW_HEIGHT } from "./constants";
 import { useGridPagination } from "./useGridPagination";
 import { useGridRunsWithVersionFlags } from "./useGridRunsWithVersionFlags";
-import { estimateTaskNameColumnWidthPx, flattenNodes } from "./utils";
+import { estimateTaskNameColumnWidthPx, flattenNodes, getRowIndexToScrollTo } from "./utils";
 
 dayjs.extend(dayjsDuration);
 
@@ -180,6 +180,8 @@ export const Grid = ({
   const handleCellClick = useCallback(() => setMode(NavigationModes.TI), [setMode]);
   const handleColumnClick = useCallback(() => setMode(NavigationModes.RUN), [setMode]);
 
+  const headerPad = usesSharedScroll ? GANTT_ROW_OFFSET_PX : GRID_INNER_SCROLL_PADDING_START_PX;
+
   const rowVirtualizer = useVirtualizer({
     count: flatNodes.length,
     estimateSize: () => ROW_HEIGHT,
@@ -187,25 +189,28 @@ export const Grid = ({
     getScrollElement: () =>
       usesSharedScroll ? (sharedScrollContainerRef?.current ?? null) : scrollContainerRef.current,
     overscan: 5,
-    scrollPaddingStart: usesSharedScroll ? GANTT_ROW_OFFSET_PX : GRID_INNER_SCROLL_PADDING_START_PX,
+    scrollPaddingStart: headerPad,
   });
 
-  // Keep the selected task centered. Opening a task remounts the Grid a couple of times and each
-  // remount jumps scroll back to the top, so we just re-center on every mount. We look it up by
-  // task id instead of a saved pixel offset, so it still works when the rows move around.
+  // Keep the selected task in view. Opening a task remounts the Grid a couple of times and each
+  // remount jumps scroll back to the top, so we re-check on every mount. We match by task id
+  // instead of a saved pixel offset, so it still works when the rows move around, and leave a task
+  // that's comfortably in view alone so an ordinary click doesn't nudge the scroll.
   useLayoutEffect(() => {
-    const anchorId = selectedTaskId ?? selectedGroupId;
+    const scrollEl = rowVirtualizer.scrollElement;
+    const index = getRowIndexToScrollTo({
+      clientHeight: scrollEl?.clientHeight ?? 0,
+      flatNodes,
+      headerPad,
+      scrollTop: scrollEl?.scrollTop ?? 0,
+      selectedGroupId,
+      selectedTaskId,
+    });
 
-    if (anchorId === undefined || flatNodes.length === 0) {
-      return;
+    if (index !== undefined) {
+      rowVirtualizer.scrollToIndex(index, { align: "center" });
     }
-    const index = flatNodes.findIndex((node) => node.id === anchorId);
-
-    if (index === -1) {
-      return;
-    }
-    rowVirtualizer.scrollToIndex(index, { align: "center" });
-  }, [selectedTaskId, selectedGroupId, flatNodes, rowVirtualizer]);
+  }, [selectedTaskId, selectedGroupId, flatNodes, rowVirtualizer, headerPad]);
 
   const virtualItems = rowVirtualizer.getVirtualItems();
 
