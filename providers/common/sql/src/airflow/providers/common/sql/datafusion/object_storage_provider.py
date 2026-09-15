@@ -80,7 +80,10 @@ def get_object_storage_provider(storage_type: StorageType) -> ObjectStorageProvi
 
     registry = manager.object_storage_providers
     if type_key in registry:
-        provider_cls = import_string(registry[type_key].provider_class_name)
+        try:
+            provider_cls = import_string(registry[type_key].provider_class_name)
+        except ImportError as err:
+            raise ValueError(_missing_provider_message(type_key)) from err
         return provider_cls()
 
     raise ValueError(_missing_provider_message(type_key))

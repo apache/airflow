@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.providers.common.sql.config import StorageType
+from airflow.providers.common.sql.config import ConnectionConfig, StorageType
 from airflow.providers.common.sql.datafusion.object_storage_provider import (
     LocalObjectStorageProvider,
     get_object_storage_provider,
@@ -64,6 +64,22 @@ class TestGetObjectStorageProvider:
             "airflow.providers.amazon.aws.datafusion.object_storage.S3ObjectStorageProvider"
         )
         assert provider == mock_provider_cls.return_value
+
+    @patch("airflow.providers.common.sql.datafusion.object_storage_provider.import_string", autospec=True)
+    @patch("airflow.providers_manager.ProvidersManager", autospec=True)
+    def test_registry_entry_with_unimportable_class_raises_install_hint(
+        self, mock_pm_cls, mock_import_string
+    ):
+        """A registered provider whose module can't be imported yields the hinted ValueError."""
+        mock_import_string.side_effect = ImportError("No module named 'datafusion'")
+        mock_pm_cls.return_value.object_storage_providers = {
+            "s3": MagicMock(
+                provider_class_name="airflow.providers.amazon.aws.datafusion.object_storage.S3ObjectStorageProvider",
+            ),
+        }
+
+        with pytest.raises(ValueError, match="apache-airflow-providers-amazon"):
+            get_object_storage_provider(StorageType.S3)
 
     @patch("airflow.providers_manager.ProvidersManager", autospec=True)
     def test_unregistered_storage_type_raises(self, mock_pm_cls):
@@ -143,6 +159,34 @@ class TestS3DeprecationShim:
         from airflow.providers.amazon.aws.datafusion.object_storage import S3ObjectStorageProvider
 
         assert old_cls is S3ObjectStorageProvider
+
+    def test_old_import_path_honours_explicit_credentials(self):
+        """The shim preserves the pre-relocation contract: explicit credentials reach AmazonS3."""
+        pytest.importorskip("airflow.providers.amazon")
+        import airflow.providers.common.sql.datafusion.object_storage_provider as mod
+
+        with pytest.warns(
+            match="Import it from airflow.providers.amazon",
+        ):
+            cls = mod.S3ObjectStorageProvider
+
+        config = ConnectionConfig(
+            conn_id="aws_default",
+            credentials={"access_key_id": "fake_key", "secret_access_key": "fake_secret"},
+        )
+        # Patched inline rather than via decorator: the target module only exists when amazon is
+        # installed, and a decorator would resolve it before importorskip can skip the test.
+        with patch(
+            "airflow.providers.amazon.aws.datafusion.object_storage.AmazonS3", autospec=True
+        ) as mock_s3:
+            store = cls().create_object_store("s3://demo-data/path", connection_config=config)
+
+        mock_s3.assert_called_once_with(
+            access_key_id="fake_key",
+            secret_access_key="fake_secret",
+            bucket_name="demo-data",
+        )
+        assert store == mock_s3.return_value
 
     def test_unknown_attr_raises_attribute_error(self):
         import airflow.providers.common.sql.datafusion.object_storage_provider as mod

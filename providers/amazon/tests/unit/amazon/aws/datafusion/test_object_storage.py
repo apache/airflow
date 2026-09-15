@@ -140,6 +140,65 @@ class TestS3ObjectStorageProvider:
         assert call_kwargs["session_token"] == "my_session_token"
         assert store == mock_s3.return_value
 
+    @patch(
+        "airflow.providers.amazon.aws.datafusion.object_storage.AmazonS3",
+        autospec=True,
+    )
+    @patch(
+        "airflow.providers.amazon.aws.datafusion.object_storage.AwsGenericHook",
+        autospec=True,
+    )
+    def test_s3_provider_honours_explicit_credentials(self, mock_hook_cls, mock_s3):
+        """Caller-supplied credentials are used as-is and the AWS hook is never consulted."""
+        from airflow.providers.amazon.aws.datafusion.object_storage import S3ObjectStorageProvider
+
+        provider = S3ObjectStorageProvider()
+        config = ConnectionConfig(
+            conn_id="aws_default",
+            credentials={"access_key_id": "fake_key", "secret_access_key": "fake_secret"},
+        )
+
+        store = provider.create_object_store("s3://demo-data/path", connection_config=config)
+
+        mock_s3.assert_called_once_with(
+            access_key_id="fake_key",
+            secret_access_key="fake_secret",
+            bucket_name="demo-data",
+        )
+        mock_hook_cls.assert_not_called()
+        assert store == mock_s3.return_value
+
+    @patch(
+        "airflow.providers.amazon.aws.datafusion.object_storage.AmazonS3",
+        autospec=True,
+    )
+    @patch(
+        "airflow.providers.amazon.aws.datafusion.object_storage.AwsGenericHook",
+        autospec=True,
+    )
+    def test_s3_provider_extra_config_overrides_connection(self, mock_hook_cls, mock_s3):
+        """Caller-supplied extra_config wins over region/endpoint derived from the connection."""
+        from airflow.providers.amazon.aws.datafusion.object_storage import S3ObjectStorageProvider
+
+        mock_creds = MagicMock()
+        mock_creds.access_key = "hook_key"
+        mock_creds.secret_key = "hook_secret"
+        mock_creds.token = None
+        mock_hook_cls.return_value.get_credentials.return_value = mock_creds
+
+        provider = S3ObjectStorageProvider()
+        config = ConnectionConfig(conn_id="aws_default", extra_config={"region": "eu-west-1"})
+
+        store = provider.create_object_store("s3://demo-data/path", connection_config=config)
+
+        mock_s3.assert_called_once_with(
+            access_key_id="fake_id",
+            secret_access_key="fake_secret",
+            region="eu-west-1",
+            bucket_name="demo-data",
+        )
+        assert store == mock_s3.return_value
+
     def test_s3_provider_missing_connection_config(self):
         from airflow.providers.amazon.aws.datafusion.object_storage import S3ObjectStorageProvider
 

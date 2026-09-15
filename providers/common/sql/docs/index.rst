@@ -151,7 +151,7 @@ Extra               Dependencies
 ``datafusion``      ``datafusion>=50.0.0,<52.0.0``
 ``pyiceberg-core``  ``pyiceberg-core>=0.8.0``
 ``apache.iceberg``  ``apache-airflow-providers-apache-iceberg``
-``amazon``          ``apache-airflow-providers-amazon``
+``amazon``          ``apache-airflow-providers-amazon>=9.36.0``
 ==================  =======================================================================================================================================================================
 
 Downloading official packages
