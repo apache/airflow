@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,25 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Generate Execution API OpenAPI schema. Prints JSON to stdout. Run with cwd at repo root."""
-
-from __future__ import annotations
-
-import json
-import os
-import sys
-from pathlib import Path
-
-os.environ["_AIRFLOW__AS_LIBRARY"] = "1"
-sys.path.insert(0, str(Path("airflow-core/src").resolve()))
-
-import httpx2
-
-from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
-
-app = InProcessExecutionAPI()
-version = app.app.versions.version_values[0]
-client = httpx2.Client(transport=app.transport)
-response = client.get(f"http://localhost/openapi.json?version={version}")
-response.raise_for_status()
-print(json.dumps(response.json()))
+---
+# NOTE: this file configures `ast-grep`, which is used for enforcing custom lint / auto-formatting
+# across a number of different languages. Currently, we use this in a pre-commit hook to avoid
+# regressions of reintroducing `httpx` in the Task SDK, which is fully migrated to `httpx2`.
+#
+# If new ast-grep rules are required, they may be added in the rules directory listed below.
+#
+# See also:
+#   https://github.com/ast-grep/ast-grep
+#   https://ast-grep.github.io/guide/introduction
+ruleDirs:
+  - rules
