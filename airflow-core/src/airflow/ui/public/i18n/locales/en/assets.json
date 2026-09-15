@@ -48,8 +48,18 @@
   },
   "events": "Events",
   "filters": {
+    "consumingDagId": "Consuming Dag",
+    "consumingDagIdPlaceholder": "Search consuming Dag",
+    "consumingTaskId": "Consuming Task",
+    "consumingTaskIdPlaceholder": "Search consuming task",
     "groupPlaceholder": "Search group",
-    "lastEventDateRange": "Last Event Date"
+    "hasEvents": "Has Events",
+    "isAlias": "Is Alias",
+    "lastEventDateRange": "Last Event Date",
+    "no": "No",
+    "producingTaskId": "Producing Task",
+    "producingTaskIdPlaceholder": "Search producing task",
+    "yes": "Yes"
   },
   "group": "Group",
   "lastAssetEvent": "Last Asset Event",

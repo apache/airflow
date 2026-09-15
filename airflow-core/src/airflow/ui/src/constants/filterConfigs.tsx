@@ -95,6 +95,11 @@ export const useFilterConfigs = () => {
     enabled: multiTeamEnabled,
   });
 
+  const yesNoOptions = [
+    { label: translate("assets:filters.yes"), value: "true" },
+    { label: translate("assets:filters.no"), value: "false" },
+  ];
+
   const runStateOptions = withoutAllOption(dagRunStateOptions.items).map((option) => ({
     label: <StateBadge state={option.value as DagRunState}>{translate(option.label)}</StateBadge>,
     value: option.value,
@@ -138,6 +143,20 @@ export const useFilterConfigs = () => {
       icon: <FiDatabase />,
       label: translate("common:consumingAsset"),
       placeholder: translate("common:filters.searchAsset"),
+      type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.CONSUMING_DAG_ID]: {
+      hotkeyDisabled: true,
+      icon: <DagIcon />,
+      label: translate("assets:filters.consumingDagId"),
+      placeholder: translate("assets:filters.consumingDagIdPlaceholder"),
+      type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.CONSUMING_TASK_ID]: {
+      hotkeyDisabled: true,
+      icon: <TaskIcon />,
+      label: translate("assets:filters.consumingTaskId"),
+      placeholder: translate("assets:filters.consumingTaskIdPlaceholder"),
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.CREATED_AT_RANGE]: {
@@ -251,11 +270,23 @@ export const useFilterConfigs = () => {
       supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
+    [SearchParamsKeys.HAS_EVENTS]: {
+      icon: <MdCheckCircle />,
+      label: translate("assets:filters.hasEvents"),
+      options: yesNoOptions,
+      type: FilterTypes.SELECT,
+    },
     [SearchParamsKeys.HOSTNAME]: {
       hotkeyDisabled: true,
       icon: <MdComputer />,
       label: translate("admin:jobs.columns.hostname"),
       type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.IS_ALIAS]: {
+      icon: <MdCheckCircle />,
+      label: translate("assets:filters.isAlias"),
+      options: yesNoOptions,
+      type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.JOB_STATE]: {
       icon: <MdCheckCircle />,
@@ -378,6 +409,13 @@ export const useFilterConfigs = () => {
       icon: <BiTargetLock />,
       label: translate("common:taskInstance.pool"),
       supportsAdvancedSearch: true,
+      type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.PRODUCING_TASK_ID]: {
+      hotkeyDisabled: true,
+      icon: <TaskIcon />,
+      label: translate("assets:filters.producingTaskId"),
+      placeholder: translate("assets:filters.producingTaskIdPlaceholder"),
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.QUEUE_NAME_PATTERN]: {
