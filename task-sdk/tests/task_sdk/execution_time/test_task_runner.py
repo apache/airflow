@@ -143,6 +143,7 @@ from airflow.sdk.execution_time.comms import (
     RetryTask,
     SetAssetStateStoreByName,
     SetAssetStateStoreByUri,
+    SetExecutionTimeout,
     SetRenderedFields,
     SetTaskStateStore,
     SetXCom,
@@ -1430,7 +1431,7 @@ def test_run_task_timeout(time_machine, create_runtime_ti, mock_supervisor_comms
     mock_supervisor_comms.send.assert_called_with(TaskState(state=TaskInstanceState.FAILED, end_date=instant))
 
 
-def test_execution_timeout(create_runtime_ti):
+def test_execution_timeout(create_runtime_ti, mock_supervisor_comms):
     def sleep_and_catch_other_exceptions():
         with contextlib.suppress(Exception):
             # Catching Exception should NOT catch AirflowTaskTimeout
@@ -6111,7 +6112,7 @@ class TestRunExecuteCallable:
         task.execution_timeout = execution_timeout
         return task
 
-    def test_runs_in_isolated_context_with_safeguard_tracker_set(self):
+    def test_runs_in_isolated_context_with_safeguard_tracker_set(self, mock_supervisor_comms):
         """The callable runs in an internal context copy that has the safeguard tracker set and does not leak."""
         var = contextvars.ContextVar("marker")
         var.set("outer")
@@ -6133,8 +6134,9 @@ class TestRunExecuteCallable:
         # The .set was confined to the copy, so the tracker never leaked to the caller's context.
         assert ExecutorSafeguard.tracker.get(None) is not task
         task.on_kill.assert_not_called()
+        mock_supervisor_comms.send.assert_not_called()
 
-    def test_applies_execution_timeout(self):
+    def test_applies_execution_timeout(self, mock_supervisor_comms):
         """When a timeout is set and the callable overruns, AirflowTaskTimeout is raised and on_kill is called."""
         task = self._make_task(execution_timeout=timedelta(milliseconds=10))
 
@@ -6145,8 +6147,9 @@ class TestRunExecuteCallable:
             _run_execute_callable(context={}, execute=execute, task=task)
 
         task.on_kill.assert_called_once()
+        mock_supervisor_comms.send.assert_called_once_with(SetExecutionTimeout(timeout_seconds=0.01))
 
-    def test_fast_fails_when_timeout_already_elapsed(self):
+    def test_fast_fails_when_timeout_already_elapsed(self, mock_supervisor_comms):
         """A non-positive timeout fast-fails before running the callable and still calls on_kill."""
         task = self._make_task(execution_timeout=timedelta(seconds=-1))
         execute = mock.MagicMock()
@@ -6156,6 +6159,7 @@ class TestRunExecuteCallable:
 
         execute.assert_not_called()
         task.on_kill.assert_called_once()
+        mock_supervisor_comms.send.assert_not_called()
 
     def test_emits_task_execute_span_at_detail_level_2(self):
         """At detail level 2, running the callable produces a recorded ``task.execute`` span."""
