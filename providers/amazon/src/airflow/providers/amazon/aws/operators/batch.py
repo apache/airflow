@@ -26,11 +26,12 @@ AWS Batch services.
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Sequence
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Final, cast
 
-from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
+from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook, BatchJobNotFoundException
 from airflow.providers.amazon.aws.links.batch import (
     BatchJobDefinitionLink,
     BatchJobDetailsLink,
@@ -47,11 +48,54 @@ from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 from airflow.providers.common.compat.sdk import AirflowException, conf
 
+_DURABLE_UNSET: Final[object] = object()
+
+
+def _warn_and_disable_durable_pre_3_3(durable: Any) -> bool:
+    if durable is not _DURABLE_UNSET:
+        warnings.warn(
+            "`durable` has no effect on Airflow versions below 3.3.",
+            UserWarning,
+            stacklevel=3,
+        )
+    return False
+
+
+try:
+    from airflow.sdk import ResumableJobMixin
+except ImportError:
+
+    class ResumableJobMixin:  # type: ignore[no-redef]
+        """Airflow <3.3 compatibility stub."""
+
+        external_id_key: str = "batch_job_id"
+
+        def __init__(self, *, durable: Any = _DURABLE_UNSET, **kwargs: Any) -> None:
+            super().__init__(**kwargs)
+            self.durable = _warn_and_disable_durable_pre_3_3(durable)
+
+        def submit_job(self, context: Context) -> str:
+            raise NotImplementedError
+
+        def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
+            raise NotImplementedError
+
+        def get_job_result(self, external_id: JsonValue, context: Context) -> str:
+            raise NotImplementedError
+
+        def execute_resumable(self, context: Context) -> str:
+            external_id: str = self.submit_job(context=context)
+            self.poll_until_complete(external_id=external_id, context=context)
+            return self.get_job_result(external_id=external_id, context=context)
+
+
 if TYPE_CHECKING:
+    from pydantic import JsonValue
+
     from airflow.sdk import Context
 
 
-class BatchOperator(AwsBaseOperator[BatchClientHook]):
+class BatchOperator(ResumableJobMixin, AwsBaseOperator[BatchClientHook]):
     """
     Execute a job on AWS Batch.
 
@@ -98,6 +142,8 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
     :param awslogs_fetch_interval: The interval with which cloudwatch logs are to be fetched, 30 sec.
     :param poll_interval: (Deferrable mode only) Time in seconds to wait between polling.
     :param submit_job_timeout: Execution timeout in seconds for submitted batch job.
+    :param durable: When ``True`` (the default), synchronous execution reconnects to the stored Batch
+        job after a worker crash. Set to ``False`` to always submit a new job. Requires Airflow 3.3+.
 
     .. note::
         Any custom waiters must return a waiter for these calls:
@@ -109,6 +155,7 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
     """
 
     aws_hook_class = BatchClientHook
+    external_id_key: str = "batch_job_id"
 
     ui_color = "#c3dae0"
     arn: str | None = None
@@ -172,8 +219,11 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
         awslogs_enabled: bool = False,
         awslogs_fetch_interval: timedelta = timedelta(seconds=30),
         submit_job_timeout: int | None = None,
-        **kwargs,
+        durable: bool | None = None,
+        **kwargs: Any,
     ) -> None:
+        if durable is not None:
+            kwargs["durable"] = durable
         super().__init__(**kwargs)
         self.job_id = job_id
         self.job_name = job_name
@@ -197,6 +247,7 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
         self.awslogs_enabled = awslogs_enabled
         self.awslogs_fetch_interval = awslogs_fetch_interval
         self.submit_job_timeout = submit_job_timeout
+        self._restored_job_succeeded: bool = False
 
         # params for hook
         self.max_retries = max_retries
@@ -217,7 +268,11 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
         :raises ValueError: if job_id is not found
         :raises AirflowException: if job submission fails or job ends in failure state
         """
-        self.submit_job(context)
+        if not self.deferrable and self.wait_for_completion:
+            self.execute_resumable(context=context)
+            return self.job_id
+
+        self.submit_job(context=context)
 
         if self.deferrable:
             if not self.job_id:
@@ -299,7 +354,7 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
         response = self.hook.client.terminate_job(jobId=self.job_id, reason="Task killed by the user")
         self.log.info("AWS Batch job (%s) terminated: %s", self.job_id, response)
 
-    def submit_job(self, context: Context):
+    def submit_job(self, context: Context) -> str:
         """
         Submit an AWS Batch job.
 
@@ -352,6 +407,7 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
             raise AirflowException(e)
 
         self.job_id = response["jobId"]
+        self._restored_job_succeeded = False
         self.log.info("AWS Batch job (%s) started: %s", self.job_id, response)
         BatchJobDetailsLink.persist(
             context=context,
@@ -360,6 +416,45 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
             aws_partition=self.hook.conn_partition,
             job_id=self.job_id,
         )
+        return self.job_id
+
+    def get_job_status(self, external_id: JsonValue, context: Context) -> str:
+        self.job_id = cast("str", external_id)
+        BatchJobDetailsLink.persist(
+            context=context,
+            operator=self,
+            region_name=self.hook.conn_region_name,
+            aws_partition=self.hook.conn_partition,
+            job_id=self.job_id,
+        )
+        try:
+            job_description: dict[str, Any] = self.hook.get_job_description(job_id=self.job_id)
+        except BatchJobNotFoundException:
+            self._restored_job_succeeded = False
+            return "NOT_FOUND"
+        self._persist_links(context=context, job_description=job_description)
+        status = job_description.get("status")
+        if not isinstance(status, str):
+            raise ValueError(f"AWS Batch job {self.job_id} has no status")
+        self._restored_job_succeeded = self.is_job_succeeded(status)
+        return status
+
+    def is_job_active(self, status: str) -> bool:
+        return status in BatchClientHook.INTERMEDIATE_STATES
+
+    def is_job_succeeded(self, status: str) -> bool:
+        return status == BatchClientHook.SUCCESS_STATE
+
+    def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
+        self.job_id = cast("str", external_id)
+        self.monitor_job(context=context)
+
+    def get_job_result(self, external_id: JsonValue, context: Context) -> str:
+        self.job_id = cast("str", external_id)
+        if self._restored_job_succeeded:
+            self._persist_cloudwatch_link(context=context)
+            self.hook.check_job_success(job_id=self.job_id)
+        return self.job_id
 
     def _persist_links(
         self,

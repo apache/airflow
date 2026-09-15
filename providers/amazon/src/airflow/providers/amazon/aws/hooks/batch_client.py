@@ -38,10 +38,14 @@ import botocore.exceptions
 import botocore.waiter
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
+
+
+class BatchJobNotFoundException(AirflowNotFoundException):
+    """Raised when AWS Batch no longer returns a requested job."""
 
 
 @runtime_checkable
@@ -398,6 +402,7 @@ class BatchClientHook(AwsBaseHook):
 
         :raises: AirflowException
         """
+        last_response_not_found = False
         for retries in range(self.status_retries):
             if retries:
                 pause = self.exponential_delay(retries)
@@ -413,18 +418,27 @@ class BatchClientHook(AwsBaseHook):
             try:
                 response = self.get_conn().describe_jobs(jobs=[job_id])
                 return self.parse_job_description(job_id, response)
+            except BatchJobNotFoundException as err:
+                last_response_not_found = True
+                self.log.warning(err)
             except AirflowException as err:
+                last_response_not_found = False
                 self.log.warning(err)
             except botocore.exceptions.ClientError as err:
                 # Allow it to retry in case of exceeded quota limit of requests to AWS API
                 if err.response.get("Error", {}).get("Code") != "TooManyRequestsException":
                     raise
+                last_response_not_found = False
                 self.log.warning(
                     "Ignored TooManyRequestsException error, original message: %r. "
                     "Please consider to setup retries mode in boto3, "
                     "check Amazon Provider AWS Connection documentation for more details.",
                     str(err),
                 )
+        if last_response_not_found:
+            raise BatchJobNotFoundException(
+                f"AWS Batch job ({job_id}) was not found after status_retries ({self.status_retries})"
+            )
         raise AirflowException(
             f"AWS Batch job ({job_id}) description error: exceeded status_retries ({self.status_retries})"
         )
@@ -443,6 +457,8 @@ class BatchClientHook(AwsBaseHook):
         :raises: AirflowException
         """
         jobs = response.get("jobs", [])
+        if not jobs:
+            raise BatchJobNotFoundException(f"AWS Batch job ({job_id}) was not found")
         matching_jobs = [job for job in jobs if job.get("jobId") == job_id]
         if len(matching_jobs) != 1:
             raise AirflowException(f"AWS Batch job ({job_id}) description error: response: {response}")
