@@ -311,6 +311,40 @@ class TestStackdriverRemoteLogIO:
                 "map_index": "-1",
             }
 
+    @mock.patch(
+        "airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverRemoteLogIO.transport",
+        new_callable=PropertyMock,
+    )
+    def test_processors_includes_task_instance_id_from_event(self, mock_transport_prop):
+        mock_transport = mock.MagicMock()
+        mock_transport_prop.return_value = mock_transport
+
+        io = StackdriverRemoteLogIO(
+            base_log_folder=self.local_log_location,
+            gcp_log_name="airflow",
+        )
+        logger = mock.MagicMock()
+        with mock.patch(
+            "airflow.sdk.log.relative_path_from_logger",
+            return_value="some/path.py",
+        ):
+            proc = io.processors[0]
+            event = {
+                "event": "Test message",
+                "dag_id": "test_dag_id",
+                "task_id": "test_task_id",
+                "run_id": "test_run_id",
+                "try_number": 1,
+                "ti_id": "test_ti_id_123",
+            }
+
+            proc(logger, "info", event)
+
+            mock_transport.send.assert_called_once()
+            _, kwargs = mock_transport.send.call_args
+            labels = kwargs.get("labels", {})
+            assert labels.get(StackdriverTaskHandler.LABEL_TASK_INSTANCE_ID) == "test_ti_id_123"
+
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id")
     def test_prepare_log_filter(self, mock_get_creds_and_project_id):
         mock_get_creds_and_project_id.return_value = ("creds", "project_id")
