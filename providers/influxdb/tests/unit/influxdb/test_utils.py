@@ -16,14 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
+import pandas as pd
 
 from airflow.providers.influxdb.utils import _convert_dataframe_to_records
 
 
 def test_convert_dataframe_to_records_serializes_rows_and_timestamps():
-    pd = pytest.importorskip("pandas")
-
     dataframe = pd.DataFrame(
         {
             "col1": [1, 2],
