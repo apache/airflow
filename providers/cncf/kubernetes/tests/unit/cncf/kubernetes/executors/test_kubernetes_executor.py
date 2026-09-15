@@ -54,6 +54,7 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils impor
     get_base_pod_from_template,
 )
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
+    API_RETRIES,
     add_unique_suffix,
     annotations_for_logging_task_metadata,
     annotations_to_key,
@@ -1218,7 +1219,7 @@ class TestKubernetesExecutor:
                 )
                 kubernetes_executor.sync()
 
-                assert mock_kube_client.create_namespaced_pod.call_count == 1
+                assert mock_kube_client.create_namespaced_pod.call_count == API_RETRIES
                 if should_requeue:
                     assert not kubernetes_executor.task_queue.empty()
                 else:
@@ -1226,6 +1227,95 @@ class TestKubernetesExecutor:
                     assert kubernetes_executor.event_buffer[task_instance_key][0] == State.FAILED
             finally:
                 kubernetes_executor.end()
+
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_run_pod_async_retries_transient_connection_error(
+        self, mock_get_kube_client, mock_kubernetes_job_watcher, data_file
+    ):
+        """A single ProtocolError on create_namespaced_pod is retried and does not fail the task."""
+        template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
+
+        mock_kube_client = mock.patch("kubernetes.client.CoreV1Api", autospec=True)
+        mock_kube_client.create_namespaced_pod = mock.MagicMock(
+            side_effect=[ProtocolError("Connection aborted."), mock.MagicMock()]
+        )
+        mock_get_kube_client.return_value = mock_kube_client
+        mock_api_client = mock.MagicMock()
+        mock_api_client.sanitize_for_serialization.return_value = {}
+        mock_kube_client.api_client = mock_api_client
+
+        config = {("kubernetes_executor", "pod_template_file"): template_file}
+        with conf_vars(config):
+            kubernetes_executor = self.kubernetes_executor
+            kubernetes_executor.task_publish_max_retries = 0
+            kubernetes_executor.start()
+            try:
+                task_instance_key = TaskInstanceKey("dag", "task", "run_id", 1)
+                kubernetes_executor.execute_async(
+                    key=task_instance_key,
+                    queue=None,
+                    command=["airflow", "tasks", "run", "true", "some_parameter"],
+                )
+                kubernetes_executor.sync()
+
+                assert mock_kube_client.create_namespaced_pod.call_count == 2
+                assert kubernetes_executor.task_queue.empty()
+                assert task_instance_key not in kubernetes_executor.event_buffer
+            finally:
+                kubernetes_executor.end()
+
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.get_async_kube_client",
+        new_callable=mock.AsyncMock,
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_async_pod_creation_retries_transient_connection_error(
+        self, mock_get_kube_client, mock_kubernetes_job_watcher, mock_get_async_client, data_file
+    ):
+        """A single ClientConnectionError on async create is retried and does not requeue the task."""
+        template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
+        mock_kube_client = mock.MagicMock()
+        mock_kube_client.api_client.sanitize_for_serialization.return_value = {}
+        mock_get_kube_client.return_value = mock_kube_client
+
+        mock_async_api = mock.MagicMock()
+        mock_async_api.create_namespaced_pod = mock.AsyncMock(
+            side_effect=[ClientConnectionError("Cannot connect to host"), None]
+        )
+        mock_async_api.api_client.close = mock.AsyncMock()
+        mock_get_async_client.return_value = mock_async_api
+
+        config = {
+            ("kubernetes_executor", "pod_template_file"): template_file,
+            ("kubernetes_executor", "async_pod_creation"): "True",
+        }
+        with conf_vars(config):
+            executor = KubernetesExecutor()
+            executor.job_id = 5
+            executor._last_completed_pod_adoption = time.monotonic()
+            executor.task_publish_max_retries = 0
+            executor.start()
+            try:
+                task_instance_key = TaskInstanceKey("dag", "task", "run_id", 1)
+                executor.execute_async(
+                    key=task_instance_key,
+                    queue=None,
+                    command=["airflow", "tasks", "run", "true", "x"],
+                )
+                executor.sync()
+                assert mock_async_api.create_namespaced_pod.await_count == 2
+                assert executor.task_queue.empty()
+                assert task_instance_key not in executor.event_buffer
+            finally:
+                executor.end()
 
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
@@ -1530,7 +1620,7 @@ class TestKubernetesExecutor:
                     command=["airflow", "tasks", "run", "true", "x"],
                 )
                 executor.sync()
-                assert mock_async_api.create_namespaced_pod.await_count == 1
+                assert mock_async_api.create_namespaced_pod.await_count == API_RETRIES
                 # Connection error is transient -> requeued (not failed).
                 assert not executor.task_queue.empty()
             finally:
