@@ -138,6 +138,27 @@ def example_bash_decorator():
     show_dag_folder_stats(folder=dag_stats["dag_folder"], count=dag_stats["file_count"])
     # [END howto_decorator_bash_multiple_outputs]
 
+    # [START howto_decorator_bash_xcom_dir]
+    @task.bash
+    def write_multiple_xcoms() -> str:
+        # The filename is the XCom key, so no value needs quoting or escaping.
+        return """
+            set -e
+            echo "42" > "$AIRFLOW_XCOM_DIR/row_count"
+            xcom push --json summary '{"rows": 42, "errors": 0}'
+        """
+
+    @task.bash
+    def read_multiple_xcoms(row_count: str, summary: dict) -> str:
+        return f'echo "row_count={row_count} errors={summary["errors"]}"'
+
+    write_multiple_xcoms_task = write_multiple_xcoms()
+    read_multiple_xcoms(
+        row_count=write_multiple_xcoms_task["row_count"],
+        summary=write_multiple_xcoms_task["summary"],
+    )
+    # [END howto_decorator_bash_xcom_dir]
+
     chain(run_me_loop, run_this)
     chain([also_this, also_this_again, this_skips, run_this], run_this_last)
 

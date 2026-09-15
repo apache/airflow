@@ -276,6 +276,78 @@ resolves to ``{"dag_folder": ..., "file_count": ...}``.
     ``jq -nc --arg uri "$uri" '{uri: $uri}'`` (note that ``jq`` is not installed in every image).
 
 
+XCom directory
+--------------
+
+``output_processor`` and ``multiple_outputs`` both work by parsing captured stdout, so they
+inherit its limits: only the last line is captured, and it must all fit on one line. The XCom
+directory sidesteps both. Instead of parsing output, the ``BashOperator`` hands the script a
+directory -- ``$AIRFLOW_XCOM_DIR`` -- and reads back whatever the script wrote there once the
+command finishes.
+
+Two rules govern what ends up as an XCom:
+
+* A **file's name is the XCom key**. Its content, decoded and with a single trailing newline
+  stripped, becomes the value.
+* A file named with a **``.json`` suffix** has its content parsed with ``json.loads``; the key
+  is the filename without the suffix.
+
+Subdirectories under ``$AIRFLOW_XCOM_DIR`` are not supported; put structured or nested values in
+a ``.json`` file instead (or use ``xcom push --json``).
+
+You can write directly into the directory, or use the ``xcom push`` helper command that the
+operator puts on ``PATH`` (unless ``xcom_helper_name`` is set to ``None``):
+
+.. tab-set::
+
+    .. tab-item:: @task.bash
+        :sync: taskflow
+
+        .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_bash_decorator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_decorator_bash_xcom_dir]
+            :end-before: [END howto_decorator_bash_xcom_dir]
+
+    .. tab-item:: BashOperator
+        :sync: operator
+
+        .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_bash_operator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_bash_xcom_dir]
+            :end-before: [END howto_operator_bash_xcom_dir]
+
+.. code-block:: bash
+
+    # Equivalent to the helper: a plain redirect, since the filename is the key.
+    echo "42" > "$AIRFLOW_XCOM_DIR/row_count"
+
+    # The helper also accepts a value on stdin, which is convenient for large or multiline output.
+    generate_report | xcom push report
+
+    # --json parses the value before storing it, same as writing a ".json" file directly.
+    xcom push --json summary '{"rows": 42, "errors": 0}'
+
+.. important::
+
+    Values written this way are **strings** unless you use ``.json`` -- ``xcom push row_count
+    42`` pushes the string ``"42"``, not the integer ``42``. Use ``xcom push --json`` or a
+    ``.json`` file when you need a non-string type.
+
+.. note::
+
+    Entries are pushed from a ``finally`` block, so they are pushed whether the command
+    succeeds, fails, or is skipped -- this is the point of the mechanism, and it is what lets a
+    failing task still hand diagnostic data to a downstream task or the UI. The one thing it
+    cannot cover is the task process itself being killed (for example, ``SIGKILL``): that
+    prevents the ``finally`` block from running, so nothing is pushed. This covers command
+    failure, not worker death.
+
+If the script writes a ``return_value`` entry (a plain file or a ``return_value.json`` file) and
+the command succeeds, that value is returned from the task instead of the last line of stdout,
+so it becomes the task's XCom return value as usual.
+
 Executing commands from files
 -----------------------------
 Both the ``BashOperator`` and ``@task.bash`` TaskFlow decorator enables you to execute Bash commands stored
