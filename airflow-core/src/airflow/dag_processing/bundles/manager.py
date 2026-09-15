@@ -27,7 +27,6 @@ from typing import TYPE_CHECKING, Any, cast
 from itsdangerous import URLSafeSerializer
 from pydantic import BaseModel, ValidationError
 from sqlalchemy import and_, delete, exists, or_, select, update
-from sqlalchemy.orm import selectinload
 
 from airflow._shared.module_loading import import_string
 from airflow.configuration import conf
@@ -343,16 +342,8 @@ class DagBundlesManager(LoggingMixin):
                     self.log.debug("Signed URL template for bundle %s", bundle_name)
             return new_template_, new_params_
 
-        # ``teams`` is eager-loaded because ``bundle_to_team`` below touches it for every stored
-        # bundle, which would otherwise be one lazy-load round-trip each.
-        stored = {
-            b.name: b
-            for b in session.scalars(select(DagBundleModel).options(selectinload(DagBundleModel.teams))).all()
-        }
-        bundle_to_team = {
-            bundle.name: bundle.teams[0].name if len(bundle.teams) == 1 else None
-            for bundle in stored.values()
-        }
+        stored = {b.name: b for b in session.scalars(select(DagBundleModel)).all()}
+        bundle_to_team = DagBundleModel.get_team_names(stored.keys(), session=session)
 
         teams_by_name: dict[str, Team] = {}
         if configured_team_names := {
@@ -422,7 +413,10 @@ class DagBundlesManager(LoggingMixin):
 
         for name, bundle in stored.items():
             bundle.active = False
-            bundle.teams = []
+            if bundle_to_team.get(name):
+                # Assigning to the relationship loads it first; skip that for the bundles --
+                # every one of them, once deactivated -- that have no team to remove.
+                bundle.teams = []
             self.log.warning("DAG bundle %s is no longer found in config and has been disabled", name)
             session.execute(delete(ParseImportError).where(ParseImportError.bundle_name == name))
             self.log.info("Deleted import errors for bundle %s which is no longer configured", name)

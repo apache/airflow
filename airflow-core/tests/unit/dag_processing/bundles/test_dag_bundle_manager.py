@@ -251,21 +251,23 @@ def test_sync_bundles_to_db_looks_up_teams_in_a_fixed_number_of_queries(clear_db
     session.add_all([Team(name="team-a"), Team(name="team-b")])
     session.commit()
 
-    bundle_config = [
-        {
-            "name": f"bundle-{i}",
-            "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-            "kwargs": {"path": f"/tmp/bundle-{i}", "refresh_interval": 1},
-            "team_name": "team-a" if i % 2 else "team-b",
-        }
-        for i in range(4)
-    ]
+    def _bundle_config(count: int) -> list[dict]:
+        return [
+            {
+                "name": f"bundle-{i}",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": f"/tmp/bundle-{i}", "refresh_interval": 1},
+                "team_name": "team-a" if i % 2 else "team-b",
+            }
+            for i in range(count)
+        ]
 
-    def _sync_and_count_team_queries() -> int:
+    def _sync_and_count_team_queries(bundle_config: list[dict]) -> int:
         team_selects: list[str] = []
 
         def _record(conn, cursor, statement, parameters, context, executemany):
-            # ``selectinload`` reaches ``team`` through a JOIN, the batched lookup through a FROM.
+            # The batched lookups read ``team`` through a FROM, a lazy-loaded
+            # ``DagBundleModel.teams`` through a JOIN.
             if re.search(r"\b(?:FROM|JOIN) team\b", statement):
                 team_selects.append(statement)
 
@@ -284,11 +286,11 @@ def test_sync_bundles_to_db_looks_up_teams_in_a_fixed_number_of_queries(clear_db
         session.commit()
         return len(team_selects)
 
-    # Nothing stored yet: only the batched team lookup runs.
-    assert _sync_and_count_team_queries() == 1
-    # Steady state -- the four bundles are now stored, and eager-loading their teams adds
+    # Nothing stored yet: only the batched lookup of the configured team names runs.
+    assert _sync_and_count_team_queries(_bundle_config(4)) == 1
+    # Steady state -- the four bundles are now stored, and reading back their owners adds
     # exactly one more query rather than one per bundle.
-    assert _sync_and_count_team_queries() == 2
+    assert _sync_and_count_team_queries(_bundle_config(4)) == 2
 
     assert session.execute(select(DagBundleModel.name).order_by(DagBundleModel.name)).scalars().all() == [
         "bundle-0",
@@ -302,6 +304,15 @@ def test_sync_bundles_to_db_looks_up_teams_in_a_fixed_number_of_queries(clear_db
         "bundle-2": "team-b",
         "bundle-3": "team-a",
     }
+
+    # Deactivated bundles stay in ``dag_bundle`` forever, so every later sync walks them again.
+    # Clearing their -- already empty -- team must not cost a query each time.
+    _sync_and_count_team_queries(_bundle_config(1))
+    assert _sync_and_count_team_queries(_bundle_config(1)) == 2
+    assert {
+        bundle.name: [team.name for team in bundle.teams]
+        for bundle in session.scalars(select(DagBundleModel).order_by(DagBundleModel.name))
+    } == {"bundle-0": ["team-b"], "bundle-1": [], "bundle-2": [], "bundle-3": []}
 
 
 @pytest.mark.db_test
