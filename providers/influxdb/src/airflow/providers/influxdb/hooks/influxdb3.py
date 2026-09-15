@@ -217,18 +217,14 @@ class InfluxDB3Hook(BaseHook):
         """
         Run a SQL query from the triggerer and return results as a pandas DataFrame.
 
-        ``InfluxDBClient3.query_async`` runs the blocking Arrow Flight calls in the event
-        loop's default executor. It is a plain coroutine that resolves once the whole result
-        stream has been read -- InfluxDB 3 has no submit-then-poll query API, so there is
-        nothing to poll in between. Connection retrieval uses the hook's async connection
-        accessor before invoking the client coroutine.
-
         :param query: SQL query string
         :return: pandas DataFrame with query results
         """
         client = await self.aget_conn()
         import pandas as pd
 
+        # InfluxDB 3 does not expose a submit-then-poll query API, so this coroutine
+        # resolves only after the full result stream has been read.
         result = await client.query_async(query=query, language="sql", mode="pandas")
 
         if not isinstance(result, pd.DataFrame):
