@@ -119,7 +119,7 @@ class TestEdgeExecutor:
         expected_tags = {
             "dag_id": "test_dag",
             "queue": "default",
-            "state": "failed",
+            "state": "TaskInstanceState.FAILED",
             "task_id": "started_running_orphaned",
             **expected_tags,
         }
