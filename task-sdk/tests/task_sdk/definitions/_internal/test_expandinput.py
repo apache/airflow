@@ -37,9 +37,18 @@ class TestExpandInput:
                 [{"a": 1, "b": 10}, {"a": 1, "b": 20}, {"a": 2, "b": 10}, {"a": 2, "b": 20}],
             ),
             ({"a": (x for x in [1, 2])}, [{"a": 1}, {"a": 2}]),
+            (
+                {"a": {"x": 1, "y": 2}},
+                [{"a": ("x", 1)}, {"a": ("y", 2)}],
+            ),
         ],
     )
     def test_dict_of_lists_expand_input_iter_values(self, actual, expected):
+        """
+        A dict value expands to its (key, value) pairs, mirroring _expand_mapped_field's
+        handling of dict values for the classic .expand() resolve() path, so .iterate() and
+        .expand() hand sub-tasks the same per-index value for a dict argument.
+        """
         expand_input = DictOfListsExpandInput(actual)
 
         with pytest.raises(RuntimeError, match="Length of DictOfListsExpandInput is not yet known"):
