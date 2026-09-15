@@ -285,7 +285,11 @@ class TestLLMFileAnalysisOperatorApproval:
             output_type=Summary,
             require_approval=True,
         )
-        event = {"chosen_options": [op.APPROVE], "params_input": {}, "responded_by_user": "reviewer"}
+        event = {
+            "chosen_options": [op.APPROVE],
+            "params_input": {},
+            "responded_by_user": {"id": "u1", "name": "reviewer"},
+        }
 
         result = op.execute_complete({}, generated_output='{"findings":["error spike"]}', event=event)
 
@@ -306,7 +310,7 @@ class TestLLMFileAnalysisOperatorApproval:
         event = {
             "chosen_options": [op.APPROVE],
             "params_input": {"output": '{"findings":["reviewed output"]}'},
-            "responded_by_user": "reviewer",
+            "responded_by_user": {"id": "u1", "name": "reviewer"},
         }
 
         result = op.execute_complete({}, generated_output='{"findings":["error spike"]}', event=event)
@@ -345,4 +349,7 @@ class TestLLMFileAnalysisOperatorApproval:
         with pytest.raises(ApprovalPauseSignal) as exc_info:
             op.execute(context=_make_context())
 
-        assert exc_info.value.timeout == timeout
+        if AIRFLOW_V_3_3_PLUS:
+            assert exc_info.value.timeout == timeout
+        else:
+            assert mock_trigger_cls.call_args[1]["timeout_datetime"] is not None
