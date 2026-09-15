@@ -184,7 +184,7 @@ class OpenLineageListener:
 
             # Only sensors in reschedule mode re-run without a new try_number, so only they can
             # repeat a START for a run id that already emitted one. Other operators can also have
-            # TaskReschedule rows (a missing-DAG startup failure writes them before any listener
+            # TaskReschedule rows (a missing-Dag startup failure writes them before any listener
             # hook fires), and those attempts have emitted nothing yet.
             if (
                 getattr(task, "reschedule", False)
