@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 from unittest import mock
 
 import pandas as pd
@@ -66,3 +67,15 @@ class TestInfluxDB3QueryTrigger:
         mock_hook_class.assert_called_once_with(conn_id="influxdb3_default")
         mock_hook.query_async.assert_awaited_once_with(SQL)
         assert events == [TriggerEvent({"status": "error", "message": "boom"})]
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.influxdb.triggers.influxdb3.InfluxDB3Hook", autospec=True)
+    async def test_run_propagates_cancellation(self, mock_hook_class):
+        """Trigger cancellation propagates instead of being converted into an error event."""
+        mock_hook = mock_hook_class.return_value
+        mock_hook.query_async = mock.AsyncMock(side_effect=asyncio.CancelledError())
+
+        trigger = InfluxDB3QueryTrigger(sql=SQL)
+
+        with pytest.raises(asyncio.CancelledError):
+            await anext(trigger.run())
