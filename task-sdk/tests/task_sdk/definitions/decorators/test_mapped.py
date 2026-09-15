@@ -17,7 +17,30 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
 from airflow.sdk import DAG, TaskGroup
+
+
+def test_mapped_taskflow_task_id_is_validated():
+    def f(z):
+        pass
+
+    with DAG(dag_id="d", schedule=None) as dag:
+        with pytest.raises(ValueError, match="has to be made of alphanumeric"):
+            dag.task(task_id="bad*id")(f).expand(z=[])
+
+
+def test_mapped_taskflow_task_id_validated_after_unique_suffix():
+    # A 250-char id is valid the first time; the auto-added "__1" dedup suffix on the second
+    # use makes it 253 chars, so this only fails if the id is validated after deduplication.
+    def f(z):
+        pass
+
+    with DAG(dag_id="d", schedule=None) as dag:
+        dag.task(task_id="t" * 250)(f).expand(z=[])
+        with pytest.raises(ValueError, match="has to be less than 250 characters"):
+            dag.task(task_id="t" * 250)(f).expand(z=[])
 
 
 def test_mapped_task_group_id_prefix_task_id():
