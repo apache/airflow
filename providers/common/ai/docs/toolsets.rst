@@ -722,11 +722,16 @@ When to reach for it
      - Not this. Scope the connections the task can see, and give the agent only
        the toolsets it needs
 
-Both ``code_mode=True`` and ``SandboxToolset`` can be enabled together.
-``run_command`` deliberately stays a normal tool in that setup rather than being
-folded into ``run_code``, so the model writes Monty code that calls the sandbox,
-never a shell script quoted inside a Python string. The three file tools *are*
-folded in, where they are more useful as callables.
+Both ``code_mode=True`` and ``SandboxToolset`` can be enabled together. The split
+is deliberate. The three file tools *are* folded into ``run_code``, where they are
+more useful as callables the generated Monty code can loop over. ``run_command``
+is not: it stays a tool the model calls directly, so that a shell command is
+written as a shell command rather than as a string quoted inside generated Python,
+which is where quoting bugs come from.
+
+Both paths reach the same sandbox. There is one sandbox per agent run whichever
+way a call arrives, so a file written through ``run_code`` is visible to a later
+``run_command`` and the other way round.
 
 Why not ``KubernetesPodOperator`` or the ``KubernetesExecutor``?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
