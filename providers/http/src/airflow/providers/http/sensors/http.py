@@ -168,9 +168,9 @@ class HttpSensor(BaseSensorOperator):
         if not self.deferrable:
             return super().execute(context=context)
         result = self.poke(context)
-        
+
         if not result:
-            self._defer()
+            self._defer(initial_delay=self.poke_interval if self.response_check else 0)
         # Keep sync mode's contract of returning the xcom value from a truthy PokeReturnValue.
         if isinstance(result, PokeReturnValue):
             return result.xcom_value
@@ -204,7 +204,7 @@ class HttpSensor(BaseSensorOperator):
             response = HttpResponseSerializer.deserialize(event["response"])
             kwargs = determine_kwargs(self.response_check, [response], context)
             result = self.response_check(response, **kwargs)
-            
+
             if not result:
                 # The check did not pass yet; hand polling back to the triggerer.
                 self._defer(initial_delay=self.poke_interval)

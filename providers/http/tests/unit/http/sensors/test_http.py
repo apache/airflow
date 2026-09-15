@@ -391,11 +391,13 @@ class TestHttpSensorAsync:
             task_id="run_now",
             endpoint="test-endpoint",
             response_check=lambda response: "httpbin" in response.text,
+            poke_interval=42,
             deferrable=True,
         )
         with pytest.raises(TaskDeferred) as exc:
             task.execute({})
         assert isinstance(exc.value.trigger, HttpSensorTrigger)
+        assert exc.value.trigger.initial_delay == 42
 
     @mock.patch(
         "airflow.providers.http.sensors.http.HttpSensor.poke",
