@@ -313,8 +313,9 @@ class PydanticAIAzureHook(PydanticAIHook):
 
             {"model": "azure:gpt-4o"}
 
-          ``api_version`` is only used with legacy endpoints and must be omitted
-          for the v1 API.
+          ``api_version`` must be omitted when the endpoint path ends in ``/v1``
+          or the host is ``*.models.ai.azure.com``. For other endpoints, set it
+          here or with ``OPENAI_API_VERSION``.
 
     :param llm_conn_id: Airflow connection ID.
     :param model_id: Model identifier, e.g. ``"azure:gpt-4o"``.

@@ -173,7 +173,7 @@ def get_provider_info():
                     },
                     "api_version": {
                         "label": "API Version",
-                        "description": "Only for legacy Azure OpenAI endpoints. Omit for the v1 API.",
+                        "description": "Azure OpenAI API version (e.g. 2024-07-01-preview). Set when the endpoint path does not end in /v1 and the host is not *.models.ai.azure.com. Falls back to OPENAI_API_VERSION.",
                         "schema": {"type": ["string", "null"]},
                     },
                 },
