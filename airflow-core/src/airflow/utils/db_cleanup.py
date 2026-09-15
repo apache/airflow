@@ -226,12 +226,9 @@ config_list: list[_TableConfig] = [
         table_name="callback",
         recency_column_name="created_at",
         extra_columns=["id", "state"],
-        # Purging a callback cascades to its deadline row, so only finished callbacks are purged;
-        # a state this code does not know keeps its rows. An unfired deadline's callback sits in
-        # SCHEDULED, which is neither active nor terminal, until the deadline is missed; it is
-        # purged only once no deadline references it, as deleting a Dag run cascades away the
-        # deadline at the database level and leaves the callback behind. Dag-processor callbacks
-        # carry no state and are deleted as they are dispatched.
+        # Callback deletion cascades to deadlines, so preserve active or unknown states and
+        # SCHEDULED callbacks still referenced by a deadline. Stateless Dag-processor
+        # callbacks are eligible even while pending, once older than the cleanup cutoff.
         extra_filters=[
             or_(
                 column("state").in_(sorted(TERMINAL_STATES)),
