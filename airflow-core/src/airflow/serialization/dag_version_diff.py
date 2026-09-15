@@ -76,6 +76,11 @@ Each change record carries these keys in both disclosure modes:
   ``/provenance`` plus the file and bundle locators, and ``unknown`` for anything
   unclassified. ``_DIFF_V1_DAG_FIELD_CATEGORIES`` is the authoritative Dag-field mapping;
   an unclassified task field falls back to ``task``, which over-reports impact.
+  ``default_args`` is the one Dag field classified per key rather than as a whole, because its
+  keys are the operator fields they will be applied to: an allowlisted key takes that field's
+  category (``owner`` is ``metadata``, ``retries`` is ``task``), and the aggregate record for
+  the rest keeps the conservative ``task``. Only a stored value that is not a readable dict
+  envelope classifies as ``task`` as a whole.
 * ``impact`` -- a :data:`DiffImpact` derived from ``category``: ``provenance``, ``metadata``
   and ``authorization`` carry through unchanged, every operational category becomes
   ``execution``, and ``unknown`` stays ``unknown``.
@@ -96,11 +101,13 @@ public path: members of keyed collections (``/dag/tasks``, ``/dag/dag_dependenci
 ``/dag/tags``, ``/dag/allowed_run_types`` and task group children) collapse to ``*`` instead
 of naming a task, tag or group, and records sharing a public path and operation are merged
 into one whose ``occurrence_count`` counts the merged changes. An authorized record keeps the
-identifying component and always has an ``occurrence_count`` of 1. Fields outside the v1 task
-and task group allowlists are aggregated into a single ``custom_fields`` record in both modes,
-so a private serializer field is never named by either. A top-level key outside the v1 root
-allowlist is likewise reported as ``/custom_fields`` when redacted, while an authorized record
-keeps its real root path.
+identifying component and always has an ``occurrence_count`` of 1. Fields outside the v1 task,
+task group and ``default_args`` allowlists are aggregated into a single ``custom_fields`` record
+in both modes, so neither a private serializer field nor a user-chosen ``default_args`` key is
+ever named by either -- ``/dag/default_args`` names only allowlisted operator field names, which
+is why its keys can be classified at all. A top-level key outside the v1 root allowlist is
+likewise reported as ``/custom_fields`` when redacted, while an authorized record keeps its real
+root path.
 
 ``max_changes`` bounds how many underlying changes either mode admits, so authorization decides
 what a change carries and never which changes exist. Admission is what the bound limits, not
@@ -130,7 +137,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from datetime import timedelta
 from enum import Enum
-from typing import Any, Literal
+from typing import Any, Literal, NamedTuple
 
 import structlog
 
@@ -283,6 +290,11 @@ _DIFF_V1_TASK_METADATA_FIELDS = frozenset(
     }
 )
 _DIFF_V1_PUBLIC_PARTIAL_TASK_FIELDS = _DIFF_V1_PUBLIC_TASK_FIELDS | {"task_display_name"}
+_DEFAULT_ARGS_PATH = ("dag", "default_args")
+# A Dag's default_args holds the same operator __init__ kwargs partial_kwargs holds -- the
+# serializer rewrites _HAS_FLAG_FIELDS in both -- so it reuses that allowlist. "__type" names the
+# stored value's own dict envelope rather than a key inside it.
+_DIFF_V1_PUBLIC_DEFAULT_ARGS_FIELDS = _DIFF_V1_PUBLIC_PARTIAL_TASK_FIELDS - {"__type"}
 # Classify every Dag schema field explicitly so new fields require a policy decision.
 _DIFF_V1_DAG_FIELD_CATEGORIES: dict[str, DiffCategory] = {
     "_concurrency": "schedule",
@@ -296,8 +308,8 @@ _DIFF_V1_DAG_FIELD_CATEGORIES: dict[str, DiffCategory] = {
     "dag_id": "metadata",
     "dagrun_timeout": "schedule",
     "deadline": "deadline",
-    # Operator construction defaults, not Dag params. Compared as one opaque leaf, so the impact
-    # stays conservative: the same value can carry retries and pool beside owner and doc_md.
+    # Only reached when the stored value is not the dict envelope _collect_default_args_changes
+    # walks per key; an unreadable envelope keeps the conservative impact of its widest key.
     "default_args": "task",
     "description": "metadata",
     # Decides whether a run pins a bundle version, so it changes which code later runs execute
@@ -925,6 +937,9 @@ def _collect_changes(
                 collector=collector,
             )
             return
+        if path == _DEFAULT_ARGS_PATH:
+            _collect_default_args_changes(before, after, path=path, collector=collector)
+            return
         if not _should_recurse_mapping(path):
             if not _is_json_equal(before, after):
                 collector.add(path=path, operation="changed", before=before, after=after)
@@ -983,6 +998,37 @@ def _collect_task_changes(
     _collect_public_field_changes(before, after, path=path, public_fields=public_fields, collector=collector)
 
 
+def _collect_default_args_changes(
+    before: Mapping[str, Any],
+    after: Mapping[str, Any],
+    *,
+    path: tuple[str, ...],
+    collector: _ChangeCollector,
+) -> None:
+    """Compare a Dag's default_args key by key so each key carries its own impact."""
+    if not (_is_encoded_default_args(before) and _is_encoded_default_args(after)):
+        # An envelope this version cannot read stays one opaque leaf: the allowlist was written for
+        # the keys of a dict envelope, so applying it to another shape could name something else.
+        if not _is_json_equal(before, after):
+            collector.add(path=path, operation="changed", before=before, after=after)
+        return
+    _collect_public_field_changes(
+        before["__var"],
+        after["__var"],
+        path=path,
+        public_fields=_DIFF_V1_PUBLIC_DEFAULT_ARGS_FIELDS,
+        collector=collector,
+    )
+
+
+def _is_encoded_default_args(value: Any) -> bool:
+    return (
+        isinstance(value, Mapping)
+        and value.get("__type") == "dict"
+        and isinstance(value.get("__var"), Mapping)
+    )
+
+
 def _collect_public_field_changes(
     before: Mapping[str, Any],
     after: Mapping[str, Any],
@@ -1020,30 +1066,57 @@ def _is_task_mapping_path(path: tuple[str, ...]) -> bool:
     )
 
 
+class _TaskGroupPath(NamedTuple):
+    """One reading of the task group path grammar, shared by everything that walks it."""
+
+    field_index: int
+    id_positions: tuple[int, ...]
+    remainder: tuple[str, ...]
+
+
+def _classify_task_group_path(path: tuple[str, ...]) -> _TaskGroupPath | None:
+    """
+    Split a task group path into its nesting prefix and what follows the innermost group.
+
+    The grammar is ``dag/task_group ( /children/<group_id>/1 )* [ /children/<child_id> | /<field> ... ]``:
+    a child entry is the two-element ``["taskgroup", {...}]`` list the serializer writes, so the
+    literal ``1`` selects the nested group mapping inside it. ``field_index`` is where the innermost
+    group's own keys start, ``id_positions`` the group-id components a redacted path must mask, and
+    ``remainder`` the components from ``field_index`` on: ``()`` for the group mapping itself,
+    ``("children",)`` for its children mapping, and a two-element ``("children", child_id)`` for one
+    child entry. Returns ``None`` for a path that is not rooted at the Dag's task group.
+    """
+    if path[:2] != ("dag", "task_group"):
+        return None
+    index = 2
+    id_positions: list[int] = []
+    while len(path) >= index + 2 and path[index] == "children":
+        id_positions.append(index + 1)
+        if len(path) < index + 3 or path[index + 2] != "1":
+            break
+        index += 3
+    return _TaskGroupPath(index, tuple(id_positions), path[index:])
+
+
 def _is_task_group_mapping_path(path: tuple[str, ...]) -> bool:
-    index = _get_task_group_field_index(path)
-    return index is not None and len(path) == index
+    task_group_path = _classify_task_group_path(path)
+    return task_group_path is not None and task_group_path.remainder == ()
 
 
 def _should_recurse_mapping(path: tuple[str, ...]) -> bool:
     if path in _RECURSIVE_MAPPING_PATHS:
         return True
-    index = _get_task_group_field_index(path)
-    return index is not None and path[index:] == ("children",)
-
-
-def _get_task_group_field_index(path: tuple[str, ...]) -> int | None:
-    if path[:2] != ("dag", "task_group"):
-        return None
-    index = 2
-    while len(path) >= index + 3 and path[index] == "children" and path[index + 2] == "1":
-        index += 3
-    return index
+    task_group_path = _classify_task_group_path(path)
+    return task_group_path is not None and task_group_path.remainder == ("children",)
 
 
 def _is_task_group_child_path(path: tuple[str, ...]) -> bool:
-    index = _get_task_group_field_index(path)
-    return index is not None and len(path) == index + 2 and path[index] == "children"
+    task_group_path = _classify_task_group_path(path)
+    return (
+        task_group_path is not None
+        and len(task_group_path.remainder) == 2
+        and task_group_path.remainder[0] == "children"
+    )
 
 
 def _get_public_path(path: tuple[str, ...]) -> tuple[str, ...]:
@@ -1051,18 +1124,15 @@ def _get_public_path(path: tuple[str, ...]) -> tuple[str, ...]:
         # Root is the one level no allowlisted walk covers, so an unrecognised section name would
         # otherwise be the single path component a redacted caller receives verbatim.
         return (_CUSTOM_TASK_FIELDS_PATH_COMPONENT,)
-    if path[:2] == ("dag", "task_group"):
+    if (task_group_path := _classify_task_group_path(path)) is not None:
         public_path = list(path)
-        index = 2
-        while len(path) >= index + 2 and path[index] == "children":
-            public_path[index + 1] = "*"
-            if len(path) < index + 3 or path[index + 2] != "1":
-                return tuple(public_path)
-            index += 3
-        if len(path) > index and path[index] not in _DIFF_V1_PUBLIC_TASK_GROUP_FIELDS:
+        for position in task_group_path.id_positions:
+            public_path[position] = "*"
+        remainder = task_group_path.remainder
+        if remainder and remainder[0] not in _DIFF_V1_PUBLIC_TASK_GROUP_FIELDS:
             # Unreachable by construction (_collect_public_field_changes aggregates non-public group
             # keys first), but truncating like the task branch stops a future caller leaking a key.
-            return (*public_path[:index], _CUSTOM_TASK_FIELDS_PATH_COMPONENT)
+            return (*public_path[: task_group_path.field_index], _CUSTOM_TASK_FIELDS_PATH_COMPONENT)
         return tuple(public_path)
     if len(path) >= 3 and path[:2] in _KEYED_COLLECTION_PATHS:
         path = (*path[:2], "*", *path[3:])
@@ -1114,12 +1184,15 @@ def _get_category(path: tuple[str, ...]) -> DiffCategory:
         field = path[3] if len(path) >= 4 else None
         if field == "partial_kwargs" and len(path) >= 5:
             field = path[4]
+    elif path[:2] == _DEFAULT_ARGS_PATH and len(path) >= 3:
+        # A default_args key is the operator field it will be applied to, so it classifies like one.
+        field = path[2]
     elif path and path[0] == "dag":
         field = path[1] if len(path) >= 2 else ""
         if field == "task_group":
-            index = _get_task_group_field_index(path)
-            if index is not None and len(path) > index:
-                if path[index] in _DIFF_V1_TASK_GROUP_METADATA_FIELDS:
+            task_group_path = _classify_task_group_path(path)
+            if task_group_path is not None and task_group_path.remainder:
+                if task_group_path.remainder[0] in _DIFF_V1_TASK_GROUP_METADATA_FIELDS:
                     return "metadata"
         return _DIFF_V1_DAG_FIELD_CATEGORIES.get(
             field, _DIFF_V1_LEGACY_DAG_FIELD_CATEGORIES.get(field, "unknown")

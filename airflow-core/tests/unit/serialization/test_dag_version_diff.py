@@ -940,8 +940,29 @@ def test_build_diff_counts_every_occurrence_at_a_disclosed_path(max_changes):
 
     assert redacted["truncated"] is False
     assert [(change["path"], change["occurrence_count"]) for change in redacted["changes"]] == [
-        ("/dag/default_args", 1),
+        ("/dag/default_args/owner", 1),
         ("/dag/tasks/*/owner", 120),
+    ]
+
+
+def test_build_diff_reports_no_execution_impact_for_a_default_args_owner_edit() -> None:
+    """The inherited task change and the default_args key it came from agree on impact."""
+    payloads = []
+    for owner in ("alice", "bob"):
+        with DAG(
+            "owner_only",
+            schedule=None,
+            start_date=datetime(2025, 1, 1, tzinfo=timezone.utc),
+            default_args={"owner": owner},
+        ) as dag:
+            EmptyOperator(task_id="extract")
+        payloads.append(_serialize_dag(dag))
+
+    result = build_serialized_dag_diff(base_data=payloads[0], target_data=payloads[1])
+
+    assert [(change["path"], change["category"], change["impact"]) for change in result["changes"]] == [
+        ("/dag/default_args/owner", "metadata", "metadata"),
+        ("/dag/tasks/*/owner", "metadata", "metadata"),
     ]
 
 
@@ -997,10 +1018,12 @@ def test_build_diff_redacted_records_mirror_authorized_paths(max_changes, expect
         ("render_template_as_native_obj", False, True, "task", "execution"),
         ("disable_bundle_versioning", False, True, "task", "execution"),
         ("rerun_with_latest_version", False, True, "task", "execution"),
+        # Only a value that is not a readable dict envelope still classifies as a whole; the
+        # per-key classification of a real default_args mapping is covered separately.
         (
             "default_args",
-            {"__type": "dict", "__var": {"owner": "first"}},
-            {"__type": "dict", "__var": {"owner": "second"}},
+            {"owner": "first"},
+            {"owner": "second"},
             "task",
             "execution",
         ),
@@ -1051,6 +1074,33 @@ def test_build_diff_classifies_dag_fields(include_values, field, before, after, 
             "impact": impact,
             "occurrence_count": 1,
         }
+
+
+@pytest.mark.parametrize("include_values", [False, True])
+@pytest.mark.parametrize(
+    ("key", "before", "after", "category", "impact"),
+    [
+        ("owner", "alice", "bob", "metadata", "metadata"),
+        ("retries", 3, 5, "task", "execution"),
+        ("queue", "old", "new", "task", "execution"),
+        ("has_on_failure_callback", False, True, "callback", "execution"),
+        ("outlets", [], ["asset"], "asset", "execution"),
+        ("downstream_task_ids", [], ["load"], "dependency", "execution"),
+    ],
+)
+def test_build_diff_classifies_default_args_per_key(include_values, key, before, after, category, impact):
+    base = _build_payload(tasks=[])
+    target = _build_payload(tasks=[])
+    base["dag"]["default_args"] = {"__type": "dict", "__var": {key: before}}
+    target["dag"]["default_args"] = {"__type": "dict", "__var": {key: after}}
+
+    result = build_serialized_dag_diff(base_data=base, target_data=target, include_values=include_values)
+
+    assert len(result["changes"]) == 1
+    change = result["changes"][0]
+    # An allowlisted key is a fixed operator field name, so both modes report the same path.
+    assert change["path"] == f"/dag/default_args/{key}"
+    assert (change["operation"], change["category"], change["impact"]) == ("changed", category, impact)
 
 
 def _build_task_group_payload(*, field: str, value: str, depth: int) -> tuple[dict, list[str]]:
@@ -1918,6 +1968,43 @@ def test_build_diff_collapses_arbitrary_mappings_without_values() -> None:
             "occurrence_count": 1,
         }
     ]
+
+
+@pytest.mark.parametrize("include_values", [False, True])
+def test_build_diff_never_names_a_user_chosen_default_args_key(include_values):
+    base = _build_payload(tasks=[])
+    target = _build_payload(tasks=[])
+    base["dag"]["default_args"] = {"__type": "dict", "__var": {"secret_argument": "old"}}
+    target["dag"]["default_args"] = {"__type": "dict", "__var": {"secret_argument": "new"}}
+
+    result = build_serialized_dag_diff(base_data=base, target_data=target, include_values=include_values)
+
+    assert len(result["changes"]) == 1
+    change = result["changes"][0]
+    assert change["path"] == "/dag/default_args/custom_fields"
+    assert (change["operation"], change["category"], change["impact"]) == (
+        "changed",
+        "task",
+        "execution",
+    )
+    if not include_values:
+        assert "secret_argument" not in json.dumps(result)
+
+
+def test_build_diff_keeps_default_args_conservative_for_a_mixed_edit() -> None:
+    """A metadata key and an unrecognised one are separate records, so neither impact is lost."""
+    base = _build_payload(tasks=[])
+    target = _build_payload(tasks=[])
+    base["dag"]["default_args"] = {"__type": "dict", "__var": {"owner": "alice", "secret": "old"}}
+    target["dag"]["default_args"] = {"__type": "dict", "__var": {"owner": "bob", "secret": "new"}}
+
+    result = build_serialized_dag_diff(base_data=base, target_data=target)
+
+    assert [(change["path"], change["category"], change["impact"]) for change in result["changes"]] == [
+        ("/dag/default_args/owner", "metadata", "metadata"),
+        ("/dag/default_args/custom_fields", "task", "execution"),
+    ]
+    assert "secret" not in json.dumps(result)
 
 
 @pytest.mark.parametrize("include_values", [False, True])
