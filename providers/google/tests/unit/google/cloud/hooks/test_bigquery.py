@@ -2064,7 +2064,8 @@ class TestBigQueryAsyncHookMethods:
         )
         assert isinstance(result, Table_async)
 
-    def test_get_records_return_type(self):
+    @pytest.mark.asyncio
+    async def test_get_records_return_type(self):
         query_result = {
             "kind": "bigquery#getQueryResultsResponse",
             "etag": "test_etag",
@@ -2087,12 +2088,13 @@ class TestBigQueryAsyncHookMethods:
             "cacheHit": False,
         }
         hook = BigQueryAsyncHook(use_legacy_sql=True)
-        result = hook.get_records(query_result)
+        result = await hook.get_records(query_result)
         assert isinstance(result[0][0], int)
         assert isinstance(result[0][1], float)
         assert isinstance(result[0][2], str)
 
-    def test_get_records_as_dict(self):
+    @pytest.mark.asyncio
+    async def test_get_records_as_dict(self):
         query_result = {
             "kind": "bigquery#getQueryResultsResponse",
             "etag": "test_etag",
@@ -2115,7 +2117,7 @@ class TestBigQueryAsyncHookMethods:
             "cacheHit": False,
         }
         hook = BigQueryAsyncHook(use_legacy_sql=True)
-        result = hook.get_records(query_result, as_dict=True)
+        result = await hook.get_records(query_result, as_dict=True)
         assert result == [{"f0_": 22, "f1_": 3.14, "f2_": "PI"}]
 
 
