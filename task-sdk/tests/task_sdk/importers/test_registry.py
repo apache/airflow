@@ -426,3 +426,21 @@ class TestDagImporterRegistry:
 
         definitions = list(find_file_dag_definitions(tmp_path, [".py"]))
         assert {d.path.name for d in definitions} == {"workflow.py", "script.py"}
+
+    def test_find_file_dag_definitions_pyc_dedup_over_discovered_set(self, tmp_path):
+        # The .py-over-.pyc preference is decided over what discovery yields, not a raw
+        # filesystem stat. Here the .py is not a supported extension, so it is never a
+        # discovery candidate and must not suppress the sourceless .pyc beside it.
+        (tmp_path / "sourceless.py").write_text("from airflow.sdk import DAG\n")
+        (tmp_path / "sourceless.pyc").write_bytes(b"compiled")
+
+        definitions = list(find_file_dag_definitions(tmp_path, [".pyc"]))
+        assert {d.path.name for d in definitions} == {"sourceless.pyc"}
+
+    def test_find_file_dag_definitions_pyc_dedup_case_insensitive_extension(self, tmp_path):
+        # The source file's extension may be any case; the .pyc beside it is still deduped.
+        (tmp_path / "workflow.PY").write_text("from airflow.sdk import DAG\n")
+        (tmp_path / "workflow.pyc").write_bytes(b"compiled")
+
+        definitions = list(find_file_dag_definitions(tmp_path, [".py", ".pyc"]))
+        assert {d.path.name for d in definitions} == {"workflow.PY"}
