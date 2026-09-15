@@ -715,6 +715,20 @@ paths:
           - type: string
           - type: 'null'
           title: Before
+      - name: partition_key
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Delete queued events of partitioned assets emitted for this
+            partition key whose Dag run has not been created yet, instead of queued
+            events of non-partitioned assets.
+          title: Partition Key
+        description: Delete queued events of partitioned assets emitted for this partition
+          key whose Dag run has not been created yet, instead of queued events of
+          non-partitioned assets.
       responses:
         '204':
           description: Successful Response
@@ -863,6 +877,20 @@ paths:
           - type: string
           - type: 'null'
           title: Before
+      - name: partition_key
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Delete queued events of partitioned assets emitted for this
+            partition key whose Dag run has not been created yet, instead of queued
+            events of non-partitioned assets.
+          title: Partition Key
+        description: Delete queued events of partitioned assets emitted for this partition
+          key whose Dag run has not been created yet, instead of queued events of
+          non-partitioned assets.
       responses:
         '204':
           description: Successful Response
@@ -988,6 +1016,20 @@ paths:
           - type: string
           - type: 'null'
           title: Before
+      - name: partition_key
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Delete queued events of partitioned assets emitted for this
+            partition key whose Dag run has not been created yet, instead of queued
+            events of non-partitioned assets.
+          title: Partition Key
+        description: Delete queued events of partitioned assets emitted for this partition
+          key whose Dag run has not been created yet, instead of queued events of
+          non-partitioned assets.
       responses:
         '204':
           description: Successful Response
