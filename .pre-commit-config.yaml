@@ -1346,6 +1346,12 @@ repos:
         language: python
         pass_filenames: true
         files: ^(airflow-core|airflow-ctl|task-sdk|providers|shared)/.*\.py$
+      - id: check-no-new-exception-format-args
+        name: Check that no new format-string arguments are passed to exceptions
+        entry: ./scripts/ci/prek/check_exception_format_args.py
+        language: python
+        pass_filenames: true
+        files: ^(airflow-core|airflow-ctl|task-sdk|providers|shared)/.*\.py$|^generated/known_exception_format_args\.txt$|^scripts/ci/prek/check_exception_format_args\.py$
       - id: check-no-new-provide-session-positional
         name: Check that no new @provide_session functions declare `session` positionally
         entry: ./scripts/ci/prek/check_provide_session_kwargs.py
