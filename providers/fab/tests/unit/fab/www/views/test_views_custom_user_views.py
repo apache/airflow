@@ -34,7 +34,7 @@ from unit.fab.auth_manager.test_utils import (
     delete_role,
     delete_user,
 )
-from unit.fab.utils import check_content_in_response, client_with_login
+from unit.fab.utils import check_content_in_response, check_content_not_in_response, client_with_login
 
 pytestmark = pytest.mark.db_test
 
@@ -140,6 +140,49 @@ class TestSecurity:
         )
         response = client.get(url.replace("{user.id}", str(user_with_access.id)), follow_redirects=True)
         check_content_in_response(expected_text, response)
+
+    def test_user_edit_view_shows_reset_password_action_with_access(self, app, client):
+        # Visibility of the action link is gated on "read" access to Users (the same
+        # rule the Show User view relies on); "read" on Passwords is what's required to
+        # actually perform the reset once the link is followed.
+        user_with_access = create_user(
+            app,
+            username="has_access",
+            role_name="role_has_access",
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER),
+                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_USER),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_PASSWORD),
+            ],
+        )
+        client = client_with_login(
+            app,
+            username="has_access",
+            password="has_access",
+        )
+        response = client.get(f"/users/edit/{user_with_access.id}", follow_redirects=True)
+        check_content_in_response("Reset Password", response)
+
+    def test_user_edit_view_hides_reset_password_action_without_access(self, app, client):
+        # No "read" access to Users means the action link is not visible, even though
+        # the user can still reach the edit page via "edit" access to Users.
+        user_with_access = create_user(
+            app,
+            username="has_access",
+            role_name="role_has_access",
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_USER),
+            ],
+        )
+        client = client_with_login(
+            app,
+            username="has_access",
+            password="has_access",
+        )
+        response = client.get(f"/users/edit/{user_with_access.id}", follow_redirects=True)
+        check_content_not_in_response("Reset Password", response)
 
     def test_user_model_view_without_delete_access(self, app, client):
         user_to_delete = create_user(
