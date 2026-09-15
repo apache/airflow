@@ -27,6 +27,12 @@ pytest.importorskip("airflow.providers.fab")
 
 from flask import url_for
 
+# The serialized round-trip test drives the shared ``mock_plugin_manager`` helper, which clears the
+# ``plugins_manager.get_ui_translations`` cache. That symbol only exists on newer Airflow, so the
+# helper raises AttributeError when the compat matrix runs against an older release that lacks it.
+# Gate the round-trip test on the symbol's presence so it still runs on current Airflow (where it is
+# the regression guard for the extra-link serialization) but skips where the helper cannot run.
+import airflow.plugins_manager as _airflow_plugins_manager
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstanceKey
 from airflow.providers.common.compat.sdk import AirflowException, AirflowPlugin
@@ -47,6 +53,8 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
 
 from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_1_PLUS
+
+_MOCK_PLUGIN_MANAGER_COMPAT = hasattr(_airflow_plugins_manager, "get_ui_translations")
 
 if not AIRFLOW_V_3_0_PLUS:
     from airflow.providers.databricks.plugins.databricks_workflow import (
@@ -804,6 +812,10 @@ class TestDatabricksWorkflowPluginAirflow3:
         finally:
             m.repair_app.dependency_overrides.clear()
 
+    @pytest.mark.skipif(
+        not _MOCK_PLUGIN_MANAGER_COMPAT,
+        reason="mock_plugin_manager clears plugins_manager.get_ui_translations, absent on older Airflow",
+    )
     @pytest.mark.db_test
     def test_repair_links_survive_serialized_dag_round_trip(self, dag_maker):
         from airflow.models.serialized_dag import SerializedDagModel
