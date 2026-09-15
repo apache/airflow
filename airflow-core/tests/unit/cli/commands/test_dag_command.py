@@ -52,7 +52,7 @@ from airflow.timetables.base import Timetable
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.cli import get_db_dag
 from airflow.utils.session import create_session
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.state import DagRunState, DagSchedulingState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
@@ -563,6 +563,53 @@ class TestCliDags:
         assert DagModel.get_dagmodel("example_bash_operator").is_paused
         dag_command.dag_unpause(args)
         assert not DagModel.get_dagmodel("example_bash_operator").is_paused
+
+    def test_pause_unpause_from_dag_cli(self):
+        """``DAG.cli()`` passes the Dag positionally and its parser drops ``--dag-id``."""
+        parser = cli_parser.get_parser(dag_parser=True)
+        dag = DAG("example_bash_operator")
+
+        dag_command.dag_pause(parser.parse_args(["dags", "pause"]), dag)
+        assert DagModel.get_dagmodel("example_bash_operator").is_paused
+
+        dag_command.dag_unpause(parser.parse_args(["dags", "unpause"]), dag)
+        assert not DagModel.get_dagmodel("example_bash_operator").is_paused
+
+    @mock.patch("airflow.cli.commands.dag_command.ask_yesno")
+    def test_pause_from_dag_cli_ignores_treat_dag_id_as_regex(self, mock_yesno):
+        """The Dag fixes the target, so its dag_id must not be read back as a pattern."""
+        target = DAG("dag.cli_regex_target")
+        sync_dag_to_db(target)
+        sync_dag_to_db(DAG("dagXcli_regex_target"))
+        parser = cli_parser.get_parser(dag_parser=True)
+
+        dag_command.dag_pause(parser.parse_args(["dags", "pause", "--treat-dag-id-as-regex"]), target)
+
+        mock_yesno.assert_not_called()
+        assert DagModel.get_dagmodel("dag.cli_regex_target").is_paused
+        assert not DagModel.get_dagmodel("dagXcli_regex_target").is_paused
+
+        clear_db_dags()
+        self.setup_class()
+
+    @pytest.mark.parametrize(
+        ("command", "expected_state"),
+        [
+            (dag_command.dag_pause, DagSchedulingState.PAUSED),
+            (dag_command.dag_unpause, DagSchedulingState.ACTIVE),
+        ],
+    )
+    def test_pause_commands_clear_draining_state(self, command, expected_state):
+        with create_session() as session:
+            dag_model = session.get(DagModel, "example_bash_operator")
+            dag_model.set_scheduling_state(DagSchedulingState.DRAINING)
+
+        args = self.parser.parse_args(
+            ["dags", "pause" if command is dag_command.dag_pause else "unpause", "example_bash_operator"]
+        )
+        command(args)
+
+        assert DagModel.get_dagmodel("example_bash_operator").scheduling_state == expected_state
 
     @mock.patch("airflow.cli.commands.dag_command.ask_yesno")
     def test_pause_regex(self, mock_yesno):

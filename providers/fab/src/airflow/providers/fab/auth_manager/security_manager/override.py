@@ -72,7 +72,7 @@ from sqlalchemy.exc import IntegrityError, MultipleResultsFound
 from sqlalchemy.orm import joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from airflow.providers.common.compat.sdk import conf
+from airflow.providers.common.compat.sdk import AirflowConfigException, conf
 from airflow.providers.fab.auth_manager.models import (
     Action,
     Group,
@@ -429,11 +429,11 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             return resp.json()
         return {}
 
-    def _validate_jwt(self, id_token, jwks):
+    def _validate_jwt(self, id_token, jwks, claims_options=None):
         from authlib.jose import JsonWebKey, jwt as authlib_jwt
 
         keyset = JsonWebKey.import_key_set(jwks)
-        claims = authlib_jwt.decode(id_token, keyset)
+        claims = authlib_jwt.decode(id_token, keyset, claims_options=claims_options)
         claims.validate()
         log.info("JWT token is validated")
         return claims
@@ -446,7 +446,34 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             if jwks_uri:
                 jwks = self._get_authentik_jwks(jwks_uri)
                 if jwks:
-                    return self._validate_jwt(id_token, jwks)
+                    # The issuer must be known before the token is trusted. Verifying only
+                    # the audience would still accept a token minted by an untrusted issuer
+                    # whenever the configured key set signs for more than one of them, so a
+                    # missing issuer fails closed rather than downgrading to an audience-only
+                    # check.
+                    issuer = self.oauth_remotes["authentik"].client_kwargs.get(
+                        "issuer"
+                    ) or self.oauth_remotes["authentik"].server_metadata.get("issuer")
+                    if not issuer:
+                        raise FabException(
+                            "Cannot verify the authentik id_token: no issuer is available. "
+                            "The OpenID metadata for the 'authentik' provider carries no "
+                            "'issuer', so the token's issuer cannot be pinned. Configure "
+                            "'server_metadata_url' so the issuer is discovered, or set "
+                            "'issuer' in the authentik provider's client_kwargs."
+                        )
+                    claims_options = {
+                        # The token must have been issued by the configured provider.
+                        "iss": {"essential": True, "value": issuer},
+                        # The token must have been minted for this application. One key set
+                        # signs for every application registered with the provider, so a valid
+                        # signature does not establish that the token was addressed to Airflow.
+                        "aud": {
+                            "essential": True,
+                            "value": self.oauth_remotes["authentik"].client_id,
+                        },
+                    }
+                    return self._validate_jwt(id_token, jwks, claims_options=claims_options)
             else:
                 log.error("jwks_uri not specified in OAuth Providers, could not verify token signature")
         else:
@@ -1214,10 +1241,109 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         # Sync the default roles (Admin, Viewer, User, Op, public) with related permissions
         self.bulk_sync_roles(self.ROLE_CONFIGS)
 
+        self.create_roles_from_config()
+
         self.add_homepage_access_to_custom_roles()
         # init existing roles, the rest role could be created through UI.
         self.update_admin_permission()
         self.clean_perms()
+
+    def _get_custom_roles_config(self) -> dict[str, list[tuple[str, str]]]:
+        config = conf.getjson("fab", "custom_roles", fallback={})
+        if not isinstance(config, dict):
+            raise AirflowConfigException("[fab] custom_roles must be a JSON object")
+
+        roles: dict[str, list[tuple[str, str]]] = {}
+        for name, items in config.items():
+            if not isinstance(name, str) or not name.strip() or len(name) > 64:
+                raise AirflowConfigException("[fab] custom_roles role names must contain 1 to 64 characters")
+            if not isinstance(items, list):
+                raise AirflowConfigException(f"[fab] custom_roles[{name!r}] must be a list")
+            perms: set[tuple[str, str]] = set()
+            for index, item in enumerate(items):
+                location = f"[fab] custom_roles[{name!r}][{index}]"
+                if not isinstance(item, dict) or item.keys() != {"action", "resource"}:
+                    raise AirflowConfigException(f"{location} must contain only 'action' and 'resource'")
+                for key, limit in (("action", 100), ("resource", 250)):
+                    value = item[key]
+                    if not isinstance(value, str) or not value.strip() or len(value) > limit:
+                        raise AirflowConfigException(
+                            f"{location}.{key} must be a non-empty string of at most {limit} characters"
+                        )
+                perms.add((item["action"], item["resource"]))
+            roles[name] = sorted(perms)
+        return roles
+
+    def create_roles_from_config(self) -> None:
+        """Create missing configured roles, preserving permissions on existing roles."""
+        roles = self._get_custom_roles_config()
+        for name, perms in roles.items():
+            for action_name, resource_name in perms:
+                self._get_configured_action_and_resource(name, action_name, resource_name)
+        for name, perms in roles.items():
+            if name in EXISTING_ROLES:
+                log.warning("Skipping built-in role '%s' in [fab] custom_roles", name)
+                continue
+            self._create_role_from_config(name, perms)
+
+    def _get_configured_action_and_resource(
+        self, role_name: str, action_name: str, resource_name: str
+    ) -> tuple[Action, Resource]:
+        action = self.get_action(action_name)
+        if action is None:
+            raise AirflowConfigException(
+                f"Unknown action {action_name!r} in [fab] custom_roles[{role_name!r}]"
+            )
+        resource = self.get_resource(resource_name)
+        if resource is None:
+            raise AirflowConfigException(
+                f"Unknown resource {resource_name!r} in [fab] custom_roles[{role_name!r}]"
+            )
+        return action, resource
+
+    def _create_role_from_config(self, name: str, perms: list[tuple[str, str]]) -> None:
+        # FAB's public creation helpers commit individually; a configured role must
+        # become visible only after all its declared permissions have been attached.
+        for attempt in range(3):
+            conflict: tuple[str, str] | None = None
+            try:
+                if self.find_role(name) is not None:
+                    return
+                role = self.role_model()
+                role.name = name
+                role.permissions = []
+                self.session.add(role)
+                self.session.flush()
+
+                for action_name, resource_name in perms:
+                    perm = self.get_permission(action_name, resource_name)
+                    if perm is None:
+                        action, resource = self._get_configured_action_and_resource(
+                            name, action_name, resource_name
+                        )
+                        conflict = (action_name, resource_name)
+                        perm = self.permission_model()
+                        perm.action = action
+                        perm.resource = resource
+                        self.session.add(perm)
+                        self.session.flush()
+                    conflict = None
+                    if perm not in role.permissions:
+                        role.permissions.append(perm)
+
+                self.session.commit()
+                return
+            except IntegrityError:
+                self.session.rollback()
+                if self.find_role(name) is not None:
+                    return
+                if conflict is None or attempt == 2:
+                    raise
+                if self.get_permission(*conflict) is None:
+                    raise
+            except Exception:
+                self.session.rollback()
+                raise
 
     def create_perm_vm_for_all_dag(self) -> None:
         """Create perm-vm if not exist and insert into FAB security model for all-dags."""
