@@ -24,8 +24,6 @@
 {{- $securityContext := include "airflowPodSecurityContext" (list .Values.workers.kubernetes .Values) }}
 {{- $containerSecurityContextKerberosSidecar := include "containerSecurityContext" (list .Values.workers.kubernetes.kerberosSidecar .Values) }}
 {{- $containerLifecycleHooksKerberosSidecar := or .Values.workers.kubernetes.kerberosSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
-{{- $containerSecurityContextKerberosInitContainer := include "containerSecurityContext" (list .Values.workers.kubernetes.kerberosInitContainer .Values) }}
-{{- $containerLifecycleHooksKerberosInitContainer := or .Values.workers.kubernetes.kerberosInitContainer.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerSecurityContext := include "containerSecurityContext" (list .Values.workers.kubernetes .Values) }}
 {{- $containerLifecycleHooks := or .Values.workers.kubernetes.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $safeToEvict := dict "cluster-autoscaler.kubernetes.io/safe-to-evict" (.Values.workers.kubernetes.safeToEvict | toString) }}
@@ -44,7 +42,7 @@ metadata:
     {{- end }}
   annotations:
     {{- tpl (toYaml $podAnnotations) . | nindent 4 }}
-    {{- if .Values.workers.kubernetes.kerberosInitContainer.enabled }}
+    {{- if .Values.workers.kubernetes.kerberosSidecar.enabled }}
     checksum/kerberos-keytab: {{ include (print $.Template.BasePath "/secrets/kerberos-keytab-secret.yaml") . | sha256sum }}
     {{- end }}
 spec:
@@ -54,52 +52,6 @@ spec:
     {{- end }}
     {{- if .Values.workers.kubernetes.extraInitContainers }}
       {{- tpl (toYaml .Values.workers.kubernetes.extraInitContainers) . | nindent 4 }}
-    {{- end }}
-    {{- if and .Values.workers.kubernetes.kerberosInitContainer.enabled (not (and .Values.workers.kubernetes.kerberosSidecar.enabled .Values.workers.kubernetes.kerberosSidecar.startupProbe.enabled)) }}
-    - name: kerberos-init
-      image: {{ template "airflow_image" . }}
-      imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-      securityContext: {{ $containerSecurityContextKerberosInitContainer | nindent 8 }}
-      {{- if $containerLifecycleHooksKerberosInitContainer }}
-      lifecycle: {{- tpl (toYaml $containerLifecycleHooksKerberosInitContainer) . | nindent 8 }}
-      {{- end }}
-      args: ["kerberos", "-o"]
-      resources: {{- toYaml .Values.workers.kubernetes.kerberosInitContainer.resources | nindent 8 }}
-      volumeMounts:
-        - name: logs
-          mountPath: {{ template "airflow_logs" . }}
-          {{- if .Values.logs.persistence.subPath }}
-          subPath: {{ .Values.logs.persistence.subPath }}
-          {{- end }}
-        {{- include "airflow_config_mount" . | nindent 8 }}
-        - name: config
-          mountPath: {{ .Values.kerberos.configPath | quote }}
-          subPath: krb5.conf
-          readOnly: true
-        - name: kerberos-keytab
-          subPath: "kerberos.keytab"
-          mountPath: {{ .Values.kerberos.keytabPath | quote }}
-          readOnly: true
-        - name: kerberos-ccache
-          mountPath: {{ .Values.kerberos.ccacheMountPath | quote }}
-          readOnly: false
-        {{- if .Values.volumeMounts }}
-          {{- tpl (toYaml .Values.volumeMounts) . | nindent 8 }}
-        {{- end }}
-        {{- if .Values.workers.kubernetes.extraVolumeMounts }}
-          {{- tpl (toYaml .Values.workers.kubernetes.extraVolumeMounts) . | nindent 8 }}
-        {{- end }}
-        {{- if or .Values.apiServer.apiServerConfig .Values.apiServer.apiServerConfigConfigMapName }}
-          {{- include "airflow_api_server_config_mount" . | nindent 8 }}
-        {{- end }}
-      envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 6 }}
-      env:
-        - name: KRB5_CONFIG
-          value:  {{ .Values.kerberos.configPath | quote }}
-        - name: KRB5CCNAME
-          value:  {{ include "kerberos_ccache_path" . | quote }}
-        {{- include "custom_airflow_environment" . | indent 6 }}
-        {{- include "standard_airflow_environment" . | indent 6 }}
     {{- end }}
     {{- if .Values.workers.kubernetes.kerberosSidecar.enabled }}
     - name: worker-kerberos
@@ -172,7 +124,7 @@ spec:
         # SIGKILL) are unaffected.
         - name: DUMB_INIT_SETSID
           value: "0"
-        {{- if or .Values.workers.kubernetes.kerberosSidecar.enabled .Values.workers.kubernetes.kerberosInitContainer.enabled }}
+        {{- if .Values.workers.kubernetes.kerberosSidecar.enabled }}
         - name: KRB5_CONFIG
           value:  {{ .Values.kerberos.configPath | quote }}
         - name: KRB5CCNAME
@@ -269,7 +221,7 @@ spec:
   - configMap:
       name: {{ include "airflow_config" . }}
     name: config
-  {{- if and (or .Values.apiServer.apiServerConfig .Values.apiServer.apiServerConfigConfigMapName) (or .Values.workers.kubernetes.kerberosInitContainer.enabled .Values.workers.kubernetes.kerberosSidecar.enabled) }}
+  {{- if and (or .Values.apiServer.apiServerConfig .Values.apiServer.apiServerConfigConfigMapName) .Values.workers.kubernetes.kerberosSidecar.enabled }}
   - name: api-server-config
     configMap:
       name: {{ template "airflow_api_server_config_configmap_name" . }}

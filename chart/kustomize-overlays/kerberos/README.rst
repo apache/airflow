@@ -82,8 +82,7 @@ during the local and CI smoke test.
 Wiring the keytab into the chart's sidecar
 ------------------------------------------
 
-The chart's kerberos sidecar (``workers.celery.kerberosInitContainer``,
-``workers.celery.kerberosSidecar``, ``workers.kubernetes.kerberosInitContainer``,
+The chart's kerberos sidecar (``workers.celery.kerberosSidecar`` and
 ``workers.kubernetes.kerberosSidecar``) always mounts a keytab Secret whose
 name is fixed by the chart to ``<release>-kerberos-keytab`` (rendered by the
 ``kerberos_keytab_secret`` helper from the release fullname). There is no
