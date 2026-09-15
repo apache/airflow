@@ -34,9 +34,11 @@ longer match.
 Fields that pydantic-ai regenerates on every attempt (message-level
 ``timestamp``/``run_id``/``conversation_id`` and part-level ``timestamp``)
 are excluded from the fingerprint.  Requests that cannot be serialized to
-JSON fingerprint as ``None``, which degrades that step to unverified
-positional replay (the pre-fingerprint behavior) rather than disabling
-caching.
+JSON fingerprint as ``None``: the step is neither replayed nor cached, and
+re-runs live instead of replaying without verification.  This is seldom
+confined to one step -- the usual causes (a non-JSON value in model settings,
+or in the message history) are carried into every later request, so durable
+execution stops contributing anything for the rest of the run.
 """
 
 from __future__ import annotations
@@ -63,9 +65,13 @@ _VOLATILE_MESSAGE_KEYS = ("timestamp", "run_id", "conversation_id")
 
 # Settings that control transport, not response content. Excluded from the
 # fingerprint: changing them should not invalidate a cached response, and some
-# (``timeout`` can be an ``httpx.Timeout``) are not JSON-serializable, which
-# would otherwise force the whole fingerprint to ``None`` and silently disable
-# replay verification for every step.
+# (``timeout`` can be an ``httpx.Timeout``) are not JSON-serializable.
+#
+# This frozenset is load-bearing. Model settings ride along with every request,
+# so a single non-JSON member fingerprints every model step as ``None`` -- which
+# now costs durable execution entirely for the run (nothing is cached, nothing
+# is replayed), not merely the verification of a replay. Any non-JSON setting
+# must be listed here or normalized before it reaches the fingerprint.
 _TRANSPORT_ONLY_SETTINGS = frozenset({"timeout"})
 
 
@@ -119,9 +125,10 @@ def fingerprint_model_request(
     output mode and schema, native tools, ...) so any change to what is sent
     to the model invalidates the cached response.
 
-    Returns ``None`` when the request cannot be serialized; ``None`` compares
-    equal to ``None``, so requests that cannot be fingerprinted degrade to
-    unverified positional replay rather than disabling caching.
+    Returns ``None`` when the request cannot be serialized, which prevents the
+    step from being replayed or cached. Because model settings and message
+    history are carried into every later request, a non-serializable value in
+    either usually degrades every subsequent model step of the run the same way.
     """
     try:
         dumped = ModelMessagesTypeAdapter.dump_python(messages, mode="json")
@@ -137,8 +144,9 @@ def fingerprint_model_request(
     except (TypeError, ValueError):
         # TypeError from json.dumps, ValueError covers PydanticSerializationError
         log.warning(
-            "Durable: could not fingerprint model request; cached responses for this "
-            "step replay without verification"
+            "Durable: could not fingerprint model request; this step will not be cached and will "
+            "execute live on retry. If the cause is in model settings or message history, every "
+            "later model step of this run is affected too"
         )
         return None
 
@@ -155,8 +163,8 @@ def fingerprint_tool_call(name: str, tool_args: dict[str, Any], tool_call_id: st
         return _digest({"name": name, "args": tool_args, "tool_call_id": tool_call_id})
     except (TypeError, ValueError):
         log.warning(
-            "Durable: could not fingerprint tool call; cached results for this "
-            "step replay without verification",
+            "Durable: could not fingerprint tool call; this step will not be cached and will "
+            "execute live on retry",
             tool=name,
         )
         return None
