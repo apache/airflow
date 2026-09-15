@@ -116,6 +116,22 @@ class TestLogTaskInstanceReproduction:
         assert loaded_log2.task_instance.dag_id == "dag_2"
         assert loaded_log2.task_instance.run_id == ti2.run_id
 
+    def test_log_without_map_index_joins_the_unmapped_task_instance(self, dag_maker, session):
+        with dag_maker("dag_without_map_index", session=session):
+            EmptyOperator(task_id="task_1")
+
+        ti = dag_maker.create_dagrun().get_task_instance("task_1")
+        log = Log(event="test_event", dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id)
+        session.add(log)
+        session.commit()
+
+        stmt = select(Log).where(Log.id == log.id).options(joinedload(Log.task_instance))
+        loaded_log = session.scalar(stmt)
+
+        assert loaded_log.map_index is None
+        assert loaded_log.task_instance is not None
+        assert loaded_log.task_instance.id == ti.id
+
 
 DAG_IN_TEAM = "dag_owned_by_a_team"
 
