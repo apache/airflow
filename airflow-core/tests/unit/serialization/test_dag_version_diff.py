@@ -966,6 +966,42 @@ def test_build_diff_reports_no_execution_impact_for_a_default_args_owner_edit() 
     ]
 
 
+@pytest.mark.parametrize("include_values", [False, True])
+@pytest.mark.parametrize("operation", ["added", "removed"])
+def test_build_diff_classifies_the_first_default_args_entry_per_key(operation, include_values):
+    """A Dag omits default_args entirely until it has one, so the boundary must not skip per-key."""
+    payloads = []
+    for default_args in (None, {"owner": "bob"}):
+        keywords = {} if default_args is None else {"default_args": default_args}
+        with DAG("first_entry", schedule=None, **keywords) as dag:
+            EmptyOperator(task_id="extract")
+        payloads.append(_serialize_dag(dag))
+    assert "default_args" not in payloads[0]["dag"], "a Dag without default_args omits the key"
+    base, target = payloads if operation == "added" else payloads[::-1]
+
+    result = build_serialized_dag_diff(base_data=base, target_data=target, include_values=include_values)
+
+    default_args_changes = [
+        (change["path"], change["operation"], change["category"], change["impact"])
+        for change in result["changes"]
+        if "default_args" in change["path"]
+    ]
+    assert default_args_changes == [("/dag/default_args/owner", operation, "metadata", "metadata")]
+
+
+def test_build_diff_reports_nothing_when_neither_version_sets_default_args() -> None:
+    payloads = []
+    for task_id in ("extract", "extract"):
+        with DAG("no_default_args", schedule=None) as dag:
+            EmptyOperator(task_id=task_id)
+        payloads.append(_serialize_dag(dag))
+
+    result = build_serialized_dag_diff(base_data=payloads[0], target_data=payloads[1])
+
+    assert result["mode"] == "observed_state"
+    assert result["changes"] == []
+
+
 @pytest.mark.parametrize(
     ("max_changes", "expected_counts", "truncated"),
     [(1, [1], True), (3, [1, 1, 1], True), (5, [1, 1, 4, 1], False), (500, [1, 1, 4, 1], False)],
