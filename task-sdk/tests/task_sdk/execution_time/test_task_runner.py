@@ -1229,13 +1229,13 @@ def test_retry_policy_retry_exhausted_persists_combined_reason(create_runtime_ti
             rules=[RetryRule(exception=RuntimeError, action=RetryAction.RETRY, reason="rate limit")]
         ),
     )
-    ti = create_runtime_ti(task=task, try_number=2, max_tries=2, should_retry=False)
+    ti = create_runtime_ti(task=task, try_number=3, max_tries=2, should_retry=False)
 
     state, msg, error = run(ti, ti.get_template_context(), mock.MagicMock())
 
     assert state == TaskInstanceState.FAILED
     assert isinstance(msg, TaskState)
-    assert msg.retry_reason == "rate limit; retries exhausted (2 of 2)"
+    assert msg.retry_reason == "rate limit; retries exhausted (3 of 3)"
 
 
 def test_plain_retries_exhausted_has_no_reason(create_runtime_ti, mock_supervisor_comms):
@@ -1246,7 +1246,7 @@ def test_plain_retries_exhausted_has_no_reason(create_runtime_ti, mock_superviso
             raise RuntimeError("boom")
 
     task = _AlwaysFails(task_id="plain_exhausted")
-    ti = create_runtime_ti(task=task, try_number=2, max_tries=2, should_retry=False)
+    ti = create_runtime_ti(task=task, try_number=3, max_tries=2, should_retry=False)
 
     state, msg, error = run(ti, ti.get_template_context(), mock.MagicMock())
 

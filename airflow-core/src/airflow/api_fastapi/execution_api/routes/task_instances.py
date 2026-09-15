@@ -673,8 +673,6 @@ def _create_ti_state_update_query_and_update_state(
             if isinstance(ti_patch_payload, TITerminalStatePayload) and ti_patch_payload.retry_reason:
                 failed_retry_reason: str | None = ti_patch_payload.retry_reason[:500]
                 query = query.values(retry_reason=failed_retry_reason)
-                if ti is not None:
-                    ti.retry_reason = failed_retry_reason
             if ti is not None:
                 _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
         elif isinstance(ti_patch_payload, TIRetryStatePayload):
