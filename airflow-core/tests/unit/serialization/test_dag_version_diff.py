@@ -1632,6 +1632,116 @@ def test_build_diff_ignores_task_group_id_reordering(include_values):
     assert result["changes"] == []
 
 
+@pytest.mark.parametrize(
+    ("path", "is_group_field"),
+    [
+        (("dag", "task_group", "downstream_group_ids"), True),
+        (("dag", "task_group", "children", "g1", "downstream_group_ids"), True),
+        (("dag", "task_group", "children", "g1", "children", "g2", "upstream_task_ids"), True),
+        # A group whose own id happens to be "children" is still a group.
+        (("dag", "task_group", "children", "children", "downstream_group_ids"), True),
+        # User data inside a mapped group's expansion is not a dependency list.
+        (
+            ("dag", "task_group", "children", "g1", "expand_input", "value", "__var", "downstream_task_ids"),
+            False,
+        ),
+        (
+            (
+                "dag",
+                "task_group",
+                "children",
+                "g1",
+                "expand_input",
+                "__var",
+                "children",
+                "x",
+                "upstream_task_ids",
+            ),
+            False,
+        ),
+        (("dag", "tasks", "extract", "downstream_task_ids"), False),
+        ((), False),
+    ],
+)
+def test_group_dependency_path_matches_only_a_group_field(path, is_group_field):
+    assert dag_version_diff._is_group_dependency_path(path) is is_group_field
+
+
+@pytest.mark.parametrize("include_values", [False, True])
+def test_build_diff_reports_a_mapped_group_expand_input_change(include_values):
+    """
+    A mapped group's expand_input is user data, not a dependency list.
+
+    Its order and multiplicity decide how many task instances run, so normalizing a group's
+    dependency ids must not reach an argument that happens to share one of those names.
+    """
+    payloads = []
+    for values in (["a", "b"], ["a", "b", "a"]):
+        with DAG("mapped_group", schedule=None) as dag:
+
+            @sdk_task
+            def work():
+                return 1
+
+            @task_group
+            def grp(downstream_task_ids):
+                work()
+
+            grp.expand(downstream_task_ids=values)
+        payloads.append(_serialize_dag(dag))
+    stored = [
+        payload["dag"]["task_group"]["children"]["grp"][1]["expand_input"]["value"]["__var"][
+            "downstream_task_ids"
+        ]
+        for payload in payloads
+    ]
+    assert [len(value) for value in stored] == [2, 3], "the stored expansion count changes"
+
+    result = build_serialized_dag_diff(
+        base_data=payloads[0], target_data=payloads[1], include_values=include_values
+    )
+
+    group_id = "grp" if include_values else "*"
+    assert [(change["path"], change["impact"]) for change in result["changes"]] == [
+        (f"/dag/task_group/children/{group_id}/1/expand_input", "execution")
+    ]
+
+
+@pytest.mark.parametrize("include_values", [False, True])
+@pytest.mark.parametrize(
+    ("field", "legacy"),
+    [
+        ("allowed_run_types", "omitted"),
+        ("allowed_run_types", "empty list"),
+        ("deadline", "omitted"),
+    ],
+)
+def test_build_diff_ignores_fields_a_legacy_producer_left_unset(field, legacy, include_values):
+    """
+    Neither field has a schema default, so an older producer omits what the current one nulls.
+
+    A diff spanning that upgrade would otherwise report an added execution change on every Dag.
+    """
+    with DAG("legacy_unset", schedule=None) as dag:
+        EmptyOperator(task_id="extract")
+    current = _serialize_dag(dag)
+    assert current["dag"][field] is None, "the current serializer writes an explicit null"
+    stored = copy.deepcopy(current)
+    if legacy == "omitted":
+        del stored["dag"][field]
+    else:
+        stored["dag"][field] = []
+    hydrated = [
+        getattr(DagSerialization.from_dict(copy.deepcopy(payload)), field) for payload in (stored, current)
+    ]
+    assert hydrated[0] == hydrated[1] is None
+
+    result = build_serialized_dag_diff(base_data=stored, target_data=current, include_values=include_values)
+
+    assert result["mode"] == "observed_state"
+    assert result["changes"] == []
+
+
 def test_build_diff_classifies_fail_fast_as_schedule() -> None:
     base = _build_payload(tasks=[])
     target = _build_payload(tasks=[])
