@@ -820,6 +820,28 @@ existing_list = one,two,three
         test_conf.write(StringIO(), include_sources=True, include_providers=False)
         assert "_provider_metadata_config_fallback_default_values" in test_conf.__dict__
 
+    @pytest.mark.parametrize(
+        ("section", "expected_env_var"),
+        [
+            pytest.param("providers.test", "AIRFLOW__PROVIDERS_TEST__KEY1", id="dotted_section"),
+            pytest.param("team_a=test", "AIRFLOW__TEAM_A___TEST__KEY1", id="team_scoped_section"),
+        ],
+    )
+    def test_write_shows_env_var_name_the_parser_reads(self, section, expected_env_var):
+        test_conf = AirflowConfigParser()
+        test_conf.read_string(f"[{section}]\nkey1 = value\n")
+
+        file = StringIO()
+        test_conf.write(
+            file,
+            section=section,
+            include_descriptions=False,
+            include_examples=False,
+            include_sources=False,
+        )
+
+        assert f"# Variable: {expected_env_var}\n" in file.getvalue()
+
     def test_get_resolves_provider_metadata_fallback(self):
         """conf.get returns values from provider metadata for provider-only sections."""
         provider_configs = [

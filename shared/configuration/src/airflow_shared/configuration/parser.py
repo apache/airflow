@@ -1948,7 +1948,9 @@ class AirflowConfigParser(ConfigParser):
                 file.write(f"#\n# Source: {value_with_source[1]}\n")
             needs_separation = True
         if include_env_vars:
-            file.write(f"#\n# Variable: AIRFLOW__{section_to_write.upper()}__{option.upper()}\n")
+            team_name, _, base_section = section_to_write.rpartition(TEAM_SECTION_SEPARATOR)
+            env_var = self._env_var_name(base_section, option, team_name=team_name or None)
+            file.write(f"#\n# Variable: {env_var}\n")
             if extra_spacing:
                 file.write("#\n")
             needs_separation = True
