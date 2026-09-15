@@ -880,12 +880,18 @@ class TestSerializedDagModel:
         # Hashes should be identical
         assert hash_1 == hash_2, "Hashes should be identical when dicts are sorted consistently"
 
-    def test_dynamic_dag_update_preserves_null_check(self, dag_maker, session):
-        """
-        Test that dynamic DAG update gracefully handles case where SerializedDagModel doesn't exist.
-        This preserves the null-check fix from PR #56422 and tests the direct UPDATE path.
-        """
-        with dag_maker(dag_id="test_missing_serdag", serialized=True, session=session) as dag:
+    @pytest.mark.parametrize("with_deadline", [False, True])
+    def test_dynamic_dag_update_restores_missing_serialization(self, dag_maker, session, with_deadline):
+        deadline = (
+            DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=timedelta(minutes=5),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            )
+            if with_deadline
+            else None
+        )
+        with dag_maker(dag_id="test_missing_serdag", deadline=deadline, session=session) as dag:
             EmptyOperator(task_id="task1")
 
         # Write the DAG first
@@ -911,7 +917,6 @@ class TestSerializedDagModel:
         # Verify no SerializedDagModel exists
         assert SDM.get("test_missing_serdag", session=session) is None
 
-        # Try to update - should return False gracefully (not crash)
         result = SDM.write_dag(
             dag=lazy_dag,
             bundle_name="test_bundle",
@@ -920,7 +925,15 @@ class TestSerializedDagModel:
             session=session,
         )
 
-        assert result is False  # Should return False when SerializedDagModel is missing
+        assert result is True
+        restored = SDM.get("test_missing_serdag", session=session)
+        assert restored is not None
+        assert restored.dag_version_id == dag_version.id
+        if with_deadline:
+            assert len(restored.deadline_alerts) == 1
+            DagSerialization.validate_schema(restored.data)
+        else:
+            assert restored.dag_hash == SDM.hash(lazy_dag.data)
 
     def test_dynamic_dag_update_success(self, dag_maker, session):
         """
