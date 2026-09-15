@@ -284,6 +284,59 @@ class TestOpenAIResponseOperatorTokenCeilings:
             assert isinstance(call_kwargs[key], int)
             assert not isinstance(call_kwargs[key], bool)
 
+    @pytest.mark.parametrize("param_name", ["max_output_tokens", "max_tool_calls"])
+    def test_supplied_xcom_arg_ceiling_resolving_to_none_raises(self, param_name):
+        # An XComArg bound at construction time (e.g. upstream.output) is not "unset" -- if
+        # rendering it later resolves to None (no XCom was ever pushed), that must raise instead
+        # of silently disabling the ceiling.
+        with DAG("test_dag", schedule=None) as dag:
+            upstream = BaseOperator(task_id="upstream")
+
+        operator = OpenAIResponseOperator(
+            task_id=TASK_ID,
+            conn_id=CONN_ID,
+            input_text="Write a haiku.",
+            dag=dag,
+            **{param_name: upstream.output},
+        )
+
+        mock_ti = Mock()
+        mock_ti.xcom_pull.return_value = None
+        operator.render_template_fields(Context(ti=mock_ti))
+
+        mock_hook_instance = Mock(spec=OpenAIHook)
+        operator.hook = mock_hook_instance
+
+        with pytest.raises(ValueError, match=param_name):
+            operator.execute(Context())
+
+        mock_hook_instance.create_response.assert_not_called()
+
+    @pytest.mark.parametrize("param_name", ["max_output_tokens", "max_tool_calls"])
+    def test_native_rendered_none_ceiling_raises(self, param_name):
+        # render_template_as_native_obj=True can render a Jinja template straight to a real
+        # None -- that is also "supplied but resolved to None", not "unset".
+        param_key = "tokens" if param_name == "max_output_tokens" else "calls"
+        with DAG("test_dag", schedule=None, render_template_as_native_obj=True):
+            operator = OpenAIResponseOperator(
+                task_id=TASK_ID,
+                conn_id=CONN_ID,
+                input_text="Write a haiku.",
+                **{param_name: f"{{{{ params.{param_key} }}}}"},
+            )
+
+        operator.render_template_fields(Context(params={param_key: None}))
+
+        assert getattr(operator, param_name) is None
+
+        mock_hook_instance = Mock(spec=OpenAIHook)
+        operator.hook = mock_hook_instance
+
+        with pytest.raises(ValueError, match=param_name):
+            operator.execute(Context())
+
+        mock_hook_instance.create_response.assert_not_called()
+
     @pytest.mark.parametrize(
         ("reason", "output_text", "expected_fragment"),
         [

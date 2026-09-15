@@ -118,7 +118,9 @@ class OpenAIResponseOperator(BaseOperator):
         executes, after templating has resolved it. A blank or whitespace-only rendered value (for
         example ``{{ params.tokens | default('', true) }}`` rendering to ``''``) is treated as unset,
         disabling the ceiling; the literal strings ``"None"``, ``"none"`` and ``"null"`` are **not** treated
-        as blank and still raise. Mutually
+        as blank and still raise. A value that was supplied but resolves to ``None`` (for example an
+        unresolved ``XComArg``, or a Jinja-native-rendered null) also raises -- it is not treated as
+        unset. Mutually
         exclusive with ``max_output_tokens`` in ``response_kwargs`` -- this is checked at task
         definition (Dag-parse) time, regardless of what the templated value later renders to.
     :param max_tool_calls: Optional upper bound on the number of built-in tool calls the model may
@@ -154,6 +156,9 @@ class OpenAIResponseOperator(BaseOperator):
         self.response_kwargs = response_kwargs or {}
         self.max_output_tokens = max_output_tokens
         self.max_tool_calls = max_tool_calls
+        self._supplied_ceilings: frozenset[str] = frozenset(
+            name for name in self._TOKEN_CEILING_PARAM_NAMES if getattr(self, name) is not None
+        )
         self._validate_no_response_kwargs_conflict()
         self._validate_literal_ceiling_values()
 
@@ -213,9 +218,17 @@ class OpenAIResponseOperator(BaseOperator):
         response_kwargs = dict(self.response_kwargs)
         for param_name in self._TOKEN_CEILING_PARAM_NAMES:
             value = getattr(self, param_name)
-            # Blank means unset; the response_kwargs conflict was already rejected in __init__.
-            if value is None or (isinstance(value, str) and value.strip() == ""):
+            if param_name not in self._supplied_ceilings:
                 continue
+            # Blank means unset; the response_kwargs conflict was already rejected in __init__.
+            if isinstance(value, str) and value.strip() == "":
+                continue
+            if value is None:
+                raise ValueError(
+                    f"{param_name!r} was supplied but resolved to None (e.g. an unresolved "
+                    "XComArg, or a Jinja-native-rendered null); pass a positive integer, or "
+                    "leave the argument unset entirely to disable the ceiling."
+                )
             response_kwargs[param_name] = self._coerce_token_ceiling(param_name, value)
         return response_kwargs
 
