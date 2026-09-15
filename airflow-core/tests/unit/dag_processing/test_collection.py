@@ -47,8 +47,11 @@ from airflow.models import DagModel, DagRun
 from airflow.models.asset import (
     AssetActive,
     AssetModel,
+    DagScheduleAssetAliasReference,
     DagScheduleAssetNameReference,
+    DagScheduleAssetReference,
     DagScheduleAssetUriReference,
+    TaskInletAssetReference,
 )
 from airflow.models.dag import DagTag
 from airflow.models.dagbundle import DagBundleModel
@@ -65,11 +68,12 @@ from airflow.sdk import DAG, Asset, AssetAlias, AssetAll, AssetWatcher
 from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 from airflow.serialization.definitions.assets import SerializedAsset
 from airflow.serialization.encoders import encode_trigger, ensure_serialized_asset
-from airflow.serialization.serialized_objects import LazyDeserializedDAG
+from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.timetables.simple import PartitionedAtRuntime
 from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
@@ -171,6 +175,81 @@ def test_statement_latest_runs_partitioned_sorted_by_partition_date(dag_maker, s
 
 
 @pytest.mark.db_test
+class TestDagModelOperation:
+    @pytest.fixture(autouse=True)
+    def per_test(self) -> Generator:
+        clear_db_dags()
+        clear_db_assets()
+        yield
+        clear_db_dags()
+        clear_db_assets()
+
+    @pytest.mark.parametrize("num_dags", [1, 3])
+    def test_find_orm_dags_loads_asset_references_without_row_multiplication(
+        self, dag_maker, session, num_dags
+    ):
+        asset = Asset("shared_asset")
+        task_ids = {f"task_{i}" for i in range(3)}
+        dags = {}
+        for i in range(num_dags):
+            with dag_maker(dag_id=f"asset_dag_{i}", schedule=None) as dag:
+                for task_id in sorted(task_ids):
+                    EmptyOperator(task_id=task_id, inlets=[asset], outlets=[asset])
+            dags[dag.dag_id] = LazyDeserializedDAG.from_dag(dag)
+        session.expunge_all()
+
+        with (
+            mock.patch.object(session, "scalars", autospec=True, side_effect=session.scalars) as load,
+            assert_queries_count(2),
+        ):
+            orm_dags = DagModelOperation(dags, "testing", None).find_orm_dags(session=session)
+            assert set(orm_dags) == set(dags)
+            for model in orm_dags.values():
+                assert {"task_inlet_asset_references", "task_outlet_asset_references"}.isdisjoint(
+                    sa_inspect(model).unloaded
+                )
+                assert {ref.task_id for ref in model.task_inlet_asset_references} == task_ids
+                assert {ref.task_id for ref in model.task_outlet_asset_references} == task_ids
+
+        # Count SQL rows directly because ORM deduplication hides multiplied collection joins.
+        rows = session.connection().execute(load.call_args_list[0].args[0]).all()
+        assert len(rows) == num_dags * len(task_ids)
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    @pytest.mark.parametrize("has_inlets", [False, True])
+    def test_bulk_write_prefetches_inlets_once_for_new_and_existing_dags(self, session, has_inlets):
+        inlets = [Asset("shared_inlet")] if has_inlets else []
+        dags = []
+        for i in range(3):
+            with DAG(dag_id=f"inlet_dag_{i}", schedule=None) as dag:
+                EmptyOperator(task_id="task", inlets=inlets)
+            dags.append(dag)
+
+        inlet_queries = []
+
+        def record_inlet_query(execute_state):
+            if (
+                execute_state.is_relationship_load
+                and execute_state.bind_mapper.class_ is TaskInletAssetReference
+            ):
+                inlet_queries.append(execute_state.statement)
+
+        event.listen(session, "do_orm_execute", record_inlet_query)
+        try:
+            for _ in range(2):
+                inlet_queries.clear()
+                SerializedDAG.bulk_write_to_db("testing", None, dags, session=session)
+                assert len(inlet_queries) == 1
+                session.expunge_all()
+        finally:
+            event.remove(session, "do_orm_execute", record_inlet_query)
+
+        assert session.scalar(select(func.count()).select_from(TaskInletAssetReference)) == (
+            len(dags) if has_inlets else 0
+        )
+
+
+@pytest.mark.db_test
 class TestAssetModelOperation:
     @staticmethod
     def clean_db():
@@ -183,6 +262,41 @@ class TestAssetModelOperation:
         self.clean_db()
         yield
         self.clean_db()
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    @pytest.mark.parametrize(
+        ("old_schedule", "new_schedule", "old_reference_model", "new_reference_model"),
+        [
+            pytest.param(
+                Asset("schedule_asset"),
+                AssetAlias("schedule_alias"),
+                DagScheduleAssetReference,
+                DagScheduleAssetAliasReference,
+                id="asset-to-alias",
+            ),
+            pytest.param(
+                AssetAlias("schedule_alias"),
+                Asset("schedule_asset"),
+                DagScheduleAssetAliasReference,
+                DagScheduleAssetReference,
+                id="alias-to-asset",
+            ),
+        ],
+    )
+    def test_switching_schedule_asset_type_removes_old_references(
+        self, session, old_schedule, new_schedule, old_reference_model, new_reference_model
+    ):
+        dag_id = "switching_asset_schedule"
+        for schedule in (old_schedule, new_schedule):
+            SerializedDAG.bulk_write_to_db(
+                "testing", None, [DAG(dag_id=dag_id, schedule=schedule)], session=session
+            )
+
+        assert session.scalar(select(old_reference_model).where(old_reference_model.dag_id == dag_id)) is None
+        assert (
+            session.scalar(select(new_reference_model).where(new_reference_model.dag_id == dag_id))
+            is not None
+        )
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_sync_assets_preserves_access_control_from_other_bundle(self, dag_maker, session):
@@ -534,6 +648,45 @@ class TestAssetModelOperation:
         op = AssetModelOperation.collect({dag.dag_id: LazyDeserializedDAG.from_dag(dag)})
         op.add_dag_asset_name_uri_references(session=session)
         assert session.execute(select(*columns)).all() == expected
+
+    @staticmethod
+    def _unpersisted(dag_id: str, assets: list[Asset]) -> LazyDeserializedDAG:
+        return LazyDeserializedDAG.from_dag(DAG(dag_id=dag_id, schedule=assets))
+
+    def test_new_assets_are_inserted_in_one_order_whatever_defined_them(self, session):
+        op = AssetModelOperation.collect(
+            {
+                "alpha": self._unpersisted("alpha", [Asset("m_asset"), Asset("b_asset")]),
+                "zulu": self._unpersisted("zulu", [Asset("z_asset"), Asset("a_asset")]),
+            }
+        )
+
+        with mock.patch.object(
+            airflow.dag_processing.collection.asset_manager,
+            "create_assets",
+            autospec=True,
+            return_value=[],
+        ) as create:
+            op.sync_assets(session=session)
+
+        inserted = create.call_args.args[0] if create.call_args.args else create.call_args.kwargs["assets"]
+        assert [asset.name for asset in inserted] == ["a_asset", "b_asset", "m_asset", "z_asset"]
+
+    def test_sorting_for_insertion_does_not_change_which_asset_is_activated(self, session):
+        op = AssetModelOperation.collect(
+            {
+                "zz": self._unpersisted("zz", [Asset(name="dup", uri="s3://zzz")]),
+                "aa": self._unpersisted("aa", [Asset(name="dup", uri="s3://aaa")]),
+            }
+        )
+
+        orm_assets = op.sync_assets(session=session)
+        session.flush()
+        op.activate_assets_if_possible(orm_assets.values(), session=session)
+        session.flush()
+
+        activated = [(a.name, a.uri.rstrip("/")) for a in session.scalars(select(AssetActive))]
+        assert activated == [("dup", "s3://zzz")]
 
     def test_change_asset_property_sync_group(self, dag_maker, session):
         asset = Asset("myasset", group="old_group")
