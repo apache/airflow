@@ -738,7 +738,7 @@ def test_build_diff_rejects_unsupported_client_defaults_sections(caplog):
 
 
 @pytest.mark.parametrize("max_changes", [1, 9, 10, 11])
-def test_build_diff_change_set_does_not_depend_on_include_values(max_changes):
+def test_build_diff_bound_withholds_records_not_public_paths(max_changes):
     def payload(value):
         return _build_payload(
             tasks=[
@@ -1572,6 +1572,64 @@ def test_build_diff_ignores_dependency_label_renames(include_values):
         (f"/dag/tasks/{task_id}/_task_display_name", "changed", "metadata", "metadata")
         for task_id in task_ids
     ]
+
+
+@pytest.mark.parametrize("include_values", [False, True])
+def test_build_diff_ignores_downstream_id_reordering(include_values):
+    """
+    A reordered id list is the same edges, not a change.
+
+    _deserialize_operator_field turns ``downstream_task_ids`` into a set, so the order a producer
+    happened to store carries no meaning and must not read as a dependency change.
+    """
+    payloads = [
+        _build_payload(tasks=[{"task_id": "head", "downstream_task_ids": ids}])
+        for ids in (["a", "b"], ["b", "a"])
+    ]
+
+    result = build_serialized_dag_diff(
+        base_data=payloads[0], target_data=payloads[1], include_values=include_values
+    )
+
+    assert result["mode"] == "observed_state"
+    assert result["changes"] == []
+
+
+@pytest.mark.parametrize("include_values", [False, True])
+def test_build_diff_reports_a_changed_downstream_id_set(include_values):
+    payloads = [
+        _build_payload(tasks=[{"task_id": "head", "downstream_task_ids": ids}])
+        for ids in (["a", "b"], ["b", "c"])
+    ]
+
+    result = build_serialized_dag_diff(
+        base_data=payloads[0], target_data=payloads[1], include_values=include_values
+    )
+
+    task_id = "head" if include_values else "*"
+    assert [(change["path"], change["category"], change["impact"]) for change in result["changes"]] == [
+        (f"/dag/tasks/{task_id}/downstream_task_ids", "dependency", "execution")
+    ]
+
+
+@pytest.mark.parametrize("include_values", [False, True])
+def test_build_diff_ignores_task_group_id_reordering(include_values):
+    """A task group's id lists hydrate to sets too, and declare no template fields."""
+    payloads = []
+    for order in (["g2", "g3"], ["g3", "g2"]):
+        payload = _build_payload(tasks=[])
+        payload["dag"]["task_group"] = {
+            "_group_id": None,
+            "children": {"g1": ["taskgroup", {"_group_id": "g1", "downstream_group_ids": order}]},
+        }
+        payloads.append(payload)
+
+    result = build_serialized_dag_diff(
+        base_data=payloads[0], target_data=payloads[1], include_values=include_values
+    )
+
+    assert result["mode"] == "observed_state"
+    assert result["changes"] == []
 
 
 def test_build_diff_classifies_fail_fast_as_schedule() -> None:
@@ -2905,6 +2963,37 @@ def test_build_diff_normalizes_retry_backoff(is_mapped, legacy, current):
 
     assert result["mode"] == "observed_state"
     assert result["changes"] == []
+
+
+@pytest.mark.parametrize("include_values", [False, True])
+def test_build_diff_reports_a_templated_retry_backoff_change(include_values):
+    """
+    A templated backoff must not be normalized away.
+
+    populate_operator skips deserialization for a name in ``template_fields``, so a stored ``True``
+    and a stored ``2.0`` reach the scheduler as different factors and must not compare equal here.
+    """
+
+    def payload(value):
+        return _build_payload(
+            tasks=[
+                {
+                    "task_id": "extract",
+                    "template_fields": ["retry_exponential_backoff"],
+                    "retry_exponential_backoff": value,
+                }
+            ]
+        )
+
+    result = build_serialized_dag_diff(
+        base_data=payload(True), target_data=payload(2.0), include_values=include_values
+    )
+
+    assert [(change["path"], change["category"]) for change in result["changes"]] == [
+        ("/dag/tasks/extract/retry_exponential_backoff", "task")
+        if include_values
+        else ("/dag/tasks/*/retry_exponential_backoff", "task")
+    ]
 
 
 @pytest.mark.parametrize("is_mapped", [False, True])
