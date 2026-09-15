@@ -557,7 +557,10 @@ of the following alternatives:
 * **Task Context**: Use :func:`~airflow.sdk.get_current_context` to access task instance
   information and methods like :meth:`~airflow.sdk.types.RuntimeTaskInstanceProtocol.get_dr_count`,
   :meth:`~airflow.sdk.types.RuntimeTaskInstanceProtocol.get_dagrun_state`, and
-  :meth:`~airflow.sdk.types.RuntimeTaskInstanceProtocol.get_task_states`.
+  :meth:`~airflow.sdk.types.RuntimeTaskInstanceProtocol.get_task_states`. To update the note for
+  the current Dag run at runtime, use
+  :meth:`~airflow.sdk.types.RuntimeTaskInstanceProtocol.update_dagrun_note` instead of writing
+  directly to ``DagRun.note`` in the metadata database.
 
 * **REST API**: Use the :doc:`Stable REST API <stable-rest-api-ref>` for programmatic
   access to Airflow metadata.
