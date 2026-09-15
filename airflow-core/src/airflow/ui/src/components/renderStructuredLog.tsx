@@ -16,15 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { chakra, Code, Link } from "@chakra-ui/react";
-import type { TFunction } from "i18next";
 import type { JSX, ReactNode } from "react";
 import { Fragment } from "react";
+
+import { chakra, Code, Link } from "@chakra-ui/react";
+import type { TFunction } from "i18next";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { StructuredLogMessage, TaskInstancesLogResponse } from "openapi/requests/types.gen";
+
 import AnsiRenderer from "src/components/AnsiRenderer";
 import Time from "src/components/Time";
+
 import { urlRegex } from "src/constants/urlRegex";
 import { isUserCodeFrame, LogLevel, logLevelColorMapping } from "src/utils/logs";
 

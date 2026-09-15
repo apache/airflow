@@ -124,8 +124,8 @@
     "location": "第 {{line}} 行，位於 {{name}}"
   },
   "passwordToggle": {
-    "hide": "隱藏值",
-    "show": "顯示值"
+    "hide": "隱藏",
+    "show": "顯示"
   },
   "reparseDag": "重新解析 Dag",
   "slowestTaskInstances": {

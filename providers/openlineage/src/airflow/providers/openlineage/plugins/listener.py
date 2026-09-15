@@ -181,6 +181,18 @@ class OpenLineageListener:
             if TYPE_CHECKING:
                 assert task
             start_date = task_instance.start_date
+
+            # Only sensors in reschedule mode re-run without a new try_number, so only they can
+            # repeat a START for a run id that already emitted one. Other operators can also have
+            # TaskReschedule rows (a missing-Dag startup failure writes them before any listener
+            # hook fires), and those attempts have emitted nothing yet.
+            if (
+                getattr(task, "reschedule", False)
+                and task_instance.get_template_context().get("task_reschedule_count", 0) > 0
+            ):
+                self.log.debug("Skipping this instance of rescheduled task - START event was emitted already")
+                return
+
             self._on_task_instance_running(task_instance, dag, dagrun, task, start_date)
     else:
 
@@ -234,11 +246,6 @@ class OpenLineageListener:
 
         @print_warning(self.log)
         def on_running():
-            context = task_instance.get_template_context()
-            if hasattr(context, "task_reschedule_count") and context["task_reschedule_count"] > 0:
-                self.log.debug("Skipping this instance of rescheduled task - START event was emitted already")
-                return
-
             date = dagrun.logical_date
             if AIRFLOW_V_3_0_PLUS and date is None:
                 date = dagrun.run_after

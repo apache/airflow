@@ -21,6 +21,7 @@ import { Bar } from "react-chartjs-2";
 import { describe, expect, it, vi } from "vitest";
 
 import type { GridRunsResponse } from "openapi/requests/types.gen";
+
 import { TimezoneContext } from "src/context/timezone";
 import { Wrapper } from "src/utils/Wrapper";
 

@@ -25,11 +25,13 @@ import { PiBracketsCurlyBold } from "react-icons/pi";
 import { useParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
+
+import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+
 import { useHITLReviewTabs } from "src/hooks/useHITLReviewTabs";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
 import { useDefaultTaskInstanceTab } from "src/hooks/useUserSettings";
-import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
 import { isStatePending, useAutoRefresh, useDocumentTitle } from "src/utils";
 import { getDefaultTaskInstanceTabPath } from "src/utils/links";

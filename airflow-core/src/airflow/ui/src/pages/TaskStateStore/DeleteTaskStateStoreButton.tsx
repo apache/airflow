@@ -25,8 +25,11 @@ import {
   useTaskStateStoreServiceGetTaskStateStoreKey,
   useTaskStateStoreServiceListTaskStateStoreKey,
 } from "openapi/queries";
+
+import { IconButton } from "src/system-components";
+
 import DeleteDialog from "src/components/DeleteDialog";
-import { IconButton } from "src/components/ui";
+
 import { useStoreMutation } from "src/queries/useStoreMutation";
 
 type Props = {

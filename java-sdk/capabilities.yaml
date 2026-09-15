@@ -70,8 +70,8 @@ capabilities:
     supported: true
     since: "3.3"
   variable-read-write:
-    supported: false
-    note: "getVariable only; no write over the comm socket yet"
+    supported: true
+    since: "3.3"
   self-contained-bundle:
     supported: true
     since: "3.3"
