@@ -38,6 +38,7 @@ Output:
 from __future__ import annotations
 
 import argparse
+import ast
 import concurrent.futures
 import importlib
 import inspect
@@ -45,6 +46,7 @@ import json
 import logging
 import re
 import sys
+import textwrap
 import typing
 from collections import defaultdict
 from dataclasses import dataclass
@@ -438,16 +440,37 @@ def _next_execute_via_super(origin: type, current: type) -> type | None:
     return _find_owner_of_execute(origin.__mro__, idx + 1)
 
 
+def _strip_comment_lines(source: str) -> str:
+    """Drop whole-line comments so they can't be mistaken for real delegation code.
+
+    A comment can say the opposite of what the code does (e.g. "overrides execute rather
+    than calling super().execute()"), and a raw-text search can't tell the two apart.
+    """
+    return "\n".join(line for line in source.splitlines() if not line.strip().startswith("#"))
+
+
 def _next_execute_hop(origin: type, current: type, source: str) -> type | None:
     """Find the next class in `source`'s delegation chain, via `super().execute()` or an
-    explicit `ParentClass.execute(...)` call."""
+    explicit `ParentClass.execute(...)` call.
+
+    Every explicit match is tried in order, since an unrelated earlier call (e.g.
+    `cursor.execute(...)`) can otherwise shadow the real delegation. The matched class is
+    resolved to whoever actually owns `execute` (it may only inherit one, e.g.
+    `GKEStartPodOperator.execute(self, context)`), the same way a `super()` hop is.
+    """
+    source = _strip_comment_lines(source)
     if _SUPER_EXECUTE_RE.search(source):
         return _next_execute_via_super(origin, current)
-    match = _EXPLICIT_EXECUTE_RE.search(source)
-    if match is None:
-        return None
-    name = match.group(1)
-    return next((cls for cls in origin.__mro__ if cls.__name__ == name), None)
+
+    mro_by_name = {base.__name__: base for base in origin.__mro__}
+    for match in _EXPLICIT_EXECUTE_RE.finditer(source):
+        named_cls = mro_by_name.get(match.group(1))
+        if named_cls is None:
+            continue
+        owner = _find_owner_of_execute(origin.__mro__, origin.__mro__.index(named_cls))
+        if owner is not None:
+            return owner
+    return None
 
 
 def _find_marker_declaring_class(cls: type) -> type | None:
@@ -535,6 +558,62 @@ def is_durable_capable(cls: type, resumable_mixin: type | None) -> bool:
     return _execute_chain_calls_resumable(cls, _MAX_DEFERRAL_WALK_DEPTH)
 
 
+def _is_terminal_block(body: list[ast.stmt]) -> bool:
+    """Return True if `body`'s last statement always exits the function (raise or return)."""
+    return bool(body) and isinstance(body[-1], (ast.Raise, ast.Return))
+
+
+def _strip_dead_version_guard_branches(source: str, resolve_global: typing.Callable[[str], object]) -> str:
+    """Blank out code after a terminal `if <flag>: raise ...` whose flag resolves True here.
+
+    Some operators write `if AIRFLOW_V_3_3_PLUS: raise ...` with no `else`, followed by a
+    pre-3.3 `self.defer(...)` fallback that never runs on the core being imported.
+    `resolve_global` looks up the flag by name rather than a fixed list.
+    """
+    try:
+        tree = ast.parse(textwrap.dedent(source))
+    except SyntaxError:
+        return source
+
+    if not tree.body or not isinstance(tree.body[0], (ast.FunctionDef, ast.AsyncFunctionDef)):
+        return source
+
+    dead_from: int | None = None
+    for stmt in tree.body[0].body:
+        if (
+            isinstance(stmt, ast.If)
+            and not stmt.orelse
+            and isinstance(stmt.test, ast.Name)
+            and _is_terminal_block(stmt.body)
+            and resolve_global(stmt.test.id) is True
+        ):
+            dead_from = stmt.end_lineno
+            break
+
+    if dead_from is None:
+        return source
+    return "".join(source.splitlines(keepends=True)[:dead_from])
+
+
+def _get_reachable_method_source(cls: type, name: str) -> str | None:
+    """Like `_get_method_source`, but with dead version-guard branches stripped first."""
+    method = getattr(cls, name, None)
+    if method is None:
+        return None
+    try:
+        source = inspect.getsource(method)
+    except (OSError, TypeError):
+        return None
+
+    # unwrap() undoes a functools.wraps() decorator, whose __globals__ would otherwise
+    # point at the decorator's own module instead of the method's.
+    func = inspect.unwrap(getattr(method, "__func__", method))
+    module_globals = getattr(func, "__globals__", None)
+    if module_globals is None:
+        return source
+    return _strip_dead_version_guard_branches(source, module_globals.get)
+
+
 def _references_deferral(
     origin: type, current: type, source: str, visited: set[tuple[int, str]], depth: int
 ) -> bool:
@@ -553,7 +632,7 @@ def _references_deferral(
         key = (id(next_cls), "execute")
         if key not in visited:
             visited.add(key)
-            next_source = _get_method_source(next_cls, "execute")
+            next_source = _get_reachable_method_source(next_cls, "execute")
             if next_source is not None and _references_deferral(
                 origin, next_cls, next_source, visited, depth - 1
             ):
@@ -564,7 +643,7 @@ def _references_deferral(
         if key in visited:
             continue
         visited.add(key)
-        helper_source = _get_method_source(current, name)
+        helper_source = _get_reachable_method_source(current, name)
         if helper_source is not None and _references_deferral(
             origin, current, helper_source, visited, depth - 1
         ):
@@ -582,14 +661,12 @@ def supports_deferrable(cls: type) -> bool:
     all. This walks outward from execute() into helper methods it calls via
     `self.<name>(...)`, and up the MRO through `super().execute(...)` looking for
     an actual `self.defer(...)` call, a `self.deferrable` read, or a `TaskDeferred`
-    raise, rather than only checking execute()'s own source text.
+    raise, rather than only checking execute()'s own source text. A `defer()` fallback
+    behind a version guard that's False on this core (e.g. `if AIRFLOW_V_3_3_PLUS: raise
+    ...`) is excluded, since it never actually runs here.
     """
-    execute = getattr(cls, "execute", None)
-    if execute is None:
-        return False
-    try:
-        source = inspect.getsource(execute)
-    except (OSError, TypeError):
+    source = _get_reachable_method_source(cls, "execute")
+    if source is None:
         return False
 
     return _references_deferral(cls, cls, source, {(id(cls), "execute")}, _MAX_DEFERRAL_WALK_DEPTH)
@@ -626,7 +703,7 @@ def discover_classes_from_provider(
     """Discover classes from a single provider by importing its modules at runtime.
 
     Reads the provider.yaml to find which modules/classes to inspect, imports them,
-    and returns metadata for each discovered class with all 13 Module fields.
+    and returns metadata for each discovered class with every `Module` dataclass field.
     """
     with open(provider_yaml_path) as f:
         provider_yaml = yaml.safe_load(f)

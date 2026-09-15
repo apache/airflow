@@ -22,6 +22,7 @@ import abc
 import builtins
 import json
 import types
+from dataclasses import fields
 from unittest.mock import patch
 
 import pytest
@@ -365,6 +366,43 @@ class TestIsDurableCapable:
 
         assert is_durable_capable(_UnderscoreOperator, FakeResumableJobMixin) is True
 
+    def test_comment_mentioning_delegation_is_not_mistaken_for_delegation(self):
+        """A comment can say the opposite of what the code does; a raw-text search must not
+        be fooled by it into reporting capable."""
+
+        class CommentedNonDelegatingSubclass(ManuallyDurableOperator):
+            def execute(self, context):
+                # overrides execute rather than calling super().execute(),
+                return None
+
+        assert is_durable_capable(CommentedNonDelegatingSubclass, FakeResumableJobMixin) is False
+
+    def test_decoy_execute_call_does_not_shadow_real_delegation(self):
+        """An earlier unrelated `X.execute(...)` call (e.g. a DB cursor) must not dead-end
+        the walk before it reaches the real delegation later in the body."""
+
+        class DecoyExecuteThenRealDelegation(ManuallyDurableOperator):
+            def execute(self, context):
+                cursor = object()
+                cursor.execute("select 1")
+                return ManuallyDurableOperator.execute(self, context)
+
+        assert is_durable_capable(DecoyExecuteThenRealDelegation, FakeResumableJobMixin) is True
+
+    def test_explicit_call_to_class_with_no_own_execute_resolves_to_actual_owner(self):
+        """Mirrors `GKEStartPodOperator.execute(self, context)`: the named class inherits
+        `execute` rather than defining it, so the hop must resolve up to whoever actually
+        owns it, the same as a super() hop already does."""
+
+        class NoOwnExecuteIntermediate(ManuallyDurableOperator):
+            pass
+
+        class ExplicitDelegatesToIntermediate(NoOwnExecuteIntermediate):
+            def execute(self, context):
+                return NoOwnExecuteIntermediate.execute(self, context)
+
+        assert is_durable_capable(ExplicitDelegatesToIntermediate, FakeResumableJobMixin) is True
+
 
 # ---------------------------------------------------------------------------
 # supports_deferrable
@@ -507,11 +545,39 @@ class TaskDeferred(Exception):
         self.method_name = method_name
 
 
+_FAKE_AIRFLOW_V_3_3_PLUS = True
+_FAKE_OLDER_CORE_FLAG = False
+
+
+class TaskAwaitingInput(Exception):
+    """Placeholder for the real exception the AIRFLOW_V_3_3_PLUS branch raises."""
+
+
 class DefersForApprovalOnly:
+    """Mirrors the common.ai LLM operators: self.defer( is real but dead, reachable only
+    through a helper, and only on a core older than this one."""
+
     def execute(self, context):
         return self.defer_for_approval(context)
 
     def defer_for_approval(self, context):
+        if _FAKE_AIRFLOW_V_3_3_PLUS:
+            raise TaskAwaitingInput
+        return self.defer()
+
+    def defer(self, *args, **kwargs):
+        return None
+
+
+class HITLShapedOperator:
+    """Mirrors HITLOperator: same dead self.defer(, but directly in execute() itself."""
+
+    def execute(self, context):
+        if _FAKE_AIRFLOW_V_3_3_PLUS:
+            raise TaskAwaitingInput
+        return self.defer()
+
+    def defer(self, *args, **kwargs):
         return None
 
 
@@ -559,17 +625,32 @@ class TestSupportsDeferrable:
         just a direct TaskDeferred raise."""
         assert supports_deferrable(RaisesTaskDeferredDirectly) is True
 
-    def test_defer_for_approval_does_not_false_match(self):
-        """self.defer_for_approval(...) is HITL approval, not deferral; the old
-        substring check on "self.defer" matched it by accident."""
+    def test_defer_for_approval_helper_with_dead_fallback_does_not_false_match(self):
         assert supports_deferrable(DefersForApprovalOnly) is False
+
+    def test_hitl_shaped_dead_fallback_does_not_false_match(self):
+        assert supports_deferrable(HITLShapedOperator) is False
+
+    def test_version_guard_only_excludes_branch_true_for_this_core(self):
+        """A guard evaluating False leaves the self.defer( below it genuinely reachable."""
+
+        class OlderCoreShapedOperator:
+            def execute(self, context):
+                if _FAKE_OLDER_CORE_FLAG:
+                    raise TaskAwaitingInput
+                return self.defer()
+
+            def defer(self, *args, **kwargs):
+                return None
+
+        assert supports_deferrable(OlderCoreShapedOperator) is True
 
 
 # ---------------------------------------------------------------------------
 # Module dataclass
 # ---------------------------------------------------------------------------
 class TestModuleDataclass:
-    def test_has_all_13_fields(self):
+    def test_construction_with_all_fields(self):
         m = Module(
             id="amazon-s3-S3Hook",
             name="S3Hook",
@@ -918,31 +999,17 @@ class TestDiscoverClassesFromProvider:
         operators = [r for r in result if r["type"] == "operator"]
         assert operators[0]["short_description"] == "Copy objects in S3."
 
-    def test_all_13_fields_present(self, provider_yaml_path, base_classes):
-        """Every discovered entry has all 13 Module fields."""
+    def test_all_module_fields_present(self, provider_yaml_path, base_classes):
+        """Every discovered entry has every `Module` dataclass field (derived, not hardcoded)."""
         with (
             patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
             patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
         ):
             result = discover_classes_from_provider(provider_yaml_path, base_classes)
 
-        required_fields = [
-            "id",
-            "name",
-            "type",
-            "import_path",
-            "module_path",
-            "short_description",
-            "docs_url",
-            "source_url",
-            "category",
-            "provider_id",
-            "provider_name",
-            "supports_durable_execution",
-            "supports_deferrable",
-        ]
+        required_fields = {f.name for f in fields(Module)}
         for entry in result:
-            missing = [f for f in required_fields if f not in entry]
+            missing = required_fields - entry.keys()
             assert not missing, f"Missing fields {missing} in {entry['name']}"
 
     def test_id_format(self, provider_yaml_path, base_classes):
