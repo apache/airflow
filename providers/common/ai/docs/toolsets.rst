@@ -1030,6 +1030,14 @@ Constructor parameters:
   ``modal.Sandbox.list(app_id=..., tags={"dag_id": "my_dag"})`` returns exactly
   those sandboxes. Sandboxes are also named ``airflow-sandbox-*`` whatever you
   pass, and the backend sets an ``airflow_sandbox`` tag of its own.
+
+  When you are checking whether anything is actually still running, trust
+  ``Sandbox.list``, which returns only live sandboxes, or ``poll()`` on one you
+  already hold: ``None`` means running, and ANY integer means gone,
+  including one that looks like an ordinary exit status. A terminated sandbox
+  commonly reports ``137``, which is a stopped sandbox rather than a sick one. Modal's dashboard lists stopped sandboxes alongside
+  live ones, and the ``Tasks`` count in ``modal app list`` lags behind by up to
+  about a minute, so both can show a sandbox that is already gone.
 - ``egress_enforcement``: ``"strict"`` (default) or ``"sni"``. See below.
 
 **Network policy.** ``SandboxSpec(block_network=True)``, the default, maps exactly
