@@ -444,6 +444,7 @@ function buildContext(details: StartupDetails, signal: AbortSignal): TaskContext
     runId: details.ti.run_id,
     tryNumber: details.ti.try_number,
     mapIndex: details.ti.map_index ?? -1,
+    hasMappedDependants: details.ti_context.has_mapped_dependants ?? false,
     signal,
   };
 }

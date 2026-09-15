@@ -34,6 +34,16 @@ export interface TaskContext {
   /** -1 for non-mapped tasks, 0..N-1 for mapped instances. */
   readonly mapIndex: number;
   /**
+   * Whether this task's return value feeds a downstream `.expand()`.
+   *
+   * When `true`, returning an array from this handler causes the
+   * supervisor to record `mapped_length = value.length` on the
+   * return-value XCom automatically, so the scheduler can expand the
+   * mapped dependants. When `false`, no `mapped_length` is recorded
+   * (no behaviour change from today).
+   */
+  readonly hasMappedDependants: boolean;
+  /**
    * AbortSignal that fires when Airflow terminates the task subprocess
    * with SIGTERM or SIGINT.
    *

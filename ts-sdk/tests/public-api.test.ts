@@ -204,6 +204,7 @@ describe("public API", () => {
       readonly runId: string;
       readonly tryNumber: number;
       readonly mapIndex: number;
+      readonly hasMappedDependants: boolean;
       readonly signal: AbortSignal;
     }>();
     expectTypeOf<GetXComOpts>().toEqualTypeOf<{
