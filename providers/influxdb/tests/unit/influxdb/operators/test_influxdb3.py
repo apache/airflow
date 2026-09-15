@@ -96,16 +96,23 @@ class TestInfluxDB3Operator:
 
         assert result == records
 
-    def test_execute_complete_error(self):
-        """execute_complete surfaces a failed query as a runtime error."""
+    @pytest.mark.parametrize(
+        ("event", "match"),
+        [
+            pytest.param({"status": "error", "message": "boom"}, "boom", id="error-with-message"),
+            pytest.param({"status": "error"}, "InfluxDB 3 query failed", id="error-without-message"),
+        ],
+    )
+    def test_execute_complete_error(self, event, match):
+        """execute_complete surfaces trigger-reported failures as runtime errors."""
         operator = InfluxDB3Operator(
             task_id="test_task_complete_error",
             sql='SELECT "duration" FROM "pyexample"',
             deferrable=True,
         )
 
-        with pytest.raises(RuntimeError, match="boom"):
-            operator.execute_complete(context={}, event={"status": "error", "message": "boom"})
+        with pytest.raises(RuntimeError, match=match):
+            operator.execute_complete(context={}, event=event)
 
     @pytest.mark.parametrize(
         ("event", "match"),
