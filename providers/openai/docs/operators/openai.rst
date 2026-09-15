@@ -50,9 +50,16 @@ model response with the OpenAI Responses API, OpenAI's recommended interface for
 tool use. The operator returns the response's aggregated output text. When ``do_xcom_push`` is
 enabled (the default), ``execute`` also pushes two XCom keys: ``response_id`` (the response's ID,
 usable as a downstream task's ``previous_response_id`` for chaining) and ``usage`` (the response's
-token usage, or ``None`` when the API omits it). ``usage`` reports token counts only -- OpenAI's
-response carries no cost field, so pricing a run means multiplying those counts by your own
-per-token rate. Setting ``do_xcom_push=False`` skips both pushes.
+token usage, or ``None`` when the API omits it). ``usage`` is the nested dict returned by
+``ResponseUsage.model_dump()``: top-level ``input_tokens``, ``output_tokens`` and ``total_tokens``
+counts, plus the nested ``input_tokens_details`` and ``output_tokens_details`` dicts.
+``input_tokens_details.cached_tokens`` is part of the ``input_tokens`` total, not
+additional to it, so pricing a run correctly means reading the breakdown rather than
+treating ``input_tokens`` as a single uniformly priced count -- see OpenAI's `prompt
+caching guide <https://platform.openai.com/docs/guides/prompt-caching>`_ for how
+cached tokens are priced. Beyond that, ``usage`` reports token counts only -- OpenAI's
+response carries no cost field, so turning any of these counts into a price means
+multiplying by your own per-token rate. Setting ``do_xcom_push=False`` skips both pushes.
 
 Using the Operator
 ^^^^^^^^^^^^^^^^^^^
@@ -60,7 +67,10 @@ Using the Operator
 The OpenAIResponseOperator requires the ``input_text`` prompt. Use the ``conn_id`` parameter to
 specify the OpenAI connection to use, and ``response_kwargs`` to pass through options such as
 ``tools``, ``conversation`` or ``previous_response_id``. ``response_kwargs`` is templated, so
-``previous_response_id`` can reference a Dag's upstream ``response_id`` XCom directly.
+``previous_response_id`` can reference a Dag's upstream ``response_id`` XCom directly. Since
+``response_kwargs`` is templated, a literal ``{{ ... }}`` value you want sent to the API as-is
+(for example inside a prompt's ``instructions``) must be wrapped in a ``{% raw %}`` block, for
+example ``{% raw %}{{ not_a_variable }}{% endraw %}``.
 
 Use ``max_output_tokens`` and ``max_tool_calls`` to cap generation per run -- both are templated,
 so a ceiling can vary by environment or Dag run without hardcoding it. ``max_output_tokens`` caps
