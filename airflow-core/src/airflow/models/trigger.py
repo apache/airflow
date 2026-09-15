@@ -38,8 +38,8 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.serialization.enums import stringify_encoding_keys
 from airflow.triggers.base import BaseTaskEndEvent
 from airflow.utils.retries import run_with_db_retries
-from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name, with_row_locks
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
+from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
@@ -231,42 +231,58 @@ class Trigger(Base):
         return set(session.scalars(query))
 
     @classmethod
-    @provide_session
-    def clean_unused(cls, *, session: Session = NEW_SESSION) -> None:
+    def clean_unused(cls) -> None:
         """
-        Delete all triggers that have no tasks dependent on them and are not associated to an asset.
+        Delete triggers that have no dependent tasks, assets, or callbacks in bounded transactions.
 
         Triggers have a one-to-many relationship to task instances, so we need to clean those up first.
         Afterward we can drop the triggers not referenced by anyone.
         """
-        # Update all task instances with trigger IDs that are not DEFERRED to remove them
-        for attempt in run_with_db_retries():
-            with attempt:
-                session.execute(
-                    update(TaskInstance)
-                    .where(
-                        TaskInstance.state != TaskInstanceState.DEFERRED, TaskInstance.trigger_id.is_not(None)
-                    )
-                    .values(trigger_id=None)
-                )
+        batch_size = conf.getint("triggerer", "unreferenced_triggers_cleanup_batch_size", fallback=500)
+        if batch_size <= 0:
+            raise ValueError("[triggerer] unreferenced_triggers_cleanup_batch_size must be at least 1")
 
-        # Get all triggers that have no task instances, assets, or callbacks depending on them and delete them
-        ids = select(cls.id).where(
-            ~cls.assets.any(),
-            ~cls.callback.has(),
-            ~cls.task_instance.has(),
+        clear_task_instance_references = True
+        while True:
+            deleted_count = 0
+            for attempt in run_with_db_retries():
+                with attempt:
+                    with create_session(scoped=False) as session:
+                        if clear_task_instance_references:
+                            # Update all task instances with trigger IDs that are not DEFERRED to remove them
+                            session.execute(
+                                update(TaskInstance)
+                                .where(
+                                    TaskInstance.state != TaskInstanceState.DEFERRED,
+                                    TaskInstance.trigger_id.is_not(None),
+                                )
+                                .values(trigger_id=None)
+                            )
+                        deleted_count = cls._delete_unused_batch(batch_size, session=session)
+
+            clear_task_instance_references = False
+            if deleted_count < batch_size:
+                return
+
+    @classmethod
+    def _delete_unused_batch(cls, batch_size: int, *, session: Session) -> int:
+        ids = (
+            select(cls.id)
+            .where(
+                ~cls.assets.any(),
+                ~cls.callback.has(),
+                ~cls.task_instance.has(),
+            )
+            .order_by(cls.id)
+            .limit(batch_size)
         )
         ids = with_row_locks(ids, session, of=cls, skip_locked=True, key_share=False)
-        if get_dialect_name(session) == "mysql":
-            # MySQL doesn't support DELETE with JOIN, so we need to do it in two steps
-            ids_list = list(session.scalars(ids).all())
-            session.execute(
-                delete(Trigger).where(Trigger.id.in_(ids_list)).execution_options(synchronize_session=False)
-            )
-        else:
-            session.execute(
-                delete(Trigger).where(Trigger.id.in_(ids)).execution_options(synchronize_session=False)
-            )
+        ids_list = list(session.scalars(ids))
+        if not ids_list:
+            return 0
+
+        session.execute(delete(cls).where(cls.id.in_(ids_list)).execution_options(synchronize_session=False))
+        return len(ids_list)
 
     @classmethod
     @provide_session
