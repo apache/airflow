@@ -942,7 +942,7 @@ class TestCliDags:
         )
 
     @mock.patch("airflow.cli.commands.dag_command.render_dag", return_value=MagicMock(source="SOURCE"))
-    @mock.patch("airflow.cli.commands.dag_command.get_bagged_dag")
+    @mock.patch("airflow.cli.commands.dag_command.get_bagged_dag", autospec=True)
     def test_dag_test_show_dag(self, mock_get_dag, mock_render_dag, stdout_capture):
         mock_get_dag.return_value.test.return_value.run_id = "__test_dag_test_show_dag_fake_dag_run_run_id__"
         mock_get_dag.return_value.dag_id = "example_bash_operator"
