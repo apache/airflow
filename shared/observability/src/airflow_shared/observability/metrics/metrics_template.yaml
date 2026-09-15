@@ -415,6 +415,16 @@ metrics:
     legacy_name: "-"
     name_variables: ["tool", "platform", "role", "position"]
 
+  - name: "managed_agent.invoked"
+    description: "Number of managed agent invocations attempted through a
+    ``BaseManagedAgentToolset`` tool call, emitted once per attempt whether it
+    succeeds or fails, and whether the toolset stands alone or is a member of a
+    ``FailoverManagedAgentToolset`` group. Metric with tool and platform tagging.
+    Denominator for managed_agent.failover when read per tool."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: ["tool", "platform"]
+
   # ==========
   # Gauges
   # ==========

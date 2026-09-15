@@ -51,6 +51,28 @@ _PROMPT_SCHEMA: dict[str, Any] = {
 }
 
 
+def _safe_agent_ref(toolset: BaseManagedAgentToolset) -> dict[str, str]:
+    """
+    Resolve ``agent_ref`` without letting a broken identity block the call.
+
+    ``agent_ref`` exists to label a call for logs and metrics; any failure
+    inside it -- a connection lookup failing, or a bug in the subclass's own
+    resolution logic -- must never block the invocation it only describes.
+    A failover group's own ``agent_ref`` resolves every member, so one
+    unreachable standby would otherwise fail the whole tool call -- including
+    a healthy primary -- before the primary is ever tried.
+    """
+    try:
+        return toolset.agent_ref
+    except Exception:
+        log.warning(
+            "agent_ref could not be resolved for %s; continuing without it",
+            type(toolset).__name__,
+            exc_info=True,
+        )
+        return {}
+
+
 class BaseManagedAgentToolset(AbstractToolset[Any]):
     """
     Base class exposing a vendor-managed agent as a single pydantic-ai tool.
@@ -80,7 +102,8 @@ class BaseManagedAgentToolset(AbstractToolset[Any]):
     :param timeout: Seconds to wait for a single invocation. ``None`` defers to
         the platform default, which subclasses supply -- a number chosen here
         would silently disagree with the vendor operator's documented timeout
-        for the same service.
+        for the same service. See the ``timeout`` property for how a subclass
+        reads this back.
     :param max_retries: How many times the calling model may rephrase after the
         remote agent raises ``ModelRetry``. ``0`` turns the first ``ModelRetry``
         into a hard error, which disables that recovery path entirely.
@@ -131,6 +154,24 @@ class BaseManagedAgentToolset(AbstractToolset[Any]):
         identity behind a task appears in that task's log even though the Dag
         only names a connection.
         """
+
+    @property
+    def timeout(self) -> float | None:
+        """
+        Seconds to wait for a single invocation, or ``None`` for the platform default.
+
+        Read-only mirror of the ``timeout`` constructor argument. The base class
+        never enforces it -- honoring it, typically by passing it to the vendor
+        SDK's own timeout parameter in :meth:`invoke_sync`/:meth:`invoke`, is the
+        implementation's job, the same as ``agent_ref``. Exposed here so an
+        implementation does not have to reach into another package's private
+        ``_timeout`` attribute to read it back.
+
+        ``FailoverManagedAgentToolset`` inherits this property rather than
+        overriding it, which is a trap, not a feature -- see the failover
+        section of the toolsets guide for what that means for a group.
+        """
+        return self._timeout
 
     async def invoke(self, prompt: str) -> Any:
         """
@@ -232,8 +273,16 @@ class BaseManagedAgentToolset(AbstractToolset[Any]):
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> Any:
-        ref = self.agent_ref
+        ref = _safe_agent_ref(self)
         log.info("Consulting managed agent %s on %s", ref.get("name"), ref.get("platform"))
+        # Emitted before invoke() runs, not after -- an attempt, not an answer,
+        # so a total outage still moves this counter and it stays the right
+        # per-tool denominator for managed_agent.failover even when nothing
+        # succeeds at all.
+        Stats.incr(
+            "managed_agent.invoked",
+            tags={"tool": self._tool_name, "platform": ref.get("platform", "unknown")},
+        )
         result = await self.invoke(tool_args["prompt"])
         return serialize_for_llm(result)
 
@@ -275,6 +324,8 @@ class FailoverManagedAgentToolset(BaseManagedAgentToolset):
         common base), so the safe default is broad. It can be narrowed when the
         members' exception types are known. ``ModelRetry`` is always re-raised
         and never triggers failover, whatever this is set to.
+    :param timeout: Rejected if not ``None``; see the failover section of the
+        toolsets guide for why. Set it on each member instead.
     """
 
     def __init__(
@@ -282,8 +333,15 @@ class FailoverManagedAgentToolset(BaseManagedAgentToolset):
         *,
         members: Sequence[BaseManagedAgentToolset],
         failover_on: tuple[type[BaseException], ...] = (Exception,),
+        timeout: float | None = None,
         **kwargs,
     ) -> None:
+        if timeout is not None:
+            raise ValueError(
+                f"FailoverManagedAgentToolset does not enforce timeout; got {timeout}. "
+                "Set timeout on each member instead; see the failover section of the "
+                "toolsets guide for why."
+            )
         super().__init__(**kwargs)
         if len(members) < 2:
             raise ValueError(
@@ -303,13 +361,13 @@ class FailoverManagedAgentToolset(BaseManagedAgentToolset):
     def agent_ref(self) -> dict[str, str]:
         return {
             "platform": "failover",
-            "name": " -> ".join(m.agent_ref.get("name", "?") for m in self._members),
+            "name": " -> ".join(_safe_agent_ref(m).get("name", "?") for m in self._members),
         }
 
     async def invoke(self, prompt: str) -> Any:
         last = len(self._members) - 1
         for position, member in enumerate(self._members):
-            ref = member.agent_ref
+            ref = _safe_agent_ref(member)
             try:
                 result = await member.invoke(prompt)
             except ModelRetry:
@@ -320,7 +378,7 @@ class FailoverManagedAgentToolset(BaseManagedAgentToolset):
             except self._failover_on:
                 if position == last:
                     raise
-                standby = self._members[position + 1].agent_ref
+                standby = _safe_agent_ref(self._members[position + 1])
                 log.warning(
                     "Managed agent %s on %s failed; failing over to %s",
                     ref.get("name"),
