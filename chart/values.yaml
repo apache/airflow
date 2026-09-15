@@ -2259,6 +2259,8 @@ dagProcessor:
   # when it wants to scale a node down.
   safeToEvict: true
 
+  hostAliases: []
+
   # Launch additional containers into dag processor (templated).
   extraContainers: []
 
@@ -2343,6 +2345,8 @@ dagProcessor:
 
     securityContexts:
       container: {}
+
+    containerLifecycleHooks: {}
 
     env: []
 
