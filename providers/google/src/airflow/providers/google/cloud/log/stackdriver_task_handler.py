@@ -274,10 +274,12 @@ class StackdriverRemoteLogIO(LoggingMixin):
             log_filters.append(f"resource.labels.{escape_label_key(key)}={escape_label_value(value)}")
 
         ti_id_val = ti_labels.get(LABEL_TASK_INSTANCE_ID)
+        try_number_val = ti_labels.get(LABEL_TRY_NUMBER)
+
         legacy_filters = [
             f"labels.{escape_label_key(k)}={escape_label_value(v)}"
             for k, v in ti_labels.items()
-            if k != LABEL_TASK_INSTANCE_ID
+            if k not in (LABEL_TASK_INSTANCE_ID, LABEL_TRY_NUMBER)
         ]
 
         if ti_id_val:
@@ -288,8 +290,18 @@ class StackdriverRemoteLogIO(LoggingMixin):
                 log_filters.append(f"({ti_id_filter} OR ({' AND '.join(legacy_filters)}))")
             else:
                 log_filters.append(ti_id_filter)
+            if try_number_val:
+                log_filters.append(
+                    f"labels.{escape_label_key(LABEL_TRY_NUMBER)}={escape_label_value(try_number_val)}"
+                )
         else:
-            log_filters.extend(legacy_filters)
+            log_filters.extend(
+                [
+                    f"labels.{escape_label_key(k)}={escape_label_value(v)}"
+                    for k, v in ti_labels.items()
+                    if k != LABEL_TASK_INSTANCE_ID
+                ]
+            )
 
         return "\n".join(log_filters)
 

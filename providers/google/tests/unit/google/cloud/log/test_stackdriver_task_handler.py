@@ -359,8 +359,9 @@ class TestStackdriverRemoteLogIO:
 
         assert 'resource.type="global"' in log_filter
         assert 'logName="projects/project_id/logs/airflow"' in log_filter
-        expected_or = '(labels.task_instance_id="test_ti_id" OR (labels.task_id="test_task" AND labels.dag_id="test_dag" AND labels.try_number="1"))'
+        expected_or = '(labels.task_instance_id="test_ti_id" OR (labels.task_id="test_task" AND labels.dag_id="test_dag"))'
         assert expected_or in log_filter
+        assert 'labels.try_number="1"' in log_filter
 
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id")
     def test_prepare_log_filter_legacy(self, mock_get_creds_and_project_id):
@@ -696,8 +697,8 @@ class TestStackdriverLoggingHandlerTask:
                 f'(labels.task_instance_id="{str(self.ti.id)}" OR ('
                 'labels.task_id="task_for_testing_stackdriver_task_handler" AND '
                 'labels.dag_id="dag_for_testing_stackdriver_file_task_handler" AND '
-                'labels.try_number="3" AND '
-                f'labels.{date_label}="2016-01-01T00:00:00+00:00"))'
+                f'labels.{date_label}="2016-01-01T00:00:00+00:00"))\n'
+                'labels.try_number="3"'
             )
         else:
             filter_str = (
@@ -739,8 +740,8 @@ class TestStackdriverLoggingHandlerTask:
                 f'(labels.task_instance_id="{str(self.ti.id)}" OR ('
                 'labels.task_id="task_for_testing_stackdriver_task_handler" AND '
                 'labels.dag_id="dag_for_testing_stackdriver_file_task_handler" AND '
-                'labels.try_number="3" AND '
-                f'labels.{date_label}="2016-01-01T00:00:00+00:00"))'
+                f'labels.{date_label}="2016-01-01T00:00:00+00:00"))\n'
+                'labels.try_number="3"'
             )
         else:
             filter_str = (
@@ -894,8 +895,8 @@ class TestStackdriverLoggingHandlerTask:
                 'logName="projects/project_id/logs/airflow"',
                 f'(labels.task_instance_id="{str(self.ti.id)}" OR (labels.task_id="{self.ti.task_id}" AND '
                 f'labels.dag_id="{self.DAG_ID}" AND '
-                f'labels.try_number="{self.ti.try_number}" AND '
                 f'labels.{date_label}="{self.ti.logical_date.isoformat() if AIRFLOW_V_3_0_PLUS else self.ti.execution_date.isoformat()}"))',
+                f'labels.try_number="{self.ti.try_number}"',
             ]
         else:
             expected_filter = [
