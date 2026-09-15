@@ -34,6 +34,7 @@
     :maxdepth: 1
     :caption: Guides
 
+    Bundles <bundles/index>
     Connection types <connections/index>
     Email backend <email-backend>
     Message queues <message-queues/index>
