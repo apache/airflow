@@ -609,6 +609,10 @@ class DagBundlesManager(LoggingMixin):
         """
         return name in cls().get_all_bundle_names()
 
+    @property
+    def provides_complete_configuration(self) -> bool:
+        return self._bundle_provider.provides_complete_configuration
+
     def get_all_dag_bundles(self) -> Iterable[BaseDagBundle]:
         """
         Get all DAG bundles.
