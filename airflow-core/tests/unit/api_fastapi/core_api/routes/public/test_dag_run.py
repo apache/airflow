@@ -1964,7 +1964,7 @@ class TestGetDagRunAssetTriggerEvents:
         session.commit()
         assert event.timestamp
 
-        with assert_queries_count(4):
+        with assert_queries_count(7):
             response = test_client.get(
                 "/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents",
             )
@@ -2046,7 +2046,7 @@ class TestGetDagRunAssetTriggerEvents:
         session.commit()
 
         # Constant regardless of the number of consumed events (parametrized 1 vs 5).
-        with assert_queries_count(4):
+        with assert_queries_count(7):
             response = test_client.get("/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents")
 
         assert response.status_code == 200
@@ -2059,6 +2059,90 @@ class TestGetDagRunAssetTriggerEvents:
         newest_event_id = max(event.id for event in events)
         assert triggering_by_event[newest_event_id] is True
         assert all(value is False for eid, value in triggering_by_event.items() if eid != newest_event_id)
+
+    def _create_consuming_run_with_events(self, dag_maker, session):
+        """
+        Create a run consuming three events: one per source Dag, one with no source Dag.
+
+        Returns the asset ids keyed by index and the event ids keyed by scenario.
+        """
+        asset_ids = {}
+        for index in (1, 2):
+            asset = AssetModel(name=f"ds{index}", uri=f"file:///da{index}", group="asset")
+            session.add(asset)
+            session.flush()
+            asset_ids[index] = asset.id
+        events = {
+            "dag_a": AssetEvent(asset_id=asset_ids[1], source_dag_id="source_dag_a", timestamp=START_DATE1),
+            "dag_b": AssetEvent(asset_id=asset_ids[2], source_dag_id="source_dag_b", timestamp=START_DATE1),
+            "dagless": AssetEvent(asset_id=asset_ids[1], timestamp=START_DATE1),
+        }
+        session.add_all(events.values())
+        session.flush()
+        with dag_maker(
+            dag_id="TEST_DAG_ID", start_date=START_DATE1, schedule=timedelta(days=1), session=session
+        ):
+            pass
+        dag_run = dag_maker.create_dagrun(run_id="TEST_DAG_RUN_ID", run_type=DagRunType.ASSET_TRIGGERED)
+        dag_run.consumed_asset_events.extend(events.values())
+        session.commit()
+        return asset_ids, {key: event.id for key, event in events.items()}
+
+    @pytest.mark.parametrize(
+        ("readable_dags", "expected_events"),
+        [
+            pytest.param(["source_dag_a"], ["dag_a", "dagless"], id="one-readable-source-dag-plus-dagless"),
+            pytest.param(
+                ["source_dag_a", "source_dag_b"],
+                ["dag_a", "dag_b", "dagless"],
+                id="both-source-dags-readable",
+            ),
+            pytest.param([], ["dagless"], id="no-readable-source-dags-still-sees-dagless"),
+        ],
+    )
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids",
+        autospec=True,
+    )
+    def test_returns_only_events_from_source_dags_the_caller_may_read(
+        self, mock_get_authorized_dag_ids, test_client, dag_maker, session, readable_dags, expected_events
+    ):
+        """Reading the consuming run must not expose events produced by Dags the caller cannot read."""
+        mock_get_authorized_dag_ids.return_value = set(readable_dags)
+        _, event_ids = self._create_consuming_run_with_events(dag_maker, session)
+        expected_ids = [event_ids[key] for key in expected_events]
+
+        response = test_client.get("/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert [event["id"] for event in body["asset_events"]] == expected_ids
+        # The count must be scoped too, so the existence of hidden events does not leak.
+        assert body["total_entries"] == len(expected_ids)
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids",
+        autospec=True,
+    )
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets",
+        autospec=True,
+    )
+    def test_returns_only_events_of_assets_the_caller_may_read(
+        self, mock_get_authorized_assets, mock_get_authorized_dag_ids, test_client, dag_maker, session
+    ):
+        """An event of an asset the caller cannot read is hidden even when its source Dag is readable."""
+        asset_ids, event_ids = self._create_consuming_run_with_events(dag_maker, session)
+        mock_get_authorized_dag_ids.return_value = {"source_dag_a", "source_dag_b"}
+        mock_get_authorized_assets.return_value = {asset_ids[2]}
+
+        response = test_client.get("/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert [event["id"] for event in body["asset_events"]] == [event_ids["dag_b"]]
+        assert {event["uri"] for event in body["asset_events"]} == {"file:///da2"}
+        assert body["total_entries"] == 1
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(
