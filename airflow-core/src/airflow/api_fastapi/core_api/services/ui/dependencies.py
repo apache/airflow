@@ -39,7 +39,8 @@ def _asset_node_id_and_label(asset: dict) -> tuple[str, str]:
     asset_type = asset["type"]
 
     if asset_type == "asset":
-        return f"asset:{asset['id']}", asset["name"]
+        # A leaf the Dag processor has not enriched yet has no id; hide_unreadable_assets drops it.
+        return f"asset:{asset.get('id')}", asset["name"]
     if asset_type in ("asset-alias", "asset-name-ref"):
         return f"{asset_type}:{asset['name']}", asset["name"]
     if asset_type == "asset-uri-ref":
@@ -189,7 +190,41 @@ def extract_single_connected_component(
     return {"nodes": nodes, "edges": edges}
 
 
-def get_scheduling_dependencies(readable_dag_ids: set[str] | None, session: Session) -> dict[str, list[dict]]:
+def _is_readable_asset_node(node_id: str, readable_asset_ids: set[int]) -> bool:
+    suffix = node_id.removeprefix("asset:")
+    return suffix.isdigit() and int(suffix) in readable_asset_ids
+
+
+def hide_unreadable_assets(
+    graph: dict[str, list[dict]], readable_asset_ids: set[int]
+) -> dict[str, list[dict]]:
+    """
+    Drop asset nodes the caller may not read, and every edge touching them, from a graph.
+
+    Alias and ref nodes carry no asset id to authorize on, so they are left in place. An asset node
+    without a numeric id, from an asset_expression the Dag processor has not re-enriched yet, cannot
+    be authorized and is hidden as well.
+    """
+    hidden = {
+        node["id"]
+        for node in graph["nodes"]
+        if node["type"] == "asset" and not _is_readable_asset_node(node["id"], readable_asset_ids)
+    }
+    if not hidden:
+        return graph
+    return {
+        "nodes": [node for node in graph["nodes"] if node["id"] not in hidden],
+        "edges": [
+            edge
+            for edge in graph["edges"]
+            if edge["source_id"] not in hidden and edge["target_id"] not in hidden
+        ],
+    }
+
+
+def get_scheduling_dependencies(
+    session: Session, *, readable_dag_ids: set[str] | None, readable_asset_ids: set[int]
+) -> dict[str, list[dict]]:
     """Get scheduling dependencies between Dags."""
     from airflow.models.serialized_dag import SerializedDagModel
 
@@ -307,10 +342,13 @@ def get_scheduling_dependencies(readable_dag_ids: set[str] | None, session: Sess
                 if team_name:
                     node["team"] = team_name
 
-    return {
-        "nodes": list(nodes_dict.values()),
-        "edges": [{"source_id": source, "target_id": target} for source, target in sorted(edge_tuples)],
-    }
+    return hide_unreadable_assets(
+        {
+            "nodes": list(nodes_dict.values()),
+            "edges": [{"source_id": source, "target_id": target} for source, target in sorted(edge_tuples)],
+        },
+        readable_asset_ids,
+    )
 
 
 def _entry_task_id_from_serialized_data(data: dict | None) -> str | None:
@@ -391,7 +429,11 @@ def _get_dag_entry_points(dag_ids: set[str], session: Session) -> dict[str, tupl
 
 
 def get_data_dependencies(
-    asset_id: int, session: Session, readable_dag_ids: set[str] | None = None
+    asset_id: int,
+    session: Session,
+    *,
+    readable_dag_ids: set[str] | None = None,
+    readable_asset_ids: set[int],
 ) -> dict[str, list[dict]]:
     """Get full task dependencies for an asset."""
     from sqlalchemy import select, tuple_, union_all
@@ -411,6 +453,10 @@ def get_data_dependencies(
     # reachable through other readable dags) even though the user has no legitimate
     # lineage connection to it. A readable_dag_ids value of None means no filter is
     # applied (the user has unrestricted dag read access).
+    # Same empty result as an unrelated asset, so an unreadable asset id is not distinguishable
+    # from a nonexistent one.
+    if asset_id not in readable_asset_ids:
+        return {"nodes": [], "edges": []}
     if readable_dag_ids is not None:
         connected_dag_ids_query = union_all(
             select(TaskOutletAssetReference.dag_id).where(TaskOutletAssetReference.asset_id == asset_id),
@@ -440,6 +486,7 @@ def get_data_dependencies(
     while frontier:
         round_asset_ids = frontier - processed_assets
         processed_assets |= round_asset_ids
+        round_asset_ids &= readable_asset_ids
         if not round_asset_ids:
             break
 
@@ -657,7 +704,10 @@ def get_data_dependencies(
             if team_name:
                 node["team"] = team_name
 
-    return {
-        "nodes": list(nodes_dict.values()),
-        "edges": [{"source_id": source, "target_id": target} for source, target in edge_set],
-    }
+    return hide_unreadable_assets(
+        {
+            "nodes": list(nodes_dict.values()),
+            "edges": [{"source_id": source, "target_id": target} for source, target in edge_set],
+        },
+        readable_asset_ids,
+    )
