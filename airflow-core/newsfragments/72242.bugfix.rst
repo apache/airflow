@@ -1,0 +1,1 @@
+Mapped tasks that pass ``dag.param(...)`` through ``.partial()`` no longer write a new Dag version on every parse because the serialized form no longer includes a memory address.
