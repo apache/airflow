@@ -21,6 +21,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import and_, select
+from sqlalchemy.orm import joinedload, selectinload
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.parameters import (
@@ -55,7 +56,13 @@ def _get_asset_events_through_sql_clauses(
     filters: list[BaseParam] | None = None,
 ) -> AssetEventsResponse:
     order_by_clause = AssetEvent.timestamp.asc() if ascending else AssetEvent.timestamp.desc()
-    asset_events_query = select(AssetEvent).join(join_clause).where(where_clause).order_by(order_by_clause)
+    asset_events_query = (
+        select(AssetEvent)
+        .join(join_clause)
+        .where(where_clause)
+        .order_by(order_by_clause)
+        .options(joinedload(AssetEvent.asset), selectinload(AssetEvent.created_dagruns))
+    )
     for filter_ in filters or []:
         asset_events_query = filter_.to_orm(asset_events_query)
     if limit:

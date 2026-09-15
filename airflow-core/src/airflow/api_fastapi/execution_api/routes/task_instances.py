@@ -36,7 +36,7 @@ from pydantic import JsonValue, ValidationError
 from sqlalchemy import and_, func, or_, tuple_, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import DataError, NoResultFound, SQLAlchemyError
-from sqlalchemy.orm import contains_eager, joinedload
+from sqlalchemy.orm import contains_eager, joinedload, selectinload
 from sqlalchemy.sql import select
 from structlog.contextvars import bind_contextvars
 
@@ -83,7 +83,7 @@ from airflow.api_fastapi.execution_api.services.task_instances import (
 )
 from airflow.configuration import conf
 from airflow.exceptions import InvalidPartitionKeyError, TaskNotFound
-from airflow.models.asset import AssetActive
+from airflow.models.asset import AssetActive, AssetEvent
 from airflow.models.base import ID_LEN
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun as DR
@@ -264,7 +264,12 @@ def ti_run(
             session.scalars(
                 select(DR)
                 .filter_by(dag_id=ti.dag_id, run_id=ti.run_id)
-                .options(joinedload(DR.consumed_asset_events), *eager_load_teams(DR.dag_model))
+                .options(
+                    joinedload(DR.consumed_asset_events).options(
+                        joinedload(AssetEvent.asset), selectinload(AssetEvent.source_aliases)
+                    ),
+                    *eager_load_teams(DR.dag_model),
+                )
             )
             .unique()
             .one_or_none()
