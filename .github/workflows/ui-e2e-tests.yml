@@ -129,20 +129,38 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
           node-version: 24
+          cache: 'pnpm'
+          cache-dependency-path: |
+            airflow-core/src/airflow/ui/pnpm-lock.yaml
+            airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/pnpm-lock.yaml
+      - name: "Install UI dependencies"
+        working-directory: airflow-core/src/airflow/ui
+        run: pnpm install --frozen-lockfile
       - name: "Compile UI assets (for image build fallback)"
         if: github.event_name == 'workflow_dispatch'
         run: |
           cd airflow-core/src/airflow/ui
-          pnpm install --frozen-lockfile
           pnpm build
           cd ../api_fastapi/auth/managers/simple/ui
           pnpm install --frozen-lockfile
           pnpm build
-      - name: "Install Playwright browsers and dependencies"
+      # Install only the tested engine. A separate browser archive duplicates network transfers;
+      # Playwright still needs to install the runner's OS dependencies on every job.
+      - name: "Install selected Playwright browser and dependencies"
+        working-directory: airflow-core/src/airflow/ui
         run: |
-          cd airflow-core/src/airflow/ui
-          pnpm install --frozen-lockfile
-          pnpm exec playwright install --with-deps
+          case "${BROWSER}" in
+            all)
+              pnpm exec playwright install --with-deps
+              ;;
+            chromium|firefox|webkit)
+              pnpm exec playwright install --with-deps "${BROWSER}"
+              ;;
+            *)
+              echo "Unsupported browser: ${BROWSER}. Expected chromium, firefox, webkit, or all." >&2
+              exit 1
+              ;;
+          esac
       - name: "Test UI e2e tests"
         run: breeze testing ui-e2e-tests --browser "$BROWSER"
         env:
