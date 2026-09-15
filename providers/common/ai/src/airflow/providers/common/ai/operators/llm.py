@@ -29,7 +29,8 @@ from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin
 from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
-from airflow.providers.common.compat.sdk import BaseOperator
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, BaseOperator
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_1_PLUS
 
 try:
     # New enough cores register an operator's declared ``output_type`` classes for
@@ -45,6 +46,7 @@ if TYPE_CHECKING:
     from pydantic_ai.usage import UsageLimits
 
     from airflow.sdk import Context
+    from airflow.sdk.execution_time.hitl import HITLUser
 
 
 class LLMOperator(BaseOperator, LLMApprovalMixin):
@@ -88,6 +90,9 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
     :param allow_modifications: If ``True``, the reviewer can edit the output
         before approving.  The modified value is returned as the task result.
         Default ``False``.
+    :param approval_assigned_users: Users allowed to answer the review, as
+        ``{"id": ..., "name": ...}`` dicts.  ``None`` (default) lets any user
+        with the permission respond.  Needs Airflow 3.1+.
     :param serialize_output: If ``True`` and ``output_type`` is a Pydantic
         ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
         ``model_dump()`` before being pushed to XCom. Default ``False`` --
@@ -119,6 +124,7 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         require_approval: bool = False,
         approval_timeout: timedelta | None = None,
         allow_modifications: bool = False,
+        approval_assigned_users: HITLUser | list[HITLUser] | None = None,
         serialize_output: bool = False,
         **kwargs: Any,
     ) -> None:
@@ -135,9 +141,16 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         self._serialize_model_output = serialize_output or not _CORE_WALKER
         self.agent_params = agent_params or {}
         self.usage_limits = usage_limits
+        if approval_assigned_users and not AIRFLOW_V_3_1_PLUS:
+            raise AirflowOptionalProviderFeatureException("approval_assigned_users needs Airflow 3.1+.")
         self.require_approval = require_approval
         self.approval_timeout = approval_timeout
         self.allow_modifications = allow_modifications
+        self.approval_assigned_users = (
+            [approval_assigned_users]
+            if isinstance(approval_assigned_users, dict)
+            else approval_assigned_users
+        )
 
     @cached_property
     def llm_hook(self) -> PydanticAIHook:

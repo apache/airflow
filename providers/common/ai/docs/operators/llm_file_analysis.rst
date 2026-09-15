@@ -159,8 +159,8 @@ Parameters
   downstream consumer needs the dict shape.
 
 This operator also inherits ``LLMOperator``'s HITL review parameters --
-``require_approval``, ``approval_timeout``, and ``allow_modifications`` -- see
-:doc:`llm` for details.
+``require_approval``, ``approval_timeout``, ``allow_modifications``, and
+``approval_assigned_users`` -- see :doc:`llm` for details.
 
 Supported Formats
 -----------------

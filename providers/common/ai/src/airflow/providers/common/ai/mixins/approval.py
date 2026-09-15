@@ -35,6 +35,7 @@ log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
+    from airflow.sdk.execution_time.hitl import HITLUser
 
 
 class DeferForApprovalProtocol(Protocol):
@@ -42,6 +43,7 @@ class DeferForApprovalProtocol(Protocol):
 
     approval_timeout: timedelta | None
     allow_modifications: bool
+    approval_assigned_users: list[HITLUser] | None
     prompt: str
     task_id: str
     defer: Any
@@ -62,11 +64,17 @@ class LLMApprovalMixin:
     before approving.  The (possibly modified) output is then returned as the
     task result.
 
+    ``approval_assigned_users`` restricts the review to the named users, the way
+    :class:`~airflow.providers.standard.operators.hitl.HITLOperator` does with
+    ``assigned_users``.  Leaving it unset lets any user with the permission
+    respond.
+
     Operators that use this mixin must set the following attributes:
 
     - ``require_approval`` (``bool``)
     - ``allow_modifications`` (``bool``)
     - ``approval_timeout`` (``timedelta | None``)
+    - ``approval_assigned_users`` (``list[HITLUser] | None``)
     - ``prompt`` (``str``)
     """
 
@@ -155,6 +163,12 @@ class LLMApprovalMixin:
                 },
             }
 
+        # Only pass assigned_users when set: cores before 3.2 have no such argument, and the
+        # operator has already rejected the parameter on those versions.
+        assignee_kwargs: dict[str, Any] = (
+            {"assigned_users": self.approval_assigned_users} if self.approval_assigned_users else {}
+        )
+
         upsert_hitl_detail(
             ti_id=ti_id,
             options=[LLMApprovalMixin.APPROVE, LLMApprovalMixin.REJECT],
@@ -163,6 +177,7 @@ class LLMApprovalMixin:
             defaults=None,
             multiple=False,
             params=hitl_params,
+            **assignee_kwargs,
         )
 
         if AIRFLOW_V_3_3_PLUS:
