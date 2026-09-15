@@ -83,9 +83,11 @@ class OpenAIResponseOperator(BaseOperator):
     """
     Operator that generates a model response using the OpenAI Responses API.
 
-    The operator is synchronous and returns the response's aggregated output text. For
-    ``previous_response_id`` chaining, ``background=True`` responses, or access to the full
-    structured response, use :class:`~airflow.providers.openai.hooks.openai.OpenAIHook` directly.
+    The operator is synchronous and returns the response's aggregated output text; the
+    response id is also pushed to XCom (see below), so a downstream task can pick it up
+    for ``previous_response_id`` chaining without going through the hook. For
+    ``background=True`` responses, or access to the full structured response, use
+    :class:`~airflow.providers.openai.hooks.openai.OpenAIHook` directly.
 
     :param conn_id: The OpenAI connection ID to use.
     :param input_text: The input prompt for the model. This can be a string or a structured list of
@@ -93,6 +95,7 @@ class OpenAIResponseOperator(BaseOperator):
     :param model: The OpenAI model to use.
     :param response_kwargs: Additional keyword arguments to pass to the OpenAI ``create_response``
         method (for example ``instructions``, ``tools``, ``conversation`` or ``previous_response_id``).
+        Templated, so values (e.g. ``previous_response_id``) may reference upstream XCom.
         Do not set ``background`` or ``stream`` here: ``background=True`` returns before the response
         completes, so this operator logs a warning and the returned output text may be empty, while
         ``stream=True`` returns an object without ``status`` or ``output_text``, so the task raises
@@ -104,9 +107,23 @@ class OpenAIResponseOperator(BaseOperator):
         :ref:`howto/operator:OpenAIResponseOperator`
         For possible options, see:
         https://platform.openai.com/docs/api-reference/responses/create
+
+    ``execute`` also pushes two XCom keys: ``response_id`` (the response's ID, usable as
+    a downstream call's ``previous_response_id``) and ``usage`` (the response's token
+    usage, or ``None`` when the API omits it). ``usage`` is the nested dict returned by
+    ``ResponseUsage.model_dump()``: top-level ``input_tokens``, ``output_tokens`` and
+    ``total_tokens`` counts, plus the nested ``input_tokens_details`` and
+    ``output_tokens_details`` dicts. ``input_tokens_details.cached_tokens`` is part of
+    the ``input_tokens`` total, not additional to it, so pricing a run correctly means
+    reading the breakdown rather than treating ``input_tokens`` as a single uniformly
+    priced count -- see OpenAI's `prompt caching guide
+    <https://platform.openai.com/docs/guides/prompt-caching>`_ for how cached tokens are
+    priced. Beyond that, ``usage`` reports token counts only -- the OpenAI response
+    carries no cost field, so turning any of these counts into a price means multiplying
+    by your own per-token rate.
     """
 
-    template_fields: Sequence[str] = ("input_text",)
+    template_fields: Sequence[str] = ("input_text", "response_kwargs")
 
     def __init__(
         self,
@@ -136,6 +153,13 @@ class OpenAIResponseOperator(BaseOperator):
                 response.status,
             )
         self.log.info("Generated response %s", response.id)
+        if self.do_xcom_push:
+            context["ti"].xcom_push(key="response_id", value=response.id)
+            # model_dump (not a hand-picked field list) keeps a token-usage dimension
+            # the API adds later from being silently dropped; mode="json" keeps the
+            # value XCom-serializable.
+            usage = response.usage.model_dump(mode="json") if response.usage is not None else None
+            context["ti"].xcom_push(key="usage", value=usage)
         return response.output_text
 
 
