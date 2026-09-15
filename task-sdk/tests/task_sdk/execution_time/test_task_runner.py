@@ -309,6 +309,7 @@ def test_parse_dag_bag(mock_dagbag, test_dags_dir: Path, make_ti_context):
         load_op_links=False,
         bundle_path=test_dags_dir,
         bundle_name="my-bundle",
+        validate_executors=False,
     )
 
 
@@ -835,6 +836,108 @@ def test_parse_module_in_bundle_root(tmp_path: Path, make_ti_context):
         ti = parse(what, mock.Mock())
 
     assert ti.task.dag.dag_id == "dag_name"
+
+
+def test_parse_does_not_validate_task_executors(tmp_path: Path, make_ti_context):
+    """
+    A worker must load a task whose executor is not configured in the worker itself.
+
+    The Dag processor already validates executors. A worker, e.g. a KubernetesExecutor pod, usually
+    only has its own executor configured, so repeating the check there would drop the whole Dag.
+    """
+    dag_path = tmp_path.joinpath("executor_dag.py")
+    dag_code = """
+    from airflow.sdk import DAG
+    from airflow.sdk.bases.operator import BaseOperator
+    with DAG("executor_dag"):
+        BaseOperator(task_id="a", executor="executor.not.configured.in.Worker")
+    """
+    dag_path.write_text(textwrap.dedent(dag_code))
+
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="a",
+            dag_id="executor_dag",
+            run_id="c",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+        ),
+        dag_rel_path="executor_dag.py",
+        bundle_info=BundleInfo(name="my-bundle", version=None),
+        ti_context=make_ti_context(),
+        start_date=timezone.utcnow(),
+        sentry_integration="",
+    )
+
+    with patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(
+                [
+                    {
+                        "name": "my-bundle",
+                        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                        "kwargs": {"path": str(tmp_path), "refresh_interval": 1},
+                    }
+                ]
+            ),
+        },
+    ):
+        ti = parse(what, mock.Mock())
+
+    assert ti.task.executor == "executor.not.configured.in.Worker"
+
+
+def test_verify_bundle_access_raises_when_not_accessible(tmp_path: Path, make_ti_context):
+    """Test that _verify_bundle_access raises AirflowException when bundle path is not accessible."""
+    from airflow.sdk.execution_time.task_runner import _verify_bundle_access
+
+    # Create a directory that exists
+    bundle_path = tmp_path / "test_bundle"
+    bundle_path.mkdir()
+
+    # Create a mock bundle instance
+    mock_bundle = mock.Mock()
+    mock_bundle.path = bundle_path
+    mock_bundle.name = "test-bundle"
+
+    # Mock os.access to simulate permission denied (avoids root user issues in CI)
+    with patch("airflow.sdk.execution_time.task_runner.os.access", return_value=False):
+        with pytest.raises(AirflowException) as exc_info:
+            _verify_bundle_access(mock_bundle, mock.Mock())
+
+        assert "not accessible" in str(exc_info.value)
+        assert "test-bundle" in str(exc_info.value)
+
+
+def test_verify_bundle_access_succeeds_when_readable(tmp_path: Path, make_ti_context):
+    """Test that _verify_bundle_access succeeds when bundle path is accessible."""
+    from airflow.sdk.execution_time.task_runner import _verify_bundle_access
+
+    # Create a directory with read permissions
+    bundle_path = tmp_path / "accessible_bundle"
+    bundle_path.mkdir()
+
+    mock_bundle = mock.Mock()
+    mock_bundle.path = bundle_path
+    mock_bundle.name = "test-bundle"
+
+    # Should not raise
+    _verify_bundle_access(mock_bundle, mock.Mock())
+
+
+def test_verify_bundle_access_skips_nonexistent_path(tmp_path: Path):
+    """Test that _verify_bundle_access does nothing when bundle path doesn't exist."""
+    from airflow.sdk.execution_time.task_runner import _verify_bundle_access
+
+    mock_bundle = mock.Mock()
+    mock_bundle.path = tmp_path / "nonexistent"
+    mock_bundle.name = "test-bundle"
+
+    # Should not raise - nonexistent paths are handled by initialize()
+    _verify_bundle_access(mock_bundle, mock.Mock())
 
 
 @pytest.mark.parametrize("use_queues", [False, True])

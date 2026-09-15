@@ -686,6 +686,31 @@ class TestDagBag:
         assert os.fspath(path2) not in dagbag.import_errors
         assert "AirflowDagDuplicatedIdException" in dagbag.import_errors[error_path]
 
+    @pytest.mark.parametrize("validate_executors", [True, False])
+    def test_validate_executors(self, tmp_path, validate_executors):
+        """A task whose executor is not configured only rejects the Dag when executors are validated."""
+        dag_path = tmp_path / "executor_dag.py"
+        dag_path.write_text(
+            "\n".join(
+                [
+                    "from airflow.sdk import DAG",
+                    "from airflow.sdk.bases.operator import BaseOperator",
+                    "",
+                    'with DAG("executor_dag", schedule=None):',
+                    '    BaseOperator(task_id="a", executor="executor.not.configured.Anywhere")',
+                ]
+            )
+        )
+
+        dagbag = DagBag(dag_folder=os.fspath(tmp_path), validate_executors=validate_executors)
+
+        if validate_executors:
+            assert "executor_dag" not in dagbag.dags
+            assert "UnknownExecutorException" in dagbag.import_errors[os.fspath(dag_path)]
+        else:
+            assert dagbag.dags["executor_dag"].task_dict["a"].executor == "executor.not.configured.Anywhere"
+            assert not dagbag.import_errors
+
     def test_zip_skip_log(self, caplog, test_zip_path):
         """
         test the loading of a DAG from within a zip file that skips another file because
