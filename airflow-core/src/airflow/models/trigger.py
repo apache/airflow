@@ -258,10 +258,20 @@ class Trigger(Base):
         )
         ids = with_row_locks(ids, session, of=cls, skip_locked=True, key_share=False)
         if get_dialect_name(session) == "mysql":
-            # MySQL doesn't support DELETE with JOIN, so we need to do it in two steps
+            # MySQL doesn't support a DELETE whose subquery selects from the target table,
+            # so materialize the ids first. The DELETE re-checks the reference predicates:
+            # a task can defer onto one of these triggers in between, and deleting it
+            # would cascade-delete the task instance row.
             ids_list = list(session.scalars(ids).all())
             session.execute(
-                delete(Trigger).where(Trigger.id.in_(ids_list)).execution_options(synchronize_session=False)
+                delete(Trigger)
+                .where(
+                    Trigger.id.in_(ids_list),
+                    ~cls.assets.any(),
+                    ~cls.callback.has(),
+                    ~cls.task_instance.has(),
+                )
+                .execution_options(synchronize_session=False)
             )
         else:
             session.execute(
