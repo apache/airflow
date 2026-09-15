@@ -57,7 +57,6 @@ from airflow.sdk.importers.base import (
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from types import ModuleType
 
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
 
@@ -101,7 +100,7 @@ class _DefinitionBytecodeLoader(importlib.abc.Loader):
     def get_filename(self, fullname: str) -> str:
         return repr(self._definition)
 
-    def get_code(self, fullname: str) -> Any:
+    def get_code(self, fullname: str) -> types.CodeType:
         data = self._definition.read_bytes()
         if len(data) < 16 or data[:4] != importlib.util.MAGIC_NUMBER:
             raise ImportError(f"Incompatible or corrupt bytecode for {self._definition!r}")
@@ -111,7 +110,7 @@ class _DefinitionBytecodeLoader(importlib.abc.Loader):
             raise ImportError(f"Bytecode for {self._definition!r} does not contain a code object")
         return code
 
-    def exec_module(self, module: ModuleType) -> None:
+    def exec_module(self, module: types.ModuleType) -> None:
         exec(self.get_code(module.__name__), module.__dict__)
 
 

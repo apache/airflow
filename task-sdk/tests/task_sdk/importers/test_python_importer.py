@@ -19,7 +19,9 @@
 from __future__ import annotations
 
 import contextlib
+import importlib.util
 import logging
+import marshal
 import py_compile
 import signal
 import sys
@@ -145,6 +147,21 @@ class TestPythonDagImporter:
         # safe_mode=False bypasses the content heuristic so the loader actually runs.
         bad_pyc = mock_bundle.path / "broken.pyc"
         bad_pyc.write_bytes(b"this is not valid python bytecode at all!!")
+
+        importer = PythonDagImporter()
+        definition = FilesystemDagDefinition(path=bad_pyc)
+        result = importer.import_definition(definition, bundle=mock_bundle, safe_mode=False)
+
+        assert len(result.dags) == 0
+        assert len(result.errors) == 1
+        assert result.errors[0].error_type == "import"
+
+    def test_import_pyc_with_non_code_payload_captured_as_error(self, mock_bundle):
+        # A .pyc with a valid magic header but a payload that unmarshals to a non-code
+        # object must be rejected, not exec()'d as source. safe_mode=False reaches the loader.
+        header = importlib.util.MAGIC_NUMBER + b"\x00" * 12
+        bad_pyc = mock_bundle.path / "not_code.pyc"
+        bad_pyc.write_bytes(header + marshal.dumps("i am a string, not a code object"))
 
         importer = PythonDagImporter()
         definition = FilesystemDagDefinition(path=bad_pyc)
