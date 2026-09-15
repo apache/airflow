@@ -19,14 +19,21 @@
 from __future__ import annotations
 
 import time
+import warnings
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from functools import cached_property
+from typing import TYPE_CHECKING, Any, cast
 
 from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.errors import HttpError
 
 from airflow.providers.common.compat.sdk import AirflowException, conf
-from airflow.providers.google.cloud.hooks.datafusion import SUCCESS_STATES, DataFusionHook, PipelineStates
+from airflow.providers.google.cloud.hooks.datafusion import (
+    FAILURE_STATES,
+    SUCCESS_STATES,
+    DataFusionHook,
+    PipelineStates,
+)
 from airflow.providers.google.cloud.links.datafusion import (
     DataFusionInstanceLink,
     DataFusionPipelineLink,
@@ -38,7 +45,42 @@ from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineTy
 from airflow.providers.google.cloud.utils.helpers import resource_path_to_dict
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
+_DURABLE_UNSET = object()
+
+
+def _warn_and_disable_durable_pre_3_3(durable: Any) -> bool:
+    """Disable durable execution below Airflow 3.3 and warn when explicitly set."""
+    if durable is not _DURABLE_UNSET:
+        warnings.warn(
+            "`durable` has no effect on Airflow versions below 3.3.",
+            UserWarning,
+            stacklevel=3,
+        )
+    return False
+
+
+try:
+    from airflow.sdk import ResumableJobMixin
+except ImportError:
+
+    class ResumableJobMixin:  # type: ignore[no-redef]
+        """Airflow <3.3 stub that always submits a fresh job."""
+
+        external_id_key: str = "datafusion_pipeline_run_id"
+
+        def __init__(self, *, durable: Any = _DURABLE_UNSET, **kwargs: Any) -> None:
+            super().__init__(**kwargs)
+            self.durable = _warn_and_disable_durable_pre_3_3(durable)
+
+        def execute_resumable(self, context: Context) -> Any:
+            external_id = self.submit_job(context=context)  # type: ignore[attr-defined]
+            self.poll_until_complete(external_id=external_id, context=context)  # type: ignore[attr-defined]
+            return self.get_job_result(external_id=external_id, context=context)  # type: ignore[attr-defined]
+
+
 if TYPE_CHECKING:
+    from pydantic import JsonValue
+
     from airflow.providers.common.compat.sdk import Context
     from airflow.providers.openlineage.extractors import OperatorLineage
 
@@ -694,7 +736,7 @@ class CloudDataFusionListPipelinesOperator(GoogleCloudBaseOperator):
         return pipelines
 
 
-class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
+class CloudDataFusionStartPipelineOperator(ResumableJobMixin, GoogleCloudBaseOperator):
     """
     Starts a Cloud Data Fusion pipeline. Works for both batch and stream pipelines.
 
@@ -732,6 +774,9 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
         sleep() method, deferrable mode checks for the state using asynchronous calls. It is not possible to
         use both asynchronous and deferrable parameters at the same time.
     :param poll_interval: Polling period in seconds to check for the status. Used only in deferrable mode.
+    :param durable: When ``True`` (the default) and waiting synchronously, persist the pipeline run ID
+        before polling so a worker retry reconnects to that run. Set to ``False`` to submit a new run
+        on retry. Requires Airflow 3.3+; no-op on earlier versions.
     """
 
     template_fields: Sequence[str] = (
@@ -741,6 +786,7 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
         "impersonation_chain",
     )
     operator_extra_links = (DataFusionPipelineLink(),)
+    external_id_key = "datafusion_pipeline_run_id"
 
     def __init__(
         self,
@@ -757,11 +803,14 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        asynchronous=False,
+        asynchronous: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
-        poll_interval=3.0,
-        **kwargs,
+        poll_interval: float = 3.0,
+        durable: bool | None = None,
+        **kwargs: Any,
     ) -> None:
+        if durable is not None:
+            kwargs["durable"] = durable
         super().__init__(**kwargs)
         self.pipeline_name = pipeline_name
         self.pipeline_type = pipeline_type
@@ -778,33 +827,81 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
         self.deferrable = deferrable
         self.poll_interval = poll_interval
         self.pipeline_id: str | None = None
+        self._api_url: str | None = None
 
         if success_states:
             self.success_states = success_states
         else:
             self.success_states = [*SUCCESS_STATES, PipelineStates.RUNNING]
 
-    def execute(self, context: Context) -> str:
-        hook = DataFusionHook(
+    @cached_property
+    def hook(self) -> DataFusionHook:
+        return DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
+
+    @property
+    def _resolved_api_url(self) -> str:
+        if self._api_url is None:
+            raise RuntimeError("Data Fusion API endpoint is not initialized")
+        return self._api_url
+
+    def submit_job(self, context: Context) -> str:
         self.log.info("Starting Data Fusion pipeline: %s", self.pipeline_name)
-        instance = hook.get_instance(
-            instance_name=self.instance_name,
-            location=self.location,
-            project_id=self.project_id,
-        )
-        api_url = instance["apiEndpoint"]
-        self.pipeline_id = hook.start_pipeline(
+        self.pipeline_id = self.hook.start_pipeline(
             pipeline_name=self.pipeline_name,
             pipeline_type=self.pipeline_type,
-            instance_url=api_url,
+            instance_url=self._resolved_api_url,
             namespace=self.namespace,
             runtime_args=self.runtime_args,
         )
         self.log.info("Pipeline %s submitted successfully.", self.pipeline_id)
+        return self.pipeline_id
+
+    def get_job_status(self, external_id: JsonValue, context: Context) -> str:
+        self.pipeline_id = cast("str", external_id)
+        workflow = self.hook.get_pipeline_workflow(
+            pipeline_name=self.pipeline_name,
+            pipeline_type=self.pipeline_type,
+            namespace=self.namespace,
+            instance_url=self._resolved_api_url,
+            pipeline_id=self.pipeline_id,
+        )
+        return workflow["status"]
+
+    def is_job_active(self, status: str) -> bool:
+        return status not in SUCCESS_STATES and status not in FAILURE_STATES
+
+    def is_job_succeeded(self, status: str) -> bool:
+        return status in SUCCESS_STATES
+
+    def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
+        self.pipeline_id = cast("str", external_id)
+        self.log.info("Waiting when pipeline %s will be in one of the success states", self.pipeline_id)
+        self.hook.wait_for_pipeline_state(
+            success_states=self.success_states,
+            pipeline_id=self.pipeline_id,
+            pipeline_name=self.pipeline_name,
+            pipeline_type=self.pipeline_type,
+            namespace=self.namespace,
+            instance_url=self._resolved_api_url,
+            timeout=self.pipeline_timeout,
+        )
+        self.log.info("Pipeline %s discovered success state.", self.pipeline_id)
+
+    def get_job_result(self, external_id: JsonValue, context: Context) -> str:
+        self.pipeline_id = cast("str", external_id)
+        return self.pipeline_id
+
+    def execute(self, context: Context) -> str:
+        instance = self.hook.get_instance(
+            instance_name=self.instance_name,
+            location=self.location,
+            project_id=self.project_id,
+        )
+        self._api_url = instance["apiEndpoint"]
 
         DataFusionPipelineLink.persist(
             context=context,
@@ -813,6 +910,11 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
             namespace=self.namespace,
         )
 
+        if not self.asynchronous and not self.deferrable:
+            self.execute_resumable(context=context)
+            return cast("str", self.pipeline_id)
+
+        self.submit_job(context=context)
         if self.deferrable:
             if self.asynchronous:
                 raise AirflowException(
@@ -821,35 +923,29 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
             self.defer(
                 trigger=DataFusionStartPipelineTrigger(
                     success_states=self.success_states,
-                    instance_url=api_url,
+                    instance_url=self._resolved_api_url,
                     namespace=self.namespace,
                     pipeline_name=self.pipeline_name,
                     pipeline_type=self.pipeline_type.value,
-                    pipeline_id=self.pipeline_id,
+                    pipeline_id=cast("str", self.pipeline_id),
                     poll_interval=self.poll_interval,
                     gcp_conn_id=self.gcp_conn_id,
                     impersonation_chain=self.impersonation_chain,
                 ),
                 method_name="execute_complete",
             )
-        else:
-            if not self.asynchronous:
-                # when NOT using asynchronous mode it will just wait for pipeline to finish and print message
-                self.log.info(
-                    "Waiting when pipeline %s will be in one of the success states", self.pipeline_id
-                )
-                hook.wait_for_pipeline_state(
-                    success_states=self.success_states,
-                    pipeline_id=self.pipeline_id,
-                    pipeline_name=self.pipeline_name,
-                    pipeline_type=self.pipeline_type,
-                    namespace=self.namespace,
-                    instance_url=api_url,
-                    timeout=self.pipeline_timeout,
-                )
-                self.log.info("Pipeline %s discovered success state.", self.pipeline_id)
-            #  otherwise, return pipeline_id so that sensor can use it later to check the pipeline state
-        return self.pipeline_id
+        return cast("str", self.pipeline_id)
+
+    def on_kill(self) -> None:
+        if self.pipeline_id is None or self._api_url is None:
+            return
+        self.hook.stop_pipeline(
+            instance_url=self._api_url,
+            pipeline_name=self.pipeline_name,
+            namespace=self.namespace,
+            pipeline_type=self.pipeline_type,
+            run_id=self.pipeline_id,
+        )
 
     def execute_complete(self, context: Context, event: dict[str, Any]):
         """
