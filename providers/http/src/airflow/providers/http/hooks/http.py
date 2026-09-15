@@ -34,6 +34,7 @@ from requests.exceptions import ConnectionError, HTTPError
 from requests.models import DEFAULT_REDIRECT_LIMIT
 from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 from tenacity import retry_if_exception
+from urllib3.exceptions import ConnectTimeoutError
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.http.exceptions import HttpErrorException, HttpMethodException, HttpSrvLookupException
@@ -55,17 +56,43 @@ def _url_from_endpoint(base_url: str | None, endpoint: str | None) -> str:
     return (base_url or "") + (endpoint or "")
 
 
-def _select_srv_target(answers: Iterable[SRV]) -> tuple[str, int]:
-    """Select a target host and port from resolved DNS SRV records."""
-    candidates_by_priority: dict[int, list[SRV]] = {}
-    for record in answers:
-        candidates_by_priority.setdefault(record.priority, []).append(record)
-    # RFC 2782 priority failover; weight is not honored, ties broken uniformly at random.
-    candidates = candidates_by_priority[min(candidates_by_priority)]
-    chosen = random.choice(candidates)
+def _order_srv_targets(answers: Iterable[SRV]) -> list[tuple[str, int]]:
+    """
+    Order resolved DNS SRV records into the sequence of ``(host, port)`` targets to try.
 
-    target_host = str(chosen.target).rstrip(".")
-    return target_host, chosen.port
+    Follows RFC 2782: lower priorities first, and within a priority a weighted random order.
+    """
+    records_by_priority: dict[int, list[SRV]] = {}
+    for record in answers:
+        records_by_priority.setdefault(record.priority, []).append(record)
+
+    targets: list[tuple[str, int]] = []
+    for priority in sorted(records_by_priority):
+        remaining = records_by_priority[priority]
+        random.shuffle(remaining)
+        # RFC 2782 places zero-weight records first so they keep a small chance of being picked first.
+        remaining.sort(key=lambda record: record.weight > 0)
+        while remaining:
+            threshold = random.randint(0, sum(record.weight for record in remaining))
+            running_weight = 0
+            for index, record in enumerate(remaining):
+                running_weight += record.weight
+                if running_weight >= threshold:
+                    chosen = remaining.pop(index)
+                    break
+            targets.append((str(chosen.target).rstrip("."), chosen.port))
+    return targets
+
+
+def _is_connect_failure(exception: ConnectionError) -> bool:
+    """
+    Whether ``requests`` failed before a connection was established.
+
+    Only then is it safe to fail over to another SRV target: the request was never sent, so
+    non-idempotent methods cannot be replayed.
+    """
+    reason = getattr(exception.args[0], "reason", None) if exception.args else None
+    return isinstance(reason, ConnectTimeoutError)
 
 
 def _process_extra_options_from_connection(
@@ -262,16 +289,16 @@ class HttpHook(BaseHook):
             self._srv_scheme = parsed.scheme
         self._base_url_initialized = True
 
-    def _get_dynamic_base_url(self) -> str:
-        """Return the base URL for the current request, resolving SRV records when enabled."""
-        if not self._srv_lookup_enabled:
-            return self.base_url
-        target_host, target_port = self._resolve_srv_record(cast("str", self._srv_name))
-        return f"{self._srv_scheme}://{target_host}:{target_port}"
+    def _get_srv_base_urls(self) -> list[str]:
+        """Resolve the SRV record into base URLs, in the order they should be tried."""
+        return [
+            f"{self._srv_scheme}://{target_host}:{target_port}"
+            for target_host, target_port in self._resolve_srv_targets(cast("str", self._srv_name))
+        ]
 
-    def _resolve_srv_record(self, host: str) -> tuple[str, int]:
+    def _resolve_srv_targets(self, host: str) -> list[tuple[str, int]]:
         """
-        Resolve a DNS SRV record to a target host and port.
+        Resolve a DNS SRV record to ``(host, port)`` targets, in the order they should be tried.
 
         Requires the optional ``dnspython`` dependency.
         """
@@ -289,7 +316,7 @@ class HttpHook(BaseHook):
         except dns.exception.DNSException as e:
             self.log.error("Failed to resolve SRV record for %s: %s", host, e)
             raise HttpSrvLookupException(f"Failed to resolve SRV record for {host}: {e}") from e
-        return _select_srv_target(answers)
+        return _order_srv_targets(answers)
 
     def _configure_session_from_auth(self, session: Session, connection: Connection) -> Session:
         session.auth = self._extract_auth(connection)
@@ -367,23 +394,33 @@ class HttpHook(BaseHook):
         """
         extra_options = extra_options or {}
         session = self.get_conn(headers, extra_options)  # This sets self.merged_extra, which is used later
-        url = self.url_from_endpoint(endpoint)
+        if self._srv_lookup_enabled:
+            urls = [_url_from_endpoint(base_url, endpoint) for base_url in self._get_srv_base_urls()]
+        else:
+            urls = [self.url_from_endpoint(endpoint)]
 
         if self.method == "GET":
             # GET uses params
-            req = Request(self.method, url, params=data, headers=headers, **request_kwargs)
+            req = Request(self.method, urls[0], params=data, headers=headers, **request_kwargs)
         elif self.method == "HEAD":
             # HEAD doesn't use params
-            req = Request(self.method, url, headers=headers, **request_kwargs)
+            req = Request(self.method, urls[0], headers=headers, **request_kwargs)
         else:
             # Others use data
-            req = Request(self.method, url, data=data, headers=headers, **request_kwargs)
+            req = Request(self.method, urls[0], data=data, headers=headers, **request_kwargs)
 
-        prepped_request = session.prepare_request(req)
-        self.log.debug("Sending '%s' to url: %s", self.method, url)
+        for target_number, url in enumerate(urls, start=1):
+            req.url = url
+            prepped_request = session.prepare_request(req)
+            self.log.debug("Sending '%s' to url: %s", self.method, url)
 
-        # This is referencing self.merged_extra, which is update by _process ...
-        return self.run_and_check(session, prepped_request, self.merged_extra)
+            try:
+                # This is referencing self.merged_extra, which is update by _process ...
+                return self.run_and_check(session, prepped_request, self.merged_extra)
+            except ConnectionError as ex:
+                if target_number == len(urls) or not _is_connect_failure(ex):
+                    raise
+                self.log.warning("Could not connect to %s, failing over to the next SRV target", url)
 
     def check_response(self, response: Response) -> None:
         """
@@ -471,14 +508,15 @@ class HttpHook(BaseHook):
         """
         Combine base url with endpoint.
 
-        If SRV lookup is enabled on the connection, the base URL is re-resolved before combining
-        it with the endpoint.
+        If SRV lookup is enabled on the connection, the SRV record is re-resolved and the
+        first target is combined with the endpoint.
         """
         # Ensure base_url is set by initializing it if it hasn't been initialized yet
         if not self._base_url_initialized and not self.base_url:
             connection = self.get_connection(self.http_conn_id)
             self._set_base_url(connection)
-        return _url_from_endpoint(base_url=self._get_dynamic_base_url(), endpoint=endpoint)
+        base_url = self._get_srv_base_urls()[0] if self._srv_lookup_enabled else self.base_url
+        return _url_from_endpoint(base_url=base_url, endpoint=endpoint)
 
     def test_connection(self):
         """Test HTTP Connection."""
@@ -573,11 +611,33 @@ class AsyncHttpSession(LoggingMixin):
             For example, ``run(json=obj)`` is passed as
             ``aiohttp.ClientSession().get(json=obj)``.
         """
-        from tenacity import AsyncRetrying, stop_after_attempt, wait_fixed
-
-        url = _url_from_endpoint(await self._hook._get_dynamic_base_url_async(), endpoint)
         merged_headers = {**(self.headers or {}), **(headers or {})}
         extra_options = {**(self.extra_options or {}), **(extra_options or {})}
+        if self._hook._srv_lookup_enabled:
+            base_urls = await self._hook._get_srv_base_urls_async()
+        else:
+            base_urls = [self.base_url]
+
+        for target_number, base_url in enumerate(base_urls, start=1):
+            url = _url_from_endpoint(base_url, endpoint)
+            try:
+                return await self._run_with_retries(url, data, json, merged_headers, extra_options)
+            except (aiohttp.ClientConnectorError, aiohttp.ConnectionTimeoutError):
+                if target_number == len(base_urls):
+                    raise
+                self.log.warning("Could not connect to %s, failing over to the next SRV target", url)
+
+        raise NotImplementedError  # should not reach this, but makes mypy happy
+
+    async def _run_with_retries(
+        self,
+        url: str,
+        data: dict[str, Any] | str | None,
+        json: dict[str, Any] | str | None,
+        merged_headers: dict[str, Any],
+        extra_options: dict[str, Any],
+    ) -> ClientResponse:
+        from tenacity import AsyncRetrying, stop_after_attempt, wait_fixed
 
         async def request_func() -> ClientResponse:
             response = await self._request(
@@ -724,17 +784,16 @@ class HttpAsyncHook(BaseHook):
             )
         return self._config
 
-    async def _get_dynamic_base_url_async(self) -> str:
-        """Return the base URL for the current request, resolving SRV records when enabled."""
-        config = await self.config()
-        if not self._srv_lookup_enabled:
-            return config.base_url
-        target_host, target_port = await self._resolve_srv_record_async(cast("str", self._srv_name))
-        return f"{self._srv_scheme}://{target_host}:{target_port}"
+    async def _get_srv_base_urls_async(self) -> list[str]:
+        """Resolve the SRV record into base URLs, in the order they should be tried."""
+        return [
+            f"{self._srv_scheme}://{target_host}:{target_port}"
+            for target_host, target_port in await self._resolve_srv_targets_async(cast("str", self._srv_name))
+        ]
 
-    async def _resolve_srv_record_async(self, host: str) -> tuple[str, int]:
+    async def _resolve_srv_targets_async(self, host: str) -> list[tuple[str, int]]:
         """
-        Resolve a DNS SRV record to a target host and port without blocking the event loop.
+        Resolve a DNS SRV record to ordered ``(host, port)`` targets without blocking the event loop.
 
         Requires the optional ``dnspython`` dependency.
         """
@@ -752,7 +811,7 @@ class HttpAsyncHook(BaseHook):
         except dns.exception.DNSException as e:
             self.log.error("Failed to resolve SRV record for %s: %s", host, e)
             raise HttpSrvLookupException(f"Failed to resolve SRV record for {host}: {e}") from e
-        return _select_srv_target(answers)
+        return _order_srv_targets(answers)
 
     @asynccontextmanager
     async def session(self, method: str | None = None) -> AsyncGenerator[AsyncHttpSession, None]:

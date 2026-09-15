@@ -34,11 +34,17 @@ import tenacity
 from requests.adapters import HTTPAdapter, Response
 from requests.auth import AuthBase, HTTPBasicAuth
 from requests.models import DEFAULT_REDIRECT_LIMIT
+from urllib3.exceptions import ConnectTimeoutError, MaxRetryError, NewConnectionError, ProtocolError
 
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.http.exceptions import HttpSrvLookupException
-from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook, _process_extra_options_from_connection
+from airflow.providers.http.hooks.http import (
+    HttpAsyncHook,
+    HttpHook,
+    _order_srv_targets,
+    _process_extra_options_from_connection,
+)
 
 from tests_common.test_utils.aiohttp import MockAiohttpClientResponse
 
@@ -699,11 +705,12 @@ class TestHttpHookSrvLookup:
     """Test DNS SRV record resolution support in HttpHook."""
 
     @staticmethod
-    def _make_srv_answer(priority: int, port: int, target: str):
+    def _make_srv_answer(priority: int, port: int, target: str, weight: int = 0):
         answer = mock.Mock()
         answer.priority = priority
         answer.port = port
         answer.target = target
+        answer.weight = weight
         return answer
 
     @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
@@ -746,48 +753,54 @@ class TestHttpHookSrvLookup:
         assert all(isinstance(value, str) for value in session.headers.values())
 
     @mock.patch("dns.resolver.resolve")
-    def test_resolve_srv_record_picks_lowest_priority(self, mock_resolve):
-        decoy = self._make_srv_answer(priority=20, port=9999, target="decoy.example.com.")
-        winner = self._make_srv_answer(priority=10, port=8080, target="svc-1.example.com.")
-        mock_resolve.return_value = [decoy, winner]
+    def test_resolve_srv_targets_orders_by_priority(self, mock_resolve):
+        backup = self._make_srv_answer(priority=20, port=9999, target="backup.example.com.")
+        primary = self._make_srv_answer(priority=10, port=8080, target="primary.example.com.")
+        mock_resolve.return_value = [backup, primary]
 
         hook = HttpHook()
-        host, port = hook._resolve_srv_record("_http._tcp.example.com")
+        targets = hook._resolve_srv_targets("_http._tcp.example.com")
 
-        assert (host, port) == ("svc-1.example.com", 8080)
+        assert targets == [("primary.example.com", 8080), ("backup.example.com", 9999)]
         mock_resolve.assert_called_once_with("_http._tcp.example.com", "SRV")
 
-    @mock.patch("random.choice")
+    @pytest.mark.parametrize(
+        ("threshold", "expected_targets"),
+        [
+            pytest.param(
+                0, [("zero.example.com", 8080), ("heavy.example.com", 8081)], id="zero-weight-first"
+            ),
+            pytest.param(5, [("heavy.example.com", 8081), ("zero.example.com", 8080)], id="weighted-first"),
+        ],
+    )
+    @mock.patch("random.randint")
+    @mock.patch("random.shuffle")
+    def test_order_srv_targets_uses_weighted_order_within_priority(
+        self, mock_shuffle, mock_randint, threshold, expected_targets
+    ):
+        heavy = self._make_srv_answer(priority=10, port=8081, target="heavy.example.com.", weight=10)
+        zero = self._make_srv_answer(priority=10, port=8080, target="zero.example.com.", weight=0)
+        mock_randint.side_effect = lambda low, high: min(threshold, high)
+
+        assert _order_srv_targets([heavy, zero]) == expected_targets
+
     @mock.patch("dns.resolver.resolve")
-    def test_resolve_srv_record_picks_randomly_among_ties(self, mock_resolve, mock_choice):
-        first = self._make_srv_answer(priority=10, port=8080, target="a.example.com.")
-        second = self._make_srv_answer(priority=10, port=8081, target="b.example.com.")
-        mock_resolve.return_value = [first, second]
-        mock_choice.return_value = second
-
-        hook = HttpHook()
-        host, port = hook._resolve_srv_record("_http._tcp.example.com")
-
-        mock_choice.assert_called_once_with([first, second])
-        assert (host, port) == ("b.example.com", 8081)
-
-    @mock.patch("dns.resolver.resolve")
-    def test_resolve_srv_record_dns_failure_raises(self, mock_resolve):
+    def test_resolve_srv_targets_dns_failure_raises(self, mock_resolve):
         import dns.exception
 
         mock_resolve.side_effect = dns.exception.DNSException("boom")
         hook = HttpHook()
 
         with pytest.raises(HttpSrvLookupException, match="Failed to resolve SRV record"):
-            hook._resolve_srv_record("_http._tcp.example.com")
+            hook._resolve_srv_targets("_http._tcp.example.com")
 
-    def test_resolve_srv_record_missing_dependency_raises(self):
+    def test_resolve_srv_targets_missing_dependency_raises(self):
         hook = HttpHook()
         with mock.patch.dict(sys.modules, {"dns": None, "dns.resolver": None, "dns.exception": None}):
             with pytest.raises(HttpSrvLookupException, match="dnspython"):
-                hook._resolve_srv_record("_http._tcp.example.com")
+                hook._resolve_srv_targets("_http._tcp.example.com")
 
-    @mock.patch("airflow.providers.http.hooks.http.HttpHook._resolve_srv_record")
+    @mock.patch("airflow.providers.http.hooks.http.HttpHook._resolve_srv_targets")
     @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
     def test_url_from_endpoint_resolves_srv_record(self, mock_get_connection, mock_resolve):
         conn = Connection(
@@ -798,7 +811,7 @@ class TestHttpHookSrvLookup:
             extra=json.dumps({"srv_lookup": True}),
         )
         mock_get_connection.return_value = conn
-        mock_resolve.return_value = ("svc-1.example.com", 8443)
+        mock_resolve.return_value = [("svc-1.example.com", 8443), ("svc-2.example.com", 8443)]
 
         hook = HttpHook()
         url = hook.url_from_endpoint("v1/test")
@@ -806,7 +819,7 @@ class TestHttpHookSrvLookup:
         assert url == "https://svc-1.example.com:8443/v1/test"
         mock_resolve.assert_called_once_with("_http._tcp.example.com")
 
-    @mock.patch("airflow.providers.http.hooks.http.HttpHook._resolve_srv_record")
+    @mock.patch("airflow.providers.http.hooks.http.HttpHook._resolve_srv_targets")
     @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
     def test_url_from_endpoint_resolves_srv_record_on_every_call(self, mock_get_connection, mock_resolve):
         conn = Connection(
@@ -816,7 +829,7 @@ class TestHttpHookSrvLookup:
             extra=json.dumps({"srv_lookup": True}),
         )
         mock_get_connection.return_value = conn
-        mock_resolve.return_value = ("svc-1.example.com", 8080)
+        mock_resolve.return_value = [("svc-1.example.com", 8080)]
 
         hook = HttpHook()
         hook.url_from_endpoint("a")
@@ -824,7 +837,83 @@ class TestHttpHookSrvLookup:
 
         assert mock_resolve.call_count == 2
 
-        assert mock_resolve.call_count == 2
+    @pytest.mark.parametrize(
+        ("primary_error", "expected_urls"),
+        [
+            pytest.param(
+                requests.exceptions.ConnectionError(
+                    MaxRetryError(None, "/", reason=NewConnectionError(None, "Connection refused"))
+                ),
+                ["https://primary.example.com:8443/v1/test", "https://backup.example.com:8443/v1/test"],
+                id="connect-failure-fails-over",
+            ),
+            pytest.param(
+                requests.exceptions.ConnectTimeout(
+                    MaxRetryError(None, "/", reason=ConnectTimeoutError("Connect timed out"))
+                ),
+                ["https://primary.example.com:8443/v1/test", "https://backup.example.com:8443/v1/test"],
+                id="connect-timeout-fails-over",
+            ),
+            pytest.param(
+                requests.exceptions.ConnectionError(
+                    ProtocolError("Connection aborted", ConnectionResetError())
+                ),
+                ["https://primary.example.com:8443/v1/test"],
+                id="failure-after-connect-does-not-fail-over",
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.http.hooks.http.HttpHook._resolve_srv_targets")
+    @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
+    def test_run_fails_over_to_next_srv_target(
+        self, mock_get_connection, mock_resolve, requests_mock, primary_error, expected_urls
+    ):
+        mock_get_connection.return_value = Connection(
+            conn_id="http_default",
+            conn_type="http",
+            host="_http._tcp.example.com",
+            schema="https",
+            extra=json.dumps({"srv_lookup": True}),
+        )
+        mock_resolve.return_value = [("primary.example.com", 8443), ("backup.example.com", 8443)]
+        requests_mock.post("https://primary.example.com:8443/v1/test", exc=primary_error)
+        requests_mock.post("https://backup.example.com:8443/v1/test", status_code=200)
+
+        hook = HttpHook()
+        if len(expected_urls) == 1:
+            with pytest.raises(type(primary_error)):
+                hook.run("v1/test")
+        else:
+            assert hook.run("v1/test").status_code == 200
+
+        assert [request.url for request in requests_mock.request_history] == expected_urls
+
+    @mock.patch("airflow.providers.http.hooks.http.HttpHook._resolve_srv_targets")
+    @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
+    def test_run_raises_when_all_srv_targets_unreachable(
+        self, mock_get_connection, mock_resolve, requests_mock
+    ):
+        mock_get_connection.return_value = Connection(
+            conn_id="http_default",
+            conn_type="http",
+            host="_http._tcp.example.com",
+            schema="https",
+            extra=json.dumps({"srv_lookup": True}),
+        )
+        mock_resolve.return_value = [("primary.example.com", 8443), ("backup.example.com", 8443)]
+        for host in ("primary", "backup"):
+            requests_mock.post(
+                f"https://{host}.example.com:8443/v1/test",
+                exc=requests.exceptions.ConnectionError(
+                    MaxRetryError(None, "/", reason=NewConnectionError(None, f"{host} refused"))
+                ),
+            )
+
+        hook = HttpHook()
+        with pytest.raises(requests.exceptions.ConnectionError, match="backup refused"):
+            hook.run("v1/test")
+
+        assert requests_mock.call_count == 2
 
 
 class TestHttpAsyncHook:
@@ -1069,11 +1158,12 @@ class TestHttpAsyncHookSrvLookup:
         )
 
     @staticmethod
-    def _make_srv_answer(priority: int, port: int, target: str):
+    def _make_srv_answer(priority: int, port: int, target: str, weight: int = 0):
         answer = mock.Mock()
         answer.priority = priority
         answer.port = port
         answer.target = target
+        answer.weight = weight
         return answer
 
     @pytest.mark.asyncio
@@ -1111,6 +1201,68 @@ class TestHttpAsyncHookSrvLookup:
 
         assert mock_resolve.call_count == 2
 
+    @pytest.mark.parametrize(
+        "primary_error",
+        [
+            pytest.param(aiohttp.ClientConnectorError(mock.Mock(), OSError("refused")), id="connector-error"),
+            pytest.param(aiohttp.ConnectionTimeoutError("timed out"), id="connection-timeout"),
+        ],
+    )
+    @pytest.mark.asyncio
+    @mock.patch("dns.asyncresolver.resolve", new_callable=mock.AsyncMock)
+    async def test_run_fails_over_to_next_srv_target(self, mock_resolve, primary_error):
+        mock_resolve.return_value = [
+            self._make_srv_answer(20, 8443, "backup.example.com."),
+            self._make_srv_answer(10, 8443, "primary.example.com."),
+        ]
+        hook = HttpAsyncHook(http_conn_id="http_async_srv_conn", method="GET")
+        backup_response = MockAiohttpClientResponse(
+            status=200, payload={}, method="GET", url="https://backup.example.com:8443/v1/test"
+        )
+
+        with mock.patch("aiohttp.ClientSession.get", new_callable=mock.AsyncMock) as mocked_get:
+            mocked_get.side_effect = [primary_error, backup_response]
+            async with aiohttp.ClientSession() as session:
+                response = await hook.run(session=session, endpoint="v1/test")
+
+        assert response is backup_response
+        assert [call.args[0] for call in mocked_get.call_args_list] == [
+            "https://primary.example.com:8443/v1/test",
+            "https://backup.example.com:8443/v1/test",
+        ]
+
+    @pytest.mark.parametrize(
+        ("errors", "expected_error"),
+        [
+            pytest.param(
+                [aiohttp.ClientConnectorError(mock.Mock(), OSError("refused"))] * 2,
+                aiohttp.ClientConnectorError,
+                id="all-targets-unreachable",
+            ),
+            pytest.param(
+                [aiohttp.ServerDisconnectedError()],
+                aiohttp.ServerDisconnectedError,
+                id="failure-after-connect-does-not-fail-over",
+            ),
+        ],
+    )
+    @pytest.mark.asyncio
+    @mock.patch("dns.asyncresolver.resolve", new_callable=mock.AsyncMock)
+    async def test_run_raises_without_further_failover(self, mock_resolve, errors, expected_error):
+        mock_resolve.return_value = [
+            self._make_srv_answer(10, 8443, "primary.example.com."),
+            self._make_srv_answer(20, 8443, "backup.example.com."),
+        ]
+        hook = HttpAsyncHook(http_conn_id="http_async_srv_conn", method="GET")
+
+        with mock.patch("aiohttp.ClientSession.get", new_callable=mock.AsyncMock) as mocked_get:
+            mocked_get.side_effect = errors
+            async with aiohttp.ClientSession() as session:
+                with pytest.raises(expected_error):
+                    await hook.run(session=session, endpoint="v1/test")
+
+        assert mocked_get.call_count == len(errors)
+
     @pytest.mark.asyncio
     async def test_config_only_puts_string_values_in_headers(self, create_connection_without_db):
         create_connection_without_db(
@@ -1129,7 +1281,7 @@ class TestHttpAsyncHookSrvLookup:
         assert all(isinstance(value, str) for value in config.headers.values())
 
     @pytest.mark.asyncio
-    async def test_resolve_srv_record_async_dns_failure_raises(self):
+    async def test_resolve_srv_targets_async_dns_failure_raises(self):
         import dns.exception
 
         with mock.patch("dns.asyncresolver.resolve", new_callable=mock.AsyncMock) as mock_resolve:
@@ -1137,11 +1289,11 @@ class TestHttpAsyncHookSrvLookup:
             hook = HttpAsyncHook()
 
             with pytest.raises(HttpSrvLookupException, match="Failed to resolve SRV record"):
-                await hook._resolve_srv_record_async("_http._tcp.example.com")
+                await hook._resolve_srv_targets_async("_http._tcp.example.com")
 
     @pytest.mark.asyncio
-    async def test_resolve_srv_record_async_missing_dependency_raises(self):
+    async def test_resolve_srv_targets_async_missing_dependency_raises(self):
         hook = HttpAsyncHook()
         with mock.patch.dict(sys.modules, {"dns": None, "dns.asyncresolver": None, "dns.exception": None}):
             with pytest.raises(HttpSrvLookupException, match="dnspython"):
-                await hook._resolve_srv_record_async("_http._tcp.example.com")
+                await hook._resolve_srv_targets_async("_http._tcp.example.com")
