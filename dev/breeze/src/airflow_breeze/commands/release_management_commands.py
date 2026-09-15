@@ -99,12 +99,16 @@ from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES,
     DESTINATION_LOCATIONS,
+    HARDENED_PYTHON_IMAGE_MIRROR,
+    HARDENED_PYTHON_IMAGE_SOURCE,
     MULTI_PLATFORM,
     SCHEMA_DESTINATION_LOCATIONS,
     UV_VERSION,
     get_airflow_mypy_version,
     get_airflow_version,
     get_airflowctl_version,
+    get_hardened_python_base_image,
+    get_hardened_python_image_tag,
     get_task_sdk_version,
     get_ts_sdk_version,
 )
@@ -2471,7 +2475,7 @@ def release_prod_images(
     for python in python_versions:
         build_args = {
             "AIRFLOW_CONSTRAINTS": "constraints-no-providers",
-            "BASE_IMAGE": "debian:bookworm-slim",
+            "BASE_IMAGE": get_hardened_python_base_image(python),
             "AIRFLOW_PYTHON_VERSION": ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION.get(python, python),
             "AIRFLOW_VERSION": airflow_version,
             "INCLUDE_PRE_RELEASE": "true" if include_pre_release else "false",
@@ -5175,3 +5179,38 @@ def check_release_files(
     else:
         console.print("\n[success]All expected files are present![/]")
         sys.exit(0)
+
+
+@release_management_group.command(
+    name="mirror-base-images",
+    help="Mirror the hardened Python base images Airflow builds on to Airflow's public registry.",
+)
+@option_python_no_default
+@option_verbose
+@option_dry_run
+def mirror_base_images(python: str | None):
+    python_versions = CURRENT_PYTHON_MAJOR_MINOR_VERSIONS if python is None else [python]
+    failed: list[str] = []
+    for python_version in python_versions:
+        tag = get_hardened_python_image_tag(python_version)
+        source = f"{HARDENED_PYTHON_IMAGE_SOURCE}:{tag}"
+        # The floating major/minor tag is what documentation and ad-hoc builds refer to, so that they
+        # do not have to be edited on every Python patch release.
+        floating_tag = tag.replace(
+            ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION.get(python_version, python_version), python_version, 1
+        )
+        targets = [f"{HARDENED_PYTHON_IMAGE_MIRROR}:{tag}", f"{HARDENED_PYTHON_IMAGE_MIRROR}:{floating_tag}"]
+        console_print(f"[info]Mirroring {source} -> {', '.join(targets)}[/]")
+        # imagetools copies the multi-platform manifest registry-to-registry, so the layers never
+        # travel through the machine running this.
+        tag_flags = [flag for target in targets for flag in ("--tag", target)]
+        result = run_command(
+            ["docker", "buildx", "imagetools", "create", *tag_flags, source],
+            check=False,
+        )
+        if result.returncode != 0:
+            failed.append(source)
+    if failed:
+        console_print(f"[error]Failed to mirror: {', '.join(failed)}[/]")
+        sys.exit(1)
+    console_print("[success]All base images mirrored[/]")
