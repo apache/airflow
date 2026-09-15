@@ -18,10 +18,11 @@
 from __future__ import annotations
 
 from unittest import mock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from airflow.sdk.bases.xcom import BaseXCom
+from airflow.sdk.bases.xcom import BaseXCom, XComIterable
 from airflow.sdk.execution_time.comms import (
     DeleteXCom,
     GetXCom,
@@ -29,6 +30,7 @@ from airflow.sdk.execution_time.comms import (
     XComResult,
     XComSequenceSliceResult,
 )
+from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.types import TaskInstanceKey
 
 
@@ -272,3 +274,289 @@ class TestBaseXCom:
                 include_prior_dates=False,
             )
         )
+
+
+class TestXComIterable:
+    def make_iterable(self, length: int = 0, map_index: int | None = None) -> XComIterable:
+        return XComIterable(task_id="task", dag_id="dag", run_id="run", map_index=map_index, length=length)
+
+    @patch.object(XCom, "set")
+    def test_append_calls_xcom_set_with_correct_key(self, mock_set):
+        iterable = self.make_iterable()
+        iterable.append("value1")
+        mock_set.assert_called_once_with(
+            key=f"{BaseXCom.XCOM_RETURN_KEY}_0",
+            value="value1",
+            dag_id="dag",
+            task_id="task",
+            run_id="run",
+            map_index=None,
+        )
+
+    @patch.object(XCom, "set")
+    def test_append_uses_sequential_keys(self, mock_set):
+        iterable = self.make_iterable()
+        iterable.append("a")
+        iterable.append("b")
+        iterable.append("c")
+        keys = [c.kwargs["key"] for c in mock_set.call_args_list]
+        assert keys == [
+            f"{BaseXCom.XCOM_RETURN_KEY}_0",
+            f"{BaseXCom.XCOM_RETURN_KEY}_1",
+            f"{BaseXCom.XCOM_RETURN_KEY}_2",
+        ]
+
+    @patch.object(XCom, "set")
+    def test_append_increments_index_and_length(self, mock_set):
+        iterable = self.make_iterable()
+        iterable.append("a")
+        iterable.append("b")
+        assert iterable._index == 2
+        assert iterable.length == 2
+
+    @patch.object(XCom, "set", side_effect=RuntimeError("oops"))
+    def test_append_does_not_increment_index_on_error(self, mock_set):
+        """index/length must not advance when XCom.set raises, to avoid phantom entries."""
+        iterable = self.make_iterable()
+        with pytest.raises(RuntimeError, match="oops"):
+            iterable.append("value")
+        assert iterable._index == 0
+        assert iterable.length == 0
+
+    @pytest.mark.asyncio
+    @patch.object(XCom, "aset", new_callable=AsyncMock)
+    async def test_aappend_calls_xcom_aset_with_correct_key(self, mock_aset):
+        iterable = self.make_iterable()
+        await iterable.aappend("value1")
+        mock_aset.assert_called_once_with(
+            key=f"{BaseXCom.XCOM_RETURN_KEY}_0",
+            value="value1",
+            dag_id="dag",
+            task_id="task",
+            run_id="run",
+            map_index=None,
+        )
+
+    @pytest.mark.asyncio
+    @patch.object(XCom, "aset", new_callable=AsyncMock)
+    async def test_aappend_uses_sequential_keys(self, mock_aset):
+        iterable = self.make_iterable()
+        await iterable.aappend("a")
+        await iterable.aappend("b")
+        keys = [c.kwargs["key"] for c in mock_aset.call_args_list]
+        assert keys == [
+            f"{BaseXCom.XCOM_RETURN_KEY}_0",
+            f"{BaseXCom.XCOM_RETURN_KEY}_1",
+        ]
+
+    @pytest.mark.asyncio
+    @patch.object(XCom, "aset", new_callable=AsyncMock, side_effect=RuntimeError("oops"))
+    async def test_aappend_does_not_increment_index_on_error(self, mock_aset):
+        """index/length must not advance when XCom.aset raises, to avoid phantom entries."""
+        iterable = self.make_iterable()
+        with pytest.raises(RuntimeError, match="oops"):
+            await iterable.aappend("value")
+        assert iterable._index == 0
+        assert iterable.length == 0
+
+    def test_serialize_returns_expected_dict(self):
+        iterable = self.make_iterable(length=3, map_index=1)
+        assert iterable.serialize() == {
+            "task_id": "task",
+            "dag_id": "dag",
+            "run_id": "run",
+            "map_index": 1,
+            "length": 3,
+        }
+
+    def test_deserialize_restores_fields(self):
+        data = {"task_id": "task", "dag_id": "dag", "run_id": "run", "map_index": 2, "length": 5}
+        iterable = XComIterable.deserialize(data, version=1)
+        assert iterable.task_id == "task"
+        assert iterable.dag_id == "dag"
+        assert iterable.run_id == "run"
+        assert iterable.map_index == 2
+        assert iterable.length == 5
+
+    def test_index_starts_at_length_after_construction(self):
+        """Creating an XComIterable with length>0 must start index at length, not 0."""
+        iterable = self.make_iterable(length=3)
+        assert iterable._index == 3
+
+    @patch.object(XCom, "set")
+    def test_deserialize_then_append_continues_from_correct_index(self, mock_set):
+        """After round-tripping through serialize/deserialize, append must not overwrite existing entries."""
+        data = {"task_id": "task", "dag_id": "dag", "run_id": "run", "map_index": None, "length": 3}
+        iterable = XComIterable.deserialize(data, version=1)
+        iterable.append("new_value")
+        assert mock_set.call_args.kwargs["key"] == f"{BaseXCom.XCOM_RETURN_KEY}_3"
+
+    @patch.object(XCom, "get_one")
+    def test_flatten_expands_list_items(self, mock_get_one):
+        """Items that are lists are expanded into individual elements."""
+        mock_get_one.side_effect = self._pages_by_key([["a", "b"], ["c", "d"]])
+        iterable = self.make_iterable(length=2)
+        assert list(iterable.flatten()) == ["a", "b", "c", "d"]
+
+    @patch.object(XCom, "get_one")
+    def test_flatten_expands_tuple_items(self, mock_get_one):
+        """Items that are tuples are expanded into individual elements."""
+        mock_get_one.side_effect = self._pages_by_key([("a", "b"), ("c",)])
+        iterable = self.make_iterable(length=2)
+        assert list(iterable.flatten()) == ["a", "b", "c"]
+
+    @patch.object(XCom, "get_one")
+    def test_flatten_expands_set_items(self, mock_get_one):
+        """Items that are sets are expanded into individual elements."""
+        mock_get_one.side_effect = self._pages_by_key([{42}])
+        iterable = self.make_iterable(length=1)
+        assert list(iterable.flatten()) == [42]
+
+    @patch.object(XCom, "get_one")
+    def test_flatten_expands_generator_items(self, mock_get_one):
+        """Items that are generators are expanded into individual elements."""
+        mock_get_one.side_effect = self._pages_by_key([lambda: iter([1, 2, 3])])
+        iterable = self.make_iterable(length=1)
+        assert list(iterable.flatten()) == [1, 2, 3]
+
+    @patch.object(XCom, "get_one")
+    def test_flatten_passes_through_string_items(self, mock_get_one):
+        """Strings are not iterated — they are yielded as a single item."""
+        mock_get_one.side_effect = self._pages_by_key(["hello", "world"])
+        iterable = self.make_iterable(length=2)
+        assert list(iterable.flatten()) == ["hello", "world"]
+
+    @patch.object(XCom, "get_one")
+    def test_flatten_passes_through_bytes_items(self, mock_get_one):
+        """Bytes are not iterated — they are yielded as a single item."""
+        mock_get_one.side_effect = self._pages_by_key([b"hello"])
+        iterable = self.make_iterable(length=1)
+        assert list(iterable.flatten()) == [b"hello"]
+
+    @patch.object(XCom, "get_one")
+    def test_flatten_passes_through_non_iterable_items(self, mock_get_one):
+        """Scalar (non-iterable) items are yielded unchanged."""
+        mock_get_one.side_effect = self._pages_by_key([1, 2.0, True])
+        iterable = self.make_iterable(length=3)
+        assert list(iterable.flatten()) == [1, 2.0, True]
+
+    @patch.object(XCom, "get_one")
+    def test_flatten_handles_mixed_items(self, mock_get_one):
+        """Mixed collection and scalar items are each handled correctly."""
+        mock_get_one.side_effect = self._pages_by_key([["a", "b"], "c", ("d",), 5])
+        iterable = self.make_iterable(length=4)
+        assert list(iterable.flatten()) == ["a", "b", "c", "d", 5]
+
+    def test_flatten_on_empty_iterable_yields_nothing(self):
+        iterable = self.make_iterable(length=0)
+        assert list(iterable.flatten()) == []
+
+    @staticmethod
+    def _pages_by_key(pages: list) -> object:
+        """Build a get_one side_effect that maps each page's index-suffixed key to its page.
+
+        Unlike a plain list side_effect (consumed once and then exhausted), this can be called
+        any number of times for the same key — mirroring how a real XCom backend is queried by
+        key and does not get "used up". This is required because ``list()``/``tuple()`` call
+        ``__len__`` as a size hint before calling ``__iter__``, and since FlattenedXComIterable's
+        ``__len__`` walks the stream to discover the count when it is not yet cached, any bulk
+        consumer ends up walking (and re-fetching) pages twice — once for the hint, once for the
+        real iteration — even though a plain ``for`` loop only walks once.
+
+        A page may be a zero-arg callable instead of a plain value, in which case it is invoked
+        fresh on every access — required for one-shot values like generators, which would
+        otherwise appear exhausted on the second (real) walk after already being drained by the
+        first (size-hint) walk.
+        """
+
+        def _get_one(*args, **kwargs):
+            index = int(kwargs["key"].rsplit("_", 1)[-1])
+            page = pages[index]
+            return page() if callable(page) else page
+
+        return _get_one
+
+    @patch.object(XCom, "get_one")
+    def test_flatten_len_counts_flattened_items_not_pages(self, mock_get_one):
+        """len() of a flattened iterable must count individual flattened items, not the raw
+        pages XComIterable stores — a page can expand to any number of items."""
+        mock_get_one.side_effect = [["a", "b"], ["c", "d", "e"]]
+        flattened = self.make_iterable(length=2).flatten()
+        assert len(flattened) == 5
+
+    @patch.object(XCom, "get_one")
+    def test_flatten_getitem_indexes_flattened_items_not_pages(self, mock_get_one):
+        """Indexing a flattened iterable must address individual flattened items, not the raw
+        pages XComIterable stores."""
+        mock_get_one.side_effect = self._pages_by_key([["a", "b"], ["c", "d", "e"]])
+        flattened = self.make_iterable(length=2).flatten()
+        assert [flattened[i] for i in range(len(flattened))] == ["a", "b", "c", "d", "e"]
+        assert flattened[-1] == "e"
+
+    @patch.object(XCom, "get_one")
+    def test_flatten_getitem_slice_returns_flattened_items(self, mock_get_one):
+        mock_get_one.side_effect = self._pages_by_key([["a", "b"], ["c", "d", "e"]])
+        flattened = self.make_iterable(length=2).flatten()
+        assert flattened[1:4] == ["b", "c", "d"]
+
+    @patch.object(XCom, "get_one")
+    def test_flatten_getitem_out_of_range_raises_index_error(self, mock_get_one):
+        mock_get_one.side_effect = [["a", "b"]]
+        flattened = self.make_iterable(length=1).flatten()
+        with pytest.raises(IndexError):
+            flattened[5]
+
+    @patch.object(XCom, "get_one")
+    def test_flatten_len_caches_total_length_without_materializing_items(self, mock_get_one):
+        """len() walks the flattened stream once and caches only the resulting integer, so a
+        repeated len() call does not re-fetch every page from XCom."""
+        mock_get_one.side_effect = self._pages_by_key([["a", "b"], ["c", "d", "e"]])
+        flattened = self.make_iterable(length=2).flatten()
+        assert len(flattened) == 5
+        assert len(flattened) == 5
+        assert mock_get_one.call_count == 2
+        assert flattened._flattened_length == 5
+
+    @patch.object(XCom, "get_one")
+    def test_flatten_getitem_after_len_still_walks_the_stream(self, mock_get_one):
+        """Unlike len(), getitem() never caches items, so it walks (and re-fetches) pages from
+        the start even after the total length has already been cached by len(). This trade-off
+        keeps memory bounded by the size of the requested result instead of the whole iterable."""
+        mock_get_one.side_effect = self._pages_by_key([["a", "b"], ["c", "d", "e"]])
+        flattened = self.make_iterable(length=2).flatten()
+        assert len(flattened) == 5
+        assert mock_get_one.call_count == 2
+        assert flattened[0] == "a"
+        assert mock_get_one.call_count == 3
+
+    @patch.object(XCom, "get_one")
+    def test_flatten_len_before_iteration_does_not_retain_items(self, mock_get_one):
+        """Calling len() before any iteration must not keep yielded items in memory — only the
+        resulting count is cached, so repeated flattening of a large iterable stays bounded."""
+        mock_get_one.side_effect = self._pages_by_key([["a", "b"], ["c", "d", "e"]])
+        flattened = self.make_iterable(length=2).flatten()
+        assert flattened._flattened_length is None
+        assert len(flattened) == 5
+        # Only the integer count is cached; no list of items is kept around.
+        assert flattened._flattened_length == 5
+        assert not hasattr(flattened, "_flattened_cache")
+
+    @patch.object(XCom, "get_one")
+    def test_flatten_iterating_generator_directly_caches_length_too(self, mock_get_one):
+        """Draining __iter__() directly (not just via len()) must also populate the length cache,
+        since __len__ relies on the same generator to avoid a separate counting code path.
+
+        ``list()`` calls ``__len__`` as a size-hint *before* calling ``__iter__`` (a CPython
+        optimization for any sized+iterable object), so the walk actually happens twice here —
+        once via the hint, once via the real iteration — hence 4 fetches for 2 pages rather than
+        2. That one-time doubling under bulk consumers like ``list()``/``tuple()`` is an accepted
+        trade-off of never caching items; a plain ``for`` loop, which is how production code
+        consumes this class, walks the stream exactly once.
+        """
+        mock_get_one.side_effect = self._pages_by_key([["a", "b"], ["c", "d", "e"]])
+        flattened = self.make_iterable(length=2).flatten()
+        assert list(flattened) == ["a", "b", "c", "d", "e"]
+        assert flattened._flattened_length == 5
+        assert len(flattened) == 5
+        # len() must not trigger another full walk since the length is already cached.
+        assert mock_get_one.call_count == 4
