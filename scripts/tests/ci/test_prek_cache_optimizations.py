@@ -168,7 +168,14 @@ def test_cache_key_appends_output(identity_inputs, sandbox, monkeypatch):
 
 @pytest.mark.parametrize(
     "save,hit,restored,event",
-    list(itertools.product(("true", "false"), ("true", "false", ""), ("true", "false", ""), ("pull_request", "schedule", "push"))),
+    list(
+        itertools.product(
+            ("true", "false"),
+            ("true", "false", ""),
+            ("true", "false", ""),
+            ("pull_request", "schedule", "push"),
+        )
+    ),
 )
 def test_cache_refresh_policy(sandbox, save, hit, restored, event):
     env = {**sandbox, "SAVE_CACHE": save, "STASH_HIT": hit, "TAR_RESTORED": restored, "EVENT_NAME": event}
@@ -241,7 +248,9 @@ def test_cache_cleanup_preserves_unrelated_cache(sandbox, tmp_path):
         (home / ".cache" / name).mkdir(parents=True)
     archive = tmp_path / "cache-prek.tar.gz"
     archive.write_bytes(b"stale")
-    result = run_cache_step(find_step(PREK_ACTION, name="Clear local prek cache before restore"), sandbox, tmp_path)
+    result = run_cache_step(
+        find_step(PREK_ACTION, name="Clear local prek cache before restore"), sandbox, tmp_path
+    )
     assert result.returncode == 0, result.stderr
     assert not (home / ".cache/prek").exists()
     assert (home / ".cache/uv").is_dir()
