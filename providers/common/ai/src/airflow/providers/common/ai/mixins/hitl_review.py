@@ -21,8 +21,6 @@ import time
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Protocol
 
-from pydantic import BaseModel
-
 from airflow.providers.common.ai.exceptions import HITLMaxIterationsError
 from airflow.providers.common.ai.utils.hitl_review import (
     XCOM_AGENT_OUTPUT_PREFIX,
@@ -32,6 +30,7 @@ from airflow.providers.common.ai.utils.hitl_review import (
     HumanActionData,
     SessionStatus,
 )
+from airflow.providers.common.ai.utils.output_type import dump_output_to_json
 
 log = logging.getLogger(__name__)
 
@@ -268,8 +267,4 @@ class HITLReviewMixin:
 
     @staticmethod
     def _to_string(output: Any) -> str:
-        if isinstance(output, BaseModel):
-            return output.model_dump_json()
-        if not isinstance(output, str):
-            return str(output)
-        return output
+        return dump_output_to_json(output)

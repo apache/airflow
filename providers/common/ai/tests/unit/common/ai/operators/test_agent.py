@@ -437,6 +437,31 @@ class TestAgentOperatorExecute:
     )
     @patch("airflow.providers.common.ai.operators.agent.AgentOperator.run_hitl_review", autospec=True)
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_with_hitl_rehydrates_non_base_model_output(self, mock_hook_cls, mock_run_hitl):
+        mock_result = _make_mock_run_result(["tag-a", "tag-b"])
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = mock_result
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_run_hitl.return_value = '["tag-a", "tag-b"]'
+
+        op = AgentOperator(
+            task_id="test",
+            prompt="Summarize",
+            llm_conn_id="my_llm",
+            output_type=list[str],
+            enable_hitl_review=True,
+            hitl_timeout=timedelta(minutes=5),
+        )
+        context = MagicMock()
+        result = op.execute(context=context)
+
+        assert result == ["tag-a", "tag-b"]
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+    )
+    @patch("airflow.providers.common.ai.operators.agent.AgentOperator.run_hitl_review", autospec=True)
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_with_hitl_returns_string_unchanged(self, mock_hook_cls, mock_run_hitl):
         """When enable_hitl_review=True and output_type is str, execute returns string as-is."""
         mock_result = _make_mock_run_result("Initial output")
@@ -457,6 +482,33 @@ class TestAgentOperatorExecute:
         result = op.execute(context=context)
 
         assert result == "Approved output"
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+    )
+    @pytest.mark.parametrize("approved", ["42", '{"text": "hi"}', "true", "null"])
+    @patch("airflow.providers.common.ai.operators.agent.AgentOperator.run_hitl_review", autospec=True)
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_with_hitl_does_not_parse_json_for_str_output_type(
+        self, mock_hook_cls, mock_run_hitl, approved
+    ):
+        """A JSON-parseable approved string stays a string, matching the non-HITL path."""
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _make_mock_run_result("Initial output")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_run_hitl.return_value = approved
+
+        op = AgentOperator(
+            task_id="test",
+            prompt="Summarize",
+            llm_conn_id="my_llm",
+            output_type=str,
+            enable_hitl_review=True,
+            hitl_timeout=timedelta(minutes=5),
+        )
+        result = op.execute(context=MagicMock())
+
+        assert result == approved
 
     @pytest.mark.skipif(
         not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
@@ -583,6 +635,27 @@ class TestAgentOperatorRegenerateWithFeedback:
         )
 
         assert output == '{"text":"Revised","score":0.0}'
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_regenerate_with_feedback_serializes_non_base_model_output(self, mock_hook_cls):
+        mock_result = _make_mock_run_result(["tag-a", "tag-b"])
+        mock_result.all_messages.return_value = []
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = mock_result
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = AgentOperator(
+            task_id="test",
+            prompt="test",
+            llm_conn_id="my_llm",
+            output_type=list[str],
+        )
+        output, _ = op.regenerate_with_feedback(
+            feedback="Expand",
+            message_history=[],
+        )
+
+        assert output == '["tag-a","tag-b"]'
 
 
 class TestAgentOperatorDurable:
