@@ -90,6 +90,7 @@ from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 # Import HITLDetail at runtime so SQLAlchemy can resolve the relationship
 from airflow.models.hitl import HITLDetail  # noqa: F401
 from airflow.models.log import Log
+from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
@@ -406,6 +407,19 @@ def clear_task_instances(
     for ti in tis:
         ti.prepare_db_for_next_try(session)
 
+        # An operator-initiated clear is a deliberate reset of the task instance. The task state
+        # store is keyed by positional map_index, so a re-expanded mapped list whose contents
+        # changed would otherwise silently hand the new item at a given index the previous item's
+        # state. Wipe the rows here, where the TI uuid is regenerated and XComs are deleted, so a
+        # cleared task never resumes from state belonging to a different logical item.
+        session.execute(
+            delete(TaskStateStoreModel).where(
+                TaskStateStoreModel.dag_id == ti.dag_id,
+                TaskStateStoreModel.run_id == ti.run_id,
+                TaskStateStoreModel.task_id == ti.task_id,
+                TaskStateStoreModel.map_index == ti.map_index,
+            )
+        )
         if ti.state == TaskInstanceState.RUNNING:
             if prevent_running_task:
                 raise AirflowClearRunningTaskException(

@@ -285,13 +285,22 @@ If the worker process crashes, the task instance is retried. Task store data wri
 Deferrable tasks
 ~~~~~~~~~~~~~~~~
 
-Once a task defers, the Triggerer handles continuity across poke cycles. Use task state store in deferrable tasks only when you need to survive an operator-initiated clear, not for normal poke continuity.
+Once a task defers, the Triggerer handles continuity across poke cycles. Use task state store in
+deferrable tasks for durable job resumption across automatic retries; note that an operator-initiated
+clear wipes the task's state, so a deferred task that is cleared restarts from scratch.
 
 
 Mapped tasks
 ------------
 
 When a task is dynamically mapped (``task.expand(...)``), each map index has its own task state store namespace. ``clear()`` clears only the current index's store.
+
+For mapped tasks the store namespace is keyed by the *positional* ``map_index``, not by the mapped
+value itself. The order in which a mapped task expands is not guaranteed and the underlying list can
+change between runs, so an index that names one item in one run can name a different item in the
+next. Because an operator-initiated clear now deletes a task's state store rows, a re-expanded
+mapped task never inherits the state of the item that previously occupied the same index. Automatic
+retries (which are not clears) keep each index's rows, so resumable mapped tasks still work.
 
 To wipe state across all map indices of a task, use the :doc:`Core API </administration-and-deployment/task-and-asset-state-store>` (e.g. via the UI or CLI) after the task group has finished.
 
