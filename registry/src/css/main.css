@@ -3702,13 +3702,17 @@ main {
   background: rgb(from var(--color-purple-500) r g b / 0.1);
 }
 
-/* Connection Builder Card */
-.provider-detail-page .connections-card {
+/* Connection Builder Card (also shared by the Toolsets card, which has no
+   chip grid / builder panel of its own but reuses the card padding, heading
+   style, and external-services table below). */
+.provider-detail-page .connections-card,
+.provider-detail-page .toolset-services-card {
   padding: var(--space-5);
   margin-bottom: var(--space-6);
 }
 
-.provider-detail-page .connections-card > h3 {
+.provider-detail-page .connections-card > h3,
+.provider-detail-page .toolset-services-card > h3 {
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
   color: var(--text-primary);
@@ -3718,7 +3722,8 @@ main {
   gap: var(--space-2);
 }
 
-.provider-detail-page .connections-card > h3 svg {
+.provider-detail-page .connections-card > h3 svg,
+.provider-detail-page .toolset-services-card > h3 svg {
   width: 1rem;
   height: 1rem;
   color: var(--color-green-400);
@@ -3761,14 +3766,17 @@ main {
   border-color: var(--color-green-400);
 }
 
-/* Per-connection external services matrix */
-.provider-detail-page .connections-card .conn-external-services-table {
+/* Per-connection external services matrix (also used, unmodified, by the
+   Toolsets card's module -> external-services table). */
+.provider-detail-page .connections-card .conn-external-services-table,
+.provider-detail-page .toolset-services-card .conn-external-services-table {
   width: 100%;
   margin-top: var(--space-4);
   border-collapse: collapse;
 }
 
-.provider-detail-page .connections-card .conn-external-services-header th {
+.provider-detail-page .connections-card .conn-external-services-header th,
+.provider-detail-page .toolset-services-card .conn-external-services-header th {
   padding: var(--space-2) var(--space-3);
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
@@ -3777,20 +3785,24 @@ main {
   background: var(--bg-tertiary);
 }
 
-.provider-detail-page .connections-card .conn-external-services-row {
+.provider-detail-page .connections-card .conn-external-services-row,
+.provider-detail-page .toolset-services-card .conn-external-services-row {
   border-top: 1px solid var(--border-primary);
 }
 
-.provider-detail-page .connections-card .conn-external-services-row td {
+.provider-detail-page .connections-card .conn-external-services-row td,
+.provider-detail-page .toolset-services-card .conn-external-services-row td {
   padding: var(--space-2) var(--space-3);
   vertical-align: top;
 }
 
-.provider-detail-page .connections-card .conn-external-services-row td:first-child {
+.provider-detail-page .connections-card .conn-external-services-row td:first-child,
+.provider-detail-page .toolset-services-card .conn-external-services-row td:first-child {
   white-space: nowrap;
 }
 
-.provider-detail-page .connections-card .conn-external-services-list {
+.provider-detail-page .connections-card .conn-external-services-list,
+.provider-detail-page .toolset-services-card .conn-external-services-list {
   color: var(--text-secondary);
   font-size: var(--text-sm);
 }
