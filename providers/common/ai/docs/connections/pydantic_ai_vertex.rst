@@ -69,6 +69,9 @@ Model
     hook's ``project`` / ``location`` / ``service_account_info`` fields (see
     "Credentials" below).
 
+Embedding Model
+    Google embedding model identifier (e.g. ``google-cloud:text-embedding-005``).
+
 GCP Project
     Google Cloud project ID. Falls back to the ``GOOGLE_CLOUD_PROJECT``
     environment variable.

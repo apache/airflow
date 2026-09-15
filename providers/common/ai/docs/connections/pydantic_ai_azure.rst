@@ -66,6 +66,10 @@ Model
     The ``azure:`` prefix is required — it is what makes pydantic-ai instantiate
     the Azure OpenAI provider instead of the plain OpenAI one.
 
+Embedding Model
+    Azure embedding model identifier (e.g. ``azure:text-embedding-3-small``).
+    This field stores its value in ``extra["embed_model"]``.
+
 API Key (Password field)
     The Azure OpenAI API key.
 
