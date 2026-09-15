@@ -84,7 +84,7 @@ class TestCeleryStopCommand:
     )
     @mock.patch("airflow.providers.celery.cli.celery_command.setup_locations", autospec=True)
     @mock.patch("airflow.providers.celery.cli.celery_command.psutil.Process", autospec=True)
-    def test_if_right_pid_is_read(
+    def test_stop_worker_handles_missing_process(
         self,
         mock_process,
         mock_setup_locations,
@@ -105,7 +105,7 @@ class TestCeleryStopCommand:
 
         assert not path.exists()
         mock_process.assert_called_once_with(pid)
-        assert mock_process.return_value.terminate.call_count == expected_terminate_calls
+        assert mock_process.return_value.terminate.call_args_list == [mock.call()] * expected_terminate_calls
 
     @mock.patch("airflow.providers.celery.cli.celery_command.read_pid_from_pidfile")
     @mock.patch("airflow.providers.celery.executors.celery_executor.app")
