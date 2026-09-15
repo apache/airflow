@@ -625,6 +625,45 @@ key1 = default_value
         assert test_conf.get("test", "sensitive_key") == "cmd_value"
         assert test_conf.get("test", "non_sensitive_key") == "config_value"
 
+    def test_file_from_env_var(self, tmp_path):
+        json_file = tmp_path / "test.json"
+
+        with open(json_file, "w") as f:
+            json.dump({"foo": "OK"}, f)
+        test_config = textwrap.dedent(
+            """\
+            [test]
+            itsafile=NOT OK
+            notafile=OK
+        """
+        )
+        test_conf = AirflowConfigParser(default_config=test_config)
+        test_conf.file_config_values.add(("test", "itsafile"))
+
+        with patch.dict(os.environ, {"AIRFLOW__TEST__ITSAFILE_FILE": str(json_file)}):
+            assert test_conf.getjson("test", "itsafile")["foo"] == "OK"
+            assert test_conf.get("test", "notafile") == "OK"
+
+    def test_file_from_config_file(self, tmp_path):
+        json_file = tmp_path / "test.json"
+
+        with open(json_file, "w") as f:
+            json.dump({"foo": "bar"}, f)
+
+        test_config = textwrap.dedent(
+            f"""\
+            [test]
+            json_key_file={json_file}
+            non_file_key=config_value
+            non_file_key_file={json_file}
+        """
+        )
+        test_conf = AirflowConfigParser()
+        test_conf.read_string(test_config)
+        test_conf.file_config_values.add(("test", "json_key"))
+        assert test_conf.getjson("test", "json_key")["foo"] == "bar"
+        assert test_conf.get("test", "non_file_key") == "config_value"
+
     def test_secret_from_config_file(self):
         class TestParserWithSecretBackend(AirflowConfigParser):
             def __init__(self, *args, **kwargs):
@@ -1079,6 +1118,31 @@ existing_list = one,two,three
         with pytest.raises(AirflowConfigException):
             test_conf.get("test", "sensitive_key", team_name="team_a")
 
+    def test_team_skips_file_lookup(self, tmp_path):
+        """Test that _file config values are skipped when team_name is provided."""
+        file_path = tmp_path / "test.json"
+
+        with open(file_path, "w") as f:
+            json.dump({"foo": "bar"}, f)
+
+        test_conf = AirflowConfigParser()
+        test_conf.read_string(
+            textwrap.dedent(
+                f"""\
+                [test]
+                sensitive_key_file = {file_path}
+            """
+            )
+        )
+        test_conf.file_config_values.add(("test", "sensitive_key"))
+
+        # Without team_name, file works
+        assert test_conf.getjson("test", "sensitive_key")["foo"] == "bar"
+
+        # With team_name, file is skipped
+        with pytest.raises(AirflowConfigException):
+            test_conf.get("test", "sensitive_key", team_name="team_a")
+
     def test_team_skips_secret_lookup(self):
         """Test that _secret config values are skipped when team_name is provided."""
 
@@ -1191,7 +1255,7 @@ existing_list = one,two,three
         assert as_dict_sensitive["team_a=test"]["sensitive_key"] == "team_a_value"
         assert as_dict_sensitive["test"]["sensitive_key"] == "global_value"
 
-    def test_team_scoped_sensitive_cmd_and_secret_fallbacks_are_hidden_in_as_dict(self):
+    def test_team_scoped_sensitive_cmd_and_file_and_secret_fallbacks_are_hidden_in_as_dict(self):
         """The _cmd / _secret fallbacks of a team scoped option are not resolved, so they are hidden."""
         test_conf = AirflowConfigParser()
         test_conf.read_string(
@@ -1199,27 +1263,32 @@ existing_list = one,two,three
                 """\
                 [team_a=test]
                 sensitive_key_cmd = echo -n team_a_value
+                sensitive_key_file = team_a/path/to/file.json
                 sensitive_key_secret = team_a/secret/path
             """
             )
         )
         test_conf.sensitive_config_values.add(("test", "sensitive_key"))
+        test_conf.file_config_values.add(("test", "sensitive_key"))
 
         as_dict = test_conf.as_dict(display_sensitive=False)
 
         assert as_dict["team_a=test"]["sensitive_key_cmd"] == "< hidden >"
+        assert as_dict["team_a=test"]["sensitive_key_file"] == "< hidden >"
         assert as_dict["team_a=test"]["sensitive_key_secret"] == "< hidden >"
 
     def test_team_scoped_sensitive_env_var_is_hidden_in_as_dict(self):
         """A sensitive option set by a team scoped env var is hidden like the base option is."""
         test_conf = AirflowConfigParser()
         test_conf.sensitive_config_values.add(("test", "sensitive_key"))
+        test_conf.file_config_values.add(("test", "sensitive_key"))
 
         with patch.dict(
             os.environ,
             {
                 "AIRFLOW__TEAM_A___TEST__SENSITIVE_KEY": "team_a_value",
                 "AIRFLOW__TEAM_A___TEST__SENSITIVE_KEY_CMD": "echo -n team_a_cmd_value",
+                "AIRFLOW__TEAM_A___TEST__SENSITIVE_KEY_FILE": "/path/to/file.json",
                 "AIRFLOW__TEAM_A___TEST__KEY1": "team_a_key1_value",
             },
         ):
@@ -1228,6 +1297,7 @@ existing_list = one,two,three
 
         assert "team_a_value" not in hidden_values
         assert "echo -n team_a_cmd_value" not in hidden_values
+        assert "/path/to/file.json" not in hidden_values
         assert "< hidden >" in hidden_values
         assert "team_a_key1_value" in hidden_values
         # display_sensitive=True still returns the real value.
