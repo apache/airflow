@@ -54,14 +54,15 @@ class TestInfluxDB3Hook:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.influxdb.hooks.influxdb3.InfluxDBClient3")
-    async def test_aget_conn(self, influx_db_client_3):
+    @mock.patch("airflow.providers.influxdb.hooks.influxdb3.get_async_connection")
+    async def test_aget_conn(self, get_async_connection, influx_db_client_3):
         """Test async connection to InfluxDB 3.x."""
-        self.influxdb3_hook.aget_connection = mock.AsyncMock(return_value=self.connection)
+        get_async_connection.return_value = self.connection
 
         await self.influxdb3_hook.aget_conn()
 
         assert self.influxdb3_hook.uri == "https://localhost:8086"
-        self.influxdb3_hook.aget_connection.assert_awaited_once_with(conn_id="influxdb3_default")
+        get_async_connection.assert_awaited_once_with("influxdb3_default", hook=self.influxdb3_hook)
         influx_db_client_3.assert_called_once_with(
             host="https://localhost:8086", token="123456789", database="test_db", org="test_org"
         )
