@@ -10,13 +10,11 @@
   "filters": {
     "allRunTypes": "Все типы запусков",
     "allStates": "Все состояния",
-    "anyRunState": "Любой запуск",
     "favorite": {
       "all": "Все",
       "favorite": "Избранные",
       "unfavorite": "Не избранные"
     },
-    "lastRunState": "Последний запуск",
     "paused": {
       "active": "Активные",
       "all": "Все",
