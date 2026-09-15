@@ -538,6 +538,25 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         return connection_cmd_masked
 
     @property
+    def conf(self) -> dict[str, Any] | None:
+        """Spark configuration properties."""
+        return self._conf
+
+    @property
+    def kubernetes_driver_pod(self) -> str | None:
+        """Spark driver pod name on Kubernetes."""
+        return self._kubernetes_driver_pod
+
+    @kubernetes_driver_pod.setter
+    def kubernetes_driver_pod(self, value: str | None) -> None:
+        self._kubernetes_driver_pod = value
+
+    @property
+    def yarn_application_id(self) -> str | None:
+        """YARN application ID for the Spark job."""
+        return self._yarn_application_id
+
+    @property
     def _submit_log_tail(self) -> str:
         """
         The last few lines of the spark-submit process's own output.
@@ -1175,7 +1194,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                         f"returncode = {returncode}"
                     )
 
-    def _poll_k8s_driver_via_api(self) -> str | None:
+    def poll_k8s_driver_via_api(self) -> str | None:
         """
         Poll the K8s driver pod phase until it reaches a terminal state.
 
@@ -1289,6 +1308,10 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             return terminal_phase
         finally:
             self._run_post_submit_commands()
+
+    def _poll_k8s_driver_via_api(self) -> str | None:
+        """Deprecated alias for poll_k8s_driver_via_api."""
+        return self.poll_k8s_driver_via_api()
 
     def _build_spark_driver_kill_command(self) -> list[str]:
         """

@@ -2214,3 +2214,18 @@ class TestSparkSubmitHook:
         hook.on_kill()
 
         mock_put.assert_called_once()
+
+    def test_public_properties(self):
+        hook = SparkSubmitHook(conf={"spark.app.name": "test_app"})
+        assert hook.conf == {"spark.app.name": "test_app"}
+
+        # kubernetes_driver_pod getter and setter
+        assert hook.kubernetes_driver_pod is None
+        hook.kubernetes_driver_pod = "spark-driver-pod-123"
+        assert hook.kubernetes_driver_pod == "spark-driver-pod-123"
+
+        # yarn_application_id getter
+        assert hook.yarn_application_id is None
+        hook._yarn_application_id = "application_123456789_0001"
+        assert hook.yarn_application_id == "application_123456789_0001"
+
