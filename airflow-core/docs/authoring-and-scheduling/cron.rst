@@ -44,6 +44,15 @@ For example, you can create a Dag schedule to run at 12AM on the first Monday of
 .. tip::
     You can use an online editor for CRON expressions such as `Crontab guru <https://crontab.guru/>`_
 
+.. note::
+
+    Cron schedules are evaluated in the Dag's time zone and follow daylight saving transitions, while ``timedelta`` schedules do not. See
+    :doc:`timezone`.
+
+    An online editor with no time zone setting cannot show this, so an expression that looks unambiguous in a preview may still be skipped or
+    run twice on a transition night. Check it in a time zone aware tool such as `CronForge <https://cronforge.dev/cron-timezone-dst>`_, or avoid
+    scheduling between 01:00 and 03:00 local time.
+
 +----------------+--------------------------------------------------------------------+-----------------+
 | preset         | meaning                                                            | cron            |
 +================+====================================================================+=================+
