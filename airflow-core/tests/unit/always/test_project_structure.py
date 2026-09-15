@@ -74,7 +74,6 @@ class TestProjectStructure:
             "providers/amazon/tests/unit/amazon/aws/sensors/test_sagemaker.py",
             "providers/apache/hdfs/tests/unit/apache/hdfs/hooks/test_hdfs.py",
             "providers/apache/hdfs/tests/unit/apache/hdfs/sensors/test_hdfs.py",
-            "providers/apache/hive/tests/unit/apache/hive/plugins/test_hive.py",
             "providers/celery/tests/unit/celery/executors/test_celery_executor_utils.py",
             "providers/celery/tests/unit/celery/executors/test_default_celery.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/executors/test_kubernetes_executor_types.py",
