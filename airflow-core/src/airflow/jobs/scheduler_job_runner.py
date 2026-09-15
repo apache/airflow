@@ -1385,8 +1385,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         1. **Normal task completion**: Updates task states for successful/failed tasks
         2. **External termination**: Detects tasks killed outside Airflow and marks them as failed
         3. **Task requeuing**: Handles tasks that were requeued by other schedulers or executors,
-           and tasks moved to ``scheduled`` after a trigger fired so a stale executor success from the
-           pre-deferral worker exit does not fail the task instance
+           and tasks resumed by a trigger after deferral (scheduled, queued, or already running)
+           so a stale executor success from the pre-deferral worker exit does not fail the task instance
         4. **Callback processing**: Sends task callback requests to DAG Processor for execution
         5. **Email notifications**: Sends email notification requests to DAG Processor
 
@@ -1559,9 +1559,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # from the worker exit after defer() has not been processed yet - should not fail it.
             # 4) the trigger already put the TI back to queued (resume after defer) but the executor success
             # from the worker exit after defer() has not been processed yet - should not fail it.
+            # 5) the resumed attempt is already running (resume after defer) but the executor success
+            # from the worker exit after defer() has not been processed yet - should not fail it.
 
-            # All of this could also happen if the state is "running",
-            # but that is handled by the scheduler detecting task instances without heartbeats.
+            # A running TI outside case 5 (no next_method set) is still a mismatch here; workers lost
+            # without any executor event are picked up separately by heartbeat detection.
 
             ti_queued = ti.try_number == buffer_key.try_number and ti.state in (
                 TaskInstanceState.SCHEDULED,
@@ -1573,9 +1575,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.queued_by_job_id != job_id  # Another scheduler has queued this task again
                 or executor.has_task(ti)  # This scheduler has this task already
                 or (
-                    # Resume-after-defer: trigger moved TI to scheduled or queued (next_method set)
-                    # before we saw the executor success from the defer exit for the same try_number.
-                    ti.state in (TaskInstanceState.SCHEDULED, TaskInstanceState.QUEUED)
+                    # Resume-after-defer: trigger resumed the TI (next_method set) before we saw the
+                    # executor success from the defer exit for the same try_number. The resumed
+                    # attempt may already be running: next_method is only cleared on terminal,
+                    # retry and reschedule updates, and a picked-up workload is no longer tracked
+                    # by the executor, so has_task cannot tell the attempts apart.
+                    ti.state
+                    in (
+                        TaskInstanceState.SCHEDULED,
+                        TaskInstanceState.QUEUED,
+                        TaskInstanceState.RUNNING,
+                    )
                     and state == TaskInstanceState.SUCCESS
                     and ti.next_method is not None
                 )
