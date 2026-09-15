@@ -248,7 +248,36 @@ def _load_exporter_from_env() -> SpanExporter:
     return ep.load()()
 
 
+def _adopt_existing_tracer_provider() -> bool:
+    """
+    Attach Airflow's id generator to a TracerProvider installed by somebody else.
+
+    OpenTelemetry auto-instrumentation and vendor distros set the global provider before
+    ``configure_otel`` runs, and ``set_tracer_provider`` then only logs a warning instead
+    of replacing it -- silently dropping the generator that Airflow's span id propagation
+    depends on. Prefer selecting the generator through the ``opentelemetry_id_generator``
+    entry point (``OTEL_PYTHON_ID_GENERATOR=airflow``): a ``Tracer`` captures the generator
+    it is built with, so anything already created by the time we get here keeps the
+    original one.
+    """
+    provider = trace.get_tracer_provider()
+    if not isinstance(provider, TracerProvider):
+        return False
+    if not isinstance(provider.id_generator, OverrideableRandomIdGenerator):
+        provider.id_generator = OverrideableRandomIdGenerator()
+        log.warning(
+            "A TracerProvider was already installed; patched in %s so Airflow span ids "
+            "keep propagating. Set OTEL_PYTHON_ID_GENERATOR=airflow to have it applied "
+            "when the provider is built instead.",
+            OverrideableRandomIdGenerator.__name__,
+        )
+    return True
+
+
 def configure_otel(conf: ConfigParser):
+    if _adopt_existing_tracer_provider():
+        return
+
     otel_on = conf.getboolean("traces", "otel_on", fallback=False)
     if not otel_on:
         return
