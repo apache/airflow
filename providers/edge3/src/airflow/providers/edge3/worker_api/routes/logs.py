@@ -19,9 +19,9 @@ from __future__ import annotations
 
 from functools import cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated
+from typing import Annotated
 
-from fastapi import Body, Depends, status
+from fastapi import Body, Depends, HTTPException, status
 
 from airflow.api_fastapi.common.db.common import SessionDep  # noqa: TC001
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -48,9 +48,11 @@ def _logfile_path(task: TaskInstanceKey, *, session=NEW_SESSION) -> str:
         map_index=task.map_index,
         session=session,
     )
-    if TYPE_CHECKING:
-        assert ti
-        assert isinstance(ti, TaskInstance)
+    if not ti:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"TaskInstance not found for dag_id={task.dag_id}, task_id={task.task_id}, run_id={task.run_id}, map_index={task.map_index}",
+        )
     return FileTaskHandler(".")._render_filename(ti, task.try_number)
 
 
@@ -61,6 +63,7 @@ def _logfile_path(task: TaskInstanceKey, *, session=NEW_SESSION) -> str:
         [
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
         ]
     ),
 )
