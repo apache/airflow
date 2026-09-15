@@ -23,6 +23,7 @@ import importlib
 import json
 import logging
 import os
+import re
 import textwrap
 from contextlib import redirect_stdout
 from typing import TYPE_CHECKING, Protocol, cast
@@ -510,9 +511,13 @@ def task_clear(args) -> None:
         dags = get_dags(args.bundle_name, args.dag_id, use_regex=args.dag_regex, from_db=True)
 
         if args.task_regex:
+            try:
+                task_pattern = re.compile(args.task_regex)
+            except re.error as e:
+                raise SystemExit(f"Invalid --task-regex {args.task_regex!r}: {e}")
             for idx, dag in enumerate(dags):
                 dags[idx] = dag.partial_subset(
-                    task_ids=args.task_regex,
+                    task_ids={task_id for task_id in dag.task_ids if task_pattern.search(task_id)},
                     include_downstream=args.downstream,
                     include_upstream=args.upstream,
                 )
