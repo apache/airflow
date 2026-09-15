@@ -204,6 +204,7 @@ class HttpSensor(BaseSensorOperator):
             response = HttpResponseSerializer.deserialize(event["response"])
             kwargs = determine_kwargs(self.response_check, [response], context)
             result = self.response_check(response, **kwargs)
+            
             if not result:
                 # The check did not pass yet; hand polling back to the triggerer.
                 self._defer(initial_delay=self.poke_interval)
