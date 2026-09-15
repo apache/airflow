@@ -21,33 +21,29 @@
 
 ## Status
 
-Proposed, and out of scope for the 3.4 timeline. Applies to every Lang SDK; the Go SDK is the worked
-example. Records the direction and its feasibility — no generator exists and none is proposed here.
+Proposed.
 
 ## Decision
 
-1. **Provider operators reach every Lang SDK as generated, serialization-only bindings.** Only a task
-   wrapping a host-language function executes in that language; a generated operator carries no body.
+1. **Provider operators reach every Lang SDK as generated, serialization-only bindings.**
+   Only a task wrapping a host-language function executes in that language; a generated operator carries no body.
    Both go through the SDK's ordinary task registration.
-2. **A DSL task runs on a Python worker**, so it must not inherit the SDK's queue, and the deployment
-   must have that provider installed. A native Dag is therefore legitimately mixed-execution.
+2. **A provider DSL task runs on a Python worker**, so it must not inherit the SDK's queue, and the deployment must have that provider installed.
 3. **Generate from the Python constructors, commit the output, and guard it with a prek hook.**
 4. **Generate an operator only when every required constructor parameter is JSON-serializable**
-   (primitive, list, dict, or a nested spec of those); omit optional parameters that are not; skip
-   entirely any operator requiring a callable or a live object.
+   (primitive, list, dict, or a nested spec of those); omit optional parameters that are not;
+   skip entirely any operator requiring a callable or a live object.
 5. **The namespace mirrors `providers/`, adapted to each language's naming rules.**
-6. **Templated fields pass through untouched.** The SDK writes the Jinja string; rendering stays
-   server-side, where it already happens.
-7. **Version skew warns at Dag parsing time and never blocks execution.**
-8. **Bindings ship as one package per provider from day one**, on that provider's release cadence,
-   with an aggregate pin published alongside.
+6. **Templated fields pass through untouched.** The SDK writes the Jinja string; rendering stays server-side, where it already happens.
+7. **Version skew warns at Dag parsing time and never blocks execution.** Warning on SDK provider DSL version and the server-side Python provider runtime version mismatch, shouldn't be a fatal error.
+8. **Bindings ship as one package per provider from day one**, on that provider's release cadence, with an aggregate pin published alongside.
 
 ## Context
 
-The design review on #72043 asked whether authoring a Dag in Go means giving up Python provider
-operators. It must not, for any language: Airflow's ~100 provider distributions are what a native
-Lang-SDK Dag cannot afford to lose, and what no workflow engine outside Airflow's ecosystem can
-offer. A native Dag serializes into the same Dag JSON a Python Dag produces, so any operator whose
+The design review on #72043 asked whether authoring a Dag in Go means giving up Python provider operators.
+
+**It must not**, for any language: Airflow's ~100 provider distributions are what a native Lang-SDK Dag cannot afford to lose, and what no workflow engine outside Airflow's ecosystem can offer.
+A native Dag serializes into the same Dag JSON a Python Dag produces, so any operator whose
 constructor arguments are JSON-representable can be expressed from another language as a DSL that
 emits serialization and nothing else.
 
@@ -72,9 +68,7 @@ dag.Task(kubernetes.KubernetesPodOperator{
 }).After(staged)
 ```
 
-`airflow.TriggerDagRun` ([ADR-0008](0008-control-flow-constructs.md)) is the hand-written member of
-this family, and the reason a Lang SDK needs no native deferral to offer `deferrable` and
-`wait_for_completion`.
+`airflow.TriggerDagRun` ([ADR-0008](0008-control-flow-constructs.md)) follows the same concept but it is the hand-written.
 
 ## Consequences
 
@@ -85,40 +79,6 @@ this family, and the reason a Lang SDK needs no native deferral to offer `deferr
 - **Most skew is harmless, so it must not be fatal.** Python already fails loudly and precisely when
   a class or argument genuinely is not there, and a parse-time hard failure would take a whole Dag
   out over a version difference its tasks may not even touch. The hook also emits a coverage report,
-  so which operators each SDK can reach is reviewable rather than folklore.
+  so which operators each SDK can reach is reviewable.
 
-## Appendix: Implementation Notes
 
-- **Feasibility.** The shape holds across the tree: ~795 operator classes are declared in the 219
-  `operators/` modules under `providers/*/src/airflow/providers/`, and only 9 of those modules
-  mention a `Callable` parameter at all (3 a `python_callable`). Sensors and transfer modules add more
-  of the same shape. Constructor parameters are ordinary annotated Python arguments, so decision 4 is
-  decidable by static inspection.
-- **Generation follows an existing precedent.** `go-sdk/pkg/execution/genmodels/models.gen.go` is
-  generated from the Python-owned `schema.json` and committed, with CI failing on drift. Generation
-  is also the only maintainable path, since each operator's serialized `task_type`/`_task_module`
-  must name the real Python class.
-- **Namespaces per language.** Java keeps Python's full dotted path
-  (`org.apache.airflow.provider.cncf.kubernetes`). Go cannot: a selector is one dot after a package
-  name, so `kubernetes.operators.KubernetesPodOperator` is not Go, and Python's
-  `operators`/`sensors`/`transfers` layer flattens into one package per provider —
-  `airflowprovider/cncf/kubernetes` → `kubernetes.KubernetesPodOperator`. The type names already say
-  which kind each is, and all 106 provider distributions have unique leaf names, so no import needs
-  an alias. Faking the nesting with a package-level struct value (`kubernetes.Operators.PodOperator`)
-  loses per-symbol godoc and struct-literal construction for a familiar-looking dot.
-- **Per-provider versioning with a shared prefix**, which every target ecosystem can express:
-  - **Python** (the reference): one distribution per provider
-    (`apache-airflow-providers-cncf-kubernetes`), sharing the `airflow.providers.*` namespace.
-  - **Java**: one Maven artifact per provider, with classes under a distinct sub-package, so nothing
-    becomes a JPMS split package; a BOM pins a coherent set.
-  - **TypeScript**: one npm package per provider under a shared scope
-    (`@apache-airflow/provider-cncf-kubernetes`).
-  - **Go**: one module per provider, selected in `go.mod` and tagged with its directory prefix. Only
-    the major version reaches the import path, and only from v2; since the tooling reads a `/vN`
-    suffix as a version rather than a package name, even a major bump rewrites the import line, not
-    the call sites.
-- **Why split on day one.** A package boundary is an import path, so collapsing a hundred providers
-  into one package now means rewriting every import in every Dag when the split eventually happens.
-  The aggregate pin (a Maven BOM, an npm meta-package, a Go module requiring them all, the
-  counterpart of Airflow's own `constraints-*.txt`) is what keeps an author from choosing a version
-  for each of a hundred packages.

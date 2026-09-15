@@ -27,46 +27,33 @@ Proposed.
 
 ## Decision
 
-1. **A bundle is a value the author builds.** `airflow.Bundle()` returns a `*airflow.BundleRef`;
+1. **A "bundle" is a value the author builds.** `airflow.Bundle()` returns a `*airflow.BundleRef`;
    `main` reads build, register, serve, with `bundle.Serve()` as its last statement.
-2. **`bundle.Register(items ...airflow.Registraterable)`** is the single registration verb, taking
-   native Dags and task handlers.
-3. **A Go bundle registers task handlers, not Dags**: `airflow.TaskHandler(dagId, taskId, fn)`, the
-   Go body for a task Python declares with `@task.stub`.
-4. **Both ids are written out**, because Python owns them; nothing is derived from the Go function
-   name.
+2. **`bundle.Register(items ...airflow.Registraterable)`** is the single registration verb, taking native Dags and task handlers.
+3. **A Go bundle registers task handlers, not Dags**: `airflow.TaskHandler(dagId, taskId, fn)`, the Go body for a task Python declares with `@task.stub`.
+4. **Both ids are written out**, because Python owns them; nothing is derived from the Go function name.
 5. **Every handler takes an `airflow.Context` first**: a struct embedding `context.Context`, exposing
    `Logger()`, `Client()`, `TaskInstance()`, and `DagRun()`. What Airflow supplies a task arrives as
    a method on that value rather than as a parameter of its own.
-6. **Every remaining parameter is data**, bound positionally, or by field when it is a single struct:
-   `arg:"..."` when tagged, else the folded Go field name.
+6. **Every remaining parameter is data**, bound positionally, or by field when it is a single struct: `arg:"..."` when tagged, else the folded Go field name.
 
 ## Context
 
 Python owns everything but the body of a Mixed Lang task: `@task.stub` declares the task, its
 arguments, and its place in the graph. The Go side has no Dag to define, so Dag vocabulary misleads.
 
-The ids come from that same split. `@task.stub` in the Dag file fixes the dag_id and task_id; the Go
-function is only the body, and the two names have no reason to match. Deriving the task_id from the
-Go identifier would put the wire contract at the mercy of an ordinary refactor — rename the function,
-or wrap it, and the handler silently stops answering for the task Python declared. Both ids are also
-always required, which is what makes them positional parameters rather than options.
+Renaming the Go function (`fn`) shouldn't change the matched task body, so it's necessary to explictly mention both the dag_id and the task_id on the TaskHandler definition, rather than infering from the naming of Go function.
 
 Registration is inverted today. An author declares a struct with no state, asserts it implements
 `v1.BundleProvider`, fills in `RegisterDags(dagbag v1.Registry) error`, and hands the struct to
-`bundlev1server.Serve` — three concepts and an empty type before a single task is declared. The two
-names are also one object: `Registry` is `Bundle` plus `AddDag`, the write side of the value that
-later answers task lookups at execution time.
+`bundlev1server.Serve` — three concepts and an empty type before a single task is declared.
 
-The shipped signature (#70209) injects `sdk.TIRunContext`, `*slog.Logger`, and `sdk.Client` by type,
-each of them optional and accepted in any position. Nothing is wrong with a handler that declares
-only what it uses; the cost is that the signature rule grows with the surface. Every later addition —
-a Dag run accessor, a Variables helper — is either another injectable type in the classifier or
-something reached through a value the author had to remember to declare. The parameters are not
-independent either: a `sdk.Client` call takes a context as its first argument, so a handler that
-calls Airflow declares the run context as well and threads it in by hand. One required first
-parameter reduces the rule to "first parameter is the context, everything after is data", and lets
-new surface arrive as a method on a value every handler already holds.
+The term naming should be refined to reduce the new terminologies across user interface.
+The `Registry` should be `Bundle` and the `AddDag` is mis-used for registering the TaskHandler.
+
+The shipped signature (#70209) injects `sdk.TIRunContext`, `*slog.Logger`, and `sdk.Client` by type.
+However, we still requires the `context.Context` when invoking them, this akwards for the Go user perspative.
+The better interface is exposing the logger and the client directly on the context, which is the signature of `airflow.Context` shown in the bottom of this document.
 
 ## Example
 
@@ -86,8 +73,7 @@ func main() {
 }
 ```
 
-Registration can be spread across packages, either by passing the bundle along or by returning
-`[]airflow.Registraterable` for the caller: `bundle.Register(taskflowbinding.Handlers()...)`.
+Registration can be spread across packages, either by passing the bundle along or by returning `[]airflow.Registraterable` for the caller: `bundle.Register(taskflowbinding.Handlers()...)`.
 
 Three ways a Go function receives a stub task's data, all live in `go-sdk/example/bundle/`.
 
@@ -165,11 +151,8 @@ func FromContext(ctx context.Context) (Context, bool)
 
 ## Consequences
 
-- **A bundle written against `BundleProvider`/`Registry` has to be rewritten**, with no deprecation
-  alias. The Go SDK has never had a GA release and its README warns that its APIs "may change
-  between releases without notice", so the break costs no compatibility promise.
-- **Registration closes when `Serve` is called.** Registering afterwards is a programming error and
-  panics, like every other registration-time check in these ADRs.
+- **Replace `BundleProvider`/`Registry` with `Bundle`**
+- **Registration closes when `Serve` is called.** Registering afterwards is a programming error and panics.
 - **A task test has to build a context.** Calling a handler with `context.Background()` is valid
   today and stops compiling, so the SDK owes authors a constructor that returns an `airflow.Context`
   carrying a test logger and a fake `sdk.Client`. That is the price of a single channel; in exchange,
@@ -181,13 +164,9 @@ func FromContext(ctx context.Context) (Context, bool)
 ## Alternatives
 
 - **`airflow.TaskHandler(dagId, fn, airflow.WithTaskId(...))`**, defaulting the task_id to the Go
-  function name. Rejected: an option that every call has to pass is a required argument in disguise,
-  and the default it exists to avoid is the one thing the Go side must not decide — see the ids in
-  Context above.
+  function name. Rejected: see the ids in Context above.
 - **Package-level accessors over a plain `context.Context`** (`airflow.Logger(ctx)`,
   `airflow.Client(ctx)`), leaving the handler's first parameter as `context.Context`. Rejected: it
   keeps the SDK surface in package functions instead of on the value, and a context built anywhere
   else still compiles, failing at run time on a missing value instead of at build time.
-- **Two registration verbs**, one per registerable kind. Rejected: the sealed interface already
-  rejects anything else at compile time, so a second verb splits what a bundle provides across
-  separate calls for no added safety.
+- **Two registration verbs**, one per registerable kind. Rejected: Having `bundle.registerTaskHandler(airflow.TaskHandler(...))` spell the exact term twice, having a sealed type is a much cleaner interface.
