@@ -67,13 +67,19 @@ class LangChainHook(BaseHook):
         Overrides ``extra["model"]`` on the connection.
     :param embed_model: Embedding model identifier in ``provider:name`` format
         (e.g. ``"openai:text-embedding-3-small"``). Overrides
-        ``extra["embed_model"]`` on the connection.
+        ``extra["embed_model"]`` on the connection. When ``embedding_kwargs``
+        supplies ``provider`` explicitly, use a model name without the provider
+        prefix.
     :param embedding_kwargs: Additional keyword arguments to pass to the embedding
         model constructor without filtering. Values can override hook-provided
-        settings, including the provider selection, endpoint, and credentials.
-        Connection ``api_key`` and ``base_url`` values take precedence over the
-        same top-level keys, but the underlying integration may accept alternative
-        or nested options that take precedence. Only pass trusted values.
+        settings, including the endpoint and credentials. In particular,
+        ``provider`` takes precedence over the provider inferred from
+        ``embed_model``. When ``provider`` is set, LangChain treats the entire
+        ``embed_model`` value as the model name rather than parsing a
+        ``provider:name`` identifier. Connection ``api_key`` and ``base_url``
+        values take precedence over the same top-level keys, but the underlying
+        integration may accept alternative or nested options that take precedence.
+        Only pass trusted values.
     """
 
     conn_name_attr = "llm_conn_id"
