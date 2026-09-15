@@ -23,7 +23,7 @@ import pytest
 from fastapi import HTTPException, Request
 from itsdangerous import BadSignature
 
-from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
+from airflow.api_fastapi.auth.tokens import JWKS, JWTGenerator, generate_private_key
 from airflow.providers.common.compat.sdk import AirflowConfigException
 from airflow.providers.edge3.worker_api import auth
 from airflow.providers.edge3.worker_api.auth import (
@@ -36,6 +36,10 @@ from tests_common.test_utils.config import conf_vars
 
 JWT_SECRET = "test-jwt-secret"
 OIDC_JWKS_URL = "https://idp.example.com/keys"
+OIDC_ISSUER = "https://idp.example.com"
+OIDC_KID = "kid1"
+
+pytestmark = [pytest.mark.asyncio]
 
 
 def _token(method: str | None = "test.method", secret: str = JWT_SECRET) -> str:
@@ -48,30 +52,32 @@ def _token(method: str | None = "test.method", secret: str = JWT_SECRET) -> str:
 
 @pytest.fixture(autouse=True)
 def _reset_jwt_validator_cache():
-    # jwt_validator() and _oidc_enabled() are cached: make sure config overrides in
-    # one test can never leak a stale validator or mode into another.
+    # jwt_validator(), _oidc_enabled() and _oidc_authenticator() are cached: make sure
+    # config overrides in one test can never leak a stale validator or mode into another.
     jwt_validator.cache_clear()
     auth._oidc_enabled.cache_clear()
+    auth._oidc_authenticator.cache_clear()
     yield
     jwt_validator.cache_clear()
     auth._oidc_enabled.cache_clear()
+    auth._oidc_authenticator.cache_clear()
 
 
 class TestJwtTokenAuthorization:
-    @conf_vars({("api_auth", "jwt_secret"): JWT_SECRET, ("api_auth", "jwt_leeway"): "5"})
-    def test_matching_method_claim_is_authorized(self):
-        jwt_token_authorization("test.method", _token("test.method"))
+    async def test_matching_method_claim_is_authorized(self):
+        with conf_vars({("api_auth", "jwt_secret"): JWT_SECRET, ("api_auth", "jwt_leeway"): "5"}):
+            await jwt_token_authorization("test.method", _token("test.method"))
 
-    @conf_vars({("api_auth", "jwt_secret"): JWT_SECRET, ("api_auth", "jwt_leeway"): "5"})
-    def test_missing_method_claim_is_forbidden(self):
-        with pytest.raises(HTTPException) as exc_info:
-            jwt_token_authorization("test.method", _token(method=None))
+    async def test_missing_method_claim_is_forbidden(self):
+        with conf_vars({("api_auth", "jwt_secret"): JWT_SECRET, ("api_auth", "jwt_leeway"): "5"}):
+            with pytest.raises(HTTPException) as exc_info:
+                await jwt_token_authorization("test.method", _token(method=None))
         assert exc_info.value.status_code == 403
 
-    @conf_vars({("api_auth", "jwt_secret"): JWT_SECRET, ("api_auth", "jwt_leeway"): "5"})
-    def test_mismatched_method_claim_is_forbidden(self):
-        with pytest.raises(HTTPException) as exc_info:
-            jwt_token_authorization("test.method", _token("other.method"))
+    async def test_mismatched_method_claim_is_forbidden(self):
+        with conf_vars({("api_auth", "jwt_secret"): JWT_SECRET, ("api_auth", "jwt_leeway"): "5"}):
+            with pytest.raises(HTTPException) as exc_info:
+                await jwt_token_authorization("test.method", _token("other.method"))
         assert exc_info.value.status_code == 403
 
 
@@ -95,11 +101,11 @@ class TestJwtTokenAuthorizationForbiddenResponse:
         ],
     )
     @mock.patch("airflow.providers.edge3.worker_api.auth.jwt_validate", autospec=True)
-    def test_each_handled_failure_is_forbidden_and_anonymized(self, mock_jwt_validate, error):
+    async def test_each_handled_failure_is_forbidden_and_anonymized(self, mock_jwt_validate, error):
         mock_jwt_validate.side_effect = error
 
         with pytest.raises(HTTPException) as exc_info:
-            jwt_token_authorization("test.method", "some-token")
+            await jwt_token_authorization("test.method", "some-token")
 
         assert exc_info.value.status_code == 403
         assert "error_id=" in exc_info.value.detail
@@ -146,13 +152,13 @@ class TestJwtTokenAuthorizationRest:
         ],
     )
     @mock.patch("airflow.providers.edge3.worker_api.auth.jwt_token_authorization", autospec=True)
-    def test_strips_edge_worker_v1_prefix_and_falls_back_to_full_path(
+    async def test_strips_edge_worker_v1_prefix_and_falls_back_to_full_path(
         self, mock_jwt_token_authorization, path, expected_method
     ):
         request = mock.MagicMock(spec=Request)
         request.url.path = path
 
-        jwt_token_authorization_rest(request, authorization="some-token")
+        await jwt_token_authorization_rest(request, authorization="some-token")
 
         mock_jwt_token_authorization.assert_called_once_with(expected_method, "some-token")
 
@@ -259,7 +265,7 @@ class TestJwtValidatorSelection:
     @conf_vars(
         {
             ("edge", "trusted_jwks_url"): OIDC_JWKS_URL,
-            ("edge", "jwt_verifier"): "my_company.edge_auth.verify_worker_token",
+            ("edge", "jwt_verifier"): "airflow.providers.edge3.worker_api.auth._default_jwt_verifier",
         }
     )
     def test_empty_issuer_with_verifier_is_allowed(self):
@@ -269,6 +275,18 @@ class TestJwtValidatorSelection:
         assert validator.jwks is not None
 
         assert validator.issuer is None
+
+    @conf_vars(
+        {
+            ("edge", "trusted_jwks_url"): OIDC_JWKS_URL,
+            ("edge", "jwt_issuer"): OIDC_ISSUER,
+            ("edge", "jwt_verifier"): "no.such.module.verify",
+        }
+    )
+    def test_unimportable_verifier_fails_closed_at_construction(self):
+        """A typo'd ``jwt_verifier`` path fails when the authenticator is built, not per request."""
+        with pytest.raises(AirflowConfigException):
+            auth.jwt_validator()
 
 
 class TestMethodClaimCheck:
@@ -293,43 +311,112 @@ class TestMethodClaimCheck:
         auth._check_method_claim("worker/register", {})
 
 
-def _signed_token(audience: str = "") -> str:
-    """Mint a real HS512 token, omitting ``aud`` when passed empty."""
-    generator = JWTGenerator(secret_key=JWT_SECRET, valid_for=300, audience=audience)
-    return generator.generate()
+@pytest.fixture(scope="session")
+def oidc_private_key():
+    return generate_private_key()
+
+
+@pytest.fixture
+def in_memory_jwks(oidc_private_key):
+    # Replace the network-fetching JWKS(url=...) the OIDC validator builds with an
+    # in-memory keyset, so signed tokens can be driven through the real validator.
+    jwks = JWKS.from_private_key((oidc_private_key, OIDC_KID))
+    with mock.patch.object(auth, "JWKS", return_value=jwks):
+        yield
+
+
+def _oidc_token(oidc_private_key, *, audience: str = "", issuer: str = OIDC_ISSUER, sub: str = "") -> str:
+    generator = JWTGenerator(
+        private_key=oidc_private_key,
+        kid=OIDC_KID,
+        valid_for=300,
+        audience=audience,
+        issuer=issuer,
+        algorithm="RS256",
+    )
+    return generator.generate(extras={"sub": sub} if sub else {})
+
+
+def verify_only_known_sub(claims: dict, context: auth.WorkerTokenContext) -> auth.WorkerTokenAuthorization:
+    """Test ``jwt_verifier``: authorize only a known service-account ``sub``."""
+    return {"authorized": claims.get("sub") == "dc-service-account"}
+
+
+VERIFY_ONLY_KNOWN_SUB = f"{__name__}.verify_only_known_sub"
 
 
 class TestOidcAudienceVerification:
     """
-    Pin the real audience semantics against a signed token.
+    Pin the real audience semantics by driving signed tokens through the OIDC validator.
 
     ``jwt_audience`` empty means ``audience=None``, which PyJWT accepts only for
     tokens that carry no ``aud`` claim and rejects for tokens that do. A configured
     value requires a matching ``aud``.
     """
 
-    def test_empty_audience_accepts_aud_less_token(self):
-        with conf_vars({("edge", "trusted_jwks_url"): OIDC_JWKS_URL}):
-            validator = JWTValidator(secret_key=JWT_SECRET, audience=auth._jwt_audience(), leeway=5)
-        validator.validated_claims(_signed_token(audience=""))
+    async def test_empty_audience_accepts_aud_less_token(self, oidc_private_key, in_memory_jwks):
+        with conf_vars({("edge", "trusted_jwks_url"): OIDC_JWKS_URL, ("edge", "jwt_issuer"): OIDC_ISSUER}):
+            await jwt_token_authorization("worker/register", _oidc_token(oidc_private_key, audience=""))
 
-    def test_empty_audience_rejects_token_with_aud(self):
-        with conf_vars({("edge", "trusted_jwks_url"): OIDC_JWKS_URL}):
-            validator = JWTValidator(secret_key=JWT_SECRET, audience=auth._jwt_audience(), leeway=5)
-        with pytest.raises(jwt.InvalidAudienceError):
-            validator.validated_claims(_signed_token(audience="some-aud"))
+    async def test_empty_audience_rejects_token_with_aud(self, oidc_private_key, in_memory_jwks):
+        with conf_vars({("edge", "trusted_jwks_url"): OIDC_JWKS_URL, ("edge", "jwt_issuer"): OIDC_ISSUER}):
+            with pytest.raises(HTTPException) as exc_info:
+                await jwt_token_authorization(
+                    "worker/register", _oidc_token(oidc_private_key, audience="api")
+                )
+        assert exc_info.value.status_code == 403
 
-    def test_configured_audience_requires_match(self):
-        with conf_vars({("edge", "trusted_jwks_url"): OIDC_JWKS_URL, ("edge", "jwt_audience"): "api"}):
-            validator = JWTValidator(secret_key=JWT_SECRET, audience=auth._jwt_audience(), leeway=5)
-        validator.validated_claims(_signed_token(audience="api"))
-        with pytest.raises(jwt.InvalidAudienceError):
-            validator.validated_claims(_signed_token(audience="other"))
+    async def test_configured_audience_requires_match(self, oidc_private_key, in_memory_jwks):
+        with conf_vars(
+            {
+                ("edge", "trusted_jwks_url"): OIDC_JWKS_URL,
+                ("edge", "jwt_issuer"): OIDC_ISSUER,
+                ("edge", "jwt_audience"): "api",
+            }
+        ):
+            await jwt_token_authorization("worker/register", _oidc_token(oidc_private_key, audience="api"))
+            with pytest.raises(HTTPException) as exc_info:
+                await jwt_token_authorization(
+                    "worker/register", _oidc_token(oidc_private_key, audience="other")
+                )
+        assert exc_info.value.status_code == 403
 
 
-def verify_only_known_sub(claims: dict) -> auth.WorkerTokenAuthorization:
-    """Test ``jwt_verifier``: authorize only a known service-account ``sub``."""
-    return {"authorized": claims.get("sub") == "dc-service-account"}
+class TestOidcTokenValidation:
+    """Drive signed tokens through the real ``_oidc_validator()`` and JWKS path."""
+
+    async def test_trusted_issuer_but_unrelated_identity_is_rejected(self, oidc_private_key, in_memory_jwks):
+        with conf_vars(
+            {
+                ("edge", "trusted_jwks_url"): OIDC_JWKS_URL,
+                ("edge", "jwt_issuer"): OIDC_ISSUER,
+                ("edge", "jwt_verifier"): VERIFY_ONLY_KNOWN_SUB,
+            }
+        ):
+            token = _oidc_token(oidc_private_key, issuer=OIDC_ISSUER, sub="someone-else")
+            with pytest.raises(HTTPException) as exc_info:
+                await jwt_token_authorization("worker/register", token)
+        assert exc_info.value.status_code == 403
+
+    async def test_authorized_identity_from_trusted_issuer_is_accepted(
+        self, oidc_private_key, in_memory_jwks
+    ):
+        with conf_vars(
+            {
+                ("edge", "trusted_jwks_url"): OIDC_JWKS_URL,
+                ("edge", "jwt_issuer"): OIDC_ISSUER,
+                ("edge", "jwt_verifier"): VERIFY_ONLY_KNOWN_SUB,
+            }
+        ):
+            token = _oidc_token(oidc_private_key, issuer=OIDC_ISSUER, sub="dc-service-account")
+            await jwt_token_authorization("worker/register", token)
+
+    async def test_token_from_untrusted_issuer_is_rejected(self, oidc_private_key, in_memory_jwks):
+        with conf_vars({("edge", "trusted_jwks_url"): OIDC_JWKS_URL, ("edge", "jwt_issuer"): OIDC_ISSUER}):
+            token = _oidc_token(oidc_private_key, issuer="https://evil.example.com")
+            with pytest.raises(HTTPException) as exc_info:
+                await jwt_token_authorization("worker/register", token)
+        assert exc_info.value.status_code == 403
 
 
 class TestWorkerAuthorization:
@@ -342,33 +429,46 @@ class TestWorkerAuthorization:
 
     def test_no_check_in_shared_secret_mode(self):
         """The verifier is not consulted when OIDC is disabled."""
-        with mock.patch.object(auth, "_jwt_verifier") as verifier_factory:
-            auth._check_worker_authorization({"sub": "anyone"})
-        verifier_factory.assert_not_called()
+        with mock.patch.object(auth, "_oidc_authenticator") as authenticator:
+            auth._check_worker_authorization("worker/register", {"sub": "anyone"})
+        authenticator.assert_not_called()
 
-    @conf_vars({("edge", "trusted_jwks_url"): OIDC_JWKS_URL})
-    @mock.patch.object(auth, "_jwt_verifier", return_value=verify_only_known_sub)
-    def test_configured_verifier_rejects_unauthorized_identity(self, _mock_verifier):
+    @conf_vars({("edge", "trusted_jwks_url"): OIDC_JWKS_URL, ("edge", "jwt_verifier"): VERIFY_ONLY_KNOWN_SUB})
+    def test_configured_verifier_rejects_unauthorized_identity(self):
         """A token from the trusted issuer but an unrelated identity is rejected."""
         with pytest.raises(HTTPException) as exc_info:
-            auth._check_worker_authorization({"sub": "someone-else"})
+            auth._check_worker_authorization("worker/register", {"sub": "someone-else"})
         assert exc_info.value.status_code == 403
 
-    @conf_vars({("edge", "trusted_jwks_url"): OIDC_JWKS_URL})
-    @mock.patch.object(auth, "_jwt_verifier", return_value=verify_only_known_sub)
-    def test_configured_verifier_authorizes_known_identity(self, _mock_verifier):
+    @conf_vars({("edge", "trusted_jwks_url"): OIDC_JWKS_URL, ("edge", "jwt_verifier"): VERIFY_ONLY_KNOWN_SUB})
+    def test_configured_verifier_authorizes_known_identity(self):
         """A token whose identity the verifier accepts passes without raising."""
-        auth._check_worker_authorization({"sub": "dc-service-account"})
+        auth._check_worker_authorization("worker/register", {"sub": "dc-service-account"})
 
-    @conf_vars({("edge", "trusted_jwks_url"): OIDC_JWKS_URL})
-    @mock.patch.object(auth, "jwt_validate", return_value={"sub": "dc-service-account"})
-    @mock.patch.object(auth, "_jwt_verifier")
-    def test_verifier_raising_is_forbidden(self, mock_verifier_factory, _mock_validate):
+    @mock.patch.object(
+        auth, "jwt_validate", new_callable=mock.AsyncMock, return_value={"sub": "dc-service-account"}
+    )
+    @mock.patch.object(auth, "_oidc_authenticator")
+    async def test_verifier_raising_is_forbidden(self, mock_authenticator, _mock_validate):
         """A verifier that raises is caught by the entry point and collapsed to a 403."""
-        mock_verifier_factory.return_value = mock.Mock(side_effect=ValueError("nope"))
-        with pytest.raises(HTTPException) as exc_info:
-            auth.jwt_token_authorization("worker/register", "some-token")
+        mock_authenticator.return_value.verifier = mock.Mock(side_effect=ValueError("nope"))
+        with conf_vars({("edge", "trusted_jwks_url"): OIDC_JWKS_URL, ("edge", "jwt_issuer"): OIDC_ISSUER}):
+            with pytest.raises(HTTPException) as exc_info:
+                await auth.jwt_token_authorization("worker/register", "some-token")
         assert exc_info.value.status_code == 403
 
     def test_default_verifier_returns_authorized(self):
-        assert auth._default_jwt_verifier({"sub": "anyone"}) == {"authorized": True}
+        assert auth._default_jwt_verifier(
+            {"sub": "anyone"}, auth.WorkerTokenContext(method="worker/register")
+        ) == {"authorized": True}
+
+    @conf_vars({("edge", "trusted_jwks_url"): OIDC_JWKS_URL, ("edge", "jwt_verifier"): VERIFY_ONLY_KNOWN_SUB})
+    @mock.patch.object(auth, "_oidc_authenticator")
+    def test_verifier_receives_request_context(self, mock_authenticator):
+        """The verifier is handed the request method via ``WorkerTokenContext``."""
+        verifier = mock.Mock(return_value={"authorized": True})
+        mock_authenticator.return_value.verifier = verifier
+        auth._check_worker_authorization("jobs/fetch/worker1", {"sub": "dc-service-account"})
+        verifier.assert_called_once_with(
+            {"sub": "dc-service-account"}, auth.WorkerTokenContext(method="jobs/fetch/worker1")
+        )
