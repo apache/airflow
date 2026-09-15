@@ -71,7 +71,7 @@ A rendered ``max_output_tokens`` or ``max_tool_calls`` that is blank or whitespa
 example ``max_output_tokens="{{ params.tokens | default('', true) }}"`` when ``params.tokens`` is
 unset -- is treated as "no ceiling for this run" rather than raising. This only applies when the same run does
 not also set the corresponding key in ``response_kwargs``: the mutually-exclusive-with-``response_kwargs``
-check happens at task definition (Dag-parse) time and fires regardless of what the template later
+check happens when the operator is constructed and fires regardless of what the template later
 renders to.
 
 .. exampleinclude:: /../../openai/tests/system/openai/example_openai.py

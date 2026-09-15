@@ -113,16 +113,18 @@ class OpenAIResponseOperator(BaseOperator):
     :param max_output_tokens: Optional upper bound on the number of tokens generated for the
         response. Templated, so it renders to a string; accepts an ``int`` or a string containing one.
         Must be a positive integer -- an invalid value raises instead of silently disabling the
-        ceiling. A literal (non-string) value is validated at task definition (Dag-parse) time; a
-        string value -- whether a template or a plain literal string -- is validated when the task
-        executes, after templating has resolved it. A blank or whitespace-only rendered value (for
-        example ``{{ params.tokens | default('', true) }}`` rendering to ``''``) is treated as unset,
-        disabling the ceiling; the literal strings ``"None"``, ``"none"`` and ``"null"`` are **not** treated
-        as blank and still raise. A value that was supplied but resolves to ``None`` (for example an
-        unresolved ``XComArg``, or a Jinja-native-rendered null) also raises -- it is not treated as
-        unset. Mutually
-        exclusive with ``max_output_tokens`` in ``response_kwargs`` -- this is checked at task
-        definition (Dag-parse) time, regardless of what the templated value later renders to.
+        ceiling. A literal ``bool``, ``float``, or ``int`` value is validated when the operator is
+        constructed; any other non-string literal (for example ``Decimal`` or ``Fraction``) is
+        coerced -- and rejected if invalid -- only when the task executes. A string value --
+        whether a template or a plain literal string -- is also validated when the task executes,
+        after templating has resolved it. A blank or whitespace-only rendered value (for example
+        ``{{ params.tokens | default('', true) }}`` rendering to ``''``) is treated as unset,
+        disabling the ceiling; the literal strings ``"None"``, ``"none"`` and ``"null"`` are **not**
+        treated as blank and still raise. A value that was supplied but resolves to ``None`` (for
+        example an unresolved ``XComArg``, or a Jinja-native-rendered null) also raises -- it is not
+        treated as unset. Mutually exclusive with ``max_output_tokens`` in ``response_kwargs`` --
+        this is checked when the operator is constructed, regardless of what the templated value
+        later renders to.
     :param max_tool_calls: Optional upper bound on the number of built-in tool calls the model may
         make while generating the response. Same templating, type, validation, blank-as-unset, and
         mutual-exclusion rules as ``max_output_tokens``.
@@ -176,11 +178,13 @@ class OpenAIResponseOperator(BaseOperator):
         """
         Eagerly validate a ceiling value that is already a final literal, not a template.
 
-        Only ``bool``, ``float``, and ``int`` are recognized as literals here -- they are already
-        final at construction and never arrive via Jinja rendering, so an invalid one is rejected
-        at Dag-parse time instead of surfacing only when the task runs. Anything else (``str``
-        templates awaiting ``render_template_fields()``, or template values such as ``XComArg``
-        that resolve later) must wait for ``_build_response_kwargs()`` at ``execute()`` time.
+        Only ``bool``, ``float``, and ``int`` are recognized as literals here -- these are the raw
+        values passed at construction, before any templating runs, so an invalid one is rejected
+        when the operator is constructed instead of surfacing only when the task runs. Anything
+        else (``str`` templates awaiting ``render_template_fields()``, or template values such as
+        ``XComArg`` that resolve later -- including a ``bool``, ``float``, or ``int`` produced by
+        Jinja's native rendering with ``render_template_as_native_obj=True``) must wait for
+        ``_build_response_kwargs()`` at ``execute()`` time.
         """
         for param_name in self._TOKEN_CEILING_PARAM_NAMES:
             value = getattr(self, param_name)
