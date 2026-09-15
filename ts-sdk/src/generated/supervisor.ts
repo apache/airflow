@@ -195,6 +195,7 @@ export type ContextCarrier = {
   [k: string]: unknown;
 } | null;
 export type Queue = string;
+export type ExternalExecutorId = string | null;
 export type IsFailureCallback = boolean | null;
 export type Type12 = "DagCallbackRequest";
 export type File = string;
@@ -977,6 +978,7 @@ export interface TaskInstance {
   hostname?: Hostname;
   context_carrier?: ContextCarrier;
   queue?: Queue;
+  external_executor_id?: ExternalExecutorId;
 }
 /**
  * Request for DAG File Parsing.
