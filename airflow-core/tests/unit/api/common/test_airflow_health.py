@@ -27,6 +27,9 @@ from airflow.api.common.airflow_health import (
     DOWN,
     HEALTHY,
     UNHEALTHY,
+    _configured_bundle_teams,
+    _dag_processor_detailed_status,
+    _triggerer_detailed_status,
     get_airflow_health,
     get_jobs_health,
 )
@@ -35,11 +38,20 @@ from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.utils.session import provide_session
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_jobs
 
 pytestmark = pytest.mark.db_test
 
 STALE_HEARTBEAT_AGE = timedelta(minutes=5)
+
+
+def _patch_bundles(bundle_teams: dict[str, str | None]):
+    """Patch the declared bundle/team partition that ``detailed_status`` is measured against."""
+    return patch(
+        "airflow.api.common.airflow_health._configured_bundle_teams",
+        return_value=bundle_teams,
+    )
 
 
 def _mock_job(
@@ -184,7 +196,8 @@ def test_get_airflow_health_mixed_alive_and_stale_jobs(mock_get_jobs_health):
     health_status = get_airflow_health()
 
     assert health_status["scheduler"]["status"] == HEALTHY
-    assert health_status["scheduler"]["detailed_status"] == DEGRADED
+    # Schedulers are symmetric, so a stale row alongside a live one is not a partial outage.
+    assert health_status["scheduler"]["detailed_status"] == HEALTHY
     assert health_status["scheduler"]["instances"] == [
         {
             "hostname": ALIVE_SCHEDULER_JOB_MOCK.hostname,
@@ -246,7 +259,8 @@ def test_get_airflow_health_mixed_triggerers_include_team_name(mock_get_jobs_hea
     health_status = get_airflow_health()
 
     assert health_status["triggerer"]["status"] == HEALTHY
-    assert health_status["triggerer"]["detailed_status"] == DEGRADED
+    # Multi-team is off here, so every live triggerer serves every trigger regardless of team.
+    assert health_status["triggerer"]["detailed_status"] == HEALTHY
     assert health_status["triggerer"]["instances"] == [
         {
             "hostname": ALIVE_TRIGGERER_JOB_MOCK.hostname,
@@ -267,8 +281,9 @@ def test_get_airflow_health_mixed_triggerers_include_team_name(mock_get_jobs_hea
     )
 
 
+@_patch_bundles({"bundle-a": None})
 @patch("airflow.api.common.airflow_health.get_jobs_health")
-def test_get_airflow_health_triggerer_and_dag_processor_healthy(mock_get_jobs_health):
+def test_get_airflow_health_triggerer_and_dag_processor_healthy(mock_get_jobs_health, _mock_bundles):
     mock_get_jobs_health.side_effect = [[], [ALIVE_TRIGGERER_JOB_MOCK], [ALIVE_DAG_PROCESSOR_JOB_MOCK]]
     health_status = get_airflow_health()
 
@@ -302,6 +317,183 @@ def test_get_airflow_health_triggerer_and_dag_processor_healthy(mock_get_jobs_he
             ],
         },
     }
+
+
+def _processor(*, alive: bool, bundle_names: list[str] | None) -> MagicMock:
+    return _mock_job(
+        hostname=f"dag-processor-{'alive' if alive else 'stale'}",
+        heartbeat=datetime(2024, 2, 1),
+        alive=alive,
+        bundle_names=bundle_names,
+    )
+
+
+def _triggerer(*, alive: bool, team_name: str | None) -> MagicMock:
+    return _mock_job(
+        hostname=f"triggerer-{team_name}-{'alive' if alive else 'stale'}",
+        heartbeat=datetime(2024, 2, 1),
+        alive=alive,
+        team_name=team_name,
+    )
+
+
+class TestDagProcessorDetailedStatus:
+    """``detailed_status`` measures which configured bundles a live processor is parsing."""
+
+    BUNDLES = {"bundle-a": None, "bundle-b": None}
+
+    @pytest.mark.parametrize(
+        ("jobs", "expected"),
+        [
+            pytest.param(
+                [_processor(alive=True, bundle_names=["bundle-a", "bundle-b"])],
+                HEALTHY,
+                id="one_processor_parses_every_bundle",
+            ),
+            pytest.param(
+                [
+                    _processor(alive=True, bundle_names=["bundle-a"]),
+                    _processor(alive=True, bundle_names=["bundle-b"]),
+                ],
+                HEALTHY,
+                id="a_processor_per_bundle",
+            ),
+            pytest.param(
+                [_processor(alive=True, bundle_names=None)],
+                HEALTHY,
+                id="processor_without_bundle_name_parses_all",
+            ),
+            pytest.param(
+                [_processor(alive=True, bundle_names=[])],
+                HEALTHY,
+                id="empty_bundle_names_parses_all",
+            ),
+            pytest.param(
+                [_processor(alive=True, bundle_names=["bundle-a"])],
+                DEGRADED,
+                id="one_bundle_left_unparsed",
+            ),
+            pytest.param(
+                [_processor(alive=False, bundle_names=["bundle-a", "bundle-b"])],
+                DOWN,
+                id="only_processor_is_stale",
+            ),
+            pytest.param(
+                [_processor(alive=True, bundle_names=["bundle-removed-from-config"])],
+                DOWN,
+                id="processor_parses_nothing_configured",
+            ),
+            pytest.param([], DOWN, id="no_processor_at_all"),
+        ],
+    )
+    def test_bundle_coverage(self, jobs, expected):
+        with _patch_bundles(self.BUNDLES):
+            assert _dag_processor_detailed_status(jobs) == expected
+
+    def test_restarted_processor_leaves_the_component_healthy(self):
+        """A hard-killed replica keeps an unfinished job row; its replacement must still read healthy."""
+        jobs = [
+            _processor(alive=True, bundle_names=["bundle-a", "bundle-b"]),
+            _processor(alive=False, bundle_names=["bundle-a", "bundle-b"]),
+        ]
+
+        with _patch_bundles(self.BUNDLES):
+            assert _dag_processor_detailed_status(jobs) == HEALTHY
+
+    @pytest.mark.parametrize(
+        ("jobs", "expected"),
+        [
+            pytest.param([_processor(alive=True, bundle_names=None)], HEALTHY, id="a_processor_is_alive"),
+            pytest.param([_processor(alive=False, bundle_names=None)], DOWN, id="no_processor_is_alive"),
+        ],
+    )
+    def test_falls_back_to_liveness_without_configured_bundles(self, jobs, expected):
+        with _patch_bundles({}):
+            assert _dag_processor_detailed_status(jobs) == expected
+
+
+class TestTriggererDetailedStatus:
+    """Under multi-team a triggerer only serves its own team, so every team scope needs one."""
+
+    BUNDLES = {"bundle-a": "team-a", "bundle-b": "team-b", "bundle-shared": None}
+
+    @pytest.mark.parametrize(
+        ("jobs", "expected"),
+        [
+            pytest.param(
+                [
+                    _triggerer(alive=True, team_name="team-a"),
+                    _triggerer(alive=True, team_name="team-b"),
+                    _triggerer(alive=True, team_name=None),
+                ],
+                HEALTHY,
+                id="every_team_scope_covered",
+            ),
+            pytest.param(
+                [
+                    _triggerer(alive=True, team_name="team-a"),
+                    _triggerer(alive=True, team_name=None),
+                ],
+                DEGRADED,
+                id="one_team_has_no_triggerer",
+            ),
+            pytest.param(
+                [
+                    _triggerer(alive=True, team_name="team-a"),
+                    _triggerer(alive=True, team_name="team-b"),
+                ],
+                DEGRADED,
+                id="unscoped_bundles_have_no_triggerer",
+            ),
+            pytest.param(
+                [_triggerer(alive=False, team_name="team-a")],
+                DOWN,
+                id="no_triggerer_is_alive",
+            ),
+            pytest.param(
+                [_triggerer(alive=True, team_name="team-of-a-removed-bundle")],
+                DOWN,
+                id="triggerer_serves_no_configured_team",
+            ),
+            pytest.param([], DOWN, id="no_triggerer_at_all"),
+        ],
+    )
+    def test_team_coverage(self, jobs, expected):
+        with conf_vars({("core", "multi_team"): "True"}), _patch_bundles(self.BUNDLES):
+            assert _triggerer_detailed_status(jobs) == expected
+
+    def test_restarted_triggerer_leaves_the_component_healthy(self):
+        jobs = [
+            _triggerer(alive=True, team_name="team-a"),
+            _triggerer(alive=False, team_name="team-a"),
+        ]
+
+        with conf_vars({("core", "multi_team"): "True"}), _patch_bundles({"bundle-a": "team-a"}):
+            assert _triggerer_detailed_status(jobs) == HEALTHY
+
+    @pytest.mark.parametrize(
+        ("jobs", "expected"),
+        [
+            pytest.param(
+                [_triggerer(alive=True, team_name="team-a"), _triggerer(alive=False, team_name="team-b")],
+                HEALTHY,
+                id="a_triggerer_is_alive",
+            ),
+            pytest.param([_triggerer(alive=False, team_name=None)], DOWN, id="no_triggerer_is_alive"),
+        ],
+    )
+    def test_ignores_teams_without_multi_team(self, jobs, expected):
+        with conf_vars({("core", "multi_team"): "False"}), _patch_bundles(self.BUNDLES):
+            assert _triggerer_detailed_status(jobs) == expected
+
+    def test_falls_back_to_liveness_without_configured_bundles(self):
+        with conf_vars({("core", "multi_team"): "True"}), _patch_bundles({}):
+            assert _triggerer_detailed_status([_triggerer(alive=True, team_name="team-a")]) == HEALTHY
+
+
+@conf_vars({("dag_processor", "dag_bundle_config_list"): "not json"})
+def test_configured_bundle_teams_survives_unreadable_config():
+    assert _configured_bundle_teams() == {}
 
 
 class TestAirflowHealthFromDb:
@@ -400,7 +592,7 @@ class TestAirflowHealthFromDb:
         health_status = get_airflow_health()
 
         assert health_status["scheduler"]["status"] == HEALTHY
-        assert health_status["scheduler"]["detailed_status"] == DEGRADED
+        assert health_status["scheduler"]["detailed_status"] == HEALTHY
         assert health_status["scheduler"]["instances"] == [
             {
                 "hostname": alive.hostname,
@@ -468,7 +660,7 @@ class TestAirflowHealthFromDb:
         health_status = get_airflow_health()
 
         assert health_status["triggerer"]["status"] == HEALTHY
-        assert health_status["triggerer"]["detailed_status"] == DEGRADED
+        assert health_status["triggerer"]["detailed_status"] == HEALTHY
         assert health_status["triggerer"]["instances"] == [
             {
                 "hostname": alive.hostname,

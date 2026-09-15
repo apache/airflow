@@ -100,11 +100,28 @@ including per-instance details when multiple schedulers, triggerers, or Dag proc
   * ``status`` (legacy aggregate): ``"healthy"`` if **any** running instance is alive, otherwise ``"unhealthy"``
     (including when no running jobs exist for that component).
 
-  * ``detailed_status``: reflects the full set of running instances:
+  * ``detailed_status``: whether every part of that component's work is being covered by a live instance.
+    What counts as "every part" differs per component, because only some of them divide their work up:
 
-    * ``"healthy"`` — every running instance is alive
-    * ``"degraded"`` — some instances are alive and some are not
-    * ``"down"`` — no running instance is alive (including when no jobs exist)
+    * **Dag processor** — the parts are the Dag bundles in ``[dag_processor] dag_bundle_config_list``.
+      A processor started without ``--bundle-name`` covers every configured bundle;
+      one started with it covers only the bundles it was given.
+      ``"healthy"`` when every configured bundle has a live processor, ``"degraded"`` when only some do,
+      ``"down"`` when none do.
+    * **Triggerer** — with ``[core] multi_team`` enabled, the parts are the teams those bundles are scoped to
+      (plus the unscoped bundles), because a triggerer only picks up triggers for its own team.
+      ``"healthy"`` when every team scope has a live triggerer, ``"degraded"`` when only some do,
+      ``"down"`` when none do. With multi-team disabled, no team filtering applies, so any live triggerer
+      covers everything: ``"healthy"`` if one is alive, ``"down"`` if none is.
+    * **Scheduler** — schedulers are symmetric and share no partitioned work, so there is nothing partial
+      to report: ``"healthy"`` if at least one is alive, ``"down"`` if none is. ``"degraded"`` is never
+      returned for the scheduler. Use ``instances`` to see how many replicas are up, and your orchestrator
+      or the ``scheduler_heartbeat`` metric to alert on reduced scheduling throughput.
+
+    Because the expected set of work comes from configuration rather than from the job table,
+    ``detailed_status`` is unaffected by how instances come and go. Restarting an instance — including after
+    a ``SIGKILL``, an out-of-memory kill, or a node eviction, none of which let Airflow mark the old job row
+    as finished — does not report the component as ``"degraded"``.
 
   * ``latest_*_heartbeat``: the most recent heartbeat among running jobs of that type (ordered by heartbeat descending),
     or ``null`` when there are none.
