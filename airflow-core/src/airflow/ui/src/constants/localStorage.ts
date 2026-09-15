@@ -33,6 +33,7 @@ export const DEFAULT_GRAPH_DIRECTION_KEY = "default_graph_direction";
 export const CLEAR_RUN_DEFAULT_OPTIONS_KEY = "clear_run_default_options";
 export const CLEAR_TASK_INSTANCE_DEFAULT_OPTIONS_KEY = "clear_task_instance_default_options";
 export const CLEAR_PREVENT_RUNNING_TASK_KEY = "clear_prevent_running_task";
+export const CLEAR_KEEP_TASK_STATE_KEY = "clear_keep_task_state";
 export const MARK_TASK_INSTANCE_DEFAULT_OPTIONS_KEY = "mark_task_instance_default_options";
 export const DEFAULT_TASK_INSTANCE_TAB_KEY = "default_task_instance_tab";
 export const DEFAULT_LANDING_PAGE_KEY = "default_landing_page";

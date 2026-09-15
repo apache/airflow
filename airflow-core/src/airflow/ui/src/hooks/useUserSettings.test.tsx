@@ -20,6 +20,7 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  CLEAR_KEEP_TASK_STATE_KEY,
   CLEAR_PREVENT_RUNNING_TASK_KEY,
   CLEAR_RUN_DEFAULT_OPTIONS_KEY,
   CLEAR_TASK_INSTANCE_DEFAULT_OPTIONS_KEY,
@@ -30,6 +31,7 @@ import {
 } from "src/constants/localStorage";
 
 import {
+  useClearKeepTaskStateDefault,
   useClearPreventRunningTaskDefault,
   useClearRunDefaultOptions,
   useClearTaskInstanceDefaultOptions,
@@ -128,6 +130,25 @@ describe("useClearPreventRunningTaskDefault", () => {
 
     expect(result.current[0]).toBe(false);
     expect(JSON.parse(localStorage.getItem(CLEAR_PREVENT_RUNNING_TASK_KEY) ?? "true")).toBe(false);
+  });
+});
+
+describe("useClearKeepTaskStateDefault", () => {
+  it("defaults to false", () => {
+    const { result } = renderHook(() => useClearKeepTaskStateDefault());
+
+    expect(result.current[0]).toBe(false);
+  });
+
+  it("persists a new value", () => {
+    const { result } = renderHook(() => useClearKeepTaskStateDefault());
+
+    act(() => {
+      result.current[1](true);
+    });
+
+    expect(result.current[0]).toBe(true);
+    expect(JSON.parse(localStorage.getItem(CLEAR_KEEP_TASK_STATE_KEY) ?? "false")).toBe(true);
   });
 });
 
