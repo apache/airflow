@@ -109,12 +109,14 @@ is why its keys can be classified at all. A top-level key outside the v1 root al
 likewise reported as ``/custom_fields`` when redacted, while an authorized record keeps its real
 root path.
 
-``max_changes`` bounds how many underlying changes either mode admits, so authorization decides
-what a change carries and never which changes exist. Admission is what the bound limits, not
-the record count: a redacted diff can stop admitting while holding fewer records than the
-bound, because several admitted changes merged into one record. A change reaching a group
-already in the result is counted without consuming a new record, so repeats keep accumulating
-until a change that needs a new record stops the walk.
+``max_changes`` bounds the result rather than the traversal: both modes walk the same shape and
+reach the same changes, so authorization never decides which changes exist, and the public paths
+either mode reports -- and the order of their first occurrence -- are the same. What the bound
+admits does differ. An authorized record stands for one change, so the bound caps those directly.
+A redacted record stands for every change sharing its public path and operation, and a change
+reaching a record already in the result costs no new one, so redacted counting continues past the
+bound until a change needs a record the bound will not allow. The same payload at the same bound
+can therefore report more occurrences, and a different ``truncated``, when values are withheld.
 
 ``truncated`` reports that such a change was dropped. When it is ``False`` every changed path
 is present with an exact ``occurrence_count``. When it is ``True`` the walk stopped early: some
@@ -291,6 +293,12 @@ _DIFF_V1_TASK_METADATA_FIELDS = frozenset(
 )
 _DIFF_V1_PUBLIC_PARTIAL_TASK_FIELDS = _DIFF_V1_PUBLIC_TASK_FIELDS | {"task_display_name"}
 _DEFAULT_ARGS_PATH = ("dag", "default_args")
+_RETRY_BACKOFF_FIELD = "retry_exponential_backoff"
+# These hydrate to sets (_deserialize_operator_field for a task, TaskGroup.*_ids.update for a group),
+# so a reordered stored list means the same edges and must not read as a dependency change.
+_SET_VALUED_ID_FIELDS = frozenset(
+    {"downstream_task_ids", "upstream_task_ids", "downstream_group_ids", "upstream_group_ids"}
+)
 # A Dag's default_args holds the same operator __init__ kwargs partial_kwargs holds -- the
 # serializer rewrites _HAS_FLAG_FIELDS in both -- so it reuses that allowlist. "__type" names the
 # stored value's own dict envelope rather than a key inside it.
@@ -659,6 +667,9 @@ def _apply_task_defaults(payload: dict[str, Any]) -> None:
         _apply_inherited_dates(task_data, template_fields, defaults)
         if "params" in task_data and "params" not in template_fields:
             task_data["params"] = _normalize_params(task_data["params"])
+        for field in _SET_VALUED_ID_FIELDS & task_data.keys():
+            if field not in template_fields:
+                task_data[field] = _sort_id_list(task_data[field])
         task["__var"] = task_data
 
 
@@ -721,7 +732,10 @@ def _build_unmapped_task_data(
     upgraded_task: dict[str, Any], template_fields: Any, defaults: _TaskDefaultSets
 ) -> dict[str, Any]:
     task_data = {**defaults.schema_defaults, **upgraded_task}
-    _normalize_retry_backoff(task_data)
+    # populate_operator leaves a template field at its stored value, so converting one here would
+    # compare a stored True and a stored 2.0 as equal when they hydrate to different backoff factors.
+    if not (_RETRY_BACKOFF_FIELD in template_fields and _RETRY_BACKOFF_FIELD in upgraded_task):
+        _normalize_retry_backoff(task_data)
     for field in _OPERATOR_TIMEDELTA_FIELDS & task_data.keys():
         value = task_data[field]
         task_data[field] = (
@@ -821,13 +835,20 @@ def _encode_json_value(value: Any) -> Any:
     return value
 
 
+def _sort_id_list(value: Any) -> Any:
+    """Order a stored id list the way its hydrated set compares, leaving any other shape alone."""
+    if isinstance(value, list) and all(isinstance(item, str) for item in value):
+        return sorted(set(value))
+    return value
+
+
 def _normalize_retry_backoff(task_fields: dict[str, Any]) -> None:
-    if "retry_exponential_backoff" in task_fields:
-        value = task_fields["retry_exponential_backoff"]
+    if _RETRY_BACKOFF_FIELD in task_fields:
+        value = task_fields[_RETRY_BACKOFF_FIELD]
         # A non-numeric stored value stays as it is so the comparison reports just this field
         # instead of collapsing the whole diff to a canonicalization failure.
         with suppress(TypeError, ValueError):
-            task_fields["retry_exponential_backoff"] = 2.0 if value is True else float(value)
+            task_fields[_RETRY_BACKOFF_FIELD] = 2.0 if value is True else float(value)
 
 
 def _canonicalize_value(value: Any, *, path: tuple[str, ...]) -> Any:
@@ -859,6 +880,9 @@ def _canonicalize_value(value: Any, *, path: tuple[str, ...]) -> Any:
             return _canonicalize_keyed_list(canonical_values, _get_dependency_key, path)
         if path in _ORDER_INSENSITIVE_LIST_PATHS:
             return _canonicalize_keyed_list(canonical_values, _get_string_key, path)
+        if path[:2] == ("dag", "task_group") and path[-1] in _SET_VALUED_ID_FIELDS:
+            # A task group declares no template fields, so this is always the stored id list.
+            return _sort_id_list(canonical_values)
         return canonical_values
     return value
 
