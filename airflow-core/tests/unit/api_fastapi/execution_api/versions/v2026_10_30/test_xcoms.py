@@ -1,0 +1,51 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+from __future__ import annotations
+
+import pytest
+
+pytestmark = pytest.mark.db_test
+
+BATCH_XCOM_URL = "/execution/xcoms/batch"
+
+
+class TestBatchXComEndpointVersioning:
+    """The xcoms/batch endpoint didn't exist before the 2026-10-30 API version."""
+
+    def test_old_version_returns_404(self, client):
+        client.headers["Airflow-API-Version"] = "2026-06-30"
+
+        response = client.post(
+            BATCH_XCOM_URL,
+            json={"dag_id": "dag", "run_id": "runid", "key": "return_value", "task_ids": ["task"]},
+        )
+
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Not Found"}
+
+    def test_head_version_routes_to_endpoint(self, client):
+        response = client.post(
+            BATCH_XCOM_URL,
+            json={"dag_id": "dag", "run_id": "runid", "key": "return_value", "task_ids": ["task"]},
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "key": "return_value",
+            "values": [{"task_id": "task", "value": None}],
+        }

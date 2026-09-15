@@ -105,3 +105,46 @@ class TestXComsGetEndpoint:
         response = client.get(f"/execution/xcoms/dag/runid/task/xcom_1?offset={offset}")
         assert response.status_code == expected_status
         assert response.json() == expected_json
+
+    def test_xcom_batch_get(self, client, dag_maker, session):
+        with dag_maker(dag_id="dag"):
+            EmptyOperator(task_id="task_1")
+            EmptyOperator(task_id="task_2")
+            EmptyOperator(task_id="task_3")
+
+        dag_run = dag_maker.create_dagrun(run_id="runid")
+        tis = {ti.task_id: ti for ti in dag_run.task_instances}
+        for task_id, value in {"task_1": "one", "task_2": "two"}.items():
+            ti = tis[task_id]
+            session.add(
+                XComModel(
+                    key="return_value",
+                    value=value,
+                    dag_run_id=ti.dag_run.id,
+                    run_id=ti.run_id,
+                    task_id=ti.task_id,
+                    dag_id=ti.dag_id,
+                    map_index=-1,
+                )
+            )
+        session.commit()
+
+        response = client.post(
+            "/execution/xcoms/batch",
+            json={
+                "dag_id": "dag",
+                "run_id": "runid",
+                "key": "return_value",
+                "task_ids": ["task_2", "task_3", "task_1"],
+            },
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "key": "return_value",
+            "values": [
+                {"task_id": "task_2", "value": "two"},
+                {"task_id": "task_3", "value": None},
+                {"task_id": "task_1", "value": "one"},
+            ],
+        }

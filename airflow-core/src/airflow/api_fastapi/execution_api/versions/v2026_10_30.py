@@ -52,3 +52,11 @@ class AddCallbackRunEndpoint(VersionChange):
     instructions_to_migrate_to_previous_version = (
         endpoint("/callbacks/{callback_id}/run", ["PATCH"]).didnt_exist,
     )
+
+
+class AddBatchXComEndpoint(VersionChange):
+    """Add the xcoms/batch endpoint workers use to fetch multiple mapped inputs together."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (endpoint("/xcoms/batch", ["POST"]).didnt_exist,)

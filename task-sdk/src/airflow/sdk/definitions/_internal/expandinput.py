@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence, Sized
+from itertools import groupby
 from typing import TYPE_CHECKING, Any, ClassVar, Union
 
 import attrs
@@ -184,6 +185,71 @@ class DictOfListsExpandInput(ResolveMixin):
             if isinstance(x, XComArg):
                 yield from x.iter_references()
 
+    def _iter_batch_resolvable_plain_xcomargs(
+        self, context: Mapping[str, Any], upstream_map_indexes: dict[str, int]
+    ) -> Iterable[tuple[str, str, str, str, int | None]]:
+        from airflow.sdk.bases.xcom import BaseXCom
+        from airflow.sdk.definitions.xcom_arg import PlainXComArg
+
+        ti = context["ti"]
+        for key, value in self.value.items():
+            if not isinstance(value, PlainXComArg):
+                continue
+            if value.key != BaseXCom.XCOM_RETURN_KEY or value.operator.is_mapped:
+                continue
+            tg = value.operator.get_closest_mapped_task_group()
+            if tg is None:
+                map_index = None
+            elif value.operator.task_id in upstream_map_indexes:
+                map_index = upstream_map_indexes[value.operator.task_id]
+            else:
+                cached_context = getattr(ti, "_cached_template_context", None)
+                ti_count = cached_context.get("expanded_ti_count") if cached_context else None
+                map_index = ti.get_relevant_upstream_map_indexes(
+                    upstream=value.operator,
+                    ti_count=ti_count,
+                    session=None,
+                )
+                if map_index is None:
+                    continue
+            if isinstance(map_index, range):
+                continue
+            yield key, ti.dag_id, value.operator.task_id, value.key, map_index
+
+    def _resolve_batch_resolvable_plain_xcomargs(
+        self, context: Mapping[str, Any], upstream_map_indexes: dict[str, int]
+    ) -> dict[str, Any]:
+        from airflow.sdk.bases.xcom import BaseXCom
+        from airflow.sdk.execution_time import task_runner
+        from airflow.sdk.execution_time.xcom import XCom
+
+        if XCom is not BaseXCom or getattr(task_runner, "SUPERVISOR_COMMS", None) is None:
+            return {}
+
+        def batch_key(item: tuple[str, str, str, str, int | None]) -> tuple[str, str, int | None]:
+            return item[1], item[3], item[4]
+
+        def sort_key(item: tuple[str, str, str, str, int | None]) -> tuple[str, str, bool, int]:
+            map_index = item[4]
+            return item[1], item[3], map_index is not None, -1 if map_index is None else map_index
+
+        entries = sorted(
+            self._iter_batch_resolvable_plain_xcomargs(context, upstream_map_indexes), key=sort_key
+        )
+        resolved: dict[str, Any] = {}
+        for (dag_id, key, map_index), group in groupby(entries, key=batch_key):
+            grouped_entries = list(group)
+            values = XCom.get_many(
+                key=key,
+                dag_id=dag_id,
+                task_ids=[task_id for _, _, task_id, _, _ in grouped_entries],
+                run_id=context["ti"].run_id,
+                map_index=map_index,
+            )
+            for mapped_key, _, task_id, _, _ in grouped_entries:
+                resolved[mapped_key] = values.get(task_id)
+        return resolved
+
     def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         map_index: int | None = context["ti"].map_index
         if map_index is None or map_index < 0:
@@ -193,11 +259,15 @@ class DictOfListsExpandInput(ResolveMixin):
         # When empty, individual XComArgs will compute their map_indexes lazily in xcom_arg.py.
         upstream_map_indexes = getattr(context["ti"], "_upstream_map_indexes", None) or {}
 
-        # TODO: This initiates one API call for each XComArg. Would it be
-        # more efficient to do one single call and unpack the value here?
+        resolved_plain_xcomargs = self._resolve_batch_resolvable_plain_xcomargs(context, upstream_map_indexes)
 
         resolved = {
-            k: v.resolve(context) if _needs_run_time_resolution(v) else v for k, v in self.value.items()
+            k: resolved_plain_xcomargs[k]
+            if k in resolved_plain_xcomargs
+            else v.resolve(context)
+            if _needs_run_time_resolution(v)
+            else v
+            for k, v in self.value.items()
         }
 
         sized_resolved = {k: v for k, v in resolved.items() if isinstance(v, Sized)}

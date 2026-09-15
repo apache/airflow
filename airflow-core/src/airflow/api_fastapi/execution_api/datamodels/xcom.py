@@ -30,6 +30,21 @@ class XComResponse(BaseModel):
     """The returned XCom value in a JSON-compatible format."""
 
 
+class XComBatchItemResponse(BaseModel):
+    """One XCom value returned from a batch Runtime request."""
+
+    task_id: str
+    value: JsonValue | None
+    """The returned XCom value in a JSON-compatible format."""
+
+
+class XComBatchResponse(BaseModel):
+    """XCom values returned from a batch Runtime request."""
+
+    key: str
+    values: list[XComBatchItemResponse]
+
+
 class XComSequenceIndexResponse(RootModel):
     """XCom schema with minimal structure for index-based access."""
 
