@@ -93,6 +93,11 @@ class OpenAIResponseOperator(BaseOperator):
     :param model: The OpenAI model to use.
     :param response_kwargs: Additional keyword arguments to pass to the OpenAI ``create_response``
         method (for example ``instructions``, ``tools``, ``conversation`` or ``previous_response_id``).
+        Do not set ``background`` or ``stream`` here: ``background=True`` returns before the response
+        completes, so this operator logs a warning and the returned output text may be empty, while
+        ``stream=True`` returns an object without ``status`` or ``output_text``, so the task raises
+        ``AttributeError``. See :ref:`howto/operator:OpenAIResponseOperator` for these and other
+        options this operator can pass through, such as ``truncation`` and ``max_output_tokens``.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
