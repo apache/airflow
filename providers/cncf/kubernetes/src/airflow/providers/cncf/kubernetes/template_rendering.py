@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+import os
+import socket
 from typing import TYPE_CHECKING
 
 from jinja2 import TemplateAssertionError, UndefinedError
@@ -82,6 +84,13 @@ def render_k8s_pod_yaml(task_instance: TaskInstance) -> dict | None:
         with_mutation_hook=True,
     )
     sanitized_pod = ApiClient().sanitize_for_serialization(pod)
+    if os.environ.get("AIRFLOW_IS_K8S_EXECUTOR_POD"):
+        # We are running inside the pod Kubernetes actually created for this task, so we
+        # know its real name: by default Kubernetes sets a pod's hostname to its own
+        # metadata.name. Use that instead of the pod_id above, which is a freshly
+        # regenerated create_unique_id() value and therefore never matches the pod that
+        # is actually running (see GH#28186).
+        sanitized_pod.setdefault("metadata", {})["name"] = socket.gethostname()
     return sanitized_pod
 
 

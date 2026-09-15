@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import socket
 from unittest import mock
 
 import pytest
@@ -103,6 +104,46 @@ def test_render_k8s_pod_yaml(pod_mutation_hook, create_task_instance):
     }
     assert render_k8s_pod_yaml(ti) == expected_pod_spec
     pod_mutation_hook.assert_called_once_with(mock.ANY)
+
+
+@mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})
+@mock.patch("airflow.settings.pod_mutation_hook")
+def test_render_k8s_pod_yaml_uses_real_pod_name_inside_k8s_executor_pod(
+    pod_mutation_hook, create_task_instance
+):
+    """The rendered pod name must match the pod actually running the task (GH#28186).
+
+    Inside a KubernetesExecutor pod, render_k8s_pod_yaml() otherwise regenerates a fresh,
+    random pod_id via create_unique_id() that never matches the real pod Kubernetes already
+    created. Kubernetes sets a pod's own hostname to its metadata.name by default, so the
+    real name is recoverable from within the running pod.
+    """
+    ti = create_task_instance(
+        dag_id="test_render_k8s_pod_yaml_real_name",
+        run_id="test_run_id",
+        task_id="op1",
+        logical_date=DEFAULT_DATE,
+    )
+
+    assert render_k8s_pod_yaml(ti)["metadata"]["name"] == socket.gethostname()
+
+
+@mock.patch("airflow.settings.pod_mutation_hook")
+def test_render_k8s_pod_yaml_keeps_generated_name_outside_k8s_executor_pod(
+    pod_mutation_hook, create_task_instance
+):
+    """Outside a real pod (e.g. the on-demand preview path), no real pod exists yet, so the
+    freshly generated placeholder name must be kept rather than substituted with our own
+    (unrelated) hostname.
+    """
+    ti = create_task_instance(
+        dag_id="test_render_k8s_pod_yaml_preview_name",
+        run_id="test_run_id",
+        task_id="op1",
+        logical_date=DEFAULT_DATE,
+    )
+
+    assert render_k8s_pod_yaml(ti)["metadata"]["name"] != socket.gethostname()
 
 
 @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})
