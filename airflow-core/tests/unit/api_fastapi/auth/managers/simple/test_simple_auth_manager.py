@@ -35,8 +35,10 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
 from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.api_fastapi.common.types import MenuItem
+from airflow.models.asset import AssetActive, AssetModel
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_assets
 
 
 class TestSimpleAuthManager:
@@ -523,3 +525,36 @@ class TestSimpleAuthManager:
             password = SimpleAuthManager._generate_password()
             assert len(password) == 16
             assert set(password).issubset(alphabet)
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        ("role", "expect_authorized"),
+        [
+            ("ADMIN", True),
+            (None, False),
+        ],
+    )
+    def test_get_authorized_assets_checks_authorization_once(
+        self, auth_manager, session, role, expect_authorized
+    ):
+        """With three assets in the table, a call count of one rather than three is what separates
+        the role-level override from the inherited per-asset loop."""
+        clear_db_assets()
+        assets = [AssetModel(name=f"asset{i}", uri=f"s3://bucket/asset{i}", group="asset") for i in range(3)]
+        session.add_all(assets)
+        session.add_all(AssetActive.for_asset(asset) for asset in assets)
+        session.commit()
+        expected_ids = {asset.id for asset in assets} if expect_authorized else set()
+
+        user = SimpleAuthManagerUser(username="test", role=role)
+        with mock.patch.object(
+            auth_manager,
+            "is_authorized_asset",
+            wraps=auth_manager.is_authorized_asset,
+        ) as mock_is_authorized_asset:
+            result = auth_manager.get_authorized_assets(user=user, session=session)
+
+        assert result == expected_ids
+        mock_is_authorized_asset.assert_called_once_with(method="GET", user=user)
+
+        clear_db_assets()
