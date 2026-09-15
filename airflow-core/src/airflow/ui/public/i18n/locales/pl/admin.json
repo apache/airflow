@@ -9,7 +9,11 @@
   "config": {
     "columns": {
       "section": "Sekcja"
-    }
+    },
+    "config_few": "Konfiguracje",
+    "config_many": "Konfiguracji",
+    "config_one": "Konfiguracja",
+    "config_other": "Konfiguracje"
   },
   "connections": {
     "add": "Dodaj połączenie",
@@ -101,7 +105,11 @@
       "dagProcessorJob": "Zadanie procesora Dagów",
       "schedulerJob": "Zadanie harmonogramu",
       "triggererJob": "Zadanie cyngla"
-    }
+    },
+    "job_few": "Zadania",
+    "job_many": "Zadań",
+    "job_one": "Zadanie",
+    "job_other": "Zadania"
   },
   "plugins": {
     "columns": {
@@ -111,24 +119,28 @@
     "importError_many": "Błędów importu wtyczek",
     "importError_one": "Błąd importu wtyczki",
     "importError_other": "Błędy importu wtyczek",
+    "plugin_few": "Wtyczki",
+    "plugin_many": "Wtyczek",
+    "plugin_one": "Wtyczka",
+    "plugin_other": "Wtyczki",
     "searchPlaceholder": "Szukaj po pliku"
   },
   "pools": {
     "add": "Dodaj pulę",
-    "deferredSlotsIncluded": "Uwzględniono odroczone miejsca",
+    "deferredSlotsIncluded": "Uwzględniono odroczone sloty",
     "delete": {
       "title": "Usuń pulę",
       "warning": "To usunie wszystkie metadane związane z pulą i może wpłynąć na zadania korzystające z tej puli."
     },
     "edit": "Edytuj pulę",
     "form": {
-      "checkbox": "Zaznacz, aby uwzględnić zadania odroczone przy obliczaniu wolnych miejsc w puli",
+      "checkbox": "Zaznacz, aby uwzględnić zadania odroczone przy obliczaniu wolnych slotów w puli",
       "description": "Opis",
       "includeDeferred": "Uwzględnij odroczone",
       "nameMaxLength": "Nazwa może zawierać maksymalnie 256 znaków",
       "nameRequired": "Nazwa jest wymagana",
-      "slots": "Miejsca",
-      "slotsHelperText": "Użyj -1 dla nieograniczonej liczby miejsc."
+      "slots": "Sloty",
+      "slotsHelperText": "Użyj -1 dla nieograniczonej liczby slotów."
     },
     "noPoolsFound": "Nie znaleziono pul",
     "pool_few": "Pule",
@@ -146,7 +158,11 @@
     "columns": {
       "packageName": "Nazwa paczki",
       "version": "Wersja"
-    }
+    },
+    "provider_few": "Providery",
+    "provider_many": "Providerów",
+    "provider_one": "Provider",
+    "provider_other": "Providery"
   },
   "variables": {
     "add": "Dodaj zmienną",
