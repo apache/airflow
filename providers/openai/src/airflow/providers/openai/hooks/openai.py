@@ -629,7 +629,8 @@ class OpenAIHook(BaseHook):
 
         :param file_id: The ID of the file to be used for this batch.
         :param endpoint: The endpoint to use for this batch. Allowed values are determined by the
-            OpenAI Batch API; see the OpenAI documentation for the current list.
+            OpenAI Batch API; see https://platform.openai.com/docs/api-reference/batch/create for
+            the current list.
         :param metadata: A set of key-value pairs that can be attached to an object.
         :param completion_window: The time window for the batch to complete. Default is 24 hours.
         """
