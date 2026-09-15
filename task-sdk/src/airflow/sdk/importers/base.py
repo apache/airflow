@@ -266,33 +266,37 @@ def find_file_dag_definitions(
     """
     Discover file DAG definitions in a bundle by *identity* alone.
 
-    This walk decides purely from the file's name and path -- extension, ``.airflowignore``,
-    and the Python source/bytecode pairing -- and never reads a file's contents. Deciding
-    whether a discovered file actually contains a DAG is content-based work that belongs to
-    :meth:`AbstractDagImporter.import_definition` (via ``might_contain_dag`` and the parse
-    itself), so that importers whose validity can only be determined by attempting the import
-    behave the same way.
+    This walk decides purely from the file's name and path: the suffix,
+    ``.airflowignore``, and the Python source/bytecode pairing. It never reads
+    any file content. Deciding whether a discovered file actually contains a DAG
+    belongs to :meth:`AbstractDagImporter.import_definition`, so importers whose
+    validity can only be determined by attempting the import behave the same way.
     """
     ignore_file_syntax = conf.get_mandatory_value("core", "DAG_IGNORE_FILE_SYNTAX", fallback="glob")
     supported_exts = _normalize_extensions(supported_extensions)
 
-    for file_path in find_path_from_directory(bundle_path, ".airflowignore", ignore_file_syntax):
-        path = Path(file_path)
+    def _iter_candidates() -> Iterator[Path]:
+        for file_path in find_path_from_directory(bundle_path, ".airflowignore", ignore_file_syntax):
+            path = Path(file_path)
+            if not path.is_file():
+                continue
+            if path.suffix.lower() not in supported_exts:
+                continue
+            if "__pycache__" in path.parts:
+                continue
+            yield path
 
-        if not path.is_file():
-            continue
+    candidates = list(_iter_candidates())
 
-        if path.suffix.lower() not in supported_exts:
+    # A .pyc is discovered only when no matching .py survived the same filtering
+    # (a genuinely sourceless module), so an ignored or unsupported .py sibling
+    # never suppresses it. Sources are keyed by (directory, stem) so the .py/.pyc
+    # pairing matches case-insensitively on the extension, and candidates keep the
+    # walk's order.
+    source_keys = {(path.parent, path.stem) for path in candidates if path.suffix.lower() == ".py"}
+    for path in candidates:
+        if path.suffix.lower() == ".pyc" and (path.parent, path.stem) in source_keys:
             continue
-
-        # Skip compiled-bytecode caches, and prefer source over a side-by-side .pyc, so a
-        # module and its compiled form are never both imported (a .pyc is used only when
-        # there is no matching .py, i.e. sourceless distribution).
-        if "__pycache__" in path.parts:
-            continue
-        if path.suffix.lower() == ".pyc" and path.with_suffix(".py").exists():
-            continue
-
         yield FilesystemDagDefinition(path=path)
 
 
