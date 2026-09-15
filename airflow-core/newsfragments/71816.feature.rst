@@ -1,0 +1,1 @@
+Added ``[scheduler] dag_cache_size`` and ``[scheduler] dag_cache_ttl`` options for tuning deserialized Dag cache eviction. The cache defaults to an LRU limit of 512 versions with no TTL. A value of 0 disables the corresponding eviction limit; setting both options to 0 disables eviction.
