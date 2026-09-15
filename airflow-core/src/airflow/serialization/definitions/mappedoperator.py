@@ -226,6 +226,10 @@ class SerializedMappedOperator(DAGNode):
         return self._get_partial_kwargs_or_operator_default("retries")
 
     @property
+    def infra_retries(self) -> int:
+        return self._get_partial_kwargs_or_operator_default("infra_retries")
+
+    @property
     def queue(self) -> str:
         return self._get_partial_kwargs_or_operator_default("queue")
 

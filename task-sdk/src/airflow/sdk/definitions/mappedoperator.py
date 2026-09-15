@@ -32,6 +32,7 @@ from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_EXECUTOR,
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
+    DEFAULT_INFRA_RETRIES,
     DEFAULT_OWNER,
     DEFAULT_POOL_NAME,
     DEFAULT_POOL_SLOTS,
@@ -496,6 +497,14 @@ class MappedOperator(AbstractOperator):
     @retries.setter
     def retries(self, value: int) -> None:
         self.partial_kwargs["retries"] = value
+
+    @property
+    def infra_retries(self) -> int:
+        return self.partial_kwargs.get("infra_retries", DEFAULT_INFRA_RETRIES)
+
+    @infra_retries.setter
+    def infra_retries(self, value: int) -> None:
+        self.partial_kwargs["infra_retries"] = value
 
     @property
     def queue(self) -> str:
