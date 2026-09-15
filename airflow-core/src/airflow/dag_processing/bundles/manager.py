@@ -161,9 +161,6 @@ class DagBundlesManager(LoggingMixin):
 
         :meta private:
         """
-        if self._bundle_config:
-            return
-
         bundle_configurations: dict[str, DagBundleConfiguration] = {}
         for bundle_config in self._bundle_provider.get_all_bundle_configurations():
             if not isinstance(bundle_config, DagBundleConfiguration):
@@ -181,7 +178,7 @@ class DagBundlesManager(LoggingMixin):
                     "To enable multi-team, update section `core` key `multi_team` in your config."
                 )
             bundle_configurations[bundle_config.name] = bundle_config
-        if not bundle_configurations:
+        if bundle_configurations == self._bundle_config:
             return
         self._bundle_config = bundle_configurations
         self.log.info("DAG bundles loaded: %s", ", ".join(self._bundle_config.keys()))
@@ -543,6 +540,10 @@ class DagBundlesManager(LoggingMixin):
     def get_all_bundle_configurations(self) -> tuple[DagBundleConfiguration, ...]:
         """Get all active Dag bundle configurations."""
         return tuple(self._bundle_config.values())
+
+    @property
+    def provides_complete_configuration(self) -> bool:
+        return self._bundle_provider.provides_complete_configuration
 
     def get_all_dag_bundles(self) -> Iterable[BaseDagBundle]:
         """
