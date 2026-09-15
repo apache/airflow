@@ -21,11 +21,13 @@ from unittest import mock
 
 import pytest
 import sqlalchemy as sa
+from alembic import command
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from sqlalchemy import MetaData
 
 import airflow.providers.fab as provider_fab
+from airflow import settings
 from airflow.settings import engine
 from airflow.utils.db import (
     compare_server_default,
@@ -288,6 +290,48 @@ try:
                 assert "ab_user_role_role_id_fkey" in user_role_fk_names
                 assert "ab_user_role_user_id_fkey" in user_role_fk_names
             finally:
+                current_revision = manager.get_current_revision()
+                if original_revision and current_revision != original_revision:
+                    manager.upgradedb(to_revision=original_revision)
+
+        @pytest.mark.backend("mysql")
+        def test_upgradedb_and_downgrade_mysql_run_under_pymysql(self, session):
+            # pymysql leaves CLIENT_MULTI_STATEMENTS off (mysqlclient, which CI uses, turns it
+            # on), so the server rejects any revision that packs several statements into one
+            # op.execute(). Drive the revision over a pymysql connection to keep it split.
+            pytest.importorskip("pymysql")
+
+            manager = FABDBManager(session=session)
+            original_revision = manager.get_current_revision()
+            pymysql_url = sa.engine.make_url(settings.SQL_ALCHEMY_CONN).set(drivername="mysql+pymysql")
+            pymysql_engine = sa.create_engine(pymysql_url)
+
+            try:
+                manager.downgrade(to_revision="6709f7a774b9")
+
+                config = manager.get_alembic_config()
+                with pymysql_engine.connect() as connection:
+                    config.attributes["connection"] = connection
+
+                    command.upgrade(config, revision="02ca36b0235b")
+                    uq_names = {
+                        uq["name"] for uq in sa.inspect(connection).get_unique_constraints("ab_register_user")
+                    }
+                    assert "ab_register_user_email_uq" in uq_names
+
+                    command.downgrade(config, revision="6709f7a774b9")
+                    uq_names = {
+                        uq["name"] for uq in sa.inspect(connection).get_unique_constraints("ab_register_user")
+                    }
+                    assert "ab_register_user_email_uq" not in uq_names
+                    index_names = {
+                        index["name"]
+                        for index in sa.inspect(connection).get_indexes("ab_permission_view_role")
+                    }
+                    assert "idx_permission_view_id" not in index_names
+                    assert "idx_role_id" not in index_names
+            finally:
+                pymysql_engine.dispose()
                 current_revision = manager.get_current_revision()
                 if original_revision and current_revision != original_revision:
                     manager.upgradedb(to_revision=original_revision)
