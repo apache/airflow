@@ -79,6 +79,13 @@ ConfigSourcesType = dict[str, ConfigSectionSourcesType]
 ENV_VAR_PREFIX = "AIRFLOW__"
 # Separates the team name from the base section name in a team scoped config file section.
 TEAM_SECTION_SEPARATOR = "="
+# (section, key) pairs that may hold a custom secrets backend class. _get_custom_secret_backend()
+# reads this to pick the pair for the current mode; callers that only need to know whether *some*
+# backend is configured (e.g. a CLI warning), without instantiating one, read all of the values.
+SECRETS_BACKEND_CONFIG_KEYS = {
+    "general": ("secrets", "backend"),
+    "worker": ("workers", "secrets_backend"),
+}
 
 
 def team_section_name(team_name: str, section: str) -> str:
@@ -723,8 +730,7 @@ class AirflowConfigParser(ConfigParser):
 
         Conditionally selects the section, key and kwargs key based on whether it is called from worker or not.
         """
-        section = "workers" if worker_mode else "secrets"
-        key = "secrets_backend" if worker_mode else "backend"
+        section, key = SECRETS_BACKEND_CONFIG_KEYS["worker" if worker_mode else "general"]
         kwargs_key = "secrets_backend_kwargs" if worker_mode else "backend_kwargs"
 
         secrets_backend_cls = self.getimport(section=section, key=key)
@@ -732,12 +738,12 @@ class AirflowConfigParser(ConfigParser):
         if not secrets_backend_cls:
             if worker_mode:
                 # if we find no secrets backend for worker, return that of secrets backend
-                secrets_backend_cls = self.getimport(section="secrets", key="backend")
+                section, key = SECRETS_BACKEND_CONFIG_KEYS["general"]
+                secrets_backend_cls = self.getimport(section=section, key=key)
                 if not secrets_backend_cls:
                     return None
                 # When falling back to secrets backend, use its kwargs
                 kwargs_key = "backend_kwargs"
-                section = "secrets"
             else:
                 return None
 
