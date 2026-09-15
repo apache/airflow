@@ -146,7 +146,7 @@ from airflow.timetables.simple import (
 )
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import with_row_locks
-from airflow.utils.state import CallbackState, DagRunState, State, TaskInstanceState
+from airflow.utils.state import CallbackState, DagRunState, DagSchedulingState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
@@ -1228,6 +1228,25 @@ class TestSchedulerJob:
         ti1.refresh_from_db(session=session)
         assert ti1.state == State.SCHEDULED
         session.rollback()
+
+    def test_execute_task_instances_for_draining_dag(self, session, dag_maker):
+        with dag_maker(dag_id="test_execute_task_instances_for_draining_dag", session=session) as dag:
+            EmptyOperator(task_id="task")
+        assert isinstance(dag, SerializedDAG)
+
+        dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        (task_instance,) = dag_run.task_instances
+        task_instance.state = State.SCHEDULED
+        dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
+        dag_model.set_scheduling_state(DagSchedulingState.DRAINING)
+        session.flush()
+
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        self.job_runner._critical_section_enqueue_task_instances(session)
+        session.flush()
+
+        task_instance.refresh_from_db(session=session)
+        assert task_instance.state == State.QUEUED
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_find_and_purge_task_instances_without_heartbeats_with_asset_events(
@@ -8795,6 +8814,81 @@ class TestSchedulerJob:
         (backfill_run,) = DagRun.find(dag_id=dag.dag_id, run_type=DagRunType.BACKFILL_JOB, session=session)
         assert backfill_run.state == State.SUCCESS
 
+    def test_finalize_draining_dag_after_active_runs_finish(self, dag_maker, session):
+        with dag_maker("test_finalize_draining_dag") as dag:
+            EmptyOperator(task_id="task")
+
+        dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
+        dag_model.set_scheduling_state(DagSchedulingState.DRAINING)
+        session.flush()
+
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        self.job_runner._finalize_draining_dags(session=session)
+
+        assert dag_model.scheduling_state == DagSchedulingState.DRAINING
+
+        dag_run.state = DagRunState.SUCCESS
+        session.flush()
+        self.job_runner._finalize_draining_dags(session=session)
+
+        assert dag_model.scheduling_state == DagSchedulingState.PAUSED
+        session.flush()
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(Log)
+                .where(
+                    Log.dag_id == dag.dag_id,
+                    Log.event == "drain_completed",
+                )
+            )
+            == 1
+        )
+
+    def test_finalize_draining_dag_waits_for_backfill_initialization(self, dag_maker, session):
+        with dag_maker("test_finalize_draining_dag_with_backfill", schedule="@daily") as dag:
+            EmptyOperator(task_id="task")
+
+        dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
+        dag_model.set_scheduling_state(DagSchedulingState.DRAINING)
+        backfill = Backfill(
+            dag_id=dag.dag_id,
+            from_date=pendulum.parse("2021-01-01"),
+            to_date=pendulum.parse("2021-01-02"),
+            max_active_runs=1,
+            dag_run_conf={},
+            reprocess_behavior=ReprocessBehavior.NONE,
+        )
+        session.add(backfill)
+        session.flush()
+
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        self.job_runner._finalize_draining_dags(session=session)
+
+        assert dag_model.scheduling_state == DagSchedulingState.DRAINING
+
+        dag_run = dag_maker.create_dagrun(run_type=DagRunType.BACKFILL_JOB)
+        dag_run.backfill_id = backfill.id
+        session.add(
+            BackfillDagRun(
+                backfill_id=backfill.id,
+                dag_run_id=dag_run.id,
+                logical_date=dag_run.logical_date,
+                sort_ordinal=1,
+            )
+        )
+        session.flush()
+        self.job_runner._finalize_draining_dags(session=session)
+
+        assert dag_model.scheduling_state == DagSchedulingState.DRAINING
+
+        dag_run.state = DagRunState.SUCCESS
+        session.flush()
+        self.job_runner._finalize_draining_dags(session=session)
+
+        assert dag_model.scheduling_state == DagSchedulingState.PAUSED
+
     @staticmethod
     def _find_assets_activation(session) -> tuple[list[AssetModel], list[AssetModel]]:
         assets = session.execute(
@@ -10178,8 +10272,37 @@ class TestSchedulerJob:
 
             mock_handle_miss.assert_not_called()
 
-    def test_emit_running_dags_metric(self, dag_maker, monkeypatch):
-        """Test that the running_dags metric is emitted correctly."""
+    def test_emit_dag_runs_metric_aggregate_by_default(self, dag_maker, monkeypatch):
+        """Test that the dagruns running/queued metrics are emitted as untagged aggregates by default."""
+        with dag_maker("metric_dag") as dag:
+            _ = dag
+        dag_maker.create_dagrun(run_id="run_1", state=DagRunState.RUNNING, logical_date=timezone.utcnow())
+        dag_maker.create_dagrun(
+            run_id="run_2", state=DagRunState.RUNNING, logical_date=timezone.utcnow() + timedelta(hours=1)
+        )
+        dag_maker.create_dagrun(
+            run_id="run_3", state=DagRunState.QUEUED, logical_date=timezone.utcnow() + timedelta(hours=2)
+        )
+
+        recorded: list[tuple[str, float, dict | None]] = []
+
+        def _fake_gauge(metric: str, value: float, *_, tags=None, **__):
+            recorded.append((metric, value, tags))
+
+        monkeypatch.setattr("airflow._shared.observability.metrics.stats.gauge", _fake_gauge, raising=True)
+
+        with conf_vars(
+            {("metrics", "statsd_on"): "True", ("scheduler", "dagrun_metrics_per_dag_id"): "False"}
+        ):
+            scheduler_job = Job()
+            self.job_runner = SchedulerJobRunner(scheduler_job)
+            self.job_runner._emit_dag_runs_metric()
+
+        assert ("scheduler.dagruns.running", 2.0, None) in recorded
+        assert ("scheduler.dagruns.queued", 1.0, None) in recorded
+
+    def test_emit_dag_runs_metric_per_dag_id_when_enabled(self, dag_maker, monkeypatch):
+        """Test that the dagruns running/queued metrics are tagged by dag_id when opted in."""
         with dag_maker("metric_dag") as dag:
             _ = dag
         dag_maker.create_dagrun(run_id="run_1", state=DagRunState.RUNNING, logical_date=timezone.utcnow())
@@ -10187,19 +10310,21 @@ class TestSchedulerJob:
             run_id="run_2", state=DagRunState.RUNNING, logical_date=timezone.utcnow() + timedelta(hours=1)
         )
 
-        recorded: list[tuple[str, int]] = []
+        recorded: list[tuple[str, float, dict | None]] = []
 
-        def _fake_gauge(metric: str, value: int, *_, **__):
-            recorded.append((metric, value))
+        def _fake_gauge(metric: str, value: float, *_, tags=None, **__):
+            recorded.append((metric, value, tags))
 
         monkeypatch.setattr("airflow._shared.observability.metrics.stats.gauge", _fake_gauge, raising=True)
 
-        with conf_vars({("metrics", "statsd_on"): "True"}):
+        with conf_vars(
+            {("metrics", "statsd_on"): "True", ("scheduler", "dagrun_metrics_per_dag_id"): "True"}
+        ):
             scheduler_job = Job()
             self.job_runner = SchedulerJobRunner(scheduler_job)
-            self.job_runner._emit_running_dags_metric()
+            self.job_runner._emit_dag_runs_metric()
 
-        assert recorded == [("scheduler.dagruns.running", 2)]
+        assert recorded == [("scheduler.dagruns.running", 2.0, {"dag_id": "metric_dag"})]
 
     # Multi-team scheduling tests
     def test_multi_team_get_team_names_for_dag_ids_success(self, dag_maker, session):
@@ -11505,6 +11630,41 @@ def _produce_and_register_asset_event(
     assert apdr.partition_key == expected_partition_key
 
     return apdr
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_asset_dag_run_is_not_created_while_draining(dag_maker: DagMaker, session: Session):
+    asset = Asset(name="asset")
+    consumer_dag_id = "draining-asset-event-consumer"
+    with dag_maker(
+        dag_id=consumer_dag_id,
+        schedule=PartitionedAssetTimetable(assets=asset),
+        session=session,
+    ):
+        EmptyOperator(task_id="consumer")
+    session.commit()
+
+    apdr = _produce_and_register_asset_event(
+        dag_id="draining-asset-event-producer",
+        asset=asset,
+        partition_key="partition",
+        session=session,
+        dag_maker=dag_maker,
+    )
+    dag_model = session.get(DagModel, consumer_dag_id)
+    assert dag_model is not None
+    dag_model.set_scheduling_state(DagSchedulingState.DRAINING)
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    session.refresh(apdr)
+    assert partition_dags == set()
+    assert apdr.created_dag_run_id is None
 
 
 @pytest.mark.need_serialized_dag

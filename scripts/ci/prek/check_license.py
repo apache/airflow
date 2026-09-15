@@ -37,7 +37,7 @@ cmd = [
     "--user",
     f"{os.getuid()}:{os.getgid()}",
     "--rm",
-    "ghcr.io/apache/airflow-apache-rat:0.17-2025.10.24@sha256:63e965ecfa195d38cf0525b16ad801dff75833ee97d88cd763020537c36981c9",
+    "ghcr.io/apache/airflow-apache-rat:0.18-2026.09.13@sha256:d70f8f57f077473ffe917a8eca2f3f34e35f55b0b628c906fe7b464144a1f77f",
     "--input-exclude-file",
     "/opt/airflow/.rat-excludes",
     "/opt/airflow",

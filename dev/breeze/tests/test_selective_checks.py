@@ -554,7 +554,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("providers/apache/beam/tests/unit/apache/beam/file.py",),
                 {
-                    "selected-providers-list-as-string": "common.compat google",
+                    "selected-providers-list-as-string": "apache.beam common.compat google",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -574,16 +574,17 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers-test-types-list-as-strings-in-json": json.dumps(
                         [
                             {
-                                "description": "common.compat...google",
-                                "test_types": "Providers[common.compat] Providers[google]",
+                                "description": "apache.beam,c...google",
+                                "test_types": "Providers[apache.beam,common.compat] Providers[google]",
                             }
                         ]
                     ),
                     "individual-providers-test-types-list-as-strings-in-json": json.dumps(
                         [
                             {
-                                "description": "common.compat...google",
-                                "test_types": "Providers[common.compat] Providers[google]",
+                                "description": "apache.beam...google",
+                                "test_types": "Providers[apache.beam] "
+                                "Providers[common.compat] Providers[google]",
                             }
                         ]
                     ),
@@ -596,7 +597,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("providers/apache/beam/tests/unit/apache/beam/file.py",),
                 {
-                    "selected-providers-list-as-string": "common.compat google",
+                    "selected-providers-list-as-string": "apache.beam common.compat google",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -616,16 +617,17 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers-test-types-list-as-strings-in-json": json.dumps(
                         [
                             {
-                                "description": "common.compat...google",
-                                "test_types": "Providers[common.compat] Providers[google]",
+                                "description": "apache.beam,c...google",
+                                "test_types": "Providers[apache.beam,common.compat] Providers[google]",
                             }
                         ]
                     ),
                     "individual-providers-test-types-list-as-strings-in-json": json.dumps(
                         [
                             {
-                                "description": "common.compat...google",
-                                "test_types": "Providers[common.compat] Providers[google]",
+                                "description": "apache.beam...google",
+                                "test_types": "Providers[apache.beam] "
+                                "Providers[common.compat] Providers[google]",
                             }
                         ]
                     ),
@@ -642,7 +644,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/apache/beam/tests/unit/apache/beam/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "common.compat google",
+                    "selected-providers-list-as-string": "apache.beam common.compat google",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -662,16 +664,17 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers-test-types-list-as-strings-in-json": json.dumps(
                         [
                             {
-                                "description": "common.compat...google",
-                                "test_types": "Providers[common.compat] Providers[google]",
+                                "description": "apache.beam,c...google",
+                                "test_types": "Providers[apache.beam,common.compat] Providers[google]",
                             }
                         ]
                     ),
                     "individual-providers-test-types-list-as-strings-in-json": json.dumps(
                         [
                             {
-                                "description": "common.compat...google",
-                                "test_types": "Providers[common.compat] Providers[google]",
+                                "description": "apache.beam...google",
+                                "test_types": "Providers[apache.beam] "
+                                "Providers[common.compat] Providers[google]",
                             }
                         ]
                     ),
@@ -688,7 +691,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/apache/beam/tests/unit/apache/beam/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "common.compat google",
+                    "selected-providers-list-as-string": "apache.beam common.compat google",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -708,16 +711,17 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers-test-types-list-as-strings-in-json": json.dumps(
                         [
                             {
-                                "description": "common.compat...google",
-                                "test_types": "Providers[common.compat] Providers[google]",
+                                "description": "apache.beam,c...google",
+                                "test_types": "Providers[apache.beam,common.compat] Providers[google]",
                             }
                         ]
                     ),
                     "individual-providers-test-types-list-as-strings-in-json": json.dumps(
                         [
                             {
-                                "description": "common.compat...google",
-                                "test_types": "Providers[common.compat] Providers[google]",
+                                "description": "apache.beam...google",
+                                "test_types": "Providers[apache.beam] "
+                                "Providers[common.compat] Providers[google]",
                             }
                         ]
                     ),
@@ -2746,7 +2750,7 @@ def test_expected_output_push(
                 "providers/google/tests/unit/google/file.py",
             ),
             {
-                "selected-providers-list-as-string": "amazon apache.cassandra apache.kafka "
+                "selected-providers-list-as-string": "amazon apache.beam apache.cassandra apache.kafka "
                 "cncf.kubernetes common.compat common.messaging common.sql databricks "
                 "facebook google hashicorp http microsoft.azure microsoft.mssql mongo mysql "
                 "openlineage oracle postgres presto salesforce samba sftp ssh standard trino",
@@ -2758,7 +2762,7 @@ def test_expected_output_push(
                 "run-unit-tests": "true",
                 "skip-providers-tests": "false",
                 "docs-build": "true",
-                "docs-list-as-string": "apache-airflow helm-chart amazon apache.cassandra "
+                "docs-list-as-string": "apache-airflow helm-chart amazon apache.beam apache.cassandra "
                 "apache.kafka cncf.kubernetes common.compat common.messaging common.sql databricks facebook google hashicorp http microsoft.azure "
                 "microsoft.mssql mongo mysql openlineage oracle postgres "
                 "presto salesforce samba sftp ssh standard trino",
@@ -2781,7 +2785,7 @@ def test_expected_output_push(
                     [
                         {
                             "description": "amazon...standard",
-                            "test_types": "Providers[amazon] Providers[apache.cassandra,"
+                            "test_types": "Providers[amazon] Providers[apache.beam,apache.cassandra,"
                             "apache.kafka,cncf.kubernetes,common.compat,common.messaging,common.sql,databricks,facebook,"
                             "hashicorp,http,microsoft.azure,microsoft.mssql,mongo,mysql,"
                             "openlineage,oracle,postgres,presto,salesforce,samba,sftp,ssh,trino] "
@@ -3064,7 +3068,7 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             ("providers/google/docs/some_file.rst",),
             {
-                "docs-list-as-string": "amazon apache.cassandra apache.kafka "
+                "docs-list-as-string": "amazon apache.beam apache.cassandra apache.kafka "
                 "cncf.kubernetes common.compat common.messaging common.sql databricks facebook google hashicorp http "
                 "microsoft.azure microsoft.mssql mongo mysql openlineage oracle "
                 "postgres presto salesforce samba sftp ssh standard trino",

@@ -144,7 +144,7 @@ class Callback(Base, BaseWorkload):
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     # Used for callbacks of type CallbackType.TRIGGERER
-    trigger_id: Mapped[int] = mapped_column(Integer, ForeignKey("trigger.id"), nullable=True)
+    trigger_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("trigger.id"), nullable=True)
     trigger = relationship("Trigger", back_populates="callback", uselist=False)
 
     def __init__(self, priority_weight: int = 1, prefix: str = "", **kwargs):
