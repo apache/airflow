@@ -286,6 +286,11 @@ class DictOfListsExpandInput(ExpandInput):
         from airflow.sdk.definitions.xcom_arg import XComArg
 
         def _to_iterable(v: Any) -> Iterable:
+            # Match _expand_mapped_field's dict handling below: a dict value expands to
+            # its (key, value) pairs, not just its keys, so that classic .expand() and
+            # .iterate() hand sub-tasks the same per-index value for a dict argument.
+            if isinstance(v, Mapping):
+                return v.items()
             return v if hasattr(v, "__iter__") and not isinstance(v, (str, bytes)) else (v,)
 
         def _make_factory(v: Any) -> Callable[[], Iterable]:
