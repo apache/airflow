@@ -77,7 +77,7 @@ public class EtlPipeline { // extends nothing of ours; your own base class stays
 
       // non-TaskFlow (ordering-only) edges: sequence with no data flowing
       rows.then(audit());              // extract >> audit
-      notify().after(loaded, audit()); // [load, audit] >> notify
+      Flow.of(loaded, audit()).then(notify()); // [load, audit] >> notify
     }
   }
 
@@ -126,10 +126,13 @@ public final class EtlPipeline_Dag {
   public static Dag dag() {
     Dag dag = new Dag("java_etl").config("schedule", "@daily");
     TaskRef extract = dag.task("extract", Extract.class).config("retries", 2);
-    TaskRef transform = dag.task("transform", Transform.class).after(extract);
-    TaskRef load = dag.task("load", Load.class).after(transform);
-    TaskRef audit = dag.task("audit", Audit.class).after(extract);   // ordering-only edge
-    dag.task("notify", Notify.class).after(load, audit);             // ordering-only edge
+    TaskRef transform = dag.task("transform", Transform.class);
+    TaskRef load = dag.task("load", Load.class);
+    TaskRef audit = dag.task("audit", Audit.class);
+    TaskRef notify = dag.task("notify", Notify.class);
+    extract.then(transform).then(load); // data path
+    extract.then(audit);                // ordering-only edge
+    Flow.of(load, audit).then(notify);  // ordering-only edge
     return dag;
   }
 
@@ -159,24 +162,23 @@ primitives.
 ### Non-TaskFlow dependencies
 
 A TaskFlow (data) edge comes for free from passing a `TaskRef` into another wiring method. A
-dependency where **no data flows** — Python's `a >> b`, and the list forms `a >> [b, c]` and
-`[x, y] >> z` — is expressed instead with two variadic verbs that every `TaskRef` carries, `then`
-and `after`. Both live on a small `Chain` interface, and a `TaskRef` is a `Chain` of one
-(`interface TaskRef<T> extends Arg<T>, Chain`):
+dependency where no data flows. Python's `a >> b`, and the list forms `a >> [b, c]` and `[x, y] >> z` are
+expressed with `then`, a variadic verb that every `TaskRef` carries. It lives on a small `Chain` interface,
+and a `TaskRef` is a `Chain` of one (`interface TaskRef<T> extends Arg<T>, Chain`):
 
 ```java
+a.then(b);     // a >> b
 a.then(b, c);  // a >> [b, c]
-z.after(x, y); // z << [x, y]
 ```
 
-`then` and `after` are mirror images, and each returns the **new frontier** (the set it just pointed
-at), the way `>>`/`<<` evaluate to their right operand, so a chain walks through a fan:
+`then` returns the **new frontier** (the set it just pointed at), the way `>>` evaluates to its
+right operand, so a chain walks through a fan:
 
 ```java
 a.then(b, c).then(d); // a >> [b, c] >> d  (a->b, a->c, then b->d, c->d)
 ```
 
-The one thing the verbs cannot do is start from a *set*: Java can't overload `>>` the way Python
+The one thing `then` cannot do is start from a *set*: Java can't overload `>>` the way Python
 does, and there is no list literal to call `.then` on, so `Flow.of` opens a chain from one:
 
 ```java
@@ -184,10 +186,7 @@ Flow.of(a, b).then(c);    // [a, b] >> c
 Flow.of(a, b).then(c, d); // [a, b] >> [c, d]
 ```
 
-That is the whole non-TaskFlow surface: `then` and `after` on `Chain`, plus `Flow.of`. There is no
-`chain`, `fanOut`, or `fanIn` — `a.then(b).then(c)` is a chain, `a.then(b, c)` is a fan-out, and
-`z.after(x, y)` is a fan-in — so the shorthands would earn nothing.
-Both edge kinds compile to the same `after(...)` in the generated Dag above — the only difference is
+Both edge kinds compile to the same `then(...)` in the generated Dag above. The only difference is
 that a data edge also binds an argument while an ordering-only edge binds nothing.
 
 ### Interface based
@@ -196,15 +195,16 @@ that a data edge also binds an argument while an ordering-only edge binds nothin
 Dag dag = new Dag("java_etl").config("schedule", "@daily");
 
 TaskRef extract = dag.task("extract", Extract.class).config("retries", 2);
-TaskRef transform = dag.task("transform", Transform.class).after(extract);
-TaskRef load = dag.task("load", Load.class).after(transform);
+TaskRef transform = dag.task("transform", Transform.class);
+TaskRef load = dag.task("load", Load.class);
+TaskRef notify = dag.task("notify", Notify.class);
 
-load.then(dag.task("notify", Notify.class));
+extract.then(transform).then(load).then(notify);
 ```
 
 `dag.task(id, class)` registers the task as it creates it and hands back a `TaskRef`, so there is no
-second `addTask(...)` call to forget. `then` and `after` are the same variadic edge verbs as the
-annotation surface — Java's spelling of Python's `>>` and `<<` — and `.config(key, value)` carries
+second `addTask(...)` call to forget. `then` is the same variadic edge verb as the
+annotation surface — Java's spelling of Python's `>>` — and `.config(key, value)` carries
 Dag and task configuration. This surface wires edges through object references and reads no syntax
 tree, so it works under any toolchain and is exactly what the annotation surface's recording
 produces.
@@ -292,10 +292,10 @@ One bundle carries native Dags and mixed-language task handlers alike
   `extends`) so the Dag class keeps its single inheritance slot.
 - Wiring methods are memoized by task id, so `extract()` returns the same `TaskRef` wherever it is
   called; that identity is what lets a data edge and a later ordering edge refer to one node.
-- **`then`/`after` are variadic and return the new frontier**, so `a.then(b, c).then(d)` walks
-  through a fan, and linear runs, fan-outs, and fan-ins all fall out of the two verbs. `Flow.of(...)`
-  is the only entry point beyond them — it opens a chain from a set, which the verbs cannot. A data
-  edge never needs any of this — it is implied by passing a `TaskRef`.
+- **`then` is variadic and returns the new frontier**, so `a.then(b, c).then(d)` walks through a
+  fan, and linear runs, fan-outs, and fan-ins all fall out of the one verb. `Flow.of(...)` is the
+  only entry point beyond it — it opens a chain from a set, which `then` cannot. A data edge never
+  needs any of this — it is implied by passing a `TaskRef`.
 - **`Arg<T>` is the data-argument type in a wiring method**; `TaskRef<T> extends Arg<T>`, and
   `lit(value)` wraps a boxed constant. A `TaskRef` argument records an edge; a `lit(...)` records a
   baked value with none. Because both flow through `Arg` and the recorder distinguishes them by type,
@@ -305,7 +305,7 @@ One bundle carries native Dags and mixed-language task handlers alike
   ([ADR-0001](0001-mixed-lang-dag-interface.md)) — the same conversion-not-cast path, including the
   `TypeReference<T>` overload for generics. Nothing is ambient, so the SDK's Java 11 pin (no
   `ScopedValue`) does not matter here.
-- **`dag.task(...)`, `.config(...)`, `.then(...)`, and `.after(...)` are proposed additions.**
+- **`dag.task(...)`, `.config(...)`, and `.then(...)` are proposed additions.**
   Today's shipped `Dag` has only `addTask(id, definition)`, which returns the Dag rather than a ref;
   `.config(...)` is keyed to the Dag serialization schema. `dag.task(...)` is a factory method, not a
   constructor — Java spells qualified inner-class creation `dag.new TaskRef(...)`, which reads as
