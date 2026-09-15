@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
+import zlib
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Literal, get_args
 from uuid import UUID
@@ -46,6 +47,8 @@ log = logging.getLogger(__name__)
 
 ValuesStatus = Literal["available", "unavailable"]
 _VALID_VALUES_STATUSES = get_args(ValuesStatus)
+# version_number is a 32-bit column, and an out-of-range bind parameter makes drivers raise.
+_MAX_VERSION_NUMBER = 2**31 - 1
 
 
 class DagVersion(Base):
@@ -265,13 +268,22 @@ class DagVersion(Base):
         session: Session = NEW_SESSION,
     ) -> dict[str, Any]:
         """
-        Compare two versions of a Dag using their stored serialized state and provenance.
+        Compare the stored state and provenance of two versions of a Dag.
 
-        ``values_status`` carries an authorization decision the caller has already made. It defaults
-        to withholding raw values, leaving the structural diff available in redacted form. Callers
-        must authorize disclosure of the entire serialized payload, including access-control role
-        names and permission mappings, before enabling values. This also exposes digests and
-        value-derived paths; permission to access Dag code alone may not cover that disclosure.
+        ``values_status`` carries the caller's authorization decision. See
+        :func:`~airflow.serialization.dag_version_diff.build_serialized_dag_diff`
+        for disclosure and truncation rules.
+
+        :param dag_id: The Dag ID.
+        :param base_version_number: The version number to compare from.
+        :param target_version_number: The version number to compare to.
+        :param values_status: Whether the caller has authorized disclosing values and digests.
+        :param max_changes: Upper bound on the underlying changes admitted to the result.
+            Defaults to ``DEFAULT_MAX_CHANGES``.
+        :param session: The database session.
+        :return: The diff result, in the shape named by its ``diff_schema_version``.
+        :raises ValueError: If ``values_status``, ``max_changes``, or either version number is invalid.
+        :raises DagVersionNotFound: If either version number has no row for ``dag_id``.
         """
         # Keep this local to avoid the dag_version -> dag_version_diff -> serialized_objects cycle.
         from airflow.models.serialized_dag import SerializedDagModel
@@ -289,8 +301,13 @@ class DagVersion(Base):
             max_changes = DEFAULT_MAX_CHANGES
         # Reject a bad bound before it costs the version lookup and both payload loads.
         validate_max_changes(max_changes)
-        if base_version_number < 1 or target_version_number < 1:
-            raise ValueError("Dag version numbers must be positive integers")
+        for version_number in (base_version_number, target_version_number):
+            if not isinstance(version_number, int) or isinstance(version_number, bool):
+                raise ValueError("Dag version numbers must be integers")
+            if not 1 <= version_number <= _MAX_VERSION_NUMBER:
+                raise ValueError(
+                    f"Dag version numbers must be positive integers not exceeding {_MAX_VERSION_NUMBER}"
+                )
 
         query = (
             select(cls)
@@ -337,27 +354,30 @@ def _get_serialized_diff_data(
 ) -> tuple[dict[str, Any] | None, str | None]:
     if serialized_dag is None:
         return None, None
-    data = serialized_dag.data
-    if isinstance(data, str):
-        try:
+    try:
+        # Reading the property decodes the compressed column, so it decodes here too.
+        data = serialized_dag.data
+        if isinstance(data, str):
             data = json.loads(data)
-        except json.JSONDecodeError:
-            return None, "serialized_dag_canonicalization_failed"
+    except (ValueError, zlib.error, RecursionError):
+        return None, "serialized_dag_decode_failed"
     if not isinstance(data, dict) or not isinstance(dag_data := data.get("dag"), dict):
         return data, None
     deadlines = dag_data.get("deadline")
     if not isinstance(deadlines, list) or not any(isinstance(deadline, str) for deadline in deadlines):
         return data, None
 
-    alerts = {str(alert.id): alert for alert in serialized_dag.deadline_alerts}
+    alerts = {alert.id: alert for alert in serialized_dag.deadline_alerts}
     definitions = []
     for deadline in deadlines:
         if not isinstance(deadline, str):
             definitions.append(deadline)
             continue
-        if (alert := alerts.get(deadline)) is None:
+        alert_id = _parse_alert_id(deadline)
+        if alert_id is None or (alert := alerts.get(alert_id)) is None:
             return data, "deadline_alert_missing"
         definitions.append(
+            # description is left out because no writer populates it, so it is always null.
             {
                 "name": alert.name,
                 "reference": alert.reference,
@@ -367,6 +387,14 @@ def _get_serialized_diff_data(
         )
     # Stored UUIDs differ between versions even when the alert definitions are identical.
     return {**data, "dag": {**dag_data, "deadline": definitions}}, None
+
+
+def _parse_alert_id(deadline: str) -> UUID | None:
+    """Read a stored deadline reference as a UUID, ignoring how the writer spelled it."""
+    try:
+        return UUID(deadline)
+    except ValueError:
+        return None
 
 
 def _get_provenance(version: DagVersion) -> dict[str, Any]:
