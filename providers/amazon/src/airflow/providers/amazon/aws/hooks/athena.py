@@ -86,6 +86,13 @@ class AthenaHook(AwsBaseHook):
         "CANCELLED",
     )
 
+    SPARK_FAILURE_STATES = (
+        "FAILED",
+        "CANCELED",
+    )
+    SPARK_SUCCESS_STATES = ("COMPLETED",)
+    SPARK_TERMINAL_STATES = SPARK_SUCCESS_STATES + SPARK_FAILURE_STATES
+
     def __init__(self, *args: Any, log_query: bool = True, **kwargs: Any) -> None:
         super().__init__(client_type="athena", *args, **kwargs)  # type: ignore
         self.log_query = log_query
@@ -344,3 +351,178 @@ class AthenaHook(AwsBaseHook):
         """
         self.log.info("Stopping Query with executionId - %s", query_execution_id)
         return self.get_conn().stop_query_execution(QueryExecutionId=query_execution_id)
+
+    def _get_spark_calculation_status(self, response: dict[str, Any] | None) -> dict[str, Any]:
+        return (response or {}).get("Status") or {}
+
+    def start_spark_calculation(
+        self,
+        *,
+        session_id: str,
+        code_block: str,
+        description: str | None = None,
+        calculation_configuration: dict[str, Any] | None = None,
+        client_request_token: str | None = None,
+    ) -> str:
+        """
+        Start an Athena Spark calculation execution.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Athena.Client.start_calculation_execution`
+
+        :param session_id: The Athena session ID.
+        :param code_block: Spark code to execute, typically notebook-like code.
+        :param description: Optional description of the calculation. Defaults to None.
+        :param calculation_configuration: Contains configuration information for the calculation. Defaults to None.
+        :param client_request_token: Optional idempotency token. Defaults to None.
+        :return: CalculationExecutionId
+        """
+        params: dict[str, Any] = {
+            "SessionId": session_id,
+            "CodeBlock": code_block,
+        }
+        if description:
+            params["Description"] = description
+
+        if calculation_configuration:
+            params["CalculationConfiguration"] = calculation_configuration
+
+        if client_request_token:
+            params["ClientRequestToken"] = client_request_token
+
+        if self.log_query:
+            self.log.info("Starting CalculationExecution with params:\n%s", query_params_to_string(params))
+
+        response = self.get_conn().start_calculation_execution(**params)
+        calculation_execution_id = response["CalculationExecutionId"]
+        self.log.info("Calculation execution id: %s", calculation_execution_id)
+        return calculation_execution_id
+
+    def get_spark_calculation_info(
+        self,
+        calculation_execution_id: str,
+        use_cache: bool = False,
+    ) -> dict[str, Any]:
+        """
+        Get information about a single Athena Spark calculation execution.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Athena.Client.get_calculation_execution`
+
+        :param calculation_execution_id: CalculationExecutionId returned by start_spark_calculation.
+        :param use_cache: If True, use execution information cache. Defaults to False.
+        :return: Calculation execution response.
+        """
+        cache_key = f"calculation:{calculation_execution_id}"
+        if use_cache and cache_key in self.__query_results:
+            return self.__query_results[cache_key]
+
+        response = self.get_conn().get_calculation_execution(
+            CalculationExecutionId=calculation_execution_id,
+        )
+
+        if use_cache:
+            self.__query_results[cache_key] = response
+        return response
+
+    def check_spark_calculation_status(
+        self,
+        calculation_execution_id: str,
+        use_cache: bool = False,
+    ) -> str | None:
+        """
+        Fetch the state of a submitted Athena Spark calculation execution.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Athena.Client.get_calculation_execution`
+
+        :param calculation_execution_id: CalculationExecutionId returned by start_spark_calculation.
+        :param use_cache: If True, use execution information cache. Defaults to False.
+        :return: One of valid calculation states, or *None* if the response is malformed.
+        """
+        response = self.get_spark_calculation_info(
+            calculation_execution_id=calculation_execution_id,
+            use_cache=use_cache,
+        )
+
+        status = self._get_spark_calculation_status(response)
+        state = status.get("State")
+
+        if state is None:
+            self.log.error("Could not parse status for calculation %s", calculation_execution_id)
+
+        return state
+
+    def get_spark_calculation_state_change_reason(
+        self,
+        calculation_execution_id: str,
+        use_cache: bool = False,
+    ) -> str | None:
+        """
+        Fetch the reason for an Athena Spark calculation state change, such as an error message.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Athena.Client.get_calculation_execution`
+
+        :param calculation_execution_id: CalculationExecutionId returned by start_spark_calculation.
+        :param use_cache: If True, use execution information cache. Defaults to False.
+        :return: State change reason string, or None.
+        """
+        response = self.get_spark_calculation_info(
+            calculation_execution_id=calculation_execution_id,
+            use_cache=use_cache,
+        )
+        return self._get_spark_calculation_status(response).get("StateChangeReason")
+
+    def poll_spark_calculation_status(
+        self,
+        calculation_execution_id: str,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 120,
+    ) -> str | None:
+        """
+        Poll an Athena Spark calculation until it reaches a terminal state.
+
+        :param calculation_execution_id: ID of the submitted calculation.
+        :param waiter_delay: Seconds to wait between status checks. Defaults to 30.
+        :param waiter_max_attempts: Maximum number of status checks. Defaults to 120.
+        :return: The latest calculation state, or ``None`` if the response is malformed.
+        """
+        try:
+            wait(
+                waiter=self.get_waiter("calculation_complete"),
+                waiter_delay=waiter_delay,
+                waiter_max_attempts=waiter_max_attempts,
+                args={"CalculationExecutionId": calculation_execution_id},
+                failure_message=(
+                    f"Error while waiting for calculation {calculation_execution_id} to complete"
+                ),
+                status_message=(
+                    f"Calculation execution ID {calculation_execution_id} is still in a non-terminal state"
+                ),
+                status_args=["Status.State"],
+            )
+        except Exception as error:
+            # Return the latest state so the operator can distinguish failure from timeout.
+            self.log.warning(
+                "Exception while polling calculation status. Calculation execution ID: %s, exception: %s",
+                calculation_execution_id,
+                error,
+            )
+
+        return self.check_spark_calculation_status(calculation_execution_id)
+
+    def stop_spark_calculation(self, calculation_execution_id: str) -> dict[str, Any]:
+        """
+        Cancel the submitted Athena Spark calculation execution.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Athena.Client.stop_calculation_execution`
+
+        :param calculation_execution_id: CalculationExecutionId returned by start_spark_calculation.
+        :return: Response from stop_calculation_execution.
+        """
+        self.log.info("Stopping CalculationExecution with id - %s", calculation_execution_id)
+        return self.get_conn().stop_calculation_execution(
+            CalculationExecutionId=calculation_execution_id,
+        )
