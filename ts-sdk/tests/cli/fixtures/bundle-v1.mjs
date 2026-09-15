@@ -1,4 +1,4 @@
-//# airflowBundle={"code":{"start":"0000000000000203","end":"0000000000000592","sha256":"f814358e0d4aa5d38c10c365515179049171bb9d4bba5b80c06ea549d6f16337"},"metadata":{"start":"000000000000013e","end":"0000000000000202","sha256":"a51dfd6f0c9e8ea867900e55c0387b556d3cb0e98321b62d4625f522ed465041"}}
+//# airflowBundle={"code":{"start":"0000000000000203","end":"000000000000057a","sha256":"bd26f9a6295069aef9eff45213377a49a448dcc0973da182a29ffb927f259e8e"},"metadata":{"start":"000000000000013e","end":"0000000000000202","sha256":"a51dfd6f0c9e8ea867900e55c0387b556d3cb0e98321b62d4625f522ed465041"}}
 //# airflowMetadata={"airflow_bundle_metadata_version":"1.0","sdk":{"language":"typescript","version":"0.1.0","supervisor_schema_version":"2026-06-16"},"source":"entry.ts","dags":{"test_dag":{"tasks":["test_task"]}}}
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
@@ -19,6 +19,6 @@
  * under the License.
  */
 
-import { DagRegistry, serveDags } from "../../../src/index.js";
+import { Bundle } from "../../../src/index.js";
 
-await serveDags(new DagRegistry());
+await new Bundle().serve();

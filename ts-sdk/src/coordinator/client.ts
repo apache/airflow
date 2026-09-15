@@ -21,7 +21,7 @@ import type { CommChannel } from "./comm-channel.js";
 import type { LogChannel } from "./log-channel.js";
 import type { TaskContext } from "../sdk/task.js";
 import type { TaskClient } from "../sdk/client.js";
-import type { ConnectionResult, GetXComOpts, SetXComOpts } from "../sdk/client-types.js";
+import type { ConnectionResult, GetXComOpts, JsonValue, SetXComOpts } from "../sdk/client-types.js";
 import { ConnectionNotFoundError, VariableNotFoundError } from "../sdk/client.js";
 import type {
   GetVariable,
@@ -54,11 +54,40 @@ function fromWireConnection(body: WireConnectionResult): ConnectionResult {
   };
 }
 
+/** The outcome of an XCom pull, keeping an absent row distinct from a stored null. */
+export interface XComEntry {
+  /** False when the supervisor answered that no such XCom exists. */
+  readonly found: boolean;
+  /** The stored value; `null` both for a stored null and for an absent row. */
+  readonly value: JsonValue;
+}
+
+const XCOM_ABSENT: XComEntry = { found: false, value: null };
+
+/**
+ * The client the coordinator runtime builds: a task's {@link TaskClient} plus
+ * the reads only the runtime itself makes.
+ *
+ * Handlers are typed against `TaskClient`, so nothing added here is public API.
+ */
+export interface CoordinatorClient extends TaskClient {
+  /**
+   * Pull an XCom, reporting whether the row exists.
+   *
+   * {@link TaskClient.getXCom} answers `null` for an absent row and for a
+   * stored null alike, which is the friendlier shape for handler code but
+   * cannot drive a decision between the two. Argument binding needs both: an
+   * upstream that pushed no output fails the task, while one that pushed null
+   * binds null.
+   */
+  getXComEntry(opts: GetXComOpts): Promise<XComEntry>;
+}
+
 export function createCoordinatorClient(
   comm: CommChannel,
   ctx: TaskContext,
   logs: LogChannel | null = null,
-): TaskClient {
+): CoordinatorClient {
   async function rpc<T>(
     op: string,
     expectedType: string | null,
@@ -88,7 +117,7 @@ export function createCoordinatorClient(
     return extract(body);
   }
 
-  const client: TaskClient = {
+  const client: CoordinatorClient = {
     // ---- Variables ----
 
     async getVariable(key: string): Promise<string | null> {
@@ -104,7 +133,7 @@ export function createCoordinatorClient(
 
     // ---- XCom ----
 
-    async getXCom<T = unknown>(opts: GetXComOpts): Promise<T | null> {
+    async getXComEntry(opts: GetXComOpts): Promise<XComEntry> {
       const msg: GetXCom = {
         type: "GetXCom",
         key: opts.key,
@@ -114,7 +143,19 @@ export function createCoordinatorClient(
         map_index: resolveWireMapIndex(opts.mapIndex, ctx.mapIndex),
         include_prior_dates: opts.includePriorDates ?? false,
       };
-      return rpc("GetXCom", "XComResult", msg, (body) => (body!.value as T) ?? null);
+      const entry = await rpc<XComEntry>("GetXCom", "XComResult", msg, (body) => ({
+        found: true,
+        // A row storing null arrives as an XComResult carrying null, so the
+        // result frame decides `found` rather than the value.
+        value: (body!.value ?? null) as JsonValue,
+      }));
+      // `rpc` answers null for the supervisor's XCOM_NOT_FOUND.
+      return entry ?? XCOM_ABSENT;
+    },
+
+    async getXCom<T = unknown>(opts: GetXComOpts): Promise<T | null> {
+      const { value } = await client.getXComEntry(opts);
+      return (value as unknown as T) ?? null;
     },
 
     async setXCom(opts: SetXComOpts): Promise<void> {
