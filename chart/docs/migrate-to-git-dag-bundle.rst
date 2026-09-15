@@ -42,8 +42,7 @@ Differences to be aware of before migrating:
 * Git-Sync synced a single repository per deployment (multiple repositories required
   an "umbrella" repository with submodules). ``dagProcessor.dagBundleConfigList``
   accepts multiple bundles, so each repository simply becomes its own bundle.
-* Git-Sync always checked out the latest commit. ``GitDagBundle`` supports
-  versioning: changing a SHA-pinned ``tracking_ref`` is a configuration change and
+* ``GitDagBundle`` supports versioning: changing a SHA-pinned ``tracking_ref`` is a configuration change and
   only takes effect once the Dag Processor restarts and reloads its configuration.
   Promoting to a *new* SHA can also require the bundle's local storage to be
   cleared first (for example by letting the pod be recreated) — see
