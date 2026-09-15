@@ -230,6 +230,7 @@ def compare_dag_defaults() -> list[str]:
             computed_properties = {
                 "has_on_success_callback",
                 "has_on_failure_callback",
+                "has_on_skipped_intervals_callback",
             }
             if field_name not in computed_properties:
                 errors.append(
