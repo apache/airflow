@@ -667,6 +667,55 @@ folded into ``run_code``, so the model writes Monty code that calls the sandbox,
 never a shell script quoted inside a Python string. The three file tools *are*
 folded in, where they are more useful as callables.
 
+Why not ``KubernetesPodOperator`` or the ``KubernetesExecutor``?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Because they answer a different question, not a smaller version of this one.
+Both isolate a task from the rest of your platform. Neither puts a boundary
+between an agent and the code that agent writes.
+
+Run an ``AgentOperator`` under the ``KubernetesExecutor`` and the whole task,
+including the agent loop, gets its own pod. Model-written code still executes
+*inside* that pod, with its service account, its mounted secrets, its connections
+and its network position. The pod protects the cluster from the task. It does not
+protect the task from what the model decided to run, because from the pod's point
+of view that code is the task.
+
+``KubernetesPodOperator`` does contain the work, and it is the right tool when
+your Dag already knows the command. That is the catch: a pod's image, command and
+arguments are fixed when the Dag is authored. An agent's whole value is deciding
+the next command after reading the last one's output, so expressing an agent as
+``KubernetesPodOperator`` means either one pod per turn, with scheduling latency
+and a lost filesystem between each, or giving up and letting the model run
+whatever it wants inside one pod, which is where you started.
+
+The two compose rather than compete, and on Kubernetes they are complementary:
+
+.. list-table::
+   :widths: 30 35 35
+   :header-rows: 1
+
+   * -
+     - ``KubernetesExecutor`` / ``KubernetesPodOperator``
+     - ``SandboxToolset``
+   * - Protects
+     - The cluster, from the task
+     - The task and its credentials, from the model's output
+   * - Boundary sits
+     - Around the whole task, agent included
+     - Between the agent and the code it writes
+   * - What runs inside is decided
+     - When the Dag is authored
+     - By the model, mid-run
+   * - Credentials inside
+     - The task's own: service account, secrets, connections
+     - Only what ``SandboxSpec.env`` names, which is nothing by default
+
+Running an agent in a pod *and* giving it a sandbox is a reasonable setup: the
+pod bounds the task, the sandbox bounds the model. Note that the ``sbx`` backend
+cannot be the second half of that, because it needs KVM on the worker host and an
+unprivileged pod cannot provide it. That is what the hosted backend below is for.
+
 Lifecycle
 ^^^^^^^^^
 
@@ -686,6 +735,8 @@ A recoverable failure becomes a bounded retry the model can react to. Only a
 terminal failure -- credentials rejected, daemon unreachable, sandbox gone --
 fails the task, so Airflow's own retry handles it rather than the model burning
 its retry budget.
+
+.. _sandbox-credentials:
 
 Controlling what the sandbox gets
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -709,6 +760,35 @@ environment.
 
 Anything in ``env`` is readable by model-generated code, so scope it to that one
 sandbox's job rather than passing the worker's environment through.
+
+``SandboxSpec.env`` is the only way in. Airflow never populates it for you: no
+connection, variable, or worker environment variable reaches a sandbox unless you
+name it here. Two consequences are worth knowing before you put a real secret in
+it.
+
+**The value is fixed when the Dag file is parsed.** ``toolsets`` is not a
+templated field, so a spec cannot carry a Jinja expression, and a connection
+lookup written beside it would run in the Dag processor on every parse rather
+than in the task. If the credential has to come from a connection or a secrets
+backend, drive a backend from a ``@task`` instead, where you are in ordinary
+Python at run time:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_sandbox_artifact.py
+    :language: python
+    :start-after: [START howto_sandbox_artifact_task]
+    :end-before: [END howto_sandbox_artifact_task]
+
+**On** ``sbx``\ **, an injected variable is written to the guest filesystem.**
+The CLI has no create-time environment flag, so the backend appends ``export``
+lines to ``/etc/profile`` inside the microVM, where every later shell picks them
+up. The value is therefore readable by anything in that sandbox for its whole
+life, not just by the process you meant to give it to. The Modal backend passes
+the environment to the sandbox at creation instead, so it is never written to a
+file. Prefer the hosted backend when the sandbox needs a secret at all.
+
+Whichever backend you use, the credential that *provisions* the sandbox never
+enters it. Modal's token stays on the worker and is used by the client, so code
+running inside cannot call Modal as you or create further sandboxes.
 
 A backend that cannot enforce a field it was given **raises instead of ignoring
 it**, so a spec never gives you a false sense of a restriction being in force.
@@ -898,10 +978,20 @@ call and destroyed when the agent run ends, so a file the agent built is gone un
 model carried it out through its own context: ``run_command`` keeps the last 50 KiB and
 ``read_file`` transfers at most ``max_read_bytes`` before rendering it down for the model.
 A 200 MB parquet the agent just wrote cannot be collected this way, and raising
-``max_read_bytes`` to try costs roughly three times the file size in worker memory. If a
-task has to produce an artifact, drive a backend directly from a ``@task`` instead of
-handing it to an agent: create the sandbox, run the work, read out what you need, then
-destroy it.
+``max_read_bytes`` to try costs roughly three times the file size in worker memory, so
+the cap is a deliberate budget rather than a transport limit.
+
+**The tools are text-only in both directions.** ``write_file`` takes a string, and
+``read_file`` renders what it read as UTF-8 with undecodable bytes replaced, so a
+parquet, an image, or any other binary cannot survive a round trip through an agent even
+well under the byte caps.
+
+If a task has to produce an artifact, drive a backend directly from a ``@task`` instead
+of handing it to an agent: create the sandbox, run the work, read out what you need, then
+destroy it. Nothing passes through a context window on that path, so the ceiling is what
+the worker can hold, and ``read_file`` returns the raw bytes rather than a rendering of
+them. See :ref:`the worked example <sandbox-credentials>` above, which uses the same
+route to keep a credential out of the Dag file.
 
 One behavioral wrinkle worth knowing before pointing an agent at a tree of
 symlinks: because ``write_file`` goes through the native API, writing to a path that
