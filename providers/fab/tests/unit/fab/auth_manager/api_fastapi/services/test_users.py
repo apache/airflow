@@ -252,7 +252,7 @@ class TestUsersService:
 
         mock_session = MagicMock()
         mock_session.scalars.return_value.one.return_value = 2
-        mock_session.scalars.return_value.unique.return_value.all.return_value = [user1, user2]
+        mock_session.scalars.return_value.all.return_value = [user1, user2]
         mock_create_session.return_value.__enter__.return_value = mock_session
 
         mock_build_ordering.return_value = "ordering"
