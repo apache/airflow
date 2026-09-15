@@ -205,6 +205,9 @@ class DagBag(LoggingMixin):
         are not loaded to not run User code in Scheduler.
     :param collect_dags: when True, collects dags during class initialization.
     :param known_pools: If not none, then generate warnings if a Task attempts to use an unknown pool.
+    :param validate_executors: Check that the executor of every task is configured, and reject the Dag
+        otherwise. Set to False where the Dag is only loaded to run a task, e.g. in a worker, which
+        usually does not have every executor configured; the Dag processor has already checked them.
     """
 
     def __init__(
@@ -216,10 +219,12 @@ class DagBag(LoggingMixin):
         known_pools: set[str] | None = None,
         bundle_path: Path | None = None,
         bundle_name: str | None = None,
+        validate_executors: bool = True,
     ):
         super().__init__()
         self.bundle_path = bundle_path
         self.bundle_name = bundle_name
+        self.validate_executors = validate_executors
 
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.dag_folder = dag_folder
@@ -368,7 +373,8 @@ class DagBag(LoggingMixin):
 
                 # Validate before adding to bag (matches original _process_modules behavior)
                 dag.validate()
-                _validate_executor_fields(dag, self.bundle_name)
+                if self.validate_executors:
+                    _validate_executor_fields(dag, self.bundle_name)
                 _assign_default_team_pools(dag, self.bundle_name)
                 self.bag_dag(dag=dag)
                 bagged_dags.append(dag)
