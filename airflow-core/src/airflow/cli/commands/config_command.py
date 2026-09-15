@@ -74,11 +74,15 @@ def get_value(args):
     # providers are initialized. Theoretically Providers might add new sections and options
     # but also override defaults for existing options, so without loading all providers we
     # cannot be sure what is the final value of the option.
-    try:
-        value = conf.get(args.section, args.option)
-        print(value)
-    except AirflowConfigException:
-        pass
+
+    # Neither `except AirflowConfigException` (also swallows a failed `*_cmd` or an unreachable
+    # secrets backend) nor a `has_option()` pre-check (re-emits a deprecated option's warning,
+    # https://github.com/apache/airflow/issues/40319) works here. `fallback=None` also returns
+    # before conf.get() logs "not found" to stdout, which get-value must keep clean.
+    value = conf.get(args.section, args.option, fallback=None)
+    if value is None:
+        raise SystemExit(f"The option [{args.section}/{args.option}] is not found in config.")
+    print(value)
 
 
 class ConfigParameter(NamedTuple):
