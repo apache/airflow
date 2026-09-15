@@ -29,6 +29,7 @@ Proposed.
 
 1. **A "bundle" is a value the author builds.** `airflow.Bundle()` returns a `*airflow.BundleRef`;
    `main` reads build, register, serve, with `bundle.Serve()` as its last statement.
+   It replaces `BundleProvider` and `Registry`, the callback and the write half of the same bundle.
 2. **`bundle.Register(items ...airflow.Registraterable)`** is the single registration verb, taking native Dags and task handlers.
 3. **A Go bundle registers task handlers, not Dags**: `airflow.TaskHandler(dagId, taskId, fn)`, the Go body for a task Python declares with `@task.stub`.
 4. **Both dag_id and task_id are written out on TaskHandler definition**, because Python owns them; nothing is derived from the Go function name.
@@ -151,7 +152,6 @@ func FromContext(ctx context.Context) (Context, bool)
 
 ## Consequences
 
-- **Replace `BundleProvider`/`Registry` with `Bundle`**
 - **Registration closes when `Serve` is called.** Registering afterwards is a programming error and panics.
 - Graceful termination needs no unwrapping — `actx.Done()` fires on supervisor shutdown, and
   `http.NewRequestWithContext(actx, ...)` accepts it — while cleanup that must outlive cancellation
@@ -161,10 +161,9 @@ func FromContext(ctx context.Context) (Context, bool)
 
 - **`airflow.TaskHandler(dagId, fn, airflow.WithTaskId(...))`**, defaulting the task_id to the Go
   function name. Rejected: see the ids in Context above.
-- **Package-level accessors over a plain `context.Context`** (`airflow.Logger(ctx)`,
-  `airflow.Client(ctx)`), leaving the handler's first parameter as `context.Context`. Rejected: it
-  keeps the SDK surface in package functions instead of on the value, and a context built anywhere
-  else still compiles, failing at run time on a missing value instead of at build time.
+- **Package-level accessors over a plain `context.Context`** (`airflow.Logger(ctx)`, `airflow.Client(ctx)`), leaving the handler's first parameter as `context.Context`.
+  Rejected: `airflow.Logger(ctx)` reads oddly next to `actx.Logger()`, asking the package for something the context already holds.
+  It also keeps the SDK surface in package functions instead of on the value, and a context from anywhere else still compiles, so a missing logger or client only shows up when the task runs.
 - **An interface, as `sdk.TIRunContext` is today.** Rejected: only the SDK implements this type, so a struct can gain methods without breaking implementers, and the constructor keeps its fields unexported.
   The `TIRunContext` doc comment cites the context package's advice against holding a context in a struct, which is aimed at domain types rather than at a purpose-built context.
 - **Two registration verbs**, one per registerable kind. Rejected: Having `bundle.registerTaskHandler(airflow.TaskHandler(...))` spell the exact term twice, having a sealed type is a much cleaner interface.
