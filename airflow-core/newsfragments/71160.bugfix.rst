@@ -1,0 +1,1 @@
+Redact team scoped spellings of the per-key secrets-backend-kwarg options (``[<team>=secrets]`` / ``[<team>=workers]`` config sections, and the corresponding ``AIRFLOW__<TEAM>___...`` environment variables) in ``GET /config`` and ``GET /config/section/{section}/option/{option}``, the same way the non-team-scoped spelling is already redacted.
