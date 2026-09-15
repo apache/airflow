@@ -99,7 +99,9 @@ def test_optional_disk_probe_does_not_fail_cleanup(fake_tools):
     ("systemctl stop", "sudo rm", "sudo mkdir", "sudo mount", "sudo chown", "systemctl start"),
 )
 def test_docker_relocation_propagates_errors(fake_tools, failure):
-    result = run_shell((ROOT / "scripts/ci/move_docker_to_mnt.sh").read_text(), {**fake_tools, "FAIL_MATCH": failure})
+    result = run_shell(
+        (ROOT / "scripts/ci/move_docker_to_mnt.sh").read_text(), {**fake_tools, "FAIL_MATCH": failure}
+    )
     assert result.returncode != 0
 
 
@@ -137,5 +139,7 @@ def test_parallel_cleanup_keeps_exact_targets_and_concurrency_bound(fake_tools):
 
 @pytest.mark.parametrize("failure", ("/usr/local/lib/android", "sudo apt-get clean"))
 def test_parallel_cleanup_propagates_errors(fake_tools, failure):
-    result = run_shell((ROOT / "scripts/tools/free_up_disk_space.sh").read_text(), {**fake_tools, "FAIL_MATCH": failure})
+    result = run_shell(
+        (ROOT / "scripts/tools/free_up_disk_space.sh").read_text(), {**fake_tools, "FAIL_MATCH": failure}
+    )
     assert result.returncode != 0
