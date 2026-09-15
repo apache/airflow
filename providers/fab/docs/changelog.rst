@@ -20,6 +20,76 @@
 Changelog
 ---------
 
+3.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Scope asset API responses to the assets a user may read (#72682)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix FAB ignoring create_metadata_engine from local settings (#71674)``
+* ``Close database sessions after users and roles collection reads (#72578)``
+* ``Validate id_token issuer and audience in the FAB Authentik provider (#72645)``
+* ``Invalidate a user's sessions when their password is changed through the API (#72657)``
+* ``Compare session and user identifiers consistently when resetting a password (#72198)``
+* ``Reject tokens naming a deactivated account in the FAB auth manager (#72199)``
+* ``Use secrets for fab users '--use-random-password' generation (#72092)``
+
+Misc
+~~~~
+
+* ``Bump FAB UI JavaScript dependencies (#72726)``
+* ``Remove unused FAB app-init helpers that could never run (#72610)``
+* ``Bump webpack in the FAB UI (#72653)``
+* ``Bump webpack in the FAB UI (#72490)``
+* ``Pin pnpm version for FAB and Edge3 UI so bumps keep security overrides (#72390)``
+* ``Bump FAB UI JavaScript dependencies (#72383)``
+* ``Bump eslint from 10.8.1 to 10.9.0 in the FAB UI (#72065)``
+
+Doc-only
+~~~~~~~~
+
+* ``Generate fab permission table (#72230)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.8.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Validate issuer and audience of Azure AD id_tokens in FAB auth manager (#71735)``
+* ``Support Azure national clouds in FAB Azure AD id_token validation (#72010)``
+* ``Fix Azure AD tenant identifier canonicalization in FAB auth manager (#71920)``
+* ``Fix FAB SSO guide's non-working OAuth configuration instructions (#71852)``
+* ``Make the FAB roles PATCH endpoint replace permissions, not just add them (#71933)``
+
+Misc
+~~~~
+
+* ``Bump eslint to 10.8.1 (#71508)``
+* ``Add pnpm overrides after audit review in fab provider (#71448)``
+* ``Bump webpack to 5.109.2 and webpack-cli to 7.2.2 (#71005)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix SSO docs pointing at the pre-Airflow 3 OAuth redirect path (#71624)``
+* ``Document API token response details (#71583)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] CI: Upgrade important CI environment (#70501)``
+   * ``[main] Upgrade important CI environment (#71590)``
+   * ``Prepare providers release 2026-08-18 (#71794)``
+
+
 3.8.0
 .....
 

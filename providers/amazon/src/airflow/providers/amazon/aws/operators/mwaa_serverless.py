@@ -98,6 +98,9 @@ class MwaaServerlessCreateWorkflowOperator(AwsBaseOperator[AwsBaseHook]):
 
     :param workflow_name: The name of the workflow. (templated)
     :param definition_s3_location: Dict with ``Bucket`` and ``ObjectKey`` for the YAML definition. (templated)
+    :param code: Optional code location for ``PythonOperator`` and ``BashOperator`` tasks,
+        as a dict with an ``S3Location`` key containing ``Bucket``, ``ObjectKey``, and
+        optionally ``VersionId``. (templated)
     :param role_arn: The execution role ARN. (templated)
     :param description: Optional description. (templated)
     :param tags: Optional tags dict.
@@ -107,15 +110,16 @@ class MwaaServerlessCreateWorkflowOperator(AwsBaseOperator[AwsBaseHook]):
 
     aws_hook_class = AwsBaseHook
     template_fields: tuple[str, ...] = aws_template_fields(
-        "workflow_name", "definition_s3_location", "role_arn", "description"
+        "workflow_name", "definition_s3_location", "code", "role_arn", "description"
     )
-    template_fields_renderers = {"definition_s3_location": "json"}
+    template_fields_renderers = {"definition_s3_location": "json", "code": "json"}
 
     def __init__(
         self,
         *,
         workflow_name: str,
         definition_s3_location: dict[str, str],
+        code: dict[str, Any] | None = None,
         role_arn: str,
         description: str | None = None,
         tags: dict[str, str] | None = None,
@@ -125,6 +129,7 @@ class MwaaServerlessCreateWorkflowOperator(AwsBaseOperator[AwsBaseHook]):
         super().__init__(**kwargs)
         self.workflow_name = workflow_name
         self.definition_s3_location = definition_s3_location
+        self.code = code
         self.role_arn = role_arn
         self.description = description
         self.tags = tags
@@ -140,6 +145,7 @@ class MwaaServerlessCreateWorkflowOperator(AwsBaseOperator[AwsBaseHook]):
             {
                 "Name": self.workflow_name,
                 "DefinitionS3Location": self.definition_s3_location,
+                "Code": self.code,
                 "RoleArn": self.role_arn,
                 "Description": self.description,
                 "Tags": self.tags,
@@ -174,21 +180,25 @@ class MwaaServerlessUpdateWorkflowOperator(AwsBaseOperator[AwsBaseHook]):
     :param workflow_arn: The ARN of the workflow to update. (templated)
     :param definition_s3_location: Dict with ``Bucket``, ``ObjectKey``, and optionally
         ``VersionId`` for the updated YAML definition. (templated)
+    :param code: Optional code location for ``PythonOperator`` and ``BashOperator`` tasks,
+        as a dict with an ``S3Location`` key containing ``Bucket``, ``ObjectKey``, and
+        optionally ``VersionId``. (templated)
     :param role_arn: The execution role ARN. (templated)
     :param description: Optional updated description. (templated)
     """
 
     aws_hook_class = AwsBaseHook
     template_fields: tuple[str, ...] = aws_template_fields(
-        "workflow_arn", "definition_s3_location", "role_arn", "description"
+        "workflow_arn", "definition_s3_location", "code", "role_arn", "description"
     )
-    template_fields_renderers = {"definition_s3_location": "json"}
+    template_fields_renderers = {"definition_s3_location": "json", "code": "json"}
 
     def __init__(
         self,
         *,
         workflow_arn: str,
         definition_s3_location: dict[str, str],
+        code: dict[str, Any] | None = None,
         role_arn: str,
         description: str | None = None,
         **kwargs,
@@ -196,6 +206,7 @@ class MwaaServerlessUpdateWorkflowOperator(AwsBaseOperator[AwsBaseHook]):
         super().__init__(**kwargs)
         self.workflow_arn = workflow_arn
         self.definition_s3_location = definition_s3_location
+        self.code = code
         self.role_arn = role_arn
         self.description = description
 
@@ -209,6 +220,7 @@ class MwaaServerlessUpdateWorkflowOperator(AwsBaseOperator[AwsBaseHook]):
             {
                 "WorkflowArn": self.workflow_arn,
                 "DefinitionS3Location": self.definition_s3_location,
+                "Code": self.code,
                 "RoleArn": self.role_arn,
                 "Description": self.description,
             }

@@ -1,0 +1,6 @@
+The ``airflow.utils.helpers.validate_key`` utility function now raises a ``ValueError`` instead of an ``AirflowException`` when an invalid key is provided (such as an invalid format or length limit violation).
+
+This change aligns the core function with the Task SDK's ``validate_key`` behavior.
+
+**Breaking Change for KubernetesPodOperator Users:**
+Because ``validate_key`` is used internally by the ``KubernetesPodOperator`` to validate pod names, any DAGs that wrap ``KubernetesPodOperator`` execution in an ``except AirflowException`` block to catch invalid pod names will no longer catch this error. You must update your exception handling to catch ``ValueError`` instead.

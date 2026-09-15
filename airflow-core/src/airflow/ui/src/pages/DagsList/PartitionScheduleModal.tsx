@@ -16,20 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useState } from "react";
+
 import { Heading, HStack, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiDatabase } from "react-icons/fi";
 
 import { usePartitionedDagRunServiceGetPartitionedDagRuns } from "openapi/queries";
 import type { PartitionedDagRunResponse } from "openapi/requests/types.gen";
+
+import { Modal } from "src/system-components";
+
 import { AssetProgressCell } from "src/components/AssetProgressCell";
 import { DataTable } from "src/components/DataTable";
 import type { TableState } from "src/components/DataTable/types";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
-import { Dialog } from "src/components/ui";
+
 import { useConfig } from "src/queries/useConfig";
 
 type PartitionScheduleModalProps = {
@@ -73,7 +77,7 @@ const getColumns = (
 ];
 
 export const PartitionScheduleModal = ({ dagId, onClose, open }: PartitionScheduleModalProps) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
   const pageSize = (useConfig("fallback_page_limit") as number | undefined) ?? 100;
   const [pageIndex, setPageIndex] = useState(0);
   const tableState = {
@@ -106,30 +110,33 @@ export const PartitionScheduleModal = ({ dagId, onClose, open }: PartitionSchedu
   };
 
   return (
-    <Dialog.Root lazyMount onOpenChange={handleOpenChange} open={open} scrollBehavior="inside" unmountOnExit>
-      <Dialog.Content backdrop>
-        <Dialog.Header>
-          <HStack>
+    <Modal
+      headerProps={{
+        children: (
+          <HStack gap={2}>
             <FiDatabase />
-            <Heading size="md">{translate("pendingDagRun", { count: total })}</Heading>
+            <Heading fontSize="lg">{translate("pendingDagRun", { count: total })}</Heading>
           </HStack>
-        </Dialog.Header>
-        <Dialog.CloseTrigger />
-        <Dialog.Body>
-          <ErrorAlert error={error} />
-          <DataTable
-            columns={columns}
-            data={partitionedDagRuns}
-            hideRowCountHeading
-            initialState={tableState}
-            isFetching={isFetching}
-            isLoading={isLoading}
-            modelName="partitionedDagRun"
-            onStateChange={(state) => setPageIndex(state.pagination.pageIndex)}
-            total={total}
-          />
-        </Dialog.Body>
-      </Dialog.Content>
-    </Dialog.Root>
+        ),
+      }}
+      lazyMount
+      onOpenChange={handleOpenChange}
+      open={open}
+      scrollBehavior="inside"
+      unmountOnExit
+    >
+      <ErrorAlert error={error} />
+      <DataTable
+        columns={columns}
+        data={partitionedDagRuns}
+        hideRowCountHeading
+        initialState={tableState}
+        isFetching={isFetching}
+        isLoading={isLoading}
+        modelName="partitionedDagRun"
+        onStateChange={(state) => setPageIndex(state.pagination.pageIndex)}
+        total={total}
+      />
+    </Modal>
   );
 };

@@ -294,9 +294,8 @@ Model identifier format
 
 The ``extra`` JSON's ``model`` value keeps the ``provider:model`` format the
 hook always expects, but which ``provider`` prefix to use depends on the
-endpoint (verified against ``pydantic-ai-slim`` 2.5.0, the version this
-guide was developed against, and 2.10.0, the latest at the time of
-writing):
+endpoint (verified against ``pydantic-ai-slim`` 2.23.0, the minimum this
+provider requires, and 2.31.1):
 
 - **vLLM** has no dedicated provider class in pydantic-ai -- ``openai:<model>``
   is the only option. pydantic-ai's ``openai`` provider class talks to
@@ -318,8 +317,8 @@ its OpenAI provider, and there's no separate ``ollama`` extra.
 
    ``LiteLLMProvider`` is an exception: its constructor takes ``api_base``
    instead of ``base_url``, so passing ``host`` raises a ``TypeError`` that
-   the hook catches and silently falls back to environment-variable auth,
-   ignoring ``host`` entirely. Point a LiteLLM proxy's OpenAI-compatible
+   the hook catches, logs a warning, and falls back to environment-variable
+   auth, ignoring ``host`` entirely. Point a LiteLLM proxy's OpenAI-compatible
    endpoint via ``openai:<model>`` instead -- this is the same proxy role
    used in the gateway section above, just addressed through the working
    prefix rather than the rejected ``litellm:`` one.
@@ -339,10 +338,13 @@ OpenAI-compatible endpoint the same way as the vLLM example above.
 Cross-hook naming differences
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-:class:`~airflow.providers.common.ai.hooks.langchain.LangChainHook` and
-:class:`~airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook` also
-support self-hosted endpoints through the same ``host`` connection field, but
-the underlying constructor keyword each hook passes it to is not uniform:
+:class:`~airflow.providers.common.ai.hooks.langchain.LangChainHook` also
+supports self-hosted endpoints through the same ``host`` connection field,
+forwarding it to the same constructor keyword as ``PydanticAIHook``.
+:class:`~airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook` accepts
+``host`` too, but forwards it to a different keyword -- and, unlike the other
+two, does not actually support self-hosted models (see the note after the
+table):
 
 .. list-table::
    :header-rows: 1
@@ -359,6 +361,14 @@ the underlying constructor keyword each hook passes it to is not uniform:
    * - ``LlamaIndexHook``
      - ``host``
      - ``api_base``
+
+``LlamaIndexHook`` does **not** support Ollama or vLLM: ``get_llm()`` and
+``get_embedding_model()`` return LlamaIndex's ``OpenAI`` / ``OpenAIEmbedding``
+classes, which validate ``model=`` client-side against LlamaIndex's
+OpenAI-only model-name allowlists, so a self-hosted model name is rejected
+before any request reaches ``host``. Only an OpenAI-compatible proxy that
+accepts OpenAI's exact model names works. See :doc:`hooks/llamaindex` for
+details.
 
 Where to go next
 -------------------

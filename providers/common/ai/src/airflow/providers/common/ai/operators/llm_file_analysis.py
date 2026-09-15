@@ -26,6 +26,7 @@ from pydantic import BaseModel
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.utils.file_analysis import build_file_analysis_request
 from airflow.providers.common.ai.utils.logging import log_run_summary
+from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
@@ -44,6 +45,12 @@ class LLMFileAnalysisOperator(LLMOperator):
 
     :param prompt: The analysis prompt for the LLM.
     :param llm_conn_id: Connection ID for the LLM provider.
+    :param model_id: Model identifier (e.g. ``"openai:gpt-5"``).
+        Overrides the model stored in the connection's extra field.
+    :param system_prompt: Additional instructions appended to the built-in
+        file-analysis system prompt.
+    :param agent_params: Additional keyword arguments passed to the pydantic-ai
+        ``Agent`` constructor (e.g. ``retries``, ``model_settings``, ``tools``).
     :param file_path: File or prefix to analyze.
     :param file_conn_id: Optional connection ID for the storage backend.
         Overrides a connection embedded in ``file_path``.
@@ -62,6 +69,12 @@ class LLMFileAnalysisOperator(LLMOperator):
         while ``max_file_size_bytes`` and ``max_total_size_bytes`` limit bytes
         read from storage and ``max_text_chars`` limits the final prompt text
         budget. Default ``10``.
+
+    Human-in-the-Loop approval parameters are inherited from
+    :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
+    (``require_approval``, ``approval_timeout``, ``allow_modifications``).
+    The task pauses after the file analysis and only returns the result once a
+    reviewer approves.
     """
 
     template_fields: Sequence[str] = (
@@ -105,6 +118,9 @@ class LLMFileAnalysisOperator(LLMOperator):
         self.sample_rows = sample_rows
 
     def execute(self, context: Context) -> Any:
+        # Coerced first so a bad rendered value fails before the expensive setup below.
+        usage_limits = coerce_usage_limits(self.usage_limits)
+
         request = build_file_analysis_request(
             file_path=self.file_path,
             file_conn_id=self.file_conn_id,
@@ -134,7 +150,7 @@ class LLMFileAnalysisOperator(LLMOperator):
             instructions=self._build_system_prompt(),
             **self.agent_params,
         )
-        result = agent.run_sync(request.user_content, usage_limits=self.usage_limits)
+        result = agent.run_sync(request.user_content, usage_limits=usage_limits)
         log_run_summary(self.log, result)
         output = result.output
 

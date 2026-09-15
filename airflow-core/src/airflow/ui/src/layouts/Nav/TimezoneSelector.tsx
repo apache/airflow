@@ -16,12 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useEffect, useState } from "react";
+
 import { Box, Field, Text, VStack } from "@chakra-ui/react";
 import { Select, type SingleValue } from "chakra-react-select";
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
-import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useTimezone } from "src/context/timezone";
@@ -31,9 +32,9 @@ import type { Option as TimezoneOption } from "src/utils/option";
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-const TimezoneSelector: React.FC = () => {
+const TimezoneSelector = () => {
   const { selectedTimezone, setSelectedTimezone } = useTimezone();
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
   const [currentTime, setCurrentTime] = useState<string>("");
 
   const tzList = Intl.supportedValuesOf("timeZone");

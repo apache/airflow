@@ -173,7 +173,9 @@ class TestVariableInterval:
         [
             ("3", timedelta(seconds=3)),
             ("10", timedelta(seconds=10)),
-            ("05", timedelta(seconds=5)),  # leading zero
+            ("05", timedelta(seconds=5)),
+            ("0", timedelta(0)),
+            ("-5", timedelta(seconds=-5)),
         ],
     )
     def test_resolve_valid(self, mocker, value, expected):
@@ -181,7 +183,8 @@ class TestVariableInterval:
 
         interval = VariableInterval(key="test_interval")
 
-        assert interval.resolve() == expected
+        with pytest.warns(DeprecationWarning, match="VariableInterval.resolve"):
+            assert interval.resolve() == expected
 
     @pytest.mark.parametrize(
         ("value", "raise_runtime", "match"),
@@ -189,12 +192,9 @@ class TestVariableInterval:
             (None, True, "not found"),
             ("abc", False, "must be an integer"),
             ("", False, "must be an integer"),
-            ("0", False, "must be > 0"),
-            ("-5", False, "must be > 0"),
         ],
     )
     def test_resolve_invalid(self, mocker, value, raise_runtime, match):
-
         if raise_runtime:
             mock_err = mock.Mock()
             mock_err.error.value = "MISSING"
@@ -210,5 +210,6 @@ class TestVariableInterval:
 
         interval = VariableInterval(key="test_interval")
 
-        with pytest.raises(ValueError, match=match):
-            interval.resolve()
+        with pytest.warns(DeprecationWarning, match="VariableInterval.resolve"):
+            with pytest.raises(ValueError, match=match):
+                interval.resolve()

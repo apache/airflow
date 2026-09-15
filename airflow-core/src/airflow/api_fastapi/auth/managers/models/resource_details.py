@@ -63,6 +63,8 @@ class AssetDetails:
     """Represents the details of an asset."""
 
     id: str | None = None
+    name: str | None = None
+    uri: str | None = None
 
 
 @dataclass

@@ -41,7 +41,7 @@ There are very many reasons why your task might not be getting scheduled. Here a
   ``airflow`` and ``DAG`` in order to prevent the DagBag parsing from importing all python
   files collocated with user's Dags.
 
-- Is your ``start_date`` set properly? For time-based Dags, the task won't be triggered until the
+- Is your ``start_date`` set properly? For time-based Dags, the task won't be triggered until
   the first schedule interval following the start date has passed.
 
 - Is your ``schedule`` argument set properly? The default
@@ -81,7 +81,7 @@ There are very many reasons why your task might not be getting scheduled. Here a
   how many ``running`` concurrent instances of a Dag there are allowed to be.
 
 You may also want to read about the :ref:`scheduler` and make
-sure you fully understand how the scheduler cycle.
+sure you fully understand how the scheduler cycle works.
 
 
 How to improve Dag performance?
@@ -181,8 +181,7 @@ until ``min_file_process_interval`` is reached since Dag Parser will look for mo
    :caption: dag_loader.py
    :name: dag_loader.py
 
-    from airflow.sdk import DAG
-    from airflow.sdk import task
+    from airflow.sdk import DAG, task
 
     import pendulum
 
@@ -192,7 +191,7 @@ until ``min_file_process_interval`` is reached since Dag Parser will look for mo
             dag_id,
             schedule=schedule,
             default_args=default_args,
-            pendulum.datetime(2021, 9, 13, tz="UTC"),
+            start_date=pendulum.datetime(2021, 9, 13, tz="UTC"),
         )
 
         with dag:
@@ -514,7 +513,7 @@ represents data in the date of ``2016-02-19``, this date is also called the
 run's *logical date*, or the date that this Dag run is executed for, thus
 *execution date*.
 
-For backward compatibility, a datetime value ``execution_date`` is still
+For backward compatibility, a datetime value ``execution_date`` is still available
 as :ref:`Template variables<templates:variables>` with various formats in Jinja
 templated fields, and in Airflow's Python API. It is also included in the
 context dictionary given to an Operator's execute function.
@@ -627,7 +626,7 @@ What does ``TemplateNotFound`` mean?
 -------------------------------------
 
 ``TemplateNotFound`` errors are usually due to misalignment with user expectations when passing path to operator
-that trigger Jinja templating. A common occurrence is with :class:`~airflow.providers.standard.operators.BashOperator`.
+that trigger Jinja templating. A common occurrence is with :class:`~airflow.providers.standard.operators.bash.BashOperator`.
 
 Another commonly missed fact is that the files are resolved relative to where the pipeline file lives. You can add
 other directories to the ``template_searchpath`` of the Dag object to allow for other non-relative location.
@@ -695,13 +694,11 @@ How do I stop the sync perms happening multiple times per webserver?
 Set the value of ``[fab] update_fab_perms`` configuration in ``airflow.cfg`` to ``False``.
 
 
-Why did the pause Dag toggle turn red?
---------------------------------------
+Why did changing the Dag scheduling state fail?
+------------------------------------------------
 
-If pausing or unpausing a Dag fails for any reason, the Dag toggle will
-revert to its previous state and turn red. If you observe this behavior,
-try pausing the Dag again, or check the console or server logs if the
-issue recurs.
+If activating, draining, or pausing a Dag fails, the scheduling-state control reverts to its previous
+state. Try the action again, or check the console or API server logs if the issue recurs.
 
 
 API Server
@@ -717,16 +714,22 @@ The API server caches serialized Dag objects in memory. Over time, as Dag versio
 
 There are two complementary approaches:
 
-**1. Bounded DAG caching (available since Airflow 3.3.0)**
+**1. Dag cache eviction (available since Airflow 3.2.2)**
 
-The API server supports LRU+TTL caching that bounds how many serialized Dag versions are kept
-in memory. Configure this in the ``[api]`` section:
+The API server can evict cached serialized Dag versions by size, by age, or both. Configure
+this in the ``[api]`` section:
 
 .. code-block:: ini
 
     [api]
-    dag_cache_size = 64    ; max cached versions (0 = unbounded, pre-3.2 behavior)
-    dag_cache_ttl = 3600   ; seconds before a cached entry expires (0 = LRU only)
+    dag_cache_size = 64    ; max cached versions (0 = no size limit)
+    dag_cache_ttl = 3600   ; seconds before a cached entry expires (0 = no TTL)
+
+``dag_cache_size`` is the only hard ceiling on memory. An entry's TTL is refreshed only when the
+entry is checked against the database after ``[core] min_serialized_dag_update_interval``, not on
+every request. With a shorter TTL, even frequently requested entries can expire and reload
+between checks. Setting both options to 0 uses an unbounded dict with no eviction, matching the
+behavior before 3.2.2.
 
 The cache is keyed by Dag version ID. After a Dag is updated, the API server may serve the
 previous version until the cached entry expires (controlled by ``dag_cache_ttl``).
@@ -758,7 +761,7 @@ See :ref:`config:api__server_type`, :ref:`config:api__worker_refresh_interval`, 
 .. note::
 
     Worker recycling handles memory growth from *any* source, not just the Dag cache.
-    For production deployments, using both bounded caching and gunicorn worker recycling
+    For production deployments, using both cache eviction and gunicorn worker recycling
     provides the best results.
 
 
@@ -806,7 +809,7 @@ How can I test a connection or use a Canary Dag?
 ------------------------------------------------
 
 For security reasons, the test connection functionality is disabled by default across the Airflow UI,
-API and CLI. This can be modified by setting ref:`config:core__test_connection`.
+API and CLI. This can be modified by setting :ref:`config:core__test_connection`.
 
 You can utilize a Dag to regularly test connections. This is referred to as a "Canary Dag" and can detect and
 alert on failures in external systems that your Dags depend on. You can create a simple Dag that tests connections
@@ -814,8 +817,7 @@ such as the following Airflow 3 example:
 
 .. code-block:: python
 
-  from airflow import DAG
-  from airflow.sdk import task
+  from airflow.sdk import DAG, task
 
   with DAG(dag_id="canary", schedule="@daily", doc_md="Canary Dag to regularly test connections to systems."):
 

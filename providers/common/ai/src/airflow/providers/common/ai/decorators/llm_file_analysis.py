@@ -36,7 +36,18 @@ if TYPE_CHECKING:
 
 
 class _LLMFileAnalysisDecoratedOperator(DecoratedOperator, LLMFileAnalysisOperator):
-    """Wrap a callable that returns the prompt string for file analysis."""
+    """
+    Wraps a callable that returns a prompt for LLM-backed file analysis.
+
+    The user function is called at execution time to produce the prompt string.
+    All other parameters (``llm_conn_id``, ``file_path``, ``multi_modal``, etc.)
+    are passed through to
+    :class:`~airflow.providers.common.ai.operators.llm_file_analysis.LLMFileAnalysisOperator`.
+
+    :param python_callable: A reference to a callable that returns the prompt string.
+    :param op_args: Positional arguments for the callable.
+    :param op_kwargs: Keyword arguments for the callable.
+    """
 
     template_fields: Sequence[str] = (
         *DecoratedOperator.template_fields,

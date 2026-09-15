@@ -31,6 +31,7 @@ from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
 from airflow.providers.common.ai.utils.logging import log_run_summary, wrap_toolsets_for_logging
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
+from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.compat.sdk import (
     AirflowOptionalProviderFeatureException,
     BaseOperator,
@@ -144,10 +145,24 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
     :param usage_limits: Optional pydantic-ai
         :class:`~pydantic_ai.usage.UsageLimits` enforced on every agent run
-        (initial run, durable replay, and HITL regeneration). Pass
-        ``UsageLimits(request_limit=..., total_tokens_limit=..., tool_calls_limit=..., ...)``
-        to fail the task when the agent exceeds the configured token, request,
-        or tool budget. ``None`` (default) means no enforcement.
+        (initial run, durable replay, and HITL regeneration), or a dict of the
+        same fields (e.g.
+        ``{"cost_limit": "{{ params.budget }}", "request_limit": 5}``). The dict
+        form is templated: each value is rendered by Jinja like any other
+        ``template_fields`` entry, then coerced to that field's type (``Decimal``,
+        ``int``, or ``bool``). A value that cannot be coerced -- a Variable
+        that exists but is empty renders to ``""``, a typo renders to a
+        non-numeric string -- fails the task with a ``ValueError`` naming the
+        field and the rendered value, instead of silently disabling the
+        limit. A ``UsageLimits`` instance passed directly is used as-is and
+        is not templated or validated. ``None`` (default) means no
+        enforcement.
+
+        A dict that omits ``request_limit`` still gets pydantic-ai's default of
+        ``50`` requests -- pass ``"request_limit": None`` explicitly for no
+        request cap. See :ref:`howto/operator:llm` for the full set of caveats,
+        and :ref:`howto/operator:agent` for the ``durable=True`` replay
+        double-counting warning.
     :param durable: When ``True``, enables step-level caching of model
         responses and tool results for durable execution.  On retry, cached
         steps are replayed instead of re-executing.  Each cached step is
@@ -232,6 +247,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         "system_prompt",
         "agent_params",
         "message_history",
+        "usage_limits",
     )
 
     operator_extra_links = (HITLReviewLink(),)
@@ -247,7 +263,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         toolsets: list[AbstractToolset] | None = None,
         enable_tool_logging: bool = True,
         agent_params: dict[str, Any] | None = None,
-        usage_limits: UsageLimits | None = None,
+        usage_limits: UsageLimits | dict[str, Any] | None = None,
         durable: bool = False,
         code_mode: bool = False,
         message_history: list[ModelMessage] | str | bytes | None = None,
@@ -273,6 +289,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         self.toolsets = toolsets
         self.enable_tool_logging = enable_tool_logging
         self.agent_params = agent_params or {}
+        # No validation here -- see coerce_usage_limits() docstring for why.
         self.usage_limits = usage_limits
         self.message_history = message_history
 
@@ -284,6 +301,14 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         # outside ``execute`` -- can read them unconditionally.
         self._durable_storage: DurableStorageProtocol | None = None
         self._durable_counter: DurableStepCounter | None = None
+
+        # Checked ahead of the combination rules below. On a core older than 3.1 the core
+        # version is the real blocker, and reporting a combination error first would send the
+        # user to drop an argument that was never the problem -- they would hit this anyway.
+        if enable_hitl_review and not AIRFLOW_V_3_1_PLUS:
+            raise AirflowOptionalProviderFeatureException(
+                "Human in the loop functionality needs Airflow 3.1+."
+            )
 
         if durable and enable_hitl_review:
             raise ValueError("durable=True and enable_hitl_review=True cannot be used together.")
@@ -297,15 +322,17 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
             # replay. Reject the combination rather than silently mis-replaying.
             raise ValueError("durable=True and code_mode=True cannot be used together.")
 
+        if message_history is not None and enable_hitl_review:
+            # The post-review transcript is not recoverable today (run_hitl_review
+            # returns only the final string), so emitting the pre-review transcript
+            # would silently drop the human-approved turns. Block until HITL can
+            # surface the final message history.
+            raise ValueError("message_history and enable_hitl_review=True cannot be used together.")
+
         self.enable_hitl_review = enable_hitl_review
         self.max_hitl_iterations = max_hitl_iterations
         self.hitl_timeout = hitl_timeout
         self.hitl_poll_interval = hitl_poll_interval
-
-        if self.enable_hitl_review and not AIRFLOW_V_3_1_PLUS:
-            raise AirflowOptionalProviderFeatureException(
-                "Human in the loop functionality needs Airflow 3.1+."
-            )
 
     @cached_property
     def llm_hook(self) -> PydanticAIHook:
@@ -421,12 +448,6 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         )
 
     def execute(self, context: Context) -> Any:
-        # message_history is a template field; validate the combination after rendering.
-        if self.message_history is not None and self.enable_hitl_review:
-            # run_hitl_review returns only the final string, so the pre-review transcript would drop
-            # the human-approved turns. Block until HITL can surface the final message history.
-            raise ValueError("message_history and enable_hitl_review=True cannot be used together.")
-
         if self.enable_hitl_review and not isinstance(self.prompt, str):
             raise TypeError(
                 f"{type(self).__name__}: enable_hitl_review=True is not supported "
@@ -434,6 +455,9 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
                 f"The HITL session model requires a string prompt. Return a str "
                 f"prompt, or disable enable_hitl_review."
             )
+
+        # Coerced first so a bad rendered value fails before the expensive setup below.
+        usage_limits = coerce_usage_limits(self.usage_limits)
 
         self._durable_storage = None
         self._durable_counter = None
@@ -446,7 +470,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
 
         agent = self._build_agent()
 
-        run_kwargs: dict[str, Any] = {"usage_limits": self.usage_limits}
+        run_kwargs: dict[str, Any] = {"usage_limits": usage_limits}
         history = self._resolve_message_history()
         if history is not None:
             run_kwargs["message_history"] = history
@@ -551,9 +575,14 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
 
     def regenerate_with_feedback(self, *, feedback: str, message_history: Any) -> tuple[str, Any]:
         """Re-run the agent with *feedback* appended to the conversation history."""
+        usage_limits = coerce_usage_limits(self.usage_limits)
         agent = self._build_agent()
         messages = message_history or []
-        result = agent.run_sync(feedback, message_history=messages, usage_limits=self.usage_limits)
+        result = agent.run_sync(
+            feedback,
+            message_history=messages,
+            usage_limits=usage_limits,
+        )
         log_run_summary(self.log, result)
 
         output = result.output

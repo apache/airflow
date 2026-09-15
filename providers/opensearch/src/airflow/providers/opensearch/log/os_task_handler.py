@@ -64,10 +64,7 @@ if AIRFLOW_V_3_0_PLUS:
 else:
     OsLogMsgType = list[tuple[str, str]]  # type: ignore[assignment,misc]
 
-if AIRFLOW_V_3_2_PLUS:
-    from airflow.sdk import timezone
-else:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from airflow.providers.common.compat.sdk import timezone
 
 USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
@@ -189,6 +186,11 @@ def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
 def get_os_kwargs_from_config() -> dict[str, Any]:
     open_search_config = conf.getsection("opensearch_configs")
     kwargs_dict = {key: value for key, value in open_search_config.items()} if open_search_config else {}
+    # ``ca_certs`` defaults to an empty string, which means "not configured". opensearch-py only uses its
+    # default CA bundle when the argument is left out entirely. Passing an empty string instead makes it
+    # raise ImproperlyConfigured when both ``use_ssl`` and ``verify_certs`` are enabled.
+    if not kwargs_dict.get("ca_certs"):
+        kwargs_dict.pop("ca_certs", None)
     return kwargs_dict
 
 

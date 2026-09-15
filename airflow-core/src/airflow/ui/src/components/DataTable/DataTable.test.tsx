@@ -56,6 +56,12 @@ const cardDef: CardDef<{ name: string }> = {
   card: ({ row }) => <Text>My name is {row.name}.</Text>,
 };
 
+/** Header row buttons in DOM order, named by accessible label, for asserting slot placement. */
+const headerButtonOrder = () =>
+  within(screen.getByTestId("data-table-header"))
+    .getAllByRole("button")
+    .map((button) => button.getAttribute("aria-label") ?? button.textContent);
+
 describe("DataTable", () => {
   it("renders table with data", () => {
     render(
@@ -283,12 +289,12 @@ describe("DataTable", () => {
     expect(screen.getByRole("heading")).toHaveTextContent("50,000+ task");
   });
 
-  it("does not render row count heading during the initial load", () => {
+  it("keeps the row count heading during the initial load", () => {
     render(<DataTable columns={columns} data={[]} isLoading modelName="task" total={0} />, {
       wrapper: ChakraWrapper,
     });
 
-    expect(screen.queryByRole("heading")).toBeNull();
+    expect(screen.getByRole("heading")).toHaveTextContent(/^task_other$/u);
   });
 
   it("does not render row count heading when hideRowCountHeading is set", () => {
@@ -462,20 +468,78 @@ describe("DataTable", () => {
     await waitFor(() => expect(within(screen.getByTestId("table-list")).queryByText("Second")).toBeNull());
   });
 
-  it("renders actions independently of rows and heading", () => {
+  // Each slot needs its own entry in the header row condition, or its content vanishes whenever
+  // nothing else occupies the row — as it does on tables that hide the row count heading.
+  const actionSlots = [
+    ["filterActions", { filterActions: <button type="button">slot content</button> }],
+    ["presentationActions", { presentationActions: <button type="button">slot content</button> }],
+    ["primaryActions", { primaryActions: <button type="button">slot content</button> }],
+  ] as const;
+
+  it.each(actionSlots)("renders %s with no rows and no heading", (_name, slot) => {
+    render(
+      <DataTable columns={columns} data={[]} hideRowCountHeading modelName="task" total={0} {...slot} />,
+      { wrapper: ChakraWrapper },
+    );
+
+    expect(screen.queryByRole("heading")).toBeNull();
+    expect(screen.getByText("slot content")).toBeInTheDocument();
+  });
+
+  it("renders all three action slots together", () => {
     render(
       <DataTable
-        actions={<button type="button">custom action</button>}
         columns={columns}
-        data={[]}
-        hideRowCountHeading
+        data={data}
+        filterActions={<button type="button">filter slot</button>}
         modelName="task"
-        total={0}
+        presentationActions={<button type="button">presentation slot</button>}
+        primaryActions={<button type="button">primary slot</button>}
+        total={2}
       />,
       { wrapper: ChakraWrapper },
     );
 
-    expect(screen.getByText("custom action")).toBeInTheDocument();
+    const header = within(screen.getByTestId("data-table-header"));
+
+    expect(header.getByText("filter slot")).toBeInTheDocument();
+    expect(header.getByText("presentation slot")).toBeInTheDocument();
+    expect(header.getByText("primary slot")).toBeInTheDocument();
+  });
+
+  it("renders presentation actions before the columns menu", () => {
+    render(
+      <DataTable
+        columns={wideColumns}
+        data={data}
+        modelName="task"
+        presentationActions={<button type="button">custom action</button>}
+        total={2}
+      />,
+      { wrapper: ChakraWrapper },
+    );
+
+    const order = headerButtonOrder();
+
+    expect(order.indexOf("custom action")).toBeLessThan(order.indexOf(columnsMenuLabel));
+  });
+
+  it("renders primary actions before presentation actions", () => {
+    render(
+      <DataTable
+        columns={columns}
+        data={data}
+        modelName="task"
+        presentationActions={<button type="button">presentation slot</button>}
+        primaryActions={<button type="button">primary slot</button>}
+        total={2}
+      />,
+      { wrapper: ChakraWrapper },
+    );
+
+    const order = headerButtonOrder();
+
+    expect(order.indexOf("primary slot")).toBeLessThan(order.indexOf("presentation slot"));
   });
 
   it("renders headingExtra next to the row count heading", () => {

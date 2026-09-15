@@ -304,22 +304,32 @@ def initialize_secrets_backends(
     return backend_list
 
 
+_secrets_backend_cache: dict[tuple[str, ...], list] = {}
+
+
+def clear_secrets_backends_cache() -> None:
+    """Drop the memoised backends so the next load rebuilds them from the current config."""
+    _secrets_backend_cache.clear()
+
+
 def ensure_secrets_loaded(
     default_backends: list[str] = _SERVER_DEFAULT_SECRETS_SEARCH_PATH,
 ) -> list:
     """
-    Ensure that all secrets backends are loaded.
+    Return the secrets backends for the given search path, building them once per process.
 
-    If the secrets_backend_list contains only 2 default backends, reload it.
+    A backend holds an authenticated client, so rebuilding one per lookup makes every secret
+    fetch authenticate again against the remote store. Nothing is memoised until a custom
+    backend is configured, so one appearing after the first lookup is still picked up.
     """
-    # Check if the secrets_backend_list contains only 2 default backends.
-
-    # Check if we are loading the backends for worker too by checking if the default_backends is equal
-    # to _SERVER_DEFAULT_SECRETS_SEARCH_PATH.
-    secrets_backend_list = initialize_secrets_backends()
-    if len(secrets_backend_list) == 2 or default_backends != _SERVER_DEFAULT_SECRETS_SEARCH_PATH:
-        return initialize_secrets_backends(default_backends=default_backends)
-    return secrets_backend_list
+    key = tuple(default_backends)
+    if key not in _secrets_backend_cache:
+        backends = initialize_secrets_backends(default_backends=default_backends)
+        # Equal lengths mean nothing was prepended, so no custom backend is configured yet.
+        if len(backends) == len(default_backends):
+            return backends
+        _secrets_backend_cache[key] = backends
+    return _secrets_backend_cache[key]
 
 
 def initialize_config() -> AirflowSDKConfigParser:

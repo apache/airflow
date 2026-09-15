@@ -1,0 +1,1 @@
+Fixed ``airflow config lint`` silently skipping removal rules that only apply to a specific value.

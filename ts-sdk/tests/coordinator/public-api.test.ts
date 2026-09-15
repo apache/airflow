@@ -17,19 +17,15 @@
  * under the License.
  */
 
-import { describe, expectTypeOf, it } from "vitest";
-import type { StartCoordinatorOptions } from "../../src/coordinator/index.js";
-import { startCoordinator } from "../../src/coordinator/index.js";
+import { describe, expect, expectTypeOf, it } from "vitest";
+import type { DagRegistry } from "../../src/sdk/registry.js";
+import * as coordinator from "../../src/coordinator/index.js";
+import { serveDags } from "../../src/coordinator/index.js";
 
 describe("coordinator public API", () => {
-  it("exports the coordinator runtime entrypoint from the coordinator subpath", () => {
-    expectTypeOf<typeof startCoordinator>().toEqualTypeOf<
-      (opts?: StartCoordinatorOptions) => Promise<void>
-    >();
-    expectTypeOf<StartCoordinatorOptions>().toEqualTypeOf<{
-      commAddr?: string;
-      logsAddr?: string;
-      argv?: readonly string[];
-    }>();
+  it("exposes serveDags, not the coordinator itself, from the coordinator subpath", () => {
+    expectTypeOf<typeof serveDags>().toEqualTypeOf<(registry: DagRegistry) => Promise<void>>();
+    expect("startCoordinator" in coordinator).toBe(false);
+    expectTypeOf<typeof coordinator>().not.toHaveProperty("startCoordinator");
   });
 });
