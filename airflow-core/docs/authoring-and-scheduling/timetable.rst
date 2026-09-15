@@ -43,8 +43,9 @@ Some examples of when custom timetable implementations are useful:
   have a run each day, but make each run cover the period of the previous seven
   days. It is possible to hack this with a cron expression, but a custom data
   interval provides a more natural representation.
-* Data intervals with "holes" between intervals instead of a continuous interval, as both the cron
-  expression and ``timedelta`` schedules represent continuous intervals. See :ref:`data-interval`.
+* Data intervals with "holes" between intervals instead of a contiguous window. Built-in
+  data-interval cron and ``timedelta`` timetables always produce contiguous intervals; the
+  default trigger timetables use a zero-width interval at each tick. See :ref:`data-interval`.
 
 .. _`Traditional Chinese Calendar`: https://en.wikipedia.org/wiki/Chinese_calendar
 
@@ -310,68 +311,131 @@ Airflow has two sets of timetables for cron and delta schedules:
 * CronTriggerTimetable_ and CronDataIntervalTimetable_ both accept a cron expression.
 * DeltaTriggerTimetable_ and DeltaDataIntervalTimetable_ both accept a timedelta or relativedelta.
 
-- A trigger timetable (CronTriggerTimetable_ or DeltaTriggerTimetable_) does not address the concept of *data interval*, while a "data interval" one (CronDataIntervalTimetable_ or DeltaDataIntervalTimetable_) does.
-- The timestamp in the ``run_id``, the ``logical_date`` of the two timetable kinds are defined differently based on how they handle the data interval, as described in :ref:`timetables_run_id_logical_date`.
+In Airflow 3, a bare cron string such as ``@daily`` in ``schedule=`` resolves to
+CronTriggerTimetable_ by default (``[scheduler] create_cron_data_intervals`` is
+``False``). A bare ``timedelta`` resolves to DeltaTriggerTimetable_ by default
+(``[scheduler] create_delta_data_intervals`` is also ``False``). Pass an explicit
+data-interval timetable class, or set ``create_cron_data_intervals`` to ``True``,
+to get contiguous windows instead.
 
-Whether taking care of *Data Interval*
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. note::
 
-A trigger timetable *does not* include *data interval*. This means that the value of ``data_interval_start``
-and ``data_interval_end`` are the same; the time when a Dag run is triggered.
+    ``[scheduler] create_delta_data_intervals`` is intended to control timedelta
+    schedules independently, but is not currently consulted. Those schedules
+    follow ``create_cron_data_intervals`` as well, so setting only
+    ``create_delta_data_intervals=True`` still yields DeltaTriggerTimetable_.
 
-For a data interval timetable, the value of ``data_interval_start`` and ``data_interval_end`` are different.
-``data_interval_end`` is the time when a Dag run is triggered, while ``data_interval_start`` is the start of the interval.
+- A trigger timetable (CronTriggerTimetable_ or DeltaTriggerTimetable_) represents
+  each run as a point in time: by default ``data_interval_start`` and
+  ``data_interval_end`` are the same (the trigger time). You can optionally pass a
+  non-zero ``interval=`` so the data interval ends at the trigger time and spans
+  that duration. A data-interval timetable (CronDataIntervalTimetable_ or
+  DeltaDataIntervalTimetable_) always uses a contiguous non-zero window between
+  consecutive schedule boundaries.
+- ``logical_date`` and the timestamp used in ``run_id`` differ between the two
+  kinds based on how they handle the data interval, as described in
+  :ref:`timetables_run_id_logical_date`.
+
+*Data Interval* Shape
+~~~~~~~~~~~~~~~~~~~~~
+
+A trigger timetable uses a *point* (zero-width) data interval by default. This
+means that the values of ``data_interval_start`` and ``data_interval_end`` are
+the same, the time when a Dag run is triggered. Passing a non-zero
+``interval=`` makes the interval end at the trigger time and begin ``interval``
+earlier.
+
+For a data interval timetable, the values of ``data_interval_start`` and
+``data_interval_end`` are different. ``data_interval_end`` is the time when a
+Dag run is triggered (``run_after``), while ``data_interval_start`` is the start
+of the contiguous window. ``logical_date`` is ``data_interval_start`` for both
+kinds.
 
 *Catchup* behavior
-^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~
 
-By default, ``catchup`` is set to ``False``. This prevents running unnecessary Dags in the following scenarios:
+By default, ``catchup`` is ``False`` (Airflow config
+``[scheduler] catchup_by_default``). Missed scheduled run times between
+``start_date`` and "now" are not backfilled when a Dag is activated or
+re-enabled. The timetable instead selects the most recently applicable
+scheduled run time:
 
-- If you create a new Dag with a start date in the past, and don't want to run Dags for the past. If ``catchup`` is ``True``, Airflow runs all Dags that would have run in that time interval.
-- If you pause an existing Dag, and then restart it at a later date, ``catchup`` being ``False`` means that Airflow does not run the Dags that would have run during the paused period.
+- For CronTriggerTimetable_, the latest cron tick that is not after "now" and
+  not before ``start_date``. For DeltaTriggerTimetable_, pickup time itself —
+  a delta has no wall-clock tick to snap to.
+- For a data-interval timetable, the most recently completed interval whose end
+  is not after "now".
 
-In these scenarios, the ``logical_date`` in the ``run_id`` are based on how the timetable handles the data
-interval.
+If you set ``catchup=True``, the scheduler creates Dag runs from the latest
+automated run (or ``start_date`` if none) forward to "now", one scheduled run
+time (or completed interval) at a time in chronological order. Those runs may
+execute concurrently up to the Dag's ``max_active_runs`` (defaulted from
+:ref:`config:core__max_active_runs_per_dag`).
 
-You can change the default ``catchup`` behavior using the Airflow config ``[scheduler] catchup_by_default``.
+Catchup also applies when you pause a Dag for a period and then re-enable it.
 
-See :ref:`dag-catchup` for more information about how Dag runs are triggered when using ``catchup``.
+See :ref:`dag-catchup` for a worked example with ``@daily``.
 
 .. _timetables_run_id_logical_date:
 
 The time when a Dag run is triggered
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Both trigger and data interval timetables trigger Dag runs at the same time. However, the timestamp for the
-``run_id`` is different for each. This is because ``run_id`` is based on ``logical_date``.
+Both trigger and data interval timetables can create the first Dag run
+immediately when ``catchup=False`` and ``start_date`` is in the past. What
+differs is *which* run is selected and how ``logical_date`` / ``run_id`` are
+derived. Without a ``start_date`` (optional when ``catchup=False``), a trigger
+timetable with the default ``run_immediately=False`` waits for the next future
+tick instead — midnight on February 1st in the example below.
 
-For example, suppose there is a cron expression ``@daily`` or ``0 0 * * *``, which is scheduled to run at 12AM every day. If you enable Dags using the two timetables at 3PM on January
-31st,
+``logical_date`` is always ``data_interval_start``. The timestamp embedded in
+``run_id`` comes from ``run_after`` (when the run is eligible to start). For a
+zero-width trigger timetable those coincide; for a data-interval timetable
+``run_after`` is ``data_interval_end``, so the ``run_id`` timestamp is one
+period after ``logical_date``.
 
-- `CronTriggerTimetable`_ creates a new Dag run at 12AM on February 1st. The ``run_id`` timestamp is midnight, on February 1st.
-- `CronDataIntervalTimetable`_ immediately creates a new Dag run, because a Dag run for the daily time interval beginning at 12AM on January 31st did not occur yet. The ``run_id`` timestamp is midnight, on January 31st, since that is the beginning of the data interval.
+For example, suppose there is a cron expression ``@daily`` or ``0 0 * * *``, a
+past ``start_date``, and ``catchup=False``. If you enable the Dag at 3PM on
+January 31st,
 
-The following is another example showing the difference in the case of skipping Dag runs:
+- `CronTriggerTimetable`_ immediately creates a Dag run for the most recent
+  tick — midnight on January 31st. ``logical_date``, ``data_interval_start``,
+  ``data_interval_end``, and the ``run_id`` timestamp are all that midnight.
+- `CronDataIntervalTimetable`_ immediately creates a Dag run for the most
+  recently completed interval (midnight January 30 through midnight
+  January 31st). ``logical_date`` / ``data_interval_start`` are January 30;
+  ``run_after`` and the ``run_id`` timestamp are midnight on January 31st.
 
-Suppose there are two running Dags with a cron expression ``@daily`` or ``0 0 * * *`` that use the two different timetables. If you pause the Dags at 3PM on January 31st and re-enable them at 3PM on February 2nd,
+The following is another example showing the difference when skipping Dag runs:
 
-- `CronTriggerTimetable`_ skips the Dag runs that were supposed to trigger on February 1st and 2nd. The next Dag run will be triggered at 12AM on February 3rd.
-- `CronDataIntervalTimetable`_ skips the Dag runs that were supposed to trigger on February 1st only. A Dag run for February 2nd is immediately triggered after you re-enable the Dag.
+Suppose there are two running Dags with a cron expression ``@daily`` or
+``0 0 * * *`` that use the two different timetables. If you pause the Dags at
+3PM on January 31st and re-enable them at 3PM on February 2nd (still with
+``catchup=False``),
 
-In these examples, you see how a trigger timetable creates Dag runs more intuitively and similar to what
-people expect a workflow to behave, while a data interval timetable is designed heavily around the data
-interval it processes, and does not reflect a workflow's own properties.
+- `CronTriggerTimetable`_ skips the missed tick on February 1st. It
+  immediately creates a Dag run for midnight on February 2nd (the most recent
+  applicable tick). The next future tick is midnight on February 3rd.
+- `CronDataIntervalTimetable`_ skips the completed interval that would have
+  ended at midnight on February 1st (January 31st through February 1st). It
+  immediately creates a Dag run for the most recently completed interval
+  (February 1st through February 2nd). The still-open interval ending at the
+  next midnight is not created yet.
+
+In these examples, a trigger timetable creates Dag runs at schedule ticks
+people typically expect for a workflow clock, while a data-interval timetable
+is designed around the contiguous data window each run processes.
 
 Switching between trigger and data interval timetables on an existing Dag
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The two kinds of timetable anchor ``logical_date`` differently: a trigger
-timetable uses the trigger time, a data interval timetable uses
-``data_interval_start``. Switching a Dag from a trigger timetable to a data
-interval timetable when it already has existing dagruns will skip one
-scheduled run, because the next run is advanced one period to avoid colliding
-with the previous run's ``logical_date``. The reverse direction (data
-interval -> trigger) does not skip a run.
+The two kinds of timetable can disagree on ``logical_date`` for the same
+schedule tick: a zero-width trigger run uses the trigger time, while a
+data-interval run uses ``data_interval_start``. Switching a Dag from a
+trigger timetable to a data-interval timetable when it already has existing
+dagruns will skip one scheduled run, because the next run is advanced one
+period to avoid colliding with the previous run's ``logical_date``. The
+reverse direction (data interval -> trigger) does not skip a run.
 
 This transition can happen without editing a Dag, in two ways:
 
