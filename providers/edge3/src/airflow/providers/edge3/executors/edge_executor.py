@@ -28,6 +28,7 @@ from sqlalchemy import delete, select
 from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.common.compat.sdk import Stats, timezone
 from airflow.providers.edge3.models.db import EdgeDBManager, check_db_manager_config
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
@@ -43,7 +44,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.cli.cli_config import GroupCommand
-    from airflow.models.taskinstancekey import TaskInstanceKey
 
     # TODO: Airflow 2 type hints; remove when Airflow 2 support is removed
     CommandType = Sequence[str]
@@ -168,6 +168,7 @@ class EdgeExecutor(BaseExecutor):
                         team_name=self.team_name,
                     )
                 )
+            self.running.add(key)
         else:
             raise TypeError(f"Don't know how to queue workload of type {type(workload).__name__}")
 
@@ -260,6 +261,26 @@ class EdgeExecutor(BaseExecutor):
 
         return bool(lifeless_jobs)
 
+    def _get_tracked_job_keys(self, session: Session) -> set[TaskInstanceKey]:
+        """
+        Read the keys of all jobs this team still has in the DB, queued ones included.
+
+        Rows are read without locking on purpose: an edge worker fetches its next job with
+        ``FOR UPDATE SKIP LOCKED``, so locking the queued rows here would make it come back empty.
+        """
+        return {
+            TaskInstanceKey(dag_id, task_id, run_id, try_number, map_index)
+            for dag_id, task_id, run_id, try_number, map_index in session.execute(
+                select(
+                    EdgeJobModel.dag_id,
+                    EdgeJobModel.task_id,
+                    EdgeJobModel.run_id,
+                    EdgeJobModel.try_number,
+                    EdgeJobModel.map_index,
+                ).where(EdgeJobModel.team_name == self.team_name)
+            )
+        }
+
     def _purge_jobs(self, session: Session) -> bool:
         """Clean finished jobs."""
         purged_marker = False
@@ -284,8 +305,7 @@ class EdgeExecutor(BaseExecutor):
         ).all()
 
         # Sync DB with executor otherwise runs out of sync in multi scheduler deployment
-        already_removed = self.running - set(job.key for job in jobs)
-        self.running = self.running - already_removed
+        self.running &= self._get_tracked_job_keys(session)
 
         for job in jobs:
             if job.key in self.running:
@@ -300,15 +320,13 @@ class EdgeExecutor(BaseExecutor):
                     if job.key in self.last_reported_state:
                         del self.last_reported_state[job.key]
                     self.success(job.key)
-                elif job.state in [
-                    TaskInstanceState.FAILED,
-                    TaskInstanceState.RESTARTING,
-                    TaskInstanceState.UP_FOR_RETRY,
-                ]:
+                elif job.state in [TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY]:
                     if job.key in self.last_reported_state:
                         del self.last_reported_state[job.key]
                     self.fail(job.key)
                 else:
+                    # RESTARTING is not a failure here: the fetch endpoint parks a claimed job in that
+                    # state until the worker reports RUNNING.
                     self.last_reported_state[job.key] = TaskInstanceState(job.state)
             if (
                 job.state == TaskInstanceState.SUCCESS
@@ -385,17 +403,22 @@ class EdgeExecutor(BaseExecutor):
         )
         self.log.info("Revoked task instance %s from EdgeExecutor", ti.key)
 
-    def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
+    @provide_session
+    def try_adopt_task_instances(
+        self, tis: Sequence[TaskInstance], *, session: Session = NEW_SESSION
+    ) -> Sequence[TaskInstance]:
         """
-        Try to adopt running task instances that have been abandoned by a SchedulerJob dying.
+        Adopt the task instances whose job is still tracked in the edge_job table.
 
-        Anything that is not adopted will be cleared by the scheduler (and then become eligible for
-        re-scheduling)
+        The ``running`` set is empty after a scheduler restart, so the adopted keys go back into it
+        to keep slot accounting accurate. Task instances without a job row are returned so the
+        scheduler clears and re-schedules them.
 
         :return: any TaskInstances that were unable to be adopted
         """
-        # We handle all running tasks from the DB in sync, no adoption logic needed.
-        return []
+        tracked_keys = self._get_tracked_job_keys(session)
+        self.running.update(ti.key for ti in tis if ti.key in tracked_keys)
+        return [ti for ti in tis if ti.key not in tracked_keys]
 
     @staticmethod
     def get_cli_commands() -> list[GroupCommand]:
