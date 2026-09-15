@@ -20,6 +20,8 @@ import json
 
 import pytest
 
+from airflow._shared.secrets_masker import DEFAULT_SENSITIVE_FIELDS
+
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 
@@ -69,6 +71,7 @@ expected_config_response = {
     "external_log_name": None,
     "theme": THEME,
     "multi_team": False,
+    "sensitive_field_names": sorted(DEFAULT_SENSITIVE_FIELDS),
     "rerun_with_latest_version": None,
 }
 
@@ -170,6 +173,21 @@ class TestGetConfig:
         response = unauthorized_test_client.get("/config")
         assert response.status_code == 200
         assert response.json() == expected_config_response
+
+    def test_sensitive_field_names_include_configured_names(self, mock_config_data, test_client):
+        with conf_vars({("core", "sensitive_var_conn_names"): "my_custom_key, other_key"}):
+            response = test_client.get("/config")
+
+        assert response.status_code == 200
+        names = response.json()["sensitive_field_names"]
+        assert set(names) == set(DEFAULT_SENSITIVE_FIELDS) | {"my_custom_key", "other_key"}
+
+    def test_sensitive_field_names_empty_when_hiding_disabled(self, mock_config_data, test_client):
+        with conf_vars({("core", "hide_sensitive_var_conn_fields"): "False"}):
+            response = test_client.get("/config")
+
+        assert response.status_code == 200
+        assert response.json()["sensitive_field_names"] == []
 
     def test_should_response_200_with_all_color_tokens(self, mock_config_data_all_colors, test_client):
         """Theme with gray, black, and white tokens (in addition to brand) passes validation and round-trips."""
