@@ -42,11 +42,9 @@ An overview of how this process works:
 
 * A task instance (running operator) reaches a point where it has to wait for other operations or conditions, and defers itself with a trigger tied to an event to resume it. This frees up the worker to run something else. The task transitions to the ``deferred`` state.
 * The new trigger instance is registered by Airflow, and picked up by a triggerer process.
-* The trigger runs until it fires, at which point its source task is re-scheduled by the scheduler. The task transitions back to ``scheduled``, then ``queued``, and resumes execution on a worker.
+* The trigger runs until it fires, at which point the triggerer marks its source task ``scheduled`` again. The scheduler then queues it and it resumes execution on a worker, unless the trigger ends the task itself (see :ref:`deferring/exiting_from_trigger`).
 
-The full lifecycle of a deferrable task — including the ``deferred`` state and the re-entry into
-``scheduled`` after the trigger fires — is reflected in the
-:ref:`task lifecycle diagram <concepts:task-states>`.
+This flow is shown in the :ref:`task lifecycle diagram <concepts:task-states>`.
 
 You can either use pre-written deferrable operators as a Dag author or write your own. Writing them, however, requires that they meet certain design criteria.
 
