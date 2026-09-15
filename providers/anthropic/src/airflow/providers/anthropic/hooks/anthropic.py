@@ -50,7 +50,7 @@ from airflow.providers.common.compat.sdk import AirflowSkipException, BaseHook
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Iterator
+    from collections.abc import Callable, Iterable, Iterator
 
     from anthropic.types import Message
     from anthropic.types.beta import (
@@ -295,7 +295,8 @@ class AnthropicHook(BaseHook):
     - ``platform``: one of ``anthropic`` (default), ``bedrock``, ``vertex``, ``aws``, ``foundry``.
     - ``model``: default model id used when an operator/hook call omits ``model`` (lets you
       change the model without editing Dags); falls back to :data:`DEFAULT_MODEL`.
-    - ``aws_region``: region for the ``bedrock`` and ``aws`` platforms.
+    - ``aws_region``: region for the ``bedrock`` and ``aws`` platforms. Required unless the
+      worker resolves one from ``AWS_REGION`` / ``AWS_DEFAULT_REGION`` or its AWS profile.
     - ``project_id`` / ``region``: project and region for the ``vertex`` platform.
     - ``resource``: Azure resource name for the ``foundry`` platform.
     - ``anthropic_client_kwargs``: extra keyword arguments forwarded to the client
@@ -342,6 +343,25 @@ class AnthropicHook(BaseHook):
         """Return the Anthropic client for the configured platform."""
         return self.get_conn()
 
+    def _build_aws_client(
+        self,
+        factory: Callable[..., AnthropicClient],
+        aws_region: str | None,
+        client_kwargs: dict[str, Any],
+    ) -> AnthropicClient:
+        try:
+            return factory(aws_region=aws_region, **client_kwargs)
+        except ValueError as exc:
+            # anthropic 1.x dropped the implicit us-east-1 fallback, so an unset region now
+            # fails at client construction. Point at the connection rather than the SDK.
+            if aws_region:
+                raise
+            raise AnthropicError(
+                f"No AWS region configured for the {self.platform!r} platform. Set 'aws_region' in the "
+                f"extra of connection {self.conn_id!r}, or set AWS_REGION / AWS_DEFAULT_REGION (or a "
+                "region on the AWS profile) on the worker."
+            ) from exc
+
     def get_conn(self) -> AnthropicClient:
         """Build and return the Anthropic client for the configured platform."""
         conn = self._connection
@@ -350,13 +370,13 @@ class AnthropicHook(BaseHook):
         platform = self.platform
         self.log.debug("Building Anthropic client for platform %r (conn_id=%s)", platform, self.conn_id)
         if platform == "bedrock":
-            return AnthropicBedrock(aws_region=extras.get("aws_region"), **client_kwargs)
+            return self._build_aws_client(AnthropicBedrock, extras.get("aws_region"), client_kwargs)
         if platform == "vertex":
             return AnthropicVertex(
                 project_id=extras.get("project_id"), region=extras.get("region"), **client_kwargs
             )
         if platform == "aws":
-            return AnthropicAWS(aws_region=extras.get("aws_region"), **client_kwargs)
+            return self._build_aws_client(AnthropicAWS, extras.get("aws_region"), client_kwargs)
         if platform == "foundry":
             api_key = client_kwargs.pop("api_key", None) or conn.password
             return AnthropicFoundry(api_key=api_key, resource=extras.get("resource"), **client_kwargs)

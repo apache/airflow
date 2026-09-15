@@ -16,12 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useState } from "react";
+
 import { Box, HStack, Text } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import dayjs from "dayjs";
 import tz from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { useParams } from "react-router-dom";
@@ -32,9 +33,11 @@ import {
   useCalendarServiceGetCalendarDeadlines,
   useDagServiceGetDagDetails,
 } from "openapi/queries";
+
+import { IconButton, ButtonGroupToggle } from "src/system-components";
+
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { IconButton } from "src/components/ui";
-import { ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
+
 import { CALENDAR_GRANULARITY_KEY, CALENDAR_VIEW_MODE_KEY } from "src/constants/localStorage";
 import { useTimezone } from "src/context/timezone";
 

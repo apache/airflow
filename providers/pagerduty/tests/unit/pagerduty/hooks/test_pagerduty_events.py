@@ -20,7 +20,7 @@ from __future__ import annotations
 from unittest import mock
 from unittest.mock import patch
 
-import httpx
+import httpx2
 import pagerduty
 import pytest
 from pagerduty import EventsApiV2Client
@@ -91,10 +91,10 @@ class TestPagerdutyEventsHook:
             "message": "Change event processed",
             "status": "success",
         }
-        mock_response = httpx.Response(
+        mock_response = httpx2.Response(
             status_code=202,
             json=mock_response_body,
-            request=httpx.Request("POST", "https://events.pagerduty.com/v2/change/enqueue"),
+            request=httpx2.Request("POST", "https://events.pagerduty.com/v2/change/enqueue"),
         )
 
         mock_response.ok = True
@@ -114,10 +114,10 @@ class TestPagerdutyEventsHook:
             "message": "Event processed",
             "dedup_key": dedup_key,
         }
-        mock_response = httpx.Response(
+        mock_response = httpx2.Response(
             status_code=202,
             json=mock_response_body,
-            request=httpx.Request("POST", "https://events.pagerduty.com/v2/enqueue"),
+            request=httpx2.Request("POST", "https://events.pagerduty.com/v2/enqueue"),
         )
         mock_response.ok = True
         mock_request.return_value = mock_response

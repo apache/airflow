@@ -21,6 +21,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type * as OpenapiQueries from "openapi/queries";
+
 import { Wrapper } from "src/utils/Wrapper";
 
 import { UserSettingsButton } from "./UserSettingsButton";

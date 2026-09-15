@@ -23,11 +23,15 @@ in deferrable mode.
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
+from typing import Any
 
+from google.api_core.exceptions import NotFound
 from google.api_core.retry import Retry
+from google.cloud.dataproc_v1.types import Batch
 
 from airflow.models.dag import DAG
+from airflow.providers.google.cloud.hooks.dataproc import DataprocHook
 from airflow.providers.google.cloud.operators.dataproc import (
     DataprocCreateBatchOperator,
     DataprocDeleteBatchOperator,
@@ -55,6 +59,41 @@ BATCH_CONFIG = {
 }
 
 
+def delete_batch_before_retry(context: dict[str, Any]) -> None:
+    task = context["task"]
+    hook = DataprocHook(
+        gcp_conn_id=task.gcp_conn_id,
+        impersonation_chain=task.impersonation_chain,
+    )
+
+    try:
+        batch = hook.get_batch(
+            batch_id=task.batch_id,
+            region=task.region,
+            project_id=task.project_id,
+            retry=task.retry,
+            timeout=task.timeout,
+            metadata=task.metadata,
+        )
+    except NotFound:
+        task.log.info("Batch %s does not exist. Nothing to clean up before retry.", task.batch_id)
+        return
+
+    if batch.state != Batch.State.FAILED:
+        task.log.info("Batch %s is not failed. Skipping cleanup before retry.", task.batch_id)
+        return
+
+    hook.delete_batch(
+        batch_id=task.batch_id,
+        region=task.region,
+        project_id=task.project_id,
+        retry=task.retry,
+        timeout=task.timeout,
+        metadata=task.metadata,
+    )
+    task.log.info("Requested deletion of failed batch %s before retry.", task.batch_id)
+
+
 with DAG(
     DAG_ID,
     schedule="@once",
@@ -70,6 +109,9 @@ with DAG(
         batch=BATCH_CONFIG,
         batch_id=BATCH_ID,
         deferrable=True,
+        retries=10,
+        retry_delay=timedelta(minutes=5),
+        on_retry_callback=delete_batch_before_retry,
         result_retry=Retry(maximum=100.0, initial=10.0, multiplier=1.0),
         num_retries_if_resource_is_not_ready=3,
     )

@@ -21,7 +21,9 @@ import { useTranslation } from "react-i18next";
 import { FiEdit } from "react-icons/fi";
 
 import type { ConnectionResponse } from "openapi/requests/types.gen";
-import { Modal, IconButton } from "src/components/ui";
+
+import { Modal, IconButton } from "src/system-components";
+
 import { useEditConnection } from "src/queries/useEditConnection";
 
 import ConnectionForm from "./ConnectionForm";
