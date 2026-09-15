@@ -161,9 +161,10 @@ def get_dag_bundles(
     refreshed it, so whoever deployed the code can tell whether it has been picked up yet.
 
     A bundle is visible to a user who can read at least one Dag recorded against it. A bundle
-    holding no registered Dag at all has nothing to authorize against, so it is listed only for
-    a user holding the admin-by-default ``AccessView.IMPORT_ERRORS_ALL`` -- the same view that
-    governs import errors for a file that never registered a Dag.
+    holding no registered Dag at all has nothing to authorize against, so it is listed only for a
+    user holding the admin-by-default ``AccessView.IMPORT_ERRORS_ALL`` for that bundle's team --
+    the same view, scoped the same way, that governs import errors for a file that never
+    registered a Dag.
     """
     bundles_select, total_entries = paginated_select(
         statement=select(DagBundleModel),

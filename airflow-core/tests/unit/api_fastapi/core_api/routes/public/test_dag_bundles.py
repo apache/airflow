@@ -25,7 +25,7 @@ from fastapi.testclient import TestClient
 from itsdangerous import URLSafeSerializer
 from sqlalchemy import insert, update
 
-from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
+from airflow.api_fastapi.auth.managers.models.resource_details import AccessView, DagAccessEntity
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.configuration import conf
 from airflow.models import DagModel
@@ -389,6 +389,33 @@ class TestGetDagBundles:
         # The admin client may read import errors for files with no Dag, so it sees both.
         assert bundle["import_error_count"] == 2
 
+    def test_withholds_the_url_without_dag_version_access(self, dag_scoped_client):
+        """
+        A rendered bundle url needs Dag *version* read, which is a separate grant.
+
+        The same url is otherwise only reachable through ``GET /dags/{dag_id}/dagVersions``, so a
+        caller who may read the Dag but not its versions must still see the bundle -- the row is
+        the point of the page -- with the link withheld rather than the row dropped.
+        """
+        auth_manager = dag_scoped_client.app.state.auth_manager
+        real_is_authorized_dag = auth_manager.is_authorized_dag
+
+        def deny_version(*, method, access_entity=None, details=None, user):
+            if access_entity is DagAccessEntity.VERSION:
+                return False
+            return real_is_authorized_dag(
+                method=method, access_entity=access_entity, details=details, user=user
+            )
+
+        with mock.patch.object(auth_manager, "is_authorized_dag", autospec=True, side_effect=deny_version):
+            body = dag_scoped_client.get("/dagBundles").json()
+
+        bundle = next(b for b in body["dag_bundles"] if b["name"] == GIT_BUNDLE)
+        assert bundle["bundle_url"] is None
+        # Still listed, and the rest of the row is intact.
+        assert bundle["version"] == GIT_VERSION
+        assert [b["name"] for b in body["dag_bundles"]] == READABLE_BUNDLES
+
     def test_non_versioned_bundle_has_no_version_but_keeps_a_timestamp(self, dag_scoped_client):
         """A bundle that does not support versioning still reports when it was last refreshed."""
         body = dag_scoped_client.get("/dagBundles").json()
@@ -434,29 +461,20 @@ class TestGetDagBundles:
         assert bundle["active"] is False
         assert bundle["version"] == "deadbeef"
 
-    def test_import_error_count_excludes_errors_the_caller_may_not_read(self, viewer_client):
+    def test_import_error_count_authorizes_on_the_same_terms_as_import_errors(self, viewer_client):
         """
         Count on the same terms as ``GET /importErrors``, not "every row for this bundle".
 
-        Those terms are a role boundary: an error in a file that never registered a Dag needs
-        ``IMPORT_ERRORS_ALL``, which is admin-by-default precisely because the file's existence is
-        the disclosure. Counting every row would hand that to any viewer, on a polling page.
-        """
-        body = viewer_client.get("/dagBundles").json()
-        bundle = next(b for b in body["dag_bundles"] if b["name"] == GIT_BUNDLE)
+        ``GIT_BUNDLE`` carries three errors, and a viewer may be told about exactly one:
 
-        # Only the error in the file whose Dag this viewer can read.
-        assert bundle["import_error_count"] == 1
+        * ``REGISTERED_FILE`` holds a Dag this viewer can read, so it counts.
+        * ``UNREGISTERED_FILE`` has no ``DagModel`` row, so it needs the admin-by-default
+          ``IMPORT_ERRORS_ALL``. Counting it would hand a viewer the existence of a file that
+          failed before defining anything, on a page that polls.
+        * ``UNREADABLE_FILE`` *is* registered, in this same bundle, but to a Dag outside
+          ``READABLE_DAG_IDS``, so only the ``dag_id IN readable_dag_ids`` restriction excludes it.
 
-    def test_import_error_count_excludes_files_with_no_readable_dag(self, viewer_client):
-        """
-        The other half of the authorization: an error in a co-located file whose Dag the caller
-        cannot read must not be counted either.
-
-        ``UNREADABLE_FILE`` is deliberately *registered* -- it has a ``DagModel`` row in this very
-        bundle -- so the admin-gated unregistered path cannot account for its exclusion. Only the
-        ``dag_id IN readable_dag_ids`` restriction does, which makes this the one test that fails
-        if that restriction is dropped.
+        Dropping either restriction takes the count to 2, so one assertion pins both halves.
         """
         body = viewer_client.get("/dagBundles").json()
         bundle = next(b for b in body["dag_bundles"] if b["name"] == GIT_BUNDLE)
@@ -557,3 +575,110 @@ class TestGetDagBundles:
         assert by_name[GIT_BUNDLE]["team_name"] == TEAM_NAME
         # Bundles with no team mapping still report null rather than inheriting one.
         assert by_name[LOCAL_BUNDLE]["team_name"] is None
+
+
+class TestDaglessBundleTeamScoping:
+    """
+    A Dag-less bundle is authorized per team, not by one unscoped check standing in for all.
+
+    Deciding it once without a ``team_name`` fails in both directions under a team-aware policy:
+    a caller granted the unscoped view sees every team's Dag-less bundles, and a caller granted
+    only their own team's sees none. Both are covered below.
+    """
+
+    OTHER_TEAM = "team_b"
+    DAGLESS_IN_TEAM = "dagless_team_a_bundle"
+    DAGLESS_IN_OTHER_TEAM = "dagless_team_b_bundle"
+
+    @pytest.fixture
+    def team_bundles(self, session) -> None:
+        """Two bundles with no Dag at all, owned by different teams."""
+        session.add_all([Team(name=TEAM_NAME), Team(name=self.OTHER_TEAM)])
+        session.add_all(
+            [
+                _make_bundle(self.DAGLESS_IN_TEAM, version="aaaaaaa", last_refreshed=REFRESHED_AT),
+                _make_bundle(self.DAGLESS_IN_OTHER_TEAM, version="bbbbbbb", last_refreshed=REFRESHED_AT),
+            ]
+        )
+        session.commit()
+        session.execute(
+            insert(dag_bundle_team_association_table).values(
+                [
+                    {"dag_bundle_name": self.DAGLESS_IN_TEAM, "team_name": TEAM_NAME},
+                    {"dag_bundle_name": self.DAGLESS_IN_OTHER_TEAM, "team_name": self.OTHER_TEAM},
+                ]
+            )
+        )
+        session.commit()
+
+    @staticmethod
+    def _client_granting(test_client, permitted_teams: set[str | None]):
+        """
+        A caller whose ``IMPORT_ERRORS_ALL`` is granted only for ``permitted_teams``.
+
+        ``IMPORT_ERRORS`` stays granted throughout so the import-error counts are still computed;
+        only the admin-gated view is scoped, which is what a team-aware manager varies.
+        """
+        auth_manager = test_client.app.state.auth_manager
+
+        def team_aware_authorize_view(*, access_view, user, team_name=None):
+            if access_view is AccessView.IMPORT_ERRORS_ALL:
+                return team_name in permitted_teams
+            return True
+
+        return mock.patch.object(
+            auth_manager, "authorize_view", autospec=True, side_effect=team_aware_authorize_view
+        )
+
+    def test_does_not_expose_another_teams_dagless_bundle(self, team_bundles, admin_client):
+        """
+        Granting the unscoped view must not hand over a team the policy denies.
+
+        The caller holds ``IMPORT_ERRORS_ALL`` unscoped and for their own team, but not for
+        ``team_b``. Deciding the disjunct from the unscoped answer alone would admit every
+        Dag-less bundle, ``team_b``'s included.
+        """
+        with self._client_granting(admin_client, {None, TEAM_NAME}):
+            body = admin_client.get("/dagBundles").json()
+
+        names = [bundle["name"] for bundle in body["dag_bundles"]]
+        assert self.DAGLESS_IN_TEAM in names
+        assert self.DAGLESS_IN_OTHER_TEAM not in names
+        # Filtered in the query, so the denied bundle is absent from the count as well.
+        assert body["total_entries"] == len(names)
+
+    def test_does_not_hide_a_dagless_bundle_the_caller_holds(self, team_bundles, admin_client):
+        """
+        Denying the unscoped view must not hide a team the policy grants.
+
+        The caller holds ``IMPORT_ERRORS_ALL`` for ``team_a`` only, so the unscoped check returns
+        False. Deciding the disjunct from that answer would hide their own team's bundle.
+        """
+        with self._client_granting(admin_client, {TEAM_NAME}):
+            body = admin_client.get("/dagBundles").json()
+
+        names = [bundle["name"] for bundle in body["dag_bundles"]]
+        assert self.DAGLESS_IN_TEAM in names
+        assert self.DAGLESS_IN_OTHER_TEAM not in names
+        # The team-less Dag-less bundle is authorized with team_name=None, which this caller
+        # does not hold.
+        assert DAGLESS_BUNDLE not in names
+        assert body["total_entries"] == len(names)
+
+    def test_grants_a_team_less_bundle_only_on_the_unscoped_view(self, team_bundles, admin_client):
+        """A bundle mapped to no team is authorized with ``team_name=None``."""
+        with self._client_granting(admin_client, {None}):
+            body = admin_client.get("/dagBundles").json()
+
+        names = [bundle["name"] for bundle in body["dag_bundles"]]
+        assert DAGLESS_BUNDLE in names
+        assert self.DAGLESS_IN_TEAM not in names
+        assert self.DAGLESS_IN_OTHER_TEAM not in names
+
+    def test_hides_every_dagless_bundle_without_the_view(self, team_bundles, admin_client):
+        with self._client_granting(admin_client, set()):
+            body = admin_client.get("/dagBundles").json()
+
+        names = [bundle["name"] for bundle in body["dag_bundles"]]
+        assert names == READABLE_BUNDLES
+        assert body["total_entries"] == len(READABLE_BUNDLES)

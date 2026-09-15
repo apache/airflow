@@ -366,9 +366,9 @@ class PermittedBackfillFilter(PermittedDagFilter):
 class PermittedDagBundleFilter(PermittedDagFilter):
     """A parameter that filters Dag bundles to the ones holding a Dag the user may read."""
 
-    def __init__(self, value: set[str] | None = None, *, include_dagless_bundles: bool = False):
+    def __init__(self, value: set[str] | None = None, *, permitted_dagless_bundles: set[str] | None = None):
         super().__init__(value)
-        self.include_dagless_bundles = include_dagless_bundles
+        self.permitted_dagless_bundles = permitted_dagless_bundles or set()
 
     def to_orm(self, statement: Select) -> Select:
         # A bundle carries no per-Dag key to authorize on, so it is scoped by the Dags inside it.
@@ -378,27 +378,17 @@ class PermittedDagBundleFilter(PermittedDagFilter):
         holds_a_readable_dag = DagBundleModel.name.in_(
             select(DagModel.bundle_name).where(DagModel.dag_id.in_(self.value or set()))
         )
-        if not self.include_dagless_bundles:
+        if not self.permitted_dagless_bundles:
             return statement.where(holds_a_readable_dag)
         # A bundle with no registered Dag at all -- a first deploy whose only file fails to import,
         # say -- has no Dag to authorize against, so scoping by Dags alone would hide the bundle
-        # precisely when its import-error count is the thing worth reading. Like the import errors
-        # for a file that never registered a Dag, it is gated on the admin-by-default
-        # ``AccessView.IMPORT_ERRORS_ALL`` instead. ``dag.bundle_name`` is non-nullable, but the
-        # NULL guard keeps a stray row from emptying the whole ``NOT IN``.
-        #
-        # Unlike the per-bundle checks in ``_import_error_counts``, the view is authorized once
-        # without a ``team_name``, because the bundles this admits are not known until the query
-        # runs. A team-aware auth manager that grants the unscoped view therefore shows a holder
-        # every Dag-less bundle, not only their own teams'. Inert under FAB and SimpleAuthManager,
-        # which treat admin as global; revisit if a manager scopes this view per team.
+        # precisely when its import-error count is the thing worth reading. Those bundles are
+        # authorized one at a time against their own team in
+        # ``readable_dag_bundles_filter_factory`` and arrive here as an explicit allow-list, so a
+        # team-aware policy decides each one rather than a single unscoped check standing in for
+        # all of them.
         return statement.where(
-            or_(
-                holds_a_readable_dag,
-                DagBundleModel.name.notin_(
-                    select(DagModel.bundle_name).where(DagModel.bundle_name.is_not(None))
-                ),
-            )
+            or_(holds_a_readable_dag, DagBundleModel.name.in_(self.permitted_dagless_bundles))
         )
 
 
@@ -438,24 +428,50 @@ ReadableTIFilterDep = Annotated[
 ]
 
 
-def readable_dag_bundles_filter_factory() -> Callable[[BaseUser, BaseAuthManager], PermittedDagBundleFilter]:
+def readable_dag_bundles_filter_factory() -> Callable[
+    [BaseUser, BaseAuthManager, Session], PermittedDagBundleFilter
+]:
     """
     Create a callable for Depends in FastAPI that returns the Dag bundle filter for the user.
 
     Dag bundles need their own factory rather than ``permitted_dag_filter_factory``: besides the
-    readable Dag ids, the filter needs to know whether the user may see bundles that hold no
-    registered Dag, which is a separate authorization decision.
+    readable Dag ids, the filter needs the set of bundles holding no registered Dag that this
+    caller may see, which is a separate authorization decision taken per bundle.
     """
 
     def depends_readable_dag_bundles_filter(
         user: GetUserDep,
         auth_manager: AuthManagerDep,
+        session: SessionDep,
     ) -> PermittedDagBundleFilter:
+        # A bundle with no registered Dag has nothing to authorize against, so it is gated on the
+        # admin-by-default ``IMPORT_ERRORS_ALL`` -- the same view ``GET /importErrors`` uses for a
+        # file that never registered a Dag. Resolved here, one bundle at a time against its own
+        # team, so the result can go into the query: authorizing after the fact would leave
+        # unauthorized bundles in ``total_entries`` and in the page.
+        dagless_bundles = session.scalars(
+            select(DagBundleModel.name).where(
+                DagBundleModel.name.notin_(
+                    # ``dag.bundle_name`` is non-nullable, but the guard keeps a stray NULL from
+                    # emptying the whole ``NOT IN``.
+                    select(DagModel.bundle_name).where(DagModel.bundle_name.is_not(None))
+                )
+            )
+        ).all()
+        team_name_by_bundle = (
+            DagBundleModel.get_team_names(dagless_bundles, session=session) if dagless_bundles else {}
+        )
         return PermittedDagBundleFilter(
             auth_manager.get_authorized_dag_ids(user=user, method="GET"),
-            include_dagless_bundles=auth_manager.authorize_view(
-                access_view=AccessView.IMPORT_ERRORS_ALL, user=user
-            ),
+            permitted_dagless_bundles={
+                bundle_name
+                for bundle_name in dagless_bundles
+                if auth_manager.authorize_view(
+                    access_view=AccessView.IMPORT_ERRORS_ALL,
+                    user=user,
+                    team_name=team_name_by_bundle.get(bundle_name),
+                )
+            },
         )
 
     return depends_readable_dag_bundles_filter
