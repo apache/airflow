@@ -149,7 +149,12 @@ def get_provider_info():
                         "label": "Model",
                         "description": "Model in provider:name format (e.g. anthropic:claude-sonnet-5, openai:gpt-5)",
                         "schema": {"type": ["string", "null"]},
-                    }
+                    },
+                    "fallback_conn_ids": {
+                        "label": "Fallback Connections",
+                        "description": "Connection IDs to fail over to, in order, while this provider is unavailable.",
+                        "schema": {"type": ["array", "null"], "items": {"type": "string"}},
+                    },
                 },
             },
             {
@@ -170,6 +175,11 @@ def get_provider_info():
                         "label": "Model",
                         "description": "Azure model identifier (e.g. azure:gpt-4o)",
                         "schema": {"type": ["string", "null"]},
+                    },
+                    "fallback_conn_ids": {
+                        "label": "Fallback Connections",
+                        "description": "Connection IDs to fail over to, in order, while this provider is unavailable.",
+                        "schema": {"type": ["array", "null"], "items": {"type": "string"}},
                     },
                     "api_version": {
                         "label": "API Version",
@@ -195,6 +205,11 @@ def get_provider_info():
                         "label": "Model",
                         "description": "Bedrock model identifier (e.g. bedrock:us.anthropic.claude-opus-4-5)",
                         "schema": {"type": ["string", "null"]},
+                    },
+                    "fallback_conn_ids": {
+                        "label": "Fallback Connections",
+                        "description": "Connection IDs to fail over to, in order, while this provider is unavailable.",
+                        "schema": {"type": ["array", "null"], "items": {"type": "string"}},
                     },
                     "region_name": {
                         "label": "AWS Region",
@@ -260,6 +275,11 @@ def get_provider_info():
                         "label": "Model",
                         "description": "Google model identifier (e.g. google-cloud:gemini-2.0-flash)",
                         "schema": {"type": ["string", "null"]},
+                    },
+                    "fallback_conn_ids": {
+                        "label": "Fallback Connections",
+                        "description": "Connection IDs to fail over to, in order, while this provider is unavailable.",
+                        "schema": {"type": ["array", "null"], "items": {"type": "string"}},
                     },
                     "project": {
                         "label": "GCP Project",
