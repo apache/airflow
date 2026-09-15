@@ -521,15 +521,24 @@ class TestSnowflakeSqlApiHook:
         result = hook.get_headers()
         assert result == HEADERS
 
-    @mock.patch(f"{HOOK_PATH}.get_oauth_token")
-    @mock.patch(f"{HOOK_PATH}._get_conn_params")
-    def test_get_headers_should_support_oauth(self, mock_conn_param, mock_oauth_token):
-        """Test get_headers method by mocking get_oauth_token and _get_conn_params method"""
-        mock_conn_param.return_value = CONN_PARAMS_OAUTH
-        mock_oauth_token.return_value = "newT0k3n"
-        hook = SnowflakeSqlApiHook(snowflake_conn_id="mock_conn_id")
-        result = hook.get_headers()
-        assert result == HEADERS_OAUTH
+    @pytest.mark.parametrize(
+        "extra",
+        [
+            pytest.param({"refresh_token": "secrettoken"}, id="refresh_token"),
+            pytest.param(
+                {"authenticator": "oauth", "grant_type": "client_credentials"}, id="client_credentials"
+            ),
+            pytest.param({"authenticator": "oauth", "azure_conn_id": "azure_conn"}, id="azure_conn_id"),
+        ],
+    )
+    @mock.patch(f"{HOOK_PATH}.get_azure_oauth_token", autospec=True, return_value="newT0k3n")
+    @mock.patch("requests.post", autospec=True)
+    def test_get_headers_should_support_oauth(self, requests_post, mock_azure_oauth_token, extra):
+        requests_post.return_value.json.return_value = {"access_token": "newT0k3n", "expires_in": 600}
+        connection_kwargs = {**BASE_CONNECTION_KWARGS, "extra": {**BASE_CONNECTION_KWARGS["extra"], **extra}}
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
+            assert hook.get_headers() == HEADERS_OAUTH
 
     @mock.patch(f"{HOOK_PATH}._get_conn_params")
     def test_get_headers_should_support_pat(self, mock_conn_param):
