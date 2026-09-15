@@ -1045,6 +1045,13 @@ def _collect_task_changes(
             return
         before, after = before["__var"], after["__var"]
         public_fields = _DIFF_V1_PUBLIC_TASK_FIELDS - {"__type"}
+        if not (before.get("_is_mapped") and after.get("_is_mapped")):
+            # Comparing partial_kwargs field by field only means anything when both sides really are
+            # mapped. An unmapped operator may declare partial_kwargs a template field, making the
+            # mapping its own execution input: reading those keys as operator fields classified user
+            # data by whichever field a key collided with, and named a key the author chose. Keep it
+            # opaque, like any other field off the allowlist.
+            public_fields = public_fields - {"partial_kwargs"}
     else:
         public_fields = _DIFF_V1_PUBLIC_PARTIAL_TASK_FIELDS
     _collect_public_field_changes(before, after, path=path, public_fields=public_fields, collector=collector)
