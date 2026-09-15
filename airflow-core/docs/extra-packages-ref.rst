@@ -118,7 +118,7 @@ other packages that can be used by airflow or some of its providers.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | amazon-aws-auth     | ``pip install apache-airflow[amazon-aws-auth]``     | Amazon-aws-auth AWS authentication                                         |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
-| cloudpickle         | ``pip install apache-airflow[cloudpickle]``         | Cloudpickle hooks and operators                                            |
+| cloudpickle         | ``pip install apache-airflow[cloudpickle]``         | Cloudpickle serialization support                                          |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | github-enterprise   | ``pip install 'apache-airflow[github-enterprise]'`` | GitHub Enterprise auth backend                                             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+

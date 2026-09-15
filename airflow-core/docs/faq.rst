@@ -73,7 +73,7 @@ There are very many reasons why your task might not be getting scheduled. Here a
   running. You can bulk view the list of DagRuns and alter states by clicking
   on the schedule tag for a Dag.
 
-- Is the ``concurrency`` parameter of your Dag reached? ``concurrency`` defines
+- Is the ``max_active_tasks`` parameter of your Dag reached? ``max_active_tasks`` defines
   how many ``running`` task instances a Dag is allowed to have, beyond which
   point things get queued.
 
@@ -87,18 +87,18 @@ sure you fully understand how the scheduler cycle works.
 How to improve Dag performance?
 -------------------------------
 
-There are some Airflow configuration to allow for a larger scheduling capacity and frequency:
+There are some Airflow configurations to allow for a larger scheduling capacity and frequency:
 
 - :ref:`config:core__parallelism`
 - :ref:`config:core__max_active_tasks_per_dag`
 - :ref:`config:core__max_active_runs_per_dag`
 
-Dags have configurations that improves efficiency:
+Dags have configurations that improve efficiency:
 
 - ``max_active_tasks``: Overrides :ref:`config:core__max_active_tasks_per_dag`.
 - ``max_active_runs``: Overrides :ref:`config:core__max_active_runs_per_dag`.
 
-Operators or tasks also have configurations that improves efficiency and scheduling priority:
+Operators or tasks also have configurations that improve efficiency and scheduling priority:
 
 - ``max_active_tis_per_dag``: This parameter controls the number of concurrent running task instances across ``dag_runs``
   per task.
@@ -585,7 +585,7 @@ and eventually cause Dag file processing to fail.
 Refer to :ref:`Dag writing best practices<best_practice:writing_a_dag>` for more information.
 
 
-Do Macros resolves in another Jinja template?
+Do Macros resolve in another Jinja template?
 ---------------------------------------------
 
 It is not possible to render :ref:`Macros<macros>` or any Jinja template within another Jinja template. This is

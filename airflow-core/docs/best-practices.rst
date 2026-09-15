@@ -1048,7 +1048,7 @@ Using ExternalPythonOperator
 .. versionadded:: 2.4
 
 A bit more involved but with significantly less overhead, security, stability problems is to use the
-:class:`airflow.providers.standard.operators.python.ExternalPythonOperator``. In the modern
+:class:`airflow.providers.standard.operators.python.ExternalPythonOperator`. In the modern
 TaskFlow approach described in :doc:`/tutorial/taskflow`. this also can be done with decorating
 your callable with ``@task.external_python`` decorator (recommended way of using the operator).
 It requires, however, that you have a pre-existing, immutable Python environment, that is prepared upfront.
@@ -1131,7 +1131,7 @@ As of version 2.2 of Airflow you can use ``@task.docker`` decorator to run your 
 
 .. versionadded:: 2.4
 
-As of version 2.2 of Airflow you can use ``@task.kubernetes`` decorator to run your functions with ``KubernetesPodOperator``.
+As of version 2.4 of Airflow you can use ``@task.kubernetes`` decorator to run your functions with ``KubernetesPodOperator``.
 
 
 The benefits of using those operators are:
@@ -1172,7 +1172,7 @@ The drawbacks:
   provided by those two are "leaky", so you need to understand a bit more about resources, networking,
   containers etc. in order to author a Dag that uses those operators.
 
-You can see detailed examples of using :class:`airflow.operators.providers.Docker` in
+You can see detailed examples of using :class:`airflow.providers.docker.operators.docker.DockerOperator` in
 :ref:`TaskFlow Docker example <taskflow-docker_environment>`
 and :class:`airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator`
 :ref:`TaskFlow Kubernetes example <tasfklow-kpo>`
