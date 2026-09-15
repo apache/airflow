@@ -303,7 +303,9 @@ class TestOpenAIResponseOperatorTokenCeilings:
 
         mock_ti = Mock()
         mock_ti.xcom_pull.return_value = None
-        operator.render_template_fields(Context(ti=mock_ti))
+        # Airflow 2's XComArg.resolve() reads context["expanded_ti_count"] unconditionally, so the
+        # key has to be present for this to render under the compatibility test suite.
+        operator.render_template_fields(Context(ti=mock_ti, expanded_ti_count=None))
 
         mock_hook_instance = Mock(spec=OpenAIHook)
         operator.hook = mock_hook_instance
@@ -339,8 +341,6 @@ class TestOpenAIResponseOperatorTokenCeilings:
         mock_hook_instance.create_response.assert_not_called()
 
     def test_or_fallback_idiom_raises_under_strict_undefined_dag_binding(self):
-        # `or ''` only fails here under the Dag's StrictUndefined default -- pinning the
-        # idiom the last review round rejected. The sibling test asserts its own binding.
         with DAG("test_dag", schedule=None) as dag:
             operator = OpenAIResponseOperator(
                 task_id=TASK_ID,
