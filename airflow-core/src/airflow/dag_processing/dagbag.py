@@ -186,6 +186,9 @@ class DagBag(LoggingMixin):
     :param parse_lang_sdk_files: when ``True``, parses each file a coordinator's Dag importer claims with
         the coordinator's runtime and bags its Dags as ``SerializedDAG`` objects. When ``False``, such a
         file is an import error.
+    :param validate_executors: Check that the executor of every task is configured, and reject the Dag
+        otherwise. Set to False where the Dag is only loaded to run a task, e.g. in a worker, which
+        usually does not have every executor configured; the Dag processor has already checked them.
     """
 
     def __init__(
@@ -198,11 +201,13 @@ class DagBag(LoggingMixin):
         bundle_path: Path | None = None,
         bundle_name: str | None = None,
         parse_lang_sdk_files: bool = False,
+        validate_executors: bool = True,
     ):
         super().__init__()
         self.bundle_path = bundle_path
         self.bundle_name = bundle_name
         self.parse_lang_sdk_files = parse_lang_sdk_files
+        self.validate_executors = validate_executors
 
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.dag_folder = dag_folder
@@ -374,7 +379,8 @@ class DagBag(LoggingMixin):
                 dag.relative_fileloc = self._get_relative_fileloc(fileloc)
                 dag.bundle_name = self.bundle_name
                 dag.validate()
-                _validate_executor_fields(dag, self.bundle_name)
+                if self.validate_executors:
+                    _validate_executor_fields(dag, self.bundle_name)
                 _assign_default_team_pools(dag, self.bundle_name)
                 self.bag_dag(dag=dag)
                 bagged_dags.append(dag)
