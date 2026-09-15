@@ -1,0 +1,1 @@
+Restore the ``task.queued_duration`` metric, which stopped being emitted when Airflow 3 workers moved to the Task SDK, and record it once per queue wait so that a task resuming from deferral also reports the wait for its worker slot.
