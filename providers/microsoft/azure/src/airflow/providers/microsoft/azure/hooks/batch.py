@@ -44,6 +44,8 @@ class AzureBatchHook(BaseHook):
 
     :param azure_batch_conn_id: :ref:`Azure Batch connection id<howto/connection:azure_batch>`
         of a service principal which will be used to start the container instance.
+    :param batch_max_retries: The number of times a request to the Batch service is retried
+        before it is considered failed. Default is 3.
     """
 
     conn_name_attr = "azure_batch_conn_id"
@@ -74,9 +76,10 @@ class AzureBatchHook(BaseHook):
             },
         }
 
-    def __init__(self, azure_batch_conn_id: str = default_conn_name) -> None:
+    def __init__(self, azure_batch_conn_id: str = default_conn_name, batch_max_retries: int = 3) -> None:
         super().__init__()
         self.conn_id = azure_batch_conn_id
+        self.batch_max_retries = batch_max_retries
 
     def _get_field(self, extras, name):
         return get_field(
@@ -117,6 +120,7 @@ class AzureBatchHook(BaseHook):
         batch_client = BatchClient(
             endpoint=batch_account_url,
             credential=credential,
+            retry_total=self.batch_max_retries,
         )
         return batch_client
 

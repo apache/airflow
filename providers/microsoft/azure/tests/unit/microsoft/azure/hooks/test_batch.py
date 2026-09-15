@@ -67,6 +67,20 @@ class TestAzureBatchHook:
         assert isinstance(conn, BatchClient)
         assert hook.connection is conn, "`connection` property should be cached"
 
+    @pytest.mark.parametrize(
+        ("hook_kwargs", "expected_retry_total"),
+        [
+            pytest.param({}, 3, id="default"),
+            pytest.param({"batch_max_retries": 7}, 7, id="explicit"),
+        ],
+    )
+    def test_batch_max_retries_is_applied_to_the_client(self, hook_kwargs, expected_retry_total):
+        # Asserted on a real client: ``retry_total`` reaches azure-core through ``**kwargs``.
+        hook = AzureBatchHook(azure_batch_conn_id=self.test_vm_conn_id, **hook_kwargs)
+        client = hook.get_conn()
+        assert client._config.retry_policy.total_retries == expected_retry_total
+        assert client._config.retry_policy in client._client._pipeline._impl_policies
+
     @mock.patch(f"{MODULE}.get_sync_default_azure_credential")
     def test_fallback_to_default_azure_credential_when_name_and_key_is_not_provided(
         self, mock_get_default_credential, create_mock_connections
