@@ -37,7 +37,7 @@ The SDK is the ``apache-airflow-ts-sdk`` package (ESM-only). It is currently in 
 
 .. seealso::
 
-  For the full TypeScript API reference (``Dag``, ``DagRegistry``, ``serveDags``, task handlers,
+  For the full TypeScript API reference (``Dag``, ``DagRegistry``, ``serveDags``, the task handler getters,
   ``TaskClient``, supporting types, and exceptions),
   see the `TypeScript SDK API reference <https://airflow.apache.org/docs/ts-sdk/stable/>`__.
 
@@ -93,16 +93,19 @@ value routes the task to the Node.js coordinator.
 TypeScript implementation
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A task is an ordinary (usually ``async``) function receiving ``TaskHandlerArgs``. Create a ``Dag`` with
-the ``dag_id`` it implements, attach each handler with ``dag.task``, collect the Dags in a ``DagRegistry``,
-then serve them to Airflow with ``serveDags``; that top-level ``await`` makes the module a runnable bundle
-entry point.
+A task is an ordinary (usually ``async``) function taking no arguments:
+``getContext()`` and ``getClient()`` reach the runtime from inside the call, so nothing the SDK supplies is a parameter.
+
+Create a ``Dag`` with the ``dag_id`` it implements, attach each handler with ``dag.task``,
+collect the Dags in a ``DagRegistry``, then serve them to Airflow with ``serveDags``.
+That top-level ``await`` makes the module a runnable bundle entry point.
 
 .. code-block:: typescript
 
-    import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "apache-airflow-ts-sdk";
+    import { Dag, DagRegistry, getClient, serveDags } from "apache-airflow-ts-sdk";
 
-    export async function buildMessage({ ctx, client }: TaskHandlerArgs) {
+    export async function buildMessage() {
+      const client = getClient();
       const upstream = await client.getXCom<string>({
         key: "return_value",
         taskId: "python_start",
@@ -125,14 +128,14 @@ of the registry is not part of the packed bundle, and its tasks are marked remov
 through ``registry.getTaskHandler(dagId, taskId)`` without a coordinator runtime. A bundle that collects
 its Dags across several modules can add them incrementally with ``registry.register(...)``.
 
-``new Dag`` and ``dag.task`` take a trailing options object — ``spec`` on both, plus ``inputs`` on a task.
+``new Dag`` and ``dag.task`` take a trailing options object: ``spec`` on both, plus ``inputs`` on a task.
 These are not used yet; do not set them. Any other key is rejected.
 
 .. note::
 
   As with the other language SDKs, XCom *dependencies* are declared in the Python stub Dag (they define task
-  order). The value must still be read explicitly in TypeScript via ``client.getXCom``, and produced either
-  by the task's return value or by ``client.setXCom``.
+  order). The value must still be read explicitly in TypeScript via ``getClient().getXCom``, and produced
+  either by the task's return value or by ``getClient().setXCom``.
 
 Coordinator configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -169,21 +172,29 @@ task instance.
 Writing tasks
 -------------
 
-Every task handler receives a single ``TaskHandlerArgs`` object:
+A task handler takes no SDK-supplied argument. Two getters, valid for as long as the handler runs, supply what it needs:
 
 .. list-table::
    :header-rows: 1
-   :widths: 15 85
+   :widths: 20 80
 
-   * - Field
+   * - Getter
      - Value
-   * - ``ctx``
-     - The task's execution context: ``dagId``, ``taskId`` (including any TaskGroup prefix), ``runId``,
-       ``tryNumber``, ``mapIndex`` (``-1`` for an unmapped task), and ``signal`` — an ``AbortSignal`` that
-       fires when Airflow terminates the task. Pass ``signal`` to ``fetch()``, timers, or other APIs that
-       accept an ``AbortSignal`` for cooperative cancellation.
-   * - ``client``
+   * - ``getContext()``
+     - The task's execution context (a ``TaskContext``): ``dagId``, ``taskId`` (including any TaskGroup
+       prefix), ``runId``, ``tryNumber``, ``mapIndex`` (``-1`` for an unmapped task), and ``signal``, an
+       ``AbortSignal`` that fires when Airflow terminates the task. Pass ``signal`` to ``fetch()``, timers,
+       or other APIs that accept an ``AbortSignal`` for cooperative cancellation.
+   * - ``getClient()``
      - A ``TaskClient`` for Airflow Variables, Connections, and XCom.
+
+Both read a store the runtime installs around the handler call,
+which follows the handler across every ``await`` and into every promise it creates,
+so a helper several frames deep reads them without being passed anything. Both throw outside a handler.
+
+Work that outlives the handler is the one gap.
+An unawaited promise still resolves, but it runs after Airflow has been told the task's terminal state,
+so await everything a handler starts.
 
 A non-``undefined`` return value becomes the task's ``return_value`` XCom, matching Python ``@task``
 behavior. An uncaught exception (or rejected promise) marks the task instance failed in Airflow, triggering
@@ -192,18 +203,18 @@ retries if configured on the stub.
 The ``TaskClient`` surface
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-* ``getVariable(key)`` — returns the Variable as a string, or ``null`` when it is missing;
+* ``getVariable(key)`` returns the Variable as a string, or ``null`` when it is missing;
   ``getVariableOrThrow(key)`` throws ``VariableNotFoundError`` instead, matching Python ``Variable.get``
   with no default.
-* ``getConnection(connId)`` — returns a ``ConnectionResult`` with fields ``id`` and ``type``, plus the
+* ``getConnection(connId)`` returns a ``ConnectionResult`` with fields ``id`` and ``type``, plus the
   optional fields ``host``, ``schema``, ``login``, ``password``, ``port``, and ``extra`` (each may be
   missing or ``null``), or ``null`` when the connection does not exist;
   ``getConnectionOrThrow(connId)`` throws ``ConnectionNotFoundError`` instead, matching Python
   ``BaseHook.get_connection``.
-* ``getXCom<T>({key, ...})`` — reads an XCom value, or ``null`` when it is missing. The locator fields
+* ``getXCom<T>({key, ...})`` reads an XCom value, or ``null`` when it is missing. The locator fields
   (``dagId``, ``runId``, ``taskId``, ``mapIndex``) default to the current task; pass ``taskId`` to read an
   upstream task's XCom. See :ref:`typescript-sdk/types` for how the stored JSON maps to JavaScript types.
-* ``setXCom({key, value, ...})`` — publishes an XCom value.
+* ``setXCom({key, value, ...})`` publishes an XCom value.
 
 Logging
 -------
@@ -262,7 +273,7 @@ Building and packaging
 ``airflow-ts-pack`` (shipped with the SDK) bundles the entry module and all of its imports with esbuild into
 a single self-contained ESM file, ``bundle.mjs``, and embeds the manifest (the ``dag_id`` and ``task_id``
 map plus the supervisor schema version) after a leading compact JSON ``//# airflowBundle=...`` layout header.
-The layout records the byte ranges and SHA-256 digests of the manifest and executable code — one file to
+The layout records the byte ranges and SHA-256 digests of the manifest and executable code, so one file to
 deploy, with no separate manifest or ``node_modules``.
 
 ``esbuild`` is an optional peer dependency: packing is build-time only, so the runtime install of
