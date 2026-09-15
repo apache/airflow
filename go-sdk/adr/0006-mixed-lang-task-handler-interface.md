@@ -42,7 +42,7 @@ Proposed.
 Python owns everything but the body of a Mixed Lang task: `@task.stub` declares the task, its
 arguments, and its place in the graph. The Go side has no Dag to define, so Dag vocabulary misleads.
 
-Renaming the Go function (`fn`) shouldn't change the matched task body, so it's necessary to explictly mention both the dag_id and the task_id on the TaskHandler definition, rather than infering from the naming of Go function.
+Renaming the Go function must not change which task body Airflow matches, so `TaskHandler` names the dag_id and the task_id explicitly instead of inferring them from the Go function name.
 
 Registration is inverted today. An author declares a struct with no state, asserts it implements
 `v1.BundleProvider`, fills in `RegisterDags(dagbag v1.Registry) error`, and hands the struct to
@@ -52,8 +52,8 @@ The term naming should be refined to reduce the new terminologies across user in
 The `Registry` should be `Bundle` and the `AddDag` is mis-used for registering the TaskHandler.
 
 The shipped signature (#70209) injects `sdk.TIRunContext`, `*slog.Logger`, and `sdk.Client` by type.
-However, we still requires the `context.Context` when invoking them, this akwards for the Go user perspative.
-The better interface is exposing the logger and the client directly on the context, which is the signature of `airflow.Context` shown in the bottom of this document.
+Calling them still needs the `context.Context` passed in by hand, which is awkward from a Go author's perspective.
+Exposing the logger and the client on the context itself removes that, and `airflow.Context` in the Signature section below is that shape.
 
 ## Example
 

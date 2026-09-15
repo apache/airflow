@@ -36,10 +36,11 @@ Proposed.
 
 A native Dag interface starts with "register a task, declare an edge".
 Four constructs follow immediately, because Python Dags use them everywhere:
+
 - grouping (`TaskGroup`)
 - conditional skipping (`ShortCircuitOperator`, `@task.short_circuit`)
-- branching (`BranchPythonOperator`, `@task.branch`),
-- and triggering another Dag's run (`TriggerDagRunOperator`)
+- branching (`BranchPythonOperator`, `@task.branch`)
+- triggering another Dag's run (`TriggerDagRunOperator`)
 
 Every Lang SDK has to decide how to spell them, and copying Python's class names is the tempting default but the existing convention of Python SDK might not be straightforward for other Lang SDKs.
 For example `dag.ShortCircuitOperator(...)` asks an author who has never seen Airflow to learn Python's operator taxonomy in order to write an `if`.
@@ -51,18 +52,18 @@ The Go SDK spelling of all four:
 
 ```go
 group := dag.TaskGroup("transform")
-cleaned := group.Task(cleanRows)
-validated := group.Task(validateRows, airflow.Inputs(cleaned))
+cleaned := group.Task("clean_rows", cleanRows)
+validated := group.Task("validate_rows", validateRows, airflow.Inputs(cleaned))
 
-gate := dag.If(hasRows, airflow.Inputs(validated)) // ShortCircuitOperator: skips all downstream when false
-gate.Then(dag.Task(loadIfReady))
-gate.Else(dag.Task(loadFallback))                  // with Else: a branch between the two sides
+gate := dag.If("has_rows", hasRows, airflow.Inputs(validated)) // ShortCircuitOperator: skips all downstream when false
+gate.Then(dag.Task("load_if_ready", loadIfReady))
+gate.Else(dag.Task("load_fallback", loadFallback))             // with Else: a branch between the two sides
 
-pick := dag.Switch(pickPath) // fn returns (string, error), matched against the labels
-pick.Case("long", dag.Task(handleLong)).
-    Case("short", dag.Task(handleShort))
+pick := dag.Switch("pick_path", pickPath) // fn returns (string, error), matched against the labels
+pick.Case("long", dag.Task("handle_long", handleLong)).
+    Case("short", dag.Task("handle_short", handleShort))
 
-dag.Task(airflow.TriggerDagRun(airflow.TriggerDagRunSpec{DagId: "downstream_etl"})).After(gate)
+dag.Task("trigger_downstream", airflow.TriggerDagRun(airflow.TriggerDagRunSpec{DagId: "downstream_etl"})).After(gate)
 ```
 
 Short-circuiting is therefore not a separate construct, just the one-sided `If`.
@@ -78,4 +79,3 @@ Short-circuiting is therefore not a separate construct, just the one-sided `If`.
 - **A group edge needs one base type per SDK** that both a task and a group satisfy, since either can sit at the end of an edge.
   Python already has it: `TaskGroup(TaskGroupMixin, DAGNode)` (`task-sdk/src/airflow/sdk/definitions/taskgroup.py:96`) and every operator inherit `DependencyMixin` (`.../definitions/_internal/mixins.py:35`), where `set_upstream` and `set_downstream` live.
   The Go shape is `airflow.Node` ([`go-sdk/adr/0007`](../../../go-sdk/adr/0007-native-dag-interface.md)).
-

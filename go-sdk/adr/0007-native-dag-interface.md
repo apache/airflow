@@ -29,16 +29,12 @@ Proposed.
 
 1. **One Dag type, constructed then registered.** `airflow.Dag(dagId, spec)` returns a `*airflow.DagRef` that is complete before `bundle.Register(dag)` takes it — the same verb that registers Mixed Lang task handlers ([ADR 6](0006-mixed-lang-task-handler-interface.md)).
    Naming rule: `airflow.X(...)` constructs, `*airflow.XRef` is the entity; what every Dag must have is a positional parameter for dag_id, and the rest travels in a spec struct.
-2. **Tasks register through `dag.Task(fn any, opts ...airflow.TaskOption)`**, returning a `*airflow.TaskRef`. `airflow.Inputs(...)` and a bare `airflow.TaskSpec{}` both implement `TaskOption`.
-
-# comment: this is wrong -- task_id shouldn't default to Go function name, we should explicitly spell the task_id out
-3. **task_id defaults to the Go function name**, as `@task` does in Python TaskFlow, and
-   `airflow.TaskSpec{TaskId: ...}` overrides it. Go owns both ends of a native Dag, so no contract
-   outside the program depends on the identifier — unlike a Mixed Lang handler, where Python fixed
-   the id first ([ADR 6](0006-mixed-lang-task-handler-interface.md)).
+2. **Tasks register through `dag.Task(taskId string, fn any, opts ...airflow.TaskOption)`**, returning a `*airflow.TaskRef`. `airflow.Inputs(...)` and a bare `airflow.TaskSpec{}` both implement `TaskOption`.
+3. **task_id is always written out**, positionally, as it is for a Mixed Lang handler ([ADR 6](0006-mixed-lang-task-handler-interface.md)).
+   Nothing is derived from the Go function name, so renaming or wrapping a function leaves the Dag it serializes to unchanged.
 4. **`airflow.Inputs(refs...)` declares the data and the edge in one call** for defining graph with TaskFlow syntax.
-5. **`Before` and `After` are order-only edges on `airflow.Node`**, which both `*airflow.TaskRef`and `*airflow.TaskGroupRef` satisfy. They are the Go pair for `>>` and `<<`, and both return an `*airflow.EdgeRef` standing for the edges they just declared.
-6. **An edge label hangs off that `*airflow.EdgeRef`**: `loaded.Before(notify).Label("when empty")` is Python's `loaded >> Label("when empty") >> notify`.
+5. **`Before` and `After` are order-only edges on `airflow.Node`**, which both `*airflow.TaskRef` and `*airflow.TaskGroupRef` satisfy. They are the Go pair for `>>` and `<<`, and both return their argument set as one `Node`, so `a.Before(b, c).Before(d)` is Python's `a >> [b, c] >> d`.
+6. **An edge label wraps the endpoint**: `loaded.Before(airflow.Label(notify, "when empty"))` is Python's `loaded >> Label("when empty") >> notify`. Labelling the endpoint rather than the call lets one fan-out give each edge its own label.
 7. **Trigger rules belong to the task**, as `airflow.TaskSpec{TriggerRule: ...}`, never to an edge.
 8. **A user-facing enum carries its type in the constant name** — e.g. `airflow.TriggerRuleAllDone`.
 9. **Everything an author writes comes from one `airflow` package.**
@@ -60,9 +56,9 @@ Both forms build the same graph; which one an author writes depends on whether t
 ```go
 dag := airflow.Dag("etl", airflow.DagSpec{Schedule: "@daily"})
 
-extracted := dag.Task(extract)
-transformed := dag.Task(transform, airflow.Inputs(extracted))
-dag.Task(load, airflow.Inputs(transformed), airflow.TaskSpec{Retries: 2})
+extracted := dag.Task("extract", extract)
+transformed := dag.Task("transform", transform, airflow.Inputs(extracted))
+dag.Task("load", load, airflow.Inputs(transformed), airflow.TaskSpec{Retries: 2})
 
 bundle.Register(dag)
 ```
@@ -85,22 +81,21 @@ func transform(actx airflow.Context, extracted Result) (Result, error) {
 func load(actx airflow.Context, transformed Result) error { return nil }
 ```
 
-The task_ids are `extract`, `transform`, and `load`, from the function names; `dag.Task(load, airflow.TaskSpec{TaskId: "load_rows"})` names one explicitly.
-
 **Order-only dependencies — the `>>` and `<<` equivalent.** For tasks that must be ordered but exchange no data; the functions take no parameter for such an edge.
 
 ```go
-loaded := dag.Task(load, airflow.Inputs(transformed))
-cleaned := dag.Task(cleanup, airflow.TaskSpec{TriggerRule: airflow.TriggerRuleAllDone})
-staging := dag.TaskGroup("staging") // a group carries edges like a task
-staging.Task(stageRows)             // tasks join a group through the group
+loaded := dag.Task("load", load, airflow.Inputs(transformed))
+cleaned := dag.Task("cleanup", cleanup, airflow.TaskSpec{TriggerRule: airflow.TriggerRuleAllDone})
+notified := dag.Task("notify", notify)
+emptyNotice := dag.Task("notify_empty", notifyEmpty)
+staging := dag.TaskGroup("staging")    // a group carries edges like a task
+staging.Task("stage_rows", stageRows)  // tasks join a group through the group
 
-loaded.Before(dag.Task(notify), cleaned)        // loaded >> [notify, cleanup]
-cleaned.After(extracted)                        // cleanup << extracted
-staging.Before(loaded)                          // staging >> load
+staging.Before(loaded)            // staging >> load
+loaded.Before(notified, cleaned)  // loaded >> [notify, cleanup]
+cleaned.After(extracted)          // cleanup << extracted
 
-emptyNotice := dag.Task(notifyEmpty)
-loaded.Before(emptyNotice).Label("when empty")  // loaded >> Label("when empty") >> notifyEmpty
+loaded.Before(airflow.Label(emptyNotice, "when empty"))  // loaded >> Label("when empty") >> notify_empty
 ```
 
 ## Signature
@@ -110,10 +105,10 @@ package airflow
 
 func Dag(dagId string, spec DagSpec) *DagRef
 
-func (d *DagRef) Task(fn any, opts ...TaskOption) *TaskRef
+func (d *DagRef) Task(taskId string, fn any, opts ...TaskOption) *TaskRef
 func (d *DagRef) TaskGroup(groupId string, opts ...TaskGroupOption) *TaskGroupRef
 
-func (g *TaskGroupRef) Task(fn any, opts ...TaskOption) *TaskRef
+func (g *TaskGroupRef) Task(taskId string, fn any, opts ...TaskOption) *TaskRef
 func (g *TaskGroupRef) TaskGroup(groupId string, opts ...TaskGroupOption) *TaskGroupRef
 
 // DagSpec and TaskSpec carry the serialized Dag attributes.
@@ -127,26 +122,28 @@ type DagSpec struct {
 }
 
 type TaskSpec struct {
-    TaskId      string // defaults to the Go function name
     Retries     int
     TriggerRule TriggerRule
     // ...
 }
 
-// TaskOption is sealed — its only method is unexported — so a task takes SDK-defined options
-// and nothing else. TaskSpec and the value Inputs returns both implement it.
+// TaskOption is sealed: its only method is unexported, so a task takes SDK-defined options and
+// nothing else. TaskSpec and the value Inputs returns both implement it.
 type TaskOption interface{ applyTask(*taskConfig) }
 
 func Inputs(refs ...*TaskRef) TaskOption
 
-// Node is what an edge connects. *TaskRef and *TaskGroupRef implement it; it is sealed the same way, and is the Go counterpart of Python's DAGNode / DependencyMixin.
+// Node is what an edge connects. *TaskRef and *TaskGroupRef implement it, sealed the same way.
+// It is the Go counterpart of Python's DAGNode / DependencyMixin.
+// Before and After return their argument set as one Node, which is what makes a chain work.
 type Node interface {
-    Before(nodes ...Node) *EdgeRef
-    After(nodes ...Node) *EdgeRef
+    Before(nodes ...Node) Node
+    After(nodes ...Node) Node
     node()
 }
 
-func (e *EdgeRef) Label(text string) *EdgeRef
+// Label carries an edge label into Before or After. The Node it returns stands for node itself.
+func Label(node Node, text string) Node
 
 // A user-facing enum is a named string type with its type in each constant name.
 type TriggerRule string
@@ -164,13 +161,9 @@ const (
 - **A cycle check becomes necessary.** `b := dag.Task(B, airflow.Inputs(a)); b.Before(a)` is a genuine cycle in accepted
   syntax. Either the build-time or the Dag-processing time should reject this.
 - **A count or type mismatch panics at registration**, not at run time, because each `*TaskRef` carries its recorded output type.
-
-# comment: we should make is possible to a.before(b,c).before(d) syntax
-- **`Before` and `After` return edges, not a node, so they do not chain into a path.** `a >> b >> c`
-  is two statements in Go; one call fans out (`a.Before(b, c)`), and the returned `*EdgeRef` exists
-  to be labelled. Returning the receiver instead would make `a.Before(b).Before(c)` read like
-  Python's chain while meaning a fan-out from `a`.
-- **A data edge is labelled by redeclaring it.** `airflow.Inputs` hands back no `*EdgeRef`, and declaring an edge that already exists is idempotent, so `extracted.Before(transformed).Label("rows")` labels the edge `Inputs` created.
+- **An edge verb returns what it pointed at, not its receiver.** That is what makes `a.Before(b, c).Before(d)` mean `a >> [b, c] >> d`.
+  Returning the receiver would read like a chain and mean a second fan-out from `a`.
+- **A data edge is labelled by redeclaring it.** Declaring an edge that already exists is idempotent, so `extracted.Before(airflow.Label(transformed, "rows"))` labels the edge `Inputs` created.
 
 ## Alternatives
 
@@ -179,9 +172,5 @@ const (
   materializes the whole graph at Dag-processing time and then invokes a single task instance's
   callable per run, so an edge existing only in execution order cannot be parsed without running the
   program to completion. `Inputs` keeps the typed outputs that style is reached for.
-
-# comment: Let's make the label syntax as `loaded.Before(airflow.Label(notify, "when empty"))` so that we can even support  a.before(airflow.Label(b,...),airflow.Label(c,...)).before(d)
-- **An inline label marker**, `loaded.Before(airflow.Label("when empty"), notify)`, transliterating
-  Python's `>> Label(...) >>`. Rejected: it widens the variadic from nodes to a mixed type so the
-  compiler stops saying what an edge endpoint is, and the chained form already reads left to right.
+- **Labelling the call**, `loaded.Before(notify).Label("when empty")`. Rejected: one call fans out, so a single label on the call cannot give `a.Before(b, c)` a different label per edge.
 - **Separate `Dag` and `MixedLangDag` types.** Rejected: Python has one Dag class, and the Mixed Lang case is not a Dag at all ([ADR 6](0006-mixed-lang-task-handler-interface.md)).
