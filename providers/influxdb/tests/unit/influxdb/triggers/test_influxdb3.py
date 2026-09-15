@@ -29,7 +29,7 @@ CONN_ID = "test_influxdb3_conn"
 
 class TestInfluxDB3QueryTrigger:
     def test_serialization(self):
-        """Trigger round-trips its constructor arguments."""
+        """Trigger serializes its constructor arguments."""
         trigger = InfluxDB3QueryTrigger(sql=SQL, influxdb3_conn_id=CONN_ID)
         classpath, kwargs = trigger.serialize()
 
