@@ -168,6 +168,7 @@ class HttpSensor(BaseSensorOperator):
         if not self.deferrable:
             return super().execute(context=context)
         result = self.poke(context)
+        
         if not result:
             self._defer()
         # Keep sync mode's contract of returning the xcom value from a truthy PokeReturnValue.
