@@ -32,7 +32,6 @@ import signal
 import sys
 import traceback
 import warnings
-import zipfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -54,7 +53,6 @@ from airflow.sdk.importers.base import (
     find_file_dag_definitions,
     get_file_suffix,
 )
-from airflow.sdk.importers.zip_importer import ZipFileDagDefinition
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -112,7 +110,7 @@ class _DefinitionBytecodeLoader(importlib.abc.Loader):
         exec(self.get_code(module.__name__), module.__dict__)
 
 
-class PythonDagImporter(AbstractDagImporter[FileDagDefinition | ZipFileDagDefinition]):
+class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
     """
     Importer for Python DAG sources.
 
@@ -135,7 +133,7 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition | ZipFileDagDefini
     def list_dag_definitions(
         self,
         bundle: BaseDagBundle,
-    ) -> Iterator[FileDagDefinition | ZipFileDagDefinition]:
+    ) -> Iterator[FileDagDefinition]:
         """
         List Python DAG files in a bundle matching supported extensions.
 
@@ -148,18 +146,15 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition | ZipFileDagDefini
 
     def might_contain_dag(
         self,
-        definition: FileDagDefinition | ZipFileDagDefinition,
+        definition: FileDagDefinition,
         safe_mode: bool,
     ) -> bool:
         """Cheap heuristic for whether the definition may contain Airflow DAGs."""
-        if isinstance(definition, FileDagDefinition):
-            return might_contain_dag(str(definition.path), safe_mode, conf=conf)
-        with zipfile.ZipFile(definition.zip_path) as archive:
-            return might_contain_dag(definition.file_path, safe_mode, zip_file=archive, conf=conf)
+        return might_contain_dag(definition, safe_mode=safe_mode, conf=conf)
 
     def import_definition(
         self,
-        definition: FileDagDefinition | ZipFileDagDefinition,
+        definition: FileDagDefinition,
         bundle: BaseDagBundle,
         *,
         safe_mode: bool = True,
@@ -213,7 +208,7 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition | ZipFileDagDefini
 
     def _load_modules_from_file(
         self,
-        definition: FileDagDefinition | ZipFileDagDefinition,
+        definition: FileDagDefinition,
         safe_mode: bool,
         result: DagImportResult,
         bundle: BaseDagBundle,

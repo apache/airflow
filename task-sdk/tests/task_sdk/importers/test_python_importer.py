@@ -18,11 +18,14 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import py_compile
 import signal
 import sys
+import tempfile
 import zipfile
+from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
@@ -31,8 +34,9 @@ import pytest
 from airflow.sdk.exceptions import AirflowConfigException
 from airflow.sdk.importers import (
     FileDagDefinition,
+    FilesystemDagDefinition,
     PythonDagImporter,
-    ZipFileDagDefinition,
+    ZipMemberDagDefinition,
 )
 
 
@@ -43,6 +47,41 @@ def mock_bundle(tmp_path):
     return SimpleNamespace(name="test_bundle", path=bundle_dir)
 
 
+class _InMemoryDagDefinition(FileDagDefinition):
+    """A file-like definition backed purely by in-memory bytes (neither a file nor a zip member)."""
+
+    def __init__(self, name: str, source: bytes) -> None:
+        self._name = name
+        self._source = source
+
+    @property
+    def suffix(self) -> str:
+        return Path(self._name).suffix.lower()
+
+    @property
+    def freshness_token(self) -> str:
+        return str(len(self._source))
+
+    def get_relative_loc(self, root: Path | None = None) -> str:
+        return self._name
+
+    def read_bytes(self) -> bytes:
+        return self._source
+
+    @contextlib.contextmanager
+    def as_file(self):
+        with tempfile.NamedTemporaryFile(suffix=self.suffix, delete=False) as f:
+            f.write(self._source)
+            tmp = Path(f.name)
+        try:
+            yield tmp
+        finally:
+            tmp.unlink(missing_ok=True)
+
+    def __repr__(self) -> str:
+        return f"<memory:{self._name}>"
+
+
 class TestPythonDagImporter:
     """Test the PythonDagImporter implementation."""
 
@@ -51,7 +90,7 @@ class TestPythonDagImporter:
         dag_file.write_text("from airflow.sdk import DAG\ndag = DAG('test_dag_1')\n")
 
         importer = PythonDagImporter()
-        definition = FileDagDefinition(path=dag_file)
+        definition = FilesystemDagDefinition(path=dag_file)
         result = importer.import_definition(definition, bundle=mock_bundle)
 
         assert len(result.dags) == 1
@@ -65,7 +104,7 @@ class TestPythonDagImporter:
         dag_file.write_text("from airflow.sdk import DAG\ndef broken(\n")
 
         importer = PythonDagImporter()
-        result = importer.import_definition(FileDagDefinition(path=dag_file), bundle=mock_bundle)
+        result = importer.import_definition(FilesystemDagDefinition(path=dag_file), bundle=mock_bundle)
 
         assert len(result.errors) == 1
         assert result.errors[0].error_type == "import"
@@ -76,7 +115,7 @@ class TestPythonDagImporter:
         helper_file.write_text("def util(): return 42\n")
 
         importer = PythonDagImporter()
-        definition = FileDagDefinition(path=helper_file)
+        definition = FilesystemDagDefinition(path=helper_file)
         result = importer.import_definition(definition, bundle=mock_bundle, safe_mode=True)
 
         assert len(result.dags) == 0
@@ -87,13 +126,13 @@ class TestPythonDagImporter:
         # Exercises the zip-member branch of might_contain_dag on the merged importer:
         # a member with no DAG markers is skipped at import (not discovery), landing in
         # skipped_definitions -- mirroring the file case, and proving PythonDagImporter
-        # accepts a ZipFileDagDefinition directly.
+        # accepts a ZipMemberDagDefinition directly.
         zip_path = mock_bundle.path / "helpers.zip"
         with zipfile.ZipFile(zip_path, "w") as z:
             z.writestr("helper.py", "def util():\n    return 42\n")
 
         importer = PythonDagImporter()
-        definition = ZipFileDagDefinition(zip_path=zip_path, file_path="helper.py")
+        definition = ZipMemberDagDefinition(zip_path=zip_path, file_path="helper.py")
         result = importer.import_definition(definition, bundle=mock_bundle, safe_mode=True)
 
         assert len(result.dags) == 0
@@ -108,12 +147,23 @@ class TestPythonDagImporter:
         bad_pyc.write_bytes(b"this is not valid python bytecode at all!!")
 
         importer = PythonDagImporter()
-        definition = FileDagDefinition(path=bad_pyc)
+        definition = FilesystemDagDefinition(path=bad_pyc)
         result = importer.import_definition(definition, bundle=mock_bundle, safe_mode=False)
 
         assert len(result.dags) == 0
         assert len(result.errors) == 1
         assert result.errors[0].error_type == "import"
+
+    def test_imports_arbitrary_file_like_definition(self, mock_bundle):
+        # The importer must handle any FileDagDefinition through the interface, with no
+        # knowledge of File/Zip concrete types -- so a third, in-memory backing works too.
+        source = b"from airflow.sdk import DAG\ndag = DAG('in_memory_dag')\n"
+        definition = _InMemoryDagDefinition("in_memory_dag.py", source)
+
+        result = PythonDagImporter().import_definition(definition, bundle=mock_bundle, safe_mode=True)
+
+        assert [d.dag_id for d in result.dags] == ["in_memory_dag"]
+        assert result.errors == []
 
     def test_list_dag_definitions(self, mock_bundle):
         # Discovery is identity-only: every extension match is returned regardless of whether
@@ -153,7 +203,7 @@ class TestPythonDagImporter:
         else:
             dag_file.write_text(expected_content)
 
-        src = PythonDagImporter().get_source_code(FileDagDefinition(path=dag_file))
+        src = PythonDagImporter().get_source_code(FilesystemDagDefinition(path=dag_file))
         assert src.language == "python"
         assert src.source_code == expected_content
 
@@ -164,7 +214,7 @@ class TestPythonDagImporter:
         py_compile.compile(str(source_file), cfile=str(pyc_file))
 
         importer = PythonDagImporter()
-        result = importer.import_definition(FileDagDefinition(path=pyc_file), bundle=mock_bundle)
+        result = importer.import_definition(FilesystemDagDefinition(path=pyc_file), bundle=mock_bundle)
 
         assert len(result.dags) == 1
         assert result.dags[0].dag_id == "compiled_dag"
@@ -174,7 +224,7 @@ class TestPythonDagImporter:
         dag_file = tmp_path / "fresh_dag.py"
         dag_file.write_text("from airflow.sdk import DAG\n")
         stat = dag_file.stat()
-        assert FileDagDefinition(path=dag_file).freshness_token == f"{stat.st_mtime_ns}-{stat.st_size}"
+        assert FilesystemDagDefinition(path=dag_file).freshness_token == f"{stat.st_mtime_ns}-{stat.st_size}"
 
     def test_python_importer_custom_extensions(self, mock_bundle):
         importer = PythonDagImporter(extensions=[".custom_py"])
@@ -206,7 +256,7 @@ class TestPythonDagImporter:
         dag_file.write_text("from airflow.sdk import DAG\ndef broken(\n")
 
         importer = PythonDagImporter()
-        result = importer.import_definition(FileDagDefinition(path=dag_file), bundle=mock_bundle)
+        result = importer.import_definition(FilesystemDagDefinition(path=dag_file), bundle=mock_bundle)
 
         assert len(result.errors) == 1
         assert (result.errors[0].stacktrace is not None) == expect_traceback
@@ -224,7 +274,7 @@ class TestPythonDagImporter:
             ),
         ):
             importer.import_definition(
-                FileDagDefinition(path=mock_bundle.path / "dag.py"),
+                FilesystemDagDefinition(path=mock_bundle.path / "dag.py"),
                 bundle=mock_bundle,
                 safe_mode=False,
             )
@@ -233,7 +283,7 @@ class TestPythonDagImporter:
     def test_unexpected_type_error_captured_in_result_errors(self, mock_load, mock_bundle):
         importer = PythonDagImporter()
         result = importer.import_definition(
-            FileDagDefinition(path=mock_bundle.path / "dag.py"),
+            FilesystemDagDefinition(path=mock_bundle.path / "dag.py"),
             bundle=mock_bundle,
         )
 
@@ -254,7 +304,7 @@ class TestPythonDagImporter:
                 registered_handler = handler
 
         with mock.patch("signal.signal", side_effect=mock_signal_func):
-            result = importer.import_definition(FileDagDefinition(path=dag_file), bundle=mock_bundle)
+            result = importer.import_definition(FilesystemDagDefinition(path=dag_file), bundle=mock_bundle)
             assert callable(registered_handler)
 
             registered_handler(signal.SIGSEGV, None)
@@ -271,7 +321,7 @@ class TestPythonDagImporter:
             mock.patch("signal.signal", side_effect=ValueError("signal only works in main thread")),
             caplog.at_level(logging.WARNING),
         ):
-            result = importer.import_definition(FileDagDefinition(path=dag_file), bundle=mock_bundle)
+            result = importer.import_definition(FilesystemDagDefinition(path=dag_file), bundle=mock_bundle)
 
         assert len(result.dags) == 1
         assert "SIGSEGV signal handler registration failed. Not in the main thread" in caplog.text
