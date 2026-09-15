@@ -63,6 +63,12 @@ Cluster context
 Disable verify SSL
   Can optionally disable SSL certificate verification.  By default SSL is verified.
 
+Ssl ca cert
+  Path to a CA bundle used to verify the Kubernetes API server certificate, for clusters
+  whose certificate is signed by a custom or intermediate CA. Ignored when ``Disable verify SSL``
+  is set. The file must be present on the filesystem where the connection is used, e.g. mounted
+  into the worker/scheduler pod via a Secret or ConfigMap volume.
+
 Disable TCP keepalive
   TCP keepalive is a feature (enabled by default) that tries to keep long-running connections
   alive. Set this parameter to True to disable this feature.
