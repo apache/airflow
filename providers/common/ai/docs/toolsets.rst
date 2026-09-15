@@ -902,6 +902,16 @@ design works at all.
 call and destroyed when the agent run ends. A task retry starts from an empty
 sandbox, and so does every other attempt.
 
+**A run that outlives its sandbox fails the task.** The sandbox has its own deadline,
+independent of the agent: ``sandbox_timeout`` on the hosted backend, an hour by
+default, and ``idle_timeout`` if you set one. When either passes mid-run the next
+tool call reaches a sandbox that is gone, which is terminal, so the task fails
+rather than continuing against a fresh one. This is the normal end of any run that
+takes longer than its sandbox's lifetime, and you are paying for the model's
+thinking time and any review pause the whole way, so the deadline arrives sooner
+than the time actually spent running commands would suggest. Size
+``sandbox_timeout`` against the whole run, not against the commands in it.
+
 **Do not combine a sandbox with** ``durable=True``. Durable execution caches each
 tool result and replays it on a retry without calling the backend, so a replayed
 ``write_file`` reports success while no sandbox exists, and the first call that
@@ -1032,8 +1042,14 @@ understanding rather than working around. Modal cannot combine an allowlist with
 hostname in the TLS handshake, which means:
 
 - TLS on port 443 to a listed host connects; any other host is refused at once.
-- Non-TLS traffic to a listed host is blocked, but only after a stall of roughly
-  thirty to fifty seconds, so a model that reaches for plain HTTP waits before it learns.
+- **Nothing refuses non-TLS traffic; it is dropped.** A plain HTTP connection to a
+  listed host stalls until the client gives up, which for one address is around two
+  minutes of TCP retries, and a client that walks every address a name resolves to
+  multiplies that. With the toolset's 60s default command budget the model reads
+  ``[timed out after 60s]`` and concludes its command was slow, never that the network
+  stopped it. A raw TCP connection to port 443 of a listed host, on the other hand,
+  succeeds instantly: enforcement happens entirely at the TLS handshake, so nothing
+  before it tells the model anything.
 - **The destination address is not part of the decision.** This is the part that
   surprises people: the handshake name alone decides, so a connection opened to an
   unrelated address while presenting a listed name is routed to the listed host and

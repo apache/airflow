@@ -960,6 +960,50 @@ class TestFileOperations:
             backend.write_file(handle, "/workspace/out.txt", b"x")
 
 
+class TestClampedExpiry:
+    """
+    A command clamped to the sandbox's remaining life, which then hits that deadline, has
+    stood on the expiry itself.
+
+    Modal reclaims a sandbox some seconds after its deadline passes, so a liveness probe
+    taken at that instant can answer "alive" for a sandbox that dies moments later.
+    Measured against a live account it did exactly that, four runs out of four: the model
+    was told only that its command was slow, and the next tool call then failed the task.
+    The clamp is better evidence than the probe because it cannot race.
+    """
+
+    def test_a_clamped_deadline_reports_the_sandbox_gone_without_probing(
+        self, backend_class, fake, monkeypatch
+    ):
+        backend = backend_class(sandbox_timeout=600)
+        clock = [1000.0]
+        monkeypatch.setattr("airflow.providers.common.ai.sandbox.modal.time.monotonic", lambda: clock[0])
+        handle, sandbox = _created(backend, fake)
+        clock[0] += 500  # 100s of life left, so a 200s command is clamped to it
+        sandbox.process = FakeProcess(returncode=-1)
+        # Make the probe lie the way the live one did, so the test fails if we consult it.
+        sandbox.exec_errors = []
+
+        result = backend.run_command(handle, "sleep 200", timeout=200, max_output_bytes=1024)
+
+        assert result.timed_out is True
+        assert result.applied_timeout == 100
+        assert result.sandbox_terminated is True, "an expiry the clamp stood on must not need a probe"
+
+    def test_an_unclamped_deadline_still_consults_the_sandbox(self, backend_class, fake, monkeypatch):
+        """A command that merely overran its own budget leaves a live sandbox alone."""
+        backend = backend_class(sandbox_timeout=3600)
+        clock = [1000.0]
+        monkeypatch.setattr("airflow.providers.common.ai.sandbox.modal.time.monotonic", lambda: clock[0])
+        handle, sandbox = _created(backend, fake)
+        sandbox.process = FakeProcess(returncode=-1)
+
+        result = backend.run_command(handle, "sleep 5", timeout=2, max_output_bytes=1024)
+
+        assert result.timed_out is True
+        assert result.sandbox_terminated is False
+
+
 class TestMalformedHelperReply:
     """
     Modal serves the native file operations from a helper binary it injects into the

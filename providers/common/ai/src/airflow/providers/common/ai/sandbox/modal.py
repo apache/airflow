@@ -62,8 +62,10 @@ DEFAULT_WORKDIR = "/workspace"
 DEFAULT_SANDBOX_TIMEOUT = 3600
 # Off by default, as it is in Modal. One sandbox serves a whole agent run and nothing
 # keeps it warm between tool calls, so a gap for model generation, another toolset's
-# work, or a human review pause would look idle and reclaim it mid-run, losing every
-# file the agent had written. ``sandbox_timeout`` already bounds what a leak can cost.
+# work, or a human review pause would look idle and reclaim it mid-run. Measured, that
+# does not cost the agent its files: it costs the task. The next tool call reaches a
+# sandbox that is gone, which is terminal, so the run fails rather than continuing
+# against a fresh one. ``sandbox_timeout`` already bounds what a leak can cost.
 DEFAULT_IDLE_TIMEOUT = None
 
 # Extra wall-clock beyond a command's own deadline before we stop waiting on the
@@ -378,8 +380,9 @@ class ModalSandboxBackend(SandboxBackend):
         # can lower, so once a sandbox had less of that budget left than the budget itself
         # -- which happens to every sandbox eventually, whatever its lifetime -- read_file
         # would fail for the rest of its life with advice nobody could follow. A clamped
-        # deadline runs the work that fits, and if the sandbox does end underneath it, the
-        # liveness check below reports that plainly instead.
+        # deadline runs the work that fits, and a command that then uses all of it has
+        # stood on the sandbox's expiry, which ``clamped`` records below.
+        clamped = False
         remaining = self._remaining_lifetime(sandbox)
         if remaining is not None and seconds > remaining:
             log.debug(
@@ -389,6 +392,7 @@ class ModalSandboxBackend(SandboxBackend):
                 sandbox,
             )
             seconds = max(1, int(remaining))
+            clamped = True
         handle = self._handle(sandbox)
         started = time.monotonic()
         try:
@@ -439,7 +443,16 @@ class ModalSandboxBackend(SandboxBackend):
         # hide: an ordinary non-zero exit costs no round trip.
         terminated = False
         if returncode == _DEADLINE_RETURNCODE or returncode >= _SIGNAL_EXIT_BASE:
-            terminated = not self._still_alive(sandbox)
+            if clamped and self._hit_the_deadline(returncode, elapsed=elapsed, budget=seconds):
+                # The deadline WAS the sandbox's remaining lifetime, so reaching it means
+                # the lifetime is spent. Do not ask: Modal reclaims a sandbox some seconds
+                # after its deadline, and measured at this boundary the probe answers
+                # "alive" for a sandbox that dies moments later. Believing it told the
+                # model only that its command was slow, and the next call then failed the
+                # task. The clamp is the better evidence because it cannot race.
+                terminated = True
+            else:
+                terminated = not self._still_alive(sandbox)
             if terminated:
                 # The handle is dead, so drop it rather than hand it to a later call.
                 self._sandboxes.pop(sandbox, None)
