@@ -79,6 +79,12 @@ When a task fails, ``LLMRetryPolicy``:
 3. Based on the classification, returns RETRY (with a suggested delay) or FAIL
 4. The classification reason is logged in the task logs
 
+This classification call is a separate LLM request, made by ``LLMRetryPolicy``
+itself rather than by an operator -- it is not subject to an operator's
+``usage_limits``, and it runs on every task failure regardless
+of any cost cap configured on the failing task. It is bounded by ``timeout``
+and ``max_exception_length``, but not by a cost limit.
+
 If the LLM call fails (provider down, timeout, bad credentials), the policy
 falls back to ``fallback_rules`` if configured, or to the task's standard
 retry behaviour.

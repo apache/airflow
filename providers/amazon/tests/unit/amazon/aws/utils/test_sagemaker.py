@@ -16,19 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-
-class CloudantV1:
-    """Phony class to pass mypy when real class is not imported."""
-
-    def __init__(self, authenticator):
-        pass
-
-    def set_service_url(self, service_url: str):
-        pass
+from airflow.providers.amazon.aws.utils.sagemaker import ApprovalStatus
 
 
-class CouchDbSessionAuthenticator:
-    """Phony class to pass mypy when real class is not imported."""
-
-    def __init__(self, username: str, password: str):
-        pass
+def test_approval_status_values():
+    assert {status.name: status.value for status in ApprovalStatus} == {
+        "APPROVED": "Approved",
+        "REJECTED": "Rejected",
+        "PENDING_MANUAL_APPROVAL": "PendingManualApproval",
+    }
