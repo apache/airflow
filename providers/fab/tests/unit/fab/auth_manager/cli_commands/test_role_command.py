@@ -239,6 +239,7 @@ class TestCliRoles:
         fakeTeamA: Role = self.appbuilder.sm.find_role("FakeTeamA")
         fakeTeamB: Role = self.appbuilder.sm.find_role("FakeTeamB")
 
+        assert fakeTeamA is not None
         assert fakeTeamB is not None
         assert len(fakeTeamB.permissions) == 0
         assert {
