@@ -68,3 +68,22 @@ To minimize update conflicts, we recommend that you keep parameters in the ``not
 ``DatabricksWorkflowTaskGroup`` and not in the ``DatabricksNotebookOperator`` whenever possible.
 This is because, tasks in the ``DatabricksWorkflowTaskGroup`` are passed in on the job trigger time and
 do not modify the job definition.
+
+Repairing a failed workflow run
+-------------------------------
+
+When a Databricks Workflow run fails, each task instance of the task group exposes repair links in the
+Airflow UI:
+
+* **Repair a single task** (on a notebook/task operator) re-runs that one Databricks task.
+* **Repair All Failed Tasks** (on the ``launch`` task) re-runs every failed task of the run.
+
+Clicking a repair link calls the Databricks `repair_run <https://docs.databricks.com/api/workspace/jobs/repairrun>`_
+API on the existing run (continuing the repair chain via ``latest_repair_id``) and reruns the dependent
+tasks, then clears the corresponding Airflow task instances and their downstream tasks so the run resumes
+without having to clear the whole Dag.
+
+On Airflow 3 the repair action is served by a FastAPI endpoint registered by the
+``DatabricksWorkflowPlugin``; the set of failed tasks is resolved from the live Databricks run state. On
+Airflow 2 it is served by the legacy Flask-AppBuilder view. In both cases the repair links are
+authorized with Dag-run edit access.
