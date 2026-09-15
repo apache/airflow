@@ -293,6 +293,16 @@ class RuntimeTaskInstance(TaskInstance):
 
     __rich_repr__.angular = True  # type: ignore[attr-defined]
 
+    def __str__(self) -> str:
+        # ``{{ ti }}`` renders this, and Pydantic's field dump leaks UUIDs and nested objects into
+        # emails; mirror the scheduler-side ``TaskInstance.__repr__`` instead. ``repr()`` deliberately
+        # keeps the field dump — that is the form you want when debugging or reading a failed assert.
+        prefix = f"<TaskInstance: {self.dag_id}.{self.task_id} {self.run_id} "
+        if self.map_index != -1:
+            prefix += f"map_index={self.map_index} "
+        state = self.state.value if self.state else None
+        return prefix + f"[{state}] ti_id={self.id}>"
+
     @detail_span("get_template_context")
     def get_template_context(self) -> Context:
         # TODO: Move this to `airflow.sdk.execution_time.context`

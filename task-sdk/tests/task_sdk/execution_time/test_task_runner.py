@@ -3782,6 +3782,27 @@ class TestRuntimeTaskInstance:
         assert response.dag_id == "test_dag"
         assert response.is_paused is False
 
+    @pytest.mark.parametrize(
+        ("map_index", "state", "expected_middle"),
+        [
+            pytest.param(-1, TaskInstanceState.FAILED, "[failed]", id="unmapped"),
+            pytest.param(2, TaskInstanceState.FAILED, "map_index=2 [failed]", id="mapped"),
+            pytest.param(-1, None, "[None]", id="no-state"),
+        ],
+    )
+    def test_str_is_human_readable(self, create_runtime_ti, map_index, state, expected_middle):
+        ti_id = uuid7()
+        runtime_ti = create_runtime_ti(
+            task=BaseOperator(task_id="hello"),
+            dag_id="my_dag",
+            run_id="my_run",
+            map_index=map_index,
+            ti_id=ti_id,
+        )
+        runtime_ti.state = state
+
+        assert str(runtime_ti) == f"<TaskInstance: my_dag.hello my_run {expected_middle} ti_id={ti_id}>"
+
 
 class TestXComAfterTaskExecution:
     @pytest.mark.parametrize(
