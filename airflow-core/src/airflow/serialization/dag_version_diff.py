@@ -60,13 +60,16 @@ _CUSTOM_TASK_FIELDS_PATH_COMPONENT = "custom_fields"
 _DIFF_V1_PUBLIC_TASK_FIELDS = frozenset(
     {
         "__type",
+        "_can_skip_downstream",
         "_disallow_kwargs_override",
         "_expand_input_attr",
+        "_is_empty",
         "_is_mapped",
         "_is_sensor",
         "_logger_name",
         "_needs_expansion",
         "_operator_extra_links",
+        "_operator_name",
         "_task_display_name",
         "_task_module",
         "allow_nested_operators",
@@ -78,17 +81,20 @@ _DIFF_V1_PUBLIC_TASK_FIELDS = frozenset(
         "doc_rst",
         "doc_yaml",
         "downstream_task_ids",
+        "email",
         "email_on_failure",
         "email_on_retry",
         "end_date",
         "execution_timeout",
         "executor",
         "executor_config",
+        "expand_input",
         "has_on_execute_callback",
         "has_on_failure_callback",
         "has_on_retry_callback",
         "has_on_skipped_callback",
         "has_on_success_callback",
+        "has_retry_policy",
         "ignore_first_depends_on_past",
         "inlets",
         "is_setup",
@@ -99,6 +105,7 @@ _DIFF_V1_PUBLIC_TASK_FIELDS = frozenset(
         "max_retry_delay",
         "multiple_outputs",
         "on_failure_fail_dagrun",
+        "op_kwargs_expand_input",
         "outlets",
         "owner",
         "params",
@@ -106,11 +113,15 @@ _DIFF_V1_PUBLIC_TASK_FIELDS = frozenset(
         "pool",
         "pool_slots",
         "priority_weight",
+        "python_callable_name",
         "queue",
         "render_template_as_native_obj",
+        "reschedule",
+        "resources",
         "retries",
         "retry_delay",
         "retry_exponential_backoff",
+        "run_as_user",
         "start_date",
         "start_from_trigger",
         "start_trigger_args",
@@ -135,6 +146,7 @@ _DIFF_V1_TASK_PARAM_FIELDS = frozenset({"params"})
 _DIFF_V1_TASK_DEPENDENCY_FIELDS = frozenset({"downstream_task_ids"})
 _DIFF_V1_TASK_METADATA_FIELDS = frozenset(
     {
+        "_operator_name",
         "doc",
         "doc_json",
         "doc_md",
@@ -244,6 +256,12 @@ def build_serialized_dag_diff(
     ``include_values`` is true. Callers must authorize disclosure of the entire
     serialized payload, including access-control role names and permission mappings,
     before enabling it.
+
+    ``max_changes`` limits underlying structural changes identically in both disclosure
+    modes. Redacted records with the same public path and operation are grouped, with
+    ``occurrence_count`` counting included changes; authorized records each have a count
+    of one. When ``truncated`` is true, counts are lower bounds and other paths may be
+    absent. Grouping preserves the order of first occurrence in the deterministic walk.
     """
     validate_max_changes(max_changes)
 
@@ -274,7 +292,7 @@ def build_serialized_dag_diff(
         target_document["provenance"] = _canonicalize_value(
             dict(target_provenance or {}), path=("provenance",)
         )
-    except (AttributeError, KeyError, OverflowError, TypeError, ValueError) as error:
+    except (AttributeError, KeyError, OverflowError, RecursionError, TypeError, ValueError) as error:
         log.warning(
             "Serialized Dag diff canonicalization failed",
             error_type=type(error).__name__,
@@ -286,6 +304,13 @@ def build_serialized_dag_diff(
     collector = _ChangeCollector(max_changes=max_changes, include_values=include_values)
     try:
         _collect_changes(base_document, target_document, path=(), collector=collector)
+    except RecursionError:
+        log.warning(
+            "Serialized Dag diff recursion limit exceeded",
+            base_schema_version=base_schema_version,
+            target_schema_version=target_schema_version,
+        )
+        return _mark_unavailable(result, "serialized_dag_recursion_limit_exceeded")
     except _JsonEncodingError:
         log.warning(
             "Serialized Dag diff JSON encoding failed",
@@ -307,6 +332,7 @@ class _ChangeCollector:
         self.count = 0
         self.max_changes = max_changes
         self.include_values = include_values
+        self._redacted_changes: dict[tuple[tuple[str, ...], str], dict[str, Any]] = {}
 
     @property
     def is_truncated(self) -> bool:
@@ -321,16 +347,22 @@ class _ChangeCollector:
         after: Any,
     ) -> None:
         self.count += 1
-        if len(self.changes) >= self.max_changes:
+        if self.is_truncated:
             return
 
         public_path = _get_public_path(path)
+        key = (public_path, operation)
+        if not self.include_values and (existing := self._redacted_changes.get(key)) is not None:
+            existing["occurrence_count"] += 1
+            return
+
         category = _get_category(public_path)
         change: dict[str, Any] = {
             "path": _format_path(path if self.include_values else public_path),
             "operation": operation,
             "category": category,
             "impact": _get_impact(category),
+            "occurrence_count": 1,
         }
         if self.include_values:
             change["before_digest"] = None if before is _MISSING else _get_digest(before)
@@ -339,6 +371,8 @@ class _ChangeCollector:
                 change["before_value"] = before
             if after is not _MISSING:
                 change["after_value"] = after
+        else:
+            self._redacted_changes[key] = change
         self.changes.append(change)
 
 
