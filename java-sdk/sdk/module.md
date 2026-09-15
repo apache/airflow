@@ -47,7 +47,7 @@ meaning of each dimension is defined in the
 | capability: `task-logging` | MUST | ✓ | 3.3 | SLF4J + JPL bridged to the task log |
 | capability: `xcom-read-write` | MUST | ✓ | 3.3 |  |
 | capability: `connection-read` | MUST | ✓ | 3.3 |  |
-| capability: `variable-read-write` | MUST | ✗ | – | getVariable only; no write over the comm socket yet |
+| capability: `variable-read-write` | MUST | ✓ | 3.3 |  |
 | capability: `self-contained-bundle` | MUST | ✓ | 3.3 | Airflow metadata embedded in the jar artifact |
 | capability: `retry-policy` | MAY | ✗ | – | no task-facing retry-policy API yet |
 | capability: `task-state-store` | MAY | ✗ | – | no task-facing state-store API yet |

@@ -119,20 +119,60 @@ calls within a single task.
     :start-after: [START howto_operator_llm_usage_limits]
     :end-before: [END howto_operator_llm_usage_limits]
 
+A plain ``dict`` can be passed instead of a ``UsageLimits`` instance, which lets
+Jinja template individual fields -- e.g. a per-run cost cap driven by an Airflow
+Variable so the budget can change per environment without editing the Dag:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm.py
+    :language: python
+    :start-after: [START howto_operator_llm_templated_usage_limits]
+    :end-before: [END howto_operator_llm_templated_usage_limits]
+
+Each dict value is rendered by Jinja like any other ``template_fields`` entry,
+then coerced to that field's type (``Decimal``, ``int``, or ``bool``). A value
+that doesn't parse -- a Variable that exists but is empty renders to ``""``, a
+typo renders to a non-numeric string -- fails the task with a ``ValueError``
+naming the field and the rendered value, instead of silently disabling the
+limit. A ``UsageLimits`` instance passed directly is used as-is and is not
+templated or validated.
+
 Common knobs on ``UsageLimits``:
 
 - ``request_limit`` — max model requests per run (caps retry/tool-loop blow-ups).
   pydantic-ai applies a default of ``50`` when ``UsageLimits()`` is constructed
   without an explicit value, so passing ``UsageLimits(input_tokens_limit=4_000)``
-  silently inherits that 50-request cap. Set ``request_limit=None`` to disable
-  it explicitly when you only want a token cap.
+  (or the dict form ``{"input_tokens_limit": 4_000}``) silently inherits that
+  50-request cap. Set ``request_limit=None`` explicitly when you only want a
+  token cap.
 - ``input_tokens_limit`` / ``output_tokens_limit`` — per-run token caps.
 - ``total_tokens_limit`` — combined input + output cap.
 - ``tool_calls_limit`` — max tool invocations (``AgentOperator`` only).
+- ``cost_limit`` — a ``Decimal`` cap on the run's estimated USD cost. This is **not** a
+  hard guarantee against overspend: the response that crosses the limit has already been
+  produced and billed — pydantic-ai checks the accumulated cost *after* each response and
+  then fails the run with ``UsageLimitExceeded``. It protects you from further spend, not
+  from the request that broke the budget; even a single-request run fails as soon as that
+  request's cost pushes the total over the limit. Pricing is looked up by model
+  name, not by endpoint: a self-hosted deployment serving a model pydantic-ai
+  recognizes is still priced, at that model's public list rates rather than at what
+  the deployment actually costs you. That covers vLLM, whose only working prefix is
+  ``openai:<model>`` (see :doc:`../self_hosted_models`).
+  A model pydantic-ai cannot price (``ollama:llama3.2``, a private fine-tune)
+  reports no cost at all, so ``cost_limit`` is not enforced there -- a
+  ``CostNotFoundWarning`` is emitted instead of failing the run. And like the other
+  knobs above, setting ``cost_limit``
+  alone still inherits the ``request_limit=50`` default — see the ``request_limit`` note
+  above. Note that ``cost_limit`` only caps the operator's own LLM calls --
+  the meta-agent that ``LLMRetryPolicy`` runs to classify a failed task is a separate,
+  uncapped LLM call; see :doc:`../retry_policies`.
 
 When the limit is hit pydantic-ai raises ``UsageLimitExceeded``, which
 propagates to Airflow as a task failure — Airflow's standard retry policy
-applies on top.
+applies on top. Every limit here bounds a single agent *run*, not a task: each
+Airflow task retry re-renders ``usage_limits`` and starts a fresh count, and for
+``AgentOperator`` so does each HITL regeneration. A ``cost_limit`` of
+``Decimal("0.50")`` caps one run, so it is not a bound on what the task spends in
+total.
 
 TaskFlow Decorator
 ------------------
@@ -217,8 +257,10 @@ Parameters
   for structured output.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai ``Agent``
   constructor (e.g. ``retries``, ``model_settings``, ``tools``). Supports Jinja templating.
-- ``usage_limits``: Optional pydantic-ai ``UsageLimits`` enforced on the run.  Fails
-  the task when token / request / tool-call budgets are exceeded.  Default ``None``.
+- ``usage_limits``: Optional pydantic-ai ``UsageLimits`` enforced on the run, or a
+  ``dict`` of the same fields (templated via Jinja, then coerced per field type).
+  Fails the task when token / request / tool-call budgets are exceeded, or when a
+  templated dict value cannot be coerced.  Default ``None``.
 - ``require_approval``: If ``True``, the task defers after generating output and waits
   for human review.  Default ``False``.
 - ``approval_timeout``: Maximum time to wait for a review (``timedelta``).  ``None``

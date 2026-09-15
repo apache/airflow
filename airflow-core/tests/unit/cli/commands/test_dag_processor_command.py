@@ -91,3 +91,20 @@ class TestDagProcessorCommand:
         mock_reloader.assert_called_once()
         # The callback function should be callable
         assert callable(mock_reloader.call_args[0][0])
+
+    @conf_vars(
+        {("core", "load_examples"): "False", ("profiling", "memray_trace_components"): "dag_processor"}
+    )
+    @mock.patch("airflow.cli.commands.dag_processor_command.run_command_with_daemon_option")
+    @mock.patch("airflow.cli.commands.dag_processor_command.DagProcessorJobRunner")
+    def test_memray_traces_the_job_and_not_the_parent_process(self, mock_runner, mock_daemon_option):
+        """The callback runs on the far side of the daemon fork, so the tracer has to start there."""
+        mock_runner.return_value.job_type = "DagProcessorJob"
+        memray = mock.MagicMock()
+
+        with mock.patch.dict("sys.modules", {"memray": memray}):
+            dag_processor_command.dag_processor(self.parser.parse_args(["dag-processor"]))
+            memray.Tracker.assert_not_called()
+
+            mock_daemon_option.call_args.kwargs["callback"]()
+            memray.Tracker.assert_called_once()
