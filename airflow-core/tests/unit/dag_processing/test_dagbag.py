@@ -36,6 +36,7 @@ import pytest
 from sqlalchemy import select
 
 from airflow import settings
+from airflow.dag_processing.bundles.provider import DagBundleConfiguration
 from airflow.dag_processing.dagbag import (
     BundleDagBag,
     DagBag,
@@ -135,11 +136,10 @@ class TestValidateExecutorFields:
     def test_multi_team_enabled_bundle_exists_with_team(self, mock_lookup, mock_manager_class):
         """Test successful team lookup when bundle exists and has team_name."""
         # Setup mock bundle manager
-        mock_bundle_config = mock.MagicMock()
-        mock_bundle_config.team_name = "test_team"
+        bundle_config = DagBundleConfiguration(name="test_bundle", team_name="test_team")
 
         mock_manager = mock_manager_class.return_value
-        mock_manager._bundle_config = {"test_bundle": mock_bundle_config}
+        mock_manager.get_bundle_configuration.return_value = bundle_config
 
         with DAG("test-dag", schedule=None) as dag:
             BaseOperator(task_id="t1", executor="team.executor")
@@ -154,11 +154,10 @@ class TestValidateExecutorFields:
     @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
     def test_multi_team_enabled_bundle_exists_no_team(self, mock_lookup, mock_manager_class):
         """Test when bundle exists but has no team_name (None or empty)."""
-        mock_bundle_config = mock.MagicMock()
-        mock_bundle_config.team_name = None  # No team associated
+        bundle_config = DagBundleConfiguration(name="test_bundle")
 
         mock_manager = mock_manager_class.return_value
-        mock_manager._bundle_config = {"test_bundle": mock_bundle_config}
+        mock_manager.get_bundle_configuration.return_value = bundle_config
 
         with DAG("test-dag", schedule=None) as dag:
             BaseOperator(task_id="t1", executor="test.executor")
@@ -188,11 +187,10 @@ class TestValidateExecutorFields:
     @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
     def test_executor_validation_failure_with_team(self, mock_lookup, mock_manager_class):
         """Test executor validation failure when team is associated (team-specific error)."""
-        mock_bundle_config = mock.MagicMock()
-        mock_bundle_config.team_name = "test_team"
+        bundle_config = DagBundleConfiguration(name="test_bundle", team_name="test_team")
 
         mock_manager = mock_manager_class.return_value
-        mock_manager._bundle_config = {"test_bundle": mock_bundle_config}
+        mock_manager.get_bundle_configuration.return_value = bundle_config
 
         # ExecutorLoader raises exception
         mock_lookup.side_effect = UnknownExecutorException("Executor not found")
@@ -236,11 +234,10 @@ class TestValidateExecutorFields:
     @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
     def test_global_executor_fallback_success(self, mock_lookup, mock_manager_class):
         """Test that team-specific executor failure falls back to global executor successfully."""
-        mock_bundle_config = mock.MagicMock()
-        mock_bundle_config.team_name = "test_team"
+        bundle_config = DagBundleConfiguration(name="test_bundle", team_name="test_team")
 
         mock_manager = mock_manager_class.return_value
-        mock_manager._bundle_config = {"test_bundle": mock_bundle_config}
+        mock_manager.get_bundle_configuration.return_value = bundle_config
 
         # First call (team-specific) fails, second call (global) succeeds
         mock_lookup.side_effect = [UnknownExecutorException("Team executor not found"), None]
@@ -261,11 +258,10 @@ class TestValidateExecutorFields:
     @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
     def test_global_executor_fallback_failure(self, mock_lookup, mock_manager_class):
         """Test that when both team-specific and global executors fail, appropriate error is raised."""
-        mock_bundle_config = mock.MagicMock()
-        mock_bundle_config.team_name = "test_team"
+        bundle_config = DagBundleConfiguration(name="test_bundle", team_name="test_team")
 
         mock_manager = mock_manager_class.return_value
-        mock_manager._bundle_config = {"test_bundle": mock_bundle_config}
+        mock_manager.get_bundle_configuration.return_value = bundle_config
 
         # Both calls fail
         mock_lookup.side_effect = UnknownExecutorException("Executor not found")
@@ -295,11 +291,10 @@ class TestValidateExecutorFields:
     @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
     def test_team_specific_executor_success_no_fallback(self, mock_lookup, mock_manager_class):
         """Test that when team-specific executor succeeds, global fallback is not attempted."""
-        mock_bundle_config = mock.MagicMock()
-        mock_bundle_config.team_name = "test_team"
+        bundle_config = DagBundleConfiguration(name="test_bundle", team_name="test_team")
 
         mock_manager = mock_manager_class.return_value
-        mock_manager._bundle_config = {"test_bundle": mock_bundle_config}
+        mock_manager.get_bundle_configuration.return_value = bundle_config
 
         # First call (team-specific) succeeds
         mock_lookup.return_value = None
@@ -470,11 +465,8 @@ class TestDagBag:
         operator_args,
         expected_pool,
     ):
-        mock_bundle = mock.MagicMock()
-        mock_bundle.team_name = team_name
-        mock_manager.return_value._bundle_config = {
-            "test_bundle": mock_bundle,
-        }
+        bundle_config = DagBundleConfiguration(name="test_bundle", team_name=team_name)
+        mock_manager.return_value.get_bundle_configuration.return_value = bundle_config
 
         dag_file = tmp_path / "test_dag.py"
         dag_file.write_text(
