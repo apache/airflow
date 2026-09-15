@@ -152,7 +152,7 @@ def variables_import(args, *, session: Session = NEW_SESSION):
     if action_on_existing != "overwrite":
         existing_keys = set(session.scalars(select(Variable.key).where(Variable.key.in_(var_json))))
     if action_on_existing == "fail" and existing_keys:
-        raise SystemExit(f"Failed. These keys: {sorted(existing_keys)} already exists.")
+        raise SystemExit(f"Failed. These keys: {sorted(existing_keys)} already exist.")
     for k, v in var_json.items():
         if action_on_existing == "skip" and k in existing_keys:
             skipped.add(k)
@@ -169,12 +169,12 @@ def variables_import(args, *, session: Session = NEW_SESSION):
         else:
             suc_count += 1
     print(f"{suc_count} of {len(var_json)} variables successfully updated.")
-    if fail_count:
-        print(f"{fail_count} variable(s) failed to be updated.")
     if skipped:
         print(
-            f"The variables with these keys: {list(sorted(skipped))} were skipped because they already exists"
+            f"The variables with these keys: {list(sorted(skipped))} were skipped because they already exist"
         )
+    if fail_count:
+        raise SystemExit(f"{fail_count} variable(s) failed to be updated.")
 
 
 @providers_configuration_loaded
