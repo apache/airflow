@@ -3542,6 +3542,79 @@ class TestGetCount:
             "message": "Task group non_existent_group not found in DAG test_get_count_task_group_not_found",
         }
 
+    def test_get_count_task_group_resolved_against_run_version(self, client, session, dag_maker):
+        """A run of a versioned bundle keeps the task group of the version it was created from."""
+        dag_id = "test_get_count_task_group_run_version"
+        with dag_maker(dag_id=dag_id, serialized=True, bundle_version="v1"):
+            with TaskGroup("group1"):
+                EmptyOperator(task_id="task1")
+                EmptyOperator(task_id="task2")
+        dag_maker.create_dagrun(run_id="pinned", session=session)
+        session.commit()
+
+        # The group is renamed in the next version; the pinned run still has the two old tasks.
+        with dag_maker(dag_id=dag_id, serialized=True, bundle_version="v2"):
+            with TaskGroup("group2"):
+                EmptyOperator(task_id="task1")
+                EmptyOperator(task_id="task2")
+        session.commit()
+
+        response = client.get(
+            "/execution/task-instances/count",
+            params={"dag_id": dag_id, "task_group_id": "group1", "run_ids": ["pinned"]},
+        )
+        assert response.status_code == 200
+        assert response.json() == 2
+
+        # Without a named run the latest version answers, and it no longer has group1.
+        response = client.get(
+            "/execution/task-instances/count", params={"dag_id": dag_id, "task_group_id": "group1"}
+        )
+        assert response.status_code == 404
+
+        # A group that only exists in the newer version is not part of the pinned run.
+        response = client.get(
+            "/execution/task-instances/count",
+            params={"dag_id": dag_id, "task_group_id": "group2", "run_ids": ["pinned"]},
+        )
+        assert response.status_code == 404
+        assert response.json()["detail"] == {
+            "reason": "not_found",
+            "message": f"Task group group2 not found in DAG {dag_id}",
+        }
+
+    def test_get_count_task_group_resolved_per_run(self, client, session, dag_maker):
+        """Each run counts only the tasks its own Dag version places in the group."""
+        dag_id = "test_get_count_task_group_per_run"
+        with dag_maker(dag_id=dag_id, serialized=True, bundle_version="v1"):
+            with TaskGroup("group1", prefix_group_id=False):
+                EmptyOperator(task_id="task1")
+            EmptyOperator(task_id="task2")
+        dag_maker.create_dagrun(run_id="run_v1", logical_date=timezone.datetime(2026, 1, 1), session=session)
+        session.commit()
+
+        # task2 joins the group in the next version; the v1 run still has it outside the group.
+        with dag_maker(dag_id=dag_id, serialized=True, bundle_version="v2"):
+            with TaskGroup("group1", prefix_group_id=False):
+                EmptyOperator(task_id="task1")
+                EmptyOperator(task_id="task2")
+        dag_maker.create_dagrun(run_id="run_v2", logical_date=timezone.datetime(2026, 1, 2), session=session)
+        session.commit()
+
+        response = client.get(
+            "/execution/task-instances/count",
+            params={"dag_id": dag_id, "task_group_id": "group1", "run_ids": ["run_v1", "run_v2"]},
+        )
+        assert response.status_code == 200
+        assert response.json() == 3
+
+        response = client.get(
+            "/execution/task-instances/count",
+            params={"dag_id": dag_id, "task_group_id": "group1", "run_ids": ["run_v1"]},
+        )
+        assert response.status_code == 200
+        assert response.json() == 1
+
     def test_get_count_dag_not_found(self, client, session):
         response = client.get(
             "/execution/task-instances/count",
@@ -3979,6 +4052,137 @@ class TestGetTaskStates:
                 },
             },
         }
+
+    def test_get_task_states_task_group_resolved_against_run_version(self, client, session, dag_maker):
+        """A run of a versioned bundle keeps the task group of the version it was created from."""
+        dag_id = "test_get_task_states_task_group_run_version"
+        with dag_maker(dag_id=dag_id, serialized=True, bundle_version="v1"):
+            with TaskGroup("group1"):
+                EmptyOperator(task_id="task1")
+        dag_maker.create_dagrun(run_id="pinned", session=session)
+        session.commit()
+
+        # The group is renamed in the next version; the pinned run still has the old task.
+        with dag_maker(dag_id=dag_id, serialized=True, bundle_version="v2"):
+            with TaskGroup("group2"):
+                EmptyOperator(task_id="task1")
+        session.commit()
+
+        response = client.get(
+            "/execution/task-instances/states",
+            params={"dag_id": dag_id, "task_group_id": "group1", "run_ids": ["pinned"]},
+        )
+        assert response.status_code == 200
+        assert response.json() == {"task_states": {"pinned": {"group1.task1": None}}}
+
+        response = client.get(
+            "/execution/task-instances/states",
+            params={"dag_id": dag_id, "task_group_id": "group2", "run_ids": ["pinned"]},
+        )
+        assert response.status_code == 404
+
+    def test_get_task_states_task_group_resolved_per_run(self, client, session, dag_maker):
+        """Each run reports only the tasks its own Dag version places in the group."""
+        dag_id = "test_get_task_states_task_group_per_run"
+        with dag_maker(dag_id=dag_id, serialized=True, bundle_version="v1"):
+            with TaskGroup("group1", prefix_group_id=False):
+                EmptyOperator(task_id="task1")
+            EmptyOperator(task_id="task2")
+        dag_maker.create_dagrun(run_id="run_v1", logical_date=timezone.datetime(2026, 1, 1), session=session)
+        session.commit()
+
+        # task2 joins the group in the next version; the v1 run still has it outside the group.
+        with dag_maker(dag_id=dag_id, serialized=True, bundle_version="v2"):
+            with TaskGroup("group1", prefix_group_id=False):
+                EmptyOperator(task_id="task1")
+                EmptyOperator(task_id="task2")
+        dag_maker.create_dagrun(run_id="run_v2", logical_date=timezone.datetime(2026, 1, 2), session=session)
+        session.commit()
+
+        response = client.get(
+            "/execution/task-instances/states",
+            params={"dag_id": dag_id, "task_group_id": "group1", "run_ids": ["run_v1", "run_v2"]},
+        )
+        assert response.status_code == 200
+        assert response.json() == {
+            "task_states": {"run_v1": {"task1": None}, "run_v2": {"task1": None, "task2": None}}
+        }
+
+    def test_get_task_states_unknown_task_for_named_run(self, client, session, dag_maker):
+        """A task that no named run's Dag version defines is answered with 404, once such a run exists."""
+        dag_id = "test_get_task_states_unknown_task"
+        with dag_maker(dag_id=dag_id, serialized=True, bundle_version="v1"):
+            EmptyOperator(task_id="task1")
+        dr = dag_maker.create_dagrun(run_id="run1", session=session)
+        session.commit()
+
+        response = client.get(
+            "/execution/task-instances/states",
+            params={"dag_id": dag_id, "task_ids": ["missing"], "run_ids": ["run1"]},
+        )
+        assert response.status_code == 404
+        assert response.json()["detail"] == {
+            "reason": "not_found",
+            "message": f"Task missing not found in DAG {dag_id}",
+        }
+
+        response = client.get(
+            "/execution/task-instances/states",
+            params={
+                "dag_id": dag_id,
+                "task_ids": ["missing", "other"],
+                "logical_dates": [dr.logical_date.isoformat()],
+            },
+        )
+        assert response.status_code == 404
+        assert response.json()["detail"]["message"] == f"Tasks missing, other not found in DAG {dag_id}"
+
+        # The run's version defines task1, so its state (none yet) is answered as before.
+        response = client.get(
+            "/execution/task-instances/states",
+            params={"dag_id": dag_id, "task_ids": ["task1"], "run_ids": ["run1"]},
+        )
+        assert response.status_code == 200
+        assert response.json() == {"task_states": {"run1": {"task1": None}}}
+
+        # Nothing is known about a run that does not exist yet, so the request is not validated.
+        response = client.get(
+            "/execution/task-instances/states",
+            params={"dag_id": dag_id, "task_ids": ["missing"], "run_ids": ["later"]},
+        )
+        assert response.status_code == 200
+        assert response.json() == {"task_states": {}}
+
+        # Without a named run the request is not validated either.
+        response = client.get(
+            "/execution/task-instances/states", params={"dag_id": dag_id, "task_ids": ["missing"]}
+        )
+        assert response.status_code == 200
+        assert response.json() == {"task_states": {}}
+
+    def test_get_task_states_task_known_to_run_version_or_by_instance(self, client, session, dag_maker):
+        """A task the run's version defines exists before its instance does; an instance counts on its own."""
+        dag_id = "test_get_task_states_task_known_to_version"
+        with dag_maker(dag_id=dag_id, serialized=True):
+            EmptyOperator(task_id="task1")
+            EmptyOperator(task_id="old_task")
+        dag_maker.create_dagrun(run_id="run1", session=session)
+        session.commit()
+
+        # A run of an unversioned bundle resolves to the latest version: a task added there is known
+        # before the scheduler creates its instance, and a task removed there is still known through
+        # the instance the run already has.
+        with dag_maker(dag_id=dag_id, serialized=True):
+            EmptyOperator(task_id="task1")
+            EmptyOperator(task_id="new_task")
+        session.commit()
+
+        response = client.get(
+            "/execution/task-instances/states",
+            params={"dag_id": dag_id, "task_ids": ["new_task", "old_task"], "run_ids": ["run1"]},
+        )
+        assert response.status_code == 200
+        assert response.json() == {"task_states": {"run1": {"old_task": None}}}
 
     def test_get_task_states_with_task_group_id_and_task_id(self, client, session, dag_maker):
         with dag_maker("test_get_task_group_states_with_multiple_task_tasks", serialized=True):
