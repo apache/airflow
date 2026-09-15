@@ -30,6 +30,7 @@ from sqlalchemy import func, select, update
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.dag_processing.bundles.manager import DagBundlesManager, _guess_best_bundle_for_fileloc
+from airflow.dag_processing.bundles.provider import DagBundleConfiguration, DagBundleProvider
 from airflow.exceptions import AirflowConfigException
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
@@ -118,6 +119,50 @@ class BasicBundle(BaseDagBundle):
         return Path("/__basic_bundle_unmatched__")
 
 
+class CustomDagBundleProvider(DagBundleProvider):
+    def get_all_bundle_configurations(self):
+        return [DagBundleConfiguration(name="active-bundle")]
+
+    def get_bundle(self, name, version=None, version_data=None):
+        if name not in {"active-bundle", "retired-bundle"}:
+            raise ValueError(f"Unknown test bundle: {name}")
+        return BasicBundle(
+            name=name,
+            version=version,
+            version_data=version_data,
+            refresh_interval=1,
+        )
+
+
+class DuplicateConfigurationDagBundleProvider(CustomDagBundleProvider):
+    def get_all_bundle_configurations(self):
+        return [
+            DagBundleConfiguration(name="duplicate"),
+            DagBundleConfiguration(name="duplicate"),
+        ]
+
+
+class NonConfigurationDagBundleProvider(CustomDagBundleProvider):
+    def get_all_bundle_configurations(self):
+        return [object()]
+
+
+class FailingInitializationDagBundleProvider(CustomDagBundleProvider):
+    def __init__(self):
+        raise RuntimeError("Provider initialization failed")
+
+
+class ReloadingDagBundleProvider(CustomDagBundleProvider):
+    def __init__(self):
+        self.configurations = [DagBundleConfiguration(name="active-bundle")]
+        self.error: Exception | None = None
+
+    def get_all_bundle_configurations(self):
+        if self.error:
+            raise self.error
+        return self.configurations
+
+
 BASIC_BUNDLE_CONFIG = [
     {
         "name": "my-test-bundle",
@@ -148,6 +193,7 @@ def test_get_bundle():
         os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)}
     ):
         bundle_manager = DagBundlesManager()
+        assert bundle_manager.provides_complete_configuration is False
 
         with pytest.raises(ValueError, match="'bundle-that-doesn't-exist' is not configured"):
             bundle_manager.get_bundle(name="bundle-that-doesn't-exist", version="hello")
@@ -165,6 +211,112 @@ def test_get_bundle():
     assert isinstance(bundle, BasicBundle)
     assert bundle.name == "my-test-bundle"
     assert bundle.version is None
+
+
+@conf_vars(
+    {
+        (
+            "dag_processor",
+            "dag_bundle_provider",
+        ): "unit.dag_processing.bundles.test_dag_bundle_manager.CustomDagBundleProvider"
+    }
+)
+def test_custom_bundle_provider_resolves_active_and_retired_bundles():
+    manager = DagBundlesManager()
+
+    assert manager.provides_complete_configuration is True
+    assert manager.get_all_bundle_configurations() == (DagBundleConfiguration(name="active-bundle"),)
+    assert manager.get_bundle_configuration("active-bundle") == DagBundleConfiguration(name="active-bundle")
+    assert manager.get_all_bundle_names() == ["active-bundle"]
+    with pytest.raises(ValueError, match="'unknown-bundle' is not configured"):
+        manager.get_bundle_configuration("unknown-bundle")
+
+    active_bundle = manager.get_bundle("active-bundle")
+    retired_bundle = manager.get_bundle(
+        "retired-bundle",
+        version="v1",
+        version_data={"manifest": "retired.json"},
+    )
+
+    assert active_bundle.name == "active-bundle"
+    assert retired_bundle.name == "retired-bundle"
+    assert retired_bundle.version == "v1"
+    assert retired_bundle.version_data == {"manifest": "retired.json"}
+
+
+@conf_vars(
+    {
+        (
+            "dag_processor",
+            "dag_bundle_provider",
+        ): "unit.dag_processing.bundles.test_dag_bundle_manager.ReloadingDagBundleProvider"
+    }
+)
+def test_custom_bundle_provider_refreshes_active_configurations():
+    manager = DagBundlesManager()
+    provider = manager._bundle_provider
+    assert isinstance(provider, ReloadingDagBundleProvider)
+
+    manager.parse_config()
+
+    provider.configurations = [
+        DagBundleConfiguration(name="active-bundle"),
+        DagBundleConfiguration(name="added-bundle"),
+    ]
+    manager.parse_config()
+    assert manager.get_all_bundle_configurations() == tuple(provider.configurations)
+
+    provider.error = RuntimeError("source unavailable")
+    with pytest.raises(RuntimeError, match="source unavailable"):
+        manager.parse_config()
+    assert manager.get_all_bundle_configurations() == tuple(provider.configurations)
+    provider.error = None
+
+    provider.configurations = []
+    manager.parse_config()
+    assert manager.get_all_bundle_configurations() == ()
+
+
+@pytest.mark.parametrize(
+    ("provider_class", "expected_message"),
+    [
+        pytest.param(
+            "unit.dag_processing.bundles.test_dag_bundle_manager.DuplicateConfigurationDagBundleProvider",
+            "duplicate bundle name 'duplicate'",
+            id="duplicate-name",
+        ),
+        pytest.param(
+            "unit.dag_processing.bundles.test_dag_bundle_manager.NonConfigurationDagBundleProvider",
+            "must return DagBundleConfiguration objects",
+            id="wrong-configuration-type",
+        ),
+    ],
+)
+def test_custom_bundle_provider_rejects_invalid_configurations(provider_class, expected_message):
+    with conf_vars({("dag_processor", "dag_bundle_provider"): provider_class}):
+        with pytest.raises(AirflowConfigException, match=expected_message):
+            DagBundlesManager()
+
+
+@pytest.mark.parametrize(
+    ("provider_class", "expected_message"),
+    [
+        pytest.param(
+            "unit.dag_processing.bundles.test_dag_bundle_manager.BasicBundle",
+            "must extend DagBundleProvider",
+            id="wrong-base-class",
+        ),
+        pytest.param(
+            "unit.dag_processing.bundles.test_dag_bundle_manager.FailingInitializationDagBundleProvider",
+            "Could not initialize the Dag bundle provider",
+            id="initialization-failure",
+        ),
+    ],
+)
+def test_invalid_custom_bundle_provider(provider_class, expected_message):
+    with conf_vars({("dag_processor", "dag_bundle_provider"): provider_class}):
+        with pytest.raises(AirflowConfigException, match=expected_message):
+            DagBundlesManager()
 
 
 @pytest.fixture
