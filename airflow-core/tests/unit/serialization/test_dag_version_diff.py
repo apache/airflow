@@ -28,7 +28,10 @@ import pytest
 from jsonschema import Draft7Validator
 
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.sdk import DAG, Asset, Param, TaskGroup, task_group
+from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.python import BranchPythonOperator, PythonOperator
+from airflow.providers.standard.sensors.date_time import DateTimeSensor, DateTimeSensorAsync
+from airflow.sdk import DAG, Asset, ExceptionRetryPolicy, Param, TaskGroup, task as sdk_task, task_group
 from airflow.sdk.definitions.operator_resources import Resources
 from airflow.serialization import dag_version_diff
 from airflow.serialization.dag_version_diff import (
@@ -86,13 +89,203 @@ def _get_task(payload: dict[str, Any]) -> dict[str, Any]:
     return payload["dag"]["tasks"][0]["__var"]
 
 
+def _build_field_sweep_payload() -> dict[str, Any]:
+    """Serialize one Dag covering the operator shapes that emit distinct task field sets."""
+    with DAG("field_sweep", schedule=None) as dag:
+        EmptyOperator(task_id="empty")
+        BranchPythonOperator(task_id="branch", python_callable=_return_private_before)
+        PythonOperator(task_id="python", python_callable=_return_private_before, op_kwargs={"a": 1})
+        DateTimeSensor(task_id="rescheduling", target_time="{{ ts }}", mode="reschedule")
+        DateTimeSensorAsync(task_id="deferring", target_time="{{ ts }}")
+        BashOperator(
+            task_id="configured",
+            bash_command="echo unchanged",
+            run_as_user="service",
+            email="owner@example.org",
+            retry_policy=ExceptionRetryPolicy(rules=[]),
+            executor_config={"key": "value"},
+            resources={"cpus": 1},
+            outlets=[Asset("s3://sweep")],
+        )
+        BashOperator(task_id="setup", bash_command="echo unchanged").as_setup()
+        BashOperator(task_id="teardown", bash_command="echo unchanged").as_teardown()
+        BashOperator.partial(task_id="mapped", run_as_user="service").expand(bash_command=["one", "two"])
+        sdk_task(task_id="decorated")(_return_private_before).expand(private_argument=["one", "two"])
+        with TaskGroup("group"):
+            BashOperator(task_id="grouped", bash_command="echo unchanged")
+    return _serialize_dag(dag)
+
+
+def _collect_emitted_task_fields(payload: dict[str, Any]) -> tuple[set[str], set[str], set[str]]:
+    emitted: set[str] = set()
+    emitted_partial: set[str] = set()
+    template_fields: set[str] = set()
+    for entry in payload["dag"]["tasks"]:
+        task_fields = entry["__var"]
+        partial_kwargs = task_fields.get("partial_kwargs", {})
+        emitted |= task_fields.keys()
+        emitted_partial |= partial_kwargs.keys()
+        template_fields |= set(task_fields.get("template_fields", []))
+        template_fields |= set(partial_kwargs.get("template_fields", []))
+    return emitted, emitted_partial, template_fields
+
+
 def test_diff_v1_task_field_policy_tracks_serializer_schema() -> None:
     schema_fields = frozenset(load_dag_schema_dict()["definitions"]["operator"]["properties"])
+    emitted, emitted_partial, template_fields = _collect_emitted_task_fields(_build_field_sweep_payload())
+    # definitions.operator is additionalProperties: true, so comparing the allowlist against the
+    # schema alone cannot see a field the serializer writes and the schema never declares. Derive
+    # those from a real payload instead of listing them, or they get buried in custom_fields unnoticed.
+    serializer_only_fields = emitted - schema_fields - template_fields
+    # Template field names are operator-defined and unbounded, so the allowlist cannot enumerate
+    # them; naming one in a redacted path would also disclose what template_fields itself withholds.
+    exempt_fields = _DIFF_V1_REDACTED_SCHEMA_TASK_FIELDS | template_fields
 
+    assert emitted <= (_DIFF_V1_PUBLIC_TASK_FIELDS - {"__type"}) | exempt_fields
+    assert emitted_partial <= _DIFF_V1_PUBLIC_PARTIAL_TASK_FIELDS | exempt_fields
     assert schema_fields == (
-        (_DIFF_V1_PUBLIC_TASK_FIELDS - {"__type"}) | _DIFF_V1_REDACTED_SCHEMA_TASK_FIELDS
+        (_DIFF_V1_PUBLIC_TASK_FIELDS - {"__type"} - serializer_only_fields)
+        | _DIFF_V1_REDACTED_SCHEMA_TASK_FIELDS
     )
+    assert _DIFF_V1_PUBLIC_TASK_FIELDS - schema_fields == {"__type"} | serializer_only_fields
     assert not (_DIFF_V1_PUBLIC_TASK_FIELDS & _DIFF_V1_REDACTED_SCHEMA_TASK_FIELDS)
+
+
+@pytest.mark.parametrize("include_values", [False, True])
+def test_build_diff_names_sensor_reschedule_mode_changes(include_values):
+    payloads = []
+    for mode in ("poke", "reschedule"):
+        with DAG("sensor_mode", schedule=None) as dag:
+            DateTimeSensor(task_id="private_task", target_time="{{ ts }}", mode=mode)
+        payloads.append(_serialize_dag(dag))
+    hydrated = [
+        DagSerialization.from_dict(copy.deepcopy(payload)).task_dict["private_task"].reschedule
+        for payload in payloads
+    ]
+    assert hydrated == [False, True]
+
+    result = build_serialized_dag_diff(
+        base_data=payloads[0], target_data=payloads[1], include_values=include_values
+    )
+
+    task_id = "private_task" if include_values else "*"
+    assert [change["path"] for change in result["changes"]] == [f"/dag/tasks/{task_id}/reschedule"]
+    assert result["changes"][0]["impact"] == "execution"
+
+
+def _return_private_before(private_argument=None):
+    return private_argument
+
+
+def _return_private_after(private_argument=None):
+    return private_argument
+
+
+def _build_serializer_only_field_payload(field: str, is_mapped: bool, *, after: bool) -> dict[str, Any]:
+    with DAG("serializer_only_fields", schedule=None) as dag:
+        if field == "python_callable_name":
+            python_callable = _return_private_after if after else _return_private_before
+            if is_mapped:
+                PythonOperator.partial(task_id="private_task", python_callable=python_callable).expand(
+                    op_kwargs=[{"private_argument": "private_value"}]
+                )
+            else:
+                PythonOperator(task_id="private_task", python_callable=python_callable)
+        elif field == "expand_input":
+            BashOperator.partial(task_id="private_task").expand(
+                bash_command=["private_before", "private_after"] if after else ["private_before"]
+            )
+        elif field == "op_kwargs_expand_input":
+            sdk_task(task_id="private_task")(_return_private_before).expand(
+                private_argument=["private_before", "private_after"] if after else ["private_before"]
+            )
+        else:
+            values: dict[str, tuple[Any, Any]] = {
+                "resources": ({"cpus": 1}, {"cpus": 2}),
+                "run_as_user": ("private_before", "private_after"),
+                "email": ("private_before@example.org", "private_after@example.org"),
+                "has_retry_policy": (None, ExceptionRetryPolicy(rules=[])),
+            }
+            constructor_field = "retry_policy" if field == "has_retry_policy" else field
+            kwargs = {} if field == "_operator_name" else {constructor_field: values[field][after]}
+            operator = (
+                BashOperator.partial(task_id="private_task", **kwargs).expand(bash_command=["echo unchanged"])
+                if is_mapped
+                else BashOperator(task_id="private_task", bash_command="echo unchanged", **kwargs)
+            )
+            if field == "_operator_name":
+                setattr(
+                    operator,
+                    "_operator_name" if is_mapped else "custom_operator_name",
+                    "private_after" if after else "private_before",
+                )
+    return _serialize_dag(dag)
+
+
+@pytest.mark.parametrize("include_values", [False, True])
+@pytest.mark.parametrize(
+    ("field", "is_mapped"),
+    [
+        ("python_callable_name", False),
+        ("python_callable_name", True),
+        ("expand_input", True),
+        ("op_kwargs_expand_input", True),
+        ("resources", False),
+        ("resources", True),
+        ("run_as_user", False),
+        ("run_as_user", True),
+        ("email", False),
+        ("email", True),
+        ("_operator_name", False),
+        ("_operator_name", True),
+        ("has_retry_policy", False),
+        ("has_retry_policy", True),
+    ],
+)
+def test_build_diff_exposes_serializer_only_field_names_without_private_values(
+    field, is_mapped, include_values
+):
+    base = _build_serializer_only_field_payload(field, is_mapped, after=False)
+    target = _build_serializer_only_field_payload(field, is_mapped, after=True)
+    for payload in (base, target):
+        emitted_fields = _get_task(payload)
+        redacted_fields = _DIFF_V1_REDACTED_SCHEMA_TASK_FIELDS | set(
+            emitted_fields.get("template_fields", [])
+        )
+        assert emitted_fields.keys() <= (_DIFF_V1_PUBLIC_TASK_FIELDS - {"__type"}) | redacted_fields
+        assert emitted_fields.get("partial_kwargs", {}).keys() <= (
+            _DIFF_V1_PUBLIC_PARTIAL_TASK_FIELDS | redacted_fields
+        )
+    task_fields = _get_task(target)
+    in_partial_kwargs = is_mapped and field in {
+        "python_callable_name",
+        "resources",
+        "run_as_user",
+        "email",
+        "has_retry_policy",
+    }
+    stored_fields = task_fields["partial_kwargs"] if in_partial_kwargs else task_fields
+    assert field in stored_fields
+    originals = copy.deepcopy((base, target))
+
+    result = build_serialized_dag_diff(base_data=base, target_data=target, include_values=include_values)
+
+    assert result["mode"] == "observed_state"
+    assert len(result["changes"]) == 1
+    change = result["changes"][0]
+    task_id = "private_task" if include_values else "*"
+    field_path = f"partial_kwargs/{field}" if in_partial_kwargs else field
+    assert change["path"] == f"/dag/tasks/{task_id}/{field_path}"
+    expected_category = "metadata" if field == "_operator_name" else "task"
+    assert change["category"] == expected_category
+    assert change["impact"] == ("metadata" if field == "_operator_name" else "execution")
+    if include_values:
+        assert change["after_value"] == stored_fields[field]
+        assert change["before_digest"] != change["after_digest"]
+    else:
+        assert "private_" not in json.dumps(result)
+        assert not {"before_value", "after_value", "before_digest", "after_digest"} & change.keys()
+    assert (base, target) == originals
 
 
 def test_diff_v1_task_group_field_policy_tracks_serializer_schema() -> None:
@@ -478,7 +671,8 @@ def test_build_diff_rejects_unsupported_client_defaults_sections(caplog):
     } in caplog
 
 
-def test_build_diff_change_set_does_not_depend_on_include_values():
+@pytest.mark.parametrize("max_changes", [1, 9, 10, 11])
+def test_build_diff_change_set_does_not_depend_on_include_values(max_changes):
     def payload(value):
         return _build_payload(
             tasks=[
@@ -496,21 +690,132 @@ def test_build_diff_change_set_does_not_depend_on_include_values():
             base_data=copy.deepcopy(base),
             target_data=copy.deepcopy(target),
             include_values=include_values,
-            max_changes=20,
+            max_changes=max_changes,
         )
         for include_values in (False, True)
     }
 
     redacted, valued = results[False], results[True]
-    assert len(valued["changes"]) == len(redacted["changes"]) == 10
-    assert valued["truncated"] is redacted["truncated"] is False
-    # Every task is represented in both, so authorizing values never costs coverage.
+    included = min(10, max_changes)
+    assert len(valued["changes"]) == included
+    assert valued["truncated"] is redacted["truncated"] is (max_changes < 10)
     assert {change["path"] for change in valued["changes"]} == {
-        f"/dag/tasks/task{index}/executor_config" for index in range(10)
+        f"/dag/tasks/task{index}/executor_config" for index in range(included)
     }
-    assert {change["path"] for change in redacted["changes"]} == {"/dag/tasks/*/executor_config"}
+    assert redacted["changes"] == [
+        {
+            "path": "/dag/tasks/*/executor_config",
+            "operation": "changed",
+            "category": "task",
+            "impact": "execution",
+            "occurrence_count": included,
+        }
+    ]
+    assert all(change["occurrence_count"] == 1 for change in valued["changes"])
     assert all("after_value" in change for change in valued["changes"])
-    assert all("after_value" not in change for change in redacted["changes"])
+
+
+@pytest.mark.parametrize("max_changes", [2, 3])
+@pytest.mark.parametrize("include_values", [False, True])
+def test_build_diff_excludes_new_group_beyond_change_limit(max_changes, include_values):
+    base = _build_payload(tasks=[{"task_id": name, "retries": 0} for name in ("a", "b", "c")])
+    target = _build_payload(
+        tasks=[
+            {"task_id": "a", "retries": 1},
+            {"task_id": "b", "retries": 1},
+            {"task_id": "c", "queue": "new"},
+        ]
+    )
+
+    result = build_serialized_dag_diff(
+        base_data=base, target_data=target, max_changes=max_changes, include_values=include_values
+    )
+
+    assert result["truncated"] is (max_changes == 2)
+    assert sum(change["occurrence_count"] for change in result["changes"]) == max_changes
+    if include_values:
+        expected_paths = ["/dag/tasks/a/retries", "/dag/tasks/b/retries", "/dag/tasks/c/queue"]
+        assert [change["path"] for change in result["changes"]] == expected_paths[:max_changes]
+    else:
+        expected_counts = [("/dag/tasks/*/retries", 2), ("/dag/tasks/*/queue", 1)]
+        assert [
+            (change["path"], change["occurrence_count"]) for change in result["changes"]
+        ] == expected_counts[: max_changes - 1]
+
+
+@pytest.mark.parametrize("include_values", [False, True])
+def test_build_diff_keeps_operations_separate_when_grouping(include_values):
+    base = _build_payload(
+        tasks=[
+            {"task_id": "a", "doc_md": "before"},
+            {"task_id": "b"},
+            {"task_id": "c", "doc_md": "before"},
+            {"task_id": "d", "doc_md": "before"},
+        ]
+    )
+    target = _build_payload(
+        tasks=[
+            {"task_id": "a"},
+            {"task_id": "b", "doc_md": "after"},
+            {"task_id": "c", "doc_md": "after"},
+            {"task_id": "d", "doc_md": "different"},
+        ]
+    )
+
+    result = build_serialized_dag_diff(base_data=base, target_data=target, include_values=include_values)
+
+    assert result["truncated"] is False
+    assert [(change["operation"], change["occurrence_count"]) for change in result["changes"]] == (
+        [("removed", 1), ("added", 1), ("changed", 1), ("changed", 1)]
+        if include_values
+        else [("removed", 1), ("added", 1), ("changed", 2)]
+    )
+    assert all(change["category"] == change["impact"] == "metadata" for change in result["changes"])
+    if not include_values:
+        assert {change["path"] for change in result["changes"]} == {"/dag/tasks/*/doc_md"}
+        assert all(value not in json.dumps(result) for value in ("before", "after", "different"))
+    for payload in (base, target):
+        payload["dag"]["tasks"].reverse()
+        payload["dag"] = dict(reversed(payload["dag"].items()))
+    assert result == build_serialized_dag_diff(
+        base_data=base, target_data=target, include_values=include_values
+    )
+
+
+@pytest.mark.parametrize(
+    ("max_changes", "retries_count", "start_date_count", "truncated"),
+    [(500, 250, 249, True), (1201, 600, 600, False)],
+)
+def test_build_diff_groups_repeated_changes_in_large_dag(
+    max_changes, retries_count, start_date_count, truncated
+):
+    payloads = []
+    for day, retries in ((1, 0), (2, 1)):
+        with DAG(
+            "grouped_diff", schedule=None, start_date=datetime(2025, 1, day, tzinfo=timezone.utc)
+        ) as dag:
+            for index in range(600):
+                BashOperator(task_id=f"task_{index:04d}", bash_command="echo hello", retries=retries)
+        payloads.append(_serialize_dag(dag))
+
+    redacted, valued = [
+        build_serialized_dag_diff(
+            base_data=payloads[0],
+            target_data=payloads[1],
+            include_values=include_values,
+            max_changes=max_changes,
+        )
+        for include_values in (False, True)
+    ]
+
+    assert redacted["truncated"] is valued["truncated"] is truncated
+    assert [(change["path"], change["occurrence_count"]) for change in redacted["changes"]] == [
+        ("/dag/start_date", 1),
+        ("/dag/tasks/*/retries", retries_count),
+        ("/dag/tasks/*/start_date", start_date_count),
+    ]
+    assert len(valued["changes"]) == len({change["path"] for change in valued["changes"]}) == max_changes
+    assert sum(change["occurrence_count"] for change in redacted["changes"]) == max_changes
 
 
 @pytest.mark.parametrize("include_values", [False, True])
@@ -569,6 +874,7 @@ def test_build_diff_classifies_dag_fields(include_values, field, before, after, 
             "operation": "changed",
             "category": category,
             "impact": impact,
+            "occurrence_count": 1,
         }
 
 
@@ -750,6 +1056,54 @@ def test_build_diff_reports_known_nested_group_fields_beside_collapsed_ones():
         f"{group_path}/custom_fields",
     ]
     assert [change["category"] for change in result["changes"]] == ["metadata", "task"]
+
+
+@pytest.mark.parametrize("include_values", [False, True])
+@pytest.mark.parametrize(
+    ("max_changes", "expected_counts"),
+    [
+        (1, [("tooltip", 1)]),
+        (3, [("tooltip", 2), ("custom_fields", 1)]),
+        (4, [("tooltip", 2), ("custom_fields", 2)]),
+    ],
+)
+def test_build_diff_groups_nested_task_group_changes(include_values, max_changes, expected_counts):
+    with DAG("grouped_diff", schedule=None) as dag:
+        with TaskGroup("secret_outer"):
+            for index in range(2):
+                TaskGroup(f"secret_inner_{index}", tooltip="before")
+    base = _serialize_dag(dag)
+    target = copy.deepcopy(base)
+    for payload, value in ((base, "before"), (target, "after")):
+        children = payload["dag"]["task_group"]["children"]["secret_outer"][1]["children"]
+        for _, group in children.values():
+            group.update(tooltip=value, secret_field=value, another_secret_field=value)
+
+    result = build_serialized_dag_diff(
+        base_data=base, target_data=target, include_values=include_values, max_changes=max_changes
+    )
+
+    assert result["truncated"] is (max_changes < 4)
+    assert sum(change["occurrence_count"] for change in result["changes"]) == max_changes
+    if include_values:
+        expected_paths = [
+            f"/dag/task_group/children/secret_outer/1/children/secret_outer.secret_inner_{index}/1/{field}"
+            for index in range(2)
+            for field in ("tooltip", "custom_fields")
+        ]
+        assert [change["path"] for change in result["changes"]] == expected_paths[:max_changes]
+        assert all(change["occurrence_count"] == 1 for change in result["changes"])
+    else:
+        assert [(change["path"], change["occurrence_count"]) for change in result["changes"]] == [
+            (f"/dag/task_group/children/*/1/children/*/1/{field}", count) for field, count in expected_counts
+        ]
+        assert "secret_" not in json.dumps(result)
+    for payload in (base, target):
+        outer = payload["dag"]["task_group"]["children"]["secret_outer"][1]
+        outer["children"] = dict(reversed(outer["children"].items()))
+    assert result == build_serialized_dag_diff(
+        base_data=base, target_data=target, include_values=include_values, max_changes=max_changes
+    )
 
 
 def test_build_diff_is_deterministic_and_normalizes_order() -> None:
@@ -957,7 +1311,57 @@ def test_build_diff_discards_changes_when_json_serialization_fails(location, inc
     } in caplog
 
 
-@pytest.mark.parametrize("error_type", [AttributeError, KeyError, TypeError, ValueError])
+@pytest.mark.parametrize("include_values", [False, True])
+@pytest.mark.parametrize("failed_payload", ["base", "target"])
+@mock.patch.object(dag_version_diff, "_canonicalize_payload_v1", autospec=True)
+def test_build_diff_returns_unavailable_on_canonicalization_recursion(
+    canonicalize, failed_payload, include_values, caplog
+):
+    error = RecursionError("secret payload")
+    canonicalize.side_effect = [error] if failed_payload == "base" else [{}, error]
+
+    result = build_serialized_dag_diff(
+        base_data=_build_payload(tasks=[]),
+        target_data=_build_payload(tasks=[]),
+        include_values=include_values,
+    )
+
+    assert result["mode"] == "unavailable"
+    assert result["unavailable_reason"] == "serialized_dag_canonicalization_failed"
+    assert result["changes"] == []
+    assert result["truncated"] is False
+    assert result["values"]["status"] == "unavailable"
+    assert {"event": "Serialized Dag diff canonicalization failed", "error_type": "RecursionError"} in caplog
+
+
+@pytest.mark.parametrize("include_values", [False, True])
+@pytest.mark.parametrize("after_first_change", [False, True])
+@mock.patch.object(dag_version_diff, "_collect_changes", autospec=True)
+def test_build_diff_discards_changes_on_collection_recursion(
+    collect, after_first_change, include_values, caplog
+):
+    def fail_collection(before, after, *, path, collector):
+        if after_first_change:
+            collector.add(path=("dag", "catchup"), operation="changed", before=False, after=True)
+        raise RecursionError("secret payload")
+
+    collect.side_effect = fail_collection
+
+    result = build_serialized_dag_diff(
+        base_data=_build_payload(tasks=[]),
+        target_data=_build_payload(tasks=[]),
+        include_values=include_values,
+    )
+
+    assert result["mode"] == "unavailable"
+    assert result["unavailable_reason"] == "serialized_dag_recursion_limit_exceeded"
+    assert result["changes"] == []
+    assert result["truncated"] is False
+    assert result["values"]["status"] == "unavailable"
+    assert "Serialized Dag diff recursion limit exceeded" in caplog
+
+
+@pytest.mark.parametrize("error_type", [AttributeError, KeyError, RuntimeError, TypeError, ValueError])
 @mock.patch.object(dag_version_diff, "_get_category", autospec=True)
 def test_build_diff_propagates_comparison_bugs(mock_get_category, error_type):
     mock_get_category.side_effect = error_type("comparison bug")
@@ -1063,6 +1467,7 @@ def test_build_diff_collapses_custom_task_fields_without_values() -> None:
             "operation": "changed",
             "category": "task",
             "impact": "execution",
+            "occurrence_count": 1,
         }
     ]
     encoded_result = json.dumps(result)
@@ -1171,6 +1576,7 @@ def test_build_diff_classification_ignores_redacted_identifiers(
             "operation": expected_operation,
             "category": expected_category,
             "impact": expected_impact,
+            "occurrence_count": 1,
         }
     ]
     assert hidden_identifier not in json.dumps(result)
@@ -1188,6 +1594,7 @@ def test_build_diff_preserves_known_task_field_classification_without_values() -
             "operation": "changed",
             "category": "asset",
             "impact": "execution",
+            "occurrence_count": 1,
         }
     ]
 
@@ -1206,6 +1613,7 @@ def test_build_diff_collapses_arbitrary_mappings_without_values() -> None:
             "operation": "changed",
             "category": "param",
             "impact": "execution",
+            "occurrence_count": 1,
         }
     ]
 
@@ -1631,7 +2039,7 @@ def test_diff_preserves_mapped_resource_types(include_values):
     assert len(result["changes"]) == 1
     change = result["changes"][0]
     task_id = "extract" if include_values else "*"
-    assert change["path"] == f"/dag/tasks/{task_id}/partial_kwargs/custom_fields"
+    assert change["path"] == f"/dag/tasks/{task_id}/partial_kwargs/resources"
     assert change["impact"] == "execution"
     if include_values:
         assert change["before_digest"] != change["after_digest"]
@@ -2071,13 +2479,16 @@ def test_build_diff_retains_definition_metadata(field):
         include_values=True,
     )
 
-    # Neither field is in the operator schema, so it rides the aggregated custom-fields record
-    # the redacted walk produces; an authorized caller still sees which field moved.
     assert len(result["changes"]) == 1
     change = result["changes"][0]
-    assert change["path"] == "/dag/tasks/extract/custom_fields"
-    assert change["before_value"] == {field: "old"}
-    assert change["after_value"] == {field: "new"}
+    if field == "python_callable_name":
+        assert change["path"] == f"/dag/tasks/extract/{field}"
+        assert change["before_value"] == "old"
+        assert change["after_value"] == "new"
+    else:
+        assert change["path"] == "/dag/tasks/extract/custom_fields"
+        assert change["before_value"] == {field: "old"}
+        assert change["after_value"] == {field: "new"}
 
 
 @pytest.mark.parametrize(
@@ -2108,7 +2519,13 @@ def test_build_diff_preserves_dag_callback_presence(field):
     result = build_serialized_dag_diff(base_data=base, target_data=target)
 
     assert result["changes"] == [
-        {"path": f"/dag/{field}", "operation": "added", "category": "callback", "impact": "execution"}
+        {
+            "path": f"/dag/{field}",
+            "operation": "added",
+            "category": "callback",
+            "impact": "execution",
+            "occurrence_count": 1,
+        }
     ]
 
 
@@ -2199,7 +2616,13 @@ def test_build_diff_redacts_argument_bindings_and_partial_arguments(field, is_ma
 
     path = "/dag/tasks/*/partial_kwargs/custom_fields" if is_mapped else "/dag/tasks/*/custom_fields"
     assert result["changes"] == [
-        {"path": path, "operation": "changed", "category": "task", "impact": "execution"}
+        {
+            "path": path,
+            "operation": "changed",
+            "category": "task",
+            "impact": "execution",
+            "occurrence_count": 1,
+        }
     ]
     assert all(
         value not in json.dumps(result) for value in (field, "secret-task", "old-secret", "new-secret")
