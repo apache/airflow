@@ -165,6 +165,17 @@ class FailingInitializationDagBundleProvider(CustomDagBundleProvider):
         raise RuntimeError("Provider initialization failed")
 
 
+class ReloadingDagBundleProvider(CustomDagBundleProvider):
+    def __init__(self):
+        self.metadata = [DagBundleMetadata(name="active-bundle")]
+        self.error: Exception | None = None
+
+    def get_configured_bundle_metadata(self):
+        if self.error:
+            raise self.error
+        return self.metadata
+
+
 BASIC_BUNDLE_CONFIG = [
     {
         "name": "my-test-bundle",
@@ -229,6 +240,7 @@ def test_get_bundle():
         os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)}
     ):
         bundle_manager = DagBundlesManager()
+        assert bundle_manager.provides_complete_bundle_list is False
 
         with pytest.raises(ValueError, match="'bundle-that-doesn't-exist' is not configured"):
             bundle_manager.get_bundle(name="bundle-that-doesn't-exist", version="hello")
@@ -263,6 +275,7 @@ def test_custom_bundle_provider_resolves_active_and_retired_bundles():
     assert isinstance(provider, CustomDagBundleProvider)
     assert provider.metadata_requests == 0
 
+    assert manager.provides_complete_bundle_list is True
     assert manager.get_active_bundle_metadata() == (DagBundleMetadata(name="active-bundle"),)
     assert provider.metadata_requests == 1
     assert manager.get_all_bundle_names() == ["active-bundle"]
@@ -278,6 +291,37 @@ def test_custom_bundle_provider_resolves_active_and_retired_bundles():
     assert retired_bundle.name == "retired-bundle"
     assert retired_bundle.version == "v1"
     assert retired_bundle.version_data == {"manifest": "retired.json"}
+
+
+@conf_vars(
+    {
+        ("core", "LOAD_EXAMPLES"): "False",
+        (
+            "dag_processor",
+            "dag_bundle_provider",
+        ): "unit.dag_processing.bundles.test_dag_bundle_manager.ReloadingDagBundleProvider",
+    }
+)
+def test_custom_bundle_provider_returns_current_metadata():
+    manager = DagBundlesManager()
+    provider = manager._bundle_provider
+    assert isinstance(provider, ReloadingDagBundleProvider)
+
+    assert manager.get_active_bundle_metadata() == tuple(provider.metadata)
+
+    provider.metadata = [
+        DagBundleMetadata(name="active-bundle"),
+        DagBundleMetadata(name="added-bundle"),
+    ]
+    assert manager.get_active_bundle_metadata() == tuple(provider.metadata)
+
+    provider.error = RuntimeError("source unavailable")
+    with pytest.raises(RuntimeError, match="source unavailable"):
+        manager.get_active_bundle_metadata()
+    provider.error = None
+
+    provider.metadata = []
+    assert manager.get_active_bundle_metadata() == ()
 
 
 @pytest.mark.parametrize(
@@ -331,7 +375,7 @@ def clear_db():
 
 @pytest.mark.db_test
 @conf_vars({("core", "LOAD_EXAMPLES"): "False"})
-def test_sync_bundles_to_db(clear_db, session):
+def test_sync_bundles_to_db(clear_db, session, caplog):
     def _get_bundle_names_and_active():
         return session.execute(
             select(DagBundleModel.name, DagBundleModel.active).order_by(DagBundleModel.name)
@@ -363,6 +407,10 @@ def test_sync_bundles_to_db(clear_db, session):
     ]
     # Since my-test-bundle is inactive, the associated import errors should be deleted
     assert session.scalar(select(func.count(ParseImportError.id))) == 0
+
+    caplog.clear()
+    DagBundlesManager().sync_bundles_to_db()
+    assert "DAG bundle my-test-bundle is no longer found in config and has been disabled" not in caplog
 
     # Re-enable one that reappears in config
     with patch.dict(

@@ -46,12 +46,23 @@ class DagBundleProvider(ABC):
     The metadata list is the complete set of configured bundles. A bundle name
     may remain resolvable through ``get_bundle`` after it leaves that list because
     retained Dag runs can still need an older version. A name must continue to
-    identify the same bundle implementation; use a new name for a different one.
+    identify the same bundle construction settings. Use a new name when settings
+    such as the bundle class, repository, branch, connection, or refresh interval change.
     """
+
+    @property
+    def provides_complete_bundle_list(self) -> bool:
+        """Return whether each provider instance sees the complete active bundle list."""
+        return True
 
     @abstractmethod
     def get_configured_bundle_metadata(self) -> Sequence[DagBundleMetadata]:
-        """Return metadata for the complete set of configured Dag bundles."""
+        """
+        Return metadata for the complete set of configured Dag bundles.
+
+        Return an empty sequence only when no bundles are configured. Raise an exception when
+        the current metadata cannot be read so Airflow keeps the last valid bundle list.
+        """
 
     @abstractmethod
     def get_bundle(
@@ -110,6 +121,10 @@ def _parse_bundle_config(config_list) -> list[_ExternalBundleConfig]:
 
 class ConfigDagBundleProvider(DagBundleProvider):
     """Provide Dag bundles configured by ``dag_bundle_config_list``."""
+
+    @property
+    def provides_complete_bundle_list(self) -> bool:
+        return False
 
     def __init__(self) -> None:
         self._bundle_config: dict[str, _InternalBundleConfig] = {}
