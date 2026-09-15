@@ -120,8 +120,8 @@ suited for the job:
 * management and automated synchronisation of the environment can be easily done using simple, external
   scripts that will check the "freshness" of the images and propose corrective actions (pulling or
   rebuilding the image) for the user whenever they are needed (all that in cross-platform way)
-* we can use specific base image (Debian bookworm with Long Term Support) and rely on security fixes provided
-  by Debian for system dependencies.
+* we can use a specific supported Debian base image and rely on security fixes provided by Debian for
+  system dependencies.
 
 The only alternative considered is a plain virtualenv managed individually by each user. The problem with
 that in case of Airflow is a number of dependencies to manage and extremely weak cross-platform support

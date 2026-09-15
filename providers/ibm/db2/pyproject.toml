@@ -66,7 +66,9 @@ dependencies = [
     # skip it on Linux ARM (mirrors provider.yaml excluded-platforms). macOS Apple Silicon
     # is unaffected — IBM does ship macosx arm64 wheels. `ibm-db-sa` is pure Python but
     # depends on `ibm-db`, so it carries the same marker or it drags `ibm-db` back in.
-    "ibm-db>=3.2.0; platform_machine != \"aarch64\"",
+    # `ibm-db` 3.2.0 has no Linux wheels for newer supported Python versions and its sdist
+    # fails to compile with the Trixie/GCC 14 CI image, so use a floor with broad wheel coverage.
+    "ibm-db>=3.2.8; platform_machine != \"aarch64\"",
     "ibm-db-sa>=0.4.0; platform_machine != \"aarch64\"",
     "methodtools>=0.4.7",
 ]
