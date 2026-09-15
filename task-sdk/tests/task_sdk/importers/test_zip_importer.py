@@ -31,9 +31,9 @@ from airflow.sdk.importers import (
     DagDefinition,
     DagImportResult,
     DagSourceCode,
-    FileDagDefinition,
-    ZipFileDagDefinition,
+    FilesystemDagDefinition,
     ZipImporter,
+    ZipMemberDagDefinition,
 )
 from airflow.sdk.importers.python_importer import PythonDagImporter
 
@@ -125,7 +125,9 @@ class TestZipImporter:
         assert dags[0].dag_id == "zip_pyc_dag"
         assert len(errors) == 0
 
-        src = importer.get_source_code(ZipFileDagDefinition(zip_path=zip_path, file_path="compiled_dag.pyc"))
+        src = importer.get_source_code(
+            ZipMemberDagDefinition(zip_path=zip_path, file_path="compiled_dag.pyc")
+        )
         assert src.language == "python"
         assert "Sourceless bytecode" in src.source_code
 
@@ -160,20 +162,22 @@ class TestZipImporter:
         # A zip is a directory of DAG files: each member is its own source unit,
         # rendered through its file-type importer (same single-member semantics as
         # the legacy code view's open_maybe_zipped).
-        src_member = importer.get_source_code(ZipFileDagDefinition(zip_path=zip_path, file_path="my_dag.py"))
+        src_member = importer.get_source_code(
+            ZipMemberDagDefinition(zip_path=zip_path, file_path="my_dag.py")
+        )
         assert src_member.language == "python"
         assert src_member.source_code == dag_content
 
         # The archive as a whole has no source, the same way a directory does not.
         with pytest.raises(ValueError, match="No internal importer"):
-            importer.get_source_code(FileDagDefinition(path=zip_path))
+            importer.get_source_code(FilesystemDagDefinition(path=zip_path))
 
     def test_zip_dag_definition_freshness_token(self, tmp_path):
         zip_path = tmp_path / "fresh_bundle.zip"
         with zipfile.ZipFile(zip_path, "w") as z:
             z.writestr("dag.py", "from airflow.sdk import DAG\n")
 
-        member_def = ZipFileDagDefinition(zip_path=zip_path, file_path="dag.py")
+        member_def = ZipMemberDagDefinition(zip_path=zip_path, file_path="dag.py")
         stat = zip_path.stat()
         assert member_def.freshness_token == f"{stat.st_mtime_ns}-{stat.st_size}-dag.py"
 

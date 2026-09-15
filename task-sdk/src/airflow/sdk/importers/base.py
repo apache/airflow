@@ -21,6 +21,7 @@ from __future__ import annotations
 import contextlib
 import functools
 import logging
+import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -77,8 +78,24 @@ class DagDefinition(ABC):
         """Return string representation used by import error and warning objects."""
 
 
-@dataclass
 class FileDagDefinition(DagDefinition):
+    """
+    A DAG definition backed by a named, file-like resource.
+
+    Adds a filename ``suffix`` to the base content interface -- the trait that makes a
+    source routable by file extension -- so extension-based importers can work against
+    any file-like definition (a real file, an archive member, or a future variant)
+    without recognizing concrete types.
+    """
+
+    @property
+    @abstractmethod
+    def suffix(self) -> str:
+        """Lowercased file extension including the leading dot (for example ``.py``)."""
+
+
+@dataclass
+class FilesystemDagDefinition(FileDagDefinition):
     """A DAG definition backed by a file on the local filesystem."""
 
     path: Path
@@ -98,6 +115,10 @@ class FileDagDefinition(DagDefinition):
             return str(self.path.relative_to(root))
         except ValueError:
             return str(self.path)
+
+    @property
+    def suffix(self) -> str:
+        return self.path.suffix.lower()
 
     def read_bytes(self) -> bytes:
         return self.path.read_bytes()
@@ -227,19 +248,21 @@ class AbstractDagImporter(ABC, Generic[DefT]):
 
 
 def get_file_suffix(definition: DagDefinition | str | Path) -> str | None:
-    """Extract lowercase file suffix from a definition, path, or filename."""
-    path = (
-        definition
-        if isinstance(definition, (str, Path))
-        else getattr(definition, "path", getattr(definition, "file_path", None))
-    )
-    return Path(path).suffix.lower() if path else None
+    """Extract the lowercase file suffix from a file-like definition, path, or filename."""
+    match definition:
+        case Path():
+            return definition.suffix.lower()
+        case str():
+            return os.path.splitext(definition)[-1].lower()
+        case FileDagDefinition():
+            return definition.suffix
+    return None
 
 
 def find_file_dag_definitions(
     bundle_path: Path,
     supported_extensions: Iterable[str],
-) -> Iterator[FileDagDefinition]:
+) -> Iterator[FilesystemDagDefinition]:
     """
     Discover file DAG definitions in a bundle by *identity* alone.
 
@@ -270,7 +293,7 @@ def find_file_dag_definitions(
         if path.suffix.lower() == ".pyc" and path.with_suffix(".py").exists():
             continue
 
-        yield FileDagDefinition(path=path)
+        yield FilesystemDagDefinition(path=path)
 
 
 @dataclass(frozen=True)

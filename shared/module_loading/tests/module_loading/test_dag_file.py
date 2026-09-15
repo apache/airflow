@@ -17,7 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import logging
+import tempfile
+from pathlib import Path
 from unittest import mock
 
 from airflow_shared.module_loading import (
@@ -25,6 +28,7 @@ from airflow_shared.module_loading import (
     UNUSUAL_MODULE_PREFIX,
     get_unique_dag_module_name,
     might_contain_dag,
+    might_contain_dag_via_default_heuristic,
 )
 
 
@@ -74,3 +78,69 @@ def test_might_contain_dag_logs_warning_on_broken_config(tmp_path, caplog) -> No
 
     assert result is True
     assert "Failed to load might_contain_dag_callable from config" in caplog.text
+
+
+class _FakeDefinition:
+    """Structural DagDefinition: read its bytes, or materialize it as a file."""
+
+    def __init__(self, data: bytes) -> None:
+        self._data = data
+
+    def read_bytes(self) -> bytes:
+        return self._data
+
+    @contextlib.contextmanager
+    def as_file(self):
+        with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as f:
+            f.write(self._data)
+            path = Path(f.name)
+        try:
+            yield path
+        finally:
+            path.unlink(missing_ok=True)
+
+
+def test_might_contain_dag_from_definition() -> None:
+    # The default heuristic reads a definition's bytes directly, with nothing on disk.
+    mock_conf = mock.MagicMock()
+    mock_conf.getimport.return_value = None
+
+    assert (
+        might_contain_dag(
+            _FakeDefinition(b"from airflow import DAG\ndag = DAG('x')"), safe_mode=True, conf=mock_conf
+        )
+        is True
+    )
+    assert (
+        might_contain_dag(_FakeDefinition(b"def add(x, y): return x + y"), safe_mode=True, conf=mock_conf)
+        is False
+    )
+    assert might_contain_dag(_FakeDefinition(b"anything"), safe_mode=False, conf=mock_conf) is True
+
+
+def test_default_heuristic_accepts_definition() -> None:
+    # The default heuristic reads a definition's bytes directly, same as it reads a path.
+    assert might_contain_dag_via_default_heuristic(_FakeDefinition(b"from airflow import DAG")) is True
+    assert might_contain_dag_via_default_heuristic(_FakeDefinition(b"x = 1")) is False
+
+
+def test_might_contain_dag_definition_materialized_for_custom_callable() -> None:
+    # A custom callable only understands (file_path, zip_file); a definition is materialized
+    # through its own as_file() so the callable gets a real, readable path.
+    seen: dict[str, object] = {}
+
+    def custom(file_path, zip_file=None):
+        seen["path"] = file_path
+        seen["zip_file"] = zip_file
+        seen["data"] = Path(file_path).read_bytes()
+        return b"airflow" in seen["data"]
+
+    mock_conf = mock.MagicMock()
+    mock_conf.getimport.return_value = custom
+
+    assert (
+        might_contain_dag(_FakeDefinition(b"from airflow import DAG"), safe_mode=True, conf=mock_conf) is True
+    )
+    assert seen["data"] == b"from airflow import DAG"
+    assert seen["zip_file"] is None
+    assert not Path(str(seen["path"])).exists()

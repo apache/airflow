@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import os
 import sys
 import tempfile
 import threading
@@ -36,6 +37,7 @@ from airflow.sdk.importers.base import (
     DagImportError,
     DagImportResult,
     DagSourceCode,
+    FileDagDefinition,
     _get_importer_extensions,
     _normalize_extensions,
     _parse_importer_specs,
@@ -69,7 +71,7 @@ def _temporary_sys_path(path: str) -> Generator[None, None, None]:
 
 
 @dataclass
-class ZipFileDagDefinition(DagDefinition):
+class ZipMemberDagDefinition(FileDagDefinition):
     """A DAG definition backed by a file inside a ZIP archive."""
 
     zip_path: Path
@@ -90,6 +92,10 @@ class ZipFileDagDefinition(DagDefinition):
                 return f"{self.zip_path.relative_to(root)}:{self.file_path}"
         return f"{self.zip_path}:{self.file_path}"
 
+    @property
+    def suffix(self) -> str:
+        return os.path.splitext(self.file_path)[-1].lower()
+
     def read_bytes(self) -> bytes:
         if self._content is None:
             with zipfile.ZipFile(self.zip_path) as z:
@@ -98,8 +104,7 @@ class ZipFileDagDefinition(DagDefinition):
 
     @contextlib.contextmanager
     def as_file(self) -> Generator[Path, None, None]:
-        suffix = Path(self.file_path).suffix
-        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as f:
+        with tempfile.NamedTemporaryFile(suffix=self.suffix, delete=False) as f:
             f.write(self.read_bytes())
             temp_path = Path(f.name)
         try:
@@ -112,7 +117,7 @@ class ZipFileDagDefinition(DagDefinition):
         return f"{self.zip_path}:{self.file_path}"
 
 
-class ZipImporter(AbstractDagImporter[ZipFileDagDefinition]):
+class ZipImporter(AbstractDagImporter[ZipMemberDagDefinition]):
     """Composite importer responsible for routing archive members to internal importers."""
 
     supported_extensions = [".zip"]
@@ -166,11 +171,11 @@ class ZipImporter(AbstractDagImporter[ZipFileDagDefinition]):
     def list_dag_definitions(
         self,
         bundle: BaseDagBundle,
-    ) -> Iterator[ZipFileDagDefinition]:
+    ) -> Iterator[ZipMemberDagDefinition]:
         """
         List importable members across the bundle's zip archives.
 
-        Each member is yielded as a plain ZipFileDagDefinition; import_definition
+        Each member is yielded as a plain ZipMemberDagDefinition; import_definition
         re-resolves the internal importer from the member's extension.
         """
         for archive in find_file_dag_definitions(bundle.path, self.supported_extensions):
@@ -204,11 +209,11 @@ class ZipImporter(AbstractDagImporter[ZipFileDagDefinition]):
 
                 if self._get_internal_importer(member_name) is None:
                     continue
-                yield ZipFileDagDefinition(zip_path=archive.path, file_path=member_name)
+                yield ZipMemberDagDefinition(zip_path=archive.path, file_path=member_name)
 
     def import_definition(
         self,
-        definition: ZipFileDagDefinition,
+        definition: ZipMemberDagDefinition,
         bundle: BaseDagBundle,
         *,
         safe_mode: bool = True,
