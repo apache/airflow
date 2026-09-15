@@ -2061,15 +2061,21 @@ _IN_PROCESS_RESPONSE_SINK: ContextVar[deque[BaseModel | None] | None] = ContextV
 """Where :meth:`InProcessTestSupervisor.send_msg` must deliver the response it is about to send.
 
 Only :meth:`InProcessSupervisorComms.send` sets it, and it gets a fresh sink per call, so a response
-can never reach a caller other than the one that is waiting for it. The socket is read by the raw
-thread started in ``_setup_subprocess_socket``, which never has a sink set: requests from a child
-process are answered on the socket instead.
+can never reach a caller other than the one that is waiting for it. When no sink is set, the request
+came over the socket from a child process (read by the thread started in
+``_setup_subprocess_socket``) and is answered on the socket instead.
+
+Whether a sink is set depends on the call, not the thread, so the sink must not be replaced with a
+thread-identity check: handling a child's ``GetVariable``/``GetConnection`` on the socket thread calls
+``mask_secret``, which re-enters :meth:`InProcessSupervisorComms.send` on that same thread. The nested
+``MaskSecret`` response lands in the nested sink, which is reset before the outer response is written
+to the socket.
 """
 
 
 @attrs.define(kw_only=True)
 class InProcessSupervisorComms:
-    """In-process communication handler that uses deques instead of sockets."""
+    """In-process communication handler that returns each response directly to its caller."""
 
     log: FilteringBoundLogger = attrs.field(repr=False, factory=structlog.get_logger)
     supervisor: InProcessTestSupervisor

@@ -20,27 +20,23 @@ import sys
 from collections.abc import Generator
 from contextlib import contextmanager
 from contextvars import ContextVar
-from typing import Literal
 
 __all__ = [
-    "override_process_context",
+    "force_server_context",
     "should_use_task_sdk_api_path",
 ]
 
-_PROCESS_CONTEXT_OVERRIDE: ContextVar[str | None] = ContextVar(
-    "_AIRFLOW_PROCESS_CONTEXT_OVERRIDE",
-    default=None,
-)
+_FORCE_SERVER_CONTEXT: ContextVar[bool] = ContextVar("_AIRFLOW_FORCE_SERVER_CONTEXT", default=False)
 
 
 @contextmanager
-def override_process_context(context: Literal["server", "client"]) -> Generator[None, None, None]:
-    """Temporarily override the current process context for the active execution flow."""
-    token = _PROCESS_CONTEXT_OVERRIDE.set(context)
+def force_server_context() -> Generator[None, None, None]:
+    """Handle the active execution flow as server-side, even if ``SUPERVISOR_COMMS`` is set."""
+    token = _FORCE_SERVER_CONTEXT.set(True)
     try:
         yield
     finally:
-        _PROCESS_CONTEXT_OVERRIDE.reset(token)
+        _FORCE_SERVER_CONTEXT.reset(token)
 
 
 def should_use_task_sdk_api_path() -> bool:
@@ -50,7 +46,7 @@ def should_use_task_sdk_api_path() -> bool:
     # ``airflow dags test`` body, and PythonVirtualenvOperator passes it to the venv child), so
     # letting it win here would send worker-side code straight to the metastore. ``SUPERVISOR_COMMS``
     # keeps precedence over it, matching ``ensure_secrets_backend_loaded()`` in the Task SDK.
-    if _PROCESS_CONTEXT_OVERRIDE.get() == "server":
+    if _FORCE_SERVER_CONTEXT.get():
         return False
 
     task_runner_module = sys.modules.get("airflow.sdk.execution_time.task_runner")

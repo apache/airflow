@@ -27,7 +27,7 @@ from structlog.testing import capture_logs
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models import Connection
-from airflow.process_context import override_process_context
+from airflow.process_context import force_server_context
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 from airflow.sdk.execution_time.comms import ErrorResponse
 
@@ -549,7 +549,7 @@ class TestConnection:
     )
     def test_connection_from_json_uses_core_path_when_server_context(self, mock_sdk_from_json):
         """Server context should prefer core Connection.from_json even if comms exist."""
-        with override_process_context("server"):
+        with force_server_context():
             result = Connection.from_json('{"conn_type": "http", "host": "localhost"}', conn_id="test_conn")
 
         assert isinstance(result, Connection)

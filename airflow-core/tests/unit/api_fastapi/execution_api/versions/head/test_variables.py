@@ -26,7 +26,7 @@ from fastapi.routing import Mount
 from sqlalchemy import select
 
 from airflow.models.variable import Variable
-from airflow.process_context import override_process_context
+from airflow.process_context import force_server_context
 
 from tests_common.test_utils.db import clear_db_variables
 
@@ -109,7 +109,7 @@ class TestGetVariable:
         ),
     )
     def test_variable_get_uses_server_path_when_supervisor_comms_exists(self, mock_sdk_get, client):
-        with override_process_context("server"):
+        with force_server_context():
             response = client.get("/execution/variables/key1")
 
         assert response.status_code == 200
@@ -188,7 +188,7 @@ class TestPutVariable:
         ),
     )
     def test_variable_put_uses_server_path_when_supervisor_comms_exists(self, mock_sdk_set, client, session):
-        with override_process_context("server"):
+        with force_server_context():
             response = client.put("/execution/variables/var_server_only", json={"value": "server_value"})
 
         assert response.status_code == 201
@@ -388,7 +388,7 @@ class TestDeleteVariable:
         session.commit()
 
         with (
-            override_process_context("server"),
+            force_server_context(),
             mock.patch.dict(
                 "sys.modules",
                 {"airflow.sdk.execution_time.task_runner": mock.Mock(spec=["SUPERVISOR_COMMS"])},

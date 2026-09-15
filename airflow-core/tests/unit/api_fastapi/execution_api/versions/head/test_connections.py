@@ -24,7 +24,7 @@ import pytest
 from fastapi import FastAPI, HTTPException, status
 
 from airflow.models.connection import Connection
-from airflow.process_context import override_process_context
+from airflow.process_context import force_server_context
 
 pytestmark = pytest.mark.db_test
 
@@ -124,7 +124,7 @@ class TestGetConnection:
         ),
     )
     def test_connection_get_uses_server_path_when_supervisor_comms_exists(self, mock_sdk_get, client):
-        with override_process_context("server"):
+        with force_server_context():
             response = client.get("/execution/connections/test_conn_server")
 
         assert response.status_code == 200

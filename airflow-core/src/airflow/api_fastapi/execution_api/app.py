@@ -44,7 +44,7 @@ from airflow.api_fastapi.auth.tokens import (
     get_sig_validation_args,
     get_signing_args,
 )
-from airflow.process_context import override_process_context
+from airflow.process_context import force_server_context
 
 if TYPE_CHECKING:
     import httpx
@@ -381,7 +381,7 @@ class _RequestScopedServerContextApp:
         self.app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        with override_process_context("server"):
+        with force_server_context():
             await self.app(scope, receive, send)
 
 
