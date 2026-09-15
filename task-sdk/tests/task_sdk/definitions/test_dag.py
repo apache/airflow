@@ -997,6 +997,64 @@ class TestCycleTester:
 
         assert not dag.check_cycle()
 
+    @pytest.mark.parametrize(
+        ("nested", "faulty_group", "faulty_nodes"),
+        [
+            pytest.param(False, "<root>", "left, right", id="root"),
+            pytest.param(True, "parent", "parent.left, parent.right", id="nested"),
+        ],
+    )
+    def test_cycle_between_sibling_task_groups(self, nested, faulty_group, faulty_nodes):
+        dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
+
+        def add_groups():
+            with TaskGroup("left"):
+                left_source = DoNothingOperator(task_id="left_source")
+                left_sink = DoNothingOperator(task_id="left_sink")
+            with TaskGroup("right"):
+                right_source = DoNothingOperator(task_id="right_source")
+                right_sink = DoNothingOperator(task_id="right_sink")
+
+            left_source >> right_sink
+            right_source >> left_sink
+
+        with dag:
+            if nested:
+                with TaskGroup("parent"):
+                    add_groups()
+            else:
+                add_groups()
+
+        with pytest.raises(
+            AirflowDagCycleException,
+            match=rf"TaskGroup dependency cycle detected in Dag: dag\. Faulty TaskGroup: {faulty_group}\. "
+            rf"Nodes involved: {faulty_nodes}",
+        ):
+            dag.check_cycle()
+
+    def test_cycle_between_group_root_bridged_by_external_task(self):
+        """A task outside a TaskGroup can create a cycle by bridging two of the group's own tasks.
+
+        ``second`` has no upstream task inside ``group1``, so it counts as a root of the group even
+        though its only upstream (``bridge``) sits outside it.
+        """
+        dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
+
+        with dag:
+            with TaskGroup("group1"):
+                first = DoNothingOperator(task_id="first")
+                second = DoNothingOperator(task_id="second")
+            bridge = DoNothingOperator(task_id="bridge")
+
+            first >> bridge >> second
+
+        with pytest.raises(
+            AirflowDagCycleException,
+            match=r"TaskGroup dependency cycle detected in Dag: dag\. Faulty TaskGroup: <root>\. "
+            r"Nodes involved: bridge, group1",
+        ):
+            dag.check_cycle()
+
 
 class TestDagGetItem:
     def test_getitem_returns_task(self):
