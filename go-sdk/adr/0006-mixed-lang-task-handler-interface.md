@@ -31,18 +31,18 @@ Proposed.
    `main` reads build, register, serve, with `bundle.Serve()` as its last statement.
 2. **`bundle.Register(items ...airflow.Registraterable)`** is the single registration verb, taking native Dags and task handlers.
 3. **A Go bundle registers task handlers, not Dags**: `airflow.TaskHandler(dagId, taskId, fn)`, the Go body for a task Python declares with `@task.stub`.
-4. **Both ids are written out**, because Python owns them; nothing is derived from the Go function name.
-5. **Every handler takes an `airflow.Context` first**: a struct embedding `context.Context`, exposing
-   `Logger()`, `Client()`, `TaskInstance()`, and `DagRun()`. What Airflow supplies a task arrives as
-   a method on that value rather than as a parameter of its own.
+4. **Both dag_id and task_id are written out on TaskHandler definition**, because Python owns them; nothing is derived from the Go function name.
+5. **Every handler takes an `airflow.Context` first**: a struct embedding `context.Context`, exposing `Logger()`, `Client()`, `TaskInstance()`, and `DagRun()`.
+   What Airflow supplies a task arrives as a method on that value rather than as a parameter of its own.
 6. **Every remaining parameter is data**, bound positionally, or by field when it is a single struct: `arg:"..."` when tagged, else the folded Go field name.
 
 ## Context
 
-Python owns everything but the body of a Mixed Lang task: `@task.stub` declares the task, its
-arguments, and its place in the graph. The Go side has no Dag to define, so Dag vocabulary misleads.
+Python owns everything but the body of a Mixed Lang task: `@task.stub` declares the task, its arguments, and its place in the graph.
+The Go side has no Dag to define, so Dag vocabulary misleads.
 
 Renaming the Go function must not change which task body Airflow matches, so `TaskHandler` names the dag_id and the task_id explicitly instead of inferring them from the Go function name.
+Additionally, the TaskHandler shouldn't accept any spec as it should only define the implementation of stub operator, so the `airflow.TaskHandler(dag_id, task_id, fn)` is a much cleaner interface.
 
 Registration is inverted today. An author declares a struct with no state, asserts it implements
 `v1.BundleProvider`, fills in `RegisterDags(dagbag v1.Registry) error`, and hands the struct to
@@ -153,10 +153,6 @@ func FromContext(ctx context.Context) (Context, bool)
 
 - **Replace `BundleProvider`/`Registry` with `Bundle`**
 - **Registration closes when `Serve` is called.** Registering afterwards is a programming error and panics.
-- **A task test has to build a context.** Calling a handler with `context.Background()` is valid
-  today and stops compiling, so the SDK owes authors a constructor that returns an `airflow.Context`
-  carrying a test logger and a fake `sdk.Client`. That is the price of a single channel; in exchange,
-  a handler that forgets the context fails to build rather than at run time.
 - Graceful termination needs no unwrapping — `actx.Done()` fires on supervisor shutdown, and
   `http.NewRequestWithContext(actx, ...)` accepts it — while cleanup that must outlive cancellation
   uses `context.WithoutCancel(actx)`.
@@ -169,4 +165,6 @@ func FromContext(ctx context.Context) (Context, bool)
   `airflow.Client(ctx)`), leaving the handler's first parameter as `context.Context`. Rejected: it
   keeps the SDK surface in package functions instead of on the value, and a context built anywhere
   else still compiles, failing at run time on a missing value instead of at build time.
+- **An interface, as `sdk.TIRunContext` is today.** Rejected: only the SDK implements this type, so a struct can gain methods without breaking implementers, and the constructor keeps its fields unexported.
+  The `TIRunContext` doc comment cites the context package's advice against holding a context in a struct, which is aimed at domain types rather than at a purpose-built context.
 - **Two registration verbs**, one per registerable kind. Rejected: Having `bundle.registerTaskHandler(airflow.TaskHandler(...))` spell the exact term twice, having a sealed type is a much cleaner interface.

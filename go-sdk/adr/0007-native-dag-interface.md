@@ -39,6 +39,8 @@ Proposed.
 8. **A user-facing enum carries its type in the constant name** — e.g. `airflow.TriggerRuleAllDone`.
 9. **Everything an author writes comes from one `airflow` package.**
 10. **No Go-native deferral**, and none is needed: the constructs that defer are DSL tasks Python executes.
+11. **`DagSpec` and `TaskSpec` are generated from Airflow core's serialization schema** (`airflow-core/src/airflow/serialization/schema.json`) into the `airflow` package itself and committed, the way `models.gen.go` already is for the supervisor schema.
+    `TaskSpec` implements `airflow.TaskOption`, so a generated struct travels in the same variadic as `airflow.Inputs`.
 
 ## Context
 
@@ -111,8 +113,8 @@ func (d *DagRef) TaskGroup(groupId string, opts ...TaskGroupOption) *TaskGroupRe
 func (g *TaskGroupRef) Task(taskId string, fn any, opts ...TaskOption) *TaskRef
 func (g *TaskGroupRef) TaskGroup(groupId string, opts ...TaskGroupOption) *TaskGroupRef
 
-// DagSpec and TaskSpec carry the serialized Dag attributes.
-// They will be generated from the Airflow Core serialization schema.json directly to avoid drift.
+// DagSpec and TaskSpec are generated into this package from
+// airflow-core/src/airflow/serialization/schema.json and committed.
 type DagSpec struct {
     Schedule  string
     StartDate time.Time
@@ -121,6 +123,7 @@ type DagSpec struct {
     // ...
 }
 
+// TaskSpec implements TaskOption, so it travels in the same variadic as Inputs.
 type TaskSpec struct {
     Retries     int
     TriggerRule TriggerRule
@@ -163,6 +166,12 @@ const (
 - **A count or type mismatch panics at registration**, not at run time, because each `*TaskRef` carries its recorded output type.
 - **An edge verb returns what it pointed at, not its receiver.** That is what makes `a.Before(b, c).Before(d)` mean `a >> [b, c] >> d`.
   Returning the receiver would read like a chain and mean a second fan-out from `a`.
+- **The specs generate into the `airflow` package, not a `gen` package beside it.** An unexported method belongs to the package that declares it, so a generated type living elsewhere could not implement the sealed `TaskOption`, and a type alias cannot gain methods either.
+  Generating in place is what keeps both `airflow.TaskSpec` and the seal.
+- **The generated names need a mapping.** The core schema carries no `title` fields, unlike the supervisor schema `models.gen.go` reads, so its `dag` and `operator` definitions would generate as `Dag`, a name the constructor already takes, and `Operator`, which is not the SDK's vocabulary.
+  Either the schema gains titles or the generate step keeps the map.
+- **The schema is the serialized shape, not the authoring shape.** It requires `fileloc` and `tasks` on a Dag, and `task_type`, `_task_module`, `ui_color`, `ui_fgcolor`, and `template_fields` on an operator, all of which the SDK fills in, and it carries a serialized `timetable` object where an author writes a schedule.
+  Generation needs an exclusion list and a hand-written field or two, the same kind of rule [ADR-0009](../../airflow-core/adr/lang-sdk/0009-provider-operators-as-generated-dsl.md) states for provider operators.
 - **A data edge is labelled by redeclaring it.** Declaring an edge that already exists is idempotent, so `extracted.Before(airflow.Label(transformed, "rows"))` labels the edge `Inputs` created.
 
 ## Alternatives
