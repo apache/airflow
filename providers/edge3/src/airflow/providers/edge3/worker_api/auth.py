@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from functools import cache
 from typing import TYPE_CHECKING, TypedDict
 from uuid import uuid4
@@ -52,7 +53,15 @@ class WorkerTokenAuthorization(TypedDict, total=False):
     authorized: bool
 
 
-def _default_jwt_verifier(claims: dict) -> WorkerTokenAuthorization:
+@dataclass(frozen=True)
+class WorkerTokenContext:
+    """Request context passed to a ``[edge] jwt_verifier`` alongside the token claims."""
+
+    method: str
+    """The requested Edge worker API path after the ``/edge_worker/v1/`` prefix."""
+
+
+def _default_jwt_verifier(claims: dict, context: WorkerTokenContext) -> WorkerTokenAuthorization:
     """Authorize any token that passed signature, issuer and audience verification."""
     return {"authorized": True}
 
@@ -83,8 +92,12 @@ def _jwt_leeway() -> int:
     return conf.getint("edge", "jwt_leeway", fallback=30)
 
 
-def _jwt_verifier() -> Callable[[dict], WorkerTokenAuthorization | None]:
-    """Return the configured worker-authorization callable, or the permissive default."""
+def _resolve_jwt_verifier() -> Callable[[dict, WorkerTokenContext], WorkerTokenAuthorization | None]:
+    """
+    Import the configured worker-authorization callable, or the permissive default.
+
+    Resolved once when the OIDC authenticator is built (not per request).
+    """
     return conf.getimport("edge", "jwt_verifier", fallback=None) or _default_jwt_verifier
 
 
@@ -114,27 +127,33 @@ def _shared_secret_validator() -> JWTValidator:
     )
 
 
-def _oidc_validator(jwks_url: str) -> JWTValidator:
+@dataclass(frozen=True)
+class _OidcAuthenticator:
+    """A JWKS-backed validator paired with its worker-authorization callable."""
+
+    validator: JWTValidator
+    verifier: Callable[[dict, WorkerTokenContext], WorkerTokenAuthorization | None]
+
+
+def _build_oidc_authenticator(jwks_url: str) -> _OidcAuthenticator:
     """
-    Build a validator for worker tokens issued by a trusted OIDC provider.
+    Build the validator and worker-authorization callable for a trusted OIDC provider.
 
     Verifies the token signature against the provider JWKS and checks the
     ``iss`` and (optionally) ``aud`` claims. Used when ``[edge] trusted_jwks_url``
     is configured, so workers can authenticate with tokens minted by an
     external identity provider instead of the shared secret.
 
-    Rejects the configuration when issuer verification is skipped (empty
-    ``jwt_issuer``) without a ``jwt_verifier``: that combination would accept any
-    token signed by a key in the JWKS. The validator is built lazily on the first
-    request, so this surfaces as a rejected request (403) rather than a startup
-    failure.
+    Raises when issuer verification is skipped (empty ``jwt_issuer``) without a
+    ``jwt_verifier``, since that combination would accept any token signed by a
+    key in the JWKS.
     """
     if not _jwt_issuer() and not _jwt_verifier_configured():
         raise AirflowConfigException(
             "[edge] jwt_verifier must be set when trusted_jwks_url is configured "
             "without jwt_issuer, otherwise any token signed by the JWKS is accepted."
         )
-    return JWTValidator(
+    validator = JWTValidator(
         jwks=JWKS(url=jwks_url),
         issuer=_jwt_issuer(),
         audience=_jwt_audience(),
@@ -142,20 +161,27 @@ def _oidc_validator(jwks_url: str) -> JWTValidator:
         required_claims=frozenset({"iat", "exp"}),
         leeway=_jwt_leeway(),
     )
+    return _OidcAuthenticator(validator=validator, verifier=_resolve_jwt_verifier())
+
+
+@cache
+def _oidc_authenticator() -> _OidcAuthenticator:
+    """Return the cached OIDC validator and verifier for the configured JWKS URL."""
+    return _build_oidc_authenticator(_trusted_jwks_url())
 
 
 @cache
 def jwt_validator() -> JWTValidator:
     if _oidc_enabled():
-        return _oidc_validator(_trusted_jwks_url())
+        return _oidc_authenticator().validator
     return _shared_secret_validator()
 
 
-def jwt_validate(authorization: str) -> dict:
-    return jwt_validator().validated_claims(authorization)
+async def jwt_validate(authorization: str) -> dict:
+    return await jwt_validator().avalidated_claims(authorization)
 
 
-def _check_worker_authorization(payload: dict) -> None:
+def _check_worker_authorization(method: str, payload: dict) -> None:
     """
     Verify the token identity is allowed to act as an edge worker in OIDC mode.
 
@@ -166,7 +192,7 @@ def _check_worker_authorization(payload: dict) -> None:
     if not _oidc_enabled():
         return
 
-    result = _jwt_verifier()(payload)
+    result = _oidc_authenticator().verifier(payload, WorkerTokenContext(method=method))
     if not result or not result.get("authorized"):
         _forbidden_response("Token is not authorized to act as an edge worker.")
 
@@ -201,12 +227,12 @@ def _check_method_claim(method: str, payload: dict) -> None:
         )
 
 
-def jwt_token_authorization(method: str, authorization: str):
+async def jwt_token_authorization(method: str, authorization: str):
     """Check if the JWT token is correct."""
     try:
-        payload = jwt_validate(authorization)
+        payload = await jwt_validate(authorization)
         _check_method_claim(method, payload)
-        _check_worker_authorization(payload)
+        _check_worker_authorization(method, payload)
     except BadSignature:
         _forbidden_response("Bad Signature. Please use only the tokens provided by the API.")
     except InvalidAudienceError:
@@ -229,11 +255,11 @@ def jwt_token_authorization(method: str, authorization: str):
         _forbidden_response("Unable to authenticate API via token.")
 
 
-def jwt_token_authorization_rest(
+async def jwt_token_authorization_rest(
     request: Request, authorization: str = Header(description="JWT Authorization Token")
 ):
     """Check if the JWT token is correct for REST API requests."""
     PREFIX = "/edge_worker/v1/"
     path = request.url.path
     method_path = path[path.find(PREFIX) + len(PREFIX) :] if PREFIX in path else path
-    jwt_token_authorization(method_path, authorization)
+    await jwt_token_authorization(method_path, authorization)

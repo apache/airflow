@@ -175,7 +175,8 @@ config:
         description: |
           Import path of a callable that authorizes edge worker tokens issued by a
           trusted OIDC provider, run after signature, issuer and audience checks pass.
-          It receives the validated claims (``dict``) and returns a mapping with an
+          It receives the validated claims (``dict``) and a request context object
+          carrying the request ``method``, and returns a mapping with an
           ``authorized`` boolean (e.g. ``{"authorized": True}``); a falsy result or a
           raised exception rejects the request. Use it to restrict which identities
           (for example by ``sub``, ``client_id`` or ``scope``) may act as edge workers.
