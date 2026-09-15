@@ -29,6 +29,7 @@ import { Checkbox, Modal, SegmentedControl } from "src/system-components";
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { ErrorAlert } from "src/components/ErrorAlert";
 
+import { useClearKeepTaskStateDefault } from "src/hooks/useUserSettings";
 import { useBulkClearDryRun } from "src/queries/useBulkClearDryRun";
 import { useBulkClearTaskInstances } from "src/queries/useBulkClearTaskInstances";
 
@@ -40,14 +41,15 @@ type Props = {
 const BulkClearTaskInstancesButton = ({ clearSelections, selectedTaskInstances }: Props) => {
   const { t: translate } = useTranslation();
   const { onClose, onOpen, open } = useDisclosure();
+  const [keepTaskStateDefault] = useClearKeepTaskStateDefault();
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(["downstream"]);
   const [note, setNote] = useState<string | null>(null);
-  const [keepTaskState, setKeepTaskState] = useState(false);
+  const [keepTaskState, setKeepTaskState] = useState(keepTaskStateDefault);
   const [preventRunningTask, setPreventRunningTask] = useState(true);
 
   const handleClose = () => {
     setNote(null);
-    setKeepTaskState(false);
+    setKeepTaskState(keepTaskStateDefault);
     onClose();
   };
 

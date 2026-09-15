@@ -263,6 +263,10 @@
   "selected": "Selected",
   "settings": {
     "clearing": {
+      "keepTaskState": {
+        "helper": "Keep task state store entries by default when clearing task instances, instead of discarding them.",
+        "label": "Keep task state on clear"
+      },
       "preventRunningTask": {
         "helper": "Skip tasks that are currently running when clearing task instances.",
         "label": "Prevent clearing running tasks"

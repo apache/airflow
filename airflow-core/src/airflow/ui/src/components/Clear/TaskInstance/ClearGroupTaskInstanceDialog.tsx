@@ -35,7 +35,7 @@ import { Checkbox, Modal, SegmentedControl } from "src/system-components";
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLatestVersion";
 
-import { useClearTaskInstanceDefaultOptions } from "src/hooks/useUserSettings";
+import { useClearKeepTaskStateDefault, useClearTaskInstanceDefaultOptions } from "src/hooks/useUserSettings";
 import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
 import { isStatePending, useAutoRefresh } from "src/utils";
@@ -54,6 +54,7 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
   const groupId = taskInstance.task_id;
 
   const [clearTaskInstanceDefaultOptions] = useClearTaskInstanceDefaultOptions();
+  const [keepTaskStateDefault] = useClearKeepTaskStateDefault();
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(clearTaskInstanceDefaultOptions);
 
   const onlyFailed = selectedOptions.includes("onlyFailed");
@@ -61,12 +62,12 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
   const future = selectedOptions.includes("future");
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
-  const [keepTaskState, setKeepTaskState] = useState(false);
+  const [keepTaskState, setKeepTaskState] = useState(keepTaskStateDefault);
   const [note, setNote] = useState<string | null>(null);
 
   const onCloseDialog = () => {
     setNote(null);
-    setKeepTaskState(false);
+    setKeepTaskState(keepTaskStateDefault);
     onClose();
   };
 

@@ -63,23 +63,16 @@ def _discard_task_state_store(tis: Sequence[TI], session: Session, *, event: str
     """
     Discard the task state store entries of each task instance.
 
-    A failure to discard one task instance is logged and the loop stops rather than continuing to
-    the rest. The backend shares the caller's uncommitted session, so on backends like PostgreSQL a
-    failed statement aborts the transaction: every later ``backend.clear()`` call would raise too,
-    and anything the caller runs afterwards in that session (e.g. a note patch or re-query) would
-    raise uncaught. Stopping on the first failure avoids masking that with per-entry log noise.
+    A failure is logged and re-raised so the request fails and the session rolls back, rather than
+    reporting success while some entries survive undiscarded.
 
-    This only drops the metadata DB reference row via ``_get_db_backend()``. If ``[workers]
-    state_store_backend`` points at a custom backend, this runs with no worker in the loop to purge
-    the payload there (unlike the ``clear_on_success`` path, where the worker calls
-    ``_clear_backend_only`` before the server drops the DB row), so the object is left orphaned in
-    the custom backend with no reclaim path. Rely on the backend's own lifecycle/TTL policy to
-    reclaim it until this is addressed.
+    This only drops the metadata DB reference row via ``_get_db_backend()``; a custom
+    ``[workers] state_store_backend`` payload is left orphaned there with no reclaim path other than
+    its own lifecycle/TTL policy.
 
     :param event: what prompted the discard, used as the log event name.
     """
     backend = _get_db_backend()
-    discarded_count = 0
     for ti in tis:
         scope = TaskScope(
             dag_id=ti.dag_id,
@@ -89,7 +82,6 @@ def _discard_task_state_store(tis: Sequence[TI], session: Session, *, event: str
         )
         try:
             backend.clear(scope=scope, session=session)
-            discarded_count += 1
         except Exception:
             log.warning(
                 "Failed to discard task state",
@@ -100,16 +92,38 @@ def _discard_task_state_store(tis: Sequence[TI], session: Session, *, event: str
                 map_index=ti.map_index,
                 exc_info=True,
             )
-            break
-    if discarded_count:
-        log.info(event, task_instance_count=discarded_count)
+            raise
+    log.info(event, task_instance_count=len(tis))
 
 
 def _clear_task_state_store_on_success(tis: Sequence[TI], session: Session) -> None:
-    """Discard task state store entries for each TI if clear_on_success is enabled."""
-    if not conf.getboolean("state_store", "clear_on_success"):
+    """Clear task state store rows for each TI if clear_on_success is enabled."""
+    if not conf.getboolean("state_store", "clear_on_success", fallback=False):
         return
-    _discard_task_state_store(tis, session, event="Cleared task state on success")
+    backend = _get_db_backend()
+    for ti in tis:
+        scope = TaskScope(
+            dag_id=ti.dag_id,
+            run_id=ti.run_id,
+            task_id=ti.task_id,
+            map_index=ti.map_index if ti.map_index is not None else -1,
+        )
+        try:
+            backend.clear(scope=scope, session=session)
+            log.info(
+                "Cleared task state on success",
+                dag_id=ti.dag_id,
+                run_id=ti.run_id,
+                task_id=ti.task_id,
+                map_index=ti.map_index,
+            )
+        except Exception:
+            log.warning(
+                "Failed to clear task state on success",
+                dag_id=ti.dag_id,
+                run_id=ti.run_id,
+                task_id=ti.task_id,
+            )
 
 
 def _validate_patch_task_instance_body(

@@ -33,6 +33,7 @@ import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLate
 import Time from "src/components/Time";
 
 import {
+  useClearKeepTaskStateDefault,
   useClearPreventRunningTaskDefault,
   useClearTaskInstanceDefaultOptions,
 } from "src/hooks/useUserSettings";
@@ -86,6 +87,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
 
   const [clearTaskInstanceDefaultOptions] = useClearTaskInstanceDefaultOptions();
   const [preventRunningTaskDefault] = useClearPreventRunningTaskDefault();
+  const [keepTaskStateDefault] = useClearKeepTaskStateDefault();
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(clearTaskInstanceDefaultOptions);
 
   const onlyFailed = selectedOptions.includes("onlyFailed");
@@ -93,7 +95,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
   const future = selectedOptions.includes("future");
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
-  const [keepTaskState, setKeepTaskState] = useState(false);
+  const [keepTaskState, setKeepTaskState] = useState(keepTaskStateDefault);
   const [preventRunningTask, setPreventRunningTask] = useState(preventRunningTaskDefault);
 
   const [note, setNote] = useState<string | null>(taskInstance?.note ?? null);
@@ -101,13 +103,13 @@ const ClearTaskInstanceDialog = (props: Props) => {
   useEffect(() => {
     if (openDialog) {
       setNote(taskInstance?.note ?? null);
-      setKeepTaskState(false);
+      setKeepTaskState(keepTaskStateDefault);
     }
-  }, [openDialog, taskInstance?.note]);
+  }, [openDialog, taskInstance?.note, keepTaskStateDefault]);
 
   const onCloseDialog = () => {
     setNote(taskInstance?.note ?? null);
-    setKeepTaskState(false);
+    setKeepTaskState(keepTaskStateDefault);
     closeDialog();
   };
 

@@ -34,11 +34,16 @@ Operators with durable execution are worth particular attention. Clearing a *fai
 id means submitting a second one. The same applies to operators configured to leave their job alive
 on kill, such as ``KubernetesPodOperator`` with ``on_kill_action="keep_pod"``.
 
-On the CLI, ``airflowctl dags clear`` discards task state the same way, since it clears every task
-instance in the matched Dag run(s) through the same endpoint, but it has no ``--keep-task-state``
-equivalent yet to opt back in. ``airflow dags clear`` and ``airflow tasks clear`` (airflow-core,
-both deprecated in favor of their ``airflowctl`` equivalents) are unaffected: they call
-``clear_task_instances()`` directly and never touch task state.
+This also widens the permission surface of clearing: a task-instance clear (gated by the
+task-instance edit permission) now deletes ``task_state_store`` rows for that task instance, the same
+rows the dedicated task-state-store endpoint gates behind the delete permission.
+
+On the CLI, ``airflowctl tasks clear`` discards task state the same way and has a
+``--keep-task-state`` flag to opt back in. ``airflowctl dags clear`` discards task state too, since
+it clears every task instance in the matched Dag run(s) through the same endpoint, but it has no
+``--keep-task-state`` equivalent yet. ``airflow dags clear`` and ``airflow tasks clear``
+(airflow-core; only ``tasks clear`` is deprecated, in favor of ``airflowctl tasks clear``) are
+unaffected: they call ``clear_task_instances()`` directly and never touch task state.
 
 * Types of change
 

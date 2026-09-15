@@ -4432,6 +4432,30 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         session.expire_all()
         assert self._task_state_rows(session, dag_id)
 
+    @pytest.mark.db_test
+    @mock.patch.object(MetastoreBackend, "clear", side_effect=RuntimeError("boom"))
+    def test_clear_task_state_store_discard_failure_fails_request(self, mock_clear, test_client, session):
+        """A backend.clear() failure fails the whole request instead of reporting a partial clear as success."""
+        dag_id = "example_python_operator"
+        self.create_task_instances(
+            session,
+            dag_id=dag_id,
+            task_instances=[{"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED}],
+            update_extras=False,
+        )
+        self._seed_task_state(session, dag_id)
+
+        with pytest.raises(RuntimeError, match="boom"):
+            test_client.post(
+                f"/dags/{dag_id}/clearTaskInstances",
+                json={"dry_run": False, "reset_dag_runs": False, "only_failed": True},
+            )
+
+        session.expire_all()
+        assert self._task_state_rows(session, dag_id)
+        ti = session.scalars(select(TaskInstance).where(TaskInstance.dag_id == dag_id)).one()
+        assert ti.state == State.FAILED
+
 
 class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
     def test_should_respond_200(self, test_client, session):
