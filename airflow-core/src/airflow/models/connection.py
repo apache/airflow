@@ -35,6 +35,7 @@ from airflow._shared.secrets_masker import mask_secret
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import FernetFieldsMixin, get_fernet
+from airflow.process_context import should_use_task_sdk_api_path
 
 # AirflowSecretsBackendAccessDenied was added to task-sdk in 1.2.2. When
 # airflow-core is installed alongside an older published task-sdk (e.g. 1.2.1 or earlier),
@@ -49,7 +50,6 @@ except ImportError:
         """Compat stub — never raised by task-sdk <1.2.2."""
 
 
-from airflow.process_context import should_use_task_sdk_api_path
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session

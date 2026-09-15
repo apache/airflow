@@ -69,6 +69,7 @@ from airflow.sdk.api.datamodels._generated import (
     PreviousTIResponse,
     TaskInstance,
     TaskInstanceState,
+    VariableResponse,
 )
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType, TaskAlreadyRunningError
 from airflow.sdk.execution_time import supervisor, task_runner
@@ -3839,10 +3840,10 @@ class TestInProcessTestSupervisor:
             read_end.recv(1)
 
     def test_concurrent_in_process_requests_get_their_own_response(self, mocker):
-        """Requests in flight at the same time must not be answered with each other's response.
+        """In-process requests in flight at the same time must not be answered with each other's response.
 
-        The socket is serviced on its own thread, so the supervisor answers child-process requests
-        while the task in this process has a request of its own outstanding.
+        Both requests go through ``comms.send`` from different threads, with the first one still
+        being handled when the second arrives, so each must read its response from its own sink.
         """
         first_queued = threading.Event()
         second_answered = threading.Event()
@@ -3875,6 +3876,7 @@ class TestInProcessTestSupervisor:
         ask("second")
         second_answered.set()
         first.join(10)
+        assert not first.is_alive(), "first in-process request never got its response"
 
         assert answers == {
             "first": VariableResult(key="first", value="first"),
@@ -3908,6 +3910,45 @@ class TestInProcessTestSupervisor:
             assert not reader.is_alive(), "supervisor never answered the request sent on its socket"
 
         assert received == [VariableResult(key="test_key", value="test_value")]
+
+    @patch("airflow.sdk.log._secrets_masker")
+    def test_child_request_masking_secret_on_socket_thread_gets_only_its_response(
+        self, mock_secrets_masker, mocker
+    ):
+        """Handling a child's ``GetVariable`` on the socket thread calls ``mask_secret``, which
+        re-enters ``comms.send`` on that same thread with a sink set; the nested ``MaskSecret`` reply
+        must stay in that sink and only the ``VariableResult`` may reach the child's socket.
+        """
+        supervisor = InProcessTestSupervisor(
+            id=TI_ID,
+            pid=12345,
+            process=mocker.Mock(),
+            process_log=mocker.MagicMock(),
+            client=mocker.MagicMock(spec=sdk_client.Client),
+        )
+        supervisor.comms = InProcessSupervisorComms(supervisor=supervisor)
+        supervisor.client.variables.get.return_value = VariableResponse(key="test_key", value="test_value")
+        comms_send = mocker.spy(InProcessSupervisorComms, "send")
+
+        received: list[Any] = []
+        with (
+            set_supervisor_comms(supervisor.comms),
+            supervisor._setup_subprocess_socket() as child_sock,
+        ):
+            comms = CommsDecoder(socket=child_sock)
+            reader = threading.Thread(
+                target=lambda: received.append(comms.send(GetVariable(key="test_key"))), daemon=True
+            )
+            reader.start()
+            reader.join(10)
+
+            assert not reader.is_alive(), "supervisor never answered the request sent on its socket"
+            child_sock.settimeout(0.1)
+            with pytest.raises(TimeoutError):
+                child_sock.recv(1)
+
+        assert received == [VariableResult(key="test_key", value="test_value")]
+        comms_send.assert_called_once_with(supervisor.comms, MaskSecret(value="test_value", name="test_key"))
 
     def test_inprocess_failure_callback_receives_exception(
         self,
