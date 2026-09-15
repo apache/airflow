@@ -40,6 +40,7 @@
   "dag_one": "Dag",
   "dag_other": "Dags",
   "dagDetails": {
+    "activeRuns": "活躍執行數",
     "catchup": "自動回填",
     "dagRunTimeout": "Dag 執行超時",
     "defaultArgs": "預設參數",
@@ -140,12 +141,15 @@
   "filter": "篩選",
   "filters": {
     "addFilter": "新增篩選",
+    "completedAt": "完成時間",
     "date": "日期",
     "durationFrom": "從執行時間",
     "durationTo": "到執行時間",
     "endTime": "結束時間",
     "logicalDateFrom": "從邏輯日期",
     "logicalDateTo": "到邏輯日期",
+    "maxActiveRunsFrom": "活躍執行數上限（最小值）",
+    "maxActiveRunsTo": "活躍執行數上限（最大值）",
     "removeFilter": "移除篩選",
     "runAfterFrom": "從最早可執行時間",
     "runAfterTo": "從最早可執行時間",
@@ -180,6 +184,7 @@
     "assets": "資源",
     "browse": "瀏覽",
     "dags": "Dags",
+    "dashboard": "儀表板",
     "docs": "文件",
     "home": "首頁",
     "legacyFabViews": "舊版檢視",
@@ -273,6 +278,17 @@
       "title": "清除"
     },
     "description": "這些偏好設定僅會儲存在此瀏覽器中，並套用至整個應用程式。",
+    "general": {
+      "landingPage": {
+        "helper": "開啟 Airflow 時顯示的頁面。",
+        "label": "起始頁面",
+        "options": {
+          "dags": "Dags",
+          "dashboard": "儀表板"
+        }
+      },
+      "title": "一般"
+    },
     "graph": {
       "defaultDirection": {
         "helper": "尚未個別設定的 Dag 與資源圖形版面配置方向。",
@@ -286,6 +302,13 @@
         "label": "預設標記選項"
       },
       "title": "標記"
+    },
+    "taskInstance": {
+      "defaultTab": {
+        "helper": "開啟任務實例時優先顯示的分頁。指向特定分頁的連結仍會開啟該分頁。",
+        "label": "預設任務實例分頁"
+      },
+      "title": "任務實例"
     },
     "title": "設定"
   },

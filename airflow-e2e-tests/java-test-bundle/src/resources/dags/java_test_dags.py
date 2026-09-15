@@ -36,3 +36,15 @@ def java_uninstantiable():
 
 
 java_uninstantiable()
+
+
+@task.stub(queue="java-test")
+def write_and_delete(): ...
+
+
+@dag(dag_id="java_variable_write")
+def java_variable_write():
+    write_and_delete()
+
+
+java_variable_write()

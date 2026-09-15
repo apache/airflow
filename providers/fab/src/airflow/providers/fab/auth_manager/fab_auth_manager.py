@@ -55,6 +55,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
 from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
 from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
 from airflow.models import Connection, DagModel, Pool, Variable
+from airflow.models.asset import AssetModel
 from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.common.compat.security.access_view import (
     AUDIT_LOGS_ALL_ACCESS_VIEW,
@@ -562,6 +563,26 @@ class FabAuthManager(BaseAuthManager[User]):
                 user=user,
             )
         ]
+
+    @provide_session
+    def get_authorized_assets(
+        self,
+        *,
+        user: User,
+        method: ResourceMethod = "GET",
+        session: Session = NEW_SESSION,
+    ) -> set[int]:
+        """
+        Get the ids of the assets the user has access to.
+
+        Fab auth manager does not allow fine-grained access with assets. Thus, return all the asset ids.
+
+        :param user: the user
+        :param method: the method to filter on
+        :param session: the session
+        """
+        rows = session.execute(select(AssetModel.id)).scalars().all()
+        return set(rows)
 
     @provide_session
     def get_authorized_connections(
