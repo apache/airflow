@@ -260,6 +260,27 @@ def gauge(
     backend.gauge(stat, value, **_defined(rate=rate, delta=delta, tags=tags))
 
 
+def observable_gauge(
+    stat: str,
+    callback: Callable[..., Iterable[Any]],
+    *,
+    description: str = "",
+) -> None:
+    """
+    Register a callback-based gauge whose values are collected at export time.
+
+    The callback is invoked by the metrics SDK during periodic collection (in the
+    export thread), not during registration.  It receives a single ``timeout_millis``
+    argument (a ``float``) and must yield ``(value, attributes)`` tuples where
+    *value* is numeric and *attributes* is an optional ``dict``.
+
+    On backends that do not support observable instruments (StatsD, Datadog),
+    this is a no-op.
+    """
+    backend = _get_backend()
+    backend.observable_gauge(stat, callback, description=description)
+
+
 def timing(
     stat: str,
     dt: DeltaType,
@@ -354,5 +375,6 @@ class Stats:
     incr = staticmethod(incr)
     decr = staticmethod(decr)
     gauge = staticmethod(gauge)
+    observable_gauge = staticmethod(observable_gauge)
     timing = staticmethod(timing)
     timer = staticmethod(timer)

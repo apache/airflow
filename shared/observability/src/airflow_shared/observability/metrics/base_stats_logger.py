@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, Any, Protocol
 
 from .protocols import Timer
@@ -86,6 +86,16 @@ class StatsLogger(Protocol):
         """Timer metric that can be cancelled."""
         raise NotImplementedError()
 
+    @classmethod
+    def observable_gauge(
+        cls,
+        stat: str,
+        callback: Callable[..., Iterable[Any]],
+        *,
+        description: str = "",
+    ) -> None:
+        """Register a callback-based gauge whose values are collected at export time."""
+
 
 class NoStatsLogger:
     """If no StatsLogger is configured, NoStatsLogger is used as a fallback."""
@@ -126,3 +136,13 @@ class NoStatsLogger:
     def timer(cls, *args, **kwargs) -> Timer:
         """Timer metric that can be cancelled."""
         return Timer()
+
+    @classmethod
+    def observable_gauge(
+        cls,
+        stat: str,
+        callback: Callable[..., Iterable[Any]],
+        *,
+        description: str = "",
+    ) -> None:
+        """Observable gauge is a no-op when no backend is configured."""

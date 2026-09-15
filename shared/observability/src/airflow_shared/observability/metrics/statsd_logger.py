@@ -155,6 +155,15 @@ class SafeStatsdLogger:
             return Timer(self.statsd.timer(stat, *args, **kwargs))
         return Timer()
 
+    def observable_gauge(
+        self,
+        stat: str,
+        callback,
+        *,
+        description: str = "",
+    ) -> None:
+        """Observable gauges are not supported by the StatsD backend; this is a no-op."""
+
 
 def _make_safe_statsd_logger(
     statsd_client: StatsClient,
