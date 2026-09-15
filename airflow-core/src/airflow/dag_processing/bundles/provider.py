@@ -54,12 +54,23 @@ class DagBundleProvider(ABC):
     The configuration list is the complete set of active bundles. A bundle name
     may remain resolvable through ``get_bundle`` after it leaves that list because
     retained Dag runs can still need an older version. A name must continue to
-    identify the same bundle implementation; use a new name for a different one.
+    identify the same bundle construction settings. Use a new name when settings
+    such as the bundle class, repository, branch, connection, or refresh interval change.
     """
+
+    @property
+    def provides_complete_configuration(self) -> bool:
+        """Return whether each provider instance sees the complete active bundle list."""
+        return True
 
     @abstractmethod
     def get_all_bundle_configurations(self) -> Sequence[DagBundleConfiguration]:
-        """Return the complete set of active Dag bundle configurations."""
+        """
+        Return the complete set of active Dag bundle configurations.
+
+        Return an empty sequence only when no bundles are active. Raise an exception
+        when the current configuration cannot be read so Airflow keeps the last valid list.
+        """
 
     @abstractmethod
     def get_bundle(
@@ -194,6 +205,10 @@ def _add_provider_example_dags_to_bundle(bundle_config_list: list[_ExternalBundl
 
 class ConfigDagBundleProvider(DagBundleProvider):
     """Provide Dag bundles configured by ``dag_bundle_config_list``."""
+
+    @property
+    def provides_complete_configuration(self) -> bool:
+        return False
 
     def __init__(self) -> None:
         self._bundle_config: dict[str, _InternalBundleConfig] = {}

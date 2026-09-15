@@ -3213,6 +3213,9 @@ dag_processor:
 
         The default provider reads ``dag_bundle_config_list``. A custom provider can read bundle
         configuration from another source and must return the complete set of active bundles.
+        Dag processors request this list every ``bundle_refresh_check_interval`` seconds. A missing
+        bundle is inactive. A bundle name must keep the same construction settings. Use a new name
+        when settings such as its class, repository, branch, connection, or refresh interval change.
       version_added: 3.4.0
       type: string
       example: ~
@@ -3349,9 +3352,10 @@ dag_processor:
       default: "False"
     bundle_refresh_check_interval:
       description: |
-        How often the DAG processor should check if any DAG bundles are ready for a refresh, either by hitting
-        the bundles refresh_interval or because another DAG processor has seen a newer version of the bundle.
-        A low value means we check more frequently, and have a smaller window of time where DAG processors are
+        How often the Dag processor should request the active bundle configuration and check if any
+        Dag bundles are ready for a refresh, either by hitting the bundles refresh_interval or because
+        another Dag processor has seen a newer version of the bundle.
+        A low value means we check more frequently, and have a smaller window of time where Dag processors are
         out of sync with each other, parsing different versions of the same bundle.
       version_added: ~
       type: integer

@@ -48,6 +48,7 @@ from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.dag_processing.bundles.provider import DagBundleConfiguration
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.dagbag import DagBag
 from airflow.dag_processing.manager import (
@@ -325,6 +326,126 @@ class TestDagFileProcessorManager:
         ret._open_sockets.clear()
         return ret, read_end
 
+    def test_refresh_bundle_configurations_reconciles_unchanged_configuration(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        bundle_manager = MagicMock(spec=DagBundlesManager)
+        manager._dag_bundles_manager = bundle_manager
+
+        manager._refresh_bundle_configurations(known_files={})
+
+        bundle_manager.sync_bundles_to_db.assert_called_once_with(deactivate_missing=True)
+
+    def test_refresh_bundle_configurations_reconciles_complete_provider_when_filtered(self):
+        manager = DagFileProcessorManager(max_runs=1, bundle_names_to_parse=["owned"])
+        owned_bundle = MagicMock(spec=BaseDagBundle)
+        owned_bundle.name = "owned"
+        bundle_manager = MagicMock(spec=DagBundlesManager)
+        bundle_manager.provides_complete_configuration = True
+        bundle_manager.get_all_bundle_configurations.return_value = (
+            DagBundleConfiguration(name="owned"),
+            DagBundleConfiguration(name="other"),
+        )
+        bundle_manager.get_bundle.return_value = owned_bundle
+        manager._dag_bundles_manager = bundle_manager
+
+        manager._refresh_bundle_configurations(known_files={})
+
+        assert manager._dag_bundles == [owned_bundle]
+        assert manager._bundle_configurations == {"owned": DagBundleConfiguration(name="owned")}
+        bundle_manager.get_bundle.assert_called_once_with("owned")
+        bundle_manager.sync_bundles_to_db.assert_called_once_with(deactivate_missing=True)
+
+    def test_refresh_bundle_configurations_reconciles_last_valid_configuration_after_provider_error(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        existing_bundle = MagicMock(spec=BaseDagBundle)
+        existing_bundle.name = "existing"
+        existing_configuration = DagBundleConfiguration(name="existing")
+        manager._dag_bundles = [existing_bundle]
+        manager._bundle_configurations = {"existing": existing_configuration}
+
+        bundle_manager = MagicMock(spec=DagBundlesManager)
+        bundle_manager.parse_config.side_effect = RuntimeError("source unavailable")
+        bundle_manager.get_all_bundle_configurations.return_value = (existing_configuration,)
+        manager._dag_bundles_manager = bundle_manager
+
+        manager._refresh_bundle_configurations(known_files={})
+
+        assert manager._dag_bundles == [existing_bundle]
+        assert manager._bundle_configurations == {"existing": existing_configuration}
+        bundle_manager.sync_bundles_to_db.assert_called_once_with(deactivate_missing=True)
+
+    def test_refresh_bundle_configurations_adds_updates_and_removes_bundles(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        retained_bundle = MagicMock(spec=BaseDagBundle)
+        retained_bundle.name = "retained"
+        updated_bundle = MagicMock(spec=BaseDagBundle)
+        updated_bundle.name = "updated"
+        removed_bundle = MagicMock(spec=BaseDagBundle)
+        removed_bundle.name = "removed"
+        replacement_bundle = MagicMock(spec=BaseDagBundle)
+        replacement_bundle.name = "updated"
+        added_bundle = MagicMock(spec=BaseDagBundle)
+        added_bundle.name = "added"
+
+        retained_configuration = DagBundleConfiguration(name="retained")
+        manager._dag_bundles = [retained_bundle, updated_bundle, removed_bundle]
+        manager._bundle_configurations = {
+            "retained": retained_configuration,
+            "updated": DagBundleConfiguration(name="updated", team_name="old-team"),
+            "removed": DagBundleConfiguration(name="removed"),
+        }
+        manager._bundle_versions = {"updated": "old", "removed": "old"}
+        manager._bundle_version_data = {"updated": {"old": True}, "removed": {"old": True}}
+        manager._force_refresh_bundles = {"removed"}
+
+        bundle_manager = MagicMock(spec=DagBundlesManager)
+        bundle_manager.get_all_bundle_configurations.return_value = (
+            retained_configuration,
+            DagBundleConfiguration(name="updated", team_name="new-team"),
+            DagBundleConfiguration(name="added"),
+        )
+        bundle_manager.get_bundle.side_effect = {
+            "updated": replacement_bundle,
+            "added": added_bundle,
+        }.get
+        manager._dag_bundles_manager = bundle_manager
+
+        removed_file = DagFileInfo(
+            bundle_name="removed", bundle_path=Path("/removed"), rel_path=Path("dag.py")
+        )
+        known_files = {"retained": set(), "removed": {removed_file}}
+
+        with mock.patch.object(manager, "handle_removed_files", autospec=True) as handle_removed_files:
+            manager._refresh_bundle_configurations(known_files=known_files)
+
+        assert manager._dag_bundles == [retained_bundle, replacement_bundle, added_bundle]
+        assert manager._bundle_configurations == {
+            "retained": retained_configuration,
+            "updated": DagBundleConfiguration(name="updated", team_name="new-team"),
+            "added": DagBundleConfiguration(name="added"),
+        }
+        assert manager._force_refresh_bundles == {"updated", "added"}
+        assert manager._bundle_versions == {}
+        assert manager._bundle_version_data == {}
+        assert known_files == {"retained": set()}
+        handle_removed_files.assert_called_once_with(known_files=known_files)
+        bundle_manager.sync_bundles_to_db.assert_called_once_with(deactivate_missing=True)
+
+    def test_refresh_bundle_configurations_retries_failed_bundle_addition(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        added_configuration = DagBundleConfiguration(name="added")
+
+        bundle_manager = MagicMock(spec=DagBundlesManager)
+        bundle_manager.get_all_bundle_configurations.return_value = (added_configuration,)
+        bundle_manager.get_bundle.side_effect = RuntimeError("cannot construct bundle")
+        manager._dag_bundles_manager = bundle_manager
+
+        manager._refresh_bundle_configurations(known_files={})
+
+        assert manager._dag_bundles == []
+        assert manager._bundle_configurations == {}
+        bundle_manager.get_bundle.assert_called_once_with("added")
+
     @pytest.fixture
     def clear_parse_import_errors(self):
         clear_db_import_errors()
@@ -426,6 +547,7 @@ class TestDagFileProcessorManager:
         """A processor started with ``--bundle-name`` owns a subset and must not deactivate others."""
         manager = DagFileProcessorManager(max_runs=1, bundle_names_to_parse=["only-mine"])
         with mock.patch("airflow.dag_processing.manager.DagBundlesManager") as mock_bundles_manager:
+            mock_bundles_manager.return_value.provides_complete_configuration = False
             manager.sync_bundles()
         mock_bundles_manager.return_value.sync_bundles_to_db.assert_called_once_with(deactivate_missing=False)
 

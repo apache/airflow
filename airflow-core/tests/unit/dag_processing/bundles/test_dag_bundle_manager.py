@@ -152,6 +152,17 @@ class FailingInitializationDagBundleProvider(CustomDagBundleProvider):
         raise RuntimeError("Provider initialization failed")
 
 
+class ReloadingDagBundleProvider(CustomDagBundleProvider):
+    def __init__(self):
+        self.configurations = [DagBundleConfiguration(name="active-bundle")]
+        self.error: Exception | None = None
+
+    def get_all_bundle_configurations(self):
+        if self.error:
+            raise self.error
+        return self.configurations
+
+
 BASIC_BUNDLE_CONFIG = [
     {
         "name": "my-test-bundle",
@@ -182,6 +193,7 @@ def test_get_bundle():
         os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)}
     ):
         bundle_manager = DagBundlesManager()
+        assert bundle_manager.provides_complete_configuration is False
 
         with pytest.raises(ValueError, match="'bundle-that-doesn't-exist' is not configured"):
             bundle_manager.get_bundle(name="bundle-that-doesn't-exist", version="hello")
@@ -212,6 +224,7 @@ def test_get_bundle():
 def test_custom_bundle_provider_resolves_active_and_retired_bundles():
     manager = DagBundlesManager()
 
+    assert manager.provides_complete_configuration is True
     assert manager.get_all_bundle_configurations() == (DagBundleConfiguration(name="active-bundle"),)
     assert manager.get_bundle_configuration("active-bundle") == DagBundleConfiguration(name="active-bundle")
     assert manager.get_all_bundle_names() == ["active-bundle"]
@@ -229,6 +242,39 @@ def test_custom_bundle_provider_resolves_active_and_retired_bundles():
     assert retired_bundle.name == "retired-bundle"
     assert retired_bundle.version == "v1"
     assert retired_bundle.version_data == {"manifest": "retired.json"}
+
+
+@conf_vars(
+    {
+        (
+            "dag_processor",
+            "dag_bundle_provider",
+        ): "unit.dag_processing.bundles.test_dag_bundle_manager.ReloadingDagBundleProvider"
+    }
+)
+def test_custom_bundle_provider_refreshes_active_configurations():
+    manager = DagBundlesManager()
+    provider = manager._bundle_provider
+    assert isinstance(provider, ReloadingDagBundleProvider)
+
+    manager.parse_config()
+
+    provider.configurations = [
+        DagBundleConfiguration(name="active-bundle"),
+        DagBundleConfiguration(name="added-bundle"),
+    ]
+    manager.parse_config()
+    assert manager.get_all_bundle_configurations() == tuple(provider.configurations)
+
+    provider.error = RuntimeError("source unavailable")
+    with pytest.raises(RuntimeError, match="source unavailable"):
+        manager.parse_config()
+    assert manager.get_all_bundle_configurations() == tuple(provider.configurations)
+    provider.error = None
+
+    provider.configurations = []
+    manager.parse_config()
+    assert manager.get_all_bundle_configurations() == ()
 
 
 @pytest.mark.parametrize(

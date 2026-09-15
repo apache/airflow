@@ -93,6 +93,7 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.dag_processing.bundles.base import BaseDagBundle
+    from airflow.dag_processing.bundles.provider import DagBundleConfiguration
     from airflow.sdk.api.client import Client
 
 
@@ -263,6 +264,8 @@ class DagFileProcessorManager(LoggingMixin):
     )
 
     _dag_bundles: list[BaseDagBundle] = attrs.field(factory=list, init=False)
+    _dag_bundles_manager: DagBundlesManager | None = attrs.field(default=None, init=False)
+    _bundle_configurations: dict[str, DagBundleConfiguration] = attrs.field(factory=dict, init=False)
     _bundle_versions: dict[str, str | None] = attrs.field(factory=dict, init=False)
     _bundle_version_data: dict[str, dict | None] = attrs.field(factory=dict, init=False)
     _multi_team: bool = attrs.field(factory=lambda: conf.getboolean("core", "multi_team"), init=False)
@@ -339,8 +342,10 @@ class DagFileProcessorManager(LoggingMixin):
         """Sync configured DAG bundles to the metadata database."""
         # When this processor only parses a subset of bundles, it does not see the full
         # bundle configuration and must not deactivate bundles owned by other processors.
-        dag_bundle_manager = DagBundlesManager()
-        dag_bundle_manager.sync_bundles_to_db(deactivate_missing=not self.bundle_names_to_parse)
+        dag_bundle_manager = self._get_dag_bundles_manager()
+        dag_bundle_manager.sync_bundles_to_db(
+            deactivate_missing=self._can_deactivate_missing_bundles(dag_bundle_manager)
+        )
         # Best-effort legacy repair: a failure here must not crash DFP startup.
         # Affected Dags self-heal on the next successful parse.
         try:
@@ -350,7 +355,15 @@ class DagFileProcessorManager(LoggingMixin):
 
     def get_all_bundles(self) -> list[BaseDagBundle]:
         """Return configured DAG bundles filtered by ``bundle_names_to_parse`` if provided."""
-        return list(DagBundlesManager().get_all_dag_bundles())
+        return list(self._get_dag_bundles_manager().get_all_dag_bundles())
+
+    def _get_dag_bundles_manager(self) -> DagBundlesManager:
+        if self._dag_bundles_manager is None:
+            self._dag_bundles_manager = DagBundlesManager()
+        return self._dag_bundles_manager
+
+    def _can_deactivate_missing_bundles(self, dag_bundle_manager: DagBundlesManager) -> bool:
+        return not self.bundle_names_to_parse or dag_bundle_manager.provides_complete_configuration
 
     def run(self):
         """
@@ -419,6 +432,12 @@ class DagFileProcessorManager(LoggingMixin):
         if self.bundle_names_to_parse:
             dag_bundles = [b for b in dag_bundles if b.name in self.bundle_names_to_parse]
         self._dag_bundles = dag_bundles
+        loaded_names = {bundle.name for bundle in dag_bundles}
+        self._bundle_configurations = {
+            configuration.name: configuration
+            for configuration in self._get_dag_bundles_manager().get_all_bundle_configurations()
+            if configuration.name in loaded_names
+        }
 
         for bundle in self._dag_bundles:
             self.log.info(
@@ -848,6 +867,7 @@ class DagFileProcessorManager(LoggingMixin):
             return
 
         self._bundles_last_refreshed = now_seconds
+        self._refresh_bundle_configurations(known_files=known_files)
 
         any_refreshed = False
         for bundle in self._dag_bundles:
@@ -955,6 +975,83 @@ class DagFileProcessorManager(LoggingMixin):
             self.handle_removed_files(known_files=known_files)
             self._resort_file_queue()
             self._add_new_files_to_queue(known_files=known_files)
+
+    def _refresh_bundle_configurations(self, known_files: dict[str, set[DagFileInfo]]) -> None:
+        dag_bundle_manager = self._get_dag_bundles_manager()
+        try:
+            dag_bundle_manager.parse_config()
+        except Exception:
+            self.log.exception("Error refreshing Dag bundle configuration")
+
+        try:
+            dag_bundle_manager.sync_bundles_to_db(
+                deactivate_missing=self._can_deactivate_missing_bundles(dag_bundle_manager)
+            )
+        except Exception:
+            self.log.exception("Error reconciling Dag bundle configuration")
+
+        configurations = dag_bundle_manager.get_all_bundle_configurations()
+        if self.bundle_names_to_parse:
+            configurations = tuple(
+                configuration
+                for configuration in configurations
+                if configuration.name in self.bundle_names_to_parse
+            )
+
+        current_configurations = {configuration.name: configuration for configuration in configurations}
+        if current_configurations == self._bundle_configurations:
+            return
+
+        previous_bundles = {bundle.name: bundle for bundle in self._dag_bundles}
+        previous_names = set(previous_bundles)
+        current_names = set(current_configurations)
+        removed_names = previous_names - current_names
+
+        dag_bundles: list[BaseDagBundle] = []
+        bundle_configurations: dict[str, DagBundleConfiguration] = {}
+        refreshed_names: set[str] = set()
+        for configuration in configurations:
+            previous_bundle = previous_bundles.get(configuration.name)
+            previous_configuration = self._bundle_configurations.get(configuration.name)
+            if previous_bundle and previous_configuration == configuration:
+                dag_bundles.append(previous_bundle)
+                bundle_configurations[configuration.name] = configuration
+                continue
+            try:
+                bundle = dag_bundle_manager.get_bundle(configuration.name)
+            except Exception as e:
+                self.log.exception("Error creating bundle '%s': %s", configuration.name, e)
+                if previous_bundle:
+                    dag_bundles.append(previous_bundle)
+                    if previous_configuration:
+                        bundle_configurations[configuration.name] = previous_configuration
+                continue
+            dag_bundles.append(bundle)
+            bundle_configurations[configuration.name] = configuration
+            refreshed_names.add(configuration.name)
+
+        self._dag_bundles = dag_bundles
+        self._bundle_configurations = bundle_configurations
+        self._force_refresh_bundles.update(refreshed_names)
+        self._bundle_name_to_team_name = {}
+
+        for bundle_name in removed_names | refreshed_names:
+            self._bundle_versions.pop(bundle_name, None)
+            self._bundle_version_data.pop(bundle_name, None)
+
+        for bundle_name in removed_names:
+            known_files.pop(bundle_name, None)
+            self._force_refresh_bundles.discard(bundle_name)
+
+        if removed_names:
+            self.handle_removed_files(known_files=known_files)
+
+        self.log.info(
+            "Refreshed Dag bundle configuration: added=%s, updated=%s, removed=%s",
+            sorted(refreshed_names - previous_names),
+            sorted(refreshed_names & previous_names),
+            sorted(removed_names),
+        )
 
     def _find_files_in_bundle(self, bundle: BaseDagBundle) -> list[Path]:
         """Get relative paths for dag files from bundle dir."""
