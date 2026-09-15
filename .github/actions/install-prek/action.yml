@@ -52,10 +52,11 @@ runs:
       env:
         PLATFORM: ${{ inputs.platform }}
         UV_VERSION: ${{ steps.versions.outputs.uv-version }}
+        PREK_VERSION: ${{ steps.versions.outputs.prek-version }}
         PREK_CONFIG_HASH: ${{ hashFiles('**/.pre-commit-config.yaml') }}
       run: |
         PYTHON_VERSION=$(python3 -c 'import platform; print(platform.python_version())')
-        KEY="cache-prek-v10-${PLATFORM}-python${PYTHON_VERSION}-uv${UV_VERSION}-${PREK_CONFIG_HASH}"
+        KEY="cache-prek-v13-${PLATFORM}-python${PYTHON_VERSION}-uv${UV_VERSION}-prek${PREK_VERSION}-${PREK_CONFIG_HASH}"
         echo "Prek cache key: ${KEY}"
         echo "key=${KEY}" >> "${GITHUB_OUTPUT}"
     - name: "Install uv"
@@ -71,15 +72,13 @@ runs:
       run: |
         uv tool install prek==${PREK_VERSION} --with uv==${UV_VERSION}
       working-directory: ${{ github.workspace }}
-    # We need to use tar file with archive to restore all the permissions and symlinks
-    - name: "Delete ~.cache"
+    # The stash contains only prek's cache. Preserve unrelated host caches (uv/pip/etc.) so later
+    # setup in the same job does not needlessly download them again.
+    - name: "Clear local prek cache before restore"
       run: |
-        du ~/ --max-depth=2
-        echo
-        echo Deleting ~/.cache
-        echo
-        rm -rf ~/.cache
-        echo
+        rm -rf ~/.cache/prek
+        # Do not mistake a leftover tarball from an earlier invocation for this key's payload.
+        rm -f /tmp/cache-prek.tar.gz
       shell: bash
     - name: "Restore prek cache"
       # yamllint disable-line rule:line-length
@@ -92,18 +91,16 @@ runs:
       id: restore-prek-tar
       shell: bash
       run: |
+        started_at=${SECONDS}
         if [ ! -f /tmp/cache-prek.tar.gz ]; then
           echo "❌ Cache tarball missing. Expected /tmp/cache-prek.tar.gz"
           echo "tar-restored=false" >> "${GITHUB_OUTPUT}"
           exit 0
         fi
-        echo "✅ Cache tarball found: /tmp/cache-prek.tar.gz"
-        if tar -C ~ -xzf /tmp/cache-prek.tar.gz; then
+        if tar -C "${HOME}" -xzf /tmp/cache-prek.tar.gz && [[ -d "${HOME}/.cache/prek" ]]; then
           echo "✅ Cache tarball extracted successfully"
           echo "tar-restored=true" >> "${GITHUB_OUTPUT}"
-          echo "Restored files"
-          du ~/ --max-depth=2
-          echo
+          echo "duration-seconds=$((SECONDS - started_at))" >> "${GITHUB_OUTPUT}"
         else
           echo "⚠️ Cache tarball extraction failed — treating as cache miss"
           echo "tar-restored=false" >> "${GITHUB_OUTPUT}"
@@ -111,29 +108,35 @@ runs:
         fi
       if: steps.restore-prek-cache.outputs.stash-hit == 'true'
     - name: "Make sure cache is cleared on cache miss"
-      run: |
-        echo "Cleaning up prek cache in case of cache miss (in case of pre-installed-cache from the system)"
-        ls -la ~/.cache/prek || true
-        rm -rf ~/.cache/prek
+      run: rm -rf ~/.cache/prek
       shell: bash
       if: >
         steps.restore-prek-cache.outputs.stash-hit != 'true'
         || steps.restore-prek-tar.outputs.tar-restored != 'true'
-    - name: Install prek hooks
+    - name: Validate and install prek hooks
+      id: install-hooks
       shell: bash
-      # prek downloads the toolchains its hooks need and does not retry, so a transient 5xx
-      # from a download host fails the job before it does any work.
-      #
-      # The skill-eval hooks are manual-stage only and never run in CI, but `prek install-hooks`
-      # still builds their node environments (promptfoo plus the agent SDKs, ~3.5 GB of the ~7 GB
-      # cache). Skipping them keeps that out of every download, extract, tar and upload. `--skip`
-      # only avoids building an environment and never removes a restored one, so the cache key
-      # namespace was bumped alongside this to start from a cache that never had them.
+      # A successfully extracted archive can still contain a partial or unusable environment.
+      # This is idempotent on a healthy hit; prek validates/reuses it and repairs misses normally.
+      # Keep the existing bounded retries for transient toolchain download failures.
+      # Skip manual-only skill-eval environments, preserving upstream's smaller CI cache.
+      # The v13 namespace discards v12 archives that already contain those environments.
       run: |
+        before_markers=$(mktemp)
+        after_markers=$(mktemp)
+        trap 'rm -f "${before_markers}" "${after_markers}"' EXIT
+        change_detection_uncertain=false
+        if ! python3 scripts/ci/prek_cache_markers.py "${HOME}/.cache/prek" "${before_markers}"; then
+          echo "Could not snapshot prek installation metadata before installation" >&2
+          change_detection_uncertain=true
+        fi
+
+        started_at=${SECONDS}
         max_attempts=4
         for attempt in $(seq 1 "${max_attempts}"); do
           if prek install-hooks --skip run-skill-eval --skip run-skill-eval-codex --skip view-skill-eval; then
-            exit 0
+            installation_succeeded=true
+            break
           fi
           if [[ "${attempt}" -eq "${max_attempts}" ]]; then
             break
@@ -142,28 +145,77 @@ runs:
           echo "prek install-hooks failed (attempt ${attempt}/${max_attempts}), retrying in ${delay}s"
           sleep "${delay}"
         done
-        echo "prek install-hooks failed after ${max_attempts} attempts" >&2
-        exit 1
+        if [[ "${installation_succeeded:-false}" != "true" ]]; then
+          echo "installation-succeeded=false" >> "${GITHUB_OUTPUT}"
+          echo "cache-changed=false" >> "${GITHUB_OUTPUT}"
+          echo "change-detection-uncertain=${change_detection_uncertain}" >> "${GITHUB_OUTPUT}"
+          echo "prek install-hooks failed after ${max_attempts} attempts" >&2
+          exit 1
+        fi
+
+        cache_changed=false
+        if ! python3 scripts/ci/prek_cache_markers.py "${HOME}/.cache/prek" "${after_markers}"; then
+          echo "Could not snapshot prek installation metadata after installation" >&2
+          change_detection_uncertain=true
+        elif [[ "${change_detection_uncertain}" != "true" ]]; then
+          if ! cmp -s "${before_markers}" "${after_markers}"; then
+            cache_changed=true
+          fi
+        fi
+        echo "installation-succeeded=true" >> "${GITHUB_OUTPUT}"
+        echo "cache-changed=${cache_changed}" >> "${GITHUB_OUTPUT}"
+        echo "change-detection-uncertain=${change_detection_uncertain}" >> "${GITHUB_OUTPUT}"
+        echo "duration-seconds=$((SECONDS - started_at))" >> "${GITHUB_OUTPUT}"
       working-directory: ${{ github.workspace }}
     - name: "Show prek log"
       shell: bash
       run: cat ~/.cache/prek/prek.log || true
       if: always()
-    # A pull request that restored the cache has nothing new to save: the stash it got (usually the
-    # one from the base branch) is what it would upload again, and re-compressing and uploading
-    # ~7 GB costs about five minutes per run. Save on a miss, and on non-PR runs (the canary on
-    # the default branch) so the base-branch stash stays fresh within its retention window.
-    - name: "Prepare .tar file from prek cache"
+    - name: "Decide whether to refresh prek cache"
+      id: cache-policy
+      shell: bash
+      env:
+        EVENT_NAME: ${{ github.event_name }}
+        SAVE_CACHE: ${{ inputs.save-cache }}
+        STASH_HIT: ${{ steps.restore-prek-cache.outputs.stash-hit }}
+        TAR_RESTORED: ${{ steps.restore-prek-tar.outputs.tar-restored }}
+        CACHE_CHANGED: ${{ steps.install-hooks.outputs.cache-changed }}
+        CHANGE_DETECTION_UNCERTAIN: ${{ steps.install-hooks.outputs.change-detection-uncertain }}
       run: |
+        SAVE=false
+        REASON=unchanged
+        if [[ "${SAVE_CACHE}" != "true" ]]; then
+          REASON=reader
+        elif [[ "${STASH_HIT}" != "true" ]]; then
+          SAVE=true
+          REASON=cache-miss
+        elif [[ "${TAR_RESTORED}" != "true" ]]; then
+          SAVE=true
+          REASON=extraction-failed
+        elif [[ "${CACHE_CHANGED}" == "true" ]]; then
+          SAVE=true
+          REASON=cache-repaired
+        elif [[ "${EVENT_NAME}" != "pull_request" ]]; then
+          SAVE=true
+          REASON=non-pr-republication
+        elif [[ "${CHANGE_DETECTION_UNCERTAIN}" == "true" ]]; then
+          SAVE=true
+          REASON=change-detection-uncertain
+        fi
+        echo "save=${SAVE}" >> "${GITHUB_OUTPUT}"
+        echo "reason=${REASON}" >> "${GITHUB_OUTPUT}"
+    - name: "Prepare .tar file from prek cache"
+      id: archive-prek
+      run: |
+        started_at=${SECONDS}
         if command -v pigz > /dev/null 2>&1; then
           tar -C ~ -cf - .cache/prek | pigz > /tmp/cache-prek.tar.gz
         else
           tar -C ~ -czf /tmp/cache-prek.tar.gz .cache/prek
         fi
+        echo "duration-seconds=$((SECONDS - started_at))" >> "${GITHUB_OUTPUT}"
       shell: bash
-      if: >
-        inputs.save-cache == 'true'
-        && (steps.restore-prek-tar.outputs.tar-restored != 'true' || github.event_name != 'pull_request')
+      if: steps.cache-policy.outputs.save == 'true'
     - name: "Save prek cache"
       uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0
       with:
@@ -171,8 +223,35 @@ runs:
         path: /tmp/cache-prek.tar.gz
         if-no-files-found: 'error'
         retention-days: '2'
-        # The payload is already gzipped; the default level 6 would compress it a second time.
+        # The payload is already gzip-compressed. Recompressing it only adds CPU time.
         compression-level: '0'
-      if: >
-        inputs.save-cache == 'true'
-        && (steps.restore-prek-tar.outputs.tar-restored != 'true' || github.event_name != 'pull_request')
+      if: steps.cache-policy.outputs.save == 'true'
+    - name: "Summarize prek cache preparation"
+      if: always()
+      shell: bash
+      env:
+        CACHE_KEY: ${{ steps.cache-key.outputs.key }}
+        STASH_HIT: ${{ steps.restore-prek-cache.outputs.stash-hit }}
+        TAR_RESTORED: ${{ steps.restore-prek-tar.outputs.tar-restored }}
+        RESTORE_SECONDS: ${{ steps.restore-prek-tar.outputs.duration-seconds }}
+        INSTALL_SECONDS: ${{ steps.install-hooks.outputs.duration-seconds }}
+        ARCHIVE_SECONDS: ${{ steps.archive-prek.outputs.duration-seconds }}
+        CACHE_SAVED: ${{ steps.cache-policy.outputs.save }}
+        SAVE_REASON: ${{ steps.cache-policy.outputs.reason }}
+        CACHE_CHANGED: ${{ steps.install-hooks.outputs.cache-changed }}
+        CHANGE_DETECTION_UNCERTAIN: ${{ steps.install-hooks.outputs.change-detection-uncertain }}
+      run: |
+        {
+          printf '### Prek cache preparation\n\n'
+          printf 'Cache key: `%s`\n\n' "${CACHE_KEY}"
+          printf '| Phase | Result |\n| --- | --- |\n'
+          printf '| Stash hit | %s |\n' "${STASH_HIT:-not run}"
+          printf '| Archive restored | %s |\n' "${TAR_RESTORED:-not run}"
+          printf '| Extract (seconds) | %s |\n' "${RESTORE_SECONDS:-not run}"
+          printf '| Validate/install (seconds) | %s |\n' "${INSTALL_SECONDS:-not run}"
+          printf '| Installation metadata changed | %s |\n' "${CACHE_CHANGED:-not run}"
+          printf '| Change detection uncertain | %s |\n' "${CHANGE_DETECTION_UNCERTAIN:-not run}"
+          printf '| Compress (seconds) | %s |\n' "${ARCHIVE_SECONDS:-not run}"
+          printf '| Cache refresh selected | %s |\n' "${CACHE_SAVED:-not run}"
+          printf '| Save reason | %s |\n' "${SAVE_REASON:-not run}"
+        } >> "${GITHUB_STEP_SUMMARY}"
