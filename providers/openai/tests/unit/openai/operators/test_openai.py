@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from decimal import Decimal
 from fractions import Fraction
 from unittest.mock import Mock
@@ -576,6 +577,57 @@ def test_openai_trigger_batch_operator_with_deferred(
     else:
         batch_id = operator.execute(context)
         assert batch_id == BATCH_ID
+
+
+def test_openai_trigger_batch_operator_not_deferred_logs_active_knob(mock_batch, caplog):
+    """Non-deferred mode names wait_seconds' value and states poll_interval is unused."""
+    operator = OpenAITriggerBatchOperator(
+        task_id=TASK_ID,
+        conn_id=CONN_ID,
+        file_id=FILE_ID,
+        endpoint=BATCH_ENDPOINT,
+        deferrable=False,
+        wait_seconds=7,
+        poll_interval=99,
+    )
+    mock_hook_instance = Mock(spec=OpenAIHook)
+    mock_hook_instance.get_batch.return_value = mock_batch
+    mock_hook_instance.create_batch.return_value = mock_batch
+    operator.hook = mock_hook_instance
+
+    operator.execute(Context())
+
+    assert {
+        "event": re.compile(r".*polling every 7 seconds via wait_seconds"),
+        "log_level": "info",
+    } in caplog
+    assert {"event": re.compile(r".*poll_interval is not used"), "log_level": "info"} in caplog
+
+
+def test_openai_trigger_batch_operator_deferred_logs_active_knob(mock_batch, caplog):
+    """Deferred mode names poll_interval's value and states wait_seconds is unused."""
+    operator = OpenAITriggerBatchOperator(
+        task_id=TASK_ID,
+        conn_id=CONN_ID,
+        file_id=FILE_ID,
+        endpoint=BATCH_ENDPOINT,
+        deferrable=True,
+        wait_seconds=71,
+        poll_interval=13,
+    )
+    mock_hook_instance = Mock(spec=OpenAIHook)
+    mock_hook_instance.get_batch.return_value = mock_batch
+    mock_hook_instance.create_batch.return_value = mock_batch
+    operator.hook = mock_hook_instance
+
+    with pytest.raises(TaskDeferred):
+        operator.execute(Context())
+
+    assert {
+        "event": re.compile(r".*polling every 13 seconds via poll_interval"),
+        "log_level": "info",
+    } in caplog
+    assert {"event": re.compile(r".*wait_seconds is not used"), "log_level": "info"} in caplog
 
 
 class TestOpenAITriggerBatchOperatorExecuteComplete:

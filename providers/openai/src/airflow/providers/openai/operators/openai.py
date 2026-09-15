@@ -350,6 +350,12 @@ class OpenAITriggerBatchOperator(BaseOperator):
         self.batch_id = batch.id
         if self.wait_for_completion:
             if self.deferrable:
+                self.log.info(
+                    "Deferring batch %s, polling every %s seconds via poll_interval "
+                    "(wait_seconds is not used in deferrable mode)",
+                    self.batch_id,
+                    self.poll_interval,
+                )
                 self.defer(
                     timeout=self.execution_timeout,
                     trigger=OpenAIBatchTrigger(
@@ -361,7 +367,12 @@ class OpenAITriggerBatchOperator(BaseOperator):
                     method_name="execute_complete",
                 )
             else:
-                self.log.info("Waiting for batch %s to complete", self.batch_id)
+                self.log.info(
+                    "Waiting for batch %s to complete, polling every %s seconds via wait_seconds "
+                    "(poll_interval is not used in non-deferrable mode)",
+                    self.batch_id,
+                    self.wait_seconds,
+                )
                 self.hook.wait_for_batch(self.batch_id, wait_seconds=self.wait_seconds, timeout=self.timeout)
         return self.batch_id
 
