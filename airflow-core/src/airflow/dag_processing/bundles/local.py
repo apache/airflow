@@ -28,23 +28,41 @@ class LocalDagBundle(BaseDagBundle):
     Local DAG bundle - exposes a local directory as a DAG bundle.
 
     :param path: Local path where the DAGs are stored
+    :param pin_symlink_on_refresh: Useful when ``path`` is a symlink that an external
+        synchronization process swaps atomically, e.g. the kubernetes `git-sync
+        <https://github.com/kubernetes/git-sync>`_ sidecar. When enabled, the symlink is
+        resolved on each refresh and the resolved target is pinned until the next
+        refresh, so a swap happening mid-way cannot mix files from two different
+        targets within a single parse round or task run. Note that each component
+        (dag processor, worker, triggerer) resolves and pins independently when it
+        initializes the bundle. (Optional, defaults to False)
     """
 
     supports_versioning = False
 
-    def __init__(self, *, path: str | None = None, **kwargs) -> None:
+    def __init__(self, *, path: str | None = None, pin_symlink_on_refresh: bool = False, **kwargs) -> None:
         super().__init__(**kwargs)
         if path is None:
             path = settings.DAGS_FOLDER
 
         self._path = Path(path)
+        self._pin_symlink_on_refresh = pin_symlink_on_refresh
+        self._pinned_path: Path | None = None
+
+    def initialize(self) -> None:
+        self.refresh()
+        super().initialize()
 
     def get_current_version(self) -> None:
         return None
 
     def refresh(self) -> None:
-        """Nothing to refresh - it's just a local directory."""
+        """Re-resolve the symlink when pinning is enabled - otherwise there is nothing to refresh."""
+        if self._pin_symlink_on_refresh:
+            self._pinned_path = self._path.resolve()
 
     @property
     def path(self) -> Path:
+        if self._pinned_path is not None:
+            return self._pinned_path
         return self._path
