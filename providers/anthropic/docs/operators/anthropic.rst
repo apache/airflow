@@ -63,12 +63,15 @@ Parameters
 * ``wait_for_completion`` — if ``False``, return the batch ID immediately after submission.
 * ``fail_on_partial_error`` — if ``True``, fail the task when any request errored or expired.
   Defaults to ``False`` (succeed and log a warning so successful results are not discarded).
+* ``durable`` reconnects synchronous retries to the existing batch instead of submitting a
+  duplicate. This defaults to ``True`` and requires Airflow 3.3+.
 
-.. warning::
+.. note::
 
-    A task retry re-submits a **new** batch. Prefer ``retries=0`` on this task. The submitted
-    ``batch_id`` is pushed to XCom under key ``batch_id`` immediately after submission, so a
-    crashed run never loses track of an in-flight batch.
+    On Airflow 3.3+, synchronous waits persist the batch ID before polling. A retry reconnects
+    to an in-progress batch or recovers a completed batch when its result policy succeeds.
+    Canceled, missing, or policy-failed batches are replaced. Deferrable tasks,
+    ``wait_for_completion=False``, and older Airflow versions still submit a new batch on retry.
 
 Example
 """""""
@@ -87,8 +90,8 @@ AnthropicBatchSensor
 :class:`~airflow.providers.anthropic.sensors.batch.AnthropicBatchSensor` waits for an
 already-submitted batch (by ``batch_id``) to reach a terminal status. Pair it with
 ``AnthropicBatchOperator(wait_for_completion=False)`` for a fire-and-forget submit followed
-by a re-entrant await — because the sensor only polls an existing batch, retrying it never
-re-submits, which sidesteps the "retry creates a new batch" hazard of a waiting submit task.
+by a re-entrant await. The sensor only polls an existing batch, so retrying it never
+re-submits.
 
 It applies the same terminal-status policy as the operator (skip on full cancellation,
 ``fail_on_partial_error`` to fail on errored/expired requests) and supports ``deferrable``
