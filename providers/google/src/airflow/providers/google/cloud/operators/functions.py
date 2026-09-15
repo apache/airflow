@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any
 
 from googleapiclient.errors import HttpError
 
+from airflow.configuration import conf
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.functions import CloudFunctionsHook
 from airflow.providers.google.cloud.links.cloud_functions import (
@@ -32,6 +33,9 @@ from airflow.providers.google.cloud.links.cloud_functions import (
     CloudFunctionsListLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.cloud.triggers.cloud_functions import (
+    CloudFunctionInvokeFunctionTrigger,
+)
 from airflow.providers.google.cloud.utils.field_validator import (
     GcpBodyFieldValidator,
     GcpFieldValidationException,
@@ -433,6 +437,7 @@ class CloudFunctionInvokeFunctionOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param deferrable: Run operator in the deferrable mode.
 
     :return: None
     """
@@ -456,6 +461,7 @@ class CloudFunctionInvokeFunctionOperator(GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
         impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -466,6 +472,7 @@ class CloudFunctionInvokeFunctionOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self.impersonation_chain = impersonation_chain
+        self.deferrable = deferrable
 
     @property
     def extra_links_params(self) -> dict[str, Any]:
@@ -474,12 +481,48 @@ class CloudFunctionInvokeFunctionOperator(GoogleCloudBaseOperator):
             "function_name": self.function_id,
         }
 
+    def execute_complete(self, context: Context, event: dict):
+        """Handle trigger completion and process the result."""
+        if event["status"] == "error":
+            raise AirflowException(event["message"])
+
+        result = event["result"]
+        execution_id = event.get("execution_id")
+
+        self.log.info("Function called successfully. Execution id: %s", execution_id)
+        context["ti"].xcom_push(key="execution_id", value=execution_id)
+
+        project_id = self.project_id
+        if project_id:
+            CloudFunctionsDetailsLink.persist(
+                context=context,
+                location=self.location,
+                project_id=project_id,
+                function_name=self.function_id,
+            )
+        return result
+
     def execute(self, context: Context):
+        if self.deferrable:
+            self.defer(
+                trigger=CloudFunctionInvokeFunctionTrigger(
+                    function_id=self.function_id,
+                    input_data=self.input_data,
+                    location=self.location,
+                    project_id=self.project_id,
+                    gcp_conn_id=self.gcp_conn_id,
+                    api_version=self.api_version,
+                    impersonation_chain=self.impersonation_chain,
+                ),
+                method_name="execute_complete",
+            )
+
         hook = CloudFunctionsHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
+
         self.log.info("Calling function %s.", self.function_id)
         result = hook.call_function(
             function_id=self.function_id,
@@ -494,7 +537,9 @@ class CloudFunctionInvokeFunctionOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudFunctionsDetailsLink.persist(
                 context=context,
+                location=self.location,
                 project_id=project_id,
+                function_name=self.function_id,
             )
 
         return result
