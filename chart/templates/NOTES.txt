@@ -150,3 +150,15 @@ https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#api-secr
 {{- if ne .Values.executor (tpl .Values.config.core.executor $) }}
    {{ fail "Please configure the executor with `executor`, not `config.core.executor`." }}
 {{- end }}
+
+{{- range $workerType := list "celery" "kubernetes" }}
+{{- if hasKey (index $.Values.workers $workerType) "kerberosInitContainer" }}
+   {{ fail (printf "workers.%s.kerberosInitContainer has been removed. Remove this section and configure workers.%s.kerberosSidecar instead. Enable its startupProbe to wait for the initial Kerberos ticket." $workerType $workerType) }}
+{{- end }}
+{{- end }}
+
+{{- range $workerSet := .Values.workers.celery.sets }}
+{{- if hasKey $workerSet "kerberosInitContainer" }}
+   {{ fail (printf "kerberosInitContainer has been removed from worker set %q. Remove this section and configure kerberosSidecar in workers.celery.sets instead. Enable its startupProbe to wait for the initial Kerberos ticket." $workerSet.name) }}
+{{- end }}
+{{- end }}

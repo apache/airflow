@@ -844,39 +844,15 @@ workers:
       # Container level lifecycle hooks
       containerLifecycleHooks: {}
 
-      # Startup probe for the kerberos sidecar: `klist -s` succeeds once the credential
-      # cache holds a valid, unexpired ticket. Disable for custom images without `klist`.
+      # Wait for a valid Kerberos ticket before starting worker or task containers.
+      # Disabling this probe allows them to start before a ticket is available.
+      # Custom images must provide `klist` to use this probe.
       startupProbe:
         enabled: true
         timeoutSeconds: 5
         initialDelaySeconds: 0
         periodSeconds: 10
         failureThreshold: 6
-
-    # Kerberos init container configuration for Airflow Celery workers
-    # Omitted when kerberosSidecar and its startupProbe are enabled: the native
-    # sidecar acquires the initial ticket using the kerberosSidecar settings.
-    # With the probe disabled, an enabled init container still waits for a ticket.
-    # If not set, the values from `workers.kerberosInitContainer` section will be used.
-    kerberosInitContainer:
-      # Enable kerberos init container
-      # If `workers.kerberosInitContainer.enabled` is set to True, this flag has no effect
-      enabled: false
-
-      resources: {}
-      #  limits:
-      #   cpu: 100m
-      #   memory: 128Mi
-      #  requests:
-      #   cpu: 100m
-      #   memory: 128Mi
-
-      # Detailed default security context for kerberos init container
-      securityContexts:
-        container: {}
-
-      # Container level lifecycle hooks
-      containerLifecycleHooks: {}
 
     # Resource configuration for Airflow Celery workers
     resources: {}
@@ -1103,39 +1079,15 @@ workers:
       # Container level lifecycle hooks
       containerLifecycleHooks: {}
 
-      # Startup probe for the kerberos sidecar: `klist -s` succeeds once the credential
-      # cache holds a valid, unexpired ticket. Disable for custom images without `klist`.
+      # Wait for a valid Kerberos ticket before starting worker or task containers.
+      # Disabling this probe allows them to start before a ticket is available.
+      # Custom images must provide `klist` to use this probe.
       startupProbe:
         enabled: true
         timeoutSeconds: 5
         initialDelaySeconds: 0
         periodSeconds: 10
         failureThreshold: 6
-
-    # Kerberos init container configuration for pods created with pod-template-file
-    # Omitted when kerberosSidecar and its startupProbe are enabled: the native
-    # sidecar acquires the initial ticket using the kerberosSidecar settings.
-    # With the probe disabled, an enabled init container still waits for a ticket.
-    # If not set, the values from `workers.kerberosInitContainer` section will be used.
-    kerberosInitContainer:
-      # Enable kerberos init container
-      # If `workers.kerberosInitContainer.enabled` is set to True, this flag has no effect
-      enabled: false
-
-      resources: {}
-      #  limits:
-      #   cpu: 100m
-      #   memory: 128Mi
-      #  requests:
-      #   cpu: 100m
-      #   memory: 128Mi
-
-      # Detailed default security context for kerberos init container
-      securityContexts:
-        container: {}
-
-      # Container level lifecycle hooks
-      containerLifecycleHooks: {}
 
     # Resource configuration for pods created with pod-template-file
     resources: {}

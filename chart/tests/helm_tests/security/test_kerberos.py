@@ -36,6 +36,22 @@ class TestKerberos:
         k8s_objects_to_consider_str = json.dumps(k8s_objects_to_consider)
         assert k8s_objects_to_consider_str.count("kerberos") == 1
 
+    @pytest.mark.parametrize("init_values", [{"enabled": True}, {"enabled": False}, {}])
+    @pytest.mark.parametrize(
+        ("worker_type", "worker_set"),
+        [("celery", False), ("kubernetes", False), ("celery", True)],
+    )
+    def test_removed_kerberos_init_container_settings(self, init_values, worker_type, worker_set):
+        worker_values = {"kerberosInitContainer": init_values}
+        if worker_set:
+            worker_values = {"enableDefault": False, "sets": [{"name": "test", **worker_values}]}
+
+        with pytest.raises(
+            HelmFailedError,
+            match="kerberosInitContainer has been removed.*kerberosSidecar.*startupProbe",
+        ):
+            render_chart(values={"workers": {worker_type: worker_values}})
+
     def test_kerberos_envs_available_in_worker_with_persistence(self):
         docs = render_chart(
             values={
@@ -78,24 +94,20 @@ class TestKerberos:
         )
 
     @pytest.mark.parametrize(
-        ("init_enabled", "sidecar_enabled", "probe_enabled", "expected_names"),
+        ("sidecar_enabled", "probe_enabled", "expected_names"),
         [
-            (False, False, True, []),
-            (True, False, True, ["kerberos-init"]),
-            (False, True, True, ["worker-kerberos"]),
-            (True, True, True, ["worker-kerberos"]),
-            (False, True, False, ["worker-kerberos"]),
-            (True, True, False, ["kerberos-init", "worker-kerberos"]),
+            (False, True, []),
+            (True, True, ["worker-kerberos"]),
+            (True, False, ["worker-kerberos"]),
         ],
     )
-    def test_kerberos_initialization(self, init_enabled, sidecar_enabled, probe_enabled, expected_names):
+    def test_kerberos_initialization(self, sidecar_enabled, probe_enabled, expected_names):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
                 "workers": {
                     "celery": {
                         "persistence": {"enabled": True, "fixPermissions": True},
-                        "kerberosInitContainer": {"enabled": init_enabled},
                         "kerberosSidecar": {
                             "enabled": sidecar_enabled,
                             "startupProbe": {"enabled": probe_enabled},
@@ -114,16 +126,6 @@ class TestKerberos:
             "git-sync-init",
             "custom-init",
         ]
-        if "kerberos-init" in expected_names:
-            assert jmespath.search(
-                "spec.template.spec.initContainers[?name=='kerberos-init'] | [0].args", docs[0]
-            ) == ["kerberos", "-o"]
-            assert (
-                jmespath.search(
-                    "spec.template.spec.initContainers[?name=='kerberos-init'] | [0].restartPolicy", docs[0]
-                )
-                is None
-            )
         if sidecar_enabled:
             sidecar = jmespath.search(
                 "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0]

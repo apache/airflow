@@ -46,8 +46,6 @@
 {{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list .Values.workers.celery.waitForMigrations .Values) }}
 {{- $containerSecurityContextLogGroomerSidecar := include "containerSecurityContext" (list .Values.workers.celery.logGroomerSidecar .Values) }}
 {{- $containerSecurityContextKerberosSidecar := include "containerSecurityContext" (list .Values.workers.celery.kerberosSidecar .Values) }}
-{{- $containerSecurityContextKerberosInitContainer := include "containerSecurityContext" (list .Values.workers.celery.kerberosInitContainer .Values) }}
-{{- $containerLifecycleHooksKerberosInitContainer := or .Values.workers.celery.kerberosInitContainer.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerLifecycleHooks := or .Values.workers.celery.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerLifecycleHooksLogGroomerSidecar := or .Values.workers.celery.logGroomerSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerLifecycleHooksKerberosSidecar := or .Values.workers.celery.kerberosSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
@@ -180,51 +178,6 @@ spec:
               {{- if .Values.logs.persistence.subPath }}
               subPath: {{ .Values.logs.persistence.subPath }}
               {{- end }}
-        {{- end }}
-        {{- if and .Values.workers.celery.kerberosInitContainer.enabled (not (and .Values.workers.celery.kerberosSidecar.enabled .Values.workers.celery.kerberosSidecar.startupProbe.enabled)) }}
-        - name: kerberos-init
-          image: {{ template "airflow_image" . }}
-          {{- if $containerSecurityContextKerberosInitContainer }}
-          securityContext: {{ $containerSecurityContextKerberosInitContainer | nindent 12 }}
-          {{- end }}
-          {{- if $containerLifecycleHooksKerberosInitContainer }}
-          lifecycle: {{- tpl (toYaml $containerLifecycleHooksKerberosInitContainer) . | nindent 12 }}
-          {{- end }}
-          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          args: ["kerberos", "-o"]
-          resources: {{- toYaml .Values.workers.celery.kerberosInitContainer.resources | nindent 12 }}
-          volumeMounts:
-            - name: logs
-              mountPath: {{ template "airflow_logs" . }}
-              {{- if .Values.logs.persistence.subPath }}
-              subPath: {{ .Values.logs.persistence.subPath }}
-              {{- end }}
-            {{- include "airflow_config_mount" . | nindent 12 }}
-            - name: config
-              mountPath: {{ .Values.kerberos.configPath | quote }}
-              subPath: krb5.conf
-              readOnly: true
-            - name: kerberos-keytab
-              subPath: "kerberos.keytab"
-              mountPath: {{ .Values.kerberos.keytabPath | quote }}
-              readOnly: true
-            - name: kerberos-ccache
-              mountPath: {{ .Values.kerberos.ccacheMountPath | quote }}
-              readOnly: false
-            {{- if .Values.volumeMounts }}
-              {{- tpl (toYaml .Values.volumeMounts) . | nindent 12 }}
-            {{- end }}
-            {{- if .Values.workers.celery.extraVolumeMounts }}
-              {{- tpl (toYaml .Values.workers.celery.extraVolumeMounts) . | nindent 12 }}
-            {{- end }}
-          envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
-          env:
-            - name: KRB5_CONFIG
-              value:  {{ .Values.kerberos.configPath | quote }}
-            - name: KRB5CCNAME
-              value:  {{ include "kerberos_ccache_path" . | quote }}
-            {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" . | indent 10 }}
         {{- end }}
         {{- if .Values.workers.celery.kerberosSidecar.enabled }}
         - name: worker-kerberos
