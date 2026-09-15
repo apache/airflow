@@ -83,6 +83,10 @@ TIME_TO_SLEEP_IN_SECONDS = 20
 CLOUD_SQL_PROXY_VERSION_REGEX = re.compile(r"^v?(\d+\.\d+\.\d+)(-\w*.?\d?)?$")
 
 
+class CloudSQLImportError(AirflowException):
+    """Raised when importing data into a Cloud SQL instance fails."""
+
+
 class CloudSqlOperationStatus:
     """Helper class with operation statuses."""
 
@@ -382,10 +386,10 @@ class CloudSQLHook(GoogleBaseHook):
             )
             return response["name"]
         except HttpError as ex:
-            # The decorator retries HttpError, not AirflowException, so don't wrap the 409.
+            # The decorator retries HttpError, not CloudSQLImportError, so don't wrap the 409.
             if is_operation_in_progress_exception(ex):
                 raise
-            raise AirflowException(f"Importing instance {instance} failed: {ex.content.decode('utf-8')}")
+            raise CloudSQLImportError(f"Importing instance {instance} failed: {ex.content.decode('utf-8')}")
 
     @GoogleBaseHook.fallback_to_default_project_id
     def import_instance(self, instance: str, body: dict, project_id: str) -> None:
@@ -407,7 +411,7 @@ class CloudSQLHook(GoogleBaseHook):
         try:
             self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
         except HttpError as ex:
-            raise AirflowException(f"Importing instance {instance} failed: {ex.content.decode('utf-8')}")
+            raise CloudSQLImportError(f"Importing instance {instance} failed: {ex.content.decode('utf-8')}")
 
     @GoogleBaseHook.fallback_to_default_project_id
     def clone_instance(self, instance: str, body: dict, project_id: str) -> None:

@@ -45,6 +45,7 @@ from airflow.providers.google.cloud.hooks.cloud_sql import (
     CloudSQLAsyncHook,
     CloudSQLDatabaseHook,
     CloudSQLHook,
+    CloudSQLImportError,
     CloudSqlProxyRunner,
 )
 
@@ -96,7 +97,7 @@ class TestGcpSqlHookDefaultProjectId:
         self.cloudsql_hook.get_conn = mock.Mock(
             side_effect=HttpError(resp=httplib2.Response({"status": 400}), content=b"Error content")
         )
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(CloudSQLImportError) as ctx:
             self.cloudsql_hook.import_instance(instance="instance", body={})
         err = ctx.value
         assert "Importing instance " in str(err)
@@ -190,7 +191,7 @@ class TestGcpSqlHookDefaultProjectId:
         ]
         wait_for_operation_to_complete.return_value = None
         # First submit returns 409 ``operationInProgress``. ``_submit_import`` re-raises it past its
-        # friendly-message wrapper (instead of converting it to AirflowException), so
+        # friendly-message wrapper (instead of converting it to CloudSQLImportError), so
         # ``operation_in_progress_retry`` sees the raw HttpError, retries, and the second submit
         # succeeds; the resulting operation is awaited exactly once.
         self.cloudsql_hook.import_instance(project_id="example-project", instance="instance", body={})
@@ -216,7 +217,7 @@ class TestGcpSqlHookDefaultProjectId:
         # scope must not include the polling: re-running ``import_instance`` would re-submit an
         # import that was already accepted and import the same data twice. The task must fail
         # instead, with exactly one submit on record.
-        with pytest.raises(AirflowException, match="Importing instance instance failed"):
+        with pytest.raises(CloudSQLImportError, match="Importing instance instance failed"):
             self.cloudsql_hook.import_instance(project_id="example-project", instance="instance", body={})
         import_method.assert_called_once_with(body={}, instance="instance", project="example-project")
         execute_method.assert_called_once_with(num_retries=5)
