@@ -43,7 +43,10 @@ def test_migrations_stay_in_an_existing_required_test_check():
     assert "inputs.run-migration-tests == 'true'" in condition
     assert "inputs.test-group == 'core'" in condition
     assert "matrix.python-version != '3.14'" in condition
-    assert "matrix.test-types.description == fromJSON(inputs.test-types-as-strings-in-json)[0].description" in condition
+    assert (
+        "matrix.test-types.description == fromJSON(inputs.test-types-as-strings-in-json)[0].description"
+        in condition
+    )
     assert "continue-on-error" not in step
 
 
