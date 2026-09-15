@@ -695,7 +695,10 @@ class TestCommands:
             permission_name="MenuAccess-team-a",
             policy_name="Allow-Viewer-team-a",
             scope_names=["MENU"],
-            resource_names=["Assets", "Dags", "Docs"],
+            # Granted to the Viewer policy, not just Admin: bundle visibility is scoped by the
+            # Dags a caller can read, so every team role that reaches the bundles through the API
+            # needs the Browse entry too.
+            resource_names=["Assets", "Dag Bundles", "Dags", "Docs"],
             decision_strategy="AFFIRMATIVE",
             _dry_run=False,
         )
@@ -705,7 +708,16 @@ class TestCommands:
             permission_name="MenuAccess-Admin-team-a",
             policy_name="Allow-Admin-team-a",
             scope_names=["MENU"],
-            resource_names=["Assets", "Connections", "Dags", "Docs", "Pools", "Variables", "XComs"],
+            resource_names=[
+                "Assets",
+                "Connections",
+                "Dag Bundles",
+                "Dags",
+                "Docs",
+                "Pools",
+                "Variables",
+                "XComs",
+            ],
             decision_strategy="AFFIRMATIVE",
             _dry_run=False,
         )
@@ -750,7 +762,10 @@ class TestCommands:
             "test-id",
             name="MenuAccess-team-a",
             scope_names=["MENU"],
-            resource_names=["Assets", "Dags", "Docs"],
+            # "Dag Bundles" is granted to every team role rather than only the admin one: the page
+            # is scoped by the Dags a caller can read, so a Viewer who can already reach the
+            # bundles through the API has to be able to find them under Browse.
+            resource_names=["Assets", "Dag Bundles", "Dags", "Docs"],
             decision_strategy="AFFIRMATIVE",
             _dry_run=False,
         )
@@ -759,7 +774,16 @@ class TestCommands:
             "test-id",
             name="MenuAccess-Admin-team-a",
             scope_names=["MENU"],
-            resource_names=["Assets", "Connections", "Dags", "Docs", "Pools", "Variables", "XComs"],
+            resource_names=[
+                "Assets",
+                "Connections",
+                "Dag Bundles",
+                "Dags",
+                "Docs",
+                "Pools",
+                "Variables",
+                "XComs",
+            ],
             decision_strategy="AFFIRMATIVE",
             _dry_run=False,
         )
