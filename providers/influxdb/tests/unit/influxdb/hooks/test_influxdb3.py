@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pandas as pd
 import pytest
 
 from airflow.models import Connection
@@ -83,8 +84,6 @@ class TestInfluxDB3Hook:
 
     def test_query(self):
         """Test query with InfluxDB 3.x."""
-        pd = pytest.importorskip("pandas")
-
         self.influxdb3_hook.client = mock.Mock(spec_set=["query"])
         mock_df = pd.DataFrame({"col1": [1, 2], "col2": [3, 4]})
         self.influxdb3_hook.client.query = mock.Mock(return_value=mock_df)
@@ -103,8 +102,6 @@ class TestInfluxDB3Hook:
     @pytest.mark.asyncio
     async def test_query_async(self):
         """Test async query with InfluxDB 3.x."""
-        pd = pytest.importorskip("pandas")
-
         self.influxdb3_hook.client = mock.Mock(spec_set=["query_async"])
         mock_df = pd.DataFrame({"col1": [1, 2], "col2": [3, 4]})
         self.influxdb3_hook.client.query_async = mock.AsyncMock(return_value=mock_df)
@@ -123,8 +120,6 @@ class TestInfluxDB3Hook:
     @pytest.mark.asyncio
     async def test_query_async_requires_dataframe_result(self):
         """Async query results must resolve to a pandas DataFrame."""
-        pytest.importorskip("pandas")
-
         self.influxdb3_hook.client = mock.Mock(spec_set=["query_async"])
         self.influxdb3_hook.client.query_async = mock.AsyncMock(return_value=[{"col1": 1}])
         self.influxdb3_hook.aget_conn = mock.AsyncMock(return_value=self.influxdb3_hook.client)

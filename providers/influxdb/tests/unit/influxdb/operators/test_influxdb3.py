@@ -19,6 +19,7 @@ from __future__ import annotations
 from datetime import timedelta
 from unittest import mock
 
+import pandas as pd
 import pytest
 
 from airflow.exceptions import TaskDeferred
@@ -44,8 +45,6 @@ class TestInfluxDB3Operator:
     @mock.patch("airflow.providers.influxdb.operators.influxdb3.InfluxDB3Hook", autospec=True)
     def test_execute(self, mock_hook_class):
         """Test operator execution."""
-
-        pd = pytest.importorskip("pandas")
 
         mock_hook = mock.Mock()
         mock_df = pd.DataFrame({"col1": [1, 2], "col2": [3, 4]})
