@@ -23,7 +23,7 @@ import warnings
 from contextlib import suppress
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
-from urllib.parse import urljoin
+from urllib.parse import urlencode, urljoin
 
 from cachetools import TTLCache, cachedmethod
 from fastapi import FastAPI
@@ -706,7 +706,11 @@ class FabAuthManager(BaseAuthManager[User]):
 
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
-        return urljoin(self.apiserver_endpoint, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login/")
+        login_url = urljoin(self.apiserver_endpoint, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login/")
+        next_url = kwargs.get("next_url")
+        if next_url:
+            return f"{login_url}?{urlencode({'next': next_url})}"
+        return login_url
 
     def get_url_logout(self) -> str | None:
         """Return the logout page url."""

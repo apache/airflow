@@ -922,9 +922,6 @@ ARG_ANONYMIZE = Arg(
     help="Minimize any personal identifiable information. Use it when sharing output with others.",
     action="store_true",
 )
-ARG_FILE_IO = Arg(
-    ("--file-io",), help="Send output to file.io service and returns link.", action="store_true"
-)
 
 # config
 ARG_SECTION = Arg(
@@ -1594,7 +1591,6 @@ POOLS_COMMANDS = (
             ARG_POOL_DESCRIPTION,
             ARG_POOL_INCLUDE_DEFERRED,
             ARG_POOL_TEAM_NAME,
-            ARG_OUTPUT,
             ARG_VERBOSE,
         ),
     ),
@@ -1602,7 +1598,7 @@ POOLS_COMMANDS = (
         name="delete",
         help="Delete pool",
         func=lazy_load_command("airflow.cli.commands.pool_command.pool_delete"),
-        args=(ARG_POOL_NAME, ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_POOL_NAME, ARG_VERBOSE),
     ),
     ActionCommand(
         name="import",
@@ -2328,7 +2324,6 @@ core_commands: list[CLICommand] = [
         func=lazy_load_command("airflow.cli.commands.info_command.show_info"),
         args=(
             ARG_ANONYMIZE,
-            ARG_FILE_IO,
             ARG_VERBOSE,
             ARG_OUTPUT,
         ),

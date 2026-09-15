@@ -48,7 +48,7 @@ When to use this provider
 (OpenAI, Anthropic, Google, Bedrock, …) is picked by the connection ``llm_conn_id`` points
 at — switching providers later is a connection change, not a Dag rewrite. Most connections
 use the generic ``pydanticai`` type, but Azure OpenAI, Bedrock, and Vertex AI also have their
-own connection types (``pydanticai-azure``, ``pydanticai-bedrock``, ``pydanticai-vertex``) for
+own connection types (``pydanticai_azure``, ``pydanticai_bedrock``, ``pydanticai_vertex``) for
 provider-specific authentication. Existing LangChain
 tools aren't locked out either: pydantic-ai ships ``pydantic_ai.ext.langchain.LangChainToolset``
 upstream, which wraps LangChain tools for a common.ai agent, and the provider's own
@@ -204,7 +204,7 @@ apache-airflow-providers-common-ai package
 AI/LLM hooks and operators for Airflow pipelines using `pydantic-ai <https://ai.pydantic.dev/>`__.
 
 
-Release: 0.8.0
+Release: 0.9.0
 
 Provider package
 ----------------
@@ -230,7 +230,7 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=3.0.0``
 ``apache-airflow-providers-common-compat``  ``>=1.15.0``
 ``apache-airflow-providers-standard``       ``>=1.12.1``
-``pydantic-ai-slim``                        ``>=2.0.0``
+``pydantic-ai-slim``                        ``>=2.23.0``
 ==========================================  ==================
 
 Optional cross provider package dependencies
@@ -267,11 +267,11 @@ Install them when installing from PyPI. For example:
 ==============  =======================================================================================================================================
 Extra           Dependencies
 ==============  =======================================================================================================================================
-``anthropic``   ``pydantic-ai-slim[anthropic]>=2.0.0``
-``bedrock``     ``pydantic-ai-slim[bedrock]>=2.0.0``
-``google``      ``pydantic-ai-slim[google]>=2.0.0``
-``openai``      ``pydantic-ai-slim[openai]>=2.0.0``
-``mcp``         ``pydantic-ai-slim[mcp]>=2.0.0``
+``anthropic``   ``pydantic-ai-slim[anthropic]>=2.23.0``
+``bedrock``     ``pydantic-ai-slim[bedrock]>=2.23.0``
+``google``      ``pydantic-ai-slim[google]>=2.23.0``
+``openai``      ``pydantic-ai-slim[openai]>=2.23.0``
+``mcp``         ``pydantic-ai-slim[mcp]>=2.23.0``
 ``code-mode``   ``pydantic-ai-harness[codemode]>=0.3.0``
 ``shields``     ``pydantic-ai-shields>=0.3.4``
 ``skills``      ``apache-airflow-providers-git>=0.4.0``, ``pydantic-ai-skills>=1.2.0``
@@ -292,5 +292,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-common-ai 0.8.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.8.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.8.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.8.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-common-ai 0.8.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.8.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.8.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.8.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-common-ai 0.9.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.9.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.9.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.9.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-common-ai 0.9.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.9.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.9.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.9.0-py3-none-any.whl.sha512>`__)
