@@ -2688,6 +2688,7 @@ scheduler:
       description: |
         Only count scheduler runs where the scheduler was idle (no tasks queued or finished)
         toward the run limit set by ``[scheduler] num_runs``. The count resets whenever a task is processed.
+        Has no effect unless ``[scheduler] num_runs`` is a positive number.
       version_added: 3.2.0
       type: boolean
       example: ~
