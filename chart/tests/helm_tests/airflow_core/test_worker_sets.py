@@ -1568,7 +1568,43 @@ class TestWorkerSets:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.containers[?name=='worker-kerberos']", docs[0]) is not None
+        sidecar = jmespath.search(
+            "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0]
+        )
+        assert sidecar is not None
+        assert sidecar["restartPolicy"] == "Always"
+        assert (
+            jmespath.search("spec.template.spec.containers[?name=='worker-kerberos'] | [0]", docs[0]) is None
+        )
+
+    @pytest.mark.parametrize(
+        ("worker_set", "expected_names"),
+        [
+            ({"kerberosSidecar": {"enabled": False}}, ["kerberos-init"]),
+            (
+                {"kerberosSidecar": {"startupProbe": {"enabled": False}}},
+                ["kerberos-init", "worker-kerberos"],
+            ),
+            ({"kerberosInitContainer": {"enabled": False}}, ["worker-kerberos"]),
+        ],
+    )
+    def test_kerberos_initialization_overrides(self, worker_set, expected_names):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "celery": {
+                        "kerberosInitContainer": {"enabled": True},
+                        "kerberosSidecar": {"enabled": True},
+                        "sets": [{"name": "test", **worker_set}],
+                    }
+                }
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        query = "spec.template.spec.initContainers[?name=='kerberos-init' || name=='worker-kerberos'].name"
+        assert jmespath.search(query, docs[0]) == ["worker-kerberos"]
+        assert jmespath.search(query, docs[1]) == expected_names
 
     def test_overwrite_kerberos_sidecar_disable(self):
         docs = render_chart(
@@ -1584,6 +1620,10 @@ class TestWorkerSets:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
+        assert (
+            jmespath.search("spec.template.spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0])
+            is None
+        )
         assert (
             jmespath.search("spec.template.spec.containers[?name=='worker-kerberos'] | [0]", docs[0]) is None
         )
@@ -1643,12 +1683,12 @@ class TestWorkerSets:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert (
-            jmespath.search(
-                "spec.template.spec.containers[?name=='worker-kerberos'] | [0].startupProbe", docs[0]
-            )
-            == expected
+        sidecar = jmespath.search(
+            "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0]
         )
+        assert sidecar is not None
+        assert sidecar["restartPolicy"] == "Always"
+        assert sidecar.get("startupProbe") == expected
 
     @pytest.mark.parametrize(
         "values",
@@ -1699,7 +1739,7 @@ class TestWorkerSets:
         )
 
         assert jmespath.search(
-            "spec.template.spec.containers[?name=='worker-kerberos'] | [0].resources", docs[0]
+            "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0].resources", docs[0]
         ) == {
             "limits": {"cpu": "3m", "memory": "4Mi"},
         }
@@ -1753,7 +1793,7 @@ class TestWorkerSets:
         )
 
         assert jmespath.search(
-            "spec.template.spec.containers[?name=='worker-kerberos'] | [0].securityContext", docs[0]
+            "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0].securityContext", docs[0]
         ) == {"runAsUser": 10}
 
     @pytest.mark.parametrize(
@@ -1803,7 +1843,7 @@ class TestWorkerSets:
         )
 
         assert jmespath.search(
-            "spec.template.spec.containers[?name=='worker-kerberos'] | [0].lifecycle", docs[0]
+            "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0].lifecycle", docs[0]
         ) == {"postStart": {"exec": {"command": ["echo", "release-name"]}}}
 
     @pytest.mark.parametrize(

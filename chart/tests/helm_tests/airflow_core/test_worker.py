@@ -822,7 +822,9 @@ class TestWorker:
             "mountPath": "/opt/airflow/config/airflow_local_settings.py",
             "subPath": "airflow_local_settings.py",
             "readOnly": True,
-        } in jmespath.search("spec.template.spec.containers[2].volumeMounts", docs[0])
+        } in jmespath.search(
+            "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0].volumeMounts", docs[0]
+        )
 
     def test_kerberos_init_container_default(self):
         docs = render_chart(show_only=["templates/workers/worker-deployment.yaml"])
