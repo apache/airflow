@@ -96,6 +96,65 @@ class TestPrevDagrunDep:
             assert dep.is_met(ti=ti, dep_context=dep_context)
             mock_has_any_prior_tis.assert_called_once_with(ti, session=ANY)
 
+    def test_first_task_run_of_new_task_uses_config_default(self, testing_dag_bundle):
+        """
+        A new task added to an existing DAG should pass its first run without an
+        explicit ``ignore_first_depends_on_past`` because the default is driven by
+        ``[scheduler] ignore_first_depends_on_past_by_default`` (``True``).
+
+        This is the behavior that regressed when the config became dead: with a
+        hardcoded ``False`` default, the new task stayed blocked forever.
+        """
+        dag = DAG("test_dag", schedule=timedelta(days=1), start_date=START_DATE)
+        old_task = BaseOperator(
+            task_id="test_task",
+            dag=dag,
+            depends_on_past=True,
+            start_date=START_DATE,
+            wait_for_downstream=False,
+        )
+        scheduler_dag = sync_dag_to_db(dag)
+        # Old DAG run will include only TaskInstance of old_task
+        scheduler_dag.create_dagrun(
+            run_id="old_run",
+            state=TaskInstanceState.SUCCESS,
+            logical_date=old_task.start_date,
+            run_type=DagRunType.SCHEDULED,
+            data_interval=(old_task.start_date, old_task.start_date),
+            run_after=old_task.start_date,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+
+        # New task relies on the config default rather than setting the flag explicitly.
+        new_task = BaseOperator(
+            task_id="new_task",
+            dag=dag,
+            depends_on_past=True,
+            start_date=old_task.start_date,
+        )
+        assert new_task.ignore_first_depends_on_past is True
+
+        logical_date = convert_to_utc(datetime(2016, 1, 2))
+        dr = create_scheduler_dag(dag).create_dagrun(
+            run_id="new_run",
+            state=DagRunState.RUNNING,
+            logical_date=logical_date,
+            run_type=DagRunType.SCHEDULED,
+            data_interval=(logical_date, logical_date),
+            run_after=logical_date,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+
+        ti = dr.get_task_instance(new_task.task_id)
+        ti.task = new_task
+
+        dep_context = DepContext(ignore_depends_on_past=False)
+        dep = PrevDagrunDep()
+
+        with patch.object(dep, "_has_any_prior_tis", Mock(return_value=False)) as mock_has_any_prior_tis:
+            assert dep.is_met(ti=ti, dep_context=dep_context)
+            mock_has_any_prior_tis.assert_called_once_with(ti, session=ANY)
+
 
 @pytest.mark.parametrize(
     "kwargs",
