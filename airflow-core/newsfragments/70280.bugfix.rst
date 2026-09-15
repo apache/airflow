@@ -1,0 +1,1 @@
+Restored support for ``[core] execute_tasks_new_python_interpreter`` when running tasks with LocalExecutor and CeleryExecutor.
