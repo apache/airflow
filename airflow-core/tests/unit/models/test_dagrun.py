@@ -20,7 +20,7 @@ from __future__ import annotations
 import datetime
 from collections import defaultdict
 from collections.abc import Mapping
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from functools import partial, reduce
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -1711,18 +1711,20 @@ class TestDagRun:
         )
 
     @pytest.mark.parametrize(
-        ("interval", "expect_deadline"),
+        ("interval", "expect_deadline", "variable_value"),
         [
-            pytest.param(datetime.timedelta(seconds=5), True, id="deadline_created"),
-            pytest.param(VariableInterval("missing_key"), False, id="deadline_skipped"),
+            pytest.param(datetime.timedelta(seconds=5), True, None, id="deadline_created"),
+            pytest.param(VariableInterval("missing_key"), False, None, id="deadline_skipped"),
+            pytest.param(VariableInterval("resolvable_key"), True, "4200", id="variable_interval_resolved"),
         ],
     )
     @mock.patch.object(Deadline, "prune_deadlines")
     def test_dagrun_deadline_handling_does_not_commit(
-        self, _, interval, expect_deadline, session, deadline_test_dag
+        self, _, interval, expect_deadline, variable_value, session, deadline_test_dag
     ):
-        """DagRuns are created under ``prohibit_commit``, so neither creating a deadline nor
-        skipping one whose interval will not resolve may commit the scheduler's session."""
+        """DagRuns are created under ``prohibit_commit``, so creating a deadline, skipping one whose
+        interval will not resolve, and resolving a ``VariableInterval`` out of the metadata database
+        all have to leave the scheduler's session uncommitted."""
         future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
         scheduler_dag = deadline_test_dag(
             deadline=DeadlineAlert(
@@ -1732,14 +1734,26 @@ class TestDagRun:
             ),
         )
 
+        if variable_value is None:
+            variable_lookup = mock.patch.object(Variable, "get", side_effect=KeyError)
+        else:
+            # A real row committed before the guard opens, so resolve() has to go through
+            # MetastoreBackend. Drop the session forwarding and the backend opens the same scoped
+            # session and commits it, which the guard rejects and the lookup then reports as missing.
+            Variable.set(key=interval.key, value=variable_value, session=session)
+            session.commit()
+            variable_lookup = nullcontext()
+
         # No task_states: the helper's get_task_instance() opens its own session and would trip the guard.
-        with prohibit_commit(session), mock.patch.object(Variable, "get", side_effect=KeyError):
+        with prohibit_commit(session), variable_lookup:
             dag_run = self.create_dag_run(dag=scheduler_dag, session=session)
         session.flush()
 
         assert dag_run is not None
         deadline = session.execute(select(Deadline)).scalars().one_or_none()
         assert (deadline is not None) is expect_deadline
+        if variable_value is not None:
+            assert deadline.deadline_time == future_date + datetime.timedelta(seconds=int(variable_value))
 
 
 @pytest.mark.parametrize(
