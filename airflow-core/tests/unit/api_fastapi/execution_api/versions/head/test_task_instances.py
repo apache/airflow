@@ -59,7 +59,7 @@ from airflow.sdk import Asset, TaskGroup, TriggerRule, task, task_group
 from airflow.state.metastore import MetastoreBackend
 from airflow.utils.state import DagRunState, State, TaskInstanceState, TerminalTIState
 
-from tests_common.test_utils.asserts import capture_orm_selects
+from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
@@ -215,6 +215,30 @@ class TestTIRunState:
         assert response.status_code == 200
         events = response.json()["dag_run"]["consumed_asset_events"]
         assert [e["partition_key"] for e in events] == ["2024-01-15"]
+
+    def test_ti_run_missing_dagrun_returns_404(self, client, session, create_task_instance):
+        """A missing DagRun must surface as a clean 404, not an internal 500."""
+        ti = create_task_instance(
+            task_id="test_ti_run_missing_dagrun",
+            state=State.QUEUED,
+            session=session,
+        )
+        session.commit()
+
+        # Patch only around the request so fixture setup above is untouched; force the DagRun
+        # lookup (the only scalars() call before the guard) to return None.
+        with mock.patch("sqlalchemy.orm.Session.scalars", autospec=True) as mock_scalars:
+            mock_scalars.return_value.unique.return_value.one_or_none.return_value = None
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json=self.RUN_PAYLOAD,
+            )
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == {
+            "reason": "not_found",
+            "message": f"DagRun with dag_id={ti.dag_id} and run_id={ti.run_id} not found",
+        }
 
     @pytest.mark.parametrize(
         ("max_tries", "should_retry"),
@@ -3887,7 +3911,8 @@ class TestGetPreviousTI:
         assert data["state"] == State.SUCCESS
 
     def test_get_previous_ti_query_is_bounded(self, client, session, create_task_instance):
-        """The single-row previous-TI lookup must ask the DB for one row."""
+        """The single-row previous-TI lookup must ask the DB for one row, join ``dag_run`` once,
+        and surface the eager-loaded ``logical_date`` in the response."""
         for i in range(5):
             create_task_instance(
                 task_id="test_task",
@@ -3897,17 +3922,26 @@ class TestGetPreviousTI:
             )
         session.commit()
 
-        with capture_orm_selects("task_instance") as statements:
+        with (
+            capture_orm_selects("task_instance") as statements,
+            assert_queries_count(1),
+        ):
             response = client.get(
                 "/execution/task-instances/previous/dag/test_task",
                 params={"logical_date": "2025-01-05T00:00:00Z"},
             )
 
         assert response.status_code == 200
-        assert response.json()["run_id"] == "run4"
+        data = response.json()
+        assert data["run_id"] == "run4"
+        assert data["logical_date"] == "2025-01-04T00:00:00Z"
         assert statements, "expected the endpoint to query the task_instance table"
         for sql in statements:
             assert re.search(r"\bLIMIT 1\b", sql), f"previous-TI lookup is not bounded to one row: {sql}"
+            dag_run_join_count = len(re.findall(r"JOIN dag_run(\s|$)", sql))
+            assert dag_run_join_count == 1, (
+                f"previous-TI query joins dag_run {dag_run_join_count} times, expected once: {sql}"
+            )
 
 
 class TestGetTaskStates:

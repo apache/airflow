@@ -43,7 +43,7 @@ def _table_at(snapshot_id: int | None, branch: str = "main") -> MagicMock:
     return table
 
 
-async def _collect(trigger: IcebergTableSnapshotTrigger, count: int, timeout: float = 1.0) -> list[dict]:
+async def _collect(trigger: IcebergTableSnapshotTrigger, count: int, timeout: float = 10.0) -> list[dict]:
     """Pull up to ``count`` payloads off the trigger, giving up after ``timeout``."""
     payloads: list[dict] = []
     generator: AsyncGenerator = trigger.run()  # type: ignore[assignment]
@@ -137,9 +137,7 @@ async def test_emits_once_per_new_snapshot():
     """Each commit produces exactly one event carrying the snapshot it replaced."""
     with patch(LOAD_TABLE, side_effect=[_table_at(111), _table_at(222), _table_at(222), _table_at(333)]):
         trigger = IcebergTableSnapshotTrigger(table="db.tbl", poll_interval=0.01, last_seen_snapshot_id=111)
-        # Gathering 2 events takes 4 polling rounds, each with a real asyncio.to_thread call;
-        # the default 1s budget is too tight under CI thread-pool scheduling latency.
-        payloads = await _collect(trigger, 2, timeout=3.0)
+        payloads = await _collect(trigger, 2)
 
     assert [(p["previous_snapshot_id"], p["snapshot_id"]) for p in payloads] == [(111, 222), (222, 333)]
 
@@ -194,9 +192,7 @@ async def test_persists_the_watermark_on_each_event():
     trigger.asset_state_store = store
 
     with patch(LOAD_TABLE, side_effect=[_table_at(111), _table_at(222), _table_at(222)]):
-        # Gathering 2 events runs several real asyncio.to_thread calls (head lookup + store
-        # get/set); the default 1s budget is too tight under CI thread-pool scheduling latency.
-        payloads = await _collect(trigger, 2, timeout=3.0)
+        payloads = await _collect(trigger, 2)
 
     assert [p["snapshot_id"] for p in payloads] == [111, 222]
     assert [c.args for c in store.set.call_args_list] == [("snapshot_id", 111), ("snapshot_id", 222)]
