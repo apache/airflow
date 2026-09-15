@@ -580,6 +580,10 @@ def _canonicalize_payload_v1(data: dict[str, Any]) -> dict[str, Any]:
         payload["dag"][field] = True
     if "params" in payload["dag"]:
         payload["dag"]["params"] = _normalize_params(payload["dag"]["params"])
+    # The schema carries no default, so a Dag without default_args omits the key entirely. An
+    # absent side would reach the walk as a missing value and report the whole mapping as one
+    # opaque change, which is how adding the very first entry would escape per-key classification.
+    payload["dag"].setdefault("default_args", {"__type": "dict", "__var": {}})
     _apply_task_defaults(payload)
     payload.pop("__version", None)
     return _canonicalize_value(payload, path=())
