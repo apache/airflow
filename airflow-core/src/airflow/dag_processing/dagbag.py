@@ -127,9 +127,20 @@ def _validate_executor_fields(dag: DAG | SerializedDAG, bundle_name: str | None 
 
     log = logging.getLogger(__name__)
 
-    dag_team_name = _get_bundle_team_name(bundle_name)
-    if dag_team_name:
-        log.debug("Found team '%s' for DAG '%s' via bundle '%s'", dag_team_name, dag.dag_id, bundle_name)
+    # Check if multi team is available by reading the multi_team configuration (which is boolean)
+    if conf.getboolean("core", "multi_team"):
+        # Get team name from bundle configuration if available
+        if bundle_name:
+            from airflow.dag_processing.bundles.manager import DagBundlesManager
+
+            bundle_manager = DagBundlesManager()
+            bundle_config = bundle_manager.get_bundle_configuration(bundle_name)
+
+            dag_team_name = bundle_config.team_name
+            if dag_team_name:
+                log.debug(
+                    "Found team '%s' for DAG '%s' via bundle '%s'", dag_team_name, dag.dag_id, bundle_name
+                )
 
     for task in dag.tasks:
         if not task.executor:
@@ -156,7 +167,18 @@ def _assign_default_team_pools(
     bundle_name: str | None = None,
 ) -> None:
     """Assign the default team pool to tasks that do not explicitly specify a pool."""
-    if not (dag_team_name := _get_bundle_team_name(bundle_name)):
+    dag_team_name = None
+
+    if conf.getboolean("core", "multi_team"):
+        if bundle_name:
+            from airflow.dag_processing.bundles.manager import DagBundlesManager
+
+            bundle_manager = DagBundlesManager()
+            bundle_config = bundle_manager.get_bundle_configuration(bundle_name)
+
+            dag_team_name = bundle_config.team_name
+
+    if not dag_team_name:
         return
 
     for task in dag.tasks:
