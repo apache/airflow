@@ -473,7 +473,7 @@ def find_installation_spec(
             github_repository=github_repository,
             python_version=python_version,
         )
-        compile_ui_assets = True
+        compile_ui_assets = not use_distributions_from_dist
         console.print(f"\nInstalling airflow task-sdk from GitHub {resolved_version}\n")
         airflow_task_sdk_distribution = f"apache-airflow-task-sdk @ {vcs_url}#subdirectory=task-sdk"
         airflow_constraints_location = get_airflow_constraints_location(
@@ -695,10 +695,8 @@ def compile_ui_assets(
         console.print(
             f"[bright_blue]Copying UI source from: {extracted_ui_directory} to: {source_ui_directory}"
         )
-        if source_ui_directory.exists():
-            shutil.rmtree(source_ui_directory)
         source_ui_directory.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(extracted_ui_directory, source_ui_directory)
+        shutil.copytree(extracted_ui_directory, source_ui_directory, dirs_exist_ok=True)
     else:
         console.print(f"[yellow]Main UI directory not found at: {extracted_ui_directory}")
 
@@ -1024,7 +1022,9 @@ def install_airflow_and_providers(
         if installation_spec.airflow_ctl_distribution:
             _install_airflow_ctl_with_constraints(installation_spec, github_actions)
     if installation_spec.provider_distributions or not install_airflow_with_constraints:
-        _install_airflow_and_optionally_providers_together(installation_spec, github_actions)
+        _install_airflow_and_optionally_providers_together(
+            installation_spec, github_actions, airflow_already_installed=install_airflow_with_constraints
+        )
     if mount_sources == "providers-and-tests":
         if (
             use_airflow_version
@@ -1114,11 +1114,17 @@ def install_airflow_and_providers(
             SIMPLE_AUTH_MANAGER_SOURCE_UI_DIRECTORY,
             SIMPLE_AUTH_MANAGER_UI_DIST_PREFIX,
         )
+    airflow_path = get_airflow_installation_path()
+    for dist_prefix in (CORE_UI_DIST_PREFIX, SIMPLE_AUTH_MANAGER_UI_DIST_PREFIX):
+        dist_dir = airflow_path / dist_prefix
+        dist_dir.mkdir(parents=True, exist_ok=True)
     console.print("\n[green]Done!")
 
 
 def _install_airflow_and_optionally_providers_together(
-    installation_spec: InstallationSpec, github_actions: bool
+    installation_spec: InstallationSpec,
+    github_actions: bool,
+    airflow_already_installed: bool = False,
 ):
     console.print("[bright_blue]Installing airflow and optionally providers together")
     base_install_cmd = [
@@ -1129,26 +1135,36 @@ def _install_airflow_and_optionally_providers_together(
     if installation_spec.pre_release:
         console.print("[bright_blue]Allowing pre-release versions of airflow and providers")
         base_install_cmd.extend(["--pre"])
-    if installation_spec.airflow_distribution:
+    if airflow_already_installed:
         console.print(
-            f"\n[bright_blue]Adding airflow distribution to installation: {installation_spec.airflow_distribution} "
+            "\n[bright_blue]Airflow already installed with constraints - "
+            "only installing provider distributions"
         )
-        base_install_cmd.append(installation_spec.airflow_distribution)
-    if installation_spec.airflow_core_distribution:
-        console.print(
-            f"\n[bright_blue]Adding airflow core distribution to installation: {installation_spec.airflow_core_distribution}"
-        )
-        base_install_cmd.append(installation_spec.airflow_core_distribution)
-    if installation_spec.airflow_task_sdk_distribution:
-        console.print(
-            f"\n[bright_blue]Adding task-sdk distribution to installation: {installation_spec.airflow_task_sdk_distribution}"
-        )
-        base_install_cmd.append(installation_spec.airflow_task_sdk_distribution)
-    if installation_spec.airflow_ctl_distribution:
-        console.print(
-            f"\n[bright_blue]Adding airflow ctl distribution to installation: {installation_spec.airflow_ctl_distribution}"
-        )
-        base_install_cmd.append(installation_spec.airflow_ctl_distribution)
+    else:
+        if installation_spec.airflow_distribution:
+            console.print(
+                f"\n[bright_blue]Adding airflow distribution to installation: "
+                f"{installation_spec.airflow_distribution} "
+            )
+            base_install_cmd.append(installation_spec.airflow_distribution)
+        if installation_spec.airflow_core_distribution:
+            console.print(
+                f"\n[bright_blue]Adding airflow core distribution to installation: "
+                f"{installation_spec.airflow_core_distribution}"
+            )
+            base_install_cmd.append(installation_spec.airflow_core_distribution)
+        if installation_spec.airflow_task_sdk_distribution:
+            console.print(
+                f"\n[bright_blue]Adding task-sdk distribution to installation: "
+                f"{installation_spec.airflow_task_sdk_distribution}"
+            )
+            base_install_cmd.append(installation_spec.airflow_task_sdk_distribution)
+        if installation_spec.airflow_ctl_distribution:
+            console.print(
+                f"\n[bright_blue]Adding airflow ctl distribution to installation: "
+                f"{installation_spec.airflow_ctl_distribution}"
+            )
+            base_install_cmd.append(installation_spec.airflow_ctl_distribution)
     console.print("\n[bright_blue]Adding provider distributions to installation:")
     for provider_package in sorted(installation_spec.provider_distributions):
         console.print(f"  {provider_package}")
