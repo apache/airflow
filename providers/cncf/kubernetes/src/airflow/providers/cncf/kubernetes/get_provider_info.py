@@ -272,6 +272,13 @@ def get_provider_info():
                         "example": None,
                         "default": None,
                     },
+                    "client_factory": {
+                        "description": "Import path of a zero-argument callable returning the ``kubernetes.client.CoreV1Api``\nthe executor should use, for deployments that mint their own credentials. When set it\nreplaces the default client construction entirely, so ``in_cluster``, ``cluster_context``,\n``config_file``, ``verify_ssl``, ``ssl_ca_cert``, ``enable_tcp_keepalive`` and\n``api_client_retry_configuration`` no longer apply. It is resolved in every process that\nneeds a client, including the pod watcher subprocess, so it must be importable wherever\nthe scheduler runs.\n",
+                        "version_added": "10.23.0",
+                        "type": "string",
+                        "example": "my_company.kubernetes.build_client",
+                        "default": None,
+                    },
                     "kube_client_request_args": {
                         "description": "Keyword parameters to pass while calling a kubernetes client core_v1_api methods\nfrom Kubernetes Executor provided as a single line formatted JSON dictionary string.\nList of supported params are similar for all core_v1_apis, hence a single config\nvariable for all apis. See:\nhttps://raw.githubusercontent.com/kubernetes-client/python/41f11a09995efcd0142e25946adc7591431bfb2f/kubernetes/client/api/core_v1_api.py\n",
                         "version_added": None,

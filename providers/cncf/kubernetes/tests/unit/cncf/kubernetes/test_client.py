@@ -48,6 +48,7 @@ class TestClient:
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.config")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.conf")
     def test_load_config_disable_ssl(self, conf, config):
+        conf.getimport.return_value = None
         conf.getboolean.return_value = False
         conf.getjson.return_value = {"total": 3, "backoff_factor": 0.5}
         client = get_kube_client(in_cluster=False)
@@ -57,6 +58,7 @@ class TestClient:
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.config")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.conf")
     def test_load_config_ssl_ca_cert(self, conf, config):
+        conf.getimport.return_value = None
         conf.get.return_value = "/path/to/ca.crt"
         conf.getjson.return_value = {"total": 3, "backoff_factor": 0.5}
         client = get_kube_client(in_cluster=False)

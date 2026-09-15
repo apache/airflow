@@ -253,7 +253,7 @@ class KubernetesExecutor(BaseExecutor):
         )
         from airflow.providers.cncf.kubernetes.kube_client import get_kube_client
 
-        self.kube_client = get_kube_client()
+        self.kube_client = get_kube_client(use_client_factory=True)
         self.kube_scheduler = AirflowKubernetesScheduler(
             kube_config=self.kube_config,
             result_queue=self.result_queue,
@@ -883,7 +883,7 @@ class KubernetesExecutor(BaseExecutor):
             from airflow.providers.cncf.kubernetes.kube_client import get_kube_client
             from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 
-            client = get_kube_client()
+            client = get_kube_client(use_client_factory=True)
 
             hostname_desc = f" {ti.hostname}" if ti.hostname else ""
             messages.append(f"Attempting to fetch logs from pod{hostname_desc} through kube API")
