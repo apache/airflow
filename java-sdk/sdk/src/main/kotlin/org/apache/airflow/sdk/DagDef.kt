@@ -36,13 +36,17 @@ import kotlin.Throws
  *     .addTask("load", Load.class);
  * ```
  *
- * @param id Dag identifier. Must contain only ASCII alphanumeric characters,
- *    dashes, dots, or underscores; must be unique within a [Bundle].
+ * Dag and task IDs are validated authoritatively by the Airflow server. This
+ * class accepts any ID; IDs the server would reject are reported as
+ * best-effort build-time warnings by the Gradle plugin's `checkAirflowBundle`
+ * task, which runs [BundleInspector] against the assembled [Bundle].
+ *
+ * @param id Dag identifier; must be unique within a [Bundle].
  *
  * @see Builder.Dag
  */
 class DagDef(
-  val id: String, // TODO: charset check?
+  val id: String,
 ) {
   internal val tasks = linkedMapOf<String, TaskDef>()
 
