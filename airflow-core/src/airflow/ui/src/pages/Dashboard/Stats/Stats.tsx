@@ -60,7 +60,7 @@ export const Stats = () => {
           isLoading={isStatsLoading}
           isRTL={isRTL}
           label={translate("stats.failedDags")}
-          link="dags?last_dag_run_state=failed"
+          link="/dags?last_dag_run_state=failed"
           state="failed"
         />
 
@@ -75,7 +75,7 @@ export const Stats = () => {
             isLoading={isStatsLoading}
             isRTL={isRTL}
             label={translate("stats.queuedDags")}
-            link="dags?dag_run_state=queued"
+            link="/dags?dag_run_state=queued"
             state="queued"
           />
         ) : undefined}
@@ -86,7 +86,7 @@ export const Stats = () => {
           isLoading={isStatsLoading}
           isRTL={isRTL}
           label={translate("stats.runningDags")}
-          link="dags?dag_run_state=running"
+          link="/dags?dag_run_state=running"
           state="running"
         />
 
@@ -97,7 +97,7 @@ export const Stats = () => {
           isLoading={isStatsLoading}
           isRTL={isRTL}
           label={translate("stats.activeDags")}
-          link="dags?paused=false"
+          link="/dags?paused=false"
         />
       </Flex>
     </Box>
