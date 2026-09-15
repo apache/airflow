@@ -43,7 +43,8 @@ class InfluxDB3Operator(BaseOperator):
     :param influxdb3_conn_id: Reference to :ref:`InfluxDB 3 connection id <howto/connection:influxdb3>`.
     :param deferrable: Run the query from the triggerer so the worker slot is released while the
         query runs. This is most useful for long-running queries that return small-to-moderate
-        result sets because the full result still flows back through XCom.
+        result sets because the full result still flows back through XCom. Defaults to the
+        ``operators.default_deferrable`` configuration (``False`` if unset).
     """
 
     template_fields: Sequence[str] = ("sql",)
