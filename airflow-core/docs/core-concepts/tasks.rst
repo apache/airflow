@@ -314,6 +314,12 @@ DAG was triggered:
                 return RetryDecision.fail(reason="Backfill run -- not retrying")
             return RetryDecision.default()
 
+A retry policy only decides whether and when a task gets another attempt; it
+has no visibility into what the task already did before it failed. For a
+task that also needs to resume from where it left off, pair a retry policy
+with the task state store described in
+:ref:`concepts-resumable-tasks-retry-policies`.
+
 .. _concepts:task-instance-heartbeat-timeout:
 
 Task Instance Heartbeat Timeout

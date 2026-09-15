@@ -226,3 +226,42 @@ Comparison
      - Airflow 2.2
      - Airflow 3.3
      - Airflow 3.2
+
+.. _concepts-resumable-tasks-retry-policies:
+
+Retry policies and durable execution
+-------------------------------------
+
+Durable execution, taken broadly, is fine-grained workflow control: rich
+primitives for retries, backoff, and fallbacks, configurable at the level
+of a single task, combined with state that survives a worker crash so a
+workflow can span days without losing progress. Airflow provides two
+primitives for this.
+
+A **retry policy** is the primitive for retries, backoff, and fallbacks. It
+decides whether a task gets another attempt, and how long to wait before
+it. This is :class:`~airflow.sdk.RetryPolicy` and :class:`~airflow.sdk.RetryDecision`
+(see :ref:`concepts:retry-policies`), or the LLM-driven
+:class:`~airflow.providers.common.ai.policies.retry.LLMRetryPolicy`, which
+uses a model to read the error and make that call (see
+:doc:`apache-airflow-providers-common-ai:retry_policies`).
+
+**The task state store** is the primitive for state that survives a worker
+crash. Described above, it is what lets a task recover a checkpoint written
+by the attempt before it, rather than starting over.
+
+Long-running tasks, or LLM-driven tasks like agentic workflows, benefit
+most from both: the retry policy decides whether the error is worth
+retrying at all, and the task state store is what the retry resumes from.
+
+Consider using both when a task:
+
+* Runs long enough that a worker crash mid-run is a real risk, and
+* Needs a retry decision more nuanced than "always retry" or "never
+  retry", for example retrying rate limits but failing outright on bad
+  credentials.
+
+The two operate independently. A task with ``retries=5`` and a checkpoint
+still stops for good after 5 failed attempts, but each of those 5 attempts
+picks up from the last checkpoint instead of reprocessing files it already
+finished, or resubmitting a job that is still running.
