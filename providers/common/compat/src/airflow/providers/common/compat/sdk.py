@@ -30,7 +30,7 @@ from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 if TYPE_CHECKING:
     import airflow.sdk.io as io  # noqa: F401
     import airflow.sdk.timezone as timezone  # noqa: F401
-    from airflow.models.xcom import XCOM_RETURN_KEY as XCOM_RETURN_KEY
+    from airflow.models.xcom import XCOM_RETURN_KEY as XCOM_RETURN_KEY, XComModel as XComModel
     from airflow.sdk import (
         DAG as DAG,
         Asset as Asset,
@@ -135,6 +135,7 @@ _RENAME_MAP: dict[str, tuple[str, str, str]] = {
     "AssetAlias": ("airflow.sdk", "airflow.datasets", "DatasetAlias"),
     "AssetAll": ("airflow.sdk", "airflow.datasets", "DatasetAll"),
     "AssetAny": ("airflow.sdk", "airflow.datasets", "DatasetAny"),
+    "XComModel": ("airflow.models.xcom", "airflow.models.xcom", "XCom"),
 }
 
 # Airflow 3-only renames (not available in Airflow 2)
