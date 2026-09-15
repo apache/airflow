@@ -43,6 +43,7 @@ from in_container_utils import (
     AIRFLOW_ROOT_PATH,
 )
 from jsonpath_ng.ext import parse
+from provider_suspension import remove_suspended_doc_urls, remove_suspended_import_errors
 from rich.console import Console
 from tabulate import tabulate
 
@@ -1046,13 +1047,7 @@ def check_doc_files(yaml_files: dict[str, dict]) -> tuple[int, int]:
         if f.name != "index.rst" and "_partials" not in f.parts and f.parts[2] == "docs"
     }
 
-    if suspended_providers:
-        expected_doc_urls = {
-            doc_url
-            for doc_url in expected_doc_urls
-            for suspend_provider in suspended_providers
-            if suspend_provider not in doc_url
-        }
+    expected_doc_urls = remove_suspended_doc_urls(expected_doc_urls, suspended_providers)
 
     if suspended_logos:
         console.print("[yellow]Suspended logos:[/]")
@@ -1216,15 +1211,8 @@ if __name__ == "__main__":
         check_invalid_integration(all_parsed_yaml_files)
         check_providers_are_mentioned_in_issue_template(all_parsed_yaml_files)
 
-    # remove errors related to suspended module imports.
     print("suspended_providers ", suspended_providers)
-    if suspended_providers and errors:
-        errors = [
-            error
-            for error in errors
-            for module in suspended_providers
-            if f"No module named '{module.replace('apache-', '', 1).replace('-', '.')}'" not in error
-        ]
+    errors = remove_suspended_import_errors(errors, suspended_providers)
 
     if errors:
         error_num = len(errors)
