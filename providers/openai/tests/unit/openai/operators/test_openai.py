@@ -22,6 +22,7 @@ from unittest.mock import Mock
 import pytest
 from openai.types.batch import Batch
 from openai.types.responses import Response, ResponseUsage
+from openai.types.responses.response_usage import InputTokensDetails, OutputTokensDetails
 
 from airflow.providers.common.compat.sdk import DAG, Context, TaskDeferred
 from airflow.providers.openai.exceptions import OpenAIBatchJobException, OpenAITriggerEventError
@@ -90,10 +91,15 @@ def test_openai_response_operator_execute():
         response_kwargs={"instructions": "Be concise.", "previous_response_id": "resp_prev"},
     )
     mock_hook_instance = Mock(spec=OpenAIHook)
-    mock_usage = Mock(spec=ResponseUsage)
-    mock_usage.model_dump.return_value = {"input_tokens": 5, "output_tokens": 7}
+    usage = ResponseUsage(
+        input_tokens=5,
+        input_tokens_details=InputTokensDetails(cached_tokens=1, cache_write_tokens=0),
+        output_tokens=7,
+        output_tokens_details=OutputTokensDetails(reasoning_tokens=2),
+        total_tokens=12,
+    )
     mock_response = Mock(
-        spec=Response, output_text="haiku text", id="resp_123", status="completed", usage=mock_usage
+        spec=Response, output_text="haiku text", id="resp_123", status="completed", usage=usage
     )
     mock_hook_instance.create_response.return_value = mock_response
     operator.hook = mock_hook_instance
@@ -112,8 +118,16 @@ def test_openai_response_operator_execute():
         previous_response_id="resp_prev",
     )
     context["ti"].xcom_push.assert_any_call(key="response_id", value="resp_123")
-    context["ti"].xcom_push.assert_any_call(key="usage", value={"input_tokens": 5, "output_tokens": 7})
-    mock_usage.model_dump.assert_called_once_with(mode="json")
+    context["ti"].xcom_push.assert_any_call(
+        key="usage",
+        value={
+            "input_tokens": 5,
+            "input_tokens_details": {"cache_write_tokens": 0, "cached_tokens": 1},
+            "output_tokens": 7,
+            "output_tokens_details": {"reasoning_tokens": 2},
+            "total_tokens": 12,
+        },
+    )
 
 
 def test_openai_response_operator_execute_without_usage():
@@ -156,17 +170,20 @@ def test_openai_response_operator_execute_skips_xcom_push_when_disabled():
     context["ti"].xcom_push.assert_not_called()
 
 
-def test_openai_response_operator_templates_response_kwargs():
-    with DAG(dag_id="test_openai_response_kwargs_template", schedule=None, start_date=datetime(2021, 1, 1)):
+def test_openai_response_operator_templates_input_text_and_response_kwargs():
+    with DAG(dag_id="test_openai_response_template_fields", schedule=None, start_date=datetime(2021, 1, 1)):
         operator = OpenAIResponseOperator(
             task_id=TASK_ID,
             conn_id=CONN_ID,
-            input_text="Write a haiku.",
+            input_text="{{ params.input_text }}",
             response_kwargs={"previous_response_id": "{{ params.previous_response_id }}"},
         )
 
-    operator.render_template_fields({"params": {"previous_response_id": "resp_prev_123"}})
+    operator.render_template_fields(
+        {"params": {"input_text": "Write a haiku.", "previous_response_id": "resp_prev_123"}}
+    )
 
+    assert operator.input_text == "Write a haiku."
     assert operator.response_kwargs == {"previous_response_id": "resp_prev_123"}
 
 
