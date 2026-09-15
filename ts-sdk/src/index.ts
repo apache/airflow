@@ -18,10 +18,12 @@
  */
 
 export { Dag } from "./sdk/dag.js";
-export { DagRegistry } from "./sdk/registry.js";
+export { Bundle } from "./sdk/bundle.js";
+export { getClient, getContext } from "./sdk/task.js";
 export { ConnectionNotFoundError, VariableNotFoundError } from "./sdk/client.js";
-export { serveDags, SUPERVISOR_API_VERSION } from "./coordinator/index.js";
+export { SUPERVISOR_API_VERSION } from "./coordinator/index.js";
+export type { Registerable } from "./sdk/bundle.js";
 export type { DagSpec, TaskInputs, TaskOptions, TaskRef, TaskSpec } from "./sdk/dag.js";
 export type { TaskClient } from "./sdk/client.js";
 export type { ConnectionResult, GetXComOpts, JsonValue, SetXComOpts } from "./sdk/client-types.js";
-export type { TaskContext, TaskHandler, TaskHandlerArgs } from "./sdk/task.js";
+export type { TaskContext, TaskFunction } from "./sdk/task.js";

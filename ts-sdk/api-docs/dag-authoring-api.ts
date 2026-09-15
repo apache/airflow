@@ -19,13 +19,13 @@
 
 /** @module Authoring */
 
-export { Dag, DagRegistry, serveDags } from "../src/index.js";
+export { Bundle, Dag, getClient, getContext } from "../src/index.js";
 export type {
   DagSpec,
+  Registerable,
   TaskClient,
   TaskContext,
-  TaskHandler,
-  TaskHandlerArgs,
+  TaskFunction,
   TaskInputs,
   TaskOptions,
   TaskRef,

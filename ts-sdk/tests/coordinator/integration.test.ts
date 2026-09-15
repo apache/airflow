@@ -25,7 +25,7 @@
 // drives the runtime through task success, task failure, retry, abort signaling,
 // task-time RPCs, missing handlers, and parse-mode responses.
 //
-// No Python, no Airflow install — but exercises the same wire format
+// No Python, no Airflow install, but exercises the same wire format
 // the real coordinator speaks.
 
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -36,14 +36,15 @@ import {
   startCoordinator,
 } from "../../src/coordinator/runtime.js";
 import { Dag } from "../../src/sdk/dag.js";
-import { DagRegistry } from "../../src/sdk/registry.js";
+import { Bundle } from "../../src/sdk/bundle.js";
+import { getClient, getContext } from "../../src/sdk/task.js";
 
 const testDag = new Dag("test_dag");
 const otherDag = new Dag("other_dag");
-// The registry the runtime dispatches through. startCoordinator() is driven
-// directly rather than through serveDags(), so these tests can supply mock
+// The bundle the runtime dispatches through. startCoordinator() is driven
+// directly rather than through bundle.serve(), so these tests can supply mock
 // socket addresses.
-const registry = new DagRegistry(testDag, otherDag);
+const bundle = new Bundle(testDag, otherDag);
 
 interface MockResult {
   firstResponse: { id: number; body: unknown; isResponse: boolean } | null;
@@ -54,7 +55,7 @@ interface MockResult {
 /** Callback used by `driveSupervisor` to answer runtime-initiated
  *  requests. Return `{ body, error? }` to reply with that arity-3
  *  frame, or `null` to ignore the request (the runtime will hang
- *  waiting for a response — only useful for negative tests). */
+ *  waiting for a response, which is only useful for negative tests). */
 type Responder = (
   msgType: string,
   body: Record<string, unknown>,
@@ -149,7 +150,7 @@ async function driveSupervisor(initialFrame: unknown, responder?: Responder): Pr
   const commAccept = acceptOne(comm.server);
   const logsAccept = acceptOne(logs.server);
 
-  const runtimeDone = startCoordinator(registry, {
+  const runtimeDone = startCoordinator(bundle, {
     commAddr: `127.0.0.1:${comm.port}`,
     logsAddr: `127.0.0.1:${logs.port}`,
     argv: [],
@@ -157,7 +158,7 @@ async function driveSupervisor(initialFrame: unknown, responder?: Responder): Pr
 
   const [commSock, logsSock] = await Promise.all([commAccept, logsAccept]);
 
-  // Send the kickoff frame as a _ResponseFrame (arity 3) — matches what
+  // Send the kickoff frame as a _ResponseFrame (arity 3), matching what
   // Airflow's `_send_startup_details` actually emits on the wire.
   commSock.write(frameBytes(0, initialFrame, true));
 
@@ -220,7 +221,7 @@ describe("coordinator runtime integration", () => {
 
     const logsSockPromise = acceptOne(logs.server);
     const commSockPromise = acceptOne(comm.server);
-    const runtimeDone = startCoordinator(registry, {
+    const runtimeDone = startCoordinator(bundle, {
       commAddr: `127.0.0.1:${comm.port}`,
       logsAddr: `127.0.0.1:${logs.port}`,
       argv: [],
@@ -239,8 +240,8 @@ describe("coordinator runtime integration", () => {
 
   it("dispatches StartupDetails to a registered handler and emits SucceedTask", async () => {
     let observedCtx: unknown = null;
-    testDag.task("say_hello", async ({ ctx }) => {
-      observedCtx = ctx;
+    testDag.task("say_hello", async () => {
+      observedCtx = getContext();
       return "ok";
     });
 
@@ -265,7 +266,7 @@ describe("coordinator runtime integration", () => {
 
     // Logger names should be hierarchical (`ts-sdk.<subsystem>`) so the
     // Python supervisor's ConsoleRenderer prints them as a distinct
-    // `[name]` column — not hardcoded to "task" (which collides with
+    // `[name]` column, not hardcoded to "task" (which collides with
     // user task logs).
     const loggers = new Set(result.logRecords.map((r) => r["logger"]));
     expect(loggers.has("ts-sdk.runtime")).toBe(true);
@@ -296,7 +297,7 @@ describe("coordinator runtime integration", () => {
     const logsAccept = acceptOne(logs.server);
 
     testDag.task("terminal_timeout", async () => undefined);
-    const runtimeDone = startCoordinator(registry, {
+    const runtimeDone = startCoordinator(bundle, {
       commAddr: `127.0.0.1:${comm.port}`,
       logsAddr: `127.0.0.1:${logs.port}`,
       argv: [],
@@ -355,11 +356,11 @@ describe("coordinator runtime integration", () => {
     });
   });
 
-  it("aborts ctx.signal on SIGTERM and reports a thrown task error", async () => {
+  it("aborts the context signal on SIGTERM and reports a thrown task error", async () => {
     let sawAbort = false;
-    testDag.task("aborted_then_failed", async ({ ctx }) => {
+    testDag.task("aborted_then_failed", async () => {
       process.emit("SIGTERM");
-      sawAbort = ctx.signal.aborted;
+      sawAbort = getContext().signal.aborted;
       throw new Error("interrupted");
     });
 
@@ -375,9 +376,9 @@ describe("coordinator runtime integration", () => {
 
   it("returns RetryTask with the thrown error when a task fails after SIGTERM", async () => {
     let sawAbort = false;
-    testDag.task("aborted_then_failed_retry", async ({ ctx }) => {
+    testDag.task("aborted_then_failed_retry", async () => {
       process.emit("SIGTERM");
-      sawAbort = ctx.signal.aborted;
+      sawAbort = getContext().signal.aborted;
       throw new Error("interrupted");
     });
 
@@ -398,9 +399,9 @@ describe("coordinator runtime integration", () => {
 
   it("does not discard a completed task result after SIGTERM", async () => {
     let sawAbort = false;
-    testDag.task("completed_after_sigterm", async ({ ctx }) => {
+    testDag.task("completed_after_sigterm", async () => {
       process.emit("SIGTERM");
-      sawAbort = ctx.signal.aborted;
+      sawAbort = getContext().signal.aborted;
       return "completed";
     });
 
@@ -434,9 +435,10 @@ describe("coordinator runtime integration", () => {
     const xcomStore = new Map<string, unknown>();
     let observedGreeting: string | null = "<unset>";
 
-    testDag.task("say_hello_client", async ({ ctx, client }) => {
-      // The coordinator-mode handler MUST receive a client.
-      if (!client) throw new Error("client missing in coordinator mode");
+    testDag.task("say_hello_client", async () => {
+      // The coordinator-mode handler MUST be able to reach a client.
+      const ctx = getContext();
+      const client = getClient();
 
       observedGreeting = await client.getVariable("e6_greeting");
       await client.setXCom({
@@ -503,8 +505,8 @@ describe("coordinator runtime integration", () => {
 
   it("returns null from getVariable when the supervisor signals NOT_FOUND", async () => {
     let observed: string | null = "<unset>";
-    testDag.task("missing_variable", async ({ client }) => {
-      observed = await client.getVariable("missing_key");
+    testDag.task("missing_variable", async () => {
+      observed = await getClient().getVariable("missing_key");
     });
 
     const responder: Responder = (msgType) => {

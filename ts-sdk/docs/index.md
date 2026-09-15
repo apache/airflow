@@ -35,23 +35,26 @@ Install the beta package from npm:
 npm install apache-airflow-ts-sdk@0.1.0-beta1
 ```
 
-Define a Dag and register its task handlers. Handlers receive a `TaskContext`
-and a `TaskClient`; any non-`undefined` return value is pushed to XCom under
-the `"return_value"` key by the active runtime, matching Python `@task`
-behavior:
+Define a Dag, register it on a `Bundle`, and serve it.
+A handler is a plain function: `getContext()` returns the `TaskContext` and `getClient()` the `TaskClient`
+for as long as it runs, so neither is a parameter.
+Any non-`undefined` return value is pushed to XCom under the `"return_value"` key by the active runtime,
+matching Python `@task` behavior:
 
 ```ts
-import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "apache-airflow-ts-sdk";
+import { Bundle, Dag, getClient, getContext } from "apache-airflow-ts-sdk";
 
-export async function sayHello({ ctx, client }: TaskHandlerArgs) {
-  const greeting = await client.getVariable("greeting");
-  return { message: `Hello from ${ctx.taskId}: ${greeting}` };
+export async function sayHello() {
+  const greeting = await getClient().getVariable("greeting");
+  return { message: `Hello from ${getContext().taskId}: ${greeting}` };
 }
 
 const dag = new Dag("example_dag");
 dag.task("say_hello", sayHello);
 
-await serveDags(new DagRegistry(dag));
+const bundle = new Bundle();
+bundle.register(dag);
+await bundle.serve();
 ```
 
 ## Coordinators
