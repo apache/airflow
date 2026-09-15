@@ -107,7 +107,8 @@ _DESCRIPTIONS = {
         "Run a shell command inside an isolated sandbox and return its output. Pipes, "
         "redirection, && and globs work. A non-zero exit is reported, not raised, so read "
         "stderr and fix your command. The sandbox is separate from the Airflow worker and "
-        "is not given Airflow's connections, variables, or environment."
+        "is not given Airflow's connections, variables, or environment. Relative paths "
+        "resolve against the sandbox's working directory; run 'pwd' if you need to know it."
     ),
     READ_FILE: (
         "Read a text file from the sandbox. Long files are truncated and the result tells "
@@ -286,6 +287,29 @@ class SandboxToolset(AbstractToolset[Any]):
             if self._create_task is create_task:
                 self._create_task = None
 
+    def _network_note(self) -> str:
+        """
+        Describe the sandbox's egress in the one place the model reliably reads.
+
+        Without it the model has to discover the policy by failing: measured, a
+        ``pip install`` in a sandbox that denies egress costs a turn and returns a DNS
+        error, and under an allowlist a reach for plain HTTP burns the whole command
+        budget and returns only a timeout, which reads as "my command was slow". The
+        spec is known here, so say it instead.
+        """
+        if not self._spec.block_network:
+            return "This sandbox has outbound network access."
+        allowed = list(self._spec.allow_egress_to or ())
+        if not allowed:
+            return (
+                "This sandbox has NO network access, including DNS, so installing packages "
+                "or downloading anything will fail. Work with what the image already has."
+            )
+        return (
+            "This sandbox reaches only these hosts, over HTTPS on port 443: "
+            f"{', '.join(allowed)}. Anything else, and plain HTTP to any host, will fail."
+        )
+
     async def get_tools(self, ctx: RunContext[Any]) -> dict[str, ToolsetTool[Any]]:
         tools: dict[str, ToolsetTool[Any]] = {}
         for base, schema in _SCHEMAS.items():
@@ -297,9 +321,12 @@ class SandboxToolset(AbstractToolset[Any]):
             # leaves it native instead of folding a shell surface into run_code.
             extra = code_arg_kwargs("command", "shell") if base == RUN_COMMAND else {}
             name = self._tool_name(base)
+            description = _DESCRIPTIONS[base]
+            if base == RUN_COMMAND:
+                description = f"{description} {self._network_note()}"
             tool_def = ToolDefinition(
                 name=name,
-                description=_DESCRIPTIONS[base],
+                description=description,
                 parameters_json_schema=schema,
                 sequential=True,
                 **return_schema_kwargs({"type": "string"}),

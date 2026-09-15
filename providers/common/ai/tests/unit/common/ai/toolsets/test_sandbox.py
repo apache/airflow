@@ -170,6 +170,50 @@ class TestGetTools:
             tools["run_command"].args_validator.validate_python(bad_args)
 
 
+class TestNetworkNote:
+    """
+    The model reads tool descriptions and nothing else, so the egress policy belongs
+    there. Measured without it: a ``pip install`` under the default deny costs a turn
+    and returns a DNS error, and under an allowlist a reach for plain HTTP is never
+    refused, so the model burns its whole command budget and reads a timeout, which
+    it takes to mean its command was slow.
+    """
+
+    @pytest.mark.asyncio
+    async def test_the_default_spec_tells_the_model_there_is_no_network(self):
+        tools = await SandboxToolset(_RecordingBackend()).get_tools(_ctx())
+
+        description = tools["run_command"].tool_def.description
+        assert "NO network access" in description
+        assert "DNS" in description
+
+    @pytest.mark.asyncio
+    async def test_an_allowlist_names_the_hosts_and_the_port(self):
+        toolset = SandboxToolset(
+            _RecordingBackend(),
+            spec=SandboxSpec(block_network=True, allow_egress_to=["pypi.org", "files.pythonhosted.org"]),
+        )
+
+        description = (await toolset.get_tools(_ctx()))["run_command"].tool_def.description
+        assert "pypi.org, files.pythonhosted.org" in description
+        # Plain HTTP is the trap worth naming, because nothing refuses it.
+        assert "plain HTTP" in description
+
+    @pytest.mark.asyncio
+    async def test_an_open_sandbox_says_so(self):
+        toolset = SandboxToolset(_RecordingBackend(), spec=SandboxSpec(block_network=False))
+
+        description = (await toolset.get_tools(_ctx()))["run_command"].tool_def.description
+        assert "has outbound network access" in description
+
+    @pytest.mark.asyncio
+    async def test_only_run_command_carries_the_note(self):
+        tools = await SandboxToolset(_RecordingBackend()).get_tools(_ctx())
+
+        for name in ("read_file", "write_file", "list_directory"):
+            assert "network" not in tools[name].tool_def.description
+
+
 class TestRunCommand:
     @pytest.mark.asyncio
     async def test_labels_streams_and_reports_a_nonzero_exit(self):
