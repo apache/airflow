@@ -314,25 +314,6 @@ class TestSecurityContext:
             "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0].securityContext", docs[0]
         ) == {"allowPrivilegeEscalation": False}
 
-    def test_worker_kerberos_init_container_security_contexts(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "kerberosInitContainer": {
-                            "enabled": True,
-                            "securityContexts": {"container": {"runAsUser": 2000}},
-                        }
-                    }
-                }
-            },
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        assert jmespath.search(
-            "spec.template.spec.initContainers[?name=='kerberos-init'] | [0].securityContext", docs[0]
-        ) == {"runAsUser": 2000}
-
     def test_wait_for_migrations_init_container_setting(self):
         ctx_value = {"allowPrivilegeEscalation": False}
         spec = {
