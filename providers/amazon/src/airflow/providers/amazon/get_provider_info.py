@@ -939,6 +939,10 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.amazon.aws.triggers.lambda_function"],
             },
             {
+                "integration-name": "Amazon Kinesis Data Stream",
+                "python-modules": ["airflow.providers.amazon.aws.triggers.kinesis"],
+            },
+            {
                 "integration-name": "Amazon Managed Workflows for Apache Airflow (MWAA)",
                 "python-modules": ["airflow.providers.amazon.aws.triggers.mwaa"],
             },
