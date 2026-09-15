@@ -408,7 +408,11 @@ async def _async_get_variable(key: str, deserialize_json: bool) -> Any:
     # Iterate over backends if not in cache (or expired)
     for secrets_backend in backends:
         try:
-            var_val = await asyncio.to_thread(secrets_backend.get_variable, key=key)
+            async_method = getattr(secrets_backend, "aget_variable", None)
+            if async_method is not None:
+                var_val = await async_method(key=key)
+            else:
+                var_val = await asyncio.to_thread(secrets_backend.get_variable, key=key)
             if var_val is not None:
                 # Save raw value before deserialization to maintain cache consistency
                 SecretCache.save_variable(key, var_val)
