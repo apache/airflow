@@ -413,10 +413,10 @@ ARG_BACKFILL_DRY_RUN = Arg(
 ARG_BACKFILL_REPROCESS_BEHAVIOR = Arg(
     ("--reprocess-behavior",),
     help=(
-        "When a run exists for the logical date, controls whether new runs will be "
-        "created for the date. Default is none."
+        "Select which Dag runs to create: 'none' (Missing Runs), 'failed' (Missing and Errored Runs), "
+        "or 'completed' (All Runs). Default is 'none'."
     ),
-    choices=("none", "completed", "failed"),
+    choices=("none", "failed", "completed"),
 )
 ARG_BACKFILL_RUN_ON_LATEST_VERSION = Arg(
     ("--run-on-latest-version",),
