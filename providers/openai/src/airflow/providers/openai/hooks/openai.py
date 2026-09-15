@@ -622,6 +622,7 @@ class OpenAIHook(BaseHook):
         endpoint: str,
         metadata: dict[str, str] | None = None,
         completion_window: Literal["24h"] = "24h",
+        **kwargs: Any,
     ) -> Batch:
         """
         Create a batch for a given model and files.
@@ -639,6 +640,7 @@ class OpenAIHook(BaseHook):
             endpoint=endpoint,  # type: ignore[arg-type]
             metadata=metadata,
             completion_window=completion_window,
+            **kwargs,
         )
         return batch
 

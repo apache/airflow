@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, ClassVar, Literal
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.providers.common.compat.sdk import BaseOperator, conf
 from airflow.providers.openai.exceptions import OpenAIBatchJobException
@@ -293,8 +293,9 @@ class OpenAITriggerBatchOperator(BaseOperator):
     :param wait_for_completion: Optional. Whether to wait for the batch to complete. If set to False, the operator
         will return immediately after triggering the batch. Defaults to True.
     :param metadata: Optional. A set of key-value pairs that can be attached to the batch. (templated)
-    :param completion_window: Optional. The time window for the batch to complete. Defaults to 24 hours,
-        the only value OpenAI currently accepts.
+    :param batch_kwargs: Optional. Additional keyword arguments to pass to the OpenAI `create_batch`
+        method — for example `output_expires_after`, which sets the expiry on the batch's output and
+        error files. Defaults to None.
     :param poll_interval: Optional. Number of seconds between checks. Only used when ``deferrable`` is True.
         Defaults to 60 seconds.
 
@@ -316,7 +317,7 @@ class OpenAITriggerBatchOperator(BaseOperator):
         wait_for_completion: bool = True,
         *,
         metadata: dict[str, str] | None = None,
-        completion_window: Literal["24h"] = "24h",
+        batch_kwargs: dict | None = None,
         poll_interval: float = 60,
         **kwargs: Any,
     ):
@@ -329,7 +330,7 @@ class OpenAITriggerBatchOperator(BaseOperator):
         self.timeout = timeout
         self.wait_for_completion = wait_for_completion
         self.metadata = metadata
-        self.completion_window = completion_window
+        self.batch_kwargs = batch_kwargs or {}
         self.poll_interval = poll_interval
 
         self.batch_id: str | None = None
@@ -344,7 +345,7 @@ class OpenAITriggerBatchOperator(BaseOperator):
             file_id=self.file_id,
             endpoint=self.endpoint,
             metadata=self.metadata,
-            completion_window=self.completion_window,
+            **self.batch_kwargs,
         )
         self.batch_id = batch.id
         if self.wait_for_completion:
