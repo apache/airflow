@@ -585,6 +585,56 @@ These are the same four names and shapes that pydantic-ai's own sandbox
 capabilities use, so a model that has seen one already knows this one, and a
 vendor that has written an adapter for one is close to having written this one.
 
+What this is actually for
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**It does not give an agent a new power. It moves a power the agent already had
+off your worker.**
+
+An agent in Airflow could already run code that nobody reviewed. ``code_mode``
+executes model-written orchestration code, and says so: it still runs in the
+worker process. An :ref:`agent skill <agent-skills>` can ship a
+``run_skill_script`` tool, which runs a script on the worker, and the guidance
+there is already to switch it off when the worker holds anything sensitive. Teams
+without either routinely hand an agent a tool that shells out. In every one of
+those, the code the model wrote runs beside your connections, your worker's
+filesystem, and your worker's position on the network.
+
+``SandboxToolset`` is where that code goes instead. So the question it answers is
+not "should the agent be able to run code", which was already settled, but "where
+should the code it writes run".
+
+That makes it the wrong tool whenever the job *can* be written down as a fixed set
+of operations. If you can name them, name them: a narrow toolset is easier to
+reason about, bounds its own results, and never exposes a credential to the model
+at all.
+
+.. list-table::
+   :widths: 48 52
+   :header-rows: 1
+
+   * - The agent needs to
+     - Reach for
+   * - Call operations you can name in advance
+     - :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset` or
+       :class:`~airflow.providers.common.ai.toolsets.hook.HookToolset`. Narrow,
+       bounded, and the credential stays in the worker rather than reaching the
+       model
+   * - Chain those tools with glue logic
+     - :ref:`code mode <code-mode>`, remembering that the glue itself still runs
+       in the worker process
+   * - Write and run open-ended code: reshape data with no known schema, install
+       a package, or fix its own failing script by reading the traceback
+     - ``SandboxToolset``
+   * - Produce a large artifact for a downstream task
+     - Not an agent at all. Drive a backend from a ``@task``, as shown under
+       :ref:`sandbox-credentials`
+
+The clearest case for a sandbox is the last clause of that third row: an agent
+that debugs its own code. It has to run something, read the real error, and try again,
+and that loop cannot be enumerated in advance because each step depends on the
+output of the one before. Nobody wants it running on a shared worker.
+
 .. _sandbox-boundaries:
 
 Which boundary this is
