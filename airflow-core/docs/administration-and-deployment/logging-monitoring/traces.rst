@@ -62,6 +62,24 @@ Add the following lines to your configuration file e.g. ``airflow.cfg``
     See the OpenTelemetry `exporter protocol specification <https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options>`_  and
     `SDK environment variable documentation <https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#periodic-exporting-metricreader>`_ for more information.
 
+Context propagation
+-------------------
+
+Airflow propagates trace context across its own boundaries — Dag run to task, API server to worker,
+supervisor to task runner — using the globally configured OpenTelemetry propagators rather than a
+fixed W3C trace context propagator. Select them with the standard ``OTEL_PROPAGATORS`` environment
+variable:
+
+.. code-block:: bash
+
+    export OTEL_PROPAGATORS=tracecontext,baggage,my-vendor-propagator
+
+The default is ``tracecontext,baggage``, so ``baggage`` now propagates alongside the trace context,
+and a vendor propagator registered under the ``opentelemetry_propagator`` entry point group is
+honored wherever Airflow injects or extracts context. Carrier keys are whatever the configured
+propagators write, so a deployment that keeps the default emits the same ``traceparent`` /
+``tracestate`` pair as before.
+
 Adding Custom Spans in Tasks
 -----------------------------
 
@@ -106,16 +124,27 @@ run — from the UI/API "Trigger with config" dialog, the ``airflow dags trigger
 
 ``airflow/dagrun_parent_trace_context``
     Embed this run in an **external** trace instead of it being a root trace. Supply a W3C
-    ``traceparent`` string (optionally a mapping with ``traceparent`` and ``tracestate``) captured
-    from the system that triggered the run — an upstream orchestrator, event pipeline, CI job, or
-    another Airflow deployment. The whole run (the ``dag_run`` span and all task/worker spans) then
-    lives inside that trace, and parent-based samplers inherit the external sampling decision. When
-    the key is absent (default), the run is a root trace. A missing or malformed value is
-    ignored (the run stays a root) rather than failing run creation.
+    ``traceparent`` string, or a carrier mapping, captured from the system that triggered the run —
+    an upstream orchestrator, event pipeline, CI job, or another Airflow deployment. The whole run
+    (the ``dag_run`` span and all task/worker spans) then lives inside that trace, and parent-based
+    samplers inherit the external sampling decision. When the key is absent (default), the run is a
+    root trace. A missing or malformed value is ignored (the run stays a root) rather than failing
+    run creation.
 
     .. code-block:: json
 
         {"airflow/dagrun_parent_trace_context": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"}
+
+    The two forms are read differently, on purpose. The bare-string shorthand is *defined* as a W3C
+    ``traceparent`` — its value syntax, not just its key name — so it is always parsed as one,
+    regardless of ``OTEL_PROPAGATORS``. A carrier mapping is read by the configured propagators
+    instead, so under the default ``OTEL_PROPAGATORS=tracecontext,baggage`` it accepts
+    ``traceparent``, ``tracestate`` and ``baggage``, and a deployment running a vendor propagator can
+    supply that propagator's own keys. Use the mapping form when you are not propagating W3C.
+
+    .. code-block:: json
+
+        {"airflow/dagrun_parent_trace_context": {"traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", "baggage": "tenant=acme"}}
 
 Enable Https
 -----------------
