@@ -63,4 +63,6 @@ class TestInfluxDB3QueryTrigger:
         trigger = InfluxDB3QueryTrigger(sql=SQL)
         events = [event async for event in trigger.run()]
 
+        mock_hook_class.assert_called_once_with(conn_id="influxdb3_default")
+        mock_hook.query_async.assert_awaited_once_with(SQL)
         assert events == [TriggerEvent({"status": "error", "message": "boom"})]
