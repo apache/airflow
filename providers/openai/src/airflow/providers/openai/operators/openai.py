@@ -305,6 +305,7 @@ class OpenAITriggerBatchOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ("file_id", "endpoint", "metadata")
+    template_fields_renderers = {"metadata": "json"}
 
     def __init__(
         self,
