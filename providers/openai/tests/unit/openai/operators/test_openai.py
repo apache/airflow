@@ -20,6 +20,7 @@ from decimal import Decimal
 from fractions import Fraction
 from unittest.mock import Mock
 
+import jinja2
 import pytest
 from openai.types.batch import Batch
 from openai.types.responses import Response
@@ -336,6 +337,45 @@ class TestOpenAIResponseOperatorTokenCeilings:
             operator.execute(Context())
 
         mock_hook_instance.create_response.assert_not_called()
+
+    def test_or_fallback_idiom_raises_under_strict_undefined_dag_binding(self):
+        # `or ''` only fails here under the Dag's StrictUndefined default -- pinning the
+        # idiom the last review round rejected. The sibling test asserts its own binding.
+        with DAG("test_dag", schedule=None) as dag:
+            operator = OpenAIResponseOperator(
+                task_id=TASK_ID,
+                conn_id=CONN_ID,
+                input_text="Write a haiku.",
+                max_output_tokens="{{ params.tokens or '' }}",
+                dag=dag,
+            )
+
+        with pytest.raises(jinja2.UndefinedError):
+            operator.render_template_fields(Context(params={}))
+
+    def test_default_filter_idiom_renders_blank_under_strict_undefined_dag_binding(self):
+        with DAG("test_dag", schedule=None) as dag:
+            operator = OpenAIResponseOperator(
+                task_id=TASK_ID,
+                conn_id=CONN_ID,
+                input_text="Write a haiku.",
+                max_output_tokens="{{ params.tokens | default('', true) }}",
+                dag=dag,
+            )
+
+        assert operator.get_template_env().undefined is jinja2.StrictUndefined
+
+        operator.render_template_fields(Context(params={}))
+        assert operator.max_output_tokens == ""
+
+        mock_hook_instance = Mock(spec=OpenAIHook)
+        mock_hook_instance.create_response.return_value = _build_completed_response()
+        operator.hook = mock_hook_instance
+
+        operator.execute(Context())
+
+        call_kwargs = mock_hook_instance.create_response.call_args.kwargs
+        assert "max_output_tokens" not in call_kwargs
 
     @pytest.mark.parametrize(
         ("reason", "output_text", "expected_fragment"),
