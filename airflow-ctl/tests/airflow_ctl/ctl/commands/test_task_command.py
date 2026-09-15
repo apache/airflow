@@ -24,10 +24,12 @@ import httpx
 import pytest
 
 from airflowctl.api.datamodels.generated import (
+    StructuredLogMessage,
     TaskDependencyCollectionResponse,
     TaskDependencyResponse,
     TaskInstanceCollectionResponse,
     TaskInstanceResponse,
+    TaskInstancesLogResponse,
     TaskInstanceState,
 )
 from airflowctl.api.operations import ServerResponseError
@@ -631,3 +633,109 @@ class TestStatesForDagRun:
             task_command.states_for_dag_run(self.parser.parse_args(argv), api_client=api_client)
 
         assert ctx.value is error
+
+
+class TestLogs:
+    parser = cli_parser.get_parser()
+    dag_id = "test_dag"
+    run_id = "test_run"
+    task_id = "test_task"
+
+    def _make_log_response(self, content: list[StructuredLogMessage] | list[str]) -> TaskInstancesLogResponse:
+        return TaskInstancesLogResponse(content=content, continuation_token=None)
+
+    def _make_structured_content(self) -> list[StructuredLogMessage]:
+        return [
+            StructuredLogMessage(
+                timestamp=datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc),
+                event="INFO - hello",
+            ),
+            StructuredLogMessage(
+                timestamp=datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc),
+                event="plain line",
+            ),
+        ]
+
+    def test_logs_defaults_to_latest_attempt(self, capsys):
+        api_client = mock.MagicMock()
+        api_client.task_instances.logs.return_value = self._make_log_response(self._make_structured_content())
+
+        task_command.logs(
+            self.parser.parse_args(["tasks", "logs", self.dag_id, self.run_id, self.task_id]),
+            api_client=api_client,
+        )
+
+        api_client.task_instances.logs.assert_called_once_with(
+            dag_id=self.dag_id,
+            dag_run_id=self.run_id,
+            task_id=self.task_id,
+            try_number=-1,
+            map_index=-1,
+            suppress_error_log=True,
+        )
+        assert capsys.readouterr().out == "INFO - hello\nplain line\n"
+
+    def test_logs_prints_plain_string_entries(self, capsys):
+        api_client = mock.MagicMock()
+        api_client.task_instances.logs.return_value = self._make_log_response(["plain line"])
+
+        task_command.logs(
+            self.parser.parse_args(["tasks", "logs", self.dag_id, self.run_id, self.task_id]),
+            api_client=api_client,
+        )
+
+        assert capsys.readouterr().out == "plain line\n"
+
+    def test_logs_with_explicit_try_number_and_map_index(self, capsys):
+        api_client = mock.MagicMock()
+        api_client.task_instances.logs.return_value = self._make_log_response(self._make_structured_content())
+
+        task_command.logs(
+            self.parser.parse_args(
+                [
+                    "tasks",
+                    "logs",
+                    self.dag_id,
+                    self.run_id,
+                    self.task_id,
+                    "--try-number",
+                    "2",
+                    "--map-index",
+                    "3",
+                ]
+            ),
+            api_client=api_client,
+        )
+
+        api_client.task_instances.logs.assert_called_once_with(
+            dag_id=self.dag_id,
+            dag_run_id=self.run_id,
+            task_id=self.task_id,
+            try_number=2,
+            map_index=3,
+            suppress_error_log=True,
+        )
+
+    def test_logs_task_instance_not_found(self, capsys):
+        api_client = mock.MagicMock()
+        api_client.task_instances.logs.side_effect = _make_server_error(404)
+
+        with pytest.raises(SystemExit, match="1"):
+            task_command.logs(
+                self.parser.parse_args(["tasks", "logs", self.dag_id, self.run_id, self.task_id]),
+                api_client=api_client,
+            )
+
+        assert _normalize_rich_output(capsys.readouterr().out) == (
+            "Task instance for task 'test_task' in Dag run 'test_run' of Dag 'test_dag' not found"
+        )
+
+    def test_logs_reraises_non_404_error(self):
+        api_client = mock.MagicMock()
+        api_client.task_instances.logs.side_effect = _make_server_error(500)
+
+        with pytest.raises(ServerResponseError):
+            task_command.logs(
+                self.parser.parse_args(["tasks", "logs", self.dag_id, self.run_id, self.task_id]),
+                api_client=api_client,
+            )
