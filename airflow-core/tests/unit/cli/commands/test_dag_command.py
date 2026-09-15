@@ -316,6 +316,35 @@ class TestCliDags:
         clear_db_dags()
         self.setup_class()
 
+    @conf_vars({("core", "load_examples"): "false"})
+    @pytest.mark.parametrize("field", ["data_interval.start", "data_interval.end"])
+    def test_next_execution_data_interval_field_on_partitioned_dag(self, field, tmp_path, stdout_capture):
+        dag_id = "partitioned_data_interval_field"
+        file_content = os.linesep.join(
+            [
+                "from airflow import DAG",
+                "from airflow.providers.standard.operators.empty import EmptyOperator",
+                "from airflow.timetables.trigger import CronPartitionTimetable",
+                "from datetime import timedelta; from pendulum import today",
+                f"dag = DAG('{dag_id}', start_date=today(tz='UTC') + timedelta(days=-5),"
+                " schedule=CronPartitionTimetable('0 0 * * *', timezone='UTC'), catchup=False)",
+                "task = EmptyOperator(task_id='empty_task', dag=dag)",
+            ]
+        )
+        (tmp_path / f"{dag_id}.py").write_text(file_content)
+        with time_machine.travel(DEFAULT_DATE):
+            clear_db_dags()
+            parse_and_sync_to_db(tmp_path)
+
+        args = self.parser.parse_args(["dags", "next-execution", dag_id, "--field", field])
+        with stdout_capture as temp_stdout:
+            dag_command.dag_next_execution(args)
+            out = temp_stdout.getvalue()
+        assert out.splitlines() == ["None"]
+
+        clear_db_dags()
+        self.setup_class()
+
     def test_cli_report(self, stdout_capture):
         args = self.parser.parse_args(["dags", "report", "--output", "json"])
         with stdout_capture as temp_stdout:

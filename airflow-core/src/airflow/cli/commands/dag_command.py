@@ -22,13 +22,14 @@ from __future__ import annotations
 import ast
 import datetime
 import errno
+import functools
 import json
 import logging
 import operator
 import re
 import subprocess
 import sys
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import func, or_, select
 
@@ -63,7 +64,7 @@ from airflow.utils.state import DagRunState, DagSchedulingState, TaskInstanceSta
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Iterator
+    from collections.abc import Callable, Iterable, Iterator
 
     from graphviz.dot import Dot
     from sqlalchemy.orm import Session
@@ -443,6 +444,23 @@ def dag_state(args, *, session: Session = NEW_SESSION) -> None:
         print(dr.state)
 
 
+def _get_schedule_field(field: str, info: DagRunInfo) -> Any:
+    """
+    Resolve the dotted ``--field`` *field* on *info*, yielding None if a parent is absent.
+
+    ``--field`` offers every field any schedule can produce, so a Dag can always be
+    asked for a name its own schedule leaves empty — ``data_interval`` is None on a
+    partitioned Dag. Degrade to None there, as :attr:`DagRunInfo.logical_date` already
+    does for the very same interval.
+    """
+    value: Any = info
+    for name in field.split("."):
+        value = getattr(value, name)
+        if value is None:
+            return None
+    return value
+
+
 @deprecated_for_airflowctl("airflowctl dags next-execution")
 @cli_utils.action_cli
 @providers_configuration_loaded
@@ -513,8 +531,9 @@ def dag_next_execution(args) -> None:
         AirflowConsole().print_as_table(rows)
         return
 
+    getter: Callable[[DagRunInfo], Any]
     if args.field:
-        getter = operator.attrgetter(args.field)
+        getter = functools.partial(_get_schedule_field, args.field)
     elif last_parsed_dag.timetable_partitioned:
         getter = operator.attrgetter("partition_key")
     else:
