@@ -49,8 +49,12 @@ from airflow.providers.google.common.hooks.base_google import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
     import google.auth.credentials
     from google.api_core.retry import Retry
+
+    from airflow.providers.google.common.hooks.base_google import _CredentialsToken
 
 OPERATIONAL_POLL_INTERVAL = 15
 
@@ -478,6 +482,27 @@ class GKEKubernetesHook(GoogleBaseHook, KubernetesHook):
         )
 
 
+class _GKEAsyncApiClient(async_client.ApiClient):
+    """Retry a rejected GKE token once with refreshed credentials."""
+
+    def __init__(
+        self,
+        configuration: async_client.Configuration,
+        refresh_token: Callable[[], Awaitable[str | None]],
+    ) -> None:
+        super().__init__(configuration=configuration)
+        self._refresh_token = refresh_token
+
+    async def call_api(self, *args: Any, **kwargs: Any) -> Any:
+        try:
+            return await super().call_api(*args, **kwargs)
+        except async_client.ApiException as error:
+            if error.status != 401:
+                raise
+        self.default_headers["Authorization"] = f"Bearer {await self._refresh_token()}"
+        return await super().call_api(*args, **kwargs)
+
+
 class GKEKubernetesAsyncHook(GoogleBaseAsyncHook, AsyncKubernetesHook):
     """
     Async GKE authenticated hook for standard Kubernetes API.
@@ -504,6 +529,7 @@ class GKEKubernetesAsyncHook(GoogleBaseAsyncHook, AsyncKubernetesHook):
         self._ssl_ca_cert = ssl_ca_cert
         self.enable_tcp_keepalive = enable_tcp_keepalive
         self.use_dns_endpoint = use_dns_endpoint
+        self._cached_token: _CredentialsToken | None = None
         super().__init__(
             cluster_url=cluster_url,
             ssl_ca_cert=ssl_ca_cert,
@@ -514,13 +540,21 @@ class GKEKubernetesAsyncHook(GoogleBaseAsyncHook, AsyncKubernetesHook):
 
     @contextlib.asynccontextmanager
     async def get_conn(self) -> AsyncGenerator[async_client.ApiClient, None]:
-        kube_client = None
-        try:
-            kube_client = await self._load_config()
-            yield kube_client
-        finally:
-            if kube_client is not None:
-                await kube_client.close()
+        # Reuse one client per hook: construction parses the CA into an SSL context on
+        # the event loop and opens a new connection pool. Released via close()/cleanup().
+        if self._cached_kube_client is None:
+            self._cached_kube_client = self._build_client()
+        if self._cached_token is None:
+            self._cached_token = await self.get_token()
+        # get() only refreshes past half the token's lifetime; re-set the header so refreshes propagate.
+        access_token = await self._cached_token.get()
+        self._cached_kube_client.default_headers["Authorization"] = f"Bearer {access_token}"
+        yield self._cached_kube_client
+
+    async def close(self) -> None:
+        """Release the cached API client and token. Safe to call multiple times."""
+        self._cached_token = None
+        await super().close()
 
     async def list_pods(
         self,
@@ -542,15 +576,13 @@ class GKEKubernetesAsyncHook(GoogleBaseAsyncHook, AsyncKubernetesHook):
             )
             return list(response.items) if response.items else []
 
-    async def _load_config(self) -> async_client.ApiClient:
-        configuration = self._get_config()
-        token = await self.get_token()
-        access_token = await token.get()
-        return async_client.ApiClient(
-            configuration,
-            header_name="Authorization",
-            header_value=f"Bearer {access_token}",
-        )
+    def _build_client(self) -> async_client.ApiClient:
+        return _GKEAsyncApiClient(configuration=self._get_config(), refresh_token=self._refresh_token)
+
+    async def _refresh_token(self) -> str | None:
+        # A new wrapper forces credential acquisition even before the cached token's expiry.
+        self._cached_token = await self.get_token()
+        return await self._cached_token.get()
 
     def _get_config(self) -> async_client.configuration.Configuration:
         configuration = async_client.Configuration(
