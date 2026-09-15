@@ -36,7 +36,9 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
+from tests_common.test_utils.asserts import count_queries
 from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import run_task_instance
 from unit.models import DEFAULT_DATE
 
@@ -53,6 +55,40 @@ class TestClearTasks:
 
         db.clear_db_runs()
         db.clear_db_serialized_dags()
+
+    @pytest.mark.parametrize("run_on_latest_version", [False, True])
+    def test_clear_task_instances_query_count_does_not_grow_with_task_instances(
+        self, dag_maker, run_on_latest_version
+    ):
+        """Clearing a wide mapped task must not look the dag up once per task instance."""
+
+        def clear_mapped_run(width: int) -> int:
+            with dag_maker(f"test_clear_query_count_{width}", serialized=True):
+                MockOperator.partial(task_id="mapped").expand(arg2=list(range(width)))
+            dr = dag_maker.create_dagrun(state=State.RUNNING, run_type=DagRunType.MANUAL)
+            with create_session() as session:
+                tis = session.scalars(select(TI).where(TI.dag_id == dr.dag_id)).all()
+                assert len(tis) == width
+                for ti in tis:
+                    ti.state = TaskInstanceState.SUCCESS
+                session.flush()
+                with count_queries(session=session) as queries:
+                    clear_task_instances(tis, session=session, run_on_latest_version=run_on_latest_version)
+                    session.flush()
+                count = sum(queries.values())
+                assert all(ti.state is None for ti in tis)
+                archived = (
+                    select(func.count())
+                    .select_from(TaskInstanceHistory)
+                    .where(TaskInstanceHistory.dag_id == dr.dag_id)
+                )
+                assert session.scalar(archived) == width
+            return count
+
+        narrow, wide = clear_mapped_run(3), clear_mapped_run(30)
+        # The flush emits the per-row UPDATEs and INSERTs in batches; everything else is
+        # per dag or per run. A handful of extra statements is tolerated, not one per TI.
+        assert wide - narrow < 10, f"{narrow} queries for 3 TIs, {wide} for 30"
 
     def test_clear_task_instances(self, dag_maker):
         # Explicitly needs catchup as True as test is creating history runs
