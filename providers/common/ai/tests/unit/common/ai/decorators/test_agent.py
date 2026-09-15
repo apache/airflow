@@ -23,7 +23,7 @@ from pydantic import BaseModel
 from pydantic_ai.messages import ImageUrl
 
 from airflow.providers.common.ai.decorators.agent import _AgentDecoratedOperator
-from airflow.providers.common.ai.toolsets.logging import LoggingToolset
+from airflow.providers.common.ai.toolsets.logging import ToolLoggingCapability
 
 try:
     from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
@@ -166,10 +166,8 @@ class TestAgentDecoratedOperator:
         op.execute(context={})
 
         create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
-        passed_toolsets = create_call[1]["toolsets"]
-        assert len(passed_toolsets) == 1
-        assert isinstance(passed_toolsets[0], LoggingToolset)
-        assert passed_toolsets[0].wrapped is mock_toolset
+        assert create_call[1]["toolsets"] == [mock_toolset]
+        assert isinstance(create_call[1]["capabilities"][0], ToolLoggingCapability)
 
     @requires_typed_xcom
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
