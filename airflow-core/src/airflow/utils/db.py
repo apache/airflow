@@ -288,7 +288,7 @@ def get_default_connections():
         ),
         Connection(
             conn_id="druid_ingest_default",
-            conn_type="druid",
+            conn_type="druid_ingest",
             host="druid-overlord",
             port=8081,
             extra='{"endpoint": "druid/indexer/v1/task"}',
