@@ -198,6 +198,22 @@ class TestClient:
         assert unpickled.response.status_code == 404
         assert unpickled.request.url == "http://error"
 
+    def test_redirect_response_raises_picklable_error(self):
+        responses = [httpx.Response(301, headers={"location": "http://proxy-login"})]
+        client = make_client_w_responses(responses)
+
+        with pytest.raises(ServerResponseError) as exc_info:
+            client.get("http://error")
+
+        err = exc_info.value
+        assert err.response.status_code == 301
+        assert err.detail is None
+
+        # Check that the error is picklable, unlike a bare httpx.HTTPStatusError.
+        unpickled = pickle.loads(pickle.dumps(err))
+        assert isinstance(unpickled, ServerResponseError)
+        assert unpickled.response.status_code == 301
+
     @pytest.mark.skipif(sys.version_info < (3, 11), reason="Exception notes (PEP 678) require Python 3.11")
     def test_server_error_detail_added_as_note(self):
         """Notes survive uncaught propagation, handled sites still log detail directly."""
