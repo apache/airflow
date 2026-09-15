@@ -764,9 +764,10 @@ agent code is isolated by a hardware boundary rather than a shared kernel.
    cannot satisfy the last one at all.
 
    Treat it as the backend you develop and test a sandboxed agent against, then
-   run something else in production. A hosted backend plugs in through
-   :class:`~airflow.providers.common.ai.sandbox.SandboxBackend`, but none ships
-   with the provider yet.
+   run something else in production -- either
+   :class:`~airflow.providers.common.ai.sandbox.IsloSandboxBackend` below, or
+   your own hosted backend behind
+   :class:`~airflow.providers.common.ai.sandbox.SandboxBackend`.
 
    **Orphans are not reclaimed automatically.** There is no server-side TTL. If
    the worker is killed outright, the microVM and its workspace directory
@@ -806,6 +807,64 @@ Constructor parameters:
   ``"unknown"`` (default) makes ``create`` refuse any spec asking for a network
   guarantee this backend cannot make. Set ``"deny-all"`` after running
   ``sbx policy init deny-all``, or ``"allow-all"`` to state that egress is open.
+
+Islo backend
+^^^^^^^^^^^^
+
+:class:`~airflow.providers.common.ai.sandbox.IsloSandboxBackend` runs each
+sandbox in an `islo.dev <https://islo.dev>`__ microVM. Unlike ``sbx``, the
+worker talks to a hosted API and needs neither a local daemon nor host
+virtualization, so it can run from a containerized worker.
+
+Requires the ``sandbox-islo`` extra::
+
+    pip install "apache-airflow-providers-common-ai[sandbox-islo]"
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.sandbox import IsloSandboxBackend
+
+    SandboxToolset(IsloSandboxBackend(islo_conn_id="islo_default"))
+
+By default, credentials come from a generic Airflow connection, resolved lazily
+on first use, so the API key lives in your configured secrets backend rather
+than the worker environment:
+
+- ``password``: the Islo API key. Required.
+- ``host``: the compute URL. Optional.
+- Extra: optional ``base_url`` and ``timeout`` (request timeout in seconds).
+
+Constructor parameters:
+
+- ``islo_conn_id``: Connection ID. Default ``"islo_default"``. Passing ``None``
+  instead hands credential resolution to the SDK, which reads ``ISLO_API_KEY``
+  from the worker environment -- convenient for a local trial, but it puts the
+  key outside your secrets backend, so prefer a connection in a deployment.
+- ``image``, ``vcpus``, ``memory_mb``: image and sizing. ``None`` (default) uses
+  the server default for each.
+- ``delete_after``: Server-side TTL in seconds, after which the sandbox is
+  deleted even if the worker never got to destroy it. Default ``3600``. This is
+  the backstop the ``sbx`` backend lacks.
+
+``SandboxSpec.env`` is passed at creation, and ``block_network`` maps to the
+API's ``internet_enabled``. A per-domain ``allow_egress_to`` is refused: the API
+can turn outbound access on or off, not scope it to named hosts.
+
+File reads and writes use Islo's native streaming APIs. Directory listings and
+command-output bounding require common Unix command-line tools in the sandbox
+image: ``sh``, ``tail`` and a ``find`` implementation with ``-printf`` support.
+Command output is capped inside the microVM before the SDK returns it to the
+worker, keeping the tail of each stream -- where a traceback and the exit status
+live -- rather than the head that the vendor's own 1 MB cap would keep. Each
+stream is captured to a scratch file in the sandbox first, so total output is
+bounded by the sandbox's own ephemeral disk rather than by worker memory.
+
+The backend enforces the command deadline itself because the API's
+``timeout_secs`` is only a hint. If no terminal state arrives by the deadline,
+the backend deletes the microVM before reporting a timeout; if deletion cannot
+be confirmed, the task fails instead of claiming that the sandbox stopped. The
+server-side ``delete_after`` policy remains the backstop for a worker killed
+mid-run.
 
 Bringing your own backend
 ^^^^^^^^^^^^^^^^^^^^^^^^^
