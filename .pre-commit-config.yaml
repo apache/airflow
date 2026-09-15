@@ -657,7 +657,8 @@ repos:
           ^providers/edge3/src/airflow/providers/edge3/plugins/www/openapi-gen/|
           .*/dist/.*|
           \.go$|
-          /go\.(mod|sum)$
+          /go\.(mod|sum)$|
+          ^airflow-core/src/airflow/ui/public/i18n/locales/zh-
       - id: lint-dockerfile
         name: Lint Dockerfile
         language: python
