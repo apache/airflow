@@ -239,9 +239,7 @@ class TestAsyncVariables:
         ],
     )
     async def test_avar_set(self, key, value, description, serialize_json, mock_supervisor_comms):
-        from unittest.mock import AsyncMock
-
-        mock_supervisor_comms.asend = AsyncMock(return_value=None)
+        mock_supervisor_comms.asend.return_value = None
 
         await Variable.aset(key=key, value=value, description=description, serialize_json=serialize_json)
 
@@ -255,9 +253,7 @@ class TestAsyncVariables:
 
     @pytest.mark.asyncio
     async def test_avar_delete(self, mock_supervisor_comms):
-        from unittest.mock import AsyncMock
-
-        mock_supervisor_comms.asend = AsyncMock(return_value=None)
+        mock_supervisor_comms.asend.return_value = None
 
         await Variable.adelete(key="my_key")
 
@@ -275,11 +271,7 @@ class TestAsyncVariableKeys:
         ],
     )
     async def test_akeys(self, prefix, keys, mock_supervisor_comms):
-        from unittest.mock import AsyncMock
-
-        mock_supervisor_comms.asend = AsyncMock(
-            return_value=VariableKeysResult(keys=keys, total_entries=len(keys))
-        )
+        mock_supervisor_comms.asend.return_value = VariableKeysResult(keys=keys, total_entries=len(keys))
 
         results = await Variable.akeys(prefix=prefix)
 
@@ -290,21 +282,17 @@ class TestAsyncVariableKeys:
 
     @pytest.mark.asyncio
     async def test_akeys_paginates_when_results_exceed_page_size(self, mock_supervisor_comms):
-        from unittest.mock import AsyncMock
-
         from airflow.sdk.execution_time.context import _VARIABLE_KEYS_PAGE_SIZE
 
         page1 = [f"k{i}" for i in range(_VARIABLE_KEYS_PAGE_SIZE)]
         page2 = [f"k{i}" for i in range(_VARIABLE_KEYS_PAGE_SIZE, _VARIABLE_KEYS_PAGE_SIZE * 2)]
         page3 = ["last_key"]
         total = _VARIABLE_KEYS_PAGE_SIZE * 2 + 1
-        mock_supervisor_comms.asend = AsyncMock(
-            side_effect=[
-                VariableKeysResult(keys=page1, total_entries=total),
-                VariableKeysResult(keys=page2, total_entries=total),
-                VariableKeysResult(keys=page3, total_entries=total),
-            ]
-        )
+        mock_supervisor_comms.asend.side_effect = [
+            VariableKeysResult(keys=page1, total_entries=total),
+            VariableKeysResult(keys=page2, total_entries=total),
+            VariableKeysResult(keys=page3, total_entries=total),
+        ]
 
         results = await Variable.akeys(prefix=None)
 
@@ -313,10 +301,8 @@ class TestAsyncVariableKeys:
 
     @pytest.mark.asyncio
     async def test_akeys_raises_on_error_response(self, mock_supervisor_comms):
-        from unittest.mock import AsyncMock
-
-        mock_supervisor_comms.asend = AsyncMock(
-            return_value=ErrorResponse(error=ErrorType.GENERIC_ERROR, detail={"message": "boom"})
+        mock_supervisor_comms.asend.return_value = ErrorResponse(
+            error=ErrorType.GENERIC_ERROR, detail={"message": "boom"}
         )
 
         with pytest.raises(AirflowRuntimeError):
@@ -324,9 +310,7 @@ class TestAsyncVariableKeys:
 
     @pytest.mark.asyncio
     async def test_akeys_raises_on_unexpected_response_type(self, mock_supervisor_comms):
-        from unittest.mock import AsyncMock
-
-        mock_supervisor_comms.asend = AsyncMock(return_value=VariableResult(key="x", value="y"))
+        mock_supervisor_comms.asend.return_value = VariableResult(key="x", value="y")
 
         with pytest.raises(TypeError, match="Unexpected response type"):
             await Variable.akeys(prefix="x_")
