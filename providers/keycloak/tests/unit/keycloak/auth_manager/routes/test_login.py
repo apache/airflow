@@ -208,3 +208,32 @@ class TestLoginRouter:
         assert response.status_code == 307
         assert "location" in response.headers
         assert response.headers["location"] == logout_callback_url
+
+    @patch("airflow.providers.keycloak.auth_manager.routes.login.KeycloakAuthManager.revoke_token")
+    @patch("airflow.providers.keycloak.auth_manager.routes.login.KeycloakAuthManager.get_keycloak_client")
+    def test_logout_revokes_token(self, mock_get_keycloak_client, mock_revoke_token, client):
+        mock_keycloak_client = Mock()
+        mock_keycloak_client.well_known.return_value = {"end_session_endpoint": "logout_url"}
+        mock_get_keycloak_client.return_value = mock_keycloak_client
+        response = client.get(
+            AUTH_MANAGER_FASTAPI_APP_PREFIX + "/logout",
+            cookies={"_token": "the-jwt-token"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 307
+        mock_revoke_token.assert_called_once_with("the-jwt-token")
+
+    @patch("airflow.providers.keycloak.auth_manager.routes.login.KeycloakAuthManager.revoke_token")
+    @patch("airflow.providers.keycloak.auth_manager.routes.login.KeycloakAuthManager.get_keycloak_client")
+    def test_logout_without_token_cookie_does_not_revoke(
+        self, mock_get_keycloak_client, mock_revoke_token, client
+    ):
+        mock_keycloak_client = Mock()
+        mock_keycloak_client.well_known.return_value = {"end_session_endpoint": "logout_url"}
+        mock_get_keycloak_client.return_value = mock_keycloak_client
+        response = client.get(
+            AUTH_MANAGER_FASTAPI_APP_PREFIX + "/logout",
+            follow_redirects=False,
+        )
+        assert response.status_code == 307
+        mock_revoke_token.assert_not_called()
