@@ -709,6 +709,12 @@ def get_provider_info():
             },
         ],
         "filesystems": ["airflow.providers.amazon.aws.fs.s3"],
+        "object-storage-providers": [
+            {
+                "storage-type": "s3",
+                "provider-class-name": "airflow.providers.amazon.aws.datafusion.object_storage.S3ObjectStorageProvider",
+            }
+        ],
         "hooks": [
             {
                 "integration-name": "Amazon Athena",
