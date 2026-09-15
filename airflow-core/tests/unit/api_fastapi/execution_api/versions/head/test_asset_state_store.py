@@ -25,7 +25,7 @@ from sqlalchemy import delete, select
 
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.security import require_auth
-from airflow.models.asset import AssetActive, AssetModel
+from airflow.models.asset import AssetActive, AssetModel, TaskInletAssetReference, TaskOutletAssetReference
 from airflow.models.asset_state_store import AssetStateStoreModel
 from airflow.utils.session import create_session
 
@@ -49,6 +49,25 @@ def _create_asset_store_row(asset_id: int, key: str, value: str) -> None:
         s.add(AssetStateStoreModel(asset_id=asset_id, key=key, value=json.dumps(value)))
 
 
+def _create_task_asset_reference(
+    session: Session,
+    task_instance: TaskInstance,
+    asset: AssetModel,
+    reference_model=TaskOutletAssetReference,
+) -> None:
+    session.add(
+        reference_model(asset_id=asset.id, dag_id=task_instance.dag_id, task_id=task_instance.task_id)
+    )
+    session.commit()
+
+
+def _request_asset_state_store(client: TestClient, method: str, path: str, *, params, json_body=None):
+    kwargs = {"params": params}
+    if json_body is not None:
+        kwargs["json"] = json_body
+    return getattr(client, method)(path, **kwargs)
+
+
 _BY_NAME_CLEAR = "/execution/store/asset/by-name/clear"
 _BY_URI_VALUE = "/execution/store/asset/by-uri/value"
 _BY_URI_CLEAR = "/execution/store/asset/by-uri/clear"
@@ -58,6 +77,8 @@ _BY_URI_CLEAR = "/execution/store/asset/by-uri/clear"
 def reset_state_tables():
     with create_session() as session:
         session.execute(delete(AssetStateStoreModel))
+        session.execute(delete(TaskInletAssetReference))
+        session.execute(delete(TaskOutletAssetReference))
         session.execute(delete(AssetModel))
 
 
@@ -128,6 +149,10 @@ class TestPutAssetStateByName:
             return TIToken(id=self._ti.id, claims=TIClaims(scope="execution"))
 
         exec_app.dependency_overrides[require_auth] = _auth
+
+    @pytest.fixture(autouse=True)
+    def setup_asset_reference(self, setup_ti_auth, asset: AssetModel, session: Session):
+        _create_task_asset_reference(session, self._ti, asset)
 
     def test_put_creates_row(self, client: TestClient, asset: AssetModel, session: Session):
         response = client.put(
@@ -302,6 +327,10 @@ class TestPutAssetStateByUri:
 
         exec_app.dependency_overrides[require_auth] = _auth
 
+    @pytest.fixture(autouse=True)
+    def setup_asset_reference(self, setup_ti_auth, asset: AssetModel, session: Session):
+        _create_task_asset_reference(session, self._ti, asset)
+
     def test_put_creates_row(self, client: TestClient, asset: AssetModel, session: Session):
         response = client.put(
             _BY_URI_VALUE, params={"uri": asset.uri, "key": "watermark"}, json={"value": "2026-04-29"}
@@ -368,6 +397,90 @@ class TestClearAssetStateByUri:
                 select(AssetStateStoreModel).where(AssetStateStoreModel.asset_id == asset.id)
             )
             assert row is None
+
+
+class TestTaskAssetRegistration:
+    @pytest.fixture(autouse=True)
+    def setup_ti_auth(
+        self,
+        exec_app: FastAPI,
+        create_task_instance: CreateTaskInstance,
+    ):
+        self._ti: TaskInstance = create_task_instance()
+
+        async def _auth(request: Request) -> TIToken:
+            return TIToken(id=self._ti.id, claims=TIClaims(scope="execution"))
+
+        exec_app.dependency_overrides[require_auth] = _auth
+
+    @pytest.mark.parametrize(
+        ("method", "path", "params", "json_body"),
+        [
+            ("get", _BY_NAME_VALUE, {"name": "test_asset", "key": "watermark"}, None),
+            ("put", _BY_NAME_VALUE, {"name": "test_asset", "key": "watermark"}, {"value": "x"}),
+            ("delete", _BY_NAME_VALUE, {"name": "test_asset", "key": "watermark"}, None),
+            ("delete", _BY_NAME_CLEAR, {"name": "test_asset"}, None),
+            ("get", _BY_URI_VALUE, {"uri": "s3://bucket/test", "key": "watermark"}, None),
+            ("put", _BY_URI_VALUE, {"uri": "s3://bucket/test", "key": "watermark"}, {"value": "x"}),
+            ("delete", _BY_URI_VALUE, {"uri": "s3://bucket/test", "key": "watermark"}, None),
+            ("delete", _BY_URI_CLEAR, {"uri": "s3://bucket/test"}, None),
+        ],
+    )
+    def test_unregistered_task_is_forbidden(
+        self,
+        client: TestClient,
+        asset: AssetModel,
+        method: str,
+        path: str,
+        params: dict,
+        json_body: dict | None,
+    ):
+        response = _request_asset_state_store(client, method, path, params=params, json_body=json_body)
+
+        assert response.status_code == 403
+        assert response.json()["detail"]["reason"] == "forbidden"
+
+    @pytest.mark.parametrize(
+        ("method", "path", "params", "json_body", "expected_status"),
+        [
+            ("get", _BY_NAME_VALUE, {"name": "test_asset", "key": "watermark"}, None, 200),
+            ("put", _BY_NAME_VALUE, {"name": "test_asset", "key": "watermark"}, {"value": "x"}, 204),
+            ("delete", _BY_NAME_VALUE, {"name": "test_asset", "key": "watermark"}, None, 204),
+            ("delete", _BY_NAME_CLEAR, {"name": "test_asset"}, None, 204),
+            ("get", _BY_URI_VALUE, {"uri": "s3://bucket/test", "key": "watermark"}, None, 200),
+            ("put", _BY_URI_VALUE, {"uri": "s3://bucket/test", "key": "watermark"}, {"value": "x"}, 204),
+            ("delete", _BY_URI_VALUE, {"uri": "s3://bucket/test", "key": "watermark"}, None, 204),
+            ("delete", _BY_URI_CLEAR, {"uri": "s3://bucket/test"}, None, 204),
+        ],
+    )
+    def test_outlet_registered_task_can_access_asset_state_store(
+        self,
+        client: TestClient,
+        asset: AssetModel,
+        session: Session,
+        method: str,
+        path: str,
+        params: dict,
+        json_body: dict | None,
+        expected_status: int,
+    ):
+        _create_task_asset_reference(session, self._ti, asset)
+        _create_asset_store_row(asset.id, "watermark", "2026-04-29")
+
+        response = _request_asset_state_store(client, method, path, params=params, json_body=json_body)
+
+        assert response.status_code == expected_status
+
+    def test_inlet_registered_task_can_access_asset_state_store(
+        self, client: TestClient, asset: AssetModel, session: Session
+    ):
+        _create_task_asset_reference(session, self._ti, asset, TaskInletAssetReference)
+        _create_asset_store_row(asset.id, "watermark", "2026-04-29")
+
+        response = client.get(_BY_NAME_VALUE, params={"name": asset.name, "key": "watermark"})
+
+        assert response.status_code == 200
+        assert response.json() == {"value": "2026-04-29"}
 
 
 class TestInactiveAssetRejected:
