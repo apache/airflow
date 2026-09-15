@@ -940,6 +940,20 @@ context, the task log, and whatever the agent returns to XCom. Treat a credentia
 given to a sandbox as disclosed to the model and to everything that records the
 run, and scope it accordingly.
 
+**Commands run as root, and** ``workdir`` **is a starting directory rather than a
+jail.** Relative paths resolve against it, but an absolute path is passed through
+and ``..`` is left for the guest to resolve, so the model can read and write
+anywhere in the sandbox filesystem. That is contained by the sandbox boundary, not
+by the working directory: do not treat ``workdir`` as a restriction on what the
+model can touch.
+
+Two things that are better than a reader might fear, and worth knowing before you
+design around them. Sandboxes cannot reach each other, so two sandboxes on one
+agent are isolated from one another as well as from the worker. And
+``block_network=False`` opens outbound internet access without opening the things
+usually worried about alongside it: the cloud metadata endpoint and private
+address ranges stay unreachable.
+
 Modal backend (hosted)
 ^^^^^^^^^^^^^^^^^^^^^^
 
@@ -1019,17 +1033,29 @@ hostname in the TLS handshake, which means:
 
 - TLS on port 443 to a listed host connects; any other host is refused at once.
 - Non-TLS traffic to a listed host is blocked, but only after a stall of roughly
-  thirty seconds, so a model that reaches for plain HTTP waits before it learns.
-- **DNS resolution stays open for every hostname**, listed or not. Sandbox code can
-  still carry data out through DNS queries.
-- A host that shares a TLS endpoint with a listed one -- two tenants of the same
-  CDN, which is normal for package registries and API providers -- can be reached
-  by presenting the listed name in the handshake and the other in the request. That
-  is not theoretical: with ``pypi.org`` as the only allowed host, a TLS session
-  opened to ``files.pythonhosted.org`` while presenting ``pypi.org`` as the
-  handshake name was allowed through and answered.
+  thirty to fifty seconds, so a model that reaches for plain HTTP waits before it learns.
+- **The destination address is not part of the decision.** This is the part that
+  surprises people: the handshake name alone decides, so a connection opened to an
+  unrelated address while presenting a listed name is routed to the listed host and
+  answered by it. Dialling ``8.8.8.8:443`` with ``pypi.org`` in the handshake returns
+  pypi.org's own certificate and pypi.org's content. The allowlist is a name-routed
+  egress proxy, not a filter on where packets may go, so do not read it as bounding
+  the set of addresses the sandbox can reach.
+- **DNS resolution stays open for every hostname**, listed or not, and it resolves
+  against authoritative servers outside Modal. A freshly generated label under a
+  domain the operator controls resolves and returns its answer, so this is a
+  two-way channel: it carries data out, and it can carry instructions back in.
+- A host that shares a **TLS endpoint** with a listed one can be reached by
+  presenting the listed name in the handshake and the other in the request. With
+  ``pypi.org`` as the only allowed host, a TLS session opened to
+  ``files.pythonhosted.org`` while presenting ``pypi.org`` as the handshake name was
+  allowed through and answered. Sharing a CDN is not by itself enough: other tenants
+  of the same CDN returned ``421 Misdirected Request``. It is co-tenancy of the same
+  TLS endpoint that matters, which you cannot check from outside and which can change
+  without notice.
 
-So the allowlist bounds where TCP can go and does not stop data leaving by other routes. Pass
+So the allowlist says which name a TLS session may be routed to, and nothing else. It does
+not bound the addresses reachable, and it does not stop data leaving by other routes. Pass
 ``ModalSandboxBackend(egress_enforcement="sni")`` to say you accept that and have
 the allowlist applied:
 

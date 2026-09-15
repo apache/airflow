@@ -67,6 +67,10 @@ def example_sandbox_artifact():
         # than in the Dag file. A toolset cannot do this: its spec is built
         # during parsing, before any connection is available.
         token = BaseHook.get_connection("my_api").password
+        if token is None:
+            # Fail here rather than handing the sandbox an empty credential and
+            # letting the job fail somewhere less obvious.
+            raise ValueError("Connection 'my_api' has no password set.")
 
         backend = ModalSandboxBackend()
         sandbox = backend.create(

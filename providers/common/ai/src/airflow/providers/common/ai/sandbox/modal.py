@@ -108,7 +108,13 @@ def _is_tls_hostname(value: object) -> bool:
         return False
     # A final label of digits is not a hostname either (RFC 1123), which also catches a
     # bare port number written on its own.
-    return not value.rsplit(".", 1)[-1].isdigit()
+    if value.rsplit(".", 1)[-1].isdigit():
+        return False
+    # A single label cannot be the name a TLS handshake presents to a public endpoint,
+    # and the sandbox has no internal resolver to give one meaning, so 'localhost' and
+    # friends would read as a restriction while allowing nothing. Wildcards are checked
+    # on what they qualify: '*.com' is as meaningless as 'com'.
+    return "." in value.removeprefix("*.")
 
 
 class ModalSandboxBackend(SandboxBackend):
@@ -569,6 +575,8 @@ class ModalSandboxBackend(SandboxBackend):
             handle.filesystem.write_bytes(content, target)
         except modal.exception.Error as e:
             raise self._as_sandbox_error(e, sandbox=sandbox) from e
+        except ValueError as e:
+            raise self._as_malformed_reply_error(e, operation="write") from e
 
     def list_directory(self, sandbox: str, path: str) -> list[tuple[str, bool]]:
         """
@@ -589,11 +597,35 @@ class ModalSandboxBackend(SandboxBackend):
             entries = handle.filesystem.list_files(target)
         except modal.exception.Error as e:
             raise self._as_sandbox_error(e, sandbox=sandbox) from e
+        except ValueError as e:
+            raise self._as_malformed_reply_error(e, operation="list") from e
         return [(entry.name, entry.is_dir()) for entry in entries]
 
     # ------------------------------------------------------------------
     # Internals.
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _as_malformed_reply_error(error: ValueError, *, operation: str) -> SandboxError:
+        """
+        Translate an unparsable reply from the filesystem helper into a sandbox error.
+
+        The native file operations are served by a helper binary Modal injects into the
+        guest, and the SDK parses its output. If that output is not what the SDK expects
+        it raises out of ``json`` rather than out of ``modal.exception``, so it would
+        otherwise escape the toolset's error handling and fail the task with a traceback
+        the model never sees and cannot act on. Model-written code running as root can
+        cause this deliberately, and a helper that is broken or version-skewed causes it
+        by accident.
+
+        Recoverable rather than terminal: the shell is a separate path that does not go
+        through the helper, so the model can get the same work done with ``run_command``.
+        """
+        return SandboxError(
+            f"The sandbox filesystem helper returned a reply that could not be parsed "
+            f"during a {operation} operation ({type(error).__name__}). Retry using "
+            f"run_command instead, which does not use the helper."
+        )
 
     def _network_kwargs(self, spec: SandboxSpec | None) -> dict[str, object]:
         """
@@ -660,7 +692,7 @@ class ModalSandboxBackend(SandboxBackend):
                 f"leading '*.' wildcard label, because Modal matches them against the hostname "
                 f"in the TLS handshake. These entries are not hostnames and would silently match "
                 f"nothing, or everything: {rejected}. Write 'pypi.org' or '*.pythonhosted.org', "
-                f"not a URL, a host:port, or a bare '*'."
+                f"not a URL, a host:port, a bare '*', or a single label such as 'localhost'."
             )
         return list(allow_egress_to)
 

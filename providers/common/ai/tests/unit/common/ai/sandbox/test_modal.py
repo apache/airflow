@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import builtins
 import importlib
+import json
 import sys
 import threading
 
@@ -254,9 +255,11 @@ class TestSpecEnforcement:
     def test_allowlist_under_sni_becomes_a_domain_allowlist(self, backend_class, fake):
         backend = backend_class(egress_enforcement="sni")
 
-        _, sandbox = _created(backend, fake, SandboxSpec(block_network=True, allow_egress_to=["a", "b"]))
+        _, sandbox = _created(
+            backend, fake, SandboxSpec(block_network=True, allow_egress_to=["a.example", "b.example"])
+        )
 
-        assert sandbox.create_kwargs["outbound_domain_allowlist"] == ["a", "b"]
+        assert sandbox.create_kwargs["outbound_domain_allowlist"] == ["a.example", "b.example"]
         # Modal rejects the two together, and an allowlist alone already denies the rest.
         assert "block_network" not in sandbox.create_kwargs
 
@@ -307,6 +310,21 @@ class TestSpecEnforcement:
         with pytest.raises(SandboxTerminalError, match="hostnames"):
             backend.create(spec=SandboxSpec(block_network=True, allow_egress_to=[host]))
 
+    @pytest.mark.parametrize("host", ["localhost", "internal", "*.com"])
+    def test_refuses_a_single_label_name(self, backend_class, fake, host):
+        """
+        A single label cannot be the name a TLS handshake presents to a public endpoint.
+
+        The sandbox has no internal resolver either, so an entry like ``localhost`` reads
+        as a restriction while allowing nothing at all. A wildcard is judged on what it
+        qualifies, so ``*.com`` is refused for the same reason ``com`` is.
+        """
+        backend = backend_class(egress_enforcement="sni")
+
+        with pytest.raises(SandboxTerminalError, match="hostnames"):
+            backend.create(spec=SandboxSpec(block_network=True, allow_egress_to=[host]))
+        assert fake.Sandbox.created == []
+
     def test_refuses_a_bare_string_instead_of_a_list(self, backend_class, fake):
         """
         ``str`` satisfies ``Sequence[str]``, so this would be read one character at a time.
@@ -320,7 +338,7 @@ class TestSpecEnforcement:
             backend.create(spec=SandboxSpec(block_network=True, allow_egress_to="pypiorg"))
         assert fake.Sandbox.created == []
 
-    @pytest.mark.parametrize("host", ["pypi.org", "*.pythonhosted.org", "a-b.example.co.uk", "localhost"])
+    @pytest.mark.parametrize("host", ["pypi.org", "*.pythonhosted.org", "a-b.example.co.uk"])
     def test_accepts_hostnames_and_wildcard_labels(self, backend_class, fake, host):
         backend = backend_class(egress_enforcement="sni")
 
@@ -940,6 +958,54 @@ class TestFileOperations:
 
         with pytest.raises(SandboxTerminalError):
             backend.write_file(handle, "/workspace/out.txt", b"x")
+
+
+class TestMalformedHelperReply:
+    """
+    Modal serves the native file operations from a helper binary it injects into the
+    guest, and the SDK parses that helper's output. Code running as root inside the
+    sandbox can replace the binary, and a skewed or broken helper misbehaves without
+    anyone's help. Either way the SDK raises out of ``json``, not out of
+    ``modal.exception``, so the backend has to translate it or the toolset's error
+    handling never sees it and the task dies with a traceback the model cannot act on.
+    """
+
+    @staticmethod
+    def _malformed() -> json.JSONDecodeError:
+        return json.JSONDecodeError("Expecting value", "not json", 0)
+
+    def test_write_file_translates_a_malformed_reply(self, backend, fake):
+        handle, sandbox = _created(backend, fake)
+        sandbox.filesystem_error = self._malformed()
+
+        with pytest.raises(SandboxError) as caught:
+            backend.write_file(handle, "/workspace/out.txt", b"data")
+
+        # Recoverable, not terminal: the shell does not go through the helper.
+        assert not isinstance(caught.value, SandboxTerminalError)
+        assert "run_command" in str(caught.value)
+
+    def test_list_directory_translates_a_malformed_reply(self, backend, fake):
+        handle, sandbox = _created(backend, fake)
+        sandbox.filesystem_error = self._malformed()
+
+        with pytest.raises(SandboxError) as caught:
+            backend.list_directory(handle, "/workspace")
+
+        assert not isinstance(caught.value, SandboxTerminalError)
+        assert "run_command" in str(caught.value)
+
+    def test_a_vendor_error_is_still_mapped_normally(self, backend, fake):
+        # The new branch must not shadow the existing one.
+        handle, sandbox = _created(backend, fake)
+        sandbox.filesystem_error = fake.exception.SandboxFilesystemNotFoundError(
+            "path does not exist: /workspace/missing"
+        )
+
+        with pytest.raises(SandboxError) as caught:
+            backend.list_directory(handle, "/workspace/missing")
+
+        assert "run_command" not in str(caught.value)
 
 
 class TestDestroy:
