@@ -1229,6 +1229,22 @@ class TestBatchExecutorConfig:
         assert submit_kwargs["tags"] == templated_tags
 
     @pytest.mark.parametrize(
+        ("submit_job_kwargs", "match"),
+        [
+            ({"nodeOverrides": {}}, "Multi-node jobs are not currently supported."),
+            ({"eksPropertiesOverride": {}}, "Eks jobs are not currently supported."),
+        ],
+    )
+    def test_rejects_unsupported_submit_job_kwargs(self, submit_job_kwargs, match):
+        submit_job_kwargs_env_key = (
+            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.SUBMIT_JOB_KWARGS}".upper()
+        )
+        os.environ[submit_job_kwargs_env_key] = json.dumps(submit_job_kwargs)
+
+        with pytest.raises(KeyError, match=match):
+            batch_executor_config.build_submit_kwargs(conf)
+
+    @pytest.mark.parametrize(
         ("submit_job_kwargs", "exec_config", "expected_result"),
         [
             # No input submit_job_kwargs or executor overrides
