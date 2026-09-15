@@ -24,7 +24,7 @@ This example shows the coordinator-mode shape for TypeScript task handlers:
 - `dags/typescript_example.py` declares the Airflow Dag and stub tasks.
 - `src/main.ts` registers TypeScript handlers for the same Dag/task IDs and
   starts the coordinator runtime.
-- `dist/bundle.mjs` is the generated Node.js bundle that Airflow launches.
+- `dist/bundle.min.mjs` is the generated Node.js bundle that Airflow launches.
 
 The build uses the SDK's `airflow-ts-pack` tool, which bundles the entrypoint
 with esbuild and embeds the Airflow metadata generated from the bundle's
@@ -52,7 +52,7 @@ The coordinator expects this layout:
 
 ```text
 ts-sdk/example/dist/
-  bundle.mjs
+  bundle.min.mjs
 ```
 
 ## Airflow Configuration

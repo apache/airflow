@@ -93,9 +93,8 @@ coordinators = {
 queue_to_coordinator = {"typescript": "ts"}
 ```
 
-Each configured bundle directory must contain a `bundle.mjs` built with
-`airflow-ts-pack` (see [Packing bundles](#packing-bundles)), which embeds the
-Airflow metadata in the bundle itself.
+Each configured bundle directory is searched recursively for `*.min.mjs` bundles built with `airflow-ts-pack`
+(see [Packing bundles](#packing-bundles)), which embeds the Airflow metadata in the bundle itself.
 
 TypeScript entrypoint:
 
@@ -144,7 +143,7 @@ marked removed at runtime. The registry itself holds no sockets and starts
 nothing, so a unit test can build one and dispatch through
 `registry.getTaskHandler(dagId, taskId)` without any runtime involved.
 
-`new Dag` and `dag.task` take a trailing options object — `spec` on both, plus
+`new Dag` and `dag.task` take a trailing options object: `spec` on both, plus
 `inputs` on a task. These are not used yet; do not set them.
 
 For larger projects, declare each Dag in its own module and keep one Airflow
@@ -182,22 +181,24 @@ npm install --save-dev esbuild
 airflow-ts-pack src/main.ts --outdir dist
 ```
 
-It bundles the entrypoint into `dist/bundle.mjs` with esbuild, runs the
-bundle with `--airflow-metadata` so the bundle reports its own registered
-Dag/task pairs and supervisor schema version, and embeds that manifest in the
-bundle as a compact JSON `//# airflowMetadata=...` comment after a leading
-compact JSON `//# airflowBundle=...` layout descriptor. The descriptor records
-fixed-width byte ranges and SHA-256 digests for the metadata and bundled code,
-allowing a coordinator reader to detect corruption before using either region.
-These in-bundle digests do not authenticate who produced the bundle because
-someone who can replace the content can also replace its digests. The result is
-one deployable file with no hand-written metadata sidecar.
+It bundles the entrypoint into a minified `dist/bundle.min.mjs` with esbuild, then runs that bundle with
+`--airflow-metadata` so it reports its own registered Dag/task pairs and supervisor schema version. The manifest is
+embedded as a compact JSON `//# airflowMetadata=...` comment after a leading compact JSON `//# airflowBundle=...`
+layout descriptor. The descriptor records fixed-width byte ranges and SHA-256 digests for the metadata and the
+bundled code, so a coordinator can detect corruption before using either region. These digests do not authenticate
+who produced the bundle, because someone who can replace the content can also replace its digests. The result is one
+deployable file with no hand-written metadata sidecar.
+
+Pass `--outfile <path>` instead of `--outdir` to name the artifact yourself, so one bundle directory can hold several
+bundles. The name must still end in `.min.mjs`, which is how `NodeCoordinator` finds bundles, and the `.mjs` half is
+load-bearing: a `.js` file is an ES module only by Node's syntax detection, which is unavailable before Node 22.7
+and skipped when an enclosing `package.json` declares `"type": "commonjs"`.
 
 Options:
 
-- `--outdir <dir>` — output directory (default `dist`)
-- `--source <name>` — display name of the primary source file shown in the
-  Airflow UI (default: entry basename)
+- `--outdir <dir>`: output directory (default `dist`)
+- `--outfile <path>`: exact output path, whose name must end in `.min.mjs`
+- `--source <name>`: display name of the primary source file shown in the Airflow UI (default: entry basename)
 
 ## TaskClient
 
@@ -225,7 +226,7 @@ Which Airflow TaskInstance states and capabilities this SDK supports. This table
 [`capabilities.yaml`](https://github.com/apache/airflow/blob/main/ts-sdk/capabilities.yaml);
 the conformance dimensions are defined in the
 [Language SDK conformance spec](https://github.com/apache/airflow/blob/main/contributing-docs/30_new_language_sdk.rst).
-Do not edit the table by hand — update the manifest and run the
+Do not edit the table by hand. Update the manifest and run the
 `update-ts-sdk-readme-matrix` prek hook.
 
 <!-- BEGIN AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
@@ -274,14 +275,14 @@ Do not edit the table by hand — update the manifest and run the
 
 ## Links
 
-- [TypeScript SDK guide (staged docs)](https://airflow.staged.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/typescript.html)
-  — how Airflow runs TypeScript task handlers
-- [API reference (staged)](https://airflow.staged.apache.org/docs/ts-sdk/stable/)
-  — generated from the TypeScript sources
-- [Source](https://github.com/apache/airflow/tree/main/ts-sdk) — the `ts-sdk/`
+- [TypeScript SDK guide (staged docs)](https://airflow.staged.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/typescript.html):
+  how Airflow runs TypeScript task handlers
+- [API reference (staged)](https://airflow.staged.apache.org/docs/ts-sdk/stable/):
+  generated from the TypeScript sources
+- [Source](https://github.com/apache/airflow/tree/main/ts-sdk): the `ts-sdk/`
   directory of the Apache Airflow monorepo
-- [Issues](https://github.com/apache/airflow/issues) — bug reports and feature
+- [Issues](https://github.com/apache/airflow/issues): bug reports and feature
   requests
 - [Website](https://airflow.apache.org) · [Slack](https://s.apache.org/airflow-slack)
-- [Developing this package](https://github.com/apache/airflow/blob/main/ts-sdk/DEVELOPMENT.md)
-  — local build, docs, and the release workflow
+- [Developing this package](https://github.com/apache/airflow/blob/main/ts-sdk/DEVELOPMENT.md):
+  local build, docs, and the release workflow
