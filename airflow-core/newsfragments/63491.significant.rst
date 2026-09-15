@@ -1,0 +1,52 @@
+Unify executor workload queues under ``BaseExecutor.executor_queues``
+
+Executor workload state is now stored on the unified ``BaseExecutor.executor_queues`` mapping
+keyed by ``WorkloadType``, and scheduling is driven by ``trigger_workloads``. The previous
+per-type attributes and entrypoints ``queued_tasks``, ``queued_callbacks``, ``supports_callbacks``,
+``trigger_tasks``, and ``order_queued_tasks_by_priority`` are kept as backward-compatible shims
+that emit ``RemovedInAirflow4Warning`` and will be removed in Airflow 4.0.
+
+The connection-test surface introduced in Airflow 3.3 (``supports_connection_test``,
+``queued_connection_tests``, and ``trigger_connection_tests()``) is folded into the same
+mechanism: connection tests are queued in ``executor_queues[WorkloadType.TEST_CONNECTION]``
+and dispatched by ``trigger_workloads`` alongside other workload types. A read-only
+``supports_connection_test`` compat property remains; ``queued_connection_tests`` and
+``trigger_connection_tests()`` are removed without a shim.
+
+**Migration:**
+
+- Replace ``executor.queued_tasks`` with ``executor.executor_queues[WorkloadType.EXECUTE_TASK]``.
+- Replace ``executor.queued_callbacks`` with ``executor.executor_queues[WorkloadType.EXECUTE_CALLBACK]``.
+- Replace ``executor.queued_connection_tests`` with
+  ``executor.executor_queues[WorkloadType.TEST_CONNECTION]``.
+- Replace ``supports_callbacks = True`` / ``supports_connection_test = True`` class declarations
+  by adding ``WorkloadType.EXECUTE_CALLBACK`` / ``WorkloadType.TEST_CONNECTION`` to the
+  ``supported_workload_types`` frozenset.
+- Replace ``executor.trigger_tasks(open_slots)`` and ``executor.trigger_connection_tests()``
+  with ``executor.trigger_workloads(open_slots)``.
+- ``order_queued_tasks_by_priority()`` has no direct public replacement: workload ordering is
+  applied internally by ``trigger_workloads``. The deprecated shim now forwards to the private
+  ``_get_workloads_to_schedule(open_slots)`` helper, whose return shape differs from the old
+  method — it includes *all* queued workload types (not just tasks) and truncates the result
+  to the number of currently open slots. Subclasses that need a custom ordering should not
+  depend on the private helper; open an issue describing the use case instead.
+
+**Behavioural changes:**
+
+- Workload admission now uses a single per-heartbeat budget instead of independent budgets for
+  tasks and connection tests. Connection tests can no longer over-subscribe ``parallelism``,
+  and they are prioritized *ahead of* tasks (they are short-lived and user-interactive), so a
+  sustained task backlog no longer starves them.
+- ``executor_queues`` is a ``collections.defaultdict`` and the per-``WorkloadType`` inner
+  queues auto-vivify on access; do not replace it with a plain ``dict``.
+
+Legacy ``supports_callbacks = True`` / ``supports_connection_test = True`` class attributes on
+out-of-tree executors are still honored: ``BaseExecutor.__init_subclass__`` detects them and
+adds the corresponding entries to ``supported_workload_types`` (preserving any types inherited
+from the parent class) while emitting a deprecation warning. Subclasses that override the
+no-longer-invoked ``trigger_tasks`` or ``order_queued_tasks_by_priority`` methods also get a
+warning at class-definition time.
+
+Deprecation warnings for these compat entrypoints are emitted at most once per executor class to
+avoid flooding scheduler heartbeat logs, and each is paired with a ``log.warning`` so it is
+visible to out-of-tree executors regardless of Python warning-filter configuration.
