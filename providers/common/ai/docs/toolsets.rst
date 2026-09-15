@@ -591,18 +591,27 @@ What this is actually for
 **It does not give an agent a new power. It moves a power the agent already had
 off your worker.**
 
-An agent in Airflow could already run code that nobody reviewed. ``code_mode``
-executes model-written orchestration code, and says so: it still runs in the
-worker process. An :ref:`agent skill <agent-skills>` can ship a
-``run_skill_script`` tool, which runs a script on the worker, and the guidance
-there is already to switch it off when the worker holds anything sensitive. Teams
-without either routinely hand an agent a tool that shells out. In every one of
-those, the code the model wrote runs beside your connections, your worker's
-filesystem, and your worker's position on the network.
+An agent in Airflow could already run code that nobody reviewed. An
+:ref:`agent skill <agent-skills>` can ship a ``run_skill_script`` tool, which runs
+a script on the worker, and the guidance there is already to switch it off when
+the worker holds anything sensitive. Teams without skills routinely hand an agent
+a tool of their own that shells out. In both, the code the model wrote runs beside
+your connections, your worker's filesystem, and your worker's position on the
+network.
 
 ``SandboxToolset`` is where that code goes instead. So the question it answers is
 not "should the agent be able to run code", which was already settled, but "where
 should the code it writes run".
+
+:ref:`Code mode <code-mode>` is a different thing and not a weaker version of
+this. Monty confines generated code to the tools you registered, so it is not
+arbitrary execution on your worker, and it starts in well under a millisecond
+against roughly a second to provision a hosted sandbox. Reach past it for a
+sandbox on capability rather than on containment: Monty runs a restricted subset
+of Python with no shell, no package installation and no C extensions, so a model
+that needs to ``pip install`` something, run a real binary, or use a compiled
+library cannot do that work there. The two also compose: ``code_mode=True``
+and ``SandboxToolset`` can be enabled together, as described below.
 
 That makes it the wrong tool whenever the job *can* be written down as a fixed set
 of operations. If you can name them, name them: a narrow toolset is easier to
