@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from typing import Any, Literal, overload
+from urllib.parse import quote
 
 import requests
 
@@ -108,11 +109,6 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
 
         response.raise_for_status()
 
-        if not response.content:
-            if response_type == "dict":
-                return {}
-            raise TypeError("Expected list[dict] response, got empty response")
-
         data = response.json()
 
         if response_type == "dict":
@@ -120,8 +116,11 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
                 raise TypeError(f"Expected dict response, got {type(data).__name__}")
             return data
 
-        if not isinstance(data, list) or not all(isinstance(item, dict) for item in data):
+        if not isinstance(data, list):
             raise TypeError(f"Expected list[dict] response, got {type(data).__name__}")
+
+        if not all(isinstance(item, dict) for item in data):
+            raise TypeError("Expected list[dict] response, got list containing non-dict elements")
 
         return data
 
@@ -202,7 +201,11 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
         if tool_resources is not None:
             payload["tool_resources"] = tool_resources
 
-        endpoint = f"/api/v2/databases/{database}/schemas/{schema}/agents/{agent_name}:run"
+        endpoint = (
+            f"/api/v2/databases/{quote(database, safe='')}"
+            f"/schemas/{quote(schema, safe='')}"
+            f"/agents/{quote(agent_name, safe='')}:run"
+        )
 
         return self._request(
             method="POST",
@@ -230,7 +233,11 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
             request to complete. Optional. Defaults to ``600``.
         :return: JSON description of the Cortex Agent.
         """
-        endpoint = f"/api/v2/databases/{database}/schemas/{schema}/agents/{agent_name}"
+        endpoint = (
+            f"/api/v2/databases/{quote(database, safe='')}"
+            f"/schemas/{quote(schema, safe='')}"
+            f"/agents/{quote(agent_name, safe='')}"
+        )
 
         return self._request(
             method="GET",
@@ -250,21 +257,22 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
         timeout: int | None = 600,
     ) -> JsonList:
         """
-        List Snowflake Cortex Agents.
+        List one page of Snowflake Cortex Agents.
 
         :param database: Database containing the Cortex Agents.
         :param schema: Schema containing the Cortex Agents.
         :param like: Case-insensitive name filter. Optional.
             Defaults to ``None``.
-        :param from_name: Pagination starting point. Optional.
+        :param from_name: Agent name from which to continue listing results. Pass the
+            pagination value from the preceding page to retrieve the next page. Optional.
             Defaults to ``None``.
-        :param show_limit: Maximum number of agents to return. Optional.
+        :param show_limit: Maximum number of agents to include in this page. Optional.
             Defaults to ``None``.
         :param timeout: Maximum time in seconds to wait for the Cortex Agent
             request to complete. Optional. Defaults to ``600``.
-        :return: List of Cortex Agents.
+        :return: One page of Cortex Agents.
         """
-        endpoint = f"/api/v2/databases/{database}/schemas/{schema}/agents"
+        endpoint = f"/api/v2/databases/{quote(database, safe='')}/schemas/{quote(schema, safe='')}/agents"
 
         params: dict[str, Any] = {}
 
@@ -306,7 +314,11 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
             to complete. Optional. Defaults to ``600``.
         :return: JSON response confirming deletion.
         """
-        endpoint = f"/api/v2/databases/{database}/schemas/{schema}/agents/{agent_name}"
+        endpoint = (
+            f"/api/v2/databases/{quote(database, safe='')}"
+            f"/schemas/{quote(schema, safe='')}"
+            f"/agents/{quote(agent_name, safe='')}"
+        )
 
         return self._request(
             method="DELETE",

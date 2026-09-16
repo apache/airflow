@@ -31,9 +31,13 @@ HOOK_PATH = f"{MODULE_PATH}.SnowflakeCortexAgentHook"
 
 ACCOUNT = "test-account"
 ACCESS_TOKEN = "test-token"
-DATABASE = "TEST_DATABASE"
-SCHEMA = "TEST_SCHEMA"
-AGENT_NAME = "TEST_AGENT"
+DATABASE = "TEST/DATABASE"
+SCHEMA = "TEST?SCHEMA"
+AGENT_NAME = "TEST#AGENT"
+
+ENCODED_DATABASE = "TEST%2FDATABASE"
+ENCODED_SCHEMA = "TEST%3FSCHEMA"
+ENCODED_AGENT_NAME = "TEST%23AGENT"
 
 CONN_PARAMS = {
     "account": ACCOUNT,
@@ -51,11 +55,9 @@ def create_response(
     status_code: int = 200,
     *,
     json_body: JsonResponse | None = None,
-    content: bytes = b"{}",
 ):
     response = mock.MagicMock()
     response.status_code = status_code
-    response.content = content
     response.json.return_value = {} if json_body is None else json_body
 
     if status_code >= 400:
@@ -91,6 +93,16 @@ class TestSnowflakeCortexAgentHook:
                 r"Expected list\[dict\] response, got dict",
                 id="list_agents_expected_list_got_dict",
             ),
+            pytest.param(
+                "list_agents",
+                {
+                    "database": DATABASE,
+                    "schema": SCHEMA,
+                },
+                [{"name": AGENT_NAME}, 1],
+                r"Expected list\[dict\] response, got list containing non-dict elements",
+                id="list_agents_contains_non_dict_element",
+            ),
         ],
     )
     @mock.patch(f"{MODULE_PATH}.requests.request")
@@ -114,29 +126,6 @@ class TestSnowflakeCortexAgentHook:
 
         with pytest.raises(TypeError, match=expected_error):
             getattr(hook, method_name)(**method_kwargs)
-
-    @mock.patch(f"{MODULE_PATH}.requests.request")
-    @mock.patch(f"{HOOK_PATH}._get_conn_params")
-    @mock.patch(f"{HOOK_PATH}._get_static_conn_params", new_callable=mock.PropertyMock)
-    def test_request_returns_empty_dict_for_empty_response(
-        self,
-        mock_static_conn_params,
-        mock_conn_params,
-        mock_request,
-    ):
-        mock_conn_params.return_value = CONN_PARAMS
-        mock_static_conn_params.return_value = STATIC_CONN_PARAMS
-        mock_request.return_value = create_response(content=b"")
-
-        hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
-
-        result = hook._request(
-            method="DELETE",
-            endpoint=f"/api/v2/databases/{DATABASE}/schemas/{SCHEMA}/agents/{AGENT_NAME}",
-            response_type="dict",
-        )
-
-        assert result == {}
 
     @mock.patch(f"{MODULE_PATH}.requests.request")
     @mock.patch(f"{HOOK_PATH}._get_conn_params")
@@ -179,9 +168,9 @@ class TestSnowflakeCortexAgentHook:
             method="POST",
             url=(
                 f"https://{ACCOUNT}.snowflakecomputing.com"
-                f"/api/v2/databases/{DATABASE}"
-                f"/schemas/{SCHEMA}"
-                f"/agents/{AGENT_NAME}:run"
+                f"/api/v2/databases/{ENCODED_DATABASE}"
+                f"/schemas/{ENCODED_SCHEMA}"
+                f"/agents/{ENCODED_AGENT_NAME}:run"
             ),
             headers={
                 "Authorization": f"Bearer {ACCESS_TOKEN}",
@@ -426,9 +415,9 @@ class TestSnowflakeCortexAgentHook:
             method="GET",
             url=(
                 f"https://{ACCOUNT}.snowflakecomputing.com"
-                f"/api/v2/databases/{DATABASE}"
-                f"/schemas/{SCHEMA}"
-                f"/agents/{AGENT_NAME}"
+                f"/api/v2/databases/{ENCODED_DATABASE}"
+                f"/schemas/{ENCODED_SCHEMA}"
+                f"/agents/{ENCODED_AGENT_NAME}"
             ),
             headers={
                 "Authorization": f"Bearer {ACCESS_TOKEN}",
@@ -475,8 +464,8 @@ class TestSnowflakeCortexAgentHook:
             method="GET",
             url=(
                 f"https://{ACCOUNT}.snowflakecomputing.com"
-                f"/api/v2/databases/{DATABASE}"
-                f"/schemas/{SCHEMA}"
+                f"/api/v2/databases/{ENCODED_DATABASE}"
+                f"/schemas/{ENCODED_SCHEMA}"
                 f"/agents"
             ),
             headers={
@@ -536,9 +525,9 @@ class TestSnowflakeCortexAgentHook:
             method="DELETE",
             url=(
                 f"https://{ACCOUNT}.snowflakecomputing.com"
-                f"/api/v2/databases/{DATABASE}"
-                f"/schemas/{SCHEMA}"
-                f"/agents/{AGENT_NAME}"
+                f"/api/v2/databases/{ENCODED_DATABASE}"
+                f"/schemas/{ENCODED_SCHEMA}"
+                f"/agents/{ENCODED_AGENT_NAME}"
             ),
             headers={
                 "Authorization": f"Bearer {ACCESS_TOKEN}",
