@@ -17,7 +17,7 @@
  * under the License.
  */
 import type { RefObject } from "react";
-import { useCallback, useLayoutEffect, useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 
 import { Box, Flex } from "@chakra-ui/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -43,6 +43,7 @@ import { TaskNames } from "./TaskNames";
 import { GANTT_ROW_OFFSET_PX, GRID_HEADER_HEIGHT_PX, GRID_HEADER_PADDING_PX, ROW_HEIGHT } from "./constants";
 import { useGridPagination } from "./useGridPagination";
 import { useGridRunsWithVersionFlags } from "./useGridRunsWithVersionFlags";
+import { useGridScrollRestore } from "./useGridScrollRestore";
 import { estimateTaskNameColumnWidthPx, flattenNodes } from "./utils";
 
 dayjs.extend(dayjsDuration);
@@ -180,6 +181,8 @@ export const Grid = ({
   const handleCellClick = useCallback(() => setMode(NavigationModes.TI), [setMode]);
   const handleColumnClick = useCallback(() => setMode(NavigationModes.RUN), [setMode]);
 
+  const headerPad = usesSharedScroll ? GANTT_ROW_OFFSET_PX : GRID_INNER_SCROLL_PADDING_START_PX;
+
   const rowVirtualizer = useVirtualizer({
     count: flatNodes.length,
     estimateSize: () => ROW_HEIGHT,
@@ -187,27 +190,10 @@ export const Grid = ({
     getScrollElement: () =>
       usesSharedScroll ? (sharedScrollContainerRef?.current ?? null) : scrollContainerRef.current,
     overscan: 5,
-    scrollPaddingStart: usesSharedScroll ? GANTT_ROW_OFFSET_PX : GRID_INNER_SCROLL_PADDING_START_PX,
+    scrollPaddingStart: headerPad,
   });
 
-  // Keep the selected task in view. Opening a task remounts the Grid a couple of times and each
-  // remount jumps scroll back to the top, so we re-check on every mount. We match by task id
-  // instead of a saved pixel offset, so it still works when the rows move around. We only scroll
-  // when the row isn't already rendered, so a task on screen is left alone and an ordinary click
-  // never moves the Grid.
-  useLayoutEffect(() => {
-    const anchorId = selectedTaskId ?? selectedGroupId;
-
-    if (anchorId === undefined) {
-      return;
-    }
-
-    const index = flatNodes.findIndex((node) => node.id === anchorId);
-
-    if (index !== -1 && !rowVirtualizer.getVirtualItems().some((item) => item.index === index)) {
-      rowVirtualizer.scrollToIndex(index, { align: "auto" });
-    }
-  }, [selectedTaskId, selectedGroupId, flatNodes, rowVirtualizer]);
+  useGridScrollRestore({ dagId, flatNodes, headerPad, rowVirtualizer, selectedGroupId, selectedTaskId });
 
   const virtualItems = rowVirtualizer.getVirtualItems();
 
