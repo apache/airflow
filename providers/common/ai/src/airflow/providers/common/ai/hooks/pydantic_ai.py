@@ -42,6 +42,27 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Connection
 
 
+def _has_recognized_provider_prefix(model_name: str) -> bool:
+    """
+    Return whether the segment before the first ``:`` in *model_name* is a pydantic-ai provider.
+
+    A ``:`` alone cannot tell a "provider:model" string apart from a bare model id that
+    happens to contain a ``:`` of its own -- some vendors' native model ids do (e.g.
+    Bedrock's version-suffixed ``us.anthropic.claude-opus-4-6-v1:0``). Only a segment that
+    ``infer_provider_class`` actually recognizes counts as a platform prefix.
+    """
+    prefix, sep, _ = model_name.partition(":")
+    if not sep:
+        return False
+    try:
+        infer_provider_class(prefix)
+    except ImportError:
+        return True  # recognized provider; its optional dependency just isn't installed
+    except ValueError:
+        return False
+    return True
+
+
 class PydanticAIHook(BaseHook):
     """
     Hook for LLM access via pydantic-ai.
@@ -60,8 +81,20 @@ class PydanticAIHook(BaseHook):
           "fallback_conn_ids": ["anthropic_prod", "bedrock_dr"]}``
 
     :param llm_conn_id: Airflow connection ID for the LLM provider.
-    :param model_id: Model identifier in ``provider:model`` format (e.g. ``"openai:gpt-5.6-sol"``).
-        Overrides the model stored in the connection's extra field.
+    :param model_id: Model identifier. A name whose segment before the first ``:``
+        is itself a pydantic-ai provider (e.g. ``"openai:gpt-5.6-sol"``) pins the
+        platform and is used verbatim -- a plain ``:`` alone is not enough, since
+        some vendors' native model ids contain one of their own (e.g. Bedrock's
+        version-suffixed ``"us.anthropic.claude-opus-4-6-v1:0"``, which is still a
+        *bare* name here). A bare name is resolved against this connection's own
+        platform: vendor subclasses (:class:`PydanticAIAzureHook`,
+        :class:`PydanticAIBedrockHook`, :class:`PydanticAIVertexHook`) each default
+        to their own platform via :attr:`model_provider`; the generic connection
+        type has none, so a bare name there raises ``ValueError`` instead of
+        reaching pydantic-ai's own, less actionable ``Unknown model`` error.
+        Overrides the model stored in the connection's extra field. Whichever of
+        the two configures the primary's model is forwarded (only while still
+        bare) down the fallback chain -- see :meth:`_resolve_fallback_models`.
     :param fallback_conn_ids: Connection IDs to fail over to, in order, when the
         primary provider is unavailable.  Overrides the ``fallback_conn_ids``
         list stored in the connection's extra field; pass an empty list to
@@ -75,6 +108,9 @@ class PydanticAIHook(BaseHook):
     default_conn_name = "pydanticai_default"
     conn_type = "pydanticai"
     hook_name = "Pydantic AI"
+    # Platform to prefix a bare model_id with (e.g. "azure"); None for the generic
+    # connection type, which has no platform of its own. Vendor subclasses override this.
+    model_provider: str | None = None
 
     def __init__(
         self,
@@ -161,6 +197,10 @@ class PydanticAIHook(BaseHook):
         2. **Default resolution** — delegates to pydantic-ai ``infer_model``
            which reads standard env vars (``OPENAI_API_KEY``, ``AWS_PROFILE``, …).
 
+        A bare ``model_id`` (one with no recognized platform prefix) is qualified with
+        this connection's own platform before either of the above -- see the class
+        docstring's ``model_id`` entry for the resolution and fallback-forwarding rules.
+
         When ``fallback_conn_ids`` is configured (on the hook or in the
         connection's extra) the resolved models are wrapped in a pydantic-ai
         ``FallbackModel``, so a provider outage moves to the next connection
@@ -184,16 +224,61 @@ class PydanticAIHook(BaseHook):
         self._model = FallbackModel(model, *fallback_models) if fallback_models else model
         return self._model
 
-    def _resolve_own_model(self) -> Model:
-        """Resolve the ``Model`` for this hook's own connection, ignoring any fallback chain."""
+    def _qualify_model_name(self, model_name: str) -> str:
+        """
+        Prefix a bare model name with this connection's platform.
+
+        A name is treated as already pinning a platform only when the segment before
+        its first ``:`` is itself a provider pydantic-ai recognizes (e.g.
+        ``"openai:gpt-4"``) -- see :func:`_has_recognized_provider_prefix`. Everything
+        else is a bare name, even one that happens to contain a ``:`` of its own (e.g.
+        Bedrock's version-suffixed ``"us.anthropic.claude-opus-4-6-v1:0"``), and is
+        prefixed with :attr:`model_provider`; the generic ``pydanticai`` connection type
+        has no platform of its own (``model_provider`` is ``None``), so a bare name there
+        raises instead of reaching pydantic-ai's own, less actionable ``Unknown model``
+        error.
+        """
+        if _has_recognized_provider_prefix(model_name):
+            return model_name
+        if self.model_provider is None:
+            raise ValueError(
+                f"Connection '{self.llm_conn_id}' has no default model provider, so the bare "
+                f"model name '{model_name}' cannot be resolved. Use a vendor connection type "
+                "(Azure/Bedrock/Vertex) or set an explicit 'provider:model' string."
+            )
+        return f"{self.model_provider}:{model_name}"
+
+    def _get_configured_model_name(self) -> str | KnownModelName | None:
+        """Return the model name this connection configures, hook argument winning over the extra."""
+        if self.model_id:
+            return self.model_id
+        _, extra = self._get_conn_and_extra()
+        return extra.get("model")
+
+    def _resolve_own_model(self, *, forwarded_model_id: str | None = None) -> Model:
+        """
+        Resolve the ``Model`` for this hook's own connection, ignoring any fallback chain.
+
+        :param forwarded_model_id: The primary connection's configured model name,
+            forwarded down a fallback chain by :meth:`_resolve_fallback_models`.
+            Used only when this
+            connection configures no ``model_id``/``model`` of its own, and only when it
+            is a bare name: a name that already pins a platform (see
+            :func:`_has_recognized_provider_prefix`) names a model of the *primary's*
+            provider, not this connection's, so it is not forwarded -- this connection
+            still raises "no model specified" in that case.
+        """
         conn, extra = self._get_conn_and_extra()
 
-        model_name: str | KnownModelName = self.model_id or extra.get("model", "")
+        model_name: str | KnownModelName | None = self._get_configured_model_name()
+        if not model_name and forwarded_model_id and not _has_recognized_provider_prefix(forwarded_model_id):
+            model_name = forwarded_model_id
         if not model_name:
             raise ValueError(
                 f"No model specified for connection '{self.llm_conn_id}'. Set model_id on the "
                 "hook or the Model field on the connection."
             )
+        model_name = self._qualify_model_name(model_name)
 
         api_key: str | None = conn.password or None
         base_url: str | None = conn.host or None
@@ -245,13 +330,25 @@ class PydanticAIHook(BaseHook):
 
         Each connection is resolved through the hook registered for its own
         ``conn_type``, so a chain can mix providers whose credentials live in
-        different connection fields.  ``model_id`` is deliberately not forwarded:
-        it names a model of the primary's provider, and every fallback carries
-        its own ``model``.
+        different connection fields.  The primary's configured model name -- its
+        ``model_id`` argument, or the ``model`` in its own ``extra`` -- is forwarded
+        to each fallback as a logical model name: a fallback connection with its own
+        ``model`` in ``extra`` uses that instead, but a fallback with none falls
+        back to the forwarded name, qualified with *its own* platform prefix.
+        Only a *bare* forwarded name is usable this way -- a forwarded name that
+        already pins a platform (e.g. ``"openai:gpt-5"``) names a model of the
+        primary's provider, not this fallback's, so it is not applied; that
+        fallback still raises "no model specified" unless its own ``extra`` sets
+        a ``model``. Whether a name already pins a platform is decided by
+        :func:`_has_recognized_provider_prefix`, not by whether it merely contains a
+        ``:`` -- some vendors' native model ids contain one of their own (e.g. Bedrock's
+        version-suffixed ``us.anthropic.claude-opus-4-6-v1:0``).
         """
         fallback_conn_ids = self._get_fallback_conn_ids()
         if not fallback_conn_ids:
             return []
+
+        forwarded_model_id = self._get_configured_model_name()
 
         models: list[Model] = []
         seen: set[str] = set()
@@ -284,18 +381,14 @@ class PydanticAIHook(BaseHook):
                     f"{FALLBACK_CONN_IDS_EXTRA_KEY}. Chains are not resolved recursively -- list "
                     f"every provider directly on '{self.llm_conn_id}' instead."
                 )
-            models.append(hook._resolve_own_model())
+            models.append(hook._resolve_own_model(forwarded_model_id=forwarded_model_id))
 
         self.log.info("Resolved LLM fallback chain: %s", " -> ".join([self.llm_conn_id, *fallback_conn_ids]))
         return models
 
     def _get_conn_if_model_configured(self) -> Model | None:
         """Return the hook model only when the hook or connection explicitly configures one."""
-        if self.model_id:
-            return self.get_conn()
-
-        _, extra = self._get_conn_and_extra()
-        if extra.get("model"):
+        if self._get_configured_model_name():
             return self.get_conn()
 
         if self._get_fallback_conn_ids():
@@ -440,6 +533,7 @@ class PydanticAIAzureHook(PydanticAIHook):
     conn_type = "pydanticai_azure"
     default_conn_name = "pydanticai_azure_default"
     hook_name = "Pydantic AI (Azure OpenAI)"
+    model_provider = "azure"
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
@@ -508,6 +602,7 @@ class PydanticAIBedrockHook(PydanticAIHook):
     conn_type = "pydanticai_bedrock"
     default_conn_name = "pydanticai_bedrock_default"
     hook_name = "Pydantic AI (AWS Bedrock)"
+    model_provider = "bedrock"
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
@@ -593,13 +688,26 @@ class PydanticAIVertexHook(PydanticAIHook):
         model prefix (``google-cloud:`` vs. ``google:``) rather than a
         constructor flag, so there is nothing left for this field to control.
 
+    A bare ``model_id`` (or Extra ``model``) always defaults to Vertex AI
+    (``google-cloud:``) -- this default is **not** inferred from which
+    credential fields are set. ``api_key`` in ``extra`` can mean either the
+    Generative Language API or Vertex API-key auth (see credential order
+    above), so its presence alone cannot tell the two platforms apart; guessing
+    would risk silently authenticating against the wrong endpoint. To use the
+    Generative Language API, set an explicit ``google:``-prefixed model id (on
+    the hook or the connection's ``model`` extra) -- that spelling already
+    works today.
+
     :param llm_conn_id: Airflow connection ID.
-    :param model_id: Model identifier, e.g. ``"google-cloud:gemini-2.0-flash"``.
+    :param model_id: Model identifier, e.g. ``"google-cloud:gemini-2.0-flash"``. A
+        bare name (e.g. ``"gemini-2.0-flash"``) defaults to Vertex AI; prefix with
+        ``google:`` for the Generative Language API.
     """
 
     conn_type = "pydanticai_vertex"
     default_conn_name = "pydanticai_vertex_default"
     hook_name = "Pydantic AI (Google Vertex AI)"
+    model_provider = "google-cloud"
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:

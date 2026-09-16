@@ -44,8 +44,20 @@ That is the point of configuring it here rather than in Dag code: the Dag keeps 
 connection, and whoever administers the connections owns the failover topology. Changing a
 standby provider is a connection edit, not a Dag deployment.
 
-``model_id`` is deliberately not inherited by the fallbacks. It names a model of the
-primary's provider, so each fallback connection supplies its own ``model``.
+A *bare* model name (e.g. ``"gpt-5"`` rather than ``"openai:gpt-5"``) is forwarded down
+the chain as a logical model name: each connection that has no ``model`` of its own
+resolves that name against its own platform, so one bare name can reach a primary and
+every fallback without repeating it per connection. It does not matter where the primary's
+name comes from -- the ``Model`` field on its connection and a ``model_id`` on the operator
+or hook are forwarded alike. A fallback with its own ``model`` in
+extra always uses that instead -- this is how a fallback pins a spelling the forwarded
+name would not produce, such as Bedrock's region-prefixed ``us.anthropic.`` model ids. A
+name that already pins a platform (its segment before the first ``:`` is itself a
+recognized provider, e.g. ``"openai:gpt-5"``) is *not* forwarded; a fallback with no
+``model`` of its own still raises "no model specified" rather than trying a prefixed name
+meant for a different provider. See :doc:`connections/pydantic_ai_azure`,
+:doc:`connections/pydantic_ai_bedrock` and :doc:`connections/pydantic_ai_vertex` for how
+each vendor connection resolves a bare name.
 
 Configure it in code
 --------------------

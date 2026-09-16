@@ -64,6 +64,14 @@ All fields below are ``extra`` (JSON) fields.
 Model
     Bedrock model identifier (e.g. ``bedrock:us.anthropic.claude-opus-4-5``).
 
+    A bare name is automatically resolved to ``bedrock:<name>`` -- Bedrock is this
+    connection type's own platform. This includes Bedrock's version-suffixed ids,
+    which contain a ``:`` of their own (e.g. ``us.anthropic.claude-opus-4-6-v1:0``):
+    that ``:`` is not a recognized pydantic-ai provider name, so it does not count
+    as an existing platform prefix, and the whole bare id still gets ``bedrock:``
+    prepended (``bedrock:us.anthropic.claude-opus-4-6-v1:0``). Writing the
+    ``bedrock:`` prefix yourself has the same effect and is still accepted.
+
 AWS Region
     AWS region (e.g. ``us-east-1``). Falls back to the ``AWS_DEFAULT_REGION``
     environment variable.
