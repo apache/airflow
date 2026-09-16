@@ -4198,6 +4198,7 @@ components:
       - Config
       - Connections
       - Dags
+      - Dag Bundles
       - Deadlines
       - Docs
       - Jobs
