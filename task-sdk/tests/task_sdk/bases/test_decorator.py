@@ -485,3 +485,15 @@ class TestTaskDecoratorTaskConcurrency:
 
             assert isinstance(xcom_arg.operator, IterableOperator)
             assert xcom_arg.operator.max_workers == 2
+
+
+@pytest.mark.parametrize("size", [-1, 0, 1])
+def test_batch_rejects_sizes_below_two(size):
+    with DAG("test_dag"):
+
+        @task
+        def add_one(x):
+            return x + 1
+
+        with pytest.raises(ValueError, match=f"batch size must be at least 2, got {size}"):
+            add_one.batch(size=size)

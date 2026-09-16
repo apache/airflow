@@ -149,15 +149,15 @@ def test_map_unknown_arg_raises():
 @pytest.mark.parametrize(
     "size",
     [
-        pytest.param(1),
-        pytest.param(3),
+        pytest.param(0, id="unbatched-sentinel"),
+        pytest.param(3, id="batched"),
     ],
 )
 def test_map_batch_size(size: int):
     with DAG("test-dag", schedule=None):
         mapped = (
             MockOperator.partial(task_id="task_2")
-            .batch(size=size)
+            ._batch(size=size)
             ._iterate(DictOfListsExpandInput({"arg1": [1, 2, 3]}), strict=False)
         )
         if size > 1:

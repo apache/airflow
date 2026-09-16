@@ -232,20 +232,26 @@ class OperatorPartial:
         register_with_dag: bool = True,
     ) -> MappedOperator:
         self._expand_called = True
-        return self.batch(size=0)._expand(expand_input, strict=strict, register_with_dag=register_with_dag)
+        return self._batch(size=0)._expand(expand_input, strict=strict, register_with_dag=register_with_dag)
 
     def iterate(self, **mapped_kwargs: OperatorExpandArgument) -> IterableOperator:
-        operator = self.batch(size=0).iterate(**mapped_kwargs)
+        operator = self._batch(size=0).iterate(**mapped_kwargs)
         return cast("IterableOperator", operator)
 
     def iterate_kwargs(
         self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True
     ) -> IterableOperator:
-        operator = self.batch(size=0).iterate_kwargs(kwargs, strict=strict)
+        operator = self._batch(size=0).iterate_kwargs(kwargs, strict=strict)
         return cast("IterableOperator", operator)
 
     def batch(self, size: int) -> BatchedOperator:
-        """Return a BatchedOperator for batched mapping."""
+        """Return a BatchedOperator that maps over ``size`` task instances."""
+        if size < 2:
+            raise ValueError(f"batch size must be at least 2, got {size}")
+        return self._batch(size=size)
+
+    def _batch(self, size: int) -> BatchedOperator:
+        # ``size=0`` is the internal "no batching" sentinel every non-batched path funnels through.
         from airflow.sdk.definitions.batchedoperator import BatchedOperator
 
         return BatchedOperator(operator_partial=self, size=size)

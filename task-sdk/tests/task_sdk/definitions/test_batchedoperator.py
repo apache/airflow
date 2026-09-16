@@ -83,7 +83,7 @@ class TestBatchedOperator:
             (5, 10),  # Batched: size=5 for 10 items
             (3, 3),  # Batched: size=3 for 3 items
             (4, 20),  # Batched: size=4 for 20 items
-            (1, 5),  # Non-batched: size=1 (iterate all at once)
+            (0, 5),  # Non-batched: the internal size=0 sentinel used by .iterate()/.expand()
         ],
     )
     def test_batch_size_preserved_through_lifecycle(self, batch_size, expand_size):
@@ -93,7 +93,7 @@ class TestBatchedOperator:
         from airflow.serialization.serialized_objects import OperatorSerialization
 
         with DAG(dag_id=f"test_batch_{batch_size}") as dag:
-            op = EmptyOperator.partial(task_id="test_task", dag=dag).batch(size=batch_size)
+            op = EmptyOperator.partial(task_id="test_task", dag=dag)._batch(size=batch_size)
 
             expand_input = DictOfListsExpandInput({"retry_delay": list(range(expand_size))})
             iterable_op = op._iterate(expand_input, strict=False)
@@ -138,7 +138,7 @@ class TestBatchedOperator:
         with DAG(dag_id=f"test_iterate_expand_called_{batch_size}"):
             partial = EmptyOperator.partial(task_id="test_task")
             expand_input = DictOfListsExpandInput({"retry_delay": [1, 2]})
-            partial.batch(size=batch_size)._iterate(expand_input, strict=False)
+            partial._batch(size=batch_size)._iterate(expand_input, strict=False)
 
             assert partial._expand_called is True
 
@@ -170,3 +170,12 @@ class TestBatchedOperator:
 
             unmapped = mapped_op.unmap({"retry_delay": 1.0})
             assert unmapped.retries == 5
+
+
+@pytest.mark.parametrize("size", [-1, 0, 1])
+def test_batch_rejects_sizes_below_two(size):
+    from airflow.providers.standard.operators.empty import EmptyOperator
+
+    with DAG(dag_id="test_batch_size_rejected"):
+        with pytest.raises(ValueError, match=f"batch size must be at least 2, got {size}"):
+            EmptyOperator.partial(task_id="test_task").batch(size=size)
