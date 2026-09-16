@@ -44,6 +44,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS, AIRFLOW_V
 if AIRFLOW_V_3_3_PLUS:
     from airflow.executors.workloads import CallbackFetchMethod, ExecuteCallback, TaskInstanceDTO
     from airflow.executors.workloads.callback import CallbackDTO
+    from airflow.utils.state import CallbackState
 
 pytestmark = pytest.mark.db_test
 
@@ -626,11 +627,11 @@ class TestQueueWorkload:
             session.execute(delete(EdgeJobModel))
             session.commit()
 
-    def _make_execute_task(self) -> ExecuteTask:
+    def _make_execute_task(self, task_id: str = "test_task") -> ExecuteTask:
         ti = TaskInstanceDTO(
             id=uuid4(),
             dag_version_id=uuid4(),
-            task_id="test_task",
+            task_id=task_id,
             dag_id="test_dag",
             run_id="test_run",
             try_number=1,
@@ -644,6 +645,20 @@ class TestQueueWorkload:
             dag_rel_path=Path("test_dag.py"),
             token="test_token",
             bundle_info=BundleInfo(name="test_bundle", version="1.0"),
+            log_path="test.log",
+        )
+
+    def _make_execute_callback(self) -> ExecuteCallback:
+        callback = CallbackDTO(
+            id=str(uuid4()),
+            fetch_method=CallbackFetchMethod.IMPORT_PATH,
+            data={"path": "builtins.dict", "kwargs": {"a": 1, "b": 2, "c": 3}},
+        )
+        return ExecuteCallback(
+            callback=callback,
+            dag_rel_path=Path("test.py"),
+            bundle_info=BundleInfo(name="test_bundle", version="1.0"),
+            token="test_token",
             log_path="test.log",
         )
 
@@ -663,27 +678,29 @@ class TestQueueWorkload:
             assert job.state == TaskInstanceState.QUEUED
             assert '"type":"ExecuteTask"' in job.command or '"type": "ExecuteTask"' in job.command
 
-    def test_queue_workload_occupies_an_executor_slot(self):
+    @pytest.mark.parametrize("make_workload", ["_make_execute_task", "_make_execute_callback"])
+    def test_queue_workload_occupies_an_executor_slot(self, make_workload):
         executor = EdgeExecutor()
-        workload = self._make_execute_task()
+        workload = getattr(self, make_workload)()
 
         with create_session() as session:
             executor.queue_workload(workload, session=session)
             session.commit()
 
-        assert workload.ti.key in executor.running
+        assert workload.key in executor.running
         assert executor.slots_available == executor.parallelism - 1
 
         # The slot stays taken while the job waits in the queue for a worker to pick it up.
         executor.sync()
 
-        assert workload.ti.key in executor.running
+        assert workload.key in executor.running
         assert executor.slots_available == executor.parallelism - 1
 
+    @pytest.mark.parametrize("make_workload", ["_make_execute_task", "_make_execute_callback"])
     @pytest.mark.parametrize("state", [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS])
-    def test_sync_reports_state_of_queued_workload(self, state):
+    def test_sync_reports_state_of_queued_workload(self, make_workload, state):
         executor = EdgeExecutor()
-        workload = self._make_execute_task()
+        workload = getattr(self, make_workload)()
 
         with create_session() as session:
             executor.queue_workload(workload, session=session)
@@ -696,7 +713,8 @@ class TestQueueWorkload:
 
         executor.sync()
 
-        assert executor.get_event_buffer() == {workload.ti.key: (state, None)}
+        reported_states = TaskInstanceState if isinstance(workload, ExecuteTask) else CallbackState
+        assert executor.get_event_buffer() == {workload.key: (reported_states(state.value), None)}
 
     def test_sync_keeps_slot_while_worker_claims_job(self):
         executor = EdgeExecutor()
@@ -723,15 +741,25 @@ class TestQueueWorkload:
 
         assert executor.get_event_buffer() == {workload.ti.key: (TaskInstanceState.RUNNING, None)}
 
-    def test_try_adopt_task_instances_restores_slots_from_edge_job(self):
+    @pytest.mark.parametrize(
+        "finished_state", [TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.REMOVED]
+    )
+    def test_try_adopt_task_instances_restores_slots_from_edge_job(self, finished_state):
         executor = EdgeExecutor()
-        workload = self._make_execute_task()
+        queued = self._make_execute_task()
+        finished = self._make_execute_task(task_id="finished")
         with create_session() as session:
-            executor.queue_workload(workload, session=session)
+            executor.queue_workload(queued, session=session)
+            executor.queue_workload(finished, session=session)
+            session.commit()
+        with create_session() as session:
+            finished_job = session.scalar(select(EdgeJobModel).where(EdgeJobModel.task_id == "finished"))
+            finished_job.state = finished_state
             session.commit()
 
         restarted_executor = EdgeExecutor()
-        tracked_ti = mock.Mock(spec=TaskInstance, key=workload.ti.key)
+        queued_ti = mock.Mock(spec=TaskInstance, key=queued.key)
+        finished_ti = mock.Mock(spec=TaskInstance, key=finished.key)
         orphaned_ti = mock.Mock(
             spec=TaskInstance,
             key=TaskInstanceKey(
@@ -739,10 +767,10 @@ class TestQueueWorkload:
             ),
         )
 
-        not_adopted = restarted_executor.try_adopt_task_instances([tracked_ti, orphaned_ti])
+        not_adopted = restarted_executor.try_adopt_task_instances([queued_ti, finished_ti, orphaned_ti])
 
-        assert not_adopted == [orphaned_ti]
-        assert restarted_executor.running == {workload.ti.key}
+        assert not_adopted == [finished_ti, orphaned_ti]
+        assert restarted_executor.running == {queued.key}
         assert restarted_executor.slots_available == restarted_executor.parallelism - 1
 
     def test_queue_workload_execute_task_existing_job(self):
@@ -761,22 +789,7 @@ class TestQueueWorkload:
 
     def test_queue_workload_execute_callback(self):
         executor = EdgeExecutor()
-        id = str(uuid4())
-        callback_data = CallbackDTO(
-            id=id,
-            fetch_method=CallbackFetchMethod.IMPORT_PATH,
-            data={
-                "path": "builtins.dict",
-                "kwargs": {"a": 1, "b": 2, "c": 3},
-            },
-        )
-        workload = ExecuteCallback(
-            callback=callback_data,
-            dag_rel_path=Path("test.py"),
-            bundle_info=BundleInfo(name="test_bundle", version="1.0"),
-            token="test_token",
-            log_path="test.log",
-        )
+        workload = self._make_execute_callback()
 
         with create_session() as session:
             executor.queue_workload(workload, session=session)
@@ -785,28 +798,14 @@ class TestQueueWorkload:
             job = session.scalar(select(EdgeJobModel))
             assert job is not None
             assert job.dag_id == EXECUTE_CALLBACK_TAG
-            assert job.task_id == id
-            assert job.run_id == f"{EXECUTE_CALLBACK_TAG}-{id}"
+            assert job.task_id == workload.callback.id
+            assert job.run_id == f"{EXECUTE_CALLBACK_TAG}-{workload.callback.id}"
             assert job.state == TaskInstanceState.QUEUED
             assert '"type":"ExecuteCallback"' in job.command or '"type": "ExecuteCallback"' in job.command
 
     def test_queue_workload_execute_callback_existing_job(self):
         executor = EdgeExecutor()
-        callback_data = CallbackDTO(
-            id=str(uuid4()),
-            fetch_method=CallbackFetchMethod.IMPORT_PATH,
-            data={
-                "path": "builtins.dict",
-                "kwargs": {"a": 1, "b": 2, "c": 3},
-            },
-        )
-        workload = ExecuteCallback(
-            callback=callback_data,
-            dag_rel_path=Path("test.py"),
-            bundle_info=BundleInfo(name="test_bundle", version="1.0"),
-            token="test_token",
-            log_path="test.log",
-        )
+        workload = self._make_execute_callback()
 
         with create_session() as session:
             executor.queue_workload(workload, session=session)
