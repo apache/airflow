@@ -74,8 +74,8 @@ class ZipMemberDagDefinition(FileDagDefinition):
     def get_relative_loc(self, root: Path | None = None) -> str:
         if root is not None:
             with contextlib.suppress(ValueError):
-                return f"{self.zip_path.relative_to(root)}:{self.file_path}"
-        return f"{self.zip_path}:{self.file_path}"
+                return str(self.zip_path.relative_to(root).joinpath(self.file_path))
+        return str(self.zip_path.joinpath(self.file_path))
 
     @property
     def suffix(self) -> str:
@@ -113,7 +113,7 @@ class ZipMemberDagDefinition(FileDagDefinition):
                 temp_path.unlink()
 
     def __repr__(self) -> str:
-        return f"{self.zip_path}:{self.file_path}"
+        return str(self.zip_path.joinpath(self.file_path))
 
 
 class ZipImporter(AbstractDagImporter[ZipMemberDagDefinition]):
