@@ -24,7 +24,7 @@ from unittest.mock import patch
 import pytest
 from click.testing import CliRunner
 
-from airflow_breeze.commands.verify_commands import verify
+from airflow_breeze.commands.verify_commands import get_changed_files_against, verify
 
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
@@ -89,3 +89,14 @@ def test_full_suite_expansion_is_explained(files: tuple[str, ...], expanded: boo
         result = CliRunner().invoke(verify, [], catch_exceptions=False)
     assert result.exit_code == 0
     assert ("CI runs the full suite for this change" in " ".join(result.output.split())) is expanded
+
+
+@patch("airflow_breeze.commands.verify_commands.run_command")
+def test_changed_files_list_renames_like_ci_diff_tree(mock_run):
+    mock_run.side_effect = [
+        CompletedProcess(args=[], returncode=0, stdout="abc123\n", stderr=""),
+        CompletedProcess(args=[], returncode=0, stdout="new.py\nold.py\n", stderr=""),
+        CompletedProcess(args=[], returncode=0, stdout="untracked.py\n", stderr=""),
+    ]
+    assert get_changed_files_against("main") == ("new.py", "old.py", "untracked.py")
+    assert mock_run.call_args_list[1].args[0] == ["git", "diff", "--name-only", "--no-renames", "abc123"]

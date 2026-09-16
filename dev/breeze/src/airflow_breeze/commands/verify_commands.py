@@ -49,7 +49,10 @@ def get_changed_files_against(base_ref: str) -> tuple[str, ...]:
         return result.stdout.splitlines()
 
     merge_base = _git("merge-base", base_ref, "HEAD")[0]
-    changed = _git("diff", "--name-only", merge_base) + _git("ls-files", "--others", "--exclude-standard")
+    # CI lists changed files with diff-tree, which reports a rename as a delete plus an add.
+    changed = _git("diff", "--name-only", "--no-renames", merge_base) + _git(
+        "ls-files", "--others", "--exclude-standard"
+    )
     return tuple(sorted(set(changed)))
 
 
