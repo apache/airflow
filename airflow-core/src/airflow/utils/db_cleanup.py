@@ -258,7 +258,7 @@ config_list: list[_TableConfig] = [
         table_name="dag_version",
         recency_column_name="created_at",
         extra_columns=["id"],
-        dependent_tables=["task_instance", "dag_run"],
+        dependent_tables=["task_instance", "dag_run", "serialized_dag"],
         dag_id_column_name="dag_id",
         keep_last=True,
         keep_last_group_by=["dag_id"],
@@ -267,6 +267,16 @@ config_list: list[_TableConfig] = [
         # fail the FK (and hang on MySQL). They become eligible once their task instances age out
         # and are cleaned. dag_run.created_dag_version_id is ON DELETE SET NULL, so it does not block.
         skip_if_referenced=[("task_instance", "dag_version_id")],
+    ),
+    _TableConfig(
+        table_name="serialized_dag",
+        recency_column_name="created_at",
+        extra_columns=["dag_version_id"],
+        dag_id_column_name="dag_id",
+        keep_last=True,
+        keep_last_group_by=["dag_id"],
+        skip_if_referenced=[("task_instance", "dag_version_id")],
+        referenced_pk_column="dag_version_id",
     ),
     _TableConfig(table_name="deadline", recency_column_name="deadline_time", dag_id_column_name="dag_id"),
     _TableConfig(table_name="revoked_token", recency_column_name="exp"),
