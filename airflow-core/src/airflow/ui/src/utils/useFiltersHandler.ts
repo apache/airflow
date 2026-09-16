@@ -63,6 +63,8 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.COMPLETED_AT_RANGE
   | SearchParamsKeys.CONF_CONTAINS
   | SearchParamsKeys.CONSUMING_ASSET_PATTERN
+  | SearchParamsKeys.CONSUMING_DAG_ID
+  | SearchParamsKeys.CONSUMING_TASK_ID
   | SearchParamsKeys.CREATED_AT_RANGE
   | SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN
   | SearchParamsKeys.DAG_ID
@@ -79,7 +81,9 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.FAVORITE
   | SearchParamsKeys.FROM_RANGE
   | SearchParamsKeys.GROUP_PATTERN
+  | SearchParamsKeys.HAS_EVENTS
   | SearchParamsKeys.HOSTNAME
+  | SearchParamsKeys.IS_ALIAS
   | SearchParamsKeys.JOB_STATE
   | SearchParamsKeys.JOB_TYPE
   | SearchParamsKeys.KEY_PATTERN
@@ -97,6 +101,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.PARTITION_KEY_PATTERN
   | SearchParamsKeys.PAUSED
   | SearchParamsKeys.POOL_NAME_PATTERN
+  | SearchParamsKeys.PRODUCING_TASK_ID
   | SearchParamsKeys.QUEUE_NAME_PATTERN
   | SearchParamsKeys.RENDERED_MAP_INDEX
   | SearchParamsKeys.REPROCESS_BEHAVIOR

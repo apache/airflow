@@ -172,6 +172,13 @@ export const useAssetServiceGetDagAssetQueuedEventSuspense = <TData = Common.Ass
 * @param data.groupPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `group_prefix_pattern` on large tables — see "Filtering with pattern parameters".
 * @param data.groupPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
 * @param data.dagIds
+* @param data.hasEvents
+* @param data.isAlias
+* @param data.consumingDagId
+* @param data.producingTaskId
+* @param data.producingDagId
+* @param data.consumingTaskId
+* @param data.consumingTaskDagId
 * @param data.onlyActive
 * @param data.lastAssetEventTimestampGte
 * @param data.lastAssetEventTimestampGt
@@ -181,10 +188,15 @@ export const useAssetServiceGetDagAssetQueuedEventSuspense = <TData = Common.Ass
 * @returns AssetCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useAssetServiceGetAssetsUiSuspense = <TData = Common.AssetServiceGetAssetsUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagIds, groupPattern, groupPrefixPattern, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }: {
+export const useAssetServiceGetAssetsUiSuspense = <TData = Common.AssetServiceGetAssetsUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ consumingDagId, consumingTaskDagId, consumingTaskId, dagIds, groupPattern, groupPrefixPattern, hasEvents, isAlias, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, producingDagId, producingTaskId, uri, uriPattern, uriPrefixPattern }: {
+  consumingDagId?: string;
+  consumingTaskDagId?: string;
+  consumingTaskId?: string;
   dagIds?: string[];
   groupPattern?: string;
   groupPrefixPattern?: string;
+  hasEvents?: boolean;
+  isAlias?: boolean;
   lastAssetEventTimestampGt?: string;
   lastAssetEventTimestampGte?: string;
   lastAssetEventTimestampLt?: string;
@@ -195,10 +207,12 @@ export const useAssetServiceGetAssetsUiSuspense = <TData = Common.AssetServiceGe
   offset?: number;
   onlyActive?: boolean;
   orderBy?: string[];
+  producingDagId?: string;
+  producingTaskId?: string;
   uri?: string[];
   uriPattern?: string;
   uriPrefixPattern?: string;
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseAssetServiceGetAssetsUiKeyFn({ dagIds, groupPattern, groupPrefixPattern, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }, queryKey), queryFn: () => AssetService.getAssetsUi({ dagIds, groupPattern, groupPrefixPattern, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }) as TData, ...options });
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseAssetServiceGetAssetsUiKeyFn({ consumingDagId, consumingTaskDagId, consumingTaskId, dagIds, groupPattern, groupPrefixPattern, hasEvents, isAlias, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, producingDagId, producingTaskId, uri, uriPattern, uriPrefixPattern }, queryKey), queryFn: () => AssetService.getAssetsUi({ consumingDagId, consumingTaskDagId, consumingTaskId, dagIds, groupPattern, groupPrefixPattern, hasEvents, isAlias, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, producingDagId, producingTaskId, uri, uriPattern, uriPrefixPattern }) as TData, ...options });
 /**
 * Next Run Assets
 * @param data The data for the request.

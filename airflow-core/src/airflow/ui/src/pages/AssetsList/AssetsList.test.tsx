@@ -76,4 +76,42 @@ describe("AssetsList filtering", () => {
     expect(screen.getByText("asset_with_dependencies")).toBeInTheDocument();
     expect(screen.queryAllByTestId("skeleton")).toHaveLength(0);
   });
+
+  it("forwards the has_events and is_alias filters as booleans, not strings", async () => {
+    let requestUrl = "";
+
+    server.use(
+      http.get("/ui/assets", ({ request }) => {
+        requestUrl = request.url;
+
+        return HttpResponse.json({ assets: [], total_entries: 0 });
+      }),
+    );
+
+    render(<AppWrapper initialEntries={["/assets?has_events=true&is_alias=false"]} />);
+
+    await waitFor(() => expect(requestUrl).toContain("has_events=true"));
+    expect(requestUrl).toContain("is_alias=false");
+  });
+
+  it("forwards the consuming/producing dag and task id filters", async () => {
+    let requestUrl = "";
+
+    server.use(
+      http.get("/ui/assets", ({ request }) => {
+        requestUrl = request.url;
+
+        return HttpResponse.json({ assets: [], total_entries: 0 });
+      }),
+    );
+
+    render(
+      <AppWrapper
+        initialEntries={["/assets?consuming_dag_id=upstream_dag&producing_task_id=extract_data"]}
+      />,
+    );
+
+    await waitFor(() => expect(requestUrl).toContain("consuming_dag_id=upstream_dag"));
+    expect(requestUrl).toContain("producing_task_id=extract_data");
+  });
 });

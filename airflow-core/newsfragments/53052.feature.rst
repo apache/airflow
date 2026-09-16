@@ -1,0 +1,1 @@
+Add ``has_events``, ``is_alias``, ``consuming_dag_id``, ``producing_task_id`` (optionally scoped with ``producing_dag_id``), and ``consuming_task_id`` (optionally scoped with ``consuming_task_dag_id``) filters to the Assets search page.
