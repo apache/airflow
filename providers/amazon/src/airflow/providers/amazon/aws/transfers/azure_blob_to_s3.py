@@ -23,6 +23,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.amazon.aws.transfers.utils import strip_overlapping_folder_markers
 from airflow.providers.common.compat.sdk import BaseOperator
 
 try:
@@ -116,29 +117,6 @@ class AzureBlobStorageToS3Operator(BaseOperator):
         self.wasb_extra_args = wasb_extra_args or {}
         self.s3_extra_args = s3_extra_args or {}
 
-    @staticmethod
-    def _strip_overlapping_folder_markers(keys: list[str]) -> tuple[list[str], list[str]]:
-        """
-        Drop trailing-slash keys that are strict prefixes of other listed keys.
-
-        Treated as directory markers. A lone trailing-slash key with no overlap
-        (e.g. ``lonely/``) is preserved, and a non-slash key that happens to be a
-        strict prefix of another (e.g. ``abc`` of ``abcdef``) is also preserved.
-        Returns ``(kept, dropped)``.
-        """
-        if not keys:
-            return [], []
-        ordered = sorted(set(keys))
-        kept: list[str] = []
-        dropped: list[str] = []
-        for current, nxt in zip(ordered, ordered[1:]):
-            if current.endswith("/") and nxt.startswith(current):
-                dropped.append(current)
-            else:
-                kept.append(current)
-        kept.append(ordered[-1])
-        return kept, dropped
-
     def execute(self, context: Context) -> list[str]:
         # list all files in the Azure Blob Storage container
         wasb_hook = WasbHook(wasb_conn_id=self.wasb_conn_id, **self.wasb_extra_args)
@@ -160,7 +138,7 @@ class AzureBlobStorageToS3Operator(BaseOperator):
             container_name=self.container_name, prefix=self.prefix, endswith=self.delimiter
         )
 
-        files, dropped_keys = self._strip_overlapping_folder_markers(files)
+        files, dropped_keys = strip_overlapping_folder_markers(files)
         if dropped_keys:
             self.log.info(
                 "Skipping %s Azure Blob folder-marker key(s) (omitted from transfer and XCom output): %s",

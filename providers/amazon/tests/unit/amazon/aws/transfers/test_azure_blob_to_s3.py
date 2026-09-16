@@ -20,7 +20,6 @@ from __future__ import annotations
 from io import RawIOBase
 from unittest import mock
 
-import pytest
 from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -217,32 +216,6 @@ class TestAzureBlobToS3Operator:
             replace=False,
             acl_policy=s3_acl_policy,
         )
-
-    @pytest.mark.parametrize(
-        ("keys", "expected_kept", "expected_dropped"),
-        [
-            ([], [], []),
-            (["a"], ["a"], []),
-            (["a", "b"], ["a", "b"], []),
-            # Non-slash prefix overlaps must NOT be treated as folder markers.
-            (["a", "ax"], ["a", "ax"], []),
-            (["abc", "abcdef"], ["abc", "abcdef"], []),
-            (["foo/", "foo/bar.txt"], ["foo/bar.txt"], ["foo/"]),
-            (
-                ["data/", "data/sub/", "data/sub/file.txt"],
-                ["data/sub/file.txt"],
-                ["data/", "data/sub/"],
-            ),
-            # A lone trailing-slash key with no overlap is a real object and stays.
-            (["lonely/"], ["lonely/"], []),
-            (["lonely/", "report.csv"], ["lonely/", "report.csv"], []),
-        ],
-    )
-    def test_strip_overlapping_folder_markers(self, keys, expected_kept, expected_dropped):
-        """Folder-marker detection: requires both strict-prefix overlap AND trailing slash."""
-        kept, dropped = AzureBlobStorageToS3Operator._strip_overlapping_folder_markers(keys)
-        assert kept == expected_kept
-        assert dropped == expected_dropped
 
     @mock.patch("airflow.providers.amazon.aws.transfers.azure_blob_to_s3.WasbHook")
     def test_execute_skips_overlapping_folder_markers(self, mock_hook):
