@@ -104,8 +104,9 @@ def verify(ctx: click.Context, base_ref: str, full: bool, as_json: bool):
         f"CI default Python {result['default_python_version']}[/]\n"
     )
     table = Table(title="What CI runs for this change" if full else "What to run for this change")
-    for column in ("kind", "runs_in", "command"):
-        table.add_column(column)
+    table.add_column("kind")
+    table.add_column("runs_in")
+    table.add_column("command", overflow="fold")
     for item in result["items"]:
         table.add_row(item["kind"], item["runs_in"], escape(item["command"]))
     console.print(table)
