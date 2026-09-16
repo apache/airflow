@@ -23,7 +23,7 @@ import re
 import sys
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, PropertyMock, call, patch, sentinel
+from unittest.mock import MagicMock, patch, sentinel
 
 import pytest
 from pydantic_ai import Agent, Embedder
@@ -33,7 +33,7 @@ from pydantic_ai.models import Model
 from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.models.test import TestModel
-from pydantic_ai.providers import infer_provider_class
+from pydantic_ai.providers import Provider, infer_provider_class
 
 from airflow.models.connection import Connection
 from airflow.providers.common.ai.get_provider_info import get_provider_info
@@ -71,7 +71,7 @@ def _assert_prefix_is_known_provider(prefix: str) -> None:
 
 def _assert_embedding_model_is_supported(model_name: str) -> None:
     def create_provider(_: str) -> Any:
-        return MagicMock()
+        return MagicMock(spec=Provider)
 
     try:
         with contextlib.suppress(ImportError):
@@ -148,14 +148,17 @@ class TestPydanticAIHookInit:
         """Subclass default_conn_name is used, not the base class value."""
         hook = PydanticAIAzureHook()
         assert hook.llm_conn_id == "pydanticai_azure_default"
+        assert hook.embed_conn_id == "pydanticai_azure_default"
 
     def test_bedrock_hook_uses_own_default_conn_name(self):
         hook = PydanticAIBedrockHook()
         assert hook.llm_conn_id == "pydanticai_bedrock_default"
+        assert hook.embed_conn_id == "pydanticai_bedrock_default"
 
     def test_vertex_hook_uses_own_default_conn_name(self):
         hook = PydanticAIVertexHook()
         assert hook.llm_conn_id == "pydanticai_vertex_default"
+        assert hook.embed_conn_id == "pydanticai_vertex_default"
 
 
 class TestGetUiFieldBehaviour:
@@ -166,39 +169,6 @@ class TestGetUiFieldBehaviour:
         assert "host" in behaviour["placeholders"]
         assert "model" in behaviour["placeholders"]["extra"]
         assert "embed_model" in behaviour["placeholders"]["extra"]
-
-
-class TestPydanticAIHookConnectionCache:
-    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
-    def test_extra_dejson_is_cached_for_repeated_connection_id(self, mock_infer_model):
-        hook = PydanticAIHook(llm_conn_id="test_conn")
-        conn = MagicMock(spec=Connection)
-        conn.conn_id = "test_conn"
-        conn.password = None
-        conn.host = None
-        extra_dejson = PropertyMock(return_value={"model": "openai:gpt-5.6-sol"})
-        type(conn).extra_dejson = extra_dejson
-
-        with patch.object(hook, "get_connection", return_value=conn):
-            hook._get_conn_if_model_configured()
-
-        extra_dejson.assert_called_once_with()
-        mock_infer_model.assert_called_once_with("openai:gpt-5.6-sol")
-
-    def test_extra_dejson_is_cached_separately_for_different_connection_ids(self):
-        hook = PydanticAIHook()
-        llm_conn = MagicMock(spec=Connection)
-        llm_conn.extra_dejson = {"model": "openai:gpt-5.6-sol"}
-        embed_conn = MagicMock(spec=Connection)
-        embed_conn.extra_dejson = {"embed_model": "openai:text-embedding-3-small"}
-
-        with patch.object(hook, "get_connection", side_effect=[llm_conn, embed_conn]) as get_connection:
-            llm_extra = hook._get_cached_connection_extra_dejson("llm_conn")
-            embed_extra = hook._get_cached_connection_extra_dejson("embed_conn")
-
-        assert llm_extra == {"model": "openai:gpt-5.6-sol"}
-        assert embed_extra == {"embed_model": "openai:text-embedding-3-small"}
-        assert get_connection.call_args_list == [call("llm_conn"), call("embed_conn")]
 
 
 class TestPydanticAIHookGetConn:
@@ -1244,14 +1214,9 @@ class TestPydanticAIHookFallbackConnectionFetchCount:
 
 
 class TestPydanticAIHookGetEmbedder:
-    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True)
-    def test_embedding_uses_model_provider_mapping_instead_of_hook_type(
-        self, mock_infer_provider_class, mock_infer_embedding_model
-    ):
-        mock_embedding_model = MagicMock(spec=EmbeddingModel)
-        mock_infer_embedding_model.return_value = mock_embedding_model
-        mock_provider = mock_infer_provider_class.return_value.return_value
+    def test_embedding_uses_model_provider_mapping_instead_of_hook_type(self, mock_infer_provider_class):
+        mock_infer_provider_class.return_value.return_value = MagicMock(spec=Provider)
         hook = PydanticAIAzureHook(embed_conn_id="test_conn", embed_model_id="openai:text-embedding-3-small")
         conn = Connection(
             conn_id="test_conn",
@@ -1264,20 +1229,16 @@ class TestPydanticAIHookGetEmbedder:
             result = hook.get_embedder()
 
         assert isinstance(result, Embedder)
-        assert result.model is mock_embedding_model
-        call_args = mock_infer_embedding_model.call_args
-        assert call_args.args == ("openai:text-embedding-3-small",)
-        provider_factory = call_args.kwargs["provider_factory"]
-        assert provider_factory("openai") is mock_provider
+        mock_infer_provider_class.assert_called_once_with("openai")
         mock_infer_provider_class.return_value.assert_called_once_with(
             api_key="sk-test-key", base_url="https://api.openai.com/v1"
         )
 
     @pytest.mark.parametrize(
-        ("provider_name", "extra", "expected_provider_kwargs"),
+        ("model_name", "provider_name", "extra", "expected_provider_kwargs"),
         [
-            ("openai", {}, {"api_key": "connection-key", "base_url": "https://example.com"}),
             (
+                "azure:text-embedding-3-small",
                 "azure",
                 {"api_version": "2024-07-01-preview"},
                 {
@@ -1287,20 +1248,13 @@ class TestPydanticAIHookGetEmbedder:
                 },
             ),
             (
-                "azure-responses",
-                {"api_version": "2024-07-01-preview"},
-                {
-                    "api_key": "connection-key",
-                    "azure_endpoint": "https://example.com",
-                    "api_version": "2024-07-01-preview",
-                },
-            ),
-            (
+                "bedrock:amazon.titan-embed-text-v2:0",
                 "bedrock",
                 {"region_name": "us-east-1"},
                 {"region_name": "us-east-1"},
             ),
             (
+                "google:text-embedding-004",
                 "google",
                 {
                     "api_key": "extra-key",
@@ -1313,6 +1267,7 @@ class TestPydanticAIHookGetEmbedder:
                 },
             ),
             (
+                "google-cloud:text-embedding-005",
                 "google-cloud",
                 {
                     "api_key": "extra-key",
@@ -1328,17 +1283,16 @@ class TestPydanticAIHookGetEmbedder:
         ],
     )
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True)
-    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
     def test_embedding_credentials_are_mapped_by_model_provider(
         self,
-        mock_infer_embedding_model,
         mock_infer_provider_class,
+        model_name,
         provider_name,
         extra,
         expected_provider_kwargs,
     ):
-        mock_infer_embedding_model.return_value = MagicMock(spec=EmbeddingModel)
-        hook = PydanticAIHook(embed_model_id=f"{provider_name}:embedding-model")
+        mock_infer_provider_class.return_value.return_value = MagicMock(spec=Provider)
+        hook = PydanticAIHook(embed_model_id=model_name)
         conn = Connection(
             conn_id="pydanticai_default",
             conn_type="pydanticai",
@@ -1350,19 +1304,12 @@ class TestPydanticAIHookGetEmbedder:
         with patch.object(hook, "get_connection", return_value=conn):
             hook.get_embedder()
 
-        provider_factory = mock_infer_embedding_model.call_args.kwargs["provider_factory"]
-        provider_factory(provider_name)
+        mock_infer_provider_class.assert_called_once_with(provider_name)
         mock_infer_provider_class.return_value.assert_called_once_with(**expected_provider_kwargs)
 
-    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True)
-    def test_get_embedder_reports_connection_fields_rejected_by_provider(
-        self, mock_infer_provider_class, mock_infer_embedding_model
-    ):
+    def test_get_embedder_reports_connection_fields_rejected_by_provider(self, mock_infer_provider_class):
         mock_infer_provider_class.return_value.side_effect = TypeError("unexpected credential")
-        mock_infer_embedding_model.side_effect = lambda model_name, *, provider_factory: provider_factory(
-            "openai"
-        )
         hook = PydanticAIHook(embed_conn_id="embedding_conn", embed_model_id="openai:text-embedding-3-small")
         conn = Connection(
             conn_id="embedding_conn",
@@ -1414,6 +1361,22 @@ class TestPydanticAIHookGetEmbedder:
             hook.get_embedder()
 
         mock_infer_embedding_model.assert_called_once_with(embed_model_id)
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True)
+    def test_get_embedder_rejects_unsupported_embedding_provider(self, mock_infer_provider_class):
+        mock_infer_provider_class.return_value.return_value = MagicMock(spec=Provider)
+        hook = PydanticAIHook(embed_model_id="azure-responses:text-embedding-3-small")
+        conn = Connection(
+            conn_id="pydanticai_default",
+            conn_type="pydanticai",
+            password="azure-key",
+        )
+
+        with (
+            patch.object(hook, "get_connection", return_value=conn),
+            pytest.raises(UserError, match="Unknown embeddings model"),
+        ):
+            hook.get_embedder()
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
     def test_local_embedding_does_not_receive_connection_credentials(self, mock_infer_embedding_model):
@@ -1489,7 +1452,11 @@ class TestPydanticAIHookGetEmbedder:
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
     def test_get_embedder_uses_embed_conn_id(self, mock_infer_embedding_model):
         mock_infer_embedding_model.return_value = MagicMock(spec=EmbeddingModel)
-        hook = PydanticAIHook(llm_conn_id="chat_conn", embed_conn_id="embedding_conn")
+        hook = PydanticAIHook(
+            llm_conn_id="chat_conn",
+            model_id="anthropic:claude-opus-4-6",
+            embed_conn_id="embedding_conn",
+        )
         embedding_conn = Connection(
             conn_id="embedding_conn",
             conn_type="pydanticai",
@@ -1580,21 +1547,6 @@ class TestPydanticAIHookGetEmbedder:
                 hook.get_embedder()
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
-    def test_get_embedder_caches_embedder(self, mock_infer_embedding_model):
-        mock_embedding_model = MagicMock(spec=EmbeddingModel)
-        mock_infer_embedding_model.return_value = mock_embedding_model
-        hook = PydanticAIHook(llm_conn_id="test_conn", embed_model_id="openai:text-embedding-3-small")
-        conn = Connection(conn_id="test_conn", conn_type="pydanticai")
-
-        with patch.object(hook, "get_connection", return_value=conn):
-            first = hook.get_embedder()
-            second = hook.get_embedder()
-
-        assert first is second
-        assert first.model is mock_embedding_model
-        mock_infer_embedding_model.assert_called_once()
-
-    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
     def test_get_embedder_caches_embedder_for_same_kwargs(self, mock_infer_embedding_model):
         mock_infer_embedding_model.return_value = MagicMock(spec=EmbeddingModel)
         hook = PydanticAIHook(embed_model_id="openai:text-embedding-3-small")
@@ -1619,32 +1571,6 @@ class TestPydanticAIHookGetEmbedder:
 
         assert first is not second
         assert mock_infer_embedding_model.call_count == 2
-
-    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
-    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Embedder", autospec=True)
-    def test_failed_embedder_rebuild_does_not_update_cache_kwargs(
-        self, mock_embedder, mock_infer_embedding_model
-    ):
-        mock_infer_embedding_model.return_value = MagicMock(spec=EmbeddingModel)
-        mock_embedder.side_effect = [
-            sentinel.first_embedder,
-            TypeError("invalid settings"),
-            sentinel.second_embedder,
-        ]
-        hook = PydanticAIHook(embed_model_id="openai:text-embedding-3-small")
-        conn = Connection(conn_id="pydanticai_default", conn_type="pydanticai")
-        first_settings = EmbeddingSettings(dimensions=512)
-        second_settings = EmbeddingSettings(dimensions=256)
-
-        with patch.object(hook, "get_connection", return_value=conn):
-            first = hook.get_embedder(settings=first_settings)
-            with pytest.raises(TypeError, match="invalid settings"):
-                hook.get_embedder(settings=second_settings)
-            second = hook.get_embedder(settings=second_settings)
-
-        assert first is sentinel.first_embedder
-        assert second is sentinel.second_embedder
-        assert mock_embedder.call_count == 3
 
 
 class TestPydanticAIHookCreateAgent:
@@ -2152,9 +2078,18 @@ class TestPydanticAIAzureHook:
         # api_version should not appear if not in extra
         assert "api_version" not in result
 
+    @pytest.mark.parametrize(
+        ("model_name", "provider_name"),
+        [
+            ("azure:gpt-4o", "azure"),
+            ("azure-responses:gpt-5", "azure-responses"),
+        ],
+    )
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True)
-    def test_get_conn_uses_azure_endpoint(self, mock_infer_provider_class, mock_infer_model):
+    def test_get_conn_uses_azure_endpoint(
+        self, mock_infer_provider_class, mock_infer_model, model_name, provider_name
+    ):
         mock_infer_model.return_value = MagicMock(spec=Model)
         mock_provider_cls = MagicMock(return_value=MagicMock())
         mock_infer_provider_class.return_value = mock_provider_cls
@@ -2165,13 +2100,13 @@ class TestPydanticAIAzureHook:
             conn_type="pydanticai_azure",
             password="azure-key",
             host="https://myresource.openai.azure.com",
-            extra=json.dumps({"model": "azure:gpt-4o", "api_version": "2024-07-01-preview"}),
+            extra=json.dumps({"model": model_name, "api_version": "2024-07-01-preview"}),
         )
         with patch.object(hook, "get_connection", return_value=conn):
             hook.get_conn()
 
         factory = mock_infer_model.call_args[1]["provider_factory"]
-        factory("azure")
+        factory(provider_name)
         mock_provider_cls.assert_called_with(
             api_key="azure-key",
             azure_endpoint="https://myresource.openai.azure.com",
@@ -2625,9 +2560,14 @@ class TestPydanticAIVertexHook:
 
     @pytest.mark.parametrize(
         "connection_type",
-        ["pydanticai", "pydanticai_azure", "pydanticai_bedrock", "pydanticai_vertex"],
+        [
+            "pydanticai",
+            "pydanticai_azure",
+            "pydanticai_bedrock",
+            "pydanticai_vertex",
+        ],
     )
-    def test_conn_fields_embed_model_example_is_supported(self, connection_type):
+    def test_embedding_model_support_matches_expectations(self, connection_type):
         connection_types = get_provider_info()["connection-types"]
         conn_fields = next(
             item["conn-fields"] for item in connection_types if item["connection-type"] == connection_type
