@@ -64,7 +64,7 @@ from airflow.sdk import (
     timezone,
 )
 from airflow.sdk._shared.observability.metrics.base_stats_logger import StatsLogger
-from airflow.sdk._shared.state import AssetScope, TaskScope
+from airflow.sdk._shared.state import AssetScope, TaskFailureKind, TaskScope
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
     AssetResponse,
@@ -2304,6 +2304,15 @@ class TestRuntimeTaskInstance:
 
             with pytest.raises(AttributeError, match="belong to team 'team-a'"):
                 macros.team_a_macros
+
+    def test_failure_cause_is_not_added_to_template_context(self, create_runtime_ti):
+        task = BaseOperator(task_id="failure_context")
+        runtime_ti = create_runtime_ti(task=task, dag_id="failure_context")
+
+        context = runtime_ti.get_template_context()
+
+        assert "failure_kind" not in context
+        assert "failure_reason" not in context
 
     def test_get_context_with_ti_context_from_server(self, create_runtime_ti, mock_supervisor_comms):
         """Test the context keys are added when sent from API server (mocked)"""
@@ -4800,6 +4809,44 @@ class TestTaskRunnerCallsListeners:
         assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.FAILED]
         assert listener.error == error
 
+    @pytest.mark.parametrize(
+        "state", [TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY], ids=["failed", "up_for_retry"]
+    )
+    def test_listener_declaring_reason_still_fires(
+        self, state, mocked_parse, mock_supervisor_comms, listener_manager
+    ):
+        """A hookimpl using the full signature the hookspec documents must still be called.
+
+        pluggy raises HookCallError when a hookspec argument is missing from the call, and
+        finalize() swallows it, so omitting one here silently stops the listener firing.
+        """
+        received = {}
+
+        class FullSignatureListener:
+            @hookimpl
+            def on_task_instance_failed(self, previous_state, task_instance, error, failure_kind, reason):
+                received["failure_kind"] = failure_kind
+                received["reason"] = reason
+
+        listener_manager(FullSignatureListener())
+
+        task = BaseOperator(task_id="test_listener_declaring_reason_still_fires")
+        dag = get_inline_dag(dag_id="test_dag", task=task)
+        ti = TaskInstance(
+            id=uuid7(),
+            task_id=task.task_id,
+            dag_id=dag.dag_id,
+            run_id="test_run",
+            try_number=1,
+            dag_version_id=uuid7(),
+        )
+        runtime_ti = RuntimeTaskInstance.model_construct(
+            **ti.model_dump(exclude_unset=True), task=task, start_date=timezone.utcnow()
+        )
+        finalize(runtime_ti, state, runtime_ti.get_template_context(), mock.MagicMock(), RuntimeError("boom"))
+
+        assert received == {"failure_kind": TaskFailureKind.APPLICATION, "reason": None}
+
     def test_task_runner_calls_listeners_failed_when_terminal_send_fails(
         self, mocked_parse, mock_supervisor_comms, listener_manager
     ):
@@ -5961,6 +6008,23 @@ class TestTaskInstanceMetrics:
             )
             backend.incr.assert_any_call("ti_successes", tags=stats_tags)
 
+    @pytest.mark.parametrize("failure_kind", [None, *TaskFailureKind])
+    @mock.patch("airflow.sdk._shared.observability.metrics.stats._get_backend")
+    def test_failure_metric_kind_is_bounded(self, mock_get_backend, failure_kind, create_runtime_ti):
+        task = PythonOperator(task_id="test", python_callable=lambda: None)
+        ti = create_runtime_ti(task=task)
+        backend = mock.MagicMock(spec=StatsLogger)
+        mock_get_backend.return_value = backend
+
+        task_runner._finalize_task_failure(ti=ti, failure_kind=failure_kind)
+
+        tags = {
+            **ti.stats_tags,
+            "failure_kind": failure_kind.value if failure_kind is not None else "unclassified",
+        }
+        backend.incr.assert_any_call("ti_failures", tags=tags)
+        backend.incr.assert_any_call("operator_failures", tags={**tags, "operator_name": "PythonOperator"})
+
     def test_operator_failures_metrics_emitted(self, create_runtime_ti, mock_supervisor_comms):
         """Test that operator_failures and ti_failures metrics are emitted on task failure."""
         task = PythonOperator(task_id="test", python_callable=lambda: 1 / 0)
@@ -5972,15 +6036,16 @@ class TestTaskInstanceMetrics:
             run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
             stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id, "run_type": "manual"}
+            failure_tags = {**stats_tags, "failure_kind": TaskFailureKind.APPLICATION.value}
 
             # verify operator_failures in legacy format
-            backend.incr.assert_any_call("operator_failures_PythonOperator", tags=stats_tags)
+            backend.incr.assert_any_call("operator_failures_PythonOperator", tags=failure_tags)
             # verify operator_failures in tagged format
             backend.incr.assert_any_call(
                 "operator_failures",
-                tags={**stats_tags, "operator_name": "PythonOperator"},
+                tags={**failure_tags, "operator_name": "PythonOperator"},
             )
-            backend.incr.assert_any_call("ti_failures", tags=stats_tags)
+            backend.incr.assert_any_call("ti_failures", tags=failure_tags)
 
     @pytest.mark.parametrize(
         ("team_name", "expected_tags_extra"),
@@ -6035,11 +6100,14 @@ class TestTaskInstanceMetrics:
                 "run_type": "manual",
                 "team_name": "team_a",
             }
+            failure_tags = (
+                {"failure_kind": TaskFailureKind.APPLICATION.value} if ti_metric == "ti_failures" else {}
+            )
             backend.incr.assert_any_call(
                 operator_metric,
-                tags={**stats_tags, "operator_name": "PythonOperator"},
+                tags={**stats_tags, "operator_name": "PythonOperator", **failure_tags},
             )
-            backend.incr.assert_any_call(ti_metric, tags=stats_tags)
+            backend.incr.assert_any_call(ti_metric, tags={**stats_tags, **failure_tags})
 
 
 class TestDetailSpan:
