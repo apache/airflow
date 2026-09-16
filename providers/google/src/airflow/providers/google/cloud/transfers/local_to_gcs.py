@@ -143,7 +143,7 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         from airflow.providers.google.cloud.openlineage.utils import WILDCARD, extract_ds_name_from_gcs_path
         from airflow.providers.openlineage.extractors import OperatorLineage
 
-        if not self.bucket:
+        if not self.bucket or self.dst is None:
             return OperatorLineage()
 
         source_facets = {}

@@ -263,6 +263,18 @@ class TestFileToGcsOperator:
         assert result.inputs == []
         assert result.outputs == []
 
+    def test_get_openlineage_facets_on_start_no_dst(self):
+        operator = LocalFilesystemToGCSOperator(
+            task_id="gcs_to_file_sensor",
+            dag=self.dag,
+            src=[f"{self.tmpdir_posix}/fake1.csv"],
+            dst=None,
+            **self._config,
+        )
+        result = operator.get_openlineage_facets_on_start()
+        assert result.inputs == []
+        assert result.outputs == []
+
     # Return value tests
     @mock.patch("airflow.providers.google.cloud.transfers.local_to_gcs.GCSHook", autospec=True)
     def test_execute_returns_list_of_destination_uris_single_file(self, mock_hook):
