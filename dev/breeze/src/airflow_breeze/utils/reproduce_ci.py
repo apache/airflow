@@ -27,7 +27,7 @@ from click.core import ParameterSource
 from rich.markup import escape
 
 from airflow_breeze.global_constants import APACHE_AIRFLOW_GITHUB_REPOSITORY
-from airflow_breeze.utils.console import get_stderr_console
+from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.run_utils import commit_sha
 
 # Options that are side-effect-only or not meaningful for reproduction (safety net;
@@ -211,16 +211,22 @@ def print_local_reproduction(commands: list[ReproductionCommand]) -> None:
         lines.append(shlex.join(command.argv))
     rendered = "\n".join(lines)
     ruler = "─" * 80
-    console = get_stderr_console()
+    console = get_console()
     console.print(f"\n[warning]{ruler}[/]")
     console.print("[warning]HOW TO REPRODUCE LOCALLY[/]\n")
     console.print(f"[info]{escape(rendered)}[/]\n", soft_wrap=True)
     console.print(f"[warning]{ruler}[/]\n")
 
 
+SKIP_LOCAL_REPRODUCTION = "skip_local_reproduction"
+
+
 def maybe_print_reproduction(ctx: click.Context) -> None:
-    """Called by BreezeCommand.invoke() — prints reproduction instructions in CI."""
-    if not should_print_local_reproduction():
+    """Called by BreezeCommand.invoke() — prints reproduction instructions in CI.
+
+    Commands whose stdout is a machine-readable contract set ``ctx.meta[SKIP_LOCAL_REPRODUCTION]``.
+    """
+    if not should_print_local_reproduction() or ctx.meta.get(SKIP_LOCAL_REPRODUCTION):
         return
 
     github_repository = ctx.params.get("github_repository", APACHE_AIRFLOW_GITHUB_REPOSITORY)
