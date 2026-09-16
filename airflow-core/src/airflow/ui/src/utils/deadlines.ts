@@ -29,6 +29,7 @@ import { humanizeSeconds } from "src/utils/datetimeUtils";
 export const translateCompletionRule = (
   translate: TFunction,
   alert: DeadlineAlertResponse | undefined,
+  locale?: string,
 ): string | undefined => {
   if (alert === undefined) {
     return undefined;
@@ -37,7 +38,7 @@ export const translateCompletionRule = (
   const reference = translate(`deadlineAlerts.referenceType.${alert.reference_type}`, {
     defaultValue: alert.reference_type,
   });
-  const interval = humanizeSeconds(alert.interval);
+  const interval = humanizeSeconds(alert.interval, locale);
 
   return interval === undefined
     ? translate("deadlineAlerts.completionRuleDynamic", { reference })

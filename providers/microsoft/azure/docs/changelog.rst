@@ -27,6 +27,33 @@
 Changelog
 ---------
 
+15.1.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add support for sending emails through Microsoft Graph (#71565)``
+* ``Add Azure Analysis Services model refresh support (#71350)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Keep MSGraph pagination offset across paginated pages (#71986)``
+* ``Invalidate cached Microsoft Graph request adapter on 401 Unauthorized (#72688)``
+* ``Avoid extra_dejson in ADF and Synapse async hooks (#72130)``
+* ``Restrict MSGraph deferrable pagination to the configured host (#71842)``
+
+Misc
+~~~~
+
+* ``Depend on ''httpx2'' instead of ''httpx'' (#72111)``
+* ``Replace generic AirflowException in AzureBatchOperator input validation (#71981)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Sync connection UI metadata in provider.yaml with hook definitions (#72087)``
+
 15.0.1
 ......
 

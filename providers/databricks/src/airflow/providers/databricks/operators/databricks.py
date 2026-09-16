@@ -708,7 +708,7 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         requests. If a run with the provided token already exists, the request does not create a new run but
         returns the ID of the existing run instead.  This token must have at most 64 characters.
     :param access_control_list: optional list of dictionaries representing Access Control List (ACL) for
-        a given job run.  Each dictionary consists of following field - specific subject (``user_name`` for
+        a given job run.  Each dictionary consists of the following fields - specific subject (``user_name`` for
         users, or ``group_name`` for groups), and ``permission_level`` for that subject.  See Jobs API
         documentation for more details.
     :param wait_for_termination: if we should wait for termination of the job run. ``True`` by default.

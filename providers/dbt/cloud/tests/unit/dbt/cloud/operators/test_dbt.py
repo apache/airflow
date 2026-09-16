@@ -158,6 +158,7 @@ class TestDbtCloudRunJobOperator:
         "airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_run_status",
         return_value=DbtCloudJobRunStatus.ERROR.value,
     )
+    @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.log_job_run_failure_details")
     @patch("airflow.providers.dbt.cloud.operators.dbt.DbtCloudRunJobOperator.defer")
     @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_connection")
     @patch(
@@ -165,7 +166,7 @@ class TestDbtCloudRunJobOperator:
         return_value=mock_response_json(DEFAULT_ACCOUNT_JOB_RUN_RESPONSE),
     )
     def test_execute_failed_before_getting_deferred(
-        self, mock_trigger_job_run, mock_dbt_hook, mock_defer, mock_job_run_status
+        self, mock_trigger_job_run, mock_dbt_hook, mock_defer, mock_log_failure_details, mock_job_run_status
     ):
         dbt_op = DbtCloudRunJobOperator(
             dbt_cloud_conn_id=ACCOUNT_ID_CONN,
@@ -558,7 +559,13 @@ class TestDbtCloudRunJobOperator:
             )
 
             if job_run_status in DbtCloudJobRunStatus.TERMINAL_STATUSES.value:
-                assert mock_get_job_run.call_count == 1
+                if job_run_status in (
+                    DbtCloudJobRunStatus.ERROR.value,
+                    DbtCloudJobRunStatus.CANCELLED.value,
+                ):
+                    assert mock_get_job_run.call_count == 2
+                else:
+                    assert mock_get_job_run.call_count == 1
             else:
                 # When the job run status is not in a terminal status or "Success", the operator will
                 # continue to call ``get_job_run()`` until a ``timeout`` number of seconds has passed
@@ -567,6 +574,80 @@ class TestDbtCloudRunJobOperator:
                 # To make it more dynamic, try and calculate number of calls
                 max_number_of_calls = timeout // self.config["check_interval"] + 1
                 assert mock_get_job_run.call_count <= max_number_of_calls
+
+    @patch(
+        "airflow.providers.dbt.cloud.operators.dbt.inject_parent_job_information_into_dbt_cloud_cause",
+        return_value='{"parent": "info"}',
+    )
+    @patch.object(
+        DbtCloudHook, "trigger_job_run", return_value=mock_response_json(DEFAULT_ACCOUNT_JOB_RUN_RESPONSE)
+    )
+    def test_execute_injects_openlineage_parent_job_info_into_cause(self, mock_run_job, mock_inject):
+        operator = DbtCloudRunJobOperator(
+            task_id=TASK_ID,
+            dbt_cloud_conn_id=ACCOUNT_ID_CONN,
+            job_id=JOB_ID,
+            dag=self.dag,
+            wait_for_termination=False,
+            openlineage_inject_parent_job_info=True,
+        )
+
+        operator.execute(context=self.mock_context)
+
+        mock_inject.assert_called_once_with(
+            f"Triggered via Apache Airflow by task {TASK_ID!r} in the {self.dag.dag_id} DAG.",
+            self.mock_ti,
+        )
+        assert mock_run_job.call_args.kwargs["cause"] == '{"parent": "info"}'
+
+    @patch(
+        "airflow.providers.dbt.cloud.operators.dbt.inject_parent_job_information_into_dbt_cloud_cause",
+        side_effect=lambda cause, ti: cause,
+    )
+    @patch.object(
+        DbtCloudHook, "trigger_job_run", return_value=mock_response_json(DEFAULT_ACCOUNT_JOB_RUN_RESPONSE)
+    )
+    def test_execute_injection_skipped_keeps_original_cause(self, mock_run_job, mock_inject):
+        # When the identifiers do not fit, the helper returns the cause unchanged.
+        operator = DbtCloudRunJobOperator(
+            task_id=TASK_ID,
+            dbt_cloud_conn_id=ACCOUNT_ID_CONN,
+            job_id=JOB_ID,
+            dag=self.dag,
+            wait_for_termination=False,
+            openlineage_inject_parent_job_info=True,
+        )
+
+        operator.execute(context=self.mock_context)
+
+        assert (
+            mock_run_job.call_args.kwargs["cause"]
+            == f"Triggered via Apache Airflow by task {TASK_ID!r} in the {self.dag.dag_id} DAG."
+        )
+
+    @patch(
+        "airflow.providers.dbt.cloud.operators.dbt.inject_parent_job_information_into_dbt_cloud_cause",
+    )
+    @patch.object(
+        DbtCloudHook, "trigger_job_run", return_value=mock_response_json(DEFAULT_ACCOUNT_JOB_RUN_RESPONSE)
+    )
+    def test_execute_does_not_inject_parent_job_info_by_default(self, mock_run_job, mock_inject):
+        operator = DbtCloudRunJobOperator(
+            task_id=TASK_ID,
+            dbt_cloud_conn_id=ACCOUNT_ID_CONN,
+            job_id=JOB_ID,
+            dag=self.dag,
+            wait_for_termination=False,
+        )
+
+        assert operator.openlineage_inject_parent_job_info is False
+        operator.execute(context=self.mock_context)
+
+        mock_inject.assert_not_called()
+        assert (
+            mock_run_job.call_args.kwargs["cause"]
+            == f"Triggered via Apache Airflow by task {TASK_ID!r} in the {self.dag.dag_id} DAG."
+        )
 
     @patch.object(DbtCloudHook, "trigger_job_run")
     @pytest.mark.parametrize(

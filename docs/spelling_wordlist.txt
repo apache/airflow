@@ -474,6 +474,7 @@ dependant
 DependencyMixin
 Deprecations
 deprecations
+deprioritize
 deps
 deques
 deregister
@@ -1632,6 +1633,7 @@ Stackdriver
 stackdriver
 stacklevel
 stacktrace
+Starlette
 starttls
 stateful
 StatefulSet
