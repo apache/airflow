@@ -399,6 +399,68 @@ class TestGetDagRun:
         body = response.json()
         assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
 
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_get_dag_run_serialization_leaves_ti_collections_unloaded(self, test_client, dag_maker, session):
+        from sqlalchemy import inspect as sa_inspect
+
+        from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
+        from airflow.api_fastapi.core_api.routes.public.dag_run import get_dag_run
+        from airflow.models.dag_version import DagVersion
+        from airflow.models.taskinstance import clear_task_instances
+        from airflow.models.taskinstancehistory import TaskInstanceHistory
+
+        dag_id = "test_get_dag_run_prefetch_history"
+        with dag_maker(
+            dag_id=dag_id, schedule=None, start_date=START_DATE1, bundle_version="v1", serialized=True
+        ):
+            EmptyOperator(task_id="0")
+            EmptyOperator(task_id="1")
+        dag_run = dag_maker.create_dagrun(state=DagRunState.SUCCESS)
+        old_dag_version = DagVersion.get_latest_version(dag_id)
+        for ti in dag_run.task_instances:
+            ti.state = TaskInstanceState.SUCCESS
+            session.merge(ti)
+        session.flush()
+
+        with dag_maker(
+            dag_id=dag_id, schedule=None, start_date=START_DATE1, bundle_version="v2", serialized=True
+        ):
+            EmptyOperator(task_id="0")
+            EmptyOperator(task_id="1")
+        new_dag_version = DagVersion.get_latest_version(dag_id)
+        assert old_dag_version.id != new_dag_version.id
+
+        clear_task_instances(list(dag_run.task_instances), session, run_on_latest_version=True)
+        session.commit()
+        run_id = dag_run.run_id
+
+        tih_version_ids = set(
+            session.scalars(
+                select(TaskInstanceHistory.dag_version_id).where(
+                    TaskInstanceHistory.dag_id == dag_id,
+                    TaskInstanceHistory.run_id == run_id,
+                    TaskInstanceHistory.dag_version_id.isnot(None),
+                )
+            )
+        )
+        assert old_dag_version.id in tih_version_ids
+
+        session.expire_all()
+        dag_run = get_dag_run(dag_id=dag_id, dag_run_id=run_id, session=session)
+        response = DAGRunResponse.model_validate(dag_run)
+
+        unloaded = sa_inspect(dag_run).unloaded
+        assert "task_instances" in unloaded
+        assert "task_instances_histories" in unloaded
+        assert {dv.id for dv in response.dag_versions} == {old_dag_version.id, new_dag_version.id}
+
+        http = test_client.get(f"/dags/{dag_id}/dagRuns/{run_id}")
+        assert http.status_code == 200
+        assert {dv["id"] for dv in http.json()["dag_versions"]} == {
+            str(old_dag_version.id),
+            str(new_dag_version.id),
+        }
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(f"/dags/{DAG1_ID}/dagRuns/invalid")
         assert response.status_code == 401
