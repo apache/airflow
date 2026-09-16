@@ -114,7 +114,7 @@ def test_build_checkout_reproduction_commands_plain_sha(monkeypatch):
     assert commands[0].argv == ["git", "checkout", "def456"]
 
 
-@mock.patch("airflow_breeze.utils.reproduce_ci.get_console", autospec=True)
+@mock.patch("airflow_breeze.utils.reproduce_ci.get_stderr_console", autospec=True)
 def test_print_local_reproduction_renders_copyable_commands(mock_get_console, monkeypatch):
     monkeypatch.setenv("CI", "true")
     monkeypatch.setenv("GITHUB_ACTIONS", "true")
