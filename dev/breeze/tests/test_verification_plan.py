@@ -218,3 +218,25 @@ def test_lean_and_full_plans_agree_when_the_change_does_not_expand():
             ]
         )
     )
+
+
+def test_full_plan_adds_the_jobs_ci_runs_on_every_pr():
+    files = ("airflow-core/docs/index.rst",)
+    sc = _selective_checks(files)
+    lean = build_local_verification_plan(sc, files, "main", full_tests_needed=False)["items"]
+    full = build_local_verification_plan(sc, files, "main", full_tests_needed=False, full=True)["items"]
+    assert [i["command"] for i in full] == [
+        *(i["command"] for i in lean),
+        "cd dev/breeze && uv run --locked pytest",
+        "for d in "
+        + " ".join(sorted(json.loads(sc.shared_distributions_as_json)))
+        + "; do (cd shared/$d && uv run --group dev pytest) || exit 1; done",
+    ]
+
+
+def test_full_plan_does_not_duplicate_breeze_tests_for_a_breeze_change():
+    files = ("dev/breeze/src/airflow_breeze/breeze.py",)
+    full = build_local_verification_plan(
+        _selective_checks(files), files, "main", full_tests_needed=True, full=True
+    )
+    assert [i["command"] for i in full["items"]].count("cd dev/breeze && uv run --locked pytest") == 1

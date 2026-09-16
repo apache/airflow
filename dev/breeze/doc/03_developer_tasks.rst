@@ -333,7 +333,8 @@ is a usage error such as a base ref git cannot resolve.
 
 Each row says what kind of check it is, whether it runs on the host or needs Docker and the
 CI image (``breeze``), and the exact command. Jobs CI runs on every PR regardless of the change
-(breeze's own unit tests, the shared distributions, the translation check) are not listed.
+(breeze's own unit tests, the shared distributions) only show up with ``--full``. The translation
+check is never listed: CI runs it with ``|| true``, so it cannot fail a PR.
 Use ``--json`` for machine-readable output with the same fields.
 
 When a change touches CI tooling or dependency files, selective checks make CI run the full suite.
