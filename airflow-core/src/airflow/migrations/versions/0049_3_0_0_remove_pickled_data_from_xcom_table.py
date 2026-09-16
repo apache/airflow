@@ -182,6 +182,61 @@ _XCOM_SQLITE_SANITIZE_SQL = """
             """
 _SQLITE_JSON_VALID_GUARD = "AND NOT json_valid(CAST(value AS TEXT))"
 
+# --- Values that no valid JSONB document can hold (PostgreSQL only).
+#
+# jsonb stores the offset of every array element / object pair in 28 bits, so the elements of one
+# document cannot total more than 268435455 bytes. bytea has no such limit (1 GB), so Airflow 2
+# could store an XCom that jsonb cannot represent at all. The ALTER below is a single atomic
+# statement, so one such row aborts the whole migration with ProgramLimitExceeded and the upgrade
+# cannot proceed. Those rows are moved to _xcom_archive, next to the pickled ones, so the rest of
+# the table converts; the two are told apart by their first byte (0x80 for pickled).
+#
+# The cap applies to the elements, not to the value as a whole, so size alone decides nothing in
+# either direction. A long top-level string can be far bigger than the cap and still convert. In
+# the other direction the parse expands the value enormously, so a value far *under* the cap can
+# still fail: the densest possible input is a bare "1," at two bytes per element, and on
+# PostgreSQL 16 an array of those converts up to about 30 MB of text and fails from roughly 34 MB
+# ("invalid memory alloc request size 1073741824" -- it exhausts the 1 GB allocation limit long
+# before the element cap is reached). Rows are therefore cast one at a time and only the ones that
+# actually fail are moved.
+#
+# The size test exists only to keep that probe off rows that cannot be affected, so it is set well
+# below the measured boundary rather than derived from the cap, which is not what a value this
+# shape hits first. The handler is deliberately broad: anything the cast cannot take belongs in
+# the archive rather than in a failed upgrade.
+_PG_JSONB_MAX_ELEMENT_BYTES = 268435455
+_PG_JSONB_PROBE_THRESHOLD = 8 * 1024 * 1024
+_XCOM_PG_JSONB_FITS_SQL = r"""
+                CREATE OR REPLACE FUNCTION pg_temp._airflow_xcom_jsonb_fits(val bytea)
+                RETURNS boolean AS $$
+                BEGIN
+                    PERFORM convert_from(val, 'UTF8')::jsonb;
+                    RETURN true;
+                EXCEPTION WHEN others THEN
+                    RETURN false;
+                END;
+                $$ LANGUAGE plpgsql
+            """
+_XCOM_PG_OVERSIZED_WHERE = """value IS NOT NULL
+                    AND octet_length(value) > __THRESHOLD__
+                    AND NOT pg_temp._airflow_xcom_jsonb_fits(value)"""
+_XCOM_PG_OVERSIZED_REPORT_SQL = """
+                SELECT dag_id, task_id, run_id, __KEY__, octet_length(value)
+                FROM __TABLE__
+                WHERE __WHERE__
+                ORDER BY octet_length(value) DESC
+            """
+_XCOM_PG_OVERSIZED_ARCHIVE_SQL = """
+                INSERT INTO __ARCHIVE__ (dag_run_id, task_id, map_index, __KEY__, dag_id, run_id, value, timestamp)
+                SELECT dag_run_id, task_id, map_index, __KEY__, dag_id, run_id, value, timestamp
+                FROM __TABLE__
+                WHERE __WHERE__
+            """
+_XCOM_PG_OVERSIZED_DELETE_SQL = """
+                DELETE FROM __TABLE__
+                WHERE __WHERE__
+            """
+
 
 def _xcom_pg_sanitize_statements(table: str = "xcom") -> list[str]:
     return [
@@ -207,6 +262,38 @@ def _xcom_sqlite_sanitize_statements(table: str = "xcom", json1: bool = True) ->
     ]
 
 
+def _xcom_pg_oversized_statements(
+    table: str = "xcom",
+    archive: str = "_xcom_archive",
+    quoted_key: str = '"key"',
+    probe_threshold: int = _PG_JSONB_PROBE_THRESHOLD,
+) -> dict[str, str]:
+    """
+    Build the SQL that moves rows JSONB cannot hold out of ``table``.
+
+    ``create`` defines the session-local cast probe and has to run first; ``report`` lists the
+    rows for the upgrade log, ``archive`` copies them and ``delete`` removes them.
+    ``probe_threshold`` is only the size screen in front of the probe, never the decision, so
+    tests can lower it.
+    """
+    where = _XCOM_PG_OVERSIZED_WHERE.replace("__THRESHOLD__", str(probe_threshold))
+
+    def _fill(sql: str) -> str:
+        return (
+            sql.replace("__WHERE__", where)
+            .replace("__TABLE__", table)
+            .replace("__ARCHIVE__", archive)
+            .replace("__KEY__", quoted_key)
+        )
+
+    return {
+        "create": _XCOM_PG_JSONB_FITS_SQL,
+        "report": _fill(_XCOM_PG_OVERSIZED_REPORT_SQL),
+        "archive": _fill(_XCOM_PG_OVERSIZED_ARCHIVE_SQL),
+        "delete": _fill(_XCOM_PG_OVERSIZED_DELETE_SQL),
+    }
+
+
 def _sqlite_has_json1(conn) -> bool:
     """Whether this SQLite build provides json_valid() (the JSON1 extension)."""
     try:
@@ -218,6 +305,26 @@ def _sqlite_has_json1(conn) -> bool:
     return True
 
 
+_OVERSIZED_REPORT_LIMIT = 25
+
+
+def _report_oversized_xcom_rows(rows) -> None:
+    """Tell the operator which XComs were archived instead of converted, and why."""
+    if not rows:
+        return
+    print(
+        f"{len(rows)} XCom value(s) cannot be converted to PostgreSQL's JSONB format: a single "
+        f"document holds at most {_PG_JSONB_MAX_ELEMENT_BYTES} bytes of array elements / object "
+        "pairs, and converting a value of this size can exhaust memory before even that. They "
+        "are being moved to the _xcom_archive table, where they stay readable as the original "
+        "bytes. The rows are listed below as dag_id/task_id/run_id/key (bytes):"
+    )
+    for dag_id, task_id, run_id, key, size in rows[:_OVERSIZED_REPORT_LIMIT]:
+        print(f"  {dag_id}/{task_id}/{run_id}/{key} ({size} bytes)")
+    if len(rows) > _OVERSIZED_REPORT_LIMIT:
+        print(f"  ... and {len(rows) - _OVERSIZED_REPORT_LIMIT} more")
+
+
 def upgrade():
     """Apply Remove pickled data from xcom table."""
     # Summary of the change:
@@ -225,7 +332,8 @@ def upgrade():
     # 2. Extract and archive the pickled data using the condition
     # 3. Delete the pickled data from the xcom table so that we can update the column type
     # 4. Sanitize values illegal in strict JSON/JSONB (strip the U+0000 NUL escape, null out NaN/Infinity)
-    # 5. Update the XCom.value column type to JSON from LargeBinary/LongBlob
+    # 5. Archive and delete values too large for JSONB to represent (PostgreSQL only)
+    # 6. Update the XCom.value column type to JSON from LargeBinary/LongBlob
 
     conn = op.get_bind()
     dialect = conn.dialect.name
@@ -294,6 +402,15 @@ def upgrade():
     if dialect == "postgresql":
         for stmt in _xcom_pg_sanitize_statements():
             conn.execute(text(stmt))
+
+        # Move aside the values JSONB cannot hold at all. This runs after sanitization so that a
+        # large row that was only unconvertible because of a NaN is kept rather than archived.
+        oversized = _xcom_pg_oversized_statements(quoted_key=quoted_key)
+        conn.execute(text(oversized["create"]))
+        if not context.is_offline_mode():
+            _report_oversized_xcom_rows(conn.execute(text(oversized["report"])).all())
+        conn.execute(text(oversized["archive"]))
+        conn.execute(text(oversized["delete"]))
 
         op.execute(
             """

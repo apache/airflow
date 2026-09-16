@@ -21,9 +21,10 @@ Regression tests for migration 0049 (eed27faa34e3) value sanitization.
 
 The 2.x -> 3.x conversion of ``xcom.value`` from pickled bytea to JSON/JSONB must not choke on
 values that are legal in the pickled blob but illegal in strict JSON/JSONB: non-finite floats
-(NaN/Infinity/-Infinity) and the U+0000 (NUL) escape. It must leave a value that already parses
-as JSON untouched, including one that wraps another JSON document with its interior quotes
-escaped, and it must not corrupt a literal backslash-u-0000 in the data. These tests run the
+(NaN/Infinity/-Infinity) and the U+0000 (NUL) escape. On PostgreSQL it must also survive a
+value that no JSONB document can hold, which bytea accepted in Airflow 2. It must leave a value
+that already parses as JSON untouched, including one that wraps another JSON document with its
+interior quotes escaped, and it must not corrupt a literal backslash-u-0000 in the data. These tests run the
 migration's own per-dialect SQL against an isolated table.
 """
 
@@ -235,3 +236,105 @@ class TestMysqlSanitize:
         finally:
             with settings.engine.begin() as conn:
                 conn.execute(sa.text(drop))
+
+
+@pytest.mark.db_test
+class TestPostgresOversized:
+    """
+    A value JSONB cannot represent must be archived instead of aborting the migration.
+
+    The real trigger is a value whose elements exceed 268435455 bytes, which is impractical to
+    write in a test. The migration screens on size and then decides by trying the cast, so the
+    test lowers the screen and uses a value the cast rejects for a different reason: it exercises
+    the same probe, the same archive and the same delete. The companion row is over the lowered
+    screen too and casts fine, which is what proves the size alone does not archive a row.
+    """
+
+    _ARCHIVE = "_test_xcom_oversized_archive"
+    _THRESHOLD = 64
+
+    @pytest.mark.backend("postgres")
+    def test_unconvertible_row_is_archived_and_cast_succeeds(self):
+        big_ok = json.dumps({"payload": "x" * 200})  # over the lowered cap, valid JSON
+        # Not JSON at all: it stands in for a value JSONB cannot hold. The first byte is not 0x80,
+        # because the pickled rows are already gone by the time this step runs.
+        bad = b"not json " + b"y" * 200
+        stmts = _migration._xcom_pg_oversized_statements(
+            table=_TABLE, archive=self._ARCHIVE, probe_threshold=self._THRESHOLD
+        )
+        drop = f"DROP TABLE IF EXISTS {_TABLE}, {self._ARCHIVE}"
+        with settings.engine.begin() as conn:
+            conn.execute(sa.text(drop))
+            for name in (_TABLE, self._ARCHIVE):
+                conn.execute(
+                    sa.text(
+                        f"""CREATE TABLE {name} (
+                            dag_run_id int, task_id text, map_index int, "key" text,
+                            dag_id text, run_id text, value bytea, timestamp timestamptz
+                        )"""
+                    )
+                )
+            for row_id, value in ((1, big_ok.encode("utf-8")), (2, bad), (3, b'{"small": 1}')):
+                conn.execute(
+                    sa.text(
+                        f"""INSERT INTO {_TABLE} VALUES
+                        (:i, 'task', -1, 'return_value', 'dag', 'run', :v, now())"""
+                    ),
+                    {"i": row_id, "v": value},
+                )
+        try:
+            with settings.engine.begin() as conn:
+                conn.execute(sa.text(stmts["create"]))
+                reported = conn.execute(sa.text(stmts["report"])).all()
+                conn.execute(sa.text(stmts["archive"]))
+                conn.execute(sa.text(stmts["delete"]))
+                # The whole point: the cast the migration performs now succeeds.
+                kept = conn.execute(
+                    sa.text(f"SELECT dag_run_id, CAST(CONVERT_FROM(value, 'UTF8') AS JSONB) FROM {_TABLE}")
+                ).all()
+                archived = conn.execute(sa.text(f"SELECT dag_run_id FROM {self._ARCHIVE}")).all()
+
+            assert [r[0] for r in reported] == ["dag"]
+            assert reported[0][4] == len(bad)
+            assert [r[0] for r in archived] == [2]
+            # The valid row above the screen stays: size alone does not archive it.
+            assert sorted(r[0] for r in kept) == [1, 3]
+        finally:
+            with settings.engine.begin() as conn:
+                conn.execute(sa.text(drop))
+
+
+def test_pg_oversized_statements_screen_well_below_the_cap():
+    """
+    The size screen must sit far below the JSONB element limit to be a safe filter.
+
+    Converting a value expands it enormously, so screening at the element limit -- or anywhere
+    near it -- would let a value through that the cast then rejects, which is the failure this
+    whole step exists to prevent. Measured on PostgreSQL 16, the densest possible input (a bare
+    ``1,`` per element) converts up to about 30 MB of text and fails from roughly 34 MB. The
+    screen has to stay well under that; the probe is what actually decides.
+    """
+    assert _migration._PG_JSONB_MAX_ELEMENT_BYTES == 268435455
+    assert _migration._PG_JSONB_PROBE_THRESHOLD <= 16 * 1024 * 1024
+
+    stmts = _migration._xcom_pg_oversized_statements()
+    for key in ("report", "archive", "delete"):
+        assert f"octet_length(value) > {_migration._PG_JSONB_PROBE_THRESHOLD}" in stmts[key]
+        assert "_airflow_xcom_jsonb_fits" in stmts[key]
+    assert "INSERT INTO _xcom_archive" in stmts["archive"]
+
+
+def test_report_oversized_rows_lists_and_truncates(capsys):
+    """The operator gets the identifying columns, and a long list is capped with a count."""
+    rows = [("dag", f"task{i}", "run", "return_value", 300_000_000) for i in range(30)]
+    _migration._report_oversized_xcom_rows(rows)
+    out = capsys.readouterr().out
+    assert "30 XCom value(s) cannot be converted" in out
+    assert "_xcom_archive" in out
+    assert "dag/task0/run/return_value (300000000 bytes)" in out
+    assert "task24" in out
+    assert "task25" not in out
+    assert "... and 5 more" in out
+
+    _migration._report_oversized_xcom_rows([])
+    assert capsys.readouterr().out == ""
