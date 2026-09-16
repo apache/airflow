@@ -3660,6 +3660,7 @@ paths:
         required: false
         schema:
           anyOf:
+          - $ref: '#/components/schemas/DagWarningType'
           - type: string
           - type: 'null'
           title: Warning Type
@@ -14022,7 +14023,9 @@ components:
           type: string
           title: Dag Id
         warning_type:
-          type: string
+          anyOf:
+          - $ref: '#/components/schemas/DagWarningType'
+          - type: string
           title: Warning Type
         message:
           type: string
@@ -14444,6 +14447,20 @@ components:
       - bundle_url
       title: DagVersionResponse
       description: Dag Version serializer for responses.
+    DagWarningType:
+      type: string
+      enum:
+      - asset conflict
+      - duplicate dag id
+      - non-existent pool
+      - runtime varying value
+      title: DagWarningType
+      description: 'Enum for DAG warning types.
+
+
+        This is the set of allowable values for the ``warning_type`` field
+
+        in the DagWarning model.'
     DryRunBackfillCollectionResponse:
       properties:
         backfills:

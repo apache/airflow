@@ -4401,7 +4401,14 @@ export const $DAGWarningResponse = {
             title: 'Dag Id'
         },
         warning_type: {
-            type: 'string',
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/DagWarningType'
+                },
+                {
+                    type: 'string'
+                }
+            ],
             title: 'Warning Type'
         },
         message: {
@@ -4957,6 +4964,16 @@ export const $DagVersionResponse = {
     required: ['id', 'version_number', 'dag_id', 'bundle_name', 'bundle_version', 'created_at', 'dag_display_name', 'bundle_url'],
     title: 'DagVersionResponse',
     description: 'Dag Version serializer for responses.'
+} as const;
+
+export const $DagWarningType = {
+    type: 'string',
+    enum: ['asset conflict', 'duplicate dag id', 'non-existent pool', 'runtime varying value'],
+    title: 'DagWarningType',
+    description: `Enum for DAG warning types.
+
+This is the set of allowable values for the \`\`warning_type\`\` field
+in the DagWarning model.`
 } as const;
 
 export const $DryRunBackfillCollectionResponse = {

@@ -544,18 +544,6 @@ class DagBundleResponse(BaseModel):
     ]
 
 
-class DAGWarningResponse(BaseModel):
-    """
-    Dag Warning serializer for responses.
-    """
-
-    dag_id: Annotated[str, Field(title="Dag Id")]
-    warning_type: Annotated[str, Field(title="Warning Type")]
-    message: Annotated[str, Field(title="Message")]
-    timestamp: Annotated[datetime, Field(title="Timestamp")]
-    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
-
-
 class DagProcessorInstanceInfoResponse(BaseModel):
     """
     Dag processor instance info serializer for responses.
@@ -702,6 +690,20 @@ class DagVersionResponse(BaseModel):
     created_at: Annotated[datetime, Field(title="Created At")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     bundle_url: Annotated[str | None, Field(title="Bundle Url")]
+
+
+class DagWarningType(str, Enum):
+    """
+    Enum for DAG warning types.
+
+    This is the set of allowable values for the ``warning_type`` field
+    in the DagWarning model.
+    """
+
+    ASSET_CONFLICT = "asset conflict"
+    DUPLICATE_DAG_ID = "duplicate dag id"
+    NON_EXISTENT_POOL = "non-existent pool"
+    RUNTIME_VARYING_VALUE = "runtime varying value"
 
 
 class DryRunBackfillResponse(BaseModel):
@@ -1979,13 +1981,16 @@ class DAGVersionCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
-class DAGWarningCollectionResponse(BaseModel):
+class DAGWarningResponse(BaseModel):
     """
-    Dag warning collection serializer for responses.
+    Dag Warning serializer for responses.
     """
 
-    dag_warnings: Annotated[list[DAGWarningResponse], Field(title="Dag Warnings")]
-    total_entries: Annotated[int, Field(title="Total Entries")]
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    warning_type: Annotated[DagWarningType | str, Field(title="Warning Type")]
+    message: Annotated[str, Field(title="Message")]
+    timestamp: Annotated[datetime, Field(title="Timestamp")]
+    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
 
 
 class DagBundleCollectionResponse(BaseModel):
@@ -2516,6 +2521,15 @@ class DAGRunCollectionResponse(BaseModel):
             title="Previous Cursor",
         ),
     ] = None
+
+
+class DAGWarningCollectionResponse(BaseModel):
+    """
+    Dag warning collection serializer for responses.
+    """
+
+    dag_warnings: Annotated[list[DAGWarningResponse], Field(title="Dag Warnings")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
 
 
 class DagStatsCollectionResponse(BaseModel):

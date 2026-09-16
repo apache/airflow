@@ -62,13 +62,13 @@ class DagWarning(Base):
         Index("idx_dag_warning_dag_id", dag_id),
     )
 
-    def __init__(self, dag_id: str, warning_type: str, message: str, **kwargs):
+    def __init__(self, dag_id: str, warning_type: DagWarningType | str, message: str, **kwargs):
         super().__init__(**kwargs)
         self.dag_id = dag_id
-        try:
-            self.warning_type = DagWarningType(warning_type).value
-        except ValueError:
-            self.warning_type = str(warning_type)
+        # Dag importers supply their own warning types, so anything outside the enum is kept verbatim.
+        self.warning_type = (
+            warning_type.value if isinstance(warning_type, DagWarningType) else str(warning_type)
+        )
         self.message = message
 
     def __eq__(self, other) -> bool:
