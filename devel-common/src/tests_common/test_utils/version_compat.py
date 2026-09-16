@@ -43,6 +43,7 @@ AIRFLOW_V_3_2_PLUS = get_base_airflow_version_tuple() >= (3, 2, 0)
 AIRFLOW_V_3_2_2_PLUS = get_base_airflow_version_tuple() >= (3, 2, 2)
 AIRFLOW_V_3_3_PLUS = get_base_airflow_version_tuple() >= (3, 3, 0)
 AIRFLOW_V_3_4_PLUS = get_base_airflow_version_tuple() >= (3, 4, 0)
+AIRFLOW_V_3_5_PLUS = get_base_airflow_version_tuple() >= (3, 5, 0)
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import PokeReturnValue, timezone
