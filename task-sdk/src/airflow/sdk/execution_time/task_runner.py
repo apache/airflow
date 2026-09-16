@@ -25,14 +25,15 @@ import inspect
 import os
 import sys
 import time
+from asyncio import TimeoutError as AsyncTimeoutError, wait_for
 from collections.abc import Callable, Iterable, Iterator, Mapping
-from contextlib import AbstractContextManager, ExitStack, contextmanager, nullcontext, suppress
+from contextlib import ExitStack, contextmanager, suppress
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from functools import cached_property
 from itertools import product
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, Literal
+from typing import TYPE_CHECKING, Annotated, Any, Literal, cast
 from urllib.parse import quote
 
 import attrs
@@ -59,7 +60,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstanceState,
     TIRunContext,
 )
-from airflow.sdk.bases.operator import BaseOperator, ExecutorSafeguard
+from airflow.sdk.bases.operator import BaseAsyncOperator, BaseOperator, ExecutorSafeguard
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
@@ -137,7 +138,6 @@ from airflow.sdk.execution_time.context import (
     TriggeringAssetEventsAccessor,
     VariableAccessor,
     _get_worker_state_store_backend,
-    airflow_context_vars_context,
     context_get_outlet_events,
     context_to_airflow_vars,
     get_previous_dagrun_success,
@@ -2356,39 +2356,69 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
             assert isinstance(kwargs, dict)
         execute = functools.partial(task.resume_execution, next_method=next_method, next_kwargs=kwargs)
 
-    # Indexed sub-tasks run concurrently (each in its own thread) within the same process via
-    # AsyncAwareExecutor, so mutating shared os.environ would race across tasks. Scope
-    # AIRFLOW_CTX_* to this thread instead via a context var; get_airflow_context_var() reads
-    # it back for callers that would otherwise read os.environ directly.
-    airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
-    env_context: AbstractContextManager[None]
-    if isinstance(ti, IndexedTaskInstance):
-        env_context = airflow_context_vars_context(airflow_context_vars)
-    else:
-        # Export context in os.environ to make it available for operators to use.
-        os.environ.update(airflow_context_vars)
-        env_context = nullcontext()
+    # Export the context to os.environ for operators that read AIRFLOW_CTX_* directly. Indexed
+    # sub-tasks skip this: they run concurrently in one process, so the update would race, and the
+    # parent IterableOperator already exported the same values before they started.
+    if not isinstance(ti, IndexedTaskInstance):
+        os.environ.update(context_to_airflow_vars(context, in_env_var_format=True))
 
-    with env_context:
-        outlet_events = context_get_outlet_events(context)
+    outlet_events = _run_pre_execute(task, context, log)
 
-        if (pre_execute_hook := task._pre_execute_hook) is not None:
-            create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
-        if getattr(pre_execute_hook := task.pre_execute, "__func__", None) is not BaseOperator.pre_execute:
-            create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
+    log.info("::endgroup::")
 
-        _run_task_state_change_callbacks(task, "on_execute_callback", context, log)
+    result = _run_execute_callable(context, execute, task)
 
-        log.info("::endgroup::")
-
-        result = _run_execute_callable(context, execute, task)
-
-        if (post_execute_hook := task._post_execute_hook) is not None:
-            create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)
-        if getattr(post_execute_hook := task.post_execute, "__func__", None) is not BaseOperator.post_execute:
-            create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context)
-
+    _run_post_execute(task, context, outlet_events, result, log)
     return result
+
+
+async def _execute_async_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
+    """Async counterpart of :func:`_execute_task` for :class:`BaseAsyncOperator` sub-tasks."""
+    task = cast("BaseAsyncOperator", ti.task)
+    # Async tasks cannot be resuming a deferral, so next_method never applies here.
+    outlet_events = _run_pre_execute(task, context, log)
+
+    ctx = contextvars.copy_context()
+    ctx.run(ExecutorSafeguard.tracker.set, task)
+    coro = ctx.run(lambda: task.aexecute(context=context))
+    try:
+        if task.execution_timeout:
+            result = await wait_for(coro, timeout=task.execution_timeout.total_seconds())
+        else:
+            result = await coro
+    except AsyncTimeoutError:
+        task.on_kill()
+        raise
+
+    _run_post_execute(task, context, outlet_events, result, log)
+    return result
+
+
+def _run_pre_execute(task: BaseOperator, context: Context, log: Logger) -> OutletEventAccessorsProtocol:
+    """Run the pre-execute hooks and the on_execute callback; shared by the sync and async paths."""
+    outlet_events = context_get_outlet_events(context)
+
+    if (pre_execute_hook := task._pre_execute_hook) is not None:
+        create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
+    if getattr(pre_execute_hook := task.pre_execute, "__func__", None) is not BaseOperator.pre_execute:
+        create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
+
+    _run_task_state_change_callbacks(task, "on_execute_callback", context, log)
+    return outlet_events
+
+
+def _run_post_execute(
+    task: BaseOperator,
+    context: Context,
+    outlet_events: OutletEventAccessorsProtocol,
+    result: Any,
+    log: Logger,
+) -> None:
+    """Run the post-execute hooks; shared by the sync and async paths."""
+    if (post_execute_hook := task._post_execute_hook) is not None:
+        create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)
+    if getattr(post_execute_hook := task.post_execute, "__func__", None) is not BaseOperator.post_execute:
+        create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context)
 
 
 def _render_map_index(context: Context, ti: RuntimeTaskInstance, log: Logger) -> str | None:

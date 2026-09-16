@@ -2104,72 +2104,45 @@ def test_run_with_asset_inlets(create_runtime_ti, mock_supervisor_comms):
         inlet_events[Asset(name="no such asset in inlets")]
 
 
-def test_execute_task_exports_context_vars_thread_safely(create_runtime_ti, mock_supervisor_comms):
-    """Test that _execute_task exports airflow context via thread-safe context vars."""
-    from airflow.sdk.execution_time.context import get_airflow_context_var
-
+@mock.patch.dict(os.environ, {}, clear=True)
+def test_execute_task_exports_context_vars_to_environ(create_runtime_ti, mock_supervisor_comms):
+    """A regular task instance exports AIRFLOW_CTX_* to os.environ before the operator runs."""
     captured_vars = {}
 
     def test_function():
-        # Capture context vars during execution - they should be available via get_airflow_context_var
-        captured_vars["dag_id"] = get_airflow_context_var("AIRFLOW_CTX_DAG_ID")
-        captured_vars["task_id"] = get_airflow_context_var("AIRFLOW_CTX_TASK_ID")
+        captured_vars["dag_id"] = os.environ.get("AIRFLOW_CTX_DAG_ID")
+        captured_vars["task_id"] = os.environ.get("AIRFLOW_CTX_TASK_ID")
         return "test function"
 
-    task = PythonOperator(
-        task_id="test_task",
-        python_callable=test_function,
-    )
-
+    task = PythonOperator(task_id="test_task", python_callable=test_function)
     ti = create_runtime_ti(task=task, dag_id="dag_with_ctx_vars")
+
     run(ti, ti.get_template_context(), log=mock.MagicMock())
 
-    # Verify context vars were accessible during task execution
-    assert captured_vars["dag_id"] == "dag_with_ctx_vars"
-    assert captured_vars["task_id"] == "test_task"
-
-    # os.environ should be updated
-    assert os.environ.get("AIRFLOW_CTX_DAG_ID") == "dag_with_ctx_vars"
+    assert captured_vars == {"dag_id": "dag_with_ctx_vars", "task_id": "test_task"}
 
 
-def test_execute_task_scopes_context_vars_for_indexed_task_instance(create_runtime_ti, mock_supervisor_comms):
-    """IndexedTaskInstance sub-tasks run concurrently within the same process (see
-    AsyncAwareExecutor), so _execute_task must not mutate the shared os.environ for them -- it
-    should scope AIRFLOW_CTX_* to the executing thread via airflow_context_vars_context instead.
-    """
-    from airflow.sdk.execution_time.context import get_airflow_context_var
-
-    os.environ.pop("AIRFLOW_CTX_DAG_ID", None)
-
+@mock.patch.dict(os.environ, {}, clear=True)
+def test_execute_task_leaves_environ_alone_for_indexed_task_instance(
+    create_runtime_ti, mock_supervisor_comms
+):
+    """Indexed sub-tasks run concurrently in one process, so _execute_task must not touch the shared
+    os.environ for them; the parent IterableOperator exported the same values before they started."""
     captured_vars = {}
 
     def test_function():
-        captured_vars["dag_id"] = get_airflow_context_var("AIRFLOW_CTX_DAG_ID")
+        captured_vars["dag_id"] = os.environ.get("AIRFLOW_CTX_DAG_ID")
         return "test function"
 
     task = PythonOperator(task_id="test_task", python_callable=test_function)
     ti = create_runtime_ti(task=task, dag_id="dag_with_indexed_ctx_vars")
-
-    indexed_ti = IndexedTaskInstance.model_construct(
-        id=ti.id,
-        task_id=ti.task_id,
-        dag_id=ti.dag_id,
-        run_id=ti.run_id,
-        map_index=ti.map_index,
-        index=0,
-        max_tries=ti.max_tries,
-        start_date=ti.start_date,
-        state=ti.state,
-        is_mapped=True,
-        task=ti.task,
-        try_number=ti.try_number,
+    indexed_ti = IndexedTaskInstance.create_indexed_task(
+        context={"ti": ti, "task": task}, index=0, operator=task
     )
 
     _execute_task(context=indexed_ti.get_template_context(), ti=indexed_ti, log=mock.MagicMock())
 
-    # The value was visible through get_airflow_context_var() inside the task...
-    assert captured_vars["dag_id"] == "dag_with_indexed_ctx_vars"
-    # ...but os.environ, shared across concurrently-running sub-tasks, was left untouched.
+    assert captured_vars == {"dag_id": None}
     assert "AIRFLOW_CTX_DAG_ID" not in os.environ
 
 
