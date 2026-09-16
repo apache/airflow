@@ -120,6 +120,28 @@ try:
                 with pytest.raises(SystemExit, match="Offline migration not supported for SQLite"):
                     FABDBManager(session).upgradedb(from_revision=None, to_revision=None, show_sql_only=True)
 
+        @pytest.mark.parametrize(
+            ("direction", "revision_range", "expected_procedure"),
+            [
+                ("upgrade", "6709f7a774b9:02ca36b0235b", "CREATE PROCEDURE DropEmailUqIfExists()"),
+                ("downgrade", "02ca36b0235b:6709f7a774b9", "CREATE PROCEDURE DropIndexIfExists()"),
+            ],
+        )
+        @mock.patch("airflow.settings.SQL_ALCHEMY_CONN", "mysql+pymysql://user:pass@host/airflow")
+        def test_offline_mysql_sql_generation(
+            self, session, capsys, direction, revision_range, expected_procedure
+        ):
+            # Offline mode hands the migration a MockConnection rather than None, so every
+            # introspection has to be gated on the context's as_sql flag or it raises
+            # NoInspectionAvailable and no script is produced at all.
+            config = FABDBManager(session=session).get_alembic_config()
+
+            getattr(command, direction)(config, revision_range, sql=True)
+
+            script = capsys.readouterr().out
+            assert expected_procedure in script
+            assert "UPDATE alembic_version_fab SET version_num=" in script
+
         @mock.patch("alembic.command.upgrade")
         @mock.patch.object(FABDBManager, "create_db_from_orm")
         @mock.patch.object(FABDBManager, "_has_existing_manager_tables", return_value=False)

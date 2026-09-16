@@ -49,6 +49,14 @@ _naming_convention = {
 }
 
 
+def _get_live_bind():
+    """Return the connection to introspect, or ``None`` in offline (``--sql``) mode."""
+    # In --sql mode alembic swaps the connection for a MockConnection that writes to the output
+    # buffer, so op.get_bind() is never None there and sa.inspect() on it raises
+    # NoInspectionAvailable. as_sql is the only reliable way to tell the two modes apart.
+    return None if op.get_context().as_sql else op.get_bind()
+
+
 def _mysql_run_procedure(procedure_name: str, body: str) -> str:
     """Wrap ``body`` in a throwaway procedure so MySQL can guard DDL behind an ``IF``."""
     # Offline (--sql) only. The result is a multi-statement script: drivers that leave
@@ -163,7 +171,7 @@ def _find_unique_constraint_names(bind, table_name: str, column_name: str) -> li
 
 def _drop_unique_constraint_if_exists(table_name: str, constraint_name: str) -> None:
     dialect_name = op.get_context().dialect.name
-    bind = op.get_bind()
+    bind = _get_live_bind()
 
     if dialect_name == "postgresql":
         op.execute(sa.text(f'ALTER TABLE "{table_name}" DROP CONSTRAINT IF EXISTS "{constraint_name}"'))
@@ -210,7 +218,7 @@ def _resolve_fk_name(bind, table_name: str, column_name: str, default: str) -> s
 
 def _drop_index_if_exists(table_name: str, index_name: str) -> None:
     dialect_name = op.get_context().dialect.name
-    bind = op.get_bind()
+    bind = _get_live_bind()
 
     if dialect_name == "mysql":
         if bind is None:
@@ -241,7 +249,7 @@ def _drop_index_if_exists(table_name: str, index_name: str) -> None:
 
 def upgrade() -> None:
     dialect_name = op.get_context().dialect.name
-    bind = op.get_bind()
+    bind = _get_live_bind()
     if dialect_name == "postgresql":
         op.create_index(
             "idx_ab_user_username",
