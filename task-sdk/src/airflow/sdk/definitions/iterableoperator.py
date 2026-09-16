@@ -419,6 +419,7 @@ class IterableOperator(BaseOperator):
         tasks: Iterable[IndexedTaskInstance],
     ) -> XComIterable | None:
         exceptions: list[Exception] = []
+        checkpoint_keys: list[str] = []
         total = 0
         do_xcom_push = True
 
@@ -433,6 +434,7 @@ class IterableOperator(BaseOperator):
                     tasks,
                 ):
                     total += 1
+                    checkpoint_keys.append(task.xcom_key)
                     do_xcom_push = task.do_xcom_push
 
                     if raised is None:
@@ -504,11 +506,15 @@ class IterableOperator(BaseOperator):
             if len(exceptions) == total and all(isinstance(exc, AirflowSkipException) for exc in exceptions):
                 raise exceptions[0]
             raise BaseExceptionGroup("Multiple sub-task failures", exceptions)
-        # Every index succeeded: drop the checkpoints. A manual clear does not reset try_number
-        # (models.taskinstance.clear_task_instances only raises max_tries), so leaving these behind
-        # would make the next attempt's try_number > 1, causing _run_task to treat every index as
-        # already-succeeded and replay stale results instead of re-running anything.
-        context["task_state_store"].clear()
+        # Every index succeeded: drop the per-index checkpoints. A manual clear does not reset
+        # try_number (models.taskinstance.clear_task_instances only raises max_tries), so leaving
+        # these behind would make the next attempt's try_number > 1, causing _run_task to treat every
+        # index as already-succeeded and replay stale results instead of re-running anything. Only
+        # the keys this operator wrote are removed: the store is scoped to the parent task instance,
+        # so any state a sub-task stored for itself (a watermark, a remote job id) must survive.
+        store = context["task_state_store"]
+        for key in checkpoint_keys:
+            store.delete(key)
         if do_xcom_push:
             return XComIterable(
                 task_id=self.task_id,

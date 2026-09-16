@@ -71,7 +71,7 @@ if TYPE_CHECKING:
 class MockTaskStateStoreAccessor:
     """Minimal in-memory stand-in for ``TaskStateStoreAccessor``, exposing only the async
     ``aget``/``aset`` methods used by ``IterableOperator`` to checkpoint per-index sub-task
-    progress (see ``IterableOperator._run_task``), plus ``clear`` used to drop all checkpoints
+    progress (see ``IterableOperator._run_task``), plus ``delete`` used to drop each checkpoint
     once every sub-task has succeeded (see ``IterableOperator._run_tasks``)."""
 
     def __init__(self):
@@ -83,8 +83,8 @@ class MockTaskStateStoreAccessor:
     async def aset(self, key: str, value: Any, **kwargs) -> None:
         self._data[key] = value
 
-    def clear(self) -> None:
-        self._data.clear()
+    def delete(self, key: str) -> None:
+        self._data.pop(key, None)
 
     def __contains__(self, key: str) -> bool:
         return key in self._data
@@ -635,13 +635,14 @@ class TestIterableOperator:
                 materialized = list(result)
                 assert materialized == [(1, None, None), (2, None, None)]
 
-    def test_execute_clears_checkpoints_once_every_index_succeeds(self):
+    def test_execute_clears_only_its_checkpoints_once_every_index_succeeds(self):
         """
-        Regression test: once every sub-task index has succeeded, ``_run_tasks`` must drop all
+        Regression test: once every sub-task index has succeeded, ``_run_tasks`` must drop the
         per-index checkpoints from the task_state_store. A manual clear does not reset the parent
         TI's ``try_number`` (see ``clear_task_instances``), so leftover ``SUCCESS`` checkpoints would
         make the next attempt skip every index and replay the previous run's stale XCom results
-        instead of actually re-running anything.
+        instead of actually re-running anything. The store is scoped to the parent task instance,
+        so state written by user code inside the iterated task must not be touched.
         """
         with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}])
@@ -649,12 +650,13 @@ class TestIterableOperator:
 
             with mock_context(task=iterable_op) as context:
                 store = context["task_state_store"]
-                # Simulate leftover checkpoints from a previous run.
-                store._data["stale_key"] = {"status": "success"}
+                store._data["last_offset"] = 42
+                # Simulate a leftover checkpoint from a previous run.
+                store._data["exec_clears_checkpoints_0"] = {"status": "success", "try_number": 1}
 
                 list(iterable_op.execute(context=context))
 
-                assert store._data == {}
+                assert store._data == {"last_offset": 42}
 
     def test_execute_does_not_leak_unmapped_operator_into_parent_context(self):
         """
