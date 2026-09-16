@@ -718,7 +718,10 @@ class TestLLMSQLQueryOperatorApproval:
         with pytest.raises(ApprovalPauseSignal) as exc_info:
             op.execute(context=ctx)
 
-        assert exc_info.value.timeout == timeout
+        if AIRFLOW_V_3_3_PLUS:
+            assert exc_info.value.timeout == timeout
+        else:
+            assert mock_trigger_cls.call_args[1]["timeout_datetime"] is not None
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_without_approval_returns_sql(self, mock_hook_cls, make_mock_run_result):
@@ -765,7 +768,7 @@ class TestLLMSQLQueryOperatorApproval:
     def test_execute_complete_approved(self):
         """execute_complete returns SQL when approved."""
         op = LLMSQLQueryOperator(task_id="t", prompt="p", llm_conn_id="c")
-        event = {"chosen_options": ["Approve"], "responded_by_user": "admin"}
+        event = {"chosen_options": ["Approve"], "responded_by_user": {"id": "u1", "name": "admin"}}
 
         result = op.execute_complete({}, generated_output="SELECT * FROM orders", event=event)
 
@@ -774,7 +777,7 @@ class TestLLMSQLQueryOperatorApproval:
     def test_execute_complete_rejected(self):
         """execute_complete raises HITLRejectException when SQL is rejected."""
         op = LLMSQLQueryOperator(task_id="t", prompt="p", llm_conn_id="c")
-        event = {"chosen_options": ["Reject"], "responded_by_user": "dba"}
+        event = {"chosen_options": ["Reject"], "responded_by_user": {"id": "u1", "name": "dba"}}
         from airflow.providers.standard.exceptions import HITLRejectException
 
         with pytest.raises(HITLRejectException, match="Output was rejected by the reviewer"):
@@ -795,7 +798,7 @@ class TestLLMSQLQueryOperatorApproval:
         op = LLMSQLQueryOperator(task_id="t", prompt="p", llm_conn_id="c", allow_modifications=True)
         event = {
             "chosen_options": ["Approve"],
-            "responded_by_user": "dba",
+            "responded_by_user": {"id": "u1", "name": "dba"},
             "params_input": {"output": "SELECT id, name FROM users LIMIT 10"},
         }
 
@@ -808,7 +811,7 @@ class TestLLMSQLQueryOperatorApproval:
         op = LLMSQLQueryOperator(task_id="t", prompt="p", llm_conn_id="c", allow_modifications=True)
         event = {
             "chosen_options": ["Approve"],
-            "responded_by_user": "john",
+            "responded_by_user": {"id": "u1", "name": "john"},
             "params_input": {"output": "DROP TABLE users"},
         }
 
@@ -820,7 +823,7 @@ class TestLLMSQLQueryOperatorApproval:
         op = LLMSQLQueryOperator(task_id="t", prompt="p", llm_conn_id="c")
         event = {
             "chosen_options": ["Approve"],
-            "responded_by_user": "john",
+            "responded_by_user": {"id": "u1", "name": "john"},
             "params_input": {},
         }
 
