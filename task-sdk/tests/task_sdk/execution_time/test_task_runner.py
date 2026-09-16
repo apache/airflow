@@ -4127,8 +4127,102 @@ def _recording_email_backend(
     raise AssertionError("should be patched in the test")
 
 
+def _recording_notifier(sink: dict[str, Any]) -> type:
+    """Build a stand-in for ``SmtpNotifier`` that records the fields it is handed after rendering."""
+    from airflow.sdk.bases.notifier import BaseNotifier
+
+    class RecordingNotifier(BaseNotifier):
+        template_fields = ("to", "subject", "html_content")
+
+        def __init__(self, *, to, subject, html_content, from_email):
+            super().__init__()
+            self.to = to
+            self.subject = subject
+            self.html_content = html_content
+            self.from_email = from_email
+
+        def notify(self, context):
+            sink.update(
+                to=self.to,
+                subject=self.subject,
+                html_content=self.html_content,
+                from_email=self.from_email,
+            )
+
+    return RecordingNotifier
+
+
 class TestEmailNotifications:
     FROM = "from@airflow"
+
+    @pytest.mark.parametrize("render_template_as_native_obj", [False, True])
+    def test_alert_templates_render_to_strings(
+        self, render_template_as_native_obj, create_runtime_ti, mock_supervisor_comms, tmp_path
+    ):
+        """Custom alert templates must reach the email backend as strings on any Dag."""
+        from airflow.sdk.exceptions import AirflowFailException
+        from airflow.sdk.execution_time.task_runner import finalize, run
+
+        sent: dict[str, Any] = {}
+
+        subject_template = tmp_path / "subject.txt"
+        subject_template.write_text("{{ try_number }}")
+        html_content_template = tmp_path / "html_content.txt"
+        html_content_template.write_text("{{ max_tries }}")
+
+        class FailingOperator(BaseOperator):
+            def execute(self, context):
+                raise AirflowFailException("Task failed on purpose")
+
+        with DAG("alert_template_dag", render_template_as_native_obj=render_template_as_native_obj):
+            task = FailingOperator(task_id="failing_task", email="test@example.com", email_on_failure=True)
+
+        runtime_ti = create_runtime_ti(task=task)
+        context = runtime_ti.get_template_context()
+        log = mock.MagicMock()
+
+        with conf_vars(
+            {
+                ("email", "subject_template"): str(subject_template),
+                ("email", "html_content_template"): str(html_content_template),
+            }
+        ):
+            with mock.patch(
+                "airflow.providers.smtp.notifications.smtp.SmtpNotifier", _recording_notifier(sent)
+            ):
+                state, _, error = run(runtime_ti, context, log)
+                finalize(runtime_ti, state, context, log, error)
+
+        assert sent["subject"] == "1"
+        assert sent["html_content"] == "0"
+
+    def test_alert_recipients_still_render_as_native_objects(self, create_runtime_ti, mock_supervisor_comms):
+        """Forcing the subject and body to strings must not flatten a templated recipient list."""
+        from airflow.sdk.exceptions import AirflowFailException
+        from airflow.sdk.execution_time.task_runner import finalize, run
+
+        sent: dict[str, Any] = {}
+
+        class FailingOperator(BaseOperator):
+            def execute(self, context):
+                raise AirflowFailException("Task failed on purpose")
+
+        with DAG("alert_recipient_dag", render_template_as_native_obj=True):
+            task = FailingOperator(
+                task_id="failing_task",
+                email="{{ ['a@example.com', 'b@example.com'] }}",
+                email_on_failure=True,
+            )
+
+        runtime_ti = create_runtime_ti(task=task)
+        context = runtime_ti.get_template_context()
+        log = mock.MagicMock()
+
+        with mock.patch("airflow.providers.smtp.notifications.smtp.SmtpNotifier", _recording_notifier(sent)):
+            state, _, error = run(runtime_ti, context, log)
+            finalize(runtime_ti, state, context, log, error)
+
+        assert sent["to"] == ["a@example.com", "b@example.com"]
 
     @pytest.mark.parametrize(
         ("emails", "sent"),
@@ -4183,10 +4277,11 @@ class TestEmailNotifications:
                     kwargs = mock_smtp_notifier.call_args.kwargs
                     assert kwargs["from_email"] == self.FROM
                     assert kwargs["to"] == emails
-                    assert (
-                        kwargs["html_content"]
-                        == 'Try {{try_number}} out of {{max_tries + 1}}<br>Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+                    # The default template reaches the backend rendered, as a string.
+                    assert kwargs["html_content"].startswith(
+                        "Try 1 out of 3<br>Exception:<br>integer division or modulo by zero<br>"
                     )
+                    assert "{{" not in kwargs["html_content"]
 
     @pytest.mark.parametrize(
         ("emails", "sent"),
@@ -4241,10 +4336,11 @@ class TestEmailNotifications:
                     kwargs = mock_smtp_notifier.call_args.kwargs
                     assert kwargs["from_email"] == self.FROM
                     assert kwargs["to"] == emails
-                    assert (
-                        kwargs["html_content"]
-                        == 'Try {{try_number}} out of {{max_tries + 1}}<br>Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+                    # The default template reaches the backend rendered, as a string.
+                    assert kwargs["html_content"].startswith(
+                        "Try 1 out of 1<br>Exception:<br>Task failed on purpose<br>"
                     )
+                    assert "{{" not in kwargs["html_content"]
 
     def test_email_with_custom_templates(self, create_runtime_ti, mock_supervisor_comms, tmp_path):
         """Test email notification respects custom subject and html_content templates."""
@@ -4286,10 +4382,10 @@ class TestEmailNotifications:
                 mock_smtp_notifier.assert_called_once()
                 kwargs = mock_smtp_notifier.call_args.kwargs
 
-                assert kwargs["subject"] == "Custom Subject: Task {{ti.task_id}} Failed\n"
+                assert kwargs["subject"] == "Custom Subject: Task template_test_task Failed"
                 assert (
-                    kwargs["html_content"]
-                    == "<h1>Custom Template</h1><p>Task: {{ti.task_id}}</p><p>Error: {{exception_html}}</p>"
+                    kwargs["html_content"] == "<h1>Custom Template</h1><p>Task: template_test_task</p>"
+                    "<p>Error: Task failed for template test</p>"
                 )
                 assert kwargs["from_email"] == self.FROM
 
