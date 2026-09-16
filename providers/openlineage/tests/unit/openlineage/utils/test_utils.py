@@ -25,12 +25,14 @@ from unittest.mock import MagicMock, PropertyMock, patch
 import pendulum
 import pytest
 from openlineage.client.facet_v2 import parent_run
+from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.exc import DetachedInstanceError
 from uuid6 import uuid7
 
 from airflow import DAG
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance, TaskInstanceState
+from airflow.models.taskinstance import TaskInstance, TaskInstanceState, clear_task_instances
 from airflow.providers.common.compat.assets import Asset
 from airflow.providers.common.compat.sdk import BaseOperator, TaskGroup, task, timezone
 from airflow.providers.openlineage.conf import namespace
@@ -86,7 +88,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.compat import BashOperator, OperatorSerialization, PythonOperator
+from tests_common.test_utils.compat import AssetEvent, BashOperator, OperatorSerialization, PythonOperator
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import create_task_instance
 from tests_common.test_utils.version_compat import (
@@ -3846,6 +3848,7 @@ class TestExtractOlInfoFromAssetEvent:
         ti.task_id = "source_task"
         ti.try_number = 1
         ti.map_index = 0
+        ti.scheduled_dttm = logical_date
 
         # Mock DagRun
         source_dr = MagicMock()
@@ -3855,6 +3858,7 @@ class TestExtractOlInfoFromAssetEvent:
         # Mock AssetEvent
         asset_event = MagicMock()
         asset_event.source_task_instance = ti
+        asset_event.timestamp = logical_date + datetime.timedelta(minutes=1)
         asset_event.source_dag_run = source_dr
         asset_event.source_dag_id = None
         asset_event.source_task_id = None
@@ -3916,6 +3920,7 @@ class TestExtractOlInfoFromAssetEvent:
         ti.task_id = "source_task"
         ti.try_number = 1
         ti.map_index = 0
+        ti.scheduled_dttm = run_after
 
         # Mock DagRun with None logical_date but run_after set
         source_dr = MagicMock()
@@ -3925,6 +3930,7 @@ class TestExtractOlInfoFromAssetEvent:
         # Mock AssetEvent
         asset_event = MagicMock()
         asset_event.source_task_instance = ti
+        asset_event.timestamp = run_after + datetime.timedelta(minutes=1)
         asset_event.source_dag_run = source_dr
         asset_event.source_dag_id = None
         asset_event.source_task_id = None
@@ -3945,6 +3951,63 @@ class TestExtractOlInfoFromAssetEvent:
             "job_namespace": namespace(),
             "run_id": expected_run_id,
         }
+
+    @pytest.mark.db_test
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="scheduled_dttm is only available in Airflow 3")
+    def test_extract_ol_info_from_task_instance_cleared_after_emitting_events(
+        self, dag_maker, session, time_machine
+    ):
+        """Test that run_id uses the try that emitted each event after the task is cleared."""
+        with dag_maker(dag_id="source_dag", session=session) as dag:
+            BaseOperator(task_id="source_task")
+        dag_run = dag_maker.create_dagrun(session=session)
+        ti = dag_run.get_task_instance("source_task", session=session)
+        ti.refresh_from_task(dag.get_task("source_task"))
+
+        scheduled_at = datetime.datetime(2025, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        asset_events = []
+        for _ in range(2):
+            time_machine.move_to(scheduled_at, tick=False)
+            dag_run.schedule_tis([ti], session=session)
+            session.refresh(ti)
+            ti.state = TaskInstanceState.SUCCESS
+            asset_event = AssetEvent(
+                asset_id=1,
+                source_dag_id=ti.dag_id,
+                source_run_id=ti.run_id,
+                source_task_id=ti.task_id,
+                source_map_index=ti.map_index,
+                timestamp=scheduled_at + datetime.timedelta(minutes=1),
+            )
+            session.add(asset_event)
+            asset_events.append(asset_event)
+            clear_task_instances([ti], session)
+            scheduled_at += datetime.timedelta(hours=1)
+        time_machine.move_to(scheduled_at, tick=False)
+        dag_run.schedule_tis([ti], session=session)
+        session.commit()
+        logical_date = dag_run.logical_date
+        # Load the relationships eagerly like _get_eagerly_loaded_dagrun_consumed_asset_events does,
+        # because looking up an earlier try closes the scoped session.
+        asset_events = session.scalars(
+            select(AssetEvent)
+            .where(AssetEvent.id.in_([asset_event.id for asset_event in asset_events]))
+            .order_by(AssetEvent.timestamp)
+            .options(joinedload(AssetEvent.source_task_instance), joinedload(AssetEvent.source_dag_run))
+        ).all()
+
+        run_ids = [_extract_ol_info_from_asset_event(asset_event)["run_id"] for asset_event in asset_events]
+
+        assert run_ids == [
+            build_task_instance_ol_run_id(
+                dag_id="source_dag",
+                task_id="source_task",
+                try_number=try_number,
+                logical_date=logical_date,
+                map_index=-1,
+            )
+            for try_number in (1, 2)
+        ]
 
     def test_extract_ol_info_from_source_fields(self):
         """Test extraction from AssetEvent source fields (priority 2)."""
@@ -4256,6 +4319,7 @@ class TestGetDagJobDependencyFacet:
         ti1.task_id = "source_task1"
         ti1.try_number = 1
         ti1.map_index = 0
+        ti1.scheduled_dttm = logical_date
 
         source_dr1 = MagicMock()
         source_dr1.logical_date = logical_date
@@ -4263,6 +4327,7 @@ class TestGetDagJobDependencyFacet:
 
         asset_event1 = MagicMock()
         asset_event1.source_task_instance = ti1
+        asset_event1.timestamp = logical_date + datetime.timedelta(minutes=1)
         asset_event1.source_dag_run = source_dr1
         asset_event1.source_dag_id = None
         asset_event1.source_task_id = None
@@ -4350,6 +4415,7 @@ class TestGetDagJobDependencyFacet:
         ti.task_id = "source_task"
         ti.try_number = 1
         ti.map_index = 0
+        ti.scheduled_dttm = logical_date
 
         source_dr = MagicMock()
         source_dr.logical_date = logical_date
@@ -4357,6 +4423,7 @@ class TestGetDagJobDependencyFacet:
 
         asset_event1 = MagicMock()
         asset_event1.source_task_instance = ti
+        asset_event1.timestamp = logical_date + datetime.timedelta(minutes=1)
         asset_event1.source_dag_run = source_dr
         asset_event1.source_dag_id = None
         asset_event1.source_task_id = None
@@ -4370,6 +4437,7 @@ class TestGetDagJobDependencyFacet:
 
         asset_event2 = MagicMock()
         asset_event2.source_task_instance = ti  # Same TI
+        asset_event2.timestamp = logical_date + datetime.timedelta(minutes=2)
         asset_event2.source_dag_run = source_dr  # Same DR
         asset_event2.source_dag_id = None
         asset_event2.source_task_id = None

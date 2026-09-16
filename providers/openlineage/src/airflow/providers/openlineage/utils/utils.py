@@ -1580,6 +1580,43 @@ def _get_eagerly_loaded_dagrun_consumed_asset_events(dag_id: str, dag_run_id: st
     return events
 
 
+def _get_try_number_that_emitted_asset_event(ti: TaskInstance, asset_event: AssetEvent) -> int | None:
+    """
+    Get the try number of the task instance try that emitted the asset event.
+
+    ``AssetEvent.source_task_instance`` looks up the task instance row by Dag, run, task and map index.
+    That row only holds the latest try, and the asset event does not record which try emitted it.
+    If the task was cleared and scheduled again after the event, the latest try did not emit it.
+    The scheduler increments ``try_number`` in the same update that sets ``scheduled_dttm``, so the
+    last try scheduled before the event is the one that emitted it.
+
+    Args:
+        ti: The source TaskInstance of the asset event.
+        asset_event: The AssetEvent emitted by the task instance.
+
+    Returns:
+        The try number, or ``None`` if TaskInstanceHistory no longer has the try that emitted the event.
+    """
+    if not AIRFLOW_V_3_0_PLUS or ti.scheduled_dttm is None or ti.scheduled_dttm <= asset_event.timestamp:
+        return ti.try_number
+
+    from sqlalchemy import func, select
+
+    from airflow.models.taskinstancehistory import TaskInstanceHistory
+    from airflow.utils.session import create_session
+
+    with create_session() as session:
+        return session.scalar(
+            select(func.max(TaskInstanceHistory.try_number)).where(
+                TaskInstanceHistory.dag_id == ti.dag_id,
+                TaskInstanceHistory.run_id == ti.run_id,
+                TaskInstanceHistory.task_id == ti.task_id,
+                TaskInstanceHistory.map_index == ti.map_index,
+                TaskInstanceHistory.scheduled_dttm <= asset_event.timestamp,
+            )
+        )
+
+
 def _extract_ol_info_from_asset_event(asset_event: AssetEvent) -> dict[str, str] | None:
     """
     Extract OpenLineage job information from an AssetEvent.
@@ -1609,13 +1646,15 @@ def _extract_ol_info_from_asset_event(asset_event: AssetEvent) -> dict[str, str]
             if AIRFLOW_V_3_0_PLUS and logical_date is None:
                 logical_date = source_dr.run_after
             if logical_date is not None:
-                result["run_id"] = build_task_instance_ol_run_id(
-                    dag_id=ti.dag_id,
-                    task_id=ti.task_id,
-                    try_number=ti.try_number,
-                    logical_date=logical_date,
-                    map_index=ti.map_index,
-                )
+                try_number = _get_try_number_that_emitted_asset_event(ti, asset_event)
+                if try_number is not None:
+                    result["run_id"] = build_task_instance_ol_run_id(
+                        dag_id=ti.dag_id,
+                        task_id=ti.task_id,
+                        try_number=try_number,
+                        logical_date=logical_date,
+                        map_index=ti.map_index,
+                    )
         return result
 
     # Then, check AssetEvent source_* fields
