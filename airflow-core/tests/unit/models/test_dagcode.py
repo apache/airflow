@@ -262,3 +262,11 @@ class TestDagCode:
         refreshed = DagCode.get_latest_dagcode(dag.dag_id)
         assert refreshed.fileloc == dag.fileloc
         assert refreshed.source_code_hash == original_hash
+
+    def test_language_defaults_to_python(self, dag_maker):
+        """Code written without an explicit language is recorded as Python."""
+        with dag_maker("dag_language_default") as dag:
+            pass
+        sync_dag_to_db(dag)
+
+        assert DagCode.get_latest_dagcode(dag.dag_id).language == "python"

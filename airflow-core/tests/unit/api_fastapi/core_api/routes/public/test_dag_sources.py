@@ -122,7 +122,7 @@ class TestGetDAGSource:
             "dag_id": TEST_DAG_ID,
             "version_number": 1,
             "dag_display_name": TEST_DAG_DISPLAY_NAME,
-            "language": None,
+            "language": "python",
         }
         assert response.headers["Content-Type"].startswith("application/json")
 
@@ -168,7 +168,7 @@ class TestGetDAGSource:
                 "dag_id": TEST_DAG_ID,
                 "version_number": 2,
                 "dag_display_name": TEST_DAG_DISPLAY_NAME,
-                "language": None,
+                "language": "python",
             }
 
     def test_should_respond_406_unsupport_mime_type(self, test_client, test_dag):
@@ -227,7 +227,7 @@ class TestGetDAGSource:
             "dag_id": TEST_DAG_ID,
             "version_number": 1,
             "dag_display_name": TEST_DAG_DISPLAY_NAME,
-            "language": None,
+            "language": "python",
         }
         mock_get_auth_manager.return_value.get_authorized_dag_ids.assert_called_once_with(user=mock.ANY)
 
@@ -251,5 +251,5 @@ class TestGetDAGSource:
             "dag_id": TEST_DAG_ID,
             "version_number": 1,
             "dag_display_name": TEST_DAG_DISPLAY_NAME,
-            "language": None,
+            "language": "python",
         }
