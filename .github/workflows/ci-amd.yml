@@ -598,6 +598,7 @@ jobs:
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       run-migration-tests: "true"
+      job-timeout-minutes: 80
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
