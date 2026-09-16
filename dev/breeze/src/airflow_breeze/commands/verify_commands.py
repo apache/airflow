@@ -31,6 +31,7 @@ from airflow_breeze.commands.main_command import main
 from airflow_breeze.global_constants import GithubEvents
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
+from airflow_breeze.utils.reproduce_ci import SKIP_LOCAL_REPRODUCTION
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_verbose
 from airflow_breeze.utils.verification_plan import build_local_verification_plan
@@ -64,9 +65,12 @@ def get_changed_files_against(base_ref: str) -> tuple[str, ...]:
 )
 @click.option("--json", "as_json", is_flag=True, help="Print machine-readable JSON instead of a table.")
 @option_verbose
-def verify(base_ref: str, as_json: bool):
+@click.pass_context
+def verify(ctx: click.Context, base_ref: str, as_json: bool):
     from airflow_breeze.utils.selective_checks import SelectiveChecks
 
+    if as_json:
+        ctx.meta[SKIP_LOCAL_REPRODUCTION] = True
     # SelectiveChecks narrates its decisions on stdout; keep stdout for the result only.
     with contextlib.redirect_stdout(sys.stderr if get_verbose() else io.StringIO()):
         changed_files = get_changed_files_against(base_ref)
