@@ -239,6 +239,8 @@ class AbstractDagImporter(ABC, Generic[DefT]):
     def list_dag_definitions(
         self,
         bundle: BaseDagBundle,
+        *,
+        safe_mode: bool = True,
     ) -> Iterator[DefT | DagImportError]:
         """
         List DAG definitions in a bundle that this importer can handle (identity-only discovery).
@@ -253,14 +255,22 @@ class AbstractDagImporter(ABC, Generic[DefT]):
         self,
         definition: DefT,
         bundle: BaseDagBundle,
-        *,
-        safe_mode: bool = True,
     ) -> DagImportResult:
         """Import DAGs from a DAG definition."""
 
     @abstractmethod
     def get_source_code(self, definition: DagDefinition) -> DagSourceCode:
         """Retrieve the raw source code and its language identifier for the specified DAG definition."""
+
+    def might_contain_dag(self, definition: DagDefinition, safe_mode: bool) -> bool:
+        """
+        Cheap, optional pre-check for whether a discovered definition may contain a DAG.
+
+        The default returns True (keep the definition): an importer that can only tell by
+        attempting the import leaves this as-is. Importers with a cheap content heuristic
+        override it, so obvious non-DAG sources are dropped during discovery.
+        """
+        return True
 
 
 def get_file_suffix(definition: DagDefinition | str | Path) -> str | None:

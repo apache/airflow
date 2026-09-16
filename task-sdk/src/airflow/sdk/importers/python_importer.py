@@ -15,11 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-Python DAG importers.
-
-These importers can import DAGs from Python files and from zip archive members.
-"""
+"""Python DAG importer - imports DAGs from Python files."""
 
 from __future__ import annotations
 
@@ -142,31 +138,27 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
     def list_dag_definitions(
         self,
         bundle: BaseDagBundle,
+        *,
+        safe_mode: bool = True,
     ) -> Iterator[FileDagDefinition | DagImportError]:
         """
         List Python DAG files in a bundle matching supported extensions.
 
-        This does not look for members inside zip archives. Definition discovery
-        of zip archives is done inside :class:`..zip_importer.ZipImporter`
-        instead.
+        A lightweight content sniff (``might_contain_dag``) is applied here so files that
+        clearly hold no DAG never become definitions -- keeping the discovered set (and the
+        eventual parse-process count) close to the number of real DAG files. Zip members are
+        discovered by :class:`..zip_importer.ZipImporter`, not here.
         """
-        if bundle.path.is_dir():
-            yield from find_file_dag_definitions(bundle.path, self.supported_extensions)
-
-    def might_contain_dag(
-        self,
-        definition: FileDagDefinition,
-        safe_mode: bool,
-    ) -> bool:
-        """Cheap heuristic for whether the definition may contain Airflow DAGs."""
-        return might_contain_dag(definition, safe_mode=safe_mode, conf=conf)
+        if not bundle.path.is_dir():
+            return
+        for definition in find_file_dag_definitions(bundle.path, self.supported_extensions):
+            if self.might_contain_dag(definition, safe_mode):
+                yield definition
 
     def import_definition(
         self,
         definition: FileDagDefinition,
         bundle: BaseDagBundle,
-        *,
-        safe_mode: bool = True,
     ) -> DagImportResult:
         """Import DAGs from a Python DAG definition."""
         result = DagImportResult(definition=definition)
@@ -175,7 +167,7 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
 
         try:
             with warnings.catch_warnings(record=True) as captured_warnings:
-                modules = self._load_modules(definition, safe_mode, result, bundle=bundle)
+                modules = self._load_modules(definition, result, bundle=bundle)
         except AirflowConfigException:
             # Configuration errors (e.g., invalid timeout type) should propagate
             raise
@@ -215,10 +207,13 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
             )
         return DagSourceCode(source_code=definition.read_text(encoding="utf-8"), language="python")
 
+    def might_contain_dag(self, definition: DagDefinition, safe_mode: bool) -> bool:
+        """Sniff a Python DAG source's bytes for the Airflow/DAG markers."""
+        return might_contain_dag(definition, safe_mode=safe_mode, conf=conf)
+
     def _load_modules(
         self,
         definition: FileDagDefinition,
-        safe_mode: bool,
         result: DagImportResult,
         bundle: BaseDagBundle,
     ) -> list[types.ModuleType]:
@@ -233,11 +228,6 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
             signal.signal(signal.SIGSEGV, _handle_sigsegv)
         except (ValueError, AttributeError):
             log.warning("SIGSEGV signal handler registration failed. Not in the main thread")
-
-        if not self.might_contain_dag(definition, safe_mode):
-            log.debug("Source %r assumed to contain no DAGs. Skipping.", definition)
-            result.skipped_definitions.append(definition)
-            return []
 
         log.debug("Importing %r (bundle: %s)", definition, bundle.name)
         mod_name = get_unique_dag_module_name(repr(definition))
