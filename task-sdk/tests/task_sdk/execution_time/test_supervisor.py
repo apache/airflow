@@ -3397,9 +3397,16 @@ class TestHandleRequest:
         assert process._pending_terminal_state_msg is None
         assert process.final_state == supervisor.SERVER_TERMINATED
 
-    @pytest.mark.parametrize("state", [TaskInstanceState.FAILED, TaskInstanceState.SKIPPED])
-    def test_task_state_waits_for_exit_and_keeps_heartbeating(self, watched_subprocess, state):
+    @pytest.mark.parametrize(
+        "state", [TaskInstanceState.FAILED, TaskInstanceState.SKIPPED, TaskInstanceState.REMOVED]
+    )
+    @pytest.mark.parametrize("exit_code", [0, 1, -signal.SIGTERM])
+    @pytest.mark.parametrize("should_retry", [False, True])
+    def test_task_state_waits_for_exit_and_keeps_heartbeating(
+        self, watched_subprocess, state, exit_code, should_retry
+    ):
         process, _ = watched_subprocess
+        process._should_retry = should_retry
         msg = TaskState(state=state, rendered_map_index="label")
 
         process._handle_request(msg, structlog.get_logger(), req_id=1)
@@ -3409,7 +3416,7 @@ class TestHandleRequest:
         process.client.task_instances.finish.assert_not_called()
         process._send_heartbeat_if_needed()
         process.client.task_instances.heartbeat.assert_called_once()
-        process._exit_code = 0
+        process._exit_code = exit_code
         process.update_task_state_if_needed()
 
         assert process.client.task_instances.finish.call_args.kwargs["state"] == state

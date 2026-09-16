@@ -1525,7 +1525,7 @@ class ActivitySubprocess(WatchedSubprocess):
         if isinstance(msg, TaskState):
             self.client.task_instances.finish(
                 id=self.id,
-                state=self.final_state,
+                state=msg.state,
                 when=datetime.now(tz=timezone.utc),
                 rendered_map_index=self._rendered_map_index,
             )
