@@ -46,7 +46,7 @@ execution of Databricks jobs with multiple tasks, but it's harder to detect erro
   notebook_run = DatabricksSubmitRunOperator(task_id="notebook_run", json=json)
 
 The second way to accomplish the same thing is to use the named parameters of the ``DatabricksSubmitRunOperator`` directly. Note that there is exactly
-one named parameter for each top level parameter in the ``runs/submit`` endpoint.  When using named parameters you must to specify following:
+one named parameter for each top level parameter in the ``runs/submit`` endpoint.  When using named parameters you must specify the following:
 
 * Task specification - it should be one of:
 

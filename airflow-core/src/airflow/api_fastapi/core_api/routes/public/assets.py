@@ -396,7 +396,10 @@ def get_asset_events(
 @assets_router.post(
     "/assets/events",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
-    dependencies=[Depends(requires_access_asset(method="POST")), Depends(action_logging())],
+    dependencies=[
+        Depends(requires_access_asset(method="POST", asset_id_from_body=True)),
+        Depends(action_logging()),
+    ],
 )
 def create_asset_event(
     body: CreateAssetEventsBody,
