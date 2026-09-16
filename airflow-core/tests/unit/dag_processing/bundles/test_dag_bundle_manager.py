@@ -333,7 +333,7 @@ def clear_db():
 
 @pytest.mark.db_test
 @conf_vars({("core", "LOAD_EXAMPLES"): "False"})
-def test_sync_bundles_to_db(clear_db, session):
+def test_sync_bundles_to_db(clear_db, session, caplog):
     def _get_bundle_names_and_active():
         return session.execute(
             select(DagBundleModel.name, DagBundleModel.active).order_by(DagBundleModel.name)
@@ -365,6 +365,10 @@ def test_sync_bundles_to_db(clear_db, session):
     ]
     # Since my-test-bundle is inactive, the associated import errors should be deleted
     assert session.scalar(select(func.count(ParseImportError.id))) == 0
+
+    caplog.clear()
+    DagBundlesManager().sync_bundles_to_db()
+    assert "DAG bundle my-test-bundle is no longer found in config and has been disabled" not in caplog
 
     # Re-enable one that reappears in config
     with patch.dict(
