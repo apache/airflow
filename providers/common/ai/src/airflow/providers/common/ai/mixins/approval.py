@@ -193,7 +193,9 @@ class LLMApprovalMixin:
                 defaults=timeout_defaults,
                 params=hitl_params,
                 multiple=False,
-                timeout_datetime=utcnow() + self.approval_timeout if self.approval_timeout else None,
+                timeout_datetime=(
+                    utcnow() + self.approval_timeout if self.approval_timeout is not None else None
+                ),
             ),
             method_name="execute_complete",
             kwargs={"generated_output": output},

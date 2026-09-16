@@ -355,7 +355,7 @@ class TestLLMOperatorApproval:
     )
     def test_on_approval_timeout_without_prerequisites_raises(self, kwargs):
         with pytest.raises(
-            ValueError, match="has no effect without require_approval=True and a positive approval_timeout"
+            ValueError, match="needs require_approval=True and a positive approval_timeout to fire"
         ):
             LLMOperator(task_id="t", prompt="p", llm_conn_id="c", on_approval_timeout="approve", **kwargs)
 

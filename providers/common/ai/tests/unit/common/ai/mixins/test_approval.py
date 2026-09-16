@@ -207,6 +207,22 @@ class TestDeferForApproval:
 
         assert "timeout" not in op.defer.call_args[1]
 
+    @patch(UTCNOW_PATH)
+    @patch(HITL_TRIGGER_PATH, autospec=True)
+    @patch(UPSERT_HITL_PATH)
+    def test_zero_timeout_sets_timeout_datetime_to_now(
+        self, mock_upsert, mock_trigger_cls, mock_utcnow, context
+    ):
+        from datetime import datetime
+
+        fake_now = datetime(2025, 1, 1, 12, 0, 0)
+        mock_utcnow.return_value = fake_now
+        op = FakeOperator(approval_timeout=timedelta(0))
+
+        op.defer_for_approval(context, "output")
+
+        assert mock_trigger_cls.call_args[1]["timeout_datetime"] == fake_now
+
     @pytest.mark.parametrize(
         ("on_approval_timeout", "expected_defaults"),
         [("fail", None), ("approve", ["Approve"]), ("reject", ["Reject"])],
