@@ -142,7 +142,7 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
     def list_dag_definitions(
         self,
         bundle: BaseDagBundle,
-    ) -> Iterator[FileDagDefinition]:
+    ) -> Iterator[FileDagDefinition | DagImportError]:
         """
         List Python DAG files in a bundle matching supported extensions.
 

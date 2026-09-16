@@ -229,8 +229,14 @@ class AbstractDagImporter(ABC, Generic[DefT]):
     def list_dag_definitions(
         self,
         bundle: BaseDagBundle,
-    ) -> Iterator[DefT]:
-        """List DAG definitions in a bundle that this importer can handle (identity-only discovery)."""
+    ) -> Iterator[DefT | DagImportError]:
+        """
+        List DAG definitions in a bundle that this importer can handle (identity-only discovery).
+
+        A yielded :class:`DagImportError` reports a discovery-time failure (e.g. an unreadable
+        container) for the caller to forward to a :class:`DagImportResult`; it is not a source
+        to import.
+        """
 
     @abstractmethod
     def import_definition(

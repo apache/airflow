@@ -22,6 +22,7 @@ import py_compile
 import zipfile
 from pathlib import Path
 from types import SimpleNamespace
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -29,6 +30,7 @@ from airflow.sdk.exceptions import AirflowConfigException
 from airflow.sdk.importers import (
     AbstractDagImporter,
     DagDefinition,
+    DagImportError,
     DagImportResult,
     DagSourceCode,
     FilesystemDagDefinition,
@@ -36,6 +38,9 @@ from airflow.sdk.importers import (
     ZipMemberDagDefinition,
 )
 from airflow.sdk.importers.python_importer import PythonDagImporter
+
+if TYPE_CHECKING:
+    from airflow.sdk import DAG
 
 
 class CustomInternalNonExtensionImporter(AbstractDagImporter):
@@ -57,13 +62,22 @@ class CustomInternalNonExtensionImporter(AbstractDagImporter):
         return DagSourceCode(source_code="", language="text")
 
 
-def _import_all(importer, bundle):
+def _import_all(
+    importer: AbstractDagImporter[DagDefinition],
+    bundle,
+) -> tuple[list[DAG], list[DagImportError]]:
     """Enumerate an importer's definitions and import each, aggregating dags/errors."""
     dags, errors = [], []
-    for definition in importer.list_dag_definitions(bundle):
-        result = importer.import_definition(definition, bundle=bundle)
-        dags.extend(result.dags)
-        errors.extend(result.errors)
+    for item in importer.list_dag_definitions(bundle):
+        match item:
+            case DagImportError():
+                errors.append(item)
+            case DagDefinition():
+                result = importer.import_definition(item, bundle=bundle)
+                dags.extend(result.dags)
+                errors.extend(result.errors)
+            case _:
+                raise ValueError(f"unrecognized dag definition {item!r}")
     return dags, errors
 
 
@@ -80,11 +94,13 @@ class TestZipImporter:
             z.writestr("dag.py", "from airflow.sdk import DAG\n")
         (mock_bundle.path / "corrupt.zip").write_bytes(b"not a valid zip and no dag markers")
 
-        # The unreadable archive is skipped during discovery; the valid archive yields its member.
-        definitions = list(ZipImporter().list_dag_definitions(mock_bundle))
-        assert len(definitions) == 1
-        assert definitions[0].zip_path == zip_path
-        assert definitions[0].file_path == "dag.py"
+        # The valid archive yields its member; the unreadable one is surfaced in-band as a
+        # DagImportError rather than dropped.
+        items = list(ZipImporter().list_dag_definitions(mock_bundle))
+        members = [i for i in items if not isinstance(i, DagImportError)]
+        errors = [i for i in items if isinstance(i, DagImportError)]
+        assert [(d.zip_path, d.file_path) for d in members] == [(zip_path, "dag.py")]
+        assert [e.error_type for e in errors] == ["zip_read_error"]
 
     def test_list_prefers_source_over_pyc_and_skips_pycache(self, mock_bundle):
         zip_path = mock_bundle.path / "compiled.zip"
@@ -148,8 +164,11 @@ class TestZipImporter:
         bad_zip = mock_bundle.path / "corrupted.zip"
         bad_zip.write_bytes(b"not a real zip")
 
-        # An unreadable archive is skipped during discovery -- it yields no definitions.
-        assert list(ZipImporter().list_dag_definitions(mock_bundle)) == []
+        # An unreadable archive is surfaced in-band as a DagImportError, not silently dropped.
+        items = list(ZipImporter().list_dag_definitions(mock_bundle))
+        assert len(items) == 1
+        assert isinstance(items[0], DagImportError)
+        assert items[0].error_type == "zip_read_error"
 
     def test_get_source_code_reads_member_not_archive(self, tmp_path):
         zip_path = tmp_path / "source_dags.zip"

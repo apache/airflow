@@ -171,7 +171,7 @@ class ZipImporter(AbstractDagImporter[ZipMemberDagDefinition]):
     def list_dag_definitions(
         self,
         bundle: BaseDagBundle,
-    ) -> Iterator[ZipMemberDagDefinition]:
+    ) -> Iterator[ZipMemberDagDefinition | DagImportError]:
         """
         List importable members across the bundle's zip archives.
 
@@ -183,7 +183,12 @@ class ZipImporter(AbstractDagImporter[ZipMemberDagDefinition]):
                 with zipfile.ZipFile(archive.path) as z:
                     member_names = z.namelist()
             except Exception as e:
-                log.warning("Skipping unreadable ZIP archive %s: %s", archive.path, e)
+                log.warning("Cannot read ZIP archive %s: %s", archive.path, e)
+                yield DagImportError(
+                    source_reference=archive.get_relative_loc(bundle.path),
+                    message=f"Failed to read ZIP archive: {e}",
+                    error_type="zip_read_error",
+                )
                 continue
 
             member_set = set(member_names)
