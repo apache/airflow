@@ -93,7 +93,7 @@ def verify(ctx: click.Context, base_ref: str, full: bool, as_json: bool):
         ci = SelectiveChecks(**kwargs)
         sc = ci if full else LeanSelectiveChecks(**kwargs)
         result = build_local_verification_plan(
-            sc, changed_files, base_ref, full_tests_needed=ci.full_tests_needed
+            sc, changed_files, base_ref, full_tests_needed=ci.full_tests_needed, full=full
         )
     if as_json:
         print(json.dumps(result, indent=2))
