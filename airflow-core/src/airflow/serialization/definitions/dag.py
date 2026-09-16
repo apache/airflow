@@ -61,6 +61,7 @@ from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
 from airflow.utils.helpers import prune_dict
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.sqlalchemy import PROHIBIT_COMMIT_ERROR_MESSAGE
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
@@ -819,7 +820,11 @@ class SerializedDAG:
                             reference_type=deserialized_deadline_alert.reference.reference_name,
                             required_dagrun_column=required_dagrun_column,
                         )
-            except Exception:
+            except Exception as exc:
+                if isinstance(exc, RuntimeError) and PROHIBIT_COMMIT_ERROR_MESSAGE in str(exc):
+                    # A rejected commit means the scheduler's HA locking is already broken. Recording
+                    # that as a skipped alert would hide it, so let it escape instead.
+                    raise
                 log.exception(
                     "skipping deadline alert because creating its deadline failed",
                     dag_id=self.dag_id,
