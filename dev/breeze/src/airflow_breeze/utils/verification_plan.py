@@ -30,7 +30,6 @@ class VerificationItem:
     kind: str
     command: str
     runs_in: str
-    required: bool = True
 
 
 # SelectiveChecks flag -> (kind, command, runs_in) of the CI job(s) that flag gates.
@@ -58,6 +57,7 @@ FLAG_COMMANDS: dict[str, tuple[tuple[str, str, str], ...]] = {
     ),
     "run_ts_sdk_docs": (("docs", "breeze build-docs --sdk-docs-only --sdk=typescript", "breeze"),),
     "run_breeze_integration_tests": (
+        ("unit", "cd dev/breeze && uv run --locked pytest", "host"),
         ("unit", "cd dev/breeze && uv run --locked pytest -m integration_tests", "host"),
     ),
 }
@@ -126,17 +126,6 @@ def build_local_verification_plan(
         items.append(
             VerificationItem("docs", f"breeze build-docs {sc.docs_list_as_string}".rstrip(), "breeze")
         )
-    items.append(VerificationItem("unit", "cd dev/breeze && uv run --locked pytest", "host"))
-    if dists := " ".join(sorted(json.loads(sc.shared_distributions_as_json))):
-        items.append(
-            VerificationItem(
-                "unit",
-                f"for d in {dists}; do (cd shared/$d && uv run --group dev pytest) || exit 1; done",
-                "host",
-            )
-        )
-    # CI runs this with `|| true`, so it never fails a PR.
-    items.append(VerificationItem("ui", "breeze ui check-translation-completeness", "host", required=False))
     return {
         "base_ref": base_ref,
         "default_python_version": sc.default_python_version,
