@@ -586,6 +586,12 @@ class IterableOperator(BaseOperator):
             indexed_task_state = IndexedTaskState(
                 status=TaskInstanceState.SUCCESS, try_number=task.try_number
             )
+            # The result is checkpointed as well as pushed to XCom: the runner deletes every XCom
+            # key listed by the server before each attempt (xcom_keys_to_clear), so XCom alone
+            # cannot survive a retry, while the state store does. Both writes happen here, inside
+            # the coroutine, so they overlap with the sub-tasks still running instead of adding a
+            # synchronous pass over every index once the executor has drained. With a
+            # state_store_backend configured the checkpoint holds only a reference to the payload.
             if result is not None and task.do_xcom_push:
                 indexed_task_state.result = result
             serialized_outlet_events = _serialize_outlet_events(outlet_events)
