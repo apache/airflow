@@ -711,6 +711,7 @@ class TestSFTPOperatorDeferrable:
         assert isinstance(exc.value.trigger, SFTPTransferTrigger)
         assert exc.value.method_name == "execute_complete"
 
+    @mock.patch.dict("os.environ", {"AIRFLOW_CONN_MY_PROD_SFTP": "sftp://user@example.com"})
     def test_sftp_operator_defer_uses_sftp_hook_conn_id_when_ssh_conn_id_unset(self):
         """
         Assert that deferring honors a supplied sftp_hook's connection id.
