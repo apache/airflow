@@ -679,13 +679,13 @@ class TestIterableOperator:
                 store._data["exec_rerun_completed"] = {"completed": True, "try_number": 1}
                 for index in (0, 1):
                     store._data[f"exec_rerun_{index}"] = IndexedTaskState(
-                        status=TaskInstanceState.SUCCESS, try_number=1, result="stale"
+                        status=TaskInstanceState.SUCCESS, result="stale"
                     ).serialize()
 
                 materialized = list(iterable_op.execute(context=context))
 
                 assert materialized == [(1, None, None), (2, None, None)]
-                assert store["exec_rerun_0"]["try_number"] == 2
+                assert store["exec_rerun_0"]["result"] == (1, None, None)
                 assert store["exec_rerun_completed"] == {"completed": True, "try_number": 2}
 
     def test_execute_resumes_from_checkpoints_on_retry_after_failure(self):
@@ -702,10 +702,10 @@ class TestIterableOperator:
                 context["ti"].try_number = 2
                 store = context["task_state_store"]
                 store._data["exec_resume_0"] = IndexedTaskState(
-                    status=TaskInstanceState.SUCCESS, try_number=1, result="from_checkpoint"
+                    status=TaskInstanceState.SUCCESS, result="from_checkpoint"
                 ).serialize()
                 store._data["exec_resume_1"] = IndexedTaskState(
-                    status=TaskInstanceState.UP_FOR_RETRY, try_number=1
+                    status=TaskInstanceState.UP_FOR_RETRY
                 ).serialize()
 
                 materialized = list(iterable_op.execute(context=context))
@@ -1004,7 +1004,7 @@ class TestIterableOperator:
                 task.try_number = 2  # checkpoint is only consulted from the second attempt onwards
                 await context["task_state_store"].aset(
                     task.xcom_key,
-                    IndexedTaskState(status=TaskInstanceState.SUCCESS, try_number=2).serialize(),
+                    IndexedTaskState(status=TaskInstanceState.SUCCESS).serialize(),
                 )
 
                 executor = mock.MagicMock()
@@ -1039,7 +1039,7 @@ class TestIterableOperator:
                 task.try_number = 2  # checkpoint is only consulted from the second attempt onwards
                 await context["task_state_store"].aset(
                     task.xcom_key,
-                    IndexedTaskState(status=TaskInstanceState.UP_FOR_RETRY, try_number=2).serialize(),
+                    IndexedTaskState(status=TaskInstanceState.UP_FOR_RETRY).serialize(),
                 )
 
                 with event_loop() as loop:
@@ -1056,9 +1056,7 @@ class TestIterableOperator:
                 store = context["task_state_store"]
                 assert (
                     store[task.xcom_key]
-                    == IndexedTaskState(
-                        status=TaskInstanceState.SUCCESS, try_number=2, result=result
-                    ).serialize()
+                    == IndexedTaskState(status=TaskInstanceState.SUCCESS, result=result).serialize()
                 )
 
     @pytest.mark.asyncio
@@ -1128,7 +1126,6 @@ class TestIterableOperator:
                     task.xcom_key,
                     IndexedTaskState(
                         status=TaskInstanceState.SUCCESS,
-                        try_number=2,
                         outlet_events=[
                             {
                                 "kind": "asset",

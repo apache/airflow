@@ -909,7 +909,6 @@ class RuntimeTaskInstance(TaskInstance):
 @dataclass
 class IndexedTaskState:
     status: TaskInstanceState
-    try_number: int
     result: Any | None = None
     # Outlet asset events the sub-task recorded on a previous successful attempt. A sub-task
     # skipped on retry (because it already succeeded) never re-executes, so it never re-emits
@@ -918,7 +917,7 @@ class IndexedTaskState:
     outlet_events: list[dict[str, Any]] | None = None
 
     def serialize(self) -> dict[str, Any]:
-        data: dict[str, Any] = {"status": self.status.value, "try_number": self.try_number}
+        data: dict[str, Any] = {"status": self.status.value}
         if self.result is not None:
             data["result"] = self.result
         if self.outlet_events:
@@ -931,7 +930,6 @@ class IndexedTaskState:
             return None
         return cls(
             status=TaskInstanceState(raw["status"]),
-            try_number=raw["try_number"],
             result=raw.get("result"),
             outlet_events=raw.get("outlet_events"),
         )

@@ -562,10 +562,9 @@ class IterableOperator(BaseOperator):
         indexed_task_state = await task.aget_state() if trust_checkpoints else None
         if indexed_task_state is not None and indexed_task_state.status == TaskInstanceState.SUCCESS:
             self.log.info(
-                "Skipping task instance %s for %s which already finished successfully after %s attempts",
+                "Skipping task instance %s for %s which already succeeded on a previous attempt",
                 task.index,
                 task.task_id,
-                indexed_task_state.try_number,
             )
             if indexed_task_state.result is not None:
                 await self.axcom_push(task, indexed_task_state.result)
@@ -583,9 +582,7 @@ class IterableOperator(BaseOperator):
             else:
                 result = await executor.run_sync(self._run_operator, context, task, outlet_events)
 
-            indexed_task_state = IndexedTaskState(
-                status=TaskInstanceState.SUCCESS, try_number=task.try_number
-            )
+            indexed_task_state = IndexedTaskState(status=TaskInstanceState.SUCCESS)
             # The result is checkpointed as well as pushed to XCom: the runner deletes every XCom
             # key listed by the server before each attempt (xcom_keys_to_clear), so XCom alone
             # cannot survive a retry, while the state store does. Both writes happen here, inside
@@ -605,12 +602,7 @@ class IterableOperator(BaseOperator):
             _merge_outlet_events(context["outlet_events"], outlet_events)
             return task, result, None
         except BaseException as e:
-            await task.aset_state(
-                IndexedTaskState(
-                    status=TaskInstanceState.UP_FOR_RETRY,
-                    try_number=task.try_number,
-                )
-            )
+            await task.aset_state(IndexedTaskState(status=TaskInstanceState.UP_FOR_RETRY))
             return task, None, e
 
     def _run_operator(
