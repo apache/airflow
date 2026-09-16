@@ -155,8 +155,10 @@ runs:
         if ! python3 scripts/ci/prek_cache_markers.py "${HOME}/.cache/prek" "${after_markers}"; then
           echo "Could not snapshot prek installation metadata after installation" >&2
           change_detection_uncertain=true
-        elif [[ "${change_detection_uncertain}" != "true" ]] && ! cmp -s "${before_markers}" "${after_markers}"; then
-          cache_changed=true
+        elif [[ "${change_detection_uncertain}" != "true" ]]; then
+          if ! cmp -s "${before_markers}" "${after_markers}"; then
+            cache_changed=true
+          fi
         fi
         echo "installation-succeeded=true" >> "${GITHUB_OUTPUT}"
         echo "cache-changed=${cache_changed}" >> "${GITHUB_OUTPUT}"
