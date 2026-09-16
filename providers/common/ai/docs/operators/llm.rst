@@ -238,7 +238,16 @@ Set ``require_approval=True`` to pause the task after the LLM generates its
 output and wait for a human reviewer to approve or reject it via the Airflow
 HITL interface.  Optionally allow the reviewer to edit the output before
 approving with ``allow_modifications=True``, and set a deadline with
-``approval_timeout``:
+``approval_timeout``.
+
+When ``approval_timeout`` expires without a review, the task fails by default.
+Set ``on_approval_timeout="approve"`` to return the generated output instead, so
+an unattended pipeline keeps moving.  ``"reject"`` answers the review with a
+rejection, which still fails this operator; only
+:class:`~airflow.providers.common.ai.operators.llm_branch.LLMBranchOperator`
+turns a rejection into a downstream skip.  The chosen option is also
+pre-highlighted as the default in the review form, so ``"reject"`` makes
+Reject the primary button:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm.py
     :language: python
@@ -265,6 +274,9 @@ Parameters
   for human review.  Default ``False``.
 - ``approval_timeout``: Maximum time to wait for a review (``timedelta``).  ``None``
   means wait indefinitely.  Default ``None``.
+- ``on_approval_timeout``: Outcome when ``approval_timeout`` expires without a
+  review: ``"fail"`` (default), ``"approve"``, or ``"reject"``.  Requires
+  ``require_approval=True`` and a positive ``approval_timeout``.
 - ``allow_modifications``: If ``True``, the reviewer can edit the output before
   approving.  Default ``False``.
 
