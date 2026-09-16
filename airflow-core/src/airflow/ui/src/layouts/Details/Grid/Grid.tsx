@@ -66,9 +66,6 @@ type Props = {
 const GRID_INNER_SCROLL_PADDING_START_PX = GRID_HEADER_PADDING_PX + GRID_HEADER_HEIGHT_PX;
 const ScrollbarSpacer = () => <Box aria-hidden flexShrink={0} minWidth="16px" width="16px" />;
 
-// Last Grid scrollTop per Dag, kept at module scope so it survives the Grid remounting.
-const gridScrollPositions = new Map<string, number>();
-
 export const Grid = ({
   dagRunState,
   limit,
@@ -90,7 +87,7 @@ export const Grid = ({
   const usesSharedScroll = Boolean(sharedScrollContainerRef && showGantt);
 
   const { openGroupIds, toggleGroupId } = useGroups();
-  const { dagId = "" } = useParams();
+  const { dagId = "", groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
   const [searchParams] = useSearchParams();
 
   const filterRoot = searchParams.get("root") ?? undefined;
@@ -193,28 +190,24 @@ export const Grid = ({
     scrollPaddingStart: usesSharedScroll ? GANTT_ROW_OFFSET_PX : GRID_INNER_SCROLL_PADDING_START_PX,
   });
 
-  // Hold the vertical scroll position across the remounts that opening a task/run triggers.
-  // Each remount otherwise resets scrollTop to the top, so we stash the last position (per Dag,
-  // outside the component so it survives remounts) and restore it before paint.
+  // Keep the selected task in view. Opening a task remounts the Grid a couple of times and each
+  // remount jumps scroll back to the top, so we re-check on every mount. We match by task id
+  // instead of a saved pixel offset, so it still works when the rows move around. We only scroll
+  // when the row isn't already rendered, so a task on screen is left alone and an ordinary click
+  // never moves the Grid.
   useLayoutEffect(() => {
-    const scrollEl = usesSharedScroll ? sharedScrollContainerRef?.current : scrollContainerRef.current;
+    const anchorId = selectedTaskId ?? selectedGroupId;
 
-    if (!scrollEl) {
-      return undefined;
+    if (anchorId === undefined) {
+      return;
     }
 
-    const saved = gridScrollPositions.get(dagId);
+    const index = flatNodes.findIndex((node) => node.id === anchorId);
 
-    if (saved !== undefined && saved !== scrollEl.scrollTop) {
-      scrollEl.scrollTop = saved;
+    if (index !== -1 && !rowVirtualizer.getVirtualItems().some((item) => item.index === index)) {
+      rowVirtualizer.scrollToIndex(index, { align: "auto" });
     }
-
-    const handleScroll = () => gridScrollPositions.set(dagId, scrollEl.scrollTop);
-
-    scrollEl.addEventListener("scroll", handleScroll, { passive: true });
-
-    return () => scrollEl.removeEventListener("scroll", handleScroll);
-  }, [dagId, usesSharedScroll, sharedScrollContainerRef]);
+  }, [selectedTaskId, selectedGroupId, flatNodes, rowVirtualizer]);
 
   const virtualItems = rowVirtualizer.getVirtualItems();
 
