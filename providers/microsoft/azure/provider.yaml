@@ -21,12 +21,13 @@ description: |
   `Microsoft Azure <https://azure.microsoft.com/>`__
 state: ready
 lifecycle: production
-source-date-epoch: 1787678724
+source-date-epoch: 1788976455
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 15.1.0
   - 15.0.1
   - 15.0.0
   - 14.1.0
@@ -405,6 +406,9 @@ transfers:
     target-integration-name: Microsoft Azure Blob Storage
     how-to-guide: /docs/apache-airflow-providers-microsoft-azure/transfer/gcs_to_wasb.rst
     python-module: airflow.providers.microsoft.azure.transfers.gcs_to_wasb
+
+notifications:
+  - airflow.providers.microsoft.azure.notifications.msgraph.MSGraphNotifier
 
 connection-types:
   - hook-class-name: airflow.providers.microsoft.azure.hooks.analysis_services.AzureAnalysisServicesHook
@@ -1021,6 +1025,9 @@ connection-types:
 
 secrets-backends:
   - airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend
+
+email-backends:
+  - airflow.providers.microsoft.azure.hooks.msgraph.send_email
 
 logging:
   - airflow.providers.microsoft.azure.log.wasb_task_handler.WasbTaskHandler

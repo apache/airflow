@@ -76,8 +76,11 @@ To enable event publishing you need to
 
 The connection's ``extra`` JSON accepts the full confluent-kafka client
 configuration — including SASL/TLS options and callbacks (e.g. ``error_cb``,
-``oauth_cb``) given as dotted-path strings, which are resolved to callables
-before the producer is built.
+``oauth_cb``) given as dotted-path strings. A string-valued callback is only
+resolved when its full importable path is listed in the
+:ref:`config:apache_kafka__callback_allowlist` option; the example below requires
+``callback_allowlist = my_company.auth.oauth_cb``. This is enforced for security
+reasons, to prevent malicious callbacks from being executed.
 
 .. code-block:: json
 

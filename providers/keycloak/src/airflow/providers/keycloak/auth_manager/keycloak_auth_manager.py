@@ -664,6 +664,38 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             results = executor.map(check, requests)
         return all(results)
 
+    def filter_authorized_assets(
+        self,
+        *,
+        assets: Sequence[AssetDetails],
+        user: KeycloakAuthManagerUser,
+        method: ResourceMethod = "GET",
+    ) -> set[str]:
+        candidates = [details for details in assets if details.id is not None]
+        cache_key = (
+            user.get_id(),
+            method,
+            frozenset(cast("str", details.id) for details in candidates),
+        )
+
+        def query_keycloak() -> set[str]:
+            if not candidates:
+                return set()
+            max_workers = min(
+                len(candidates), conf.getint(CONF_SECTION_NAME, CONF_REQUESTS_POOL_SIZE_KEY, fallback=10)
+            )
+
+            def check(details: AssetDetails) -> tuple[str, bool]:
+                return cast("str", details.id), self.is_authorized_asset(
+                    method=method, user=user, details=details
+                )
+
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                results = executor.map(check, candidates)
+            return {asset_id for asset_id, authorized in results if authorized}
+
+        return single_flight(cache_key, query_keycloak)
+
     def filter_authorized_connections(
         self,
         *,

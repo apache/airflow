@@ -641,6 +641,14 @@ paths:
           - type: boolean
           - type: 'null'
           title: Paused
+      - name: scheduling_state
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/DagSchedulingState'
+          - type: 'null'
+          title: Scheduling State
       - name: has_import_errors
         in: query
         required: false
@@ -1356,6 +1364,190 @@ paths:
           minimum: 0
           default: 0
           title: Offset
+      - name: from_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: From Date Gte
+      - name: from_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: From Date Gt
+      - name: from_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: From Date Lte
+      - name: from_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: From Date Lt
+      - name: to_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: To Date Gte
+      - name: to_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: To Date Gt
+      - name: to_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: To Date Lte
+      - name: to_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: To Date Lt
+      - name: created_at_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At Gte
+      - name: created_at_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At Gt
+      - name: created_at_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At Lte
+      - name: created_at_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At Lt
+      - name: completed_at_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Completed At Gte
+      - name: completed_at_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Completed At Gt
+      - name: completed_at_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Completed At Lte
+      - name: completed_at_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Completed At Lt
+      - name: max_active_runs_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max Active Runs Gte
+      - name: max_active_runs_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max Active Runs Gt
+      - name: max_active_runs_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max Active Runs Lte
+      - name: max_active_runs_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max Active Runs Lt
+      - name: reprocess_behavior
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/ReprocessBehavior'
+          - type: 'null'
+          title: Reprocess Behavior
       - name: order_by
         in: query
         required: false
@@ -2906,6 +3098,9 @@ components:
         is_paused:
           type: boolean
           title: Is Paused
+        scheduling_state:
+          $ref: '#/components/schemas/DagSchedulingState'
+          default: active
         is_stale:
           type: boolean
           title: Is Stale
@@ -3040,6 +3235,9 @@ components:
             $ref: '#/components/schemas/DAGRunLightResponse'
           type: array
           title: Latest Dag Runs
+        has_unfinished_runs:
+          type: boolean
+          title: Has Unfinished Runs
         pending_actions:
           items:
             $ref: '#/components/schemas/HITLDetail'
@@ -3095,6 +3293,7 @@ components:
       - owners
       - asset_expression
       - latest_dag_runs
+      - has_unfinished_runs
       - pending_actions
       - is_favorite
       - is_backfillable
@@ -3181,6 +3380,14 @@ components:
       - updated_at
       title: DagScheduleAssetReference
       description: Dag schedule reference serializer for assets.
+    DagSchedulingState:
+      type: string
+      enum:
+      - active
+      - draining
+      - paused
+      title: DagSchedulingState
+      description: States controlling whether a Dag can create and schedule work.
     DagTagResponse:
       properties:
         name:
@@ -3991,6 +4198,7 @@ components:
       - Config
       - Connections
       - Dags
+      - Dag Bundles
       - Deadlines
       - Docs
       - Jobs

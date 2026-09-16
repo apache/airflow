@@ -179,3 +179,5 @@ For the full public API reference, see the :doc:`api` page.
   api
   concepts
   lang-sdk
+  executable-bundle-spec
+  ts-bundle-spec

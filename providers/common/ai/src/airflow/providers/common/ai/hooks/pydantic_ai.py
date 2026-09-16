@@ -308,16 +308,20 @@ class PydanticAIAzureHook(PydanticAIHook):
 
     Connection fields:
         - **password**: Azure API key
-        - **host**: Azure endpoint (e.g. ``https://<resource>.openai.azure.com``)
+        - **host**: Azure endpoint (e.g. ``https://<resource>.openai.azure.com/openai/v1``)
         - **extra** JSON::
 
-            {"model": "azure:gpt-4o", "api_version": "2024-07-01-preview"}
+            {"model": "azure:gpt-4o"}
+
+          ``api_version`` must be omitted when the endpoint path ends in ``/v1``
+          or the host is ``*.models.ai.azure.com``. For other endpoints, set it
+          here or with ``OPENAI_API_VERSION``.
 
     :param llm_conn_id: Airflow connection ID.
     :param model_id: Model identifier, e.g. ``"azure:gpt-4o"``.
     """
 
-    conn_type = "pydanticai-azure"
+    conn_type = "pydanticai_azure"
     default_conn_name = "pydanticai_azure_default"
     hook_name = "Pydantic AI (Azure OpenAI)"
 
@@ -328,8 +332,8 @@ class PydanticAIAzureHook(PydanticAIHook):
             "hidden_fields": ["schema", "port", "login"],
             "relabeling": {"password": "API Key", "host": "Azure Endpoint"},
             "placeholders": {
-                "host": "https://<resource>.openai.azure.com",
-                "extra": '{"model": "azure:gpt-4o", "api_version": "2024-07-01-preview"}',
+                "host": "https://<resource>.openai.azure.com/openai/v1",
+                "extra": '{"model": "azure:gpt-4o"}',
             },
         }
 
@@ -385,7 +389,7 @@ class PydanticAIBedrockHook(PydanticAIHook):
     :param model_id: Model identifier, e.g. ``"bedrock:us.anthropic.claude-opus-4-5"``.
     """
 
-    conn_type = "pydanticai-bedrock"
+    conn_type = "pydanticai_bedrock"
     default_conn_name = "pydanticai_bedrock_default"
     hook_name = "Pydantic AI (AWS Bedrock)"
 
@@ -477,7 +481,7 @@ class PydanticAIVertexHook(PydanticAIHook):
     :param model_id: Model identifier, e.g. ``"google-cloud:gemini-2.0-flash"``.
     """
 
-    conn_type = "pydanticai-vertex"
+    conn_type = "pydanticai_vertex"
     default_conn_name = "pydanticai_vertex_default"
     hook_name = "Pydantic AI (Google Vertex AI)"
 
@@ -515,9 +519,10 @@ class PydanticAIVertexHook(PydanticAIHook):
         # from GoogleCloudProvider (Vertex AI, which hardcodes vertexai=True internally and
         # accepts no such constructor kwarg) in pydantic/pydantic-ai#5336. Forwarding it would
         # raise TypeError, which the base hook's `except TypeError` in get_conn() would then
-        # swallow by falling back to env-var auth with *all* other kwargs discarded — silently
-        # authenticating as the wrong identity. Accept the field for backward compatibility but
-        # never forward it: which API is used is now controlled by the model prefix.
+        # catch: it logs a warning and falls back to env-var auth rather than raising --
+        # authenticating as the wrong identity (with *all* other kwargs discarded). Accept
+        # the field for backward compatibility but never forward it: which API is used is
+        # now controlled by the model prefix.
         if extra.get("vertexai") is not None:
             self.log.warning(
                 "The 'vertexai' connection field is ignored; Vertex AI vs. Generative Language "

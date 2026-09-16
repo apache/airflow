@@ -10,17 +10,28 @@
   "filters": {
     "allRunTypes": "Todos los Tipos de Ejecución",
     "allStates": "Todos los Estados",
+    "anyRunState": "Cualquier Ejecución",
+    "anyRunStatePlaceholder": "Seleccionar cualquier estado de ejecución…",
     "favorite": {
       "all": "Todos",
       "favorite": "Favoritos",
       "unfavorite": "No Favoritos"
     },
+    "favoriteState": "Estado de Favorito",
+    "favoriteStatePlaceholder": "Seleccionar estado de favorito…",
+    "lastRunState": "Última Ejecución",
+    "lastRunStatePlaceholder": "Seleccionar estado de la última ejecución…",
+    "noTimetableTypesFound": "No se encontraron tipos de programación",
     "paused": {
       "active": "Activo",
       "all": "Todos",
       "paused": "Pausado"
     },
-    "runIdPatternFilter": "Buscar Ejecuciones de Dag"
+    "pausedPlaceholder": "Seleccionar estado de pausa…",
+    "pausedState": "Estado de Pausa",
+    "requiresHitlAction": "Requiere Acción HITL",
+    "runIdPatternFilter": "Buscar Ejecuciones de Dag",
+    "timetableType": "Tipo de Programación"
   },
   "ownerLink": "Enlace de Propietario para {{owner}}",
   "runAndTaskActions": {
@@ -73,8 +84,14 @@
       "preventRunningTasks": "Evitar reejecución si la tarea está en ejecución",
       "queueNew": "Poner en cola nuevas tareas",
       "runOnLatestVersion": "Ejecutar en la última versión del bundle",
+      "runOnLatestVersionForced": "Siempre usa la última — no hay una versión anterior a la que volver",
       "upstream": "Upstream"
     }
+  },
+  "runStateCounts": {
+    "label": "Estados de Ejecución",
+    "loading": "Cargando conteos de estados de ejecución",
+    "tooltip": "{{state}}: {{formattedCount}} — haz clic para filtrar ejecuciones"
   },
   "search": {
     "advanced": "Búsqueda Avanzada",
@@ -88,9 +105,9 @@
       "asc": "Ordenar por Nombre (A-Z)",
       "desc": "Ordenar por Nombre (Z-A)"
     },
-    "lastRunStartDate": {
-      "asc": "Ordenar por Fecha Inicial de Ejecución (Más Antiguo-Más Reciente)",
-      "desc": "Ordenar por Fecha Inicial de Ejecución (Más Reciente-Más Antiguo)"
+    "lastRunAfter": {
+      "asc": "Ordenar por Ejecutar Después de la Última Ejecución (Más Antiguo-Más Reciente)",
+      "desc": "Ordenar por Ejecutar Después de la Última Ejecución (Más Reciente-Más Antiguo)"
     },
     "lastRunState": {
       "asc": "Ordenar por Estado de Ejecución (A-Z)",
@@ -102,5 +119,5 @@
     },
     "placeholder": "Ordenar por"
   },
-  "unfavoriteDag": "Desmarcar Dag como favorito"
+  "unfavoriteDag": "Desmarcar Dag como Favorito"
 }

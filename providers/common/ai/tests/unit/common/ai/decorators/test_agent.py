@@ -40,25 +40,15 @@ class Summary(BaseModel):
     text: str
 
 
-def _make_mock_run_result(output):
-    """Create a mock AgentRunResult compatible with log_run_summary."""
-    mock_result = MagicMock()
-    mock_result.output = output
-    mock_result.usage = MagicMock(requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0)
-    mock_result.response = MagicMock(model_name="test-model")
-    mock_result.all_messages.return_value = []
-    return mock_result
-
-
 class TestAgentDecoratedOperator:
     def test_custom_operator_name(self):
         assert _AgentDecoratedOperator.custom_operator_name == "@task.agent"
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_execute_calls_callable_and_returns_output(self, mock_hook_cls):
+    def test_execute_calls_callable_and_returns_output(self, mock_hook_cls, make_mock_run_result):
         """The callable's return value becomes the agent prompt."""
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result("The top customer is Acme Corp.")
+        mock_agent.run_sync.return_value = make_mock_run_result("The top customer is Acme Corp.")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         def my_prompt():
@@ -87,10 +77,10 @@ class TestAgentDecoratedOperator:
             op.execute(context={})
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_execute_accepts_sequence_prompt(self, mock_hook_cls):
+    def test_execute_accepts_sequence_prompt(self, mock_hook_cls, make_mock_run_result):
         """A non-empty Sequence[UserContent] return value is forwarded to run_sync as-is."""
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result("ok")
+        mock_agent.run_sync.return_value = make_mock_run_result("ok")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         image = ImageUrl(url="https://example.com/x.png")
@@ -128,10 +118,10 @@ class TestAgentDecoratedOperator:
         mock_agent.run_sync.assert_not_called()
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_execute_merges_op_kwargs_into_callable(self, mock_hook_cls):
+    def test_execute_merges_op_kwargs_into_callable(self, mock_hook_cls, make_mock_run_result):
         """op_kwargs are resolved by the callable to build the prompt."""
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result("done")
+        mock_agent.run_sync.return_value = make_mock_run_result("done")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         def my_prompt(topic):
@@ -149,10 +139,10 @@ class TestAgentDecoratedOperator:
         mock_agent.run_sync.assert_called_once_with("Analyze revenue trends", usage_limits=None)
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_execute_passes_toolsets_through(self, mock_hook_cls):
+    def test_execute_passes_toolsets_through(self, mock_hook_cls, make_mock_run_result):
         """Toolsets passed to the decorator are forwarded to the agent."""
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result("result")
+        mock_agent.run_sync.return_value = make_mock_run_result("result")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         mock_toolset = MagicMock()
@@ -173,10 +163,10 @@ class TestAgentDecoratedOperator:
 
     @requires_typed_xcom
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_execute_structured_output(self, mock_hook_cls):
+    def test_execute_structured_output(self, mock_hook_cls, make_mock_run_result):
         """BaseModel output flows through XCom as the Pydantic instance."""
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result(Summary(text="Great results"))
+        mock_agent.run_sync.return_value = make_mock_run_result(Summary(text="Great results"))
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = _AgentDecoratedOperator(

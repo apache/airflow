@@ -242,6 +242,7 @@ chatbot
 chatbots
 CheckOperator
 checkpointed
+checkpointing
 checksums
 childs
 chmod
@@ -473,6 +474,7 @@ dependant
 DependencyMixin
 Deprecations
 deprecations
+deprioritize
 deps
 deques
 deregister
@@ -1446,6 +1448,8 @@ requeue
 requeued
 requeues
 requeuing
+rerank
+reranking
 reserialize
 Reserializing
 resetdb
@@ -1603,6 +1607,7 @@ Splunk
 Sql
 sql
 sqla
+sqladmin
 Sqlalchemy
 sqlalchemy
 sqlglot
@@ -1628,6 +1633,7 @@ Stackdriver
 stackdriver
 stacklevel
 stacktrace
+Starlette
 starttls
 stateful
 StatefulSet
