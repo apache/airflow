@@ -5264,14 +5264,14 @@ paths:
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, dag_id,
             state, job_type, start_date, end_date, latest_heartbeat, executor_class,
-            hostname, unixname`'
+            hostname, unixname, team_name`'
           default:
           - id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, dag_id, state,
           job_type, start_date, end_date, latest_heartbeat, executor_class, hostname,
-          unixname`'
+          unixname, team_name`'
       - name: job_state
         in: query
         required: false
@@ -5312,6 +5312,14 @@ paths:
           - type: string
           - type: 'null'
           title: Executor Class
+      - name: teams
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Teams
       responses:
         '200':
           description: Successful Response

@@ -27,6 +27,7 @@ from airflow.api_fastapi.common.db.common import (
     paginated_select,
 )
 from airflow.api_fastapi.common.parameters import (
+    FilterOptionEnum,
     FilterParam,
     QueryLimit,
     QueryOffset,
@@ -77,6 +78,7 @@ def get_jobs(
                     "executor_class",
                     "hostname",
                     "unixname",
+                    "team_name",
                 ],
                 Job,
             ).dynamic_depends(default="id")
@@ -101,6 +103,12 @@ def get_jobs(
         FilterParam[str | None],
         Depends(filter_param_factory(Job.executor_class, str | None, filter_name="executor_class")),
     ],
+    teams: Annotated[
+        FilterParam[list[str]],
+        Depends(
+            filter_param_factory(Job.team_name, list[str], FilterOptionEnum.IN, "teams", default_factory=list)
+        ),
+    ],
     is_alive: bool | None = None,
 ) -> JobCollectionResponse:
     """Get all jobs."""
@@ -116,6 +124,7 @@ def get_jobs(
             job_type,
             hostname,
             executor_class,
+            teams,
         ],
         order_by=order_by,
         limit=limit,

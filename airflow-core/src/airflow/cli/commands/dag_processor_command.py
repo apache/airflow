@@ -25,6 +25,7 @@ from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.dag_processing.manager import DagFileProcessorManager
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import Job, run_job
+from airflow.models.dagbundle import DagBundleModel
 from airflow.utils import cli as cli_utils
 from airflow.utils.memray_utils import MemrayTraceComponents, enable_memray_trace
 from airflow.utils.process_utils import set_component_mp_start_method
@@ -33,12 +34,32 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 log = logging.getLogger(__name__)
 
 
+def _get_team_name(bundle_names: list[str] | None) -> str | None:
+    """
+    Return the team this Dag processor serves, or None when it serves no single team.
+
+    A bundle belongs to at most one team, so the processor is team-scoped only when every
+    bundle it parses belongs to the same team. A processor parsing all bundles, bundles of
+    several teams, or a team-less bundle alongside a team's own is not team-scoped.
+    """
+    if not bundle_names:
+        return None
+
+    team_names = DagBundleModel.get_team_names(bundle_names)
+    if len(team_names) != len(set(bundle_names)):
+        return None
+    distinct_team_names = set(team_names.values())
+    if len(distinct_team_names) != 1:
+        return None
+    return distinct_team_names.pop()
+
+
 def _create_dag_processor_job_runner(args: Any) -> DagProcessorJobRunner:
     """Create DagFileProcessorProcess instance."""
     if args.bundle_name:
         cli_utils.validate_dag_bundle_arg(args.bundle_name)
     return DagProcessorJobRunner(
-        job=Job(bundle_names=args.bundle_name),
+        job=Job(bundle_names=args.bundle_name, team_name=_get_team_name(args.bundle_name)),
         processor=DagFileProcessorManager(
             max_runs=args.num_runs,
             bundle_names_to_parse=args.bundle_name,
