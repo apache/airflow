@@ -33,7 +33,7 @@ Proposed.
 2. **`bundle.Register(items ...airflow.Registraterable)`** is the single registration verb, taking native Dags and task handlers.
 3. **A Go bundle registers task handlers, not Dags**: `airflow.TaskHandler(dagId, taskId, fn)`, the Go body for a task Python declares with `@task.stub`.
 4. **Both dag_id and task_id are written out on TaskHandler definition**, because Python owns them; nothing is derived from the Go function name.
-5. **Every handler takes an `airflow.Context` first**: a struct embedding `context.Context`, exposing `Logger()`, `Client()`, `TaskInstance()`, and `DagRun()`.
+5. **Every handler must take an `airflow.Context` first**: a struct embedding `context.Context`, exposing `Logger()`, `Client()`, `TaskInstance()`, and `DagRun()`.
    What Airflow supplies a task arrives as a method on that value rather than as a parameter of its own.
 6. **Every remaining parameter is data**, bound positionally, or by field when it is a single struct: `arg:"..."` when tagged, else the folded Go field name.
 
@@ -55,6 +55,7 @@ The `Registry` should be `Bundle` and the `AddDag` is mis-used for registering t
 The shipped signature (#70209) injects `sdk.TIRunContext`, `*slog.Logger`, and `sdk.Client` by type.
 Calling them still needs the `context.Context` passed in by hand, which is awkward from a Go author's perspective.
 Exposing the logger and the client on the context itself removes that, and `airflow.Context` in the Signature section below is that shape.
+Both keep taking a context, so a call reads `actx.Logger().InfoContext(actx, ...)` or `actx.Client().GetVariable(actx, ...)` and neither holds one in a field.
 
 ## Example
 
@@ -82,7 +83,7 @@ Three ways a Go function receives a stub task's data, all live in `go-sdk/exampl
 
 ```go
 func transform(actx airflow.Context, country string, extracted map[string]any) error {
-    actx.Logger().Info("transforming", "country", country, "try", actx.TaskInstance().TryNumber)
+    actx.Logger().InfoContext(actx, "transforming", "country", country, "try", actx.TaskInstance().TryNumber)
 
     threshold, err := actx.Client().GetVariable(actx, "etl_threshold")
     if err != nil {
@@ -135,7 +136,8 @@ type Registraterable interface{ registraterable() }
 
 func TaskHandler(dagId, taskId string, fn any) Registraterable
 
-// Context is what every handler takes first.
+// Context is what every handler takes first. It is a context, so it passes straight to the
+// logger and the client rather than being stored inside either of them.
 type Context struct {
     context.Context
     // unexported fields
@@ -164,6 +166,6 @@ func FromContext(ctx context.Context) (Context, bool)
 - **Package-level accessors over a plain `context.Context`** (`airflow.Logger(ctx)`, `airflow.Client(ctx)`), leaving the handler's first parameter as `context.Context`.
   Rejected: `airflow.Logger(ctx)` reads oddly next to `actx.Logger()`, asking the package for something the context already holds.
   It also keeps the SDK surface in package functions instead of on the value, and a context from anywhere else still compiles, so a missing logger or client only shows up when the task runs.
-- **An interface, as `sdk.TIRunContext` is today.** Rejected: only the SDK implements this type, so a struct can gain methods without breaking implementers, and the constructor keeps its fields unexported.
-  The `TIRunContext` doc comment cites the context package's advice against holding a context in a struct, which is aimed at domain types rather than at a purpose-built context.
+- **A logger and a client that hold the context themselves**, so a call reads `actx.Logger().Info(...)` with nothing passed. Rejected: that is what puts a request-scoped context in a struct field, which the context package warns against.
+  `airflow.Context` carrying one is a different case, since it is a purpose-built context rather than a domain type, which is why the context itself stays a struct.
 - **Two registration verbs**, one per registerable kind. Rejected: Having `bundle.registerTaskHandler(airflow.TaskHandler(...))` spell the exact term twice, having a sealed type is a much cleaner interface.

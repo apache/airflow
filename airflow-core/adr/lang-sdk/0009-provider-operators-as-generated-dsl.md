@@ -57,15 +57,15 @@ import (
     "github.com/apache/airflow/go-sdk/airflowprovider/cncf/kubernetes"
 )
 
-extracted := dag.Task("extract", extract) // native Go: runs on a Go worker
+extracted := dag.Task(extract) // native Go: runs on a Go worker
 
-staged := dag.Task("stage", amazon.S3ToRedshiftOperator{
+staged := dag.Task(amazon.S3ToRedshiftOperator{
     SchemaName: "public", TableName: "events", S3Bucket: "raw", S3Key: "events/{{ ds }}",
-}).After(extracted) // DSL only: runs on a Python worker
+}, airflow.TaskSpec{TaskId: "stage"}).After(extracted) // DSL only: runs on a Python worker
 
-dag.Task("report", kubernetes.KubernetesPodOperator{
+dag.Task(kubernetes.KubernetesPodOperator{
     Namespace: "airflow", Image: "report:latest", Name: "report",
-}).After(staged)
+}, airflow.TaskSpec{TaskId: "report"}).After(staged)
 ```
 
 `airflow.TriggerDagRun` ([ADR-0008](0008-control-flow-constructs.md)) follows the same concept but it is the hand-written.
