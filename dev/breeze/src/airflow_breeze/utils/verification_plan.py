@@ -118,7 +118,12 @@ class LeanSelectiveChecks(SelectiveChecks):
 
 
 def build_local_verification_plan(
-    sc: SelectiveChecks, changed_files: tuple[str, ...], base_ref: str, *, full_tests_needed: bool
+    sc: SelectiveChecks,
+    changed_files: tuple[str, ...],
+    base_ref: str,
+    *,
+    full_tests_needed: bool,
+    full: bool = False,
 ) -> dict[str, Any]:
     items = [build_prek_item(sc, base_ref)]
     if sc.run_unit_tests:
@@ -131,6 +136,19 @@ def build_local_verification_plan(
     if sc.docs_build:
         items.append(
             VerificationItem("docs", f"breeze build-docs {sc.docs_list_as_string}".rstrip(), "breeze")
+        )
+    if full:
+        # Jobs CI runs on every PR regardless of the change.
+        breeze_tests = VerificationItem("unit", "cd dev/breeze && uv run --locked pytest", "host")
+        if breeze_tests not in items:
+            items.append(breeze_tests)
+        dists = " ".join(sorted(json.loads(sc.shared_distributions_as_json)))
+        items.append(
+            VerificationItem(
+                "unit",
+                f"for d in {dists}; do (cd shared/$d && uv run --group dev pytest) || exit 1; done",
+                "host",
+            )
         )
     return {
         "base_ref": base_ref,
