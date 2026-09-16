@@ -19,10 +19,9 @@ from __future__ import annotations
 import json
 import shlex
 from dataclasses import asdict, dataclass
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-if TYPE_CHECKING:
-    from airflow_breeze.utils.selective_checks import SelectiveChecks
+from airflow_breeze.utils.selective_checks import SelectiveChecks
 
 
 @dataclass(frozen=True)
@@ -111,8 +110,15 @@ def build_unit_test_items(group: str, test_types_json: str | None) -> list[Verif
     ]
 
 
+class LeanSelectiveChecks(SelectiveChecks):
+    """The same selective-checks rules without the run-everything safety net CI applies to changes
+    that touch CI tooling or dependency files; only what the changed files match themselves."""
+
+    full_tests_needed = False
+
+
 def build_local_verification_plan(
-    sc: SelectiveChecks, changed_files: tuple[str, ...], base_ref: str
+    sc: SelectiveChecks, changed_files: tuple[str, ...], base_ref: str, *, full_tests_needed: bool
 ) -> dict[str, Any]:
     items = [build_prek_item(sc, base_ref)]
     if sc.run_unit_tests:
@@ -129,7 +135,7 @@ def build_local_verification_plan(
     return {
         "base_ref": base_ref,
         "default_python_version": sc.default_python_version,
-        "full_tests_needed": sc.full_tests_needed,
+        "full_tests_needed": full_tests_needed,
         "changed_files": list(changed_files),
         "items": [asdict(item) for item in items],
     }
