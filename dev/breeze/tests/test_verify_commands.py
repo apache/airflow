@@ -49,7 +49,7 @@ def test_json_output_keeps_stdout_parseable(mock_files, monkeypatch):
         "items",
     }
     assert payload["changed_files"] == ["airflow-core/docs/index.rst"]
-    assert set(payload["items"][0]) == {"kind", "command", "runs_in", "required"}
+    assert set(payload["items"][0]) == {"kind", "command", "runs_in"}
     assert payload["items"][0]["kind"] == "prek"
 
 

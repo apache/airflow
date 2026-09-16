@@ -332,8 +332,9 @@ usage error such as a base ref git cannot resolve.
      breeze verify --base-ref upstream/main
 
 Each row says what kind of check it is, whether it runs on the host or needs Docker and the
-CI image (``breeze``), and the exact command. Use ``--json`` for machine-readable output with
-the same fields.
+CI image (``breeze``), and the exact command. Jobs CI runs on every PR regardless of the change
+(breeze's own unit tests, the shared distributions, the translation check) are not listed.
+Use ``--json`` for machine-readable output with the same fields.
 
 When a change touches CI tooling or dependency files, selective checks make CI run the full suite
 and the table grows accordingly. ``breeze verify`` says so under the table. Run what covers your change

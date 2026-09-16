@@ -93,11 +93,11 @@ def verify(ctx: click.Context, base_ref: str, as_json: bool):
         f"[info]{len(changed_files)} changed file(s) against {base_ref}, "
         f"CI default Python {result['default_python_version']}[/]\n"
     )
-    table = Table(title="Run locally to match CI", show_lines=False)
-    for column in ("kind", "runs_in", "required", "command"):
+    table = Table(title="What CI runs for this change", show_lines=False)
+    for column in ("kind", "runs_in", "command"):
         table.add_column(column)
     for item in result["items"]:
-        table.add_row(item["kind"], item["runs_in"], str(item["required"]).lower(), escape(item["command"]))
+        table.add_row(item["kind"], item["runs_in"], escape(item["command"]))
     console.print(table)
     if result["full_tests_needed"]:
         console.print(
