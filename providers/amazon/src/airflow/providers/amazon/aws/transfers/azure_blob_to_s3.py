@@ -158,7 +158,7 @@ class AzureBlobStorageToS3Operator(BaseOperator):
             existing_files = existing_files or []
             # remove the prefix for the existing files to allow the match
             existing_files = [file.replace(f"{prefix}/", "", 1) for file in existing_files]
-            files = list(set(files) - set(existing_files))
+            files = sorted(set(files) - set(existing_files))
 
         if files:
             for file in files:
