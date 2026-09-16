@@ -108,7 +108,13 @@ the registration — not from `handler.name` at runtime, which minification rena
 Implementation Notes). A handler with no source name — a bare anonymous arrow passed inline,
 `dag.task(async () => 42)` — has nothing to resolve and is a compile error until given an explicit
 id. This default is for native Dags, where both ends of every name are TypeScript; a mixed-language
-handler follow the same convention but should probably use the explicit form, more information in ([ADR-0001](0001-mixed-lang-dag-interface.md)).
+handler follows the same convention but should probably use the explicit form, more information in ([ADR-0001](0001-mixed-lang-dag-interface.md)).
+
+The `TaskSpec` also carries the task id, so it can be set alongside the other task options:
+
+```ts
+const extract = dag.task(async () => 42, { taskId: "extract", retries: 2 });
+```
 
 ### Order-only edges: `>>` and `<<`
 
