@@ -94,7 +94,7 @@
     "tooltip": "{{state}}：{{formattedCount}}，点击以筛选执行"
   },
   "schedulingActions": {
-    "cancelDrain": "取消排空",
+    "cancelDrain": "恢复调度",
     "drain": "排空后暂停",
     "drainPrompt": "此 Dag 有正在进行的 Dag 执行。排空会等待这些执行完成后再暂停 Dag；立即暂停则会马上停止调度，不等待它们完成。",
     "pauseNow": "立即暂停"

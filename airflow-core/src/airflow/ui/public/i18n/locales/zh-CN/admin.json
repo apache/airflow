@@ -143,8 +143,8 @@
       "packageName": "插件名称",
       "version": "版本"
     },
-    "provider_one": "Provider",
-    "provider_other": "Provider"
+    "provider_one": "整合套件",
+    "provider_other": "整合套件"
   },
   "variables": {
     "add": "新增变量",

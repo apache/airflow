@@ -27,6 +27,7 @@
   "breadcrumb": "面包屑导航",
   "browse": {
     "auditLog": "审计日志",
+    "dagBundles": "Dag 套件包",
     "deadlines": "截止期限",
     "jobs": "作业",
     "requiredActions": "待响应的任务实例",
