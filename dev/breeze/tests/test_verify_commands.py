@@ -110,11 +110,9 @@ def test_changed_files_list_renames_like_ci_diff_tree(mock_run):
     "airflow_breeze.commands.verify_commands.get_changed_files_against",
     return_value=("airflow-core/docs/index.rst",),
 )
-def test_each_command_is_printed_on_its_own_line(mock_files):
+def test_long_commands_are_folded_not_truncated(mock_files):
     result = CliRunner().invoke(verify, [], catch_exceptions=False)
     assert result.exit_code == 0
-    lines = ANSI.sub("", result.output).splitlines()
-    prek_lines = [line for line in lines if line.startswith("SKIP=")]
-    assert len(prek_lines) == 1
-    assert prek_lines[0].endswith(" prek run --all-files")
     assert "\u2026" not in result.output
+    compact = re.sub(r"[\u2502\s]", "", result.output)
+    assert "update-uv-lockprekrun--all-files" in compact

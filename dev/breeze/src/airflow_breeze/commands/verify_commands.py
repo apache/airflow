@@ -22,6 +22,8 @@ import json
 import sys
 
 import click
+from rich.markup import escape
+from rich.table import Table
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.commands.common_options import option_verbose
@@ -70,7 +72,7 @@ def get_changed_files_against(base_ref: str) -> tuple[str, ...]:
     help="List everything CI runs for the default matrix cell, including the full suite CI adds "
     "when a change touches CI tooling or dependency files.",
 )
-@click.option("--json", "as_json", is_flag=True, help="Print machine-readable JSON instead of the list.")
+@click.option("--json", "as_json", is_flag=True, help="Print machine-readable JSON instead of a table.")
 @option_verbose
 @click.pass_context
 def verify(ctx: click.Context, base_ref: str, full: bool, as_json: bool):
@@ -101,10 +103,13 @@ def verify(ctx: click.Context, base_ref: str, full: bool, as_json: bool):
         f"[info]{len(changed_files)} changed file(s) against {base_ref}, "
         f"CI default Python {result['default_python_version']}[/]\n"
     )
-    console.print(f"[info]# {'What CI runs for this change' if full else 'What to run for this change'}[/]")
+    table = Table(title="What CI runs for this change" if full else "What to run for this change")
+    table.add_column("kind")
+    table.add_column("runs_in")
+    table.add_column("command", overflow="fold")
     for item in result["items"]:
-        console.print(f"\n[info]# {item['kind']} ({item['runs_in']})[/]")
-        console.print(item["command"], markup=False, highlight=False, soft_wrap=True)
+        table.add_row(item["kind"], item["runs_in"], escape(item["command"]))
+    console.print(table)
     if result["full_tests_needed"] and not full:
         console.print(
             "\n[warning]CI also runs the full suite for this change because it touches CI tooling or "
