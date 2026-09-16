@@ -139,10 +139,11 @@ class PydanticAIHook(BaseHook):
         """
         Return the kwargs to pass to the provider constructor.
 
-        The model prefix selects this mapper or a provider-specific mapper. The
-        base implementation handles the common ``api_key`` / ``base_url``
-        pattern used by OpenAI, Anthropic, Groq, Mistral, Ollama, and most
-        other providers.
+        The model prefix selects this mapper or a provider-specific mapper from
+        ``_PROVIDER_CONNECTION_CONFIGS``. Overriding this method in a subclass
+        does not register a provider-specific mapping. The base implementation
+        handles the common ``api_key`` / ``base_url`` pattern used by OpenAI,
+        Anthropic, Groq, Mistral, Ollama, and most other providers.
 
         :param api_key: Value of ``conn.password``.
         :param base_url: Value of ``conn.host``.

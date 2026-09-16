@@ -80,9 +80,13 @@ do not use provider credentials. The resolved ``Embedder`` is cached on the hook
     result = embedder.embed_query_sync("Apache Airflow orchestrates workflows.")
     embedding = result.embeddings[0]
 
-Additional keyword arguments for pydantic-ai's ``Embedder`` can be passed directly
-to ``get_embedder()``. Repeated calls with the same arguments return the cached
-instance; passing different arguments creates and caches a new instance.
+Keyword arguments accepted by pydantic-ai's `Embedder constructor
+<https://ai.pydantic.dev/api/embeddings/#pydantic_ai.embeddings.Embedder.__init__>`__
+can be passed directly to ``get_embedder()``. These currently include ``settings``,
+``defer_model_check``, and ``instrument``. Caller-supplied ``instrument`` takes
+precedence over Airflow's automatic instrumentation. Repeated calls with the same
+arguments return the cached instance; passing different arguments creates and caches
+a new instance.
 
 .. code-block:: python
 
