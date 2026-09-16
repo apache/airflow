@@ -198,7 +198,7 @@ class OperatorPartial:
     def expand(self, **mapped_kwargs: OperatorExpandArgument) -> MappedOperator:
         if not mapped_kwargs:
             raise TypeError("no arguments to expand against")
-        # task_concurrency only has meaning for Dynamic Task Iteration (as the sub-task thread
+        # task_concurrency only has meaning for Iterable Tasks (as the sub-task thread
         # count consumed by IterableOperator/MappedIterableOperator via .iterate()/.iterate_kwargs()).
         # A plain .expand() never reaches that code path, so reject it here rather than silently
         # accepting a dead value.

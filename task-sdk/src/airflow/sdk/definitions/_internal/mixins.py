@@ -137,7 +137,7 @@ class ResolveMixin:
 
     def iter_values(self, context: Context) -> Iterable[Any]:
         """
-        Yield individual values for task expansion during Dynamic Task Iteration.
+        Yield individual values for task expansion when running as Iterable Tasks.
 
         Called by :class:`~airflow.sdk.definitions.iterableoperator.IterableOperator` during
         execution to enumerate all the items this expand input resolves to. Each yielded value

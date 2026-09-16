@@ -837,7 +837,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param task_group: The TaskGroup to which the task should belong. This is typically provided when not
         using a TaskGroup as a context manager.
     :param task_concurrency: The maximum number of threads that will be used when the operator is used
-        with Dynamic Task Iteration (default is the number of threads available on the executor).
+        with Iterable Tasks, i.e. ``.iterate()`` (default is the number of threads available on the executor).
     :param doc: Add documentation or notes to your Task objects that is visible in
         Task Instance details View in the Webserver
     :param doc_md: Add documentation (in Markdown format) or notes to your Task objects
@@ -1118,7 +1118,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         super().__init__()
         self.task_group = task_group
-        # task_concurrency only has meaning for Dynamic Task Iteration (as the sub-task thread
+        # task_concurrency only has meaning for Iterable Tasks (as the sub-task thread
         # count, see IterableOperator.max_workers). A directly instantiated operator can never
         # reach that code path, so reject it here rather than silently accepting a dead value.
         if task_concurrency is not None:

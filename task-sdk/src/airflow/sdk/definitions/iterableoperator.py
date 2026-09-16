@@ -174,7 +174,7 @@ class Checkpoints:
 
 class IterableOperator(BaseOperator):
     """
-    Operator used for Task Iteration (TI) that runs a mapped operator over an iterable input.
+    Operator used for Iterable Tasks (IT) that runs a mapped operator over an iterable input.
 
     The IterableOperator wraps a :class:`MappedOperator` together with an
     :class:`ExpandInput` and is responsible for creating and running the
@@ -196,9 +196,9 @@ class IterableOperator(BaseOperator):
     executed again. Every sub-task inherits its ``try_number`` from the IterableOperator's own task
     instance, so the attempt count reported to a sub-task matches the attempt Airflow is currently
     running. The checkpoint is only consulted from the second attempt onwards, and solely to decide
-    whether an index already succeeded. Once every index has succeeded, all checkpoints are dropped
-    so that a *subsequent* manual clear (which does not reset ``try_number``) re-runs every index
-    from scratch instead of replaying the previous run's stale results.
+    whether an index already succeeded. Once every index has succeeded, a completion marker is written
+    so that a *subsequent* manual clear (which does not reset ``try_number``) re-runs every index from
+    scratch instead of replaying the previous run's stale results (see :class:`Checkpoints`).
 
     :param operator: The :class:`MappedOperator` to unmap and execute for
         each element of ``expand_input``. Each indexed runtime receives a
@@ -502,7 +502,7 @@ class IterableOperator(BaseOperator):
                         # KeyboardInterrupt, SystemExit) must never be swallowed: they
                         # signal conditions where continuing iteration is meaningless
                         # because every subsequent task would fail for the same reason.
-                        # Re-raise immediately to stop all task iteration.
+                        # Re-raise immediately to stop iterating over the remaining sub-tasks.
                         if isinstance(raised, DeadlockImminentError):
                             raise AirflowFailException(
                                 f"Sub-task {task.task_id}[{task.index}] made a synchronous SDK call "
