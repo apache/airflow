@@ -21,7 +21,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import timedelta
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from pydantic import BaseModel
 
@@ -100,7 +100,14 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         output and waits for a human reviewer to approve or reject via the
         HITL interface.  Default ``False``.
     :param approval_timeout: Maximum time to wait for a review.  When
-        exceeded, the task fails with ``TimeoutError``.
+        exceeded, ``on_approval_timeout`` decides the outcome.
+    :param on_approval_timeout: What to do when ``approval_timeout`` expires
+        without a review.  ``"fail"`` (default) fails the task with
+        ``HITLTimeoutError``; ``"approve"`` and ``"reject"`` answer the review
+        with that option, so the task resumes as if a reviewer had chosen it.
+        The chosen option is also pre-highlighted for the reviewer in the HITL
+        form.  Requires ``require_approval=True`` and a positive
+        ``approval_timeout``.
     :param allow_modifications: If ``True``, the reviewer can edit the output
         before approving.  The modified value is returned as the task result.
         Default ``False``.
@@ -135,6 +142,7 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         usage_limits: UsageLimits | dict[str, Any] | None = None,
         require_approval: bool = False,
         approval_timeout: timedelta | None = None,
+        on_approval_timeout: Literal["fail", "approve", "reject"] = "fail",
         allow_modifications: bool = False,
         serialize_output: bool = False,
         **kwargs: Any,
@@ -153,8 +161,21 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         self.agent_params = agent_params or {}
         # No validation here -- see coerce_usage_limits() docstring for why.
         self.usage_limits = usage_limits
+        if on_approval_timeout not in ("fail", *LLMApprovalMixin.TIMEOUT_DEFAULTS):
+            raise ValueError(
+                f"on_approval_timeout must be 'fail', 'approve', or 'reject', got {on_approval_timeout!r}."
+            )
+        if on_approval_timeout != "fail" and not (
+            require_approval and approval_timeout is not None and approval_timeout > timedelta(0)
+        ):
+            raise ValueError(
+                f"on_approval_timeout={on_approval_timeout!r} needs require_approval=True and "
+                "a positive approval_timeout to fire. "
+                "Set both, or leave on_approval_timeout as 'fail'."
+            )
         self.require_approval = require_approval
         self.approval_timeout = approval_timeout
+        self.on_approval_timeout = on_approval_timeout
         self.allow_modifications = allow_modifications
 
     @cached_property
