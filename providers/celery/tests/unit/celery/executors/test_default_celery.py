@@ -29,6 +29,10 @@ from airflow.providers.celery.executors.default_celery import (
 from airflow.providers.common.compat.sdk import AirflowException, conf
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
+
+if AIRFLOW_V_3_2_PLUS:
+    from airflow.executors.base_executor import ExecutorConf
 
 
 @pytest.mark.parametrize(
@@ -48,10 +52,12 @@ def test_broker_supports_visibility_timeout(url, expected):
 
 
 class TestBrokerTransportOptions:
-    def test_default_visibility_timeout_added_for_supporting_broker(self):
+    @mock.patch("airflow.providers.celery.executors.default_celery.log.warning")
+    def test_default_visibility_timeout_added_with_warning_for_supporting_broker(self, mock_warning):
         options = _broker_transport_options("redis://localhost:6379/0", conf)
 
         assert options["visibility_timeout"] == 86400
+        assert "No visibility_timeout configured" in mock_warning.call_args.args[0]
 
     def test_no_visibility_timeout_for_non_supporting_broker(self):
         options = _broker_transport_options("amqp://guest@rabbitmq:5672//", conf)
@@ -59,16 +65,40 @@ class TestBrokerTransportOptions:
         assert "visibility_timeout" not in options
 
     @conf_vars({("celery_broker_transport_options", "visibility_timeout"): "21600"})
-    def test_configured_visibility_timeout_is_kept(self):
+    @mock.patch("airflow.providers.celery.executors.default_celery.log.warning")
+    def test_configured_visibility_timeout_is_kept_without_warning(self, mock_warning):
         options = _broker_transport_options("redis://localhost:6379/0", conf)
 
         assert options["visibility_timeout"] == 21600
+        mock_warning.assert_not_called()
 
-    @conf_vars({("celery_broker_transport_options", "sentinel_kwargs"): '{"service_name": "mymaster"}'})
-    def test_dict_option_parsed_from_json_string(self):
-        options = _broker_transport_options("sentinel://localhost:26379", conf)
+    @pytest.mark.parametrize(
+        ("option", "value", "expected"),
+        [
+            ("client-config", '{"connect_timeout": 5}', {"connect_timeout": 5}),
+            (
+                "fetch_message_attributes",
+                '{"MessageSystemAttributeNames": ["SenderId"], "MessageAttributeNames": ["S3MessageBodyKey"]}',
+                {
+                    "MessageSystemAttributeNames": ["SenderId"],
+                    "MessageAttributeNames": ["S3MessageBodyKey"],
+                },
+            ),
+            ("kafka_consumer_config", '{"group.id": "myconsumer"}', {"group.id": "myconsumer"}),
+            (
+                "kafka_producer_config",
+                '{"ssl.certificate.location": "/foo/bar"}',
+                {"ssl.certificate.location": "/foo/bar"},
+            ),
+            ("sentinel_kwargs", '{"service_name": "mymaster"}', {"service_name": "mymaster"}),
+        ],
+        ids=lambda case: case if isinstance(case, str) else "",
+    )
+    def test_dict_option_parsed_from_json_string(self, option, value, expected):
+        with conf_vars({("celery_broker_transport_options", option): value}):
+            options = _broker_transport_options("sentinel://localhost:26379", conf)
 
-        assert options["sentinel_kwargs"] == {"service_name": "mymaster"}
+        assert options[option] == expected
 
     @pytest.mark.parametrize(
         "value",
@@ -145,10 +175,59 @@ class TestGetDefaultCeleryConfig:
 
         assert config["broker_url"] == conf.get("celery", "BROKER_URL", fallback="redis://redis:6379/0")
 
+    @conf_vars({("celery", "task_acks_late"): "False"})
+    def test_task_acks_late_loaded_from_string(self):
+        config = get_default_celery_config(conf)
+
+        assert config["task_acks_late"] is False
+
+    @conf_vars({("celery", "result_backend_sqlalchemy_engine_options"): '{"pool_recycle": 1800}'})
+    def test_result_backend_sqlalchemy_engine_options(self):
+        config = get_default_celery_config(conf)
+
+        assert config["database_engine_options"] == {"pool_recycle": 1800}
+
+    @conf_vars({("celery", "result_backend"): "rediss://test_user:test_password@localhost:6379/0"})
+    @mock.patch("airflow.providers.celery.executors.default_celery.log.warning")
+    def test_not_recommended_result_backend_warns_without_leaking_credentials(self, mock_warning):
+        get_default_celery_config(conf)
+
+        messages = [
+            call.args[0] % tuple(call.args[1:]) if len(call.args) > 1 else call.args[0]
+            for call in mock_warning.call_args_list
+        ]
+        assert any("highly recommended to use an alternative result_backend" in m for m in messages)
+        assert all("test_password" not in m for m in messages)
+
 
 class TestSslConfiguration:
     def test_ssl_inactive_by_default(self):
         config = get_default_celery_config(conf)
+
+        assert "broker_use_ssl" not in config
+
+    @conf_vars(
+        {
+            ("celery", "ssl_active"): "False",
+            ("celery", "broker_url"): "amqps://guest@rabbitmq:5671//",
+        }
+    )
+    def test_amqps_broker_gets_no_ssl_when_inactive(self):
+        config = get_default_celery_config(conf)
+
+        assert "broker_use_ssl" not in config
+
+    @conf_vars({("celery", "ssl_active"): "yes"})
+    def test_non_boolean_ssl_active_degrades_to_no_ssl(self):
+        """A malformed [celery] ssl_active must degrade to a no-SSL config instead of raising."""
+        config = get_default_celery_config(conf)
+
+        assert "broker_use_ssl" not in config
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="ExecutorConf requires Airflow 3.2+")
+    @conf_vars({("celery", "ssl_active"): "yes"})
+    def test_non_boolean_ssl_active_degrades_to_no_ssl_for_executor_conf(self):
+        config = get_default_celery_config(ExecutorConf(team_name=None))
 
         assert "broker_use_ssl" not in config
 
@@ -171,17 +250,18 @@ class TestSslConfiguration:
             "ssl_certfile": "/keys/client.crt",
         }
 
-    @conf_vars(
-        {
-            ("celery", "ssl_active"): "True",
-            ("celery", "broker_url"): "amqps://guest@rabbitmq:5671//",
-            ("celery", "ssl_key"): "/keys/client.key",
-            ("celery", "ssl_cert"): "/keys/client.crt",
-            ("celery", "ssl_cacert"): "/keys/ca.crt",
-        }
-    )
-    def test_amqp_broker_uses_amqp_ssl_keys(self):
-        config = get_default_celery_config(conf)
+    @pytest.mark.parametrize("broker_url", ["amqps://guest@rabbitmq:5671//", "amqp://guest@rabbitmq:5672//"])
+    def test_amqp_broker_uses_amqp_ssl_keys(self, broker_url):
+        with conf_vars(
+            {
+                ("celery", "ssl_active"): "True",
+                ("celery", "broker_url"): broker_url,
+                ("celery", "ssl_key"): "/keys/client.key",
+                ("celery", "ssl_cert"): "/keys/client.crt",
+                ("celery", "ssl_cacert"): "/keys/ca.crt",
+            }
+        ):
+            config = get_default_celery_config(conf)
 
         assert config["broker_use_ssl"] == {
             "cert_reqs": ssl.CERT_REQUIRED,
@@ -189,6 +269,39 @@ class TestSslConfiguration:
             "keyfile": "/keys/client.key",
             "certfile": "/keys/client.crt",
         }
+
+    @conf_vars(
+        {
+            ("celery", "ssl_active"): "True",
+            ("celery", "broker_url"): "amqps://guest@rabbitmq:5671//",
+            ("celery", "ssl_mutual_tls"): "False",
+            ("celery", "ssl_key"): "/keys/client.key",
+            ("celery", "ssl_cert"): "/keys/client.crt",
+            ("celery", "ssl_cacert"): "/keys/ca.crt",
+        }
+    )
+    def test_amqp_one_way_tls_ignores_client_certificates(self):
+        config = get_default_celery_config(conf)
+
+        assert config["broker_use_ssl"] == {
+            "cert_reqs": ssl.CERT_REQUIRED,
+            "ca_certs": "/keys/ca.crt",
+        }
+
+    @conf_vars(
+        {
+            ("celery", "ssl_active"): "True",
+            ("celery", "broker_url"): "amqps://guest@rabbitmq:5671//",
+            ("celery", "ssl_key"): "/keys/client.key",
+            ("celery", "ssl_cert"): "/keys/client.crt",
+            ("celery", "ssl_cacert"): "",
+        }
+    )
+    def test_empty_cacert_falls_back_to_system_cas(self):
+        config = get_default_celery_config(conf)
+
+        assert "ca_certs" not in config["broker_use_ssl"]
+        assert config["broker_use_ssl"]["cert_reqs"] == ssl.CERT_REQUIRED
 
     @conf_vars(
         {
