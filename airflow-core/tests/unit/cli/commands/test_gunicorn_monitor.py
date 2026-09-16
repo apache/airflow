@@ -442,6 +442,50 @@ class TestCreateGunicornApp:
             assert options["keyfile"] == "/path/to/key.pem"
             assert options["ca_certs"] == "/path/to/ca.crt"
             assert options["cert_reqs"] == 1
+            assert "ciphers" not in options
+
+    @pytest.mark.parametrize(
+        ("ssl_ciphers", "expected"),
+        [
+            pytest.param("ECDHE-RSA-AES256-GCM-SHA384", "ECDHE-RSA-AES256-GCM-SHA384", id="explicit list"),
+            pytest.param("", None, id="empty string keeps python default"),
+            pytest.param(None, None, id="unset keeps python default"),
+        ],
+    )
+    def test_create_app_with_ssl_ciphers(self, ssl_ciphers, expected):
+        from airflow.api_fastapi.gunicorn_app import create_gunicorn_app
+
+        with mock.patch("airflow.api_fastapi.gunicorn_app.AirflowGunicornApp") as mock_app_class:
+            create_gunicorn_app(
+                host="0.0.0.0",
+                port=8443,
+                num_workers=4,
+                worker_timeout=120,
+                ssl_cert="/path/to/cert.pem",
+                ssl_key="/path/to/key.pem",
+                ssl_ciphers=ssl_ciphers,
+            )
+
+            options = mock_app_class.call_args[0][0]
+
+            assert options.get("ciphers") == expected
+
+    def test_create_app_with_ssl_ciphers_without_cert_is_ignored(self):
+        """Ciphers only apply to an SSL listener, so they must not leak into a plain-HTTP config."""
+        from airflow.api_fastapi.gunicorn_app import create_gunicorn_app
+
+        with mock.patch("airflow.api_fastapi.gunicorn_app.AirflowGunicornApp") as mock_app_class:
+            create_gunicorn_app(
+                host="0.0.0.0",
+                port=8080,
+                num_workers=4,
+                worker_timeout=120,
+                ssl_ciphers="ECDHE-RSA-AES256-GCM-SHA384",
+            )
+
+            options = mock_app_class.call_args[0][0]
+
+            assert "ciphers" not in options
 
     @pytest.mark.parametrize(
         ("proxy_headers", "forwarded_allow_ips", "expected_trusted"),

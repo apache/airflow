@@ -608,8 +608,19 @@ def test_delete_vector_store_file(mock_openai_hook):
 
 def test_create_batch(mock_openai_hook, mock_terminated_batch):
     mock_openai_hook.conn.batches.create.return_value = mock_terminated_batch
-    batch = mock_openai_hook.create_batch(endpoint="/v1/chat/completions", file_id=FILE_ID)
+    batch = mock_openai_hook.create_batch(
+        endpoint="/v1/chat/completions",
+        file_id=FILE_ID,
+        output_expires_after={"anchor": "created_at", "seconds": 3600},
+    )
     assert batch.id == mock_terminated_batch.id
+    mock_openai_hook.conn.batches.create.assert_called_once_with(
+        input_file_id=FILE_ID,
+        endpoint="/v1/chat/completions",
+        metadata=None,
+        completion_window="24h",
+        output_expires_after={"anchor": "created_at", "seconds": 3600},
+    )
 
 
 def test_get_batch(mock_openai_hook, mock_terminated_batch):

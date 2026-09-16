@@ -62,6 +62,7 @@ class StandaloneCommand:
         self.output_queue = deque()
         self.ready_time = None
         self.ready_delay = 3
+        self.api_server_port = None
 
     @providers_configuration_loaded
     def run(self):
@@ -69,6 +70,7 @@ class StandaloneCommand:
         # Silence built-in logging at INFO
         logging.getLogger("").setLevel(logging.WARNING)
         # Startup checks and prep
+        self.api_server_port = conf.getint("api", "port")
         env = self.calculate_env()
         self.find_user_info()
         self.initialize_database()
@@ -226,10 +228,12 @@ class StandaloneCommand:
         """
         Detect when all Airflow components are ready to serve.
 
-        For now, it's simply time-based.
+        Ready means the API server accepts connections and the scheduler, Dag
+        processor and triggerer are all heartbeating.
         """
         return (
-            self.job_running(SchedulerJobRunner)
+            self.port_open(self.api_server_port)
+            and self.job_running(SchedulerJobRunner)
             and self.job_running(DagProcessorJobRunner)
             and self.job_running(TriggererJobRunner)
         )
@@ -238,7 +242,7 @@ class StandaloneCommand:
         """
         Check if the given port is listening on the local machine.
 
-        Used to tell if webserver is alive.
+        Used to tell if the API server is alive.
         """
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

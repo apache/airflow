@@ -888,7 +888,7 @@ class DagFileProcessorManager(LoggingMixin):
                 current_version_matches_db=current_version_matches_db,
                 previously_seen=previously_seen,
             ):
-                self.log.info("Not time to refresh bundle %s", bundle.name)
+                self.log.debug("Not time to refresh bundle %s", bundle.name)
                 continue
 
             self.log.info("Refreshing bundle %s", bundle.name)
@@ -988,7 +988,7 @@ class DagFileProcessorManager(LoggingMixin):
                 with zipfile.ZipFile(abs_path) as z:
                     for info in z.infolist():
                         # Use the configured discovery safe mode
-                        if might_contain_dag(info.filename, self.dag_discovery_safe_mode, z):
+                        if might_contain_dag(info.filename, self.dag_discovery_safe_mode, z, conf=conf):
                             yield os.path.join(abs_path, info.filename)
             except zipfile.BadZipFile:
                 self.log.exception("There was an error accessing ZIP file %s", abs_path)

@@ -23,11 +23,17 @@ from typing import Any
 from confluent_kafka.admin import AdminClient
 
 from airflow.providers.common.compat.module_loading import import_string
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook, conf
 
 # librdkafka config options whose values are callables. They can be provided as dotted-path
 # strings on the connection extra and are resolved to callables before the client is built.
 CALLBACK_CONFIG_KEYS = ("error_cb", "throttle_cb", "stats_cb", "log_cb", "oauth_cb", "on_commit")
+
+
+KAFKA_COMMON_CONFIG_SECTION = "apache_kafka"
+# Configuration allowlist for callbacks that are allowed to be resolved from a connection extra.
+CALLBACK_ALLOWLIST_CONFIG_OPTION = "callback_allowlist"
+
 
 # Amazon MSK bootstrap servers follow a predictable naming scheme, e.g.
 #   b-1.demo.abcde1.c2.kafka.us-east-1.amazonaws.com:9098            (provisioned)
@@ -90,12 +96,53 @@ class KafkaBaseHook(BaseHook):
     def _get_client(self, config) -> Any:
         return AdminClient(config)
 
+    @staticmethod
+    def _get_callback_allowlist() -> frozenset[str]:
+        conf_value = (
+            conf.get(KAFKA_COMMON_CONFIG_SECTION, CALLBACK_ALLOWLIST_CONFIG_OPTION, fallback="") or ""
+        )
+        return frozenset(cb_path.strip() for cb_path in conf_value.split(",") if cb_path.strip())
+
     def _resolve_callbacks(self, config: dict[str, Any]) -> None:
-        """Resolve callback options provided as dotted-path strings into callables."""
+        """
+        Resolve callback options provided as dotted-path strings into callables.
+
+        A callback is resolved only when its full importable path is listed in
+        the ``[apache_kafka] callback_allowlist`` configuration. This is enforced
+        for security reasons, to prevent malicious callbacks from being executed.
+        """
+        allowlist: frozenset[str] | None = None
         for key in CALLBACK_CONFIG_KEYS:
             value = config.get(key)
-            if isinstance(value, str):
-                config[key] = import_string(value)
+            if not isinstance(value, str):
+                continue
+            if allowlist is None:
+                # Get the allowlist from the config only once, if it hasn't
+                # already been initialized by a previous iteration.
+                allowlist = self._get_callback_allowlist()
+            if not allowlist:
+                # If the allowlist is empty, break the iteration immediately by raising an error.
+                self.log.warning(
+                    "Kafka connection %r requests callback %s=%r, but [%s] %s is empty. Add the "
+                    "full importable path of each callback you trust (e.g. 'my_pkg.auth.oauth_cb') "
+                    "to allow string-valued callbacks.",
+                    self.kafka_config_id,
+                    key,
+                    value,
+                    KAFKA_COMMON_CONFIG_SECTION,
+                    CALLBACK_ALLOWLIST_CONFIG_OPTION,
+                )
+                raise ValueError(
+                    f"Refusing to resolve Kafka callback {key}={value!r}: the "
+                    f"[{KAFKA_COMMON_CONFIG_SECTION}] {CALLBACK_ALLOWLIST_CONFIG_OPTION} is empty."
+                )
+            if value not in allowlist:
+                raise ValueError(
+                    f"Refusing to resolve Kafka callback {key}={value!r}: it is not in the "
+                    f"[{KAFKA_COMMON_CONFIG_SECTION}] {CALLBACK_ALLOWLIST_CONFIG_OPTION} "
+                    f"({', '.join(sorted(allowlist))})."
+                )
+            config[key] = import_string(value)
 
     def _build_config(self) -> dict[str, Any]:
         """

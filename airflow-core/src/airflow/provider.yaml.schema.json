@@ -428,8 +428,9 @@
                 "type": "object",
                 "properties": {
                     "connection-type": {
-                        "description": "Type of connection defined by the provider",
-                        "type": "string"
+                        "description": "Type of connection defined by the provider. Lowercase letters, digits and '_' only, starting with a letter. The hook is registered under this exact string, while Connection.get_uri() encodes '_' as '-' and from_uri/from_json decode '-' back to '_'. A '-' here is therefore indistinguishable from an encoded '_' and leaves the hook unresolvable for any connection stored as a URI or JSON; uppercase is lost to get_uri()'s lowercasing; and a leading digit is not a valid URI scheme under RFC 3986. The trailing lookahead is load-bearing: a pattern is matched with re.search, where '$' also matches before a trailing newline, which is what a YAML block scalar produces.",
+                        "type": "string",
+                        "pattern": "^[a-z][a-z0-9_]*$(?!\\n)"
                     },
                     "hook-class-name": {
                         "description": "Hook class name that implements the connection type",
