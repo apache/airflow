@@ -22,7 +22,7 @@ from collections.abc import Iterable
 from enum import Enum
 from functools import singledispatch
 from traceback import format_exception
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from sqlalchemy import ForeignKey, Index, Integer, String, Text, delete, func, or_, select, update
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -639,7 +639,7 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
     :param task_instance: The task instance to be submitted.
     :param session: The session to be used for the database callback sink.
     """
-    from airflow.callbacks.callback_requests import TaskCallbackRequest
+    from airflow.callbacks.callback_requests import EmailRequest, TaskCallbackRequest
     from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
     from airflow.utils.state import TaskInstanceState
 
@@ -706,6 +706,50 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
             except Exception:
                 log.exception("Failed to send callback.")
 
+    def _submit_email_if_necessary() -> None:
+        """Send an email notification request, mirroring the scheduler's executor-event path."""
+        if callback_type not in (TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY):
+            return
+        task = task_instance.task
+        if task is None or not task.email:
+            return
+        email_type: Literal["retry", "failure"] = (
+            "retry" if callback_type == TaskInstanceState.UP_FOR_RETRY else "failure"
+        )
+        if email_type == "retry" and not task.email_on_retry:
+            return
+        if email_type == "failure" and not task.email_on_failure:
+            return
+
+        from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+            DagRun as DRDataModel,
+            TIRunContext,
+        )
+
+        request = EmailRequest(
+            filepath=task_instance.dag_model.relative_fileloc or "",
+            bundle_name=task_instance.dag_version.bundle_name
+            if task_instance.dag_version
+            else task_instance.dag_model.bundle_name,
+            bundle_version=task_instance.dag_version.bundle_version
+            if task_instance.dag_version and task_instance.dag_run.bundle_version is not None
+            else task_instance.dag_run.bundle_version,
+            ti=task_instance,
+            email_type=email_type,
+            context_from_server=TIRunContext(
+                dag_run=DRDataModel.model_validate(task_instance.dag_run, from_attributes=True),
+                max_tries=task_instance.max_tries,
+                variables=[],
+                connections=[],
+                xcom_keys_to_clear=[],
+            ),
+        )
+        log.info("Sending email request: %s", request)
+        try:
+            DatabaseCallbackSink().send(callback=request, session=session)
+        except Exception:
+            log.exception("Failed to send email request.")
+
     def _push_xcoms_if_necessary() -> None:
         """Pushes XComs to the database if they are provided."""
         if event.xcoms and callback_type != TaskInstanceState.UP_FOR_RETRY:
@@ -715,6 +759,7 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
     # Send the callback before mutating task state so it reflects the retry-vs-terminal
     # decision derived above.
     _submit_callback_if_necessary()
+    _submit_email_if_necessary()
 
     if should_retry:
         task_instance.end_date = timezone.utcnow()
