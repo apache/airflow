@@ -31,7 +31,7 @@ from airflow.providers.keycloak.auth_manager.constants import (
 from airflow.providers.keycloak.auth_manager.middleware import KeycloakJWTMiddleware
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_7_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_7_PLUS, AIRFLOW_V_3_4_PLUS
 
 if AIRFLOW_V_3_1_7_PLUS:
     from airflow.api_fastapi.auth.managers.exceptions import AuthManagerRefreshTokenExpiredException
@@ -113,7 +113,10 @@ class TestKeycloakJWTMiddleware:
         else:
             assert not hasattr(mock_request.state, "user_authenticated_via")
 
-        auth_manager.get_user_from_token.assert_called_once_with("token", "access_token", "refresh_token")
+        if AIRFLOW_V_3_4_PLUS:
+            auth_manager.get_user_from_token.assert_called_once_with("token")
+        else:
+            auth_manager.get_user_from_token.assert_called_once_with("token", "access_token", "refresh_token")
         auth_manager.refresh_user.assert_called_once_with(user=mock_user)
         call_next.assert_awaited_once_with(mock_request)
 
@@ -185,7 +188,10 @@ class TestKeycloakJWTMiddleware:
         else:
             assert not hasattr(mock_request.state, "user_authenticated_via")
 
-        auth_manager.get_user_from_token.assert_called_once_with("token", "access_token", "refresh_token")
+        if AIRFLOW_V_3_4_PLUS:
+            auth_manager.get_user_from_token.assert_called_once_with("token")
+        else:
+            auth_manager.get_user_from_token.assert_called_once_with("token", "access_token", "refresh_token")
         auth_manager.refresh_user.assert_called_once_with(user=mock_user)
         auth_manager.generate_jwt.assert_called_once_with(new_user)
         call_next.assert_awaited_once_with(mock_request)
@@ -282,9 +288,12 @@ class TestKeycloakJWTMiddleware:
         response = await middleware.dispatch(mock_request, call_next)
 
         call_next.assert_called_once_with(mock_request)
-        auth_manager.get_user_from_token.assert_called_once_with(
-            "invalid_token", "access_token", "refresh_token"
-        )
+        if AIRFLOW_V_3_4_PLUS:
+            auth_manager.get_user_from_token.assert_called_once_with("invalid_token")
+        else:
+            auth_manager.get_user_from_token.assert_called_once_with(
+                "invalid_token", "access_token", "refresh_token"
+            )
 
         response.set_cookie.assert_any_call(
             COOKIE_NAME_JWT_TOKEN,
@@ -325,7 +334,10 @@ class TestKeycloakJWTMiddleware:
         response = await middleware.dispatch(mock_request, call_next)
 
         call_next.assert_called_once_with(mock_request)
-        auth_manager.get_user_from_token.assert_called_once_with("token", "expired_token", "refresh_token")
+        if AIRFLOW_V_3_4_PLUS:
+            auth_manager.get_user_from_token.assert_called_once_with("token")
+        else:
+            auth_manager.get_user_from_token.assert_called_once_with("token", "expired_token", "refresh_token")
         auth_manager.refresh_user.assert_called_once_with(user=mock_user)
 
         if AIRFLOW_V_3_1_7_PLUS:
