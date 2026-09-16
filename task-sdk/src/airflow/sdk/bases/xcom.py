@@ -568,7 +568,19 @@ class BaseXCom:
 
 
 class XComIterable(Sequence):
-    """An iterable that lazily fetches XCom values one by one instead of loading all at once."""
+    """
+    An iterable that lazily fetches XCom values one by one instead of loading all at once.
+
+    The class has two sides. The *producing* task builds it and grows it with :meth:`append` /
+    :meth:`aappend`, each call pushing one more ``return_value_<index>`` XCom, before returning it as
+    the task's result. Everything *downstream* (``.iterate()``, ``.expand()``, a plain ``xcom_pull``)
+    only ever reads it, which is why the class implements the read-only
+    :class:`collections.abc.Sequence` rather than ``MutableSequence``: once handed over it is a fixed
+    view of the values already pushed, and the two append methods are not part of that contract.
+
+    Negative indices are not supported: every element is a remote fetch, and resolving a negative
+    index against a lazily counted stream would cost a full walk just to find the end.
+    """
 
     def __init__(
         self,
@@ -617,6 +629,12 @@ class XComIterable(Sequence):
         )
 
     def append(self, value: Any):
+        """
+        Push ``value`` as the next indexed XCom of the producing task.
+
+        Producer-side only: call it from the task that owns this iterable, before returning the
+        iterable as the task's result. Downstream consumers see a read-only ``Sequence``.
+        """
         from airflow.sdk.execution_time.xcom import XCom
 
         XCom.set(
@@ -631,6 +649,7 @@ class XComIterable(Sequence):
         self.length += 1
 
     async def aappend(self, value: Any):
+        """Async version of :meth:`append`; the same producer-side-only rule applies."""
         from airflow.sdk.execution_time.xcom import XCom
 
         await XCom.aset(
@@ -730,13 +749,13 @@ class FlattenedXComIterable(XComIterable):
                     found[index] = item
             return [found[index] for index in positions]
 
-        length = len(self)
-        index = key if key >= 0 else key + length
-        if not (0 <= index < length):
+        # Same rule as XComIterable: no negative indices. Checked before len() so a negative key
+        # does not trigger a full walk of the stream just to be rejected.
+        if key < 0 or key >= len(self):
             raise IndexError(key)
 
         for current_index, item in enumerate(self):
-            if current_index == index:
+            if current_index == key:
                 return item
         raise IndexError(key)  # pragma: no cover - unreachable given the bounds check above
 

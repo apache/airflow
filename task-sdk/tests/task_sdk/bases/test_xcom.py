@@ -477,6 +477,17 @@ class TestXComIterable:
         return _get_one
 
     @patch.object(XCom, "get_one")
+    def test_negative_indices_are_rejected_on_both_iterables(self, mock_get_one):
+        mock_get_one.side_effect = self._pages_by_key([["a", "b"], ["c"]])
+        iterable = self.make_iterable(length=2)
+
+        with pytest.raises(IndexError, match="-1"):
+            iterable[-1]
+        with pytest.raises(IndexError, match="-1"):
+            iterable.flatten()[-1]
+        mock_get_one.assert_not_called()
+
+    @patch.object(XCom, "get_one")
     def test_flatten_len_counts_flattened_items_not_pages(self, mock_get_one):
         """len() of a flattened iterable must count individual flattened items, not the raw
         pages XComIterable stores — a page can expand to any number of items."""
@@ -491,7 +502,6 @@ class TestXComIterable:
         mock_get_one.side_effect = self._pages_by_key([["a", "b"], ["c", "d", "e"]])
         flattened = self.make_iterable(length=2).flatten()
         assert [flattened[i] for i in range(len(flattened))] == ["a", "b", "c", "d", "e"]
-        assert flattened[-1] == "e"
 
     @patch.object(XCom, "get_one")
     def test_flatten_getitem_slice_returns_flattened_items(self, mock_get_one):
