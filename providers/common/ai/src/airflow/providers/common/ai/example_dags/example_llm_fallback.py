@@ -25,6 +25,10 @@ Prerequisites:
     ``host='http://127.0.0.1:9/v1'`` (a port nothing listens on, standing in for an
     outage), ``password=<any value>``, and
     ``extra='{"model": "openai:gpt-4o-mini", "fallback_conn_ids": ["llm_fallback"]}'``
+  - Connection ``llm_primary_down_no_chain``: same as ``llm_primary_down`` but with
+    ``extra='{"model": "openai:gpt-4o-mini"}'`` (no ``fallback_conn_ids``) -- used by
+    the operator-argument Dag, so the chain visibly comes from the task instead of
+    the connection
   - Connection ``llm_fallback`` with ``conn_type='pydanticai'``,
     ``password=<API key>``, ``extra='{"model": "anthropic:claude-haiku-4-5-20251001"}'``
   - ``pip install apache-airflow-providers-common-ai[anthropic]``
@@ -56,6 +60,23 @@ def example_llm_fallback():
 example_llm_fallback()
 
 # [END howto_llm_fallback_connection_driven]
+
+
+# [START howto_llm_fallback_operator_argument]
+@dag(catchup=False, tags=["example", "fallback", "llm"])
+def example_llm_fallback_operator_argument():
+    """The chain lives on the task, not the connection -- it overrides any chain in extra."""
+    LLMOperator(
+        task_id="summarize_with_an_operator_owned_chain",
+        prompt="Summarize the key findings from the Q4 earnings report.",
+        llm_conn_id="llm_primary_down_no_chain",
+        fallback_conn_ids=["llm_fallback"],
+        system_prompt="You are a financial analyst. Be concise.",
+    )
+
+
+example_llm_fallback_operator_argument()
+# [END howto_llm_fallback_operator_argument]
 
 
 # [START howto_llm_fallback_hook_argument]

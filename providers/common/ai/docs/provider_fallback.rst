@@ -59,11 +59,32 @@ meant for a different provider. See :doc:`connections/pydantic_ai_azure`,
 :doc:`connections/pydantic_ai_bedrock` and :doc:`connections/pydantic_ai_vertex` for how
 each vendor connection resolves a bare name.
 
+Configure it on the operator
+-----------------------------
+
+``fallback_conn_ids`` is also a parameter on
+:class:`~airflow.providers.common.ai.operators.llm.LLMOperator`,
+:class:`~airflow.providers.common.ai.operators.agent.AgentOperator`, their subclasses,
+and the matching ``@task.llm`` / ``@task.agent`` decorators -- mirroring ``model_id``,
+which is settable at the same two layers:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_fallback.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_llm_fallback_operator_argument]
+    :end-before: [END howto_llm_fallback_operator_argument]
+
+The operator argument overrides the connection's extra field, and passing ``[]``
+explicitly disables a chain configured there -- ``None`` (the default) reads whatever
+the connection says. Use this when a task should own its own failover order instead of
+inheriting it from however the connection is configured.
+
 Configure it in code
 --------------------
 
 :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook` also takes the list
-directly, which is what a task that owns its own failover order should use:
+directly, which is what a task that constructs the hook itself (rather than through an
+operator) should use:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_fallback.py
     :language: python

@@ -65,6 +65,9 @@ class LLMSQLQueryOperator(LLMOperator):
     :param llm_conn_id: Connection ID for the LLM provider.
     :param model_id: Model identifier (e.g. ``"openai:gpt-4o"``).
         Overrides the model stored in the connection's extra field.
+    :param fallback_conn_ids: Connection IDs to fail over to, in order, when
+        the primary provider is unavailable. Overrides the ``fallback_conn_ids``
+        set in the connection's extra field.
     :param system_prompt: Additional instructions appended to the built-in SQL
         safety prompt. Use for domain-specific guidance.
     :param agent_params: Additional keyword arguments passed to the pydantic-ai
