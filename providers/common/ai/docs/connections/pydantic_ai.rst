@@ -60,7 +60,9 @@ Host (optional)
 
     - Ollama: ``http://localhost:11434/v1``
     - vLLM: ``http://localhost:8000/v1``
-    - Azure OpenAI: ``https://<resource>.openai.azure.com/openai/deployments/<deployment>``
+    - Azure OpenAI with an ``openai:`` model:
+      ``https://<resource>.openai.azure.com/openai/v1``. For an ``azure:`` model,
+      use the dedicated :doc:`pydantic_ai_azure` connection instead.
     - Any OpenAI-compatible API: the base URL of that service
 
 Extra (JSON, optional)

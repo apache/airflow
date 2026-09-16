@@ -298,6 +298,22 @@ def test_start_opts_into_fork_exec(monkeypatch, mocker, platform_uses_exec):
     assert base_start.call_args.kwargs["target"] == TriggerRunnerSupervisor.run_in_process
 
 
+@pytest.mark.parametrize("option_value", ["True", "False"])
+def test_start_ignores_execute_tasks_new_python_interpreter(mocker, option_value):
+    """
+    ``[core] execute_tasks_new_python_interpreter`` is a task-process opt-in and must not reach the
+    runner child, which only follows the platform gate (pinned to bare fork by ``_force_bare_fork``).
+    """
+    base_start = mocker.patch(
+        "airflow.sdk.execution_time.supervisor.WatchedSubprocess.start", return_value=MagicMock()
+    )
+
+    with conf_vars({("core", "execute_tasks_new_python_interpreter"): option_value}):
+        TriggerRunnerSupervisor.start(job=Job(id=999), capacity=10)
+
+    assert base_start.call_args.kwargs["use_exec"] is False
+
+
 @pytest.fixture
 def supervisor_builder(mocker, session):
     def builder(job=None):
