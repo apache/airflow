@@ -605,8 +605,7 @@ def _build_query(
         if dag_ids:
             conditions.append(fk_col.in_(_rows_for(dag_ids)))
         if exclude_dag_ids:
-            # A NULL foreign key belongs to no Dag, so it is not one of the excluded Dags' rows and
-            # stays eligible. Testing it with NOT IN alone would yield NULL and silently retain it.
+            # NULL-safe for the same reason as the direct-column branch above.
             conditions.append(or_(fk_col.is_(None), fk_col.not_in(_rows_for(exclude_dag_ids))))
 
     if keep_last:

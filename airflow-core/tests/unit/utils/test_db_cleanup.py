@@ -54,6 +54,7 @@ from airflow.utils.db_cleanup import (
     _dump_table_to_file,
     _effective_table_names,
     _get_archived_table_names,
+    _IndirectDagScope,
     _TableConfig,
     config_dict,
     drop_archived_tables,
@@ -646,6 +647,28 @@ class TestDBCleanup:
                 dag_id_column_name="dag_id",
                 skip_if_referenced=[("task_instance", "dag_version_id")],
                 # "id" intentionally omitted from extra_columns
+            )
+
+    def test_table_config_rejects_both_dag_id_column_and_scope(self):
+        """A table reaches its Dag one way or the other, so naming both ways must fail fast."""
+        with pytest.raises(ValueError, match="both dag_id_column_name and"):
+            _TableConfig(
+                table_name="deadline",
+                recency_column_name="deadline_time",
+                dag_id_column_name="dag_id",
+                dag_id_scope=_IndirectDagScope(fk_column="dagrun_id", referenced_table="dag_run"),
+                # present, so this fails on the conflict rather than on a missing fk_column
+                extra_columns=["dagrun_id"],
+            )
+
+    def test_table_config_dag_id_scope_requires_fk_column(self):
+        """A dag_id_scope whose fk_column is not selected must fail fast at construction."""
+        with pytest.raises(ValueError, match="fk_column"):
+            _TableConfig(
+                table_name="deadline",
+                recency_column_name="deadline_time",
+                dag_id_scope=_IndirectDagScope(fk_column="dagrun_id", referenced_table="dag_run"),
+                # "dagrun_id" intentionally omitted from extra_columns
             )
 
     def test_do_delete_rolls_back_before_drop_on_failure(self):
