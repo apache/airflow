@@ -115,7 +115,9 @@ def _replay_outlet_events(target: OutletEventAccessorsProtocol, events: list[dic
     Re-populate ``target`` with events a sub-task recorded on a previous attempt.
 
     A sub-task skipped on retry (because it already succeeded) never re-executes, so it never
-    re-emits into the fresh ``OutletEventAccessors`` created for the new attempt.
+    re-emits into the fresh ``OutletEventAccessors`` created for the new attempt. The failed
+    attempt sent nothing to the server either (outlet events travel only on the success payload),
+    so replaying cannot emit an event twice; without it the events would be lost.
     """
     replayed = OutletEventAccessors()
     for event in events:

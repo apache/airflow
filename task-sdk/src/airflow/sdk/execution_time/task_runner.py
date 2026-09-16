@@ -910,10 +910,13 @@ class RuntimeTaskInstance(TaskInstance):
 class IndexedTaskState:
     status: TaskInstanceState
     result: Any | None = None
-    # Outlet asset events the sub-task recorded on a previous successful attempt. A sub-task
-    # skipped on retry (because it already succeeded) never re-executes, so it never re-emits
-    # into the fresh OutletEventAccessors created for the new attempt; persisting a snapshot here
-    # lets IterableOperator._run_task replay it instead of silently losing those events.
+    # Outlet asset events the sub-task recorded on a previous successful attempt. Outlet events
+    # only reach the server on the parent's success payload (_handle_current_task_success), so an
+    # attempt that fails never registers what its succeeded sub-tasks emitted. A sub-task skipped
+    # on retry (because it already succeeded) never re-executes, so it never re-emits into the
+    # fresh OutletEventAccessors created for the new attempt; persisting a snapshot here lets
+    # IterableOperator._run_task replay it, which is the only way those events survive, and it
+    # cannot double-emit because the failed attempt sent nothing.
     outlet_events: list[dict[str, Any]] | None = None
 
     @staticmethod
