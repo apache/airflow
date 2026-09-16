@@ -35,4 +35,6 @@ bind core interfaces and apply to every language SDK, not just the Java SDK.
 - [ADR-0007](0007-taskflow-across-language-boundary.md): TaskFlow across the language boundary — argument binding for Lang-SDK tasks.
 
 Decisions specific to a single SDK stay next to that SDK — for example, the Go SDK's bundle-format
-decisions live in [`go-sdk/adr/`](../../../go-sdk/adr).
+decisions live in [`go-sdk/adr/`](../../../go-sdk/adr). Java-SDK-only interface-design decisions —
+the Java call-site syntax itself, rather than anything binding a core surface — live in
+[`java-sdk/adr/`](../../../java-sdk/adr), distinct from the cross-cutting ADRs kept here.

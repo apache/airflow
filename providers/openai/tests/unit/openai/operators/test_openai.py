@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 from fractions import Fraction
+from unittest import mock
 from unittest.mock import Mock
 
 import jinja2
@@ -483,8 +484,76 @@ def test_openai_trigger_batch_operator_not_deferred(mock_batch, wait_for_complet
     assert batch_id == BATCH_ID
 
 
-@pytest.mark.parametrize("wait_for_completion", [True, False])
-def test_openai_trigger_batch_operator_with_deferred(mock_batch, wait_for_completion):
+@pytest.mark.parametrize(
+    ("metadata", "batch_kwargs", "expected_kwargs"),
+    [
+        pytest.param(None, None, {}, id="no-passthrough"),
+        pytest.param(
+            {"key": "value"},
+            {"output_expires_after": {"anchor": "created_at", "seconds": 3600}},
+            {"output_expires_after": {"anchor": "created_at", "seconds": 3600}},
+            id="metadata-and-batch-kwargs",
+        ),
+    ],
+)
+def test_openai_trigger_batch_operator_create_batch_passthrough(
+    mock_batch, metadata, batch_kwargs, expected_kwargs
+):
+    """metadata/batch_kwargs reach create_batch verbatim; unset batch_kwargs forwards none."""
+    operator = OpenAITriggerBatchOperator(
+        task_id=TASK_ID,
+        conn_id=CONN_ID,
+        file_id=FILE_ID,
+        endpoint=BATCH_ENDPOINT,
+        metadata=metadata,
+        batch_kwargs=batch_kwargs,
+        deferrable=False,
+        wait_for_completion=False,
+    )
+    mock_hook_instance = Mock(spec=OpenAIHook)
+    mock_hook_instance.create_batch.return_value = mock_batch
+    operator.hook = mock_hook_instance
+
+    operator.execute(Context())
+
+    mock_hook_instance.create_batch.assert_called_once_with(
+        file_id=FILE_ID,
+        endpoint=BATCH_ENDPOINT,
+        metadata=metadata,
+        **expected_kwargs,
+    )
+
+
+def test_openai_trigger_batch_operator_templates_endpoint_and_metadata():
+    operator = OpenAITriggerBatchOperator(
+        task_id=TASK_ID,
+        conn_id=CONN_ID,
+        file_id=FILE_ID,
+        endpoint="{{ ti.endpoint }}",
+        metadata={"run": "{{ ti.run_id }}"},
+    )
+
+    class FakeTaskInstance:
+        endpoint = BATCH_ENDPOINT
+        run_id = "run-123"
+
+    operator.render_template_fields(context={"ti": FakeTaskInstance()})
+
+    assert operator.endpoint == BATCH_ENDPOINT
+    assert operator.metadata == {"run": "run-123"}
+
+
+@pytest.mark.parametrize(
+    ("wait_for_completion", "poll_interval_kwargs", "expected_poll_interval"),
+    [
+        pytest.param(False, {}, None, id="not-deferred"),
+        pytest.param(True, {}, 60, id="deferred-default-poll-interval"),
+        pytest.param(True, {"poll_interval": 5}, 5, id="deferred-custom-poll-interval"),
+    ],
+)
+def test_openai_trigger_batch_operator_with_deferred(
+    mock_batch, wait_for_completion, poll_interval_kwargs, expected_poll_interval
+):
     operator = OpenAITriggerBatchOperator(
         task_id=TASK_ID,
         conn_id=CONN_ID,
@@ -492,6 +561,7 @@ def test_openai_trigger_batch_operator_with_deferred(mock_batch, wait_for_comple
         endpoint=BATCH_ENDPOINT,
         deferrable=True,
         wait_for_completion=wait_for_completion,
+        **poll_interval_kwargs,
     )
     mock_hook_instance = Mock(spec=OpenAIHook)
     mock_hook_instance.get_batch.return_value = mock_batch
@@ -503,9 +573,65 @@ def test_openai_trigger_batch_operator_with_deferred(mock_batch, wait_for_comple
         with pytest.raises(TaskDeferred) as exc:
             operator.execute(context)
         assert isinstance(exc.value.trigger, OpenAIBatchTrigger)
+        assert exc.value.trigger.poll_interval == expected_poll_interval
     else:
         batch_id = operator.execute(context)
         assert batch_id == BATCH_ID
+
+
+@mock.patch.object(OpenAITriggerBatchOperator, "log")
+def test_openai_trigger_batch_operator_not_deferred_logs_active_knob(mock_log, mock_batch):
+    """Non-deferred mode names wait_seconds' value and states poll_interval is unused."""
+    operator = OpenAITriggerBatchOperator(
+        task_id=TASK_ID,
+        conn_id=CONN_ID,
+        file_id=FILE_ID,
+        endpoint=BATCH_ENDPOINT,
+        deferrable=False,
+        wait_seconds=7,
+        poll_interval=99,
+    )
+    mock_hook_instance = Mock(spec=OpenAIHook)
+    mock_hook_instance.get_batch.return_value = mock_batch
+    mock_hook_instance.create_batch.return_value = mock_batch
+    operator.hook = mock_hook_instance
+
+    operator.execute(Context())
+
+    mock_log.info.assert_any_call(
+        "Waiting for batch %s to complete, polling every %s seconds via wait_seconds "
+        "(poll_interval is not used in non-deferrable mode)",
+        BATCH_ID,
+        7,
+    )
+
+
+@mock.patch.object(OpenAITriggerBatchOperator, "log")
+def test_openai_trigger_batch_operator_deferred_logs_active_knob(mock_log, mock_batch):
+    """Deferred mode names poll_interval's value and states wait_seconds is unused."""
+    operator = OpenAITriggerBatchOperator(
+        task_id=TASK_ID,
+        conn_id=CONN_ID,
+        file_id=FILE_ID,
+        endpoint=BATCH_ENDPOINT,
+        deferrable=True,
+        wait_seconds=71,
+        poll_interval=13,
+    )
+    mock_hook_instance = Mock(spec=OpenAIHook)
+    mock_hook_instance.get_batch.return_value = mock_batch
+    mock_hook_instance.create_batch.return_value = mock_batch
+    operator.hook = mock_hook_instance
+
+    with pytest.raises(TaskDeferred):
+        operator.execute(Context())
+
+    mock_log.info.assert_any_call(
+        "Deferring batch %s, polling every %s seconds via poll_interval "
+        "(wait_seconds is not used in deferrable mode)",
+        BATCH_ID,
+        13,
+    )
 
 
 class TestOpenAITriggerBatchOperatorExecuteComplete:

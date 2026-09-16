@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, ClassVar, Literal
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.providers.common.compat.sdk import BaseOperator, conf
 from airflow.providers.openai.exceptions import OpenAIBatchJobException
@@ -279,43 +279,61 @@ class OpenAITriggerBatchOperator(BaseOperator):
     """
     Operator that triggers an OpenAI Batch API endpoint and waits for the batch to complete.
 
-    :param file_id: Required. The ID of the batch file to trigger.
-    :param endpoint: Required. The OpenAI Batch API endpoint to trigger.
+    :param file_id: Required. The ID of the batch file to trigger. (templated)
+    :param endpoint: Required. The OpenAI Batch API endpoint to trigger. (templated) Allowed values
+        are determined by the OpenAI Batch API; see
+        :meth:`~airflow.providers.openai.hooks.openai.OpenAIHook.create_batch`.
     :param conn_id: Optional. The OpenAI connection ID to use. Defaults to 'openai_default'.
     :param deferrable: Optional. Run operator in the deferrable mode.
     :param wait_seconds: Optional. Number of seconds between checks. Only used when ``deferrable`` is False.
         Defaults to 3 seconds.
     :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
-        Only used when ``deferrable`` is False. Defaults to 24 hour, which is the SLA for OpenAI Batch API.
+        Applies in both deferrable and non-deferrable mode. Defaults to 24 hours, which is the SLA for
+        OpenAI Batch API.
     :param wait_for_completion: Optional. Whether to wait for the batch to complete. If set to False, the operator
         will return immediately after triggering the batch. Defaults to True.
+    :param metadata: Optional. A set of key-value pairs that can be attached to the batch. (templated)
+    :param batch_kwargs: Optional. Additional keyword arguments to pass to the OpenAI `create_batch`
+        method — for example `output_expires_after`, which sets the expiry on the batch's output and
+        error files. Defaults to None.
+    :param poll_interval: Optional. Number of seconds between checks. Only used when ``deferrable`` is True.
+        Defaults to 60 seconds.
 
     .. seealso::
         For more information on how to use this operator, please take a look at the guide:
         :ref:`howto/operator:OpenAITriggerBatchOperator`
     """
 
-    template_fields: Sequence[str] = ("file_id",)
+    template_fields: Sequence[str] = ("file_id", "endpoint", "metadata")
+    template_fields_renderers = {"metadata": "json"}
 
     def __init__(
         self,
         file_id: str,
-        endpoint: Literal["/v1/chat/completions", "/v1/embeddings", "/v1/completions"],
+        endpoint: str,
         conn_id: str = OpenAIHook.default_conn_name,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         wait_seconds: float = 3,
         timeout: float = 24 * 60 * 60,
         wait_for_completion: bool = True,
+        *,
+        metadata: dict[str, str] | None = None,
+        batch_kwargs: dict | None = None,
+        poll_interval: float = 60,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
-        self.conn_id = conn_id
         self.file_id = file_id
         self.endpoint = endpoint
+        self.conn_id = conn_id
         self.deferrable = deferrable
         self.wait_seconds = wait_seconds
         self.timeout = timeout
         self.wait_for_completion = wait_for_completion
+        self.metadata = metadata
+        self.batch_kwargs = batch_kwargs or {}
+        self.poll_interval = poll_interval
+
         self.batch_id: str | None = None
 
     @cached_property
@@ -324,22 +342,38 @@ class OpenAITriggerBatchOperator(BaseOperator):
         return OpenAIHook(conn_id=self.conn_id)
 
     def execute(self, context: Context) -> str | None:
-        batch = self.hook.create_batch(file_id=self.file_id, endpoint=self.endpoint)
+        batch = self.hook.create_batch(
+            file_id=self.file_id,
+            endpoint=self.endpoint,
+            metadata=self.metadata,
+            **self.batch_kwargs,
+        )
         self.batch_id = batch.id
         if self.wait_for_completion:
             if self.deferrable:
+                self.log.info(
+                    "Deferring batch %s, polling every %s seconds via poll_interval "
+                    "(wait_seconds is not used in deferrable mode)",
+                    self.batch_id,
+                    self.poll_interval,
+                )
                 self.defer(
                     timeout=self.execution_timeout,
                     trigger=OpenAIBatchTrigger(
                         conn_id=self.conn_id,
                         batch_id=self.batch_id,
-                        poll_interval=60,
+                        poll_interval=self.poll_interval,
                         timeout=self.timeout,
                     ),
                     method_name="execute_complete",
                 )
             else:
-                self.log.info("Waiting for batch %s to complete", self.batch_id)
+                self.log.info(
+                    "Waiting for batch %s to complete, polling every %s seconds via wait_seconds "
+                    "(poll_interval is not used in non-deferrable mode)",
+                    self.batch_id,
+                    self.wait_seconds,
+                )
                 self.hook.wait_for_batch(self.batch_id, wait_seconds=self.wait_seconds, timeout=self.timeout)
         return self.batch_id
 
