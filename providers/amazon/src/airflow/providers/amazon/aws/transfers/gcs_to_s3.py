@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING
 from packaging.version import Version
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 
 if TYPE_CHECKING:
@@ -146,10 +146,8 @@ class GCSToS3Operator(BaseOperator):
                 self.__is_match_glob_supported = False
         except ImportError:  # __version__ was added in 10.1.0, so this means it's < 10.3.0
             self.__is_match_glob_supported = False
-        if not self.__is_match_glob_supported and match_glob:
-            raise AirflowException(
-                "The 'match_glob' parameter requires 'apache-airflow-providers-google>=10.3.0'."
-            )
+        if not self.__is_match_glob_supported and match_glob is not None:
+            raise ValueError("The 'match_glob' parameter requires 'apache-airflow-providers-google>=10.3.0'.")
         self.match_glob = match_glob
         self.gcp_user_project = gcp_user_project
 

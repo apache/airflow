@@ -14,31 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-name: TypeScript SDK dependency review
-
-on:  # yamllint disable-line rule:truthy
-  pull_request:
-    branches:
-      - main
-    paths:
-      - "ts-sdk/package.json"
-      - "ts-sdk/pnpm-lock.yaml"
-      - ".github/workflows/ts-sdk-dependency-review.yml"
-
-permissions:
-  contents: read
-
-concurrency:
-  group: ts-sdk-dependency-review-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
-jobs:
-  dependency-review:
-    name: Reject vulnerable dependency changes
-    runs-on: ubuntu-slim
-    steps:
-      - name: Review dependency changes
-        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294  # v5.0.0
-        with:
-          fail-on-severity: high

@@ -56,6 +56,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
 )
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.base import OrmClause
+from airflow.api_fastapi.core_api.datamodels.assets import CreateAssetEventsBody
 from airflow.api_fastapi.core_api.datamodels.common import (
     BulkAction,
     BulkActionOnExistence,
@@ -74,6 +75,7 @@ from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.backfill import Backfill
 from airflow.models.dag import DagModel, DagRun, DagTag
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TI
@@ -144,14 +146,15 @@ USER_INJECTED_BY_TRUSTED_MIDDLEWARE = object()
 
 async def get_user(
     request: Request,
-    oauth_token: str | None = Depends(oauth2_scheme),
+    # Kept for the OpenAPI security spec so ``/docs`` still renders the OAuth2 password
+    # login form. It resolves to the same ``Authorization: Bearer`` header
+    # ``bearer_scheme`` reads, so the value is unused at runtime.
+    _oauth_token: str | None = Depends(oauth2_scheme),
     bearer_credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> BaseUser:
     # An explicitly supplied credential always wins over the ambient session cookie.
     if bearer_credentials and bearer_credentials.scheme.lower() == "bearer":
         return await resolve_user_from_token(bearer_credentials.credentials)
-    if oauth_token:
-        return await resolve_user_from_token(oauth_token)
 
     # No explicit credential on this request, so the cookie is the caller's identity.
     # A user might have been already built by a trusted in-tree middleware (currently
@@ -168,7 +171,6 @@ async def get_user(
 
 def collect_request_tokens(
     request: Request,
-    oauth_token: str | None,
     bearer_credentials: HTTPAuthorizationCredentials | None,
 ) -> list[str]:
     """
@@ -183,7 +185,6 @@ def collect_request_tokens(
     candidates: list[str | None] = []
     if bearer_credentials and bearer_credentials.scheme.lower() == "bearer":
         candidates.append(bearer_credentials.credentials)
-    candidates.append(oauth_token)
     candidates.append(request.cookies.get(COOKIE_NAME_JWT_TOKEN))
 
     tokens: list[str] = []
@@ -362,6 +363,35 @@ class PermittedBackfillFilter(PermittedDagFilter):
         return select.where(Backfill.dag_id.in_(self.value or set()))
 
 
+class PermittedDagBundleFilter(PermittedDagFilter):
+    """A parameter that filters Dag bundles to the ones holding a Dag the user may read."""
+
+    def __init__(self, value: set[str] | None = None, *, permitted_dagless_bundles: set[str] | None = None):
+        super().__init__(value)
+        self.permitted_dagless_bundles = permitted_dagless_bundles or set()
+
+    def to_orm(self, statement: Select) -> Select:
+        # A bundle carries no per-Dag key to authorize on, so it is scoped by the Dags inside it.
+        # Filtering in the query keeps unauthorized rows out of the count and pagination as well.
+        # A bundle whose Dags have since been removed stays visible while a stale ``DagModel`` row
+        # names it.
+        holds_a_readable_dag = DagBundleModel.name.in_(
+            select(DagModel.bundle_name).where(DagModel.dag_id.in_(self.value or set()))
+        )
+        if not self.permitted_dagless_bundles:
+            return statement.where(holds_a_readable_dag)
+        # A bundle with no registered Dag at all -- a first deploy whose only file fails to import,
+        # say -- has no Dag to authorize against, so scoping by Dags alone would hide the bundle
+        # precisely when its import-error count is the thing worth reading. Those bundles are
+        # authorized one at a time against their own team in
+        # ``readable_dag_bundles_filter_factory`` and arrive here as an explicit allow-list, so a
+        # team-aware policy decides each one rather than a single unscoped check standing in for
+        # all of them.
+        return statement.where(
+            or_(holds_a_readable_dag, DagBundleModel.name.in_(self.permitted_dagless_bundles))
+        )
+
+
 def permitted_dag_filter_factory(
     method: ResourceMethod, filter_class=PermittedDagFilter
 ) -> Callable[[BaseUser, BaseAuthManager], PermittedDagFilter]:
@@ -395,6 +425,60 @@ ReadableDagWarningsFilterDep = Annotated[
 ]
 ReadableTIFilterDep = Annotated[
     PermittedTIFilter, Depends(permitted_dag_filter_factory("GET", PermittedTIFilter))
+]
+
+
+def readable_dag_bundles_filter_factory() -> Callable[
+    [BaseUser, BaseAuthManager, Session], PermittedDagBundleFilter
+]:
+    """
+    Create a callable for Depends in FastAPI that returns the Dag bundle filter for the user.
+
+    Dag bundles need their own factory rather than ``permitted_dag_filter_factory``: besides the
+    readable Dag ids, the filter needs the set of bundles holding no registered Dag that this
+    caller may see, which is a separate authorization decision taken per bundle.
+    """
+
+    def depends_readable_dag_bundles_filter(
+        user: GetUserDep,
+        auth_manager: AuthManagerDep,
+        session: SessionDep,
+    ) -> PermittedDagBundleFilter:
+        # A bundle with no registered Dag has nothing to authorize against, so it is gated on the
+        # admin-by-default ``IMPORT_ERRORS_ALL`` -- the same view ``GET /importErrors`` uses for a
+        # file that never registered a Dag. Resolved here, one bundle at a time against its own
+        # team, so the result can go into the query: authorizing after the fact would leave
+        # unauthorized bundles in ``total_entries`` and in the page.
+        dagless_bundles = session.scalars(
+            select(DagBundleModel.name).where(
+                DagBundleModel.name.notin_(
+                    # ``dag.bundle_name`` is non-nullable, but the guard keeps a stray NULL from
+                    # emptying the whole ``NOT IN``.
+                    select(DagModel.bundle_name).where(DagModel.bundle_name.is_not(None))
+                )
+            )
+        ).all()
+        team_name_by_bundle = (
+            DagBundleModel.get_team_names(dagless_bundles, session=session) if dagless_bundles else {}
+        )
+        return PermittedDagBundleFilter(
+            auth_manager.get_authorized_dag_ids(user=user, method="GET"),
+            permitted_dagless_bundles={
+                bundle_name
+                for bundle_name in dagless_bundles
+                if auth_manager.authorize_view(
+                    access_view=AccessView.IMPORT_ERRORS_ALL,
+                    user=user,
+                    team_name=team_name_by_bundle.get(bundle_name),
+                )
+            },
+        )
+
+    return depends_readable_dag_bundles_filter
+
+
+ReadableDagBundlesFilterDep = Annotated[
+    PermittedDagBundleFilter, Depends(readable_dag_bundles_filter_factory())
 ]
 
 
@@ -1083,18 +1167,39 @@ def _build_asset_details(asset_id: str | None) -> AssetDetails:
     return AssetDetails(id=asset_id, name=name, uri=uri)
 
 
-def requires_access_asset(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
-    def inner(
-        request: Request,
-        user: GetUserDep,
-    ) -> None:
-        details = _build_asset_details(request.path_params.get("asset_id"))
+def requires_access_asset(method: ResourceMethod, *, asset_id_from_body: bool = False) -> Callable[..., None]:
+    """
+    Authorize the caller on the asset targeted by the request.
+
+    :param method: the method to perform
+    :param asset_id_from_body: read ``asset_id`` from a ``CreateAssetEventsBody`` request body instead of
+        the path. The dependency parameter must be named ``body`` to share the route's body.
+    """
+
+    def _authorize(asset_id: str | None, user: BaseUser) -> None:
+        details = _build_asset_details(asset_id)
 
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_asset(
                 method=method, details=details, user=user
             ),
         )
+
+    if asset_id_from_body:
+
+        def inner_from_body(
+            body: CreateAssetEventsBody,
+            user: GetUserDep,
+        ) -> None:
+            _authorize(str(body.asset_id), user)
+
+        return inner_from_body
+
+    def inner(
+        request: Request,
+        user: GetUserDep,
+    ) -> None:
+        _authorize(request.path_params.get("asset_id"), user)
 
     return inner
 

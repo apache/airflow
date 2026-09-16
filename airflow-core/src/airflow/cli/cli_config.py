@@ -294,7 +294,7 @@ ARG_DR_STATE = Arg(
 
 # list_jobs
 ARG_DAG_ID_OPT = Arg(("-d", "--dag-id"), help="The id of the dag")
-ARG_LIMIT = Arg(("--limit",), help="Return a limited number of records")
+ARG_LIMIT = Arg(("--limit",), type=positive_int(allow_zero=True), help="Return a limited number of records")
 job_states = tuple(state.value for state in JobState)
 ARG_JOB_STATE = Arg(
     ("--state",),
@@ -921,9 +921,6 @@ ARG_ANONYMIZE = Arg(
     ("--anonymize",),
     help="Minimize any personal identifiable information. Use it when sharing output with others.",
     action="store_true",
-)
-ARG_FILE_IO = Arg(
-    ("--file-io",), help="Send output to file.io service and returns link.", action="store_true"
 )
 
 # config
@@ -2327,7 +2324,6 @@ core_commands: list[CLICommand] = [
         func=lazy_load_command("airflow.cli.commands.info_command.show_info"),
         args=(
             ARG_ANONYMIZE,
-            ARG_FILE_IO,
             ARG_VERBOSE,
             ARG_OUTPUT,
         ),
