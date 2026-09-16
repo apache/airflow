@@ -254,6 +254,22 @@ Reject the primary button:
     :start-after: [START howto_operator_llm_approval]
     :end-before: [END howto_operator_llm_approval]
 
+A pending review is not surfaced as a notification.  Pass
+``approval_notifiers`` to tell the reviewers about it through any Airflow
+notifier (Slack, email, ...), the way
+:class:`~airflow.providers.standard.operators.hitl.HITLOperator` does with
+``notifiers``.  The notifiers run once the review is open and can reference
+the review ``{{ task.subject }}`` and ``{{ task.body }}`` in their templates,
+as the example above does.  The ``@task.llm`` decorator and the operator
+subclasses accept the same parameter.  A notifier whose delivery fails is
+logged and the task still waits for the review; a template error fails the
+task.  A retry re-runs the LLM and re-notifies with the regenerated output,
+while the open review keeps the original subject and body.
+
+The default ``body`` contains the rendered prompt and the output.  Where either
+is sensitive, template only ``{{ task.subject }}`` and a link to the review
+into channels outside Airflow's auth boundary.
+
 Parameters
 ----------
 
@@ -279,6 +295,8 @@ Parameters
   ``require_approval=True`` and a positive ``approval_timeout``.
 - ``allow_modifications``: If ``True``, the reviewer can edit the output before
   approving.  Default ``False``.
+- ``approval_notifiers``: Notifier, or list of notifiers, called once the review
+  is open.  Default ``None``.
 
 Logging
 -------

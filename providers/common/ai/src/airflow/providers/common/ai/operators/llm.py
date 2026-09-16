@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
@@ -30,6 +30,7 @@ from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin
 from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
+from airflow.providers.common.compat.notifier import BaseNotifier
 from airflow.providers.common.compat.sdk import BaseOperator
 
 try:
@@ -111,6 +112,11 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
     :param allow_modifications: If ``True``, the reviewer can edit the output
         before approving.  The modified value is returned as the task result.
         Default ``False``.
+    :param approval_notifiers: Notifiers called once the review is open, so a
+        reviewer is told about it.  Only takes effect with
+        ``require_approval=True``.  A retry re-notifies with the regenerated
+        output while the open review keeps the original subject and body.
+        Default ``None``.
     :param serialize_output: If ``True`` and ``output_type`` is a Pydantic
         ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
         ``model_dump()`` before being pushed to XCom. Default ``False`` --
@@ -144,6 +150,7 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         approval_timeout: timedelta | None = None,
         on_approval_timeout: Literal["fail", "approve", "reject"] = "fail",
         allow_modifications: bool = False,
+        approval_notifiers: BaseNotifier | Iterable[BaseNotifier] | None = None,
         serialize_output: bool = False,
         **kwargs: Any,
     ) -> None:
@@ -177,6 +184,19 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         self.approval_timeout = approval_timeout
         self.on_approval_timeout = on_approval_timeout
         self.allow_modifications = allow_modifications
+        if approval_notifiers is None:
+            approval_notifiers = []
+        elif isinstance(approval_notifiers, BaseNotifier):
+            approval_notifiers = [approval_notifiers]
+        elif isinstance(approval_notifiers, str) or not isinstance(approval_notifiers, Iterable):
+            raise TypeError(
+                "approval_notifiers must be a BaseNotifier or an iterable of BaseNotifier instances, "
+                f"got {approval_notifiers!r}"
+            )
+        self.approval_notifiers = list(approval_notifiers)
+        for notifier in self.approval_notifiers:
+            if not isinstance(notifier, BaseNotifier):
+                raise TypeError(f"approval_notifiers must contain BaseNotifier instances, got {notifier!r}")
 
     @cached_property
     def llm_hook(self) -> PydanticAIHook:
