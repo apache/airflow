@@ -361,6 +361,18 @@ core:
       type: integer
       example: ~
       default: "0"
+    max_infra_retries:
+      description: |
+        The maximum number of additional retries granted when an executor reports a confirmed infrastructure
+        failure of a running task. Zero disables replacement attempts. Usage is conservatively inferred
+        as ``max(max_tries - retries, try_number - 1, 0)`` for each failure. Ordinary attempts and clears
+        can consume the allowance. An early refusal can change after edits to ``retries``; once
+        ``try_number - 1`` reaches the cap, those edits and clears cannot restore eligibility under
+        the same cap. This deployment setting also applies to tasks with ``retries=0``.
+      version_added: 3.4.0
+      type: integer
+      example: ~
+      default: "0"
     default_task_retry_delay:
       description: |
         The number of seconds each task is going to wait by default between retries. Can be overridden at

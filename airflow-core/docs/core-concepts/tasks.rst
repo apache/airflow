@@ -166,6 +166,41 @@ If you want to control your task's state from within custom Task/Operator code, 
 
 These can be useful if your code has extra knowledge about its environment and wants to fail/skip faster - e.g., skipping when it knows there's no data available, or fast-failing when it detects its API key is invalid (as that will not be fixed by a retry).
 
+Infrastructure replacement attempts
+----------------------------------
+
+Administrators can set :ref:`config:core__max_infra_retries` to grant additional attempts when an
+executor confirms that infrastructure stopped a task. The default is ``0``, which disables
+replacement attempts. No Dag or task setting is required, including for tasks with ``retries=0``.
+An unknown cause, generic worker loss, or a missed heartbeat does not qualify.
+
+The scheduler locks and refreshes the task instance before handling an executor failure. Only a
+``RUNNING`` task can receive a replacement; queued, cleared and already-handled states do not
+produce an infrastructure policy decision. The scheduler increases the existing ``max_tries``
+before deciding the retry state, callback, and email notification. For each running failure it
+recomputes ``max((max_tries or 0) - (retries or 0), try_number - 1, 0)`` and grants a replacement
+only if that inferred position is below ``max_infra_retries``.
+
+This is a conservative ceiling rather than a separate count of infrastructure failures. Ordinary
+attempts and task clears can consume the allowance without any infrastructure replacement. An early
+refusal can change after normal retries are edited, because ``max_tries - retries`` can decrease.
+Once ``try_number - 1`` reaches the configured cap, neither clears nor normal-retry edits can
+restore eligibility under that same cap. These persisted fields survive scheduler restarts.
+After a refusal, normal retry handling still applies.
+
+Kubernetes ``Evicted`` alone does not qualify: the same pod reason is used for workload storage-limit
+violations. A documented disruption condition can supply the missing evidence. Container termination
+reasons are retained for diagnosis but are not matched against pod-level infrastructure reasons.
+
+``ti_infra_retry_granted`` counts granted replacements, and ``ti_infra_retry_denied`` counts
+confirmed running infrastructure failures refused by the enabled policy's current ceiling. Neither increments
+when the policy is disabled or the cause is not infrastructure. These named counters also work
+with plain StatsD. Tagged backends add a bounded ``failure_kind`` to ``ti_failures`` and
+``operator_failures``; an unset cause is labeled ``unclassified`` for metrics only.
+
+Failure listeners receive the optional cause and backend reason even when replacement attempts
+are disabled. Dag callbacks keep their existing context API. See :doc:`/administration-and-deployment/listeners`.
+
 .. _concepts:retry-policies:
 
 Retry Policies
