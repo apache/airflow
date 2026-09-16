@@ -942,11 +942,35 @@ class IndexedTaskInstance(RuntimeTaskInstance):
 
     index: int
 
-    def __init__(self, /, **data: Any):
-        super().__init__(**data)
+    @classmethod
+    def create_indexed_task(
+        cls, *, context: Context, index: int, operator: BaseOperator
+    ) -> IndexedTaskInstance:
+        """
+        Create the runtime instance for one index of an iterated task from the parent's context.
 
-        if self.index is None or self.index < 0:
-            raise ValueError("IndexedTaskInstance requires index >= 0")
+        The instance shares the parent task instance's identity (id, run, map index, try number), so
+        XComs and task state land in the parent's scope, and carries the unmapped operator for that
+        index. ``model_construct`` skips Pydantic validation on purpose: one instance is built per
+        item, and the parent was validated already, so only the index needs checking here.
+        """
+        if index < 0:
+            raise ValueError(f"IndexedTaskInstance requires index >= 0, got {index}")
+        parent = context["ti"]
+        return cls.model_construct(
+            id=parent.id,
+            task_id=operator.task_id,
+            dag_id=operator.dag_id,
+            run_id=parent.run_id,
+            map_index=parent.map_index,
+            index=index,
+            max_tries=operator.retries,
+            start_date=context["task"].start_date,
+            state=TaskInstanceState.SCHEDULED.value,
+            is_mapped=True,
+            task=operator,
+            try_number=parent.try_number,
+        )
 
     def xcom_push(
         self,

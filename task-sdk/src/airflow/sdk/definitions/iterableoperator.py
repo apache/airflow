@@ -24,7 +24,6 @@ import warnings
 from collections.abc import Iterable, Mapping, Sequence
 from itertools import repeat
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
 
 try:
     # Python 3.11+
@@ -657,13 +656,8 @@ class IterableOperator(BaseOperator):
         # Make sure deferred operators will always raise a DeferredTask exception when executed
         unmapped_task.start_from_trigger = False
 
-        indexed_ti = self._create_mapped_task(
-            id=context["ti"].id,
-            run_id=context["ti"].run_id,
-            map_index=context["ti"].map_index,
-            try_number=context["ti"].try_number,
-            index=index,
-            operator=unmapped_task,
+        indexed_ti = IndexedTaskInstance.create_indexed_task(
+            context=context, index=index, operator=unmapped_task
         )
 
         # Render against a copy of the context whose `ti`/`task_instance` are the new sub-task's
@@ -674,30 +668,6 @@ class IterableOperator(BaseOperator):
             {**context, "ti": indexed_ti, "task_instance": indexed_ti}, unmapped_task, jinja_env
         )
         return indexed_ti
-
-    def _create_mapped_task(
-        self,
-        id: UUID,
-        run_id: str,
-        map_index: int | None,
-        index: int,
-        try_number: int,
-        operator: BaseOperator,
-    ) -> IndexedTaskInstance:
-        return IndexedTaskInstance.model_construct(
-            id=id,
-            task_id=operator.task_id,
-            dag_id=operator.dag_id,
-            run_id=run_id,
-            map_index=map_index,
-            index=index,
-            max_tries=operator.retries,
-            start_date=self.start_date,
-            state=TaskInstanceState.SCHEDULED.value,
-            is_mapped=True,
-            task=operator,
-            try_number=try_number,
-        )
 
     def execute(self, context: Context):
         jinja_env = self.get_template_env(dag=self.dag)

@@ -2252,6 +2252,38 @@ class TestIndexedTaskInstance:
         assert ti.next_try_number == 5
         assert ti.do_xcom_push is False
 
+    @staticmethod
+    def _parent_context_and_operator():
+        parent_operator = mock.create_autospec(BaseOperator, instance=True)
+        parent_operator.start_date = timezone.datetime(2024, 12, 3, 9, 55, 0)
+        parent = RuntimeTaskInstance.model_construct(
+            id=uuid7(), task_id="iterated", dag_id="dag", run_id="run_1", map_index=3, try_number=2
+        )
+        context = {"ti": parent, "task": parent_operator}
+        operator = mock.create_autospec(BaseOperator, instance=True)
+        operator.task_id = "iterated"
+        operator.dag_id = "dag"
+        operator.retries = 5
+        return context, operator
+
+    def test_create_indexed_task_shares_the_parent_identity(self):
+        context, operator = self._parent_context_and_operator()
+
+        ti = IndexedTaskInstance.create_indexed_task(context=context, index=4, operator=operator)
+
+        parent = context["ti"]
+        assert (ti.id, ti.run_id, ti.map_index, ti.try_number) == (parent.id, "run_1", 3, 2)
+        assert (ti.index, ti.max_tries, ti.task) == (4, 5, operator)
+        assert ti.start_date == context["task"].start_date
+        assert ti.state == TaskInstanceState.SCHEDULED.value
+        assert ti.is_mapped is True
+
+    def test_create_indexed_task_rejects_negative_index(self):
+        context, operator = self._parent_context_and_operator()
+
+        with pytest.raises(ValueError, match="requires index >= 0, got -1"):
+            IndexedTaskInstance.create_indexed_task(context=context, index=-1, operator=operator)
+
 
 class TestSerializeOutletEvents:
     """Tests for the wire format produced by ``_serialize_outlet_events``."""
