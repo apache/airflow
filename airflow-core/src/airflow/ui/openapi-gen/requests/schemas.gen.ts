@@ -4599,7 +4599,14 @@ export const $DAGWarningResponse = {
             title: 'Dag Id'
         },
         warning_type: {
-            type: 'string',
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/DagWarningType'
+                },
+                {
+                    type: 'string'
+                }
+            ],
             title: 'Warning Type'
         },
         message: {
@@ -5315,6 +5322,16 @@ export const $DetailedHealthStatus = {
     enum: ['healthy', 'degraded', 'down'],
     title: 'DetailedHealthStatus',
     description: "How much of a component's work has a live instance covering it."
+} as const;
+
+export const $DagWarningType = {
+    type: 'string',
+    enum: ['asset conflict', 'duplicate dag id', 'non-existent pool', 'runtime varying value'],
+    title: 'DagWarningType',
+    description: `Enum for DAG warning types.
+
+This is the set of allowable values for the \`\`warning_type\`\` field
+in the DagWarning model.`
 } as const;
 
 export const $DryRunBackfillCollectionResponse = {

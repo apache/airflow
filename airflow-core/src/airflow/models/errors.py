@@ -17,8 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-import os
 from datetime import datetime
+from pathlib import Path
 
 from sqlalchemy import Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, synonym
@@ -46,8 +46,8 @@ class ParseImportError(Base):
             raise ValueError("bundle_name and source_reference must not be None")
         bundle = DagBundlesManager().get_bundle(self.bundle_name)
         ref = self.source_reference
-        if ref.startswith(str(bundle.path)):
+        # A reference may address a member inside a container (``archive.zip:dags/my_dag.py``); the
+        # anchor alone decides whether it is already rooted, so the separator is never parsed here.
+        if ref.startswith(str(bundle.path)) or Path(ref).is_absolute():
             return ref
-        if os.path.isabs(ref.split(":")[0]):
-            return ref
-        return "/".join([str(bundle.path), ref])
+        return str(bundle.path / ref)
