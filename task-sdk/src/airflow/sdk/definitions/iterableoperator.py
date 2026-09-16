@@ -543,7 +543,8 @@ class IterableOperator(BaseOperator):
                 task.task_id,
                 indexed_task_state.try_number,
             )
-            await self.axcom_push(task, indexed_task_state.result)
+            if indexed_task_state.result is not None:
+                await self.axcom_push(task, indexed_task_state.result)
             if indexed_task_state.outlet_events:
                 _replay_outlet_events(context["outlet_events"], indexed_task_state.outlet_events)
             return task, None, None
@@ -567,7 +568,10 @@ class IterableOperator(BaseOperator):
             if serialized_outlet_events:
                 indexed_task_state.outlet_events = serialized_outlet_events
             await task.aset_state(indexed_task_state)
-            await self.axcom_push(task, indexed_task_state.result)
+            # The result is only checkpointed when the sub-task pushes XComs and returned something,
+            # so the same condition decides whether there is a return_value_<index> to push at all.
+            if indexed_task_state.result is not None:
+                await self.axcom_push(task, indexed_task_state.result)
             _merge_outlet_events(context["outlet_events"], outlet_events)
             return task, result, None
         except BaseException as e:

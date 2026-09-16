@@ -23,7 +23,7 @@ from contextlib import contextmanager
 from datetime import timedelta
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 try:
     # Python 3.11+
@@ -757,17 +757,50 @@ class TestIterableOperator:
                 assert materialized == [(1, 10, 100), (2, 20, 200)]
 
     def test_execute_with_do_xcom_push_false(self):
-        """Test executing IterableOperator when do_xcom_push is False."""
+        """With do_xcom_push=False no return_value_<index> XCom is pushed for any sub-task."""
         with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}])
             iterable_op = create_iterable_operator(
                 dag, expand_input, task_id="no_xcom_push", do_xcom_push=False
             )
 
-            with mock_context(task=iterable_op) as context:
+            with (
+                mock_context(task=iterable_op) as context,
+                patch.object(
+                    IterableOperator, "axcom_push", new=AsyncMock(spec=IterableOperator.axcom_push)
+                ) as axcom_push,
+            ):
                 result = iterable_op.execute(context=context)
 
                 assert result is None
+                axcom_push.assert_not_awaited()
+
+    def test_execute_does_not_push_xcom_for_none_results(self):
+        """A sub-task returning None has nothing to push, even when do_xcom_push is True."""
+
+        class NoneOperator(BaseOperator):
+            def __init__(self, arg1=None, **kwargs):
+                super().__init__(**kwargs)
+                self.arg1 = arg1
+
+            def execute(self, context):
+                return None
+
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}])
+            iterable_op = create_iterable_operator(
+                dag, expand_input, task_id="none_results", operator_class=NoneOperator
+            )
+
+            with (
+                mock_context(task=iterable_op) as context,
+                patch.object(
+                    IterableOperator, "axcom_push", new=AsyncMock(spec=IterableOperator.axcom_push)
+                ) as axcom_push,
+            ):
+                iterable_op.execute(context=context)
+
+                axcom_push.assert_not_awaited()
 
     def test_execute_with_failed_tasks_raises_regardless_of_retries(self):
         """
