@@ -52,7 +52,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.api_fastapi import _check_dag_run_note, _check_last_log
-from tests_common.test_utils.asserts import assert_queries_count, count_queries
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
@@ -439,29 +439,66 @@ class TestGetDagRun:
         assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
-    def test_get_dag_run_dag_versions_query_count_does_not_scale_with_ti_count(
-        self, test_client, dag_maker, session
-    ):
-        query_counts = []
-        for ti_count in (3, 20):
-            dag_id = f"test_get_dag_run_prefetch_{ti_count}"
-            with dag_maker(dag_id=dag_id, schedule=None, start_date=START_DATE1, serialized=True):
-                for i in range(ti_count):
-                    EmptyOperator(task_id=f"task_{i}")
-            dag_run = dag_maker.create_dagrun(run_id=f"run_{ti_count}", state=DagRunState.SUCCESS)
-            session.commit()
+    def test_get_dag_run_serialization_leaves_ti_collections_unloaded(self, test_client, dag_maker, session):
+        from sqlalchemy import inspect as sa_inspect
 
-            with count_queries() as result:
-                response = test_client.get(f"/dags/{dag_id}/dagRuns/{dag_run.run_id}")
+        from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
+        from airflow.api_fastapi.core_api.routes.public.dag_run import get_dag_run
+        from airflow.models.dag_version import DagVersion
+        from airflow.models.taskinstance import clear_task_instances
+        from airflow.models.taskinstancehistory import TaskInstanceHistory
 
-            assert response.status_code == 200
-            assert response.json()["dag_versions"]
-            query_counts.append(sum(result.values()))
+        dag_id = "test_get_dag_run_prefetch_history"
+        with dag_maker(
+            dag_id=dag_id, schedule=None, start_date=START_DATE1, bundle_version="v1", serialized=True
+        ):
+            EmptyOperator(task_id="0")
+            EmptyOperator(task_id="1")
+        dag_run = dag_maker.create_dagrun(state=DagRunState.SUCCESS)
+        old_dag_version = DagVersion.get_latest_version(dag_id)
+        for ti in dag_run.task_instances:
+            ti.state = TaskInstanceState.SUCCESS
+            session.merge(ti)
+        session.flush()
 
-        assert query_counts[0] == query_counts[1], (
-            f"GET dag run query count grew with TI count ({query_counts[0]} -> {query_counts[1]}). "
-            "dag_versions should use the DISTINCT prefetch path instead of loading every TI/TIH row."
+        with dag_maker(
+            dag_id=dag_id, schedule=None, start_date=START_DATE1, bundle_version="v2", serialized=True
+        ):
+            EmptyOperator(task_id="0")
+            EmptyOperator(task_id="1")
+        new_dag_version = DagVersion.get_latest_version(dag_id)
+        assert old_dag_version.id != new_dag_version.id
+
+        clear_task_instances(list(dag_run.task_instances), session, run_on_latest_version=True)
+        session.commit()
+        run_id = dag_run.run_id
+
+        tih_version_ids = set(
+            session.scalars(
+                select(TaskInstanceHistory.dag_version_id).where(
+                    TaskInstanceHistory.dag_id == dag_id,
+                    TaskInstanceHistory.run_id == run_id,
+                    TaskInstanceHistory.dag_version_id.isnot(None),
+                )
+            )
         )
+        assert old_dag_version.id in tih_version_ids
+
+        session.expire_all()
+        dag_run = get_dag_run(dag_id=dag_id, dag_run_id=run_id, session=session)
+        response = DAGRunResponse.model_validate(dag_run)
+
+        unloaded = sa_inspect(dag_run).unloaded
+        assert "task_instances" in unloaded
+        assert "task_instances_histories" in unloaded
+        assert {dv.id for dv in response.dag_versions} == {old_dag_version.id, new_dag_version.id}
+
+        http = test_client.get(f"/dags/{dag_id}/dagRuns/{run_id}")
+        assert http.status_code == 200
+        assert {dv["id"] for dv in http.json()["dag_versions"]} == {
+            str(old_dag_version.id),
+            str(new_dag_version.id),
+        }
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(f"/dags/{DAG1_ID}/dagRuns/invalid")
