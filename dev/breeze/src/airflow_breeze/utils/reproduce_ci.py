@@ -27,7 +27,7 @@ from click.core import ParameterSource
 from rich.markup import escape
 
 from airflow_breeze.global_constants import APACHE_AIRFLOW_GITHUB_REPOSITORY
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import get_stderr_console
 from airflow_breeze.utils.run_utils import commit_sha
 
 # Options that are side-effect-only or not meaningful for reproduction (safety net;
@@ -211,7 +211,7 @@ def print_local_reproduction(commands: list[ReproductionCommand]) -> None:
         lines.append(shlex.join(command.argv))
     rendered = "\n".join(lines)
     ruler = "─" * 80
-    console = get_console()
+    console = get_stderr_console()
     console.print(f"\n[warning]{ruler}[/]")
     console.print("[warning]HOW TO REPRODUCE LOCALLY[/]\n")
     console.print(f"[info]{escape(rendered)}[/]\n", soft_wrap=True)
