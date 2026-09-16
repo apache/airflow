@@ -585,8 +585,10 @@ def requires_access_backfill(
         # Left: the routes naming their Dag in the body (create, dry run) or in the query string
         # (list, read by ``requires_access_dag``), and ids the handler's own parser will reject.
         dag_id = None
-        # Not a json body, ignore
-        with suppress(JSONDecodeError):
+        # An unreadable body names no Dag, the same state as no body, so it falls through to the
+        # authorization below. Broad because ``json.loads`` also raises UnicodeDecodeError, bare
+        # ValueError and RecursionError, none of them JSONDecodeError.
+        with suppress(Exception):
             body = await request.json()
             if isinstance(body, dict):
                 dag_id = body.get("dag_id")
