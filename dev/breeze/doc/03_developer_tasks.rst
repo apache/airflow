@@ -316,6 +316,46 @@ If the provider name is ``apache-airflow-providers-cncf-kubernetes``, it will be
 Note: For building docs for apache-airflow-providers index, use ``apache-airflow-providers``
 as the short hand operator.
 
+Finding out what CI will run for your change
+--------------------------------------------
+
+``breeze verify`` reads the files changed against the target branch (the merge-base of
+``--base-ref`` and ``HEAD``, plus untracked files), runs the same selective-checks logic CI uses
+and prints the commands you would have to run locally to cover the default CI matrix cell
+(default Python, sqlite backend). It is a dry-run: nothing is executed. The only non-zero exit is a
+usage error such as a base ref git cannot resolve.
+
+.. code-block:: bash
+
+     breeze verify
+     breeze verify --json
+     breeze verify --base-ref upstream/main
+
+Each row says what kind of check it is, whether it runs on the host or needs Docker and the
+CI image (``breeze``), and the exact command. Use ``--json`` for machine-readable output with
+the same fields.
+
+When a change touches CI tooling or dependency files, selective checks make CI run the full suite
+and the table grows accordingly. ``breeze verify`` says so under the table. Run what covers your change
+locally and leave the rest to CI.
+
+Local verification is never the full CI matrix. The table covers one matrix cell: the default
+Python version on sqlite. Other Python versions, Postgres and MySQL, lowest-dependency runs,
+Kubernetes, Helm, e2e suites, the provider compatibility matrix and ARM runners only run in CI.
+Three more caveats. Selective checks compare ``pyproject.toml`` contents between ``HEAD`` and ``HEAD^``
+only, so dependency changes that are uncommitted or in earlier commits of your branch are not detected
+as such (test selection is unaffected, only the dependency-bump checks are). Untracked files count for
+test selection but ``prek`` only sees tracked files, so ``git add`` new files before running the prek
+row. Packaging steps CI runs around some tests (building and twine-checking the Task SDK and
+airflow-ctl wheels, regenerating the Python API client from its own repository) are not listed.
+
+These are all available flags of ``verify`` command:
+
+.. image:: ./images/output_verify.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_verify.svg
+  :width: 100%
+  :alt: Breeze verify
+
 Running static checks
 ---------------------
 
