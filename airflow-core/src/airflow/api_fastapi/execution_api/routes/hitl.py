@@ -32,6 +32,7 @@ from airflow.api_fastapi.execution_api.datamodels.hitl import (
 )
 from airflow.api_fastapi.execution_api.security import ExecutionAPIRoute, require_auth
 from airflow.models.hitl import HITLDetail
+from airflow.models.taskinstance import TaskInstance as TI
 
 router = VersionedAPIRouter(
     route_class=ExecutionAPIRoute,
@@ -61,34 +62,43 @@ def upsert_hitl_detail(
     1. If a HITLOperator task instance does not have a HITLDetail,
        a new HITLDetail is created without a response section.
     2. If a HITLOperator task instance has a HITLDetail but lacks a response,
-       the existing HITLDetail is returned.
+       the request part is refreshed from the payload and the HITLDetail is returned.
        This situation occurs when a task instance is cleared before a response is received.
     3. If a HITLOperator task instance has both a HITLDetail and a response section,
-       the existing response is removed, and the HITLDetail is returned.
+       the request part is refreshed, the existing response is removed, and the HITLDetail is returned.
        This happens when a task instance is cleared after a response has been received.
        This design ensures that each task instance has only one HITLDetail.
     """
-    hitl_detail_model = session.scalar(select(HITLDetail).where(HITLDetail.ti_id == task_instance_id))
+    request_part = {
+        "options": payload.options,
+        "subject": payload.subject,
+        "body": payload.body,
+        "defaults": payload.defaults,
+        "multiple": payload.multiple,
+        "params": payload.params,
+        "assignees": [user.model_dump() for user in payload.assigned_users],
+        "created_at": timezone.utcnow(),
+    }
+    # Same lock order as the park transition and the Core API response path (TaskInstance, then
+    # hitl_detail), so a response landing between the read and the flush cannot survive the rewrite.
+    session.get(TI, task_instance_id, with_for_update={"of": TI})
+    hitl_detail_model = session.scalar(
+        select(HITLDetail).where(HITLDetail.ti_id == task_instance_id).with_for_update(of=HITLDetail)
+    )
     if not hitl_detail_model:
-        hitl_detail_model = HITLDetail(
-            ti_id=task_instance_id,
-            options=payload.options,
-            subject=payload.subject,
-            body=payload.body,
-            defaults=payload.defaults,
-            multiple=payload.multiple,
-            params=payload.params,
-            assignees=[user.model_dump() for user in payload.assigned_users],
-        )
-        session.add(hitl_detail_model)
-    elif hitl_detail_model.response_received:
-        # Cleanup the response part of HITLDetail as we only store one response for one task instance.
-        # It normally happens after retry, we keep only the latest response.
-        hitl_detail_model.responded_by = None
-        hitl_detail_model.responded_at = None
-        hitl_detail_model.chosen_options = None
-        hitl_detail_model.params_input = {}
-        session.add(hitl_detail_model)
+        hitl_detail_model = HITLDetail(ti_id=task_instance_id, **request_part)
+    else:
+        if hitl_detail_model.response_received:
+            # Cleanup the response part of HITLDetail as we only store one response for one task instance.
+            # It normally happens after retry, we keep only the latest response.
+            hitl_detail_model.responded_by = None
+            hitl_detail_model.responded_at = None
+            hitl_detail_model.chosen_options = None
+            hitl_detail_model.params_input = {}
+        # A retry re-runs the operator with regenerated content, so the row must follow the latest request.
+        for column, value in request_part.items():
+            setattr(hitl_detail_model, column, value)
+    session.add(hitl_detail_model)
 
     return HITLDetailRequest.model_validate(hitl_detail_model)
 
