@@ -1123,7 +1123,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         # reach that code path, so reject it here rather than silently accepting a dead value.
         if task_concurrency is not None:
             raise TypeError("unexpected argument: task_concurrency")
-        self.task_concurrency = task_concurrency
 
         kwargs.pop("_airflow_mapped_validation_only", None)
         if kwargs:
@@ -1570,7 +1569,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "_BaseOperator__from_mapped",
                     "on_failure_fail_dagrun",
                     "task_group",
-                    "task_concurrency",
                     "_task_type",
                     "operator_extra_links",
                     "on_execute_callback",
