@@ -534,11 +534,14 @@ def _(task: SerializedBaseOperator | TaskSDKBaseOperator, run_id: str, *, sessio
 def _(task: SerializedMappedOperator | TaskSDKMappedOperator, run_id: str, *, session: Session) -> int:
     from airflow.serialization.serialized_objects import BaseSerialization, _ExpandInputRef
 
-    group = task.get_closest_mapped_task_group()
-    parent_count = 1 if group is None else get_mapped_ti_count(group, run_id, session=session)
+    def _get_parent_count() -> int:
+        if (group := task.get_closest_mapped_task_group()) is None:
+            return 1
+        return get_mapped_ti_count(group, run_id, session=session)
+
     # See get_parse_time_mapped_ti_count: a batched task's count is fixed by batch_size alone.
     if task.batch_size > 0:
-        return parent_count * task.batch_size
+        return _get_parent_count() * task.batch_size
 
     exp_input = task._get_specified_expand_input()
     # TODO (GH-52141): 'task' here should be scheduler-bound and returns scheduler expand input.
@@ -556,7 +559,9 @@ def _(task: SerializedMappedOperator | TaskSDKMappedOperator, run_id: str, *, se
     else:
         current_count = exp_input.get_total_map_length(run_id, session=session)
 
-    return parent_count * current_count
+    # Measure the input before resolving the parent: NotFullyPopulated from the input is the
+    # common early-exit while upstream tasks are still running, so avoid the group lookup then.
+    return _get_parent_count() * current_count
 
 
 @get_mapped_ti_count.register

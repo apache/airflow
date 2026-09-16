@@ -1850,3 +1850,23 @@ def test_batched_ti_count_is_batch_size_regardless_of_items(dag_maker, session, 
 
     assert task.get_parse_time_mapped_ti_count() == batch_size
     assert get_mapped_ti_count(task, dr.run_id, session=session) == batch_size
+
+
+def test_get_mapped_ti_count_measures_input_before_resolving_parent_group(dag_maker, session):
+    from airflow.models.expandinput import NotFullyPopulated
+    from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator, get_mapped_ti_count
+
+    with dag_maker(session=session, serialized=True) as dag:
+        upstream = BaseOperator(task_id="upstream")
+        MockOperator.partial(task_id="task").expand(arg1=upstream.output)
+
+    dr = dag_maker.create_dagrun()
+    task = dag.task_dict["task"]
+
+    with patch.object(
+        SerializedMappedOperator, "get_closest_mapped_task_group", autospec=True
+    ) as mock_group_lookup:
+        with pytest.raises(NotFullyPopulated):
+            get_mapped_ti_count(task, dr.run_id, session=session)
+
+    mock_group_lookup.assert_not_called()
