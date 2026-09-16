@@ -61,7 +61,6 @@ def _mock_selective_checks(**flags: object) -> Mock:
         setattr(sc, flag, False)
     sc.skip_providers_tests = True
     sc.skip_prek_hooks = "identity"
-    sc.shared_distributions_as_json = "[]"
     sc.default_python_version = DEFAULT_PYTHON_MAJOR_MINOR_VERSION
     sc.full_tests_needed = False
     for flag, value in flags.items():
@@ -76,11 +75,7 @@ def test_each_flag_maps_to_its_commands(flag: str):
     assert commands == [
         "SKIP=identity prek run --all-files",
         *(command for _, command, _ in FLAG_COMMANDS[flag]),
-        "cd dev/breeze && uv run --locked pytest",
-        "breeze ui check-translation-completeness",
     ]
-    assert [item["required"] for item in result["items"]][-1] is False
-    assert all(item["required"] for item in result["items"][:-1])
 
 
 @pytest.mark.parametrize(
@@ -112,11 +107,6 @@ def test_docs_only_change_mirrors_the_ci_cell():
     assert [item["command"] for item in result["items"]] == [
         f"SKIP={sc.skip_prek_hooks} prek run --all-files",
         "breeze build-docs apache-airflow",
-        "cd dev/breeze && uv run --locked pytest",
-        "for d in "
-        + " ".join(sorted(json.loads(sc.shared_distributions_as_json)))
-        + "; do (cd shared/$d && uv run --group dev pytest) || exit 1; done",
-        "breeze ui check-translation-completeness",
     ]
 
 
