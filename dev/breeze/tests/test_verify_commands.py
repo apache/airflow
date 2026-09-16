@@ -104,3 +104,15 @@ def test_changed_files_list_renames_like_ci_diff_tree(mock_run):
     ]
     assert get_changed_files_against("main") == ("new.py", "old.py", "untracked.py")
     assert mock_run.call_args_list[1].args[0] == ["git", "diff", "--name-only", "--no-renames", "abc123"]
+
+
+@patch(
+    "airflow_breeze.commands.verify_commands.get_changed_files_against",
+    return_value=("airflow-core/docs/index.rst",),
+)
+def test_long_commands_are_folded_not_truncated(mock_files):
+    result = CliRunner().invoke(verify, [], catch_exceptions=False)
+    assert result.exit_code == 0
+    assert "\u2026" not in result.output
+    compact = re.sub(r"[\u2502\s]", "", result.output)
+    assert "update-uv-lockprekrun--all-files" in compact
