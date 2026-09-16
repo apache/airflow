@@ -43,7 +43,7 @@ import { TaskNames } from "./TaskNames";
 import { GANTT_ROW_OFFSET_PX, GRID_HEADER_HEIGHT_PX, GRID_HEADER_PADDING_PX, ROW_HEIGHT } from "./constants";
 import { useGridPagination } from "./useGridPagination";
 import { useGridRunsWithVersionFlags } from "./useGridRunsWithVersionFlags";
-import { estimateTaskNameColumnWidthPx, flattenNodes, getRowIndexToScrollTo } from "./utils";
+import { estimateTaskNameColumnWidthPx, flattenNodes } from "./utils";
 
 dayjs.extend(dayjsDuration);
 
@@ -66,6 +66,9 @@ type Props = {
 const GRID_INNER_SCROLL_PADDING_START_PX = GRID_HEADER_PADDING_PX + GRID_HEADER_HEIGHT_PX;
 const ScrollbarSpacer = () => <Box aria-hidden flexShrink={0} minWidth="16px" width="16px" />;
 
+// Last Grid scrollTop per Dag, kept at module scope so it survives the Grid remounting.
+const gridScrollPositions = new Map<string, number>();
+
 export const Grid = ({
   dagRunState,
   limit,
@@ -87,7 +90,7 @@ export const Grid = ({
   const usesSharedScroll = Boolean(sharedScrollContainerRef && showGantt);
 
   const { openGroupIds, toggleGroupId } = useGroups();
-  const { dagId = "", groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
+  const { dagId = "" } = useParams();
   const [searchParams] = useSearchParams();
 
   const filterRoot = searchParams.get("root") ?? undefined;
@@ -180,8 +183,6 @@ export const Grid = ({
   const handleCellClick = useCallback(() => setMode(NavigationModes.TI), [setMode]);
   const handleColumnClick = useCallback(() => setMode(NavigationModes.RUN), [setMode]);
 
-  const headerPad = usesSharedScroll ? GANTT_ROW_OFFSET_PX : GRID_INNER_SCROLL_PADDING_START_PX;
-
   const rowVirtualizer = useVirtualizer({
     count: flatNodes.length,
     estimateSize: () => ROW_HEIGHT,
@@ -189,28 +190,31 @@ export const Grid = ({
     getScrollElement: () =>
       usesSharedScroll ? (sharedScrollContainerRef?.current ?? null) : scrollContainerRef.current,
     overscan: 5,
-    scrollPaddingStart: headerPad,
+    scrollPaddingStart: usesSharedScroll ? GANTT_ROW_OFFSET_PX : GRID_INNER_SCROLL_PADDING_START_PX,
   });
 
-  // Keep the selected task in view. Opening a task remounts the Grid a couple of times and each
-  // remount jumps scroll back to the top, so we re-check on every mount. We match by task id
-  // instead of a saved pixel offset, so it still works when the rows move around, and leave a task
-  // that's comfortably in view alone so an ordinary click doesn't nudge the scroll.
+  // Hold the vertical scroll position across the remounts that opening a task/run triggers.
+  // Each remount otherwise resets scrollTop to the top, so we stash the last position (per Dag,
+  // outside the component so it survives remounts) and restore it before paint.
   useLayoutEffect(() => {
-    const scrollEl = rowVirtualizer.scrollElement;
-    const index = getRowIndexToScrollTo({
-      clientHeight: scrollEl?.clientHeight ?? 0,
-      flatNodes,
-      headerPad,
-      scrollTop: scrollEl?.scrollTop ?? 0,
-      selectedGroupId,
-      selectedTaskId,
-    });
+    const scrollEl = usesSharedScroll ? sharedScrollContainerRef?.current : scrollContainerRef.current;
 
-    if (index !== undefined) {
-      rowVirtualizer.scrollToIndex(index, { align: "center" });
+    if (!scrollEl) {
+      return undefined;
     }
-  }, [selectedTaskId, selectedGroupId, flatNodes, rowVirtualizer, headerPad]);
+
+    const saved = gridScrollPositions.get(dagId);
+
+    if (saved !== undefined && saved !== scrollEl.scrollTop) {
+      scrollEl.scrollTop = saved;
+    }
+
+    const handleScroll = () => gridScrollPositions.set(dagId, scrollEl.scrollTop);
+
+    scrollEl.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => scrollEl.removeEventListener("scroll", handleScroll);
+  }, [dagId, usesSharedScroll, sharedScrollContainerRef]);
 
   const virtualItems = rowVirtualizer.getVirtualItems();
 

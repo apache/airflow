@@ -18,8 +18,6 @@
  */
 import type { GridNodeResponse, NodeResponse } from "openapi/requests/types.gen";
 
-import { ROW_HEIGHT } from "./constants";
-
 export type GridTask = {
   depth: number;
   isGroup?: boolean;
@@ -113,49 +111,4 @@ export const flattenGraphNodes = (
   });
 
   return { allGroupIds, allOperators: [...operators].sort() };
-};
-
-// Start scrolling before the row touches an edge, so it never sits right at the border.
-const SCROLL_EDGE_MARGIN_PX = ROW_HEIGHT * 2;
-
-type ScrollDecision = {
-  clientHeight: number;
-  flatNodes: Array<GridTask>;
-  headerPad: number;
-  scrollTop: number;
-  selectedGroupId?: string;
-  selectedTaskId?: string;
-};
-
-/** Row index that should be centered, or undefined when the current scroll is fine. */
-export const getRowIndexToScrollTo = ({
-  clientHeight,
-  flatNodes,
-  headerPad,
-  scrollTop,
-  selectedGroupId,
-  selectedTaskId,
-}: ScrollDecision): number | undefined => {
-  const anchorId = selectedTaskId ?? selectedGroupId;
-
-  if (anchorId === undefined || flatNodes.length === 0) {
-    return undefined;
-  }
-  const index = flatNodes.findIndex((node) => node.id === anchorId);
-
-  if (index === -1) {
-    return undefined;
-  }
-  if (clientHeight > 0) {
-    const rowTop = headerPad + index * ROW_HEIGHT;
-    const rowBottom = rowTop + ROW_HEIGHT;
-    const viewTop = scrollTop + headerPad;
-    const viewBottom = scrollTop + clientHeight;
-
-    if (rowTop >= viewTop + SCROLL_EDGE_MARGIN_PX && rowBottom <= viewBottom - SCROLL_EDGE_MARGIN_PX) {
-      return undefined;
-    }
-  }
-
-  return index;
 };
