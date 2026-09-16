@@ -300,10 +300,6 @@ class TaskExecutor(LoggingMixin):
         return self.task_instance.index
 
     @property
-    def xcom_key(self):
-        return self.task_instance.xcom_key
-
-    @property
     def operator(self) -> BaseOperator:
         return self.task_instance.task
 

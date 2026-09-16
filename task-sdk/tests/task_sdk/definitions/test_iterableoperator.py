@@ -658,9 +658,9 @@ class TestIterableOperator:
                 list(iterable_op.execute(context=context))
 
                 assert store["last_offset"] == 42
-                assert store["exec_completed_completed"]["completed"] is True
-                assert store["exec_completed_0"]["status"] == "success"
-                assert store["exec_completed_1"]["status"] == "success"
+                assert store["_iterable_completed"]["completed"] is True
+                assert store["_iterable_0"]["status"] == "success"
+                assert store["_iterable_1"]["status"] == "success"
 
     def test_execute_reruns_every_index_after_a_clear_that_follows_success(self):
         """
@@ -676,17 +676,17 @@ class TestIterableOperator:
             with mock_context(task=iterable_op) as context:
                 context["ti"].try_number = 2
                 store = context["task_state_store"]
-                store._data["exec_rerun_completed"] = {"completed": True, "try_number": 1}
+                store._data["_iterable_completed"] = {"completed": True, "try_number": 1}
                 for index in (0, 1):
-                    store._data[f"exec_rerun_{index}"] = IndexedTaskState(
+                    store._data[f"_iterable_{index}"] = IndexedTaskState(
                         status=TaskInstanceState.SUCCESS, result="stale"
                     ).serialize()
 
                 materialized = list(iterable_op.execute(context=context))
 
                 assert materialized == [(1, None, None), (2, None, None)]
-                assert store["exec_rerun_0"]["result"] == (1, None, None)
-                assert store["exec_rerun_completed"] == {"completed": True, "try_number": 2}
+                assert store["_iterable_0"]["result"] == (1, None, None)
+                assert store["_iterable_completed"] == {"completed": True, "try_number": 2}
 
     def test_execute_resumes_from_checkpoints_on_retry_after_failure(self):
         """
@@ -701,18 +701,18 @@ class TestIterableOperator:
             with mock_context(task=iterable_op) as context:
                 context["ti"].try_number = 2
                 store = context["task_state_store"]
-                store._data["exec_resume_0"] = IndexedTaskState(
+                store._data["_iterable_0"] = IndexedTaskState(
                     status=TaskInstanceState.SUCCESS, result="from_checkpoint"
                 ).serialize()
-                store._data["exec_resume_1"] = IndexedTaskState(
+                store._data["_iterable_1"] = IndexedTaskState(
                     status=TaskInstanceState.UP_FOR_RETRY
                 ).serialize()
 
                 materialized = list(iterable_op.execute(context=context))
 
                 assert materialized == ["from_checkpoint", (2, None, None)]
-                assert store["exec_resume_1"]["status"] == "success"
-                assert store["exec_resume_completed"]["completed"] is True
+                assert store["_iterable_1"]["status"] == "success"
+                assert store["_iterable_completed"]["completed"] is True
 
     def test_execute_does_not_leak_unmapped_operator_into_parent_context(self):
         """
@@ -1003,7 +1003,7 @@ class TestIterableOperator:
                 )
                 task.try_number = 2  # checkpoint is only consulted from the second attempt onwards
                 await context["task_state_store"].aset(
-                    task.xcom_key,
+                    task.state_key,
                     IndexedTaskState(status=TaskInstanceState.SUCCESS).serialize(),
                 )
 
@@ -1038,7 +1038,7 @@ class TestIterableOperator:
                 )
                 task.try_number = 2  # checkpoint is only consulted from the second attempt onwards
                 await context["task_state_store"].aset(
-                    task.xcom_key,
+                    task.state_key,
                     IndexedTaskState(status=TaskInstanceState.UP_FOR_RETRY).serialize(),
                 )
 
@@ -1055,7 +1055,7 @@ class TestIterableOperator:
                 )  # try_number is inherited from the parent TI, never mutated
                 store = context["task_state_store"]
                 assert (
-                    store[task.xcom_key]
+                    store[task.state_key]
                     == IndexedTaskState(status=TaskInstanceState.SUCCESS, result=result).serialize()
                 )
 
@@ -1091,7 +1091,7 @@ class TestIterableOperator:
                 accessor = context["outlet_events"][Asset(name="a", uri="s3://bucket/a")]
                 assert accessor.extra == {"value": "v"}
                 store = context["task_state_store"]
-                checkpoint = IndexedTaskState.deserialize(store[task.xcom_key])
+                checkpoint = IndexedTaskState.deserialize(store[task.state_key])
                 assert checkpoint.outlet_events == [
                     {
                         "kind": "asset",
@@ -1123,7 +1123,7 @@ class TestIterableOperator:
                 )
                 task.try_number = 2  # checkpoint is only consulted from the second attempt onwards
                 await context["task_state_store"].aset(
-                    task.xcom_key,
+                    task.state_key,
                     IndexedTaskState(
                         status=TaskInstanceState.SUCCESS,
                         outlet_events=[
@@ -1400,7 +1400,7 @@ class TestCheckpoints:
 
         store.get.assert_not_called()
         store.delete.assert_not_called()
-        store.set.assert_called_once_with("my_task_completed", {"completed": True, "try_number": 1})
+        store.set.assert_called_once_with("_iterable_completed", {"completed": True, "try_number": 1})
 
     def test_retry_without_marker_trusts_checkpoints(self):
         context, store = self._context(try_number=2, marker=None)
@@ -1408,19 +1408,19 @@ class TestCheckpoints:
         with Checkpoints(context) as checkpoints:
             assert checkpoints.trust_checkpoints is True
 
-        store.get.assert_called_once_with("my_task_completed")
+        store.get.assert_called_once_with("_iterable_completed")
         store.delete.assert_not_called()
-        store.set.assert_called_once_with("my_task_completed", {"completed": True, "try_number": 2})
+        store.set.assert_called_once_with("_iterable_completed", {"completed": True, "try_number": 2})
 
     def test_rerun_after_clear_removes_marker_and_ignores_checkpoints(self):
         context, store = self._context(try_number=2, marker={"completed": True, "try_number": 1})
 
         with Checkpoints(context) as checkpoints:
             assert checkpoints.trust_checkpoints is False
-            store.delete.assert_called_once_with("my_task_completed")
+            store.delete.assert_called_once_with("_iterable_completed")
             store.set.assert_not_called()
 
-        store.set.assert_called_once_with("my_task_completed", {"completed": True, "try_number": 2})
+        store.set.assert_called_once_with("_iterable_completed", {"completed": True, "try_number": 2})
 
     def test_failure_leaves_no_marker(self):
         context, store = self._context(try_number=2, marker={"completed": True, "try_number": 1})
@@ -1429,5 +1429,5 @@ class TestCheckpoints:
             with Checkpoints(context):
                 raise RuntimeError("sub-task failed")
 
-        store.delete.assert_called_once_with("my_task_completed")
+        store.delete.assert_called_once_with("_iterable_completed")
         store.set.assert_not_called()

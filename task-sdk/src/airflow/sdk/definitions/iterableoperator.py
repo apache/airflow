@@ -153,22 +153,24 @@ class Checkpoints:
     sub-task stored for itself is never touched.
     """
 
+    # Same namespace as IndexedTaskState.build_key, for the same reason.
+    COMPLETION_KEY = "_iterable_completed"
+
     def __init__(self, context: Context) -> None:
         self._store = context["task_state_store"]
-        self._key = IndexedTaskInstance.build_completion_key(context["ti"].task_id)
         self._try_number = context["ti"].try_number
         self.trust_checkpoints = False
 
     def __enter__(self) -> Checkpoints:
         self.trust_checkpoints = self._try_number > 1
-        if self.trust_checkpoints and self._store.get(self._key) is not None:
-            self._store.delete(self._key)
+        if self.trust_checkpoints and self._store.get(self.COMPLETION_KEY) is not None:
+            self._store.delete(self.COMPLETION_KEY)
             self.trust_checkpoints = False
         return self
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:
         if exc_type is None:
-            self._store.set(self._key, {"completed": True, "try_number": self._try_number})
+            self._store.set(self.COMPLETION_KEY, {"completed": True, "try_number": self._try_number})
 
 
 class IterableOperator(BaseOperator):

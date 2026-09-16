@@ -916,6 +916,13 @@ class IndexedTaskState:
     # lets IterableOperator._run_task replay it instead of silently losing those events.
     outlet_events: list[dict[str, Any]] | None = None
 
+    @staticmethod
+    def build_key(index: int) -> str:
+        # The task state store is already scoped to the parent task instance (dag, run, task and
+        # map index), so the key carries no identity, only a namespace that keeps the operator's own
+        # entries apart from anything user code stores from inside a sub-task.
+        return f"_iterable_{index}"
+
     def serialize(self) -> dict[str, Any]:
         data: dict[str, Any] = {"status": self.status.value}
         if self.result is not None:
@@ -985,10 +992,10 @@ class IndexedTaskInstance(RuntimeTaskInstance):
         await super().axcom_push(key=f"{key}_{self.index}", value=value)
 
     async def aget_state(self) -> IndexedTaskState | None:
-        return IndexedTaskState.deserialize(await self.task_state_store.aget(self.xcom_key))
+        return IndexedTaskState.deserialize(await self.task_state_store.aget(self.state_key))
 
     async def aset_state(self, state: IndexedTaskState) -> None:
-        await self.task_state_store.aset(self.xcom_key, state.serialize())
+        await self.task_state_store.aset(self.state_key, state.serialize())
 
     @property
     def is_async(self) -> bool:
@@ -998,17 +1005,9 @@ class IndexedTaskInstance(RuntimeTaskInstance):
     def next_try_number(self) -> int:
         return self.try_number + 1
 
-    @staticmethod
-    def build_state_key(task_id: str, index: int) -> str:
-        return f"{task_id}_{index}"
-
-    @staticmethod
-    def build_completion_key(task_id: str) -> str:
-        return f"{task_id}_completed"
-
     @property
-    def xcom_key(self) -> str:
-        return self.build_state_key(self.task_id, self.index)
+    def state_key(self) -> str:
+        return IndexedTaskState.build_key(self.index)
 
     @property
     def do_xcom_push(self) -> bool:
