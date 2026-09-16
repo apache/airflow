@@ -1224,13 +1224,16 @@ class SFTPHookAsync(BaseHook):
 
         :param path: full path to the remote directory to check
         """
+        is_dir = False
         async with await self._get_conn() as ssh_conn:
             async with ssh_conn.start_sftp_client() as sftp:
                 try:
                     attrs = await sftp.stat(path)
                 except asyncssh.SFTPNoSuchFile:
-                    return False
-                return attrs.permissions is not None and stat.S_ISDIR(attrs.permissions)
+                    pass
+                else:
+                    is_dir = attrs.permissions is not None and stat.S_ISDIR(attrs.permissions)
+        return is_dir
 
     async def path_exists(self, path: str) -> bool:
         """
@@ -1238,13 +1241,16 @@ class SFTPHookAsync(BaseHook):
 
         :param path: full path to the remote file or directory
         """
+        exists = False
         async with await self._get_conn() as ssh_conn:
             async with ssh_conn.start_sftp_client() as sftp:
                 try:
                     await sftp.stat(path)
                 except asyncssh.SFTPNoSuchFile:
-                    return False
-                return True
+                    pass
+                else:
+                    exists = True
+        return exists
 
     async def create_directory(self, path: str) -> None:
         """
