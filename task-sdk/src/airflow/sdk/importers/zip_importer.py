@@ -55,21 +55,6 @@ log = logging.getLogger(__name__)
 _sys_path_lock = threading.RLock()
 
 
-@contextlib.contextmanager
-def _temporary_sys_path(path: str) -> Generator[None, None, None]:
-    """Safely prepend a path to sys.path with synchronization and restoration."""
-    with _sys_path_lock:
-        already_present = path in sys.path
-        if not already_present:
-            sys.path.insert(0, path)
-        try:
-            yield
-        finally:
-            if not already_present:
-                with contextlib.suppress(ValueError):
-                    sys.path.remove(path)
-
-
 @dataclass
 class ZipMemberDagDefinition(FileDagDefinition):
     """A DAG definition backed by a file inside a ZIP archive."""
@@ -95,6 +80,20 @@ class ZipMemberDagDefinition(FileDagDefinition):
     @property
     def suffix(self) -> str:
         return os.path.splitext(self.file_path)[-1].lower()
+
+    @contextlib.contextmanager
+    def import_context(self) -> Generator[None, None, None]:
+        path = str(self.zip_path)
+        with _sys_path_lock:
+            already_present = path in sys.path
+            if not already_present:
+                sys.path.insert(0, path)
+            try:
+                yield
+            finally:
+                if not already_present:
+                    with contextlib.suppress(ValueError):
+                        sys.path.remove(path)
 
     def read_bytes(self) -> bytes:
         if self._content is None:
@@ -226,9 +225,9 @@ class ZipImporter(AbstractDagImporter[ZipMemberDagDefinition]):
         """
         Import a single archive member.
 
-        The internal importer is resolved from the member's extension, and the archive
-        is placed on ``sys.path`` so Python imports between members resolve via
-        ``zipimport``.
+        The internal importer is resolved from the member's extension; the member's
+        ``import_context`` places the archive on ``sys.path`` so imports between members
+        resolve via ``zipimport``.
         """
         importer = self._get_internal_importer(definition.file_path)
         if importer is None:
@@ -241,8 +240,7 @@ class ZipImporter(AbstractDagImporter[ZipMemberDagDefinition]):
                 )
             )
             return result
-        with _temporary_sys_path(str(definition.zip_path)):
-            return importer.import_definition(definition, bundle, safe_mode=safe_mode)
+        return importer.import_definition(definition, bundle, safe_mode=safe_mode)
 
     def get_source_code(self, definition: DagDefinition) -> DagSourceCode:
         """

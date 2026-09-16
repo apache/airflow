@@ -93,6 +93,16 @@ class FileDagDefinition(DagDefinition):
     def suffix(self) -> str:
         """Lowercased file extension including the leading dot (for example ``.py``)."""
 
+    def import_context(self) -> contextlib.AbstractContextManager[None]:
+        """
+        Prepare the environment needed to import this definition, then restore it.
+
+        The default does nothing. A definition that needs setup -- e.g. an archive member
+        placing its archive on ``sys.path`` for cross-member imports -- overrides this, so any
+        importer can load it without knowing where the definition came from.
+        """
+        return contextlib.nullcontext()
+
 
 @dataclass
 class FilesystemDagDefinition(FileDagDefinition):

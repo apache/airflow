@@ -170,6 +170,24 @@ class TestZipImporter:
         assert isinstance(items[0], DagImportError)
         assert items[0].error_type == "zip_read_error"
 
+    def test_zip_member_cross_import_via_python_importer(self, mock_bundle):
+        # A member imported directly through PythonDagImporter (as the registry routes it by
+        # suffix, not via ZipImporter) still resolves sibling-member imports, because the
+        # definition's import_context puts its archive on sys.path.
+        zip_path = mock_bundle.path / "cross.zip"
+        with zipfile.ZipFile(zip_path, "w") as z:
+            z.writestr("helper_mod.py", "VALUE = 7\n")
+            z.writestr(
+                "main_dag.py",
+                "from airflow.sdk import DAG\nimport helper_mod\ndag = DAG(f'cross_{helper_mod.VALUE}')\n",
+            )
+
+        member = ZipMemberDagDefinition(zip_path=zip_path, file_path="main_dag.py")
+        result = PythonDagImporter().import_definition(member, bundle=mock_bundle)
+
+        assert result.errors == []
+        assert [d.dag_id for d in result.dags] == ["cross_7"]
+
     def test_get_source_code_reads_member_not_archive(self, tmp_path):
         zip_path = tmp_path / "source_dags.zip"
         dag_content = "from airflow.sdk import DAG\ndag = DAG('src_dag')\n"

@@ -249,16 +249,17 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
 
         def parse() -> list[types.ModuleType]:
             try:
-                loader: importlib.abc.Loader
-                if get_file_suffix(definition) == ".pyc":
-                    loader = _DefinitionBytecodeLoader(definition)
-                else:
-                    loader = _DefinitionSourceLoader(definition)
-                spec = importlib.util.spec_from_loader(mod_name, loader)
-                new_module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
-                sys.modules[mod_name] = new_module
-                loader.exec_module(new_module)
-                return [new_module]
+                with definition.import_context():
+                    loader: importlib.abc.Loader
+                    if get_file_suffix(definition) == ".pyc":
+                        loader = _DefinitionBytecodeLoader(definition)
+                    else:
+                        loader = _DefinitionSourceLoader(definition)
+                    spec = importlib.util.spec_from_loader(mod_name, loader)
+                    new_module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
+                    sys.modules[mod_name] = new_module
+                    loader.exec_module(new_module)
+                    return [new_module]
             except KeyboardInterrupt:
                 sys.modules.pop(mod_name, None)
                 raise
