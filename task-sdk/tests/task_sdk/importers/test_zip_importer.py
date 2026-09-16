@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import os
 import py_compile
 import zipfile
 from pathlib import Path
@@ -187,6 +188,13 @@ class TestZipImporter:
 
         assert result.errors == []
         assert [d.dag_id for d in result.dags] == ["cross_7"]
+
+    def test_zip_member_fileloc_uses_os_sep(self, tmp_path):
+        # The fileloc/relative loc join with os.sep (archive.zip/member.py) -- the form
+        # airflow-core's ZIP_REGEX and open_maybe_zipped understand -- not a colon.
+        member = ZipMemberDagDefinition(zip_path=tmp_path / "a.zip", file_path="sub/dag.py")
+        assert repr(member) == os.path.join(str(tmp_path / "a.zip"), "sub/dag.py")
+        assert member.get_relative_loc(tmp_path) == os.path.join("a.zip", "sub/dag.py")
 
     def test_get_source_code_reads_member_not_archive(self, tmp_path):
         zip_path = tmp_path / "source_dags.zip"
