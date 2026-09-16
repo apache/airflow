@@ -355,6 +355,9 @@ class DagBundlesManager(LoggingMixin):
         from airflow.models.errors import ParseImportError
 
         for name, bundle in stored.items():
+            # This sync repeats, so only clean up when the bundle becomes inactive.
+            if bundle.active is False:
+                continue
             bundle.active = False
             bundle.teams = []
             self.log.warning("DAG bundle %s is no longer found in config and has been disabled", name)
