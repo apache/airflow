@@ -113,45 +113,43 @@ class TestPythonDagImporter:
         assert result.errors[0].error_type == "import"
         assert not any("bad_dag" in m for m in sys.modules)
 
-    def test_skip_non_dag_file_in_safe_mode(self, mock_bundle):
+    def test_import_non_dag_file_yields_no_dags(self, mock_bundle):
+        # Import does not re-sniff -- discovery already filters non-DAG files. Importing one
+        # directly just yields no DAGs (and no error); it is not reported as skipped.
         helper_file = mock_bundle.path / "helper.py"
         helper_file.write_text("def util(): return 42\n")
 
         importer = PythonDagImporter()
         definition = FilesystemDagDefinition(path=helper_file)
-        result = importer.import_definition(definition, bundle=mock_bundle, safe_mode=True)
+        result = importer.import_definition(definition, bundle=mock_bundle)
 
-        assert len(result.dags) == 0
-        assert len(result.errors) == 0
-        assert result.skipped_definitions == [definition]
+        assert result.dags == []
+        assert result.errors == []
+        assert result.skipped_definitions == []
 
-    def test_skip_non_dag_zip_member_in_safe_mode(self, mock_bundle):
-        # Exercises the zip-member branch of might_contain_dag on the merged importer:
-        # a member with no DAG markers is skipped at import (not discovery), landing in
-        # skipped_definitions -- mirroring the file case, and proving PythonDagImporter
-        # accepts a ZipMemberDagDefinition directly.
+    def test_import_non_dag_zip_member_yields_no_dags(self, mock_bundle):
+        # Same for a zip member imported directly: no sniff at import, so no DAGs and no skip.
         zip_path = mock_bundle.path / "helpers.zip"
         with zipfile.ZipFile(zip_path, "w") as z:
             z.writestr("helper.py", "def util():\n    return 42\n")
 
         importer = PythonDagImporter()
         definition = ZipMemberDagDefinition(zip_path=zip_path, file_path="helper.py")
-        result = importer.import_definition(definition, bundle=mock_bundle, safe_mode=True)
+        result = importer.import_definition(definition, bundle=mock_bundle)
 
-        assert len(result.dags) == 0
-        assert len(result.errors) == 0
-        assert result.skipped_definitions == [definition]
+        assert result.dags == []
+        assert result.errors == []
+        assert result.skipped_definitions == []
 
     def test_import_corrupt_pyc_captured_as_error(self, mock_bundle):
         # A .pyc whose header is not valid CPython bytecode must surface as an import
         # error (from _DefinitionBytecodeLoader's magic check), not crash the importer.
-        # safe_mode=False bypasses the content heuristic so the loader actually runs.
         bad_pyc = mock_bundle.path / "broken.pyc"
         bad_pyc.write_bytes(b"this is not valid python bytecode at all!!")
 
         importer = PythonDagImporter()
         definition = FilesystemDagDefinition(path=bad_pyc)
-        result = importer.import_definition(definition, bundle=mock_bundle, safe_mode=False)
+        result = importer.import_definition(definition, bundle=mock_bundle)
 
         assert len(result.dags) == 0
         assert len(result.errors) == 1
@@ -174,14 +172,14 @@ class TestPythonDagImporter:
 
     def test_import_pyc_with_non_code_payload_captured_as_error(self, mock_bundle):
         # A .pyc with a valid magic header but a payload that unmarshals to a non-code
-        # object must be rejected, not exec()'d as source. safe_mode=False reaches the loader.
+        # object must be rejected, not exec()'d as source.
         header = importlib.util.MAGIC_NUMBER + b"\x00" * 12
         bad_pyc = mock_bundle.path / "not_code.pyc"
         bad_pyc.write_bytes(header + marshal.dumps("i am a string, not a code object"))
 
         importer = PythonDagImporter()
         definition = FilesystemDagDefinition(path=bad_pyc)
-        result = importer.import_definition(definition, bundle=mock_bundle, safe_mode=False)
+        result = importer.import_definition(definition, bundle=mock_bundle)
 
         assert len(result.dags) == 0
         assert len(result.errors) == 1
@@ -193,15 +191,14 @@ class TestPythonDagImporter:
         source = b"from airflow.sdk import DAG\ndag = DAG('in_memory_dag')\n"
         definition = _InMemoryDagDefinition("in_memory_dag.py", source)
 
-        result = PythonDagImporter().import_definition(definition, bundle=mock_bundle, safe_mode=True)
+        result = PythonDagImporter().import_definition(definition, bundle=mock_bundle)
 
         assert [d.dag_id for d in result.dags] == ["in_memory_dag"]
         assert result.errors == []
 
     def test_list_dag_definitions(self, mock_bundle):
-        # Discovery is identity-only: every extension match is returned regardless of whether
-        # the file actually contains a DAG. The content decision (helper.py has no DAG) is made
-        # later, at import_definition -- see test_skip_non_dag_file_in_safe_mode.
+        # Discovery applies the lightweight sniff, so a .py with no DAG markers (helper.py) is
+        # filtered out and never becomes a definition; only the real DAG file is returned.
         dag_file = mock_bundle.path / "sample_dag.py"
         dag_file.write_text("from airflow.sdk import DAG\ndag = DAG('test_dag_1')\n")
         (mock_bundle.path / "helper.py").write_text("def helper():\n    return 42\n")
@@ -209,12 +206,12 @@ class TestPythonDagImporter:
 
         importer = PythonDagImporter()
         defs = list(importer.list_dag_definitions(mock_bundle))
-        assert {d.path.name for d in defs} == {"sample_dag.py", "helper.py"}
+        assert {d.path.name for d in defs} == {"sample_dag.py"}
 
     def test_list_prefers_source_over_pyc_and_skips_pycache(self, mock_bundle):
         (mock_bundle.path / "foo.py").write_text("from airflow.sdk import DAG\n")
         (mock_bundle.path / "foo.pyc").write_bytes(b"compiled")  # side-by-side -> skipped
-        (mock_bundle.path / "bar.pyc").write_bytes(b"compiled")  # sourceless -> kept
+        (mock_bundle.path / "bar.pyc").write_bytes(b"airflow dag")  # sourceless (has markers) -> kept
         cache = mock_bundle.path / "__pycache__"
         cache.mkdir()
         (cache / "foo.cpython-311.pyc").write_bytes(b"compiled")  # cache -> skipped
@@ -309,7 +306,6 @@ class TestPythonDagImporter:
             importer.import_definition(
                 FilesystemDagDefinition(path=mock_bundle.path / "dag.py"),
                 bundle=mock_bundle,
-                safe_mode=False,
             )
 
     @mock.patch.object(PythonDagImporter, "_load_modules", side_effect=TypeError("unexpected None"))

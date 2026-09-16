@@ -170,6 +170,8 @@ class ZipImporter(AbstractDagImporter[ZipMemberDagDefinition]):
     def list_dag_definitions(
         self,
         bundle: BaseDagBundle,
+        *,
+        safe_mode: bool = True,
     ) -> Iterator[ZipMemberDagDefinition | DagImportError]:
         """
         List importable members across the bundle's zip archives.
@@ -211,16 +213,17 @@ class ZipImporter(AbstractDagImporter[ZipMemberDagDefinition]):
                 if member_name.endswith(".pyc") and member_name[:-1] in member_set:
                     continue
 
-                if self._get_internal_importer(member_name) is None:
+                if (importer := self._get_internal_importer(member_name)) is None:
                     continue
-                yield ZipMemberDagDefinition(zip_path=archive.path, file_path=member_name)
+                member = ZipMemberDagDefinition(zip_path=archive.path, file_path=member_name)
+                if safe_mode and not importer.might_contain_dag(member, safe_mode):
+                    continue
+                yield member
 
     def import_definition(
         self,
         definition: ZipMemberDagDefinition,
         bundle: BaseDagBundle,
-        *,
-        safe_mode: bool = True,
     ) -> DagImportResult:
         """
         Import a single archive member.
@@ -240,7 +243,7 @@ class ZipImporter(AbstractDagImporter[ZipMemberDagDefinition]):
                 )
             )
             return result
-        return importer.import_definition(definition, bundle, safe_mode=safe_mode)
+        return importer.import_definition(definition, bundle)
 
     def get_source_code(self, definition: DagDefinition) -> DagSourceCode:
         """

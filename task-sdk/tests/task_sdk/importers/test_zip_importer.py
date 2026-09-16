@@ -108,7 +108,7 @@ class TestZipImporter:
         with zipfile.ZipFile(zip_path, "w") as z:
             z.writestr("foo.py", "from airflow.sdk import DAG\n")
             z.writestr("foo.pyc", b"compiled")  # side-by-side -> skipped
-            z.writestr("bar.pyc", b"compiled")  # sourceless -> kept
+            z.writestr("bar.pyc", b"airflow dag")  # sourceless (has markers) -> kept
             z.writestr("__pycache__/foo.cpython-311.pyc", b"compiled")  # cache -> skipped
 
         definitions = list(ZipImporter().list_dag_definitions(mock_bundle))

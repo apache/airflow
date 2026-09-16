@@ -167,10 +167,27 @@ class TestDagImporterRegistry:
         assert registry.get_importer("custom://dags/sample") is importer
         assert not registry.can_handle("other://dags/sample")
 
-    def test_abstract_dag_importer_has_no_extension_attributes_or_methods(self):
-        """AbstractDagImporter must not define file extension attributes or methods."""
+    def test_abstract_dag_importer_has_no_extension_attributes(self):
+        """AbstractDagImporter must not define file-extension attributes."""
         assert not hasattr(AbstractDagImporter, "supported_extensions")
-        assert not hasattr(AbstractDagImporter, "might_contain_dag")
+
+    def test_might_contain_dag_defaults_to_true(self):
+        """An importer with no cheap heuristic inherits the base default and keeps everything."""
+
+        class _Bare(AbstractDagImporter):
+            def can_handle(self, definition):
+                return True
+
+            def list_dag_definitions(self, bundle, *, safe_mode=True):
+                return iter(())
+
+            def import_definition(self, definition, bundle):
+                raise NotImplementedError
+
+            def get_source_code(self, definition):
+                raise NotImplementedError
+
+        assert _Bare().might_contain_dag(object(), safe_mode=True) is True
 
     def test_custom_importer_file_pattern_can_handle(self):
         """Registry resolves file definitions via can_handle when importer has no supported_extensions."""
