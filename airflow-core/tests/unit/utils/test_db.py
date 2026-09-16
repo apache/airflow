@@ -229,6 +229,7 @@ class TestDb:
 
     def test_default_connections_sort(self):
         conn_ids = [c.conn_id for c in get_default_connections()]
+        assert conn_ids
         assert conn_ids == sorted(conn_ids)
 
     @pytest.mark.usefixtures("initialized_db")
