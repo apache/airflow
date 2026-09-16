@@ -53,10 +53,100 @@ The OpenAIResponseOperator requires the ``input_text`` prompt. Use the ``conn_id
 specify the OpenAI connection to use, and ``response_kwargs`` to pass through options such as
 ``tools``, ``conversation`` or ``previous_response_id``.
 
+Use ``max_output_tokens`` and ``max_tool_calls`` to cap generation per run -- both are templated,
+so a ceiling can vary by environment or Dag run without hardcoding it. ``max_output_tokens`` caps
+the number of tokens generated; ``max_tool_calls`` caps the number of built-in tool calls the model
+may make. Both limits are enforced by the OpenAI API itself; OpenAI exposes no monetary cost limit
+on the Responses API, so this operator has no cost cap. For a monetary limit, use
+:doc:`apache-airflow-providers-common-ai:index` instead. Hitting ``max_output_tokens`` does not
+fail the request: the response comes back with ``status="incomplete"``, so ``return_value`` will
+not raise -- but it is not guaranteed to be truncated text either. A reasoning model can spend
+the entire ceiling on reasoning tokens and return an empty ``output_text``, in which case
+``return_value`` is an empty string. Hitting ``max_tool_calls`` is different: the OpenAI API
+silently drops any tool calls beyond the ceiling without changing ``status`` or setting
+``incomplete_details`` -- there is no log warning and no signal in ``return_value``, so a run
+truncated by ``max_tool_calls`` looks identical to a clean run.
+
+A rendered ``max_output_tokens`` or ``max_tool_calls`` that is blank or whitespace-only -- for
+example ``max_output_tokens="{{ params.tokens | default('', true) }}"`` when ``params.tokens`` is
+unset -- is treated as "no ceiling for this run" rather than raising. This only applies when the same run does
+not also set the corresponding key in ``response_kwargs``: the mutually-exclusive-with-``response_kwargs``
+check happens when the operator is constructed and fires regardless of what the template later
+renders to.
+
 .. exampleinclude:: /../../openai/tests/system/openai/example_openai.py
     :language: python
     :start-after: [START howto_operator_openai_response]
     :end-before: [END howto_operator_openai_response]
+
+Passing Responses API options
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+See the `Responses API reference
+<https://platform.openai.com/docs/api-reference/responses/create>`__ for the authoritative list
+of parameters. ``response_kwargs`` passes straight through to the underlying ``create_response``
+call, so most keyword arguments the Responses API accepts can be set there, with the exceptions
+noted below. What actually works also depends on the ``openai`` package version installed in the
+environment, not the reference page above: ``Responses.create`` accepts no arbitrary keyword
+arguments, so passing one the installed package doesn't recognize raises ``TypeError`` before any
+request is sent. Use ``extra_body`` as a fallback to pass a parameter the installed package doesn't
+know about yet. Options worth knowing about:
+
+- ``background``: run the response asynchronously on OpenAI's side. See the note on ``background``
+  below before using this with ``OpenAIResponseOperator``.
+- ``stream``: return a stream of response events instead of a single completed response. Do not set
+  this on ``OpenAIResponseOperator``: ``execute`` reads ``response.status`` and
+  ``response.output_text``, neither of which exists on the streamed response object, so the task
+  raises ``AttributeError``. Stream responses from a ``@task`` using
+  :class:`~airflow.providers.openai.hooks.openai.OpenAIHook` instead.
+- ``store``: whether the response is retained on OpenAI's side, for example so it can later be used
+  as a ``previous_response_id``. Through ``OpenAIResponseOperator``, ``execute`` only passes
+  ``response.id`` to the task log and returns ``response.output_text``, so nothing downstream of
+  this operator's task can retrieve a stored response's id — this only matters when the response
+  is created via ``OpenAIHook`` directly.
+- ``previous_response_id``: the id of a prior response to continue a multi-turn conversation from.
+  Cannot be used together with ``conversation`` — pass one or the other, not both.
+- ``reasoning``: configuration for reasoning models, for example ``{"effort": ...}``. The example
+  Dag above (and the operator's own default) uses ``gpt-4o-mini``, which is not a reasoning model,
+  so this option only takes effect if ``model`` is also set to a reasoning model.
+- ``service_tier``: the processing tier the request is served from.
+- ``prompt_cache_key``: an identifier used to route requests to the same prompt cache. How long a
+  cache entry is retained is a separate option whose name depends on the installed package:
+  ``prompt_cache_retention`` at the 2.37.0 floor, deprecated in later releases in favor of
+  ``prompt_cache_options.ttl``.
+- ``safety_identifier``: a stable identifier for the end user, used for safety and abuse detection.
+- ``truncation``: one of ``'auto'`` or ``'disabled'`` (the default). Under ``'disabled'``, a
+  request whose input exceeds the model's context window fails with a 400 error; ``'auto'``
+  shortens the input to fit instead.
+- ``include``: additional output fields to include in the response, such as encrypted reasoning
+  content. These fields land on ``response.output``, but ``response.output_text`` only aggregates
+  ``message``/``output_text`` content, so anything ``include`` adds is fetched and then discarded
+  by ``execute``. Use ``OpenAIHook`` directly to access it.
+- ``metadata``: a mapping of key-value pairs attached to the response for your own bookkeeping.
+- ``max_output_tokens``: an upper bound on the number of tokens the model can generate, including
+  reasoning tokens as well as visible output tokens. Prefer the operator's own ``max_output_tokens``
+  parameter (see above) instead of setting this key here: the operator parameter is templated, this
+  ``response_kwargs`` key is not, and setting the same ceiling in both places raises when the
+  operator is constructed.
+- ``max_tool_calls``: an upper bound on the number of built-in tool calls the model can make. Same
+  trade-off as ``max_output_tokens`` above: prefer the operator's own, templated ``max_tool_calls``
+  parameter instead of this non-templated ``response_kwargs`` key.
+
+.. note::
+
+    OpenAI does not expose a spend or cost ceiling parameter on the Responses API.
+    ``max_output_tokens`` and ``max_tool_calls`` are token and call-count limits, not a way to cap
+    the dollar cost of a run; controlling spend means bounding those counts yourself.
+
+.. note::
+
+    ``background=True`` starts the response running asynchronously on OpenAI's side and returns
+    before the response finishes. ``OpenAIResponseOperator`` is synchronous: it makes one
+    ``create_response`` call and returns ``response.output_text`` immediately, so a response
+    started with ``background=True`` comes back incomplete, and the operator logs its own warning
+    because ``response.status`` is not yet ``"completed"``. Do not set ``background=True`` on
+    ``OpenAIResponseOperator``. If you need a background response, create it from a ``@task``
+    using :class:`~airflow.providers.openai.hooks.openai.OpenAIHook`'s ``create_response`` directly.
 
 Using the OpenAIHook for Responses and Conversations
 =====================================================

@@ -107,6 +107,18 @@ def example_openai_dag():
         input_text="Write a haiku about data pipelines.",
         response_kwargs={"instructions": "You are a helpful assistant."},
     )
+
+    # ``max_output_tokens`` is templated, so a ceiling can vary by Dag run without hardcoding it.
+    # This Dag does not declare a ``tokens`` param, so ``params.tokens`` is undefined at render
+    # time. ``| default('', true)`` renders undefined *and* None values to ``''`` (treated as "no
+    # ceiling"); the more common ``{{ params.tokens or '' }}`` idiom would instead raise
+    # ``UndefinedError`` under Airflow's default ``StrictUndefined`` template behavior.
+    OpenAIResponseOperator(
+        task_id="openai_response_with_token_ceiling",
+        conn_id="openai_default",
+        input_text="Write a haiku about data pipelines.",
+        max_output_tokens="{{ params.tokens | default('', true) }}",
+    )
     # [END howto_operator_openai_response]
 
     create_embeddings_using_hook()
