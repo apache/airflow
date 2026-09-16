@@ -124,13 +124,26 @@ class TestSagemakerTrigger:
         assert response == TriggerEvent({"status": "success", "job_name": JOB_NAME})
 
     @pytest.mark.parametrize(
-        ("aws_status", "expected_status"),
+        ("aws_status", "failure_reason", "expected_status", "expected_message"),
         [
-            pytest.param("Failed", "failed", id="failed"),
-            pytest.param("Stopped", "stopped", id="stopped"),
+            pytest.param("Failed", None, "failed", "SageMaker job failed", id="failed"),
+            pytest.param(
+                "Failed",
+                "Algorithm error",
+                "failed",
+                "Algorithm error",
+                id="failed-with-reason",
+            ),
+            pytest.param("Stopped", None, "stopped", "SageMaker job failed", id="stopped"),
         ],
     )
-    def test_event_from_exception_terminal_state(self, aws_status, expected_status):
+    def test_event_from_exception_terminal_state(
+        self,
+        aws_status,
+        failure_reason,
+        expected_status,
+        expected_message,
+    ):
         trigger = SageMakerTrigger(
             job_name=JOB_NAME,
             job_type=JOB_TYPE,
@@ -143,10 +156,24 @@ class TestSagemakerTrigger:
             last_response={"TrainingJobStatus": aws_status},
         )
 
+        last_response = {"TrainingJobStatus": aws_status}
+        if failure_reason:
+            last_response["FailureReason"] = failure_reason
+
+        error = WaiterTerminalFailure(
+            "SageMaker job failed",
+            last_response=last_response,
+        )
+
         response = trigger._event_from_exception(error)
 
-        assert response.payload["status"] == expected_status
-        assert response.payload["job_name"] == JOB_NAME
+        assert response == TriggerEvent(
+            {
+                "status": expected_status,
+                "job_name": JOB_NAME,
+                "message": expected_message,
+            }
+        )
 
     def test_event_from_exception_timeout(self):
         trigger = SageMakerTrigger(
