@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 import time_machine
 from httpx import Client
+from sqlalchemy import select
 from uuid6 import uuid7
 
 from airflow._shared.timezones.timezone import convert_to_utc
@@ -103,6 +104,7 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
         "existing hitl detail with response",
     ],
 )
+@time_machine.travel(datetime(2025, 7, 4, 0, 0, 0), tick=False)
 def test_upsert_hitl_detail(
     client: TestClient,
     create_task_instance: CreateTaskInstance,
@@ -113,25 +115,47 @@ def test_upsert_hitl_detail(
     session.commit()
 
     if existing_hitl_detail_args:
-        session.add(HITLDetail(ti_id=ti.id, **existing_hitl_detail_args))
+        session.add(
+            HITLDetail(
+                ti_id=ti.id,
+                created_at=convert_to_utc(datetime(2025, 7, 1, 0, 0, 0)),
+                **existing_hitl_detail_args,
+            )
+        )
         session.commit()
 
+    request_kwargs = {
+        **default_hitl_detail_request_kwargs,
+        "subject": "Regenerated subject",
+        "body": "regenerated body",
+        "defaults": ["Reject"],
+        "params": {"input_1": 3},
+    }
     response = client.post(
         f"/execution/hitlDetails/{ti.id}",
         json={
             "ti_id": str(ti.id),
-            **default_hitl_detail_request_kwargs,
+            **request_kwargs,
         },
     )
 
     expected_json = {
         "ti_id": str(ti.id),
-        **default_hitl_detail_request_kwargs,
+        **request_kwargs,
     }
     expected_json["assigned_users"] = expected_json.pop("assignees") or []
 
     assert response.status_code == 201
     assert response.json() == expected_json
+
+    session.expire_all()
+    hitl_detail = session.scalars(select(HITLDetail).where(HITLDetail.ti_id == ti.id)).one()
+    assert hitl_detail.subject == "Regenerated subject"
+    assert hitl_detail.body == "regenerated body"
+    assert hitl_detail.defaults == ["Reject"]
+    assert hitl_detail.params == {"input_1": 3}
+    assert hitl_detail.created_at == convert_to_utc(datetime(2025, 7, 4, 0, 0, 0))
+    assert hitl_detail.response_received is False
 
 
 def test_upsert_hitl_detail_with_empty_option(
