@@ -5462,6 +5462,14 @@ paths:
           - type: string
           - type: 'null'
           title: Executor Class
+      - name: teams
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Teams
       responses:
         '200':
           description: Successful Response
