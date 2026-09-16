@@ -168,8 +168,9 @@ class BaseManagedAgentToolset(AbstractToolset[Any]):
         ``_timeout`` attribute to read it back.
 
         ``FailoverManagedAgentToolset`` inherits this property rather than
-        overriding it, which is a trap, not a feature -- see the failover
-        section of the toolsets guide for what that means for a group.
+        overriding it, but its constructor rejects a non-``None`` ``timeout``
+        outright, so a group's value here is always ``None``; set timeout on
+        each member instead -- see the failover section of the toolsets guide.
         """
         return self._timeout
 
