@@ -1344,13 +1344,14 @@ class SFTPHookAsync(BaseHook):
         dest = await asyncio.to_thread(Path(local_full_path).resolve)
         await asyncio.to_thread(dest.mkdir, parents=True)
         files, dirs, _ = await self.get_tree_map(remote_full_path)
+        remote_base = PurePosixPath(remote_full_path)
         for dir_path in dirs:
-            relative_path = await asyncio.to_thread(os.path.relpath, dir_path, remote_full_path)
+            relative_path = PurePosixPath(dir_path).relative_to(remote_base)
             new_local_path = str(dest / relative_path)
             SFTPHook._validate_within_directory(str(dest), new_local_path)
             await asyncio.to_thread(Path(new_local_path).mkdir, parents=True, exist_ok=True)
         for file_path in files:
-            relative_path = await asyncio.to_thread(os.path.relpath, file_path, remote_full_path)
+            relative_path = PurePosixPath(file_path).relative_to(remote_base)
             new_local_path = str(dest / relative_path)
             SFTPHook._validate_within_directory(str(dest), new_local_path)
             await self.retrieve_file(file_path, new_local_path, prefetch=prefetch)
@@ -1368,17 +1369,18 @@ class SFTPHookAsync(BaseHook):
         if await self.path_exists(remote_full_path):
             raise FileExistsError(f"{remote_full_path} already exists")
         await self.create_directory(remote_full_path)
-        for root, dirs, files in os.walk(local_full_path):
+        entries = await asyncio.to_thread(lambda: list(os.walk(local_full_path)))
+        local_base = Path(local_full_path)
+        for root, dirs, files in entries:
             for dir_name in dirs:
-                dir_path = os.path.join(root, dir_name)
-                relative_path = await asyncio.to_thread(os.path.relpath, dir_path, local_full_path)
-                new_remote_path = os.path.join(remote_full_path, relative_path)
-                await self.create_directory(new_remote_path)
+                dir_path = Path(root) / dir_name
+                relative_path = dir_path.relative_to(local_base).as_posix()
+                await self.create_directory(str(PurePosixPath(remote_full_path) / relative_path))
             for file_name in files:
-                file_path = os.path.join(root, file_name)
-                relative_path = await asyncio.to_thread(os.path.relpath, file_path, local_full_path)
-                new_remote_path = os.path.join(remote_full_path, relative_path)
-                await self.store_file(new_remote_path, file_path, confirm=confirm)
+                file_path = Path(root) / file_name
+                relative_path = file_path.relative_to(local_base).as_posix()
+                new_remote_path = str(PurePosixPath(remote_full_path) / relative_path)
+                await self.store_file(new_remote_path, str(file_path), confirm=confirm)
 
     async def transfer(
         self,
