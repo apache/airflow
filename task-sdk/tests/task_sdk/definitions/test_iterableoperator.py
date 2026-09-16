@@ -23,7 +23,7 @@ from contextlib import contextmanager
 from datetime import timedelta
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, create_autospec, patch
 
 try:
     # Python 3.11+
@@ -45,7 +45,7 @@ from airflow.sdk import (
 from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_RETRIES
 from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput, ListOfDictsExpandInput
 from airflow.sdk.definitions.context import clone_context
-from airflow.sdk.definitions.iterableoperator import IterableOperator
+from airflow.sdk.definitions.iterableoperator import Checkpoints, IterableOperator
 from airflow.sdk.exceptions import (
     AirflowFailException,
     AirflowRescheduleException,
@@ -71,8 +71,8 @@ if TYPE_CHECKING:
 class MockTaskStateStoreAccessor:
     """Minimal in-memory stand-in for ``TaskStateStoreAccessor``, exposing only the async
     ``aget``/``aset`` methods used by ``IterableOperator`` to checkpoint per-index sub-task
-    progress (see ``IterableOperator._run_task``), plus ``delete`` used to drop each checkpoint
-    once every sub-task has succeeded (see ``IterableOperator._run_tasks``)."""
+    progress (see ``IterableOperator._run_task``), plus the sync ``get``/``set``/``delete`` used for
+    the completion marker (see ``IterableOperator._run_tasks``)."""
 
     def __init__(self):
         self._data: dict[str, Any] = {}
@@ -81,6 +81,12 @@ class MockTaskStateStoreAccessor:
         return self._data.get(key, default)
 
     async def aset(self, key: str, value: Any, **kwargs) -> None:
+        self._data[key] = value
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return self._data.get(key, default)
+
+    def set(self, key: str, value: Any, **kwargs) -> None:
         self._data[key] = value
 
     def delete(self, key: str) -> None:
@@ -635,28 +641,78 @@ class TestIterableOperator:
                 materialized = list(result)
                 assert materialized == [(1, None, None), (2, None, None)]
 
-    def test_execute_clears_only_its_checkpoints_once_every_index_succeeds(self):
+    def test_execute_marks_iteration_completed_once_every_index_succeeds(self):
         """
-        Regression test: once every sub-task index has succeeded, ``_run_tasks`` must drop the
-        per-index checkpoints from the task_state_store. A manual clear does not reset the parent
-        TI's ``try_number`` (see ``clear_task_instances``), so leftover ``SUCCESS`` checkpoints would
-        make the next attempt skip every index and replay the previous run's stale XCom results
-        instead of actually re-running anything. The store is scoped to the parent task instance,
-        so state written by user code inside the iterated task must not be touched.
+        Once every sub-task index has succeeded, ``_run_tasks`` writes a single completion marker
+        instead of deleting the per-index checkpoints one by one, and leaves any state written by
+        user code inside the iterated task untouched.
         """
         with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}])
-            iterable_op = create_iterable_operator(dag, expand_input, task_id="exec_clears_checkpoints")
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="exec_completed")
 
             with mock_context(task=iterable_op) as context:
                 store = context["task_state_store"]
                 store._data["last_offset"] = 42
-                # Simulate a leftover checkpoint from a previous run.
-                store._data["exec_clears_checkpoints_0"] = {"status": "success", "try_number": 1}
 
                 list(iterable_op.execute(context=context))
 
-                assert store._data == {"last_offset": 42}
+                assert store["last_offset"] == 42
+                assert store["exec_completed_completed"]["completed"] is True
+                assert store["exec_completed_0"]["status"] == "success"
+                assert store["exec_completed_1"]["status"] == "success"
+
+    def test_execute_reruns_every_index_after_a_clear_that_follows_success(self):
+        """
+        A manual clear does not reset the parent TI's ``try_number`` (see ``clear_task_instances``),
+        so the next attempt looks like a retry. The completion marker left by the previous fully
+        successful run tells ``_run_tasks`` to ignore the stale ``SUCCESS`` checkpoints and run every
+        index again, removing the marker first so a crash mid-rerun resumes from the new checkpoints.
+        """
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}])
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="exec_rerun")
+
+            with mock_context(task=iterable_op) as context:
+                context["ti"].try_number = 2
+                store = context["task_state_store"]
+                store._data["exec_rerun_completed"] = {"completed": True, "try_number": 1}
+                for index in (0, 1):
+                    store._data[f"exec_rerun_{index}"] = IndexedTaskState(
+                        status=TaskInstanceState.SUCCESS, try_number=1, result="stale"
+                    ).serialize()
+
+                materialized = list(iterable_op.execute(context=context))
+
+                assert materialized == [(1, None, None), (2, None, None)]
+                assert store["exec_rerun_0"]["try_number"] == 2
+                assert store["exec_rerun_completed"] == {"completed": True, "try_number": 2}
+
+    def test_execute_resumes_from_checkpoints_on_retry_after_failure(self):
+        """
+        On a genuine retry (no completion marker) an index checkpointed as ``SUCCESS`` is skipped and
+        its checkpointed result is pushed again, while an index left ``UP_FOR_RETRY`` runs, and the
+        returned iterable yields both.
+        """
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}])
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="exec_resume")
+
+            with mock_context(task=iterable_op) as context:
+                context["ti"].try_number = 2
+                store = context["task_state_store"]
+                store._data["exec_resume_0"] = IndexedTaskState(
+                    status=TaskInstanceState.SUCCESS, try_number=1, result="from_checkpoint"
+                ).serialize()
+                store._data["exec_resume_1"] = IndexedTaskState(
+                    status=TaskInstanceState.UP_FOR_RETRY, try_number=1
+                ).serialize()
+
+                materialized = list(iterable_op.execute(context=context))
+
+                assert materialized == ["from_checkpoint", (2, None, None)]
+                assert store["exec_resume_1"]["status"] == "success"
+                assert store["exec_resume_completed"]["completed"] is True
 
     def test_execute_does_not_leak_unmapped_operator_into_parent_context(self):
         """
@@ -952,7 +1008,9 @@ class TestIterableOperator:
                 )
 
                 executor = mock.MagicMock()
-                _, result, raised = await iterable_op._run_task(executor, context, task)
+                _, result, raised = await iterable_op._run_task(
+                    executor, context, task, trust_checkpoints=True
+                )
 
                 assert result is None
                 assert raised is None
@@ -986,7 +1044,9 @@ class TestIterableOperator:
 
                 with event_loop() as loop:
                     with AsyncAwareExecutor(loop=loop, max_workers=1) as executor:
-                        result_task, result, raised = await iterable_op._run_task(executor, context, task)
+                        result_task, result, raised = await iterable_op._run_task(
+                            executor, context, task, trust_checkpoints=True
+                        )
 
                 assert raised is None
                 assert result == (1, 10, None)
@@ -1024,7 +1084,9 @@ class TestIterableOperator:
 
                 with event_loop() as loop:
                     with AsyncAwareExecutor(loop=loop, max_workers=1) as executor:
-                        _, result, raised = await iterable_op._run_task(executor, context, task)
+                        _, result, raised = await iterable_op._run_task(
+                            executor, context, task, trust_checkpoints=True
+                        )
 
                 assert raised is None
                 assert result == "done"
@@ -1080,7 +1142,9 @@ class TestIterableOperator:
                 )
 
                 executor = mock.MagicMock()
-                _, result, raised = await iterable_op._run_task(executor, context, task)
+                _, result, raised = await iterable_op._run_task(
+                    executor, context, task, trust_checkpoints=True
+                )
 
         assert raised is None
         assert result is None
@@ -1319,3 +1383,54 @@ class TestIterableOperatorContextIsolation:
 
         assert len(warning_list) == 1
         assert "sync" in str(warning_list[0].message).lower()
+
+
+class TestCheckpoints:
+    @staticmethod
+    def _context(try_number: int, marker: dict | None = None):
+        from airflow.sdk.execution_time.context import TaskStateStoreAccessor
+
+        store = create_autospec(TaskStateStoreAccessor, instance=True)
+        store.get.return_value = marker
+        ti = SimpleNamespace(task_id="my_task", try_number=try_number)
+        return {"task_state_store": store, "ti": ti}, store
+
+    def test_first_attempt_never_reads_and_marks_completed_on_exit(self):
+        context, store = self._context(try_number=1)
+
+        with Checkpoints(context) as checkpoints:
+            assert checkpoints.trust_checkpoints is False
+
+        store.get.assert_not_called()
+        store.delete.assert_not_called()
+        store.set.assert_called_once_with("my_task_completed", {"completed": True, "try_number": 1})
+
+    def test_retry_without_marker_trusts_checkpoints(self):
+        context, store = self._context(try_number=2, marker=None)
+
+        with Checkpoints(context) as checkpoints:
+            assert checkpoints.trust_checkpoints is True
+
+        store.get.assert_called_once_with("my_task_completed")
+        store.delete.assert_not_called()
+        store.set.assert_called_once_with("my_task_completed", {"completed": True, "try_number": 2})
+
+    def test_rerun_after_clear_removes_marker_and_ignores_checkpoints(self):
+        context, store = self._context(try_number=2, marker={"completed": True, "try_number": 1})
+
+        with Checkpoints(context) as checkpoints:
+            assert checkpoints.trust_checkpoints is False
+            store.delete.assert_called_once_with("my_task_completed")
+            store.set.assert_not_called()
+
+        store.set.assert_called_once_with("my_task_completed", {"completed": True, "try_number": 2})
+
+    def test_failure_leaves_no_marker(self):
+        context, store = self._context(try_number=2, marker={"completed": True, "try_number": 1})
+
+        with pytest.raises(RuntimeError):
+            with Checkpoints(context):
+                raise RuntimeError("sub-task failed")
+
+        store.delete.assert_called_once_with("my_task_completed")
+        store.set.assert_not_called()

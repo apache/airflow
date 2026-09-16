@@ -980,6 +980,10 @@ class IndexedTaskInstance(RuntimeTaskInstance):
     def build_state_key(task_id: str, index: int) -> str:
         return f"{task_id}_{index}"
 
+    @staticmethod
+    def build_completion_key(task_id: str) -> str:
+        return f"{task_id}_completed"
+
     @property
     def xcom_key(self) -> str:
         return self.build_state_key(self.task_id, self.index)
