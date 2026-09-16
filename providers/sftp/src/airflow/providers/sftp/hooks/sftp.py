@@ -1334,7 +1334,7 @@ class SFTPHookAsync(BaseHook):
         :param prefetch: whether read-ahead requests are sent concurrently (default: True)
         """
         if await asyncio.to_thread(Path(local_full_path).exists):
-            raise AirflowException(f"{local_full_path} already exists")
+            raise FileExistsError(f"{local_full_path} already exists")
         dest = await asyncio.to_thread(Path(local_full_path).resolve)
         await asyncio.to_thread(dest.mkdir, parents=True)
         files, dirs, _ = await self.get_tree_map(remote_full_path)
@@ -1360,7 +1360,7 @@ class SFTPHookAsync(BaseHook):
         :param confirm: whether to verify each uploaded file's size (default: True)
         """
         if await self.path_exists(remote_full_path):
-            raise AirflowException(f"{remote_full_path} already exists")
+            raise FileExistsError(f"{remote_full_path} already exists")
         await self.create_directory(remote_full_path)
         for root, dirs, files in os.walk(local_full_path):
             for dir_name in dirs:

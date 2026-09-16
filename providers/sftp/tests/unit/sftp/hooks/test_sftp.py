@@ -1574,7 +1574,7 @@ class TestSFTPHookAsync:
     async def test_retrieve_directory_rejects_existing_local_path(self, sftp_hook_mocked, tmp_path):
         hook, _ = sftp_hook_mocked
 
-        with pytest.raises(AirflowException, match="already exists"):
+        with pytest.raises(FileExistsError, match="already exists"):
             await hook.retrieve_directory("/remote/dir", str(tmp_path))
 
     @pytest.mark.asyncio
@@ -1627,7 +1627,7 @@ class TestSFTPHookAsync:
         hook, _ = sftp_hook_mocked
 
         with patch.object(hook, "path_exists", AsyncMock(return_value=True)):
-            with pytest.raises(AirflowException, match="already exists"):
+            with pytest.raises(FileExistsError, match="already exists"):
                 await hook.store_directory("/remote/dir", str(tmp_path))
 
     @pytest.mark.asyncio
