@@ -70,7 +70,7 @@ runs:
         UV_VERSION: ${{ steps.versions.outputs.uv-version }}
         PREK_VERSION: ${{ steps.versions.outputs.prek-version }}
       run: |
-        uv tool install "prek==${PREK_VERSION}" --with "uv==${UV_VERSION}"
+        uv tool install prek==${PREK_VERSION} --with uv==${UV_VERSION}
       working-directory: ${{ github.workspace }}
     # The stash contains only prek's cache. Preserve unrelated host caches (uv/pip/etc.) so later
     # setup in the same job does not needlessly download them again.
@@ -93,16 +93,16 @@ runs:
       run: |
         started_at=${SECONDS}
         if [ ! -f /tmp/cache-prek.tar.gz ]; then
-          echo "Cache tarball missing. Expected /tmp/cache-prek.tar.gz"
+          echo "❌ Cache tarball missing. Expected /tmp/cache-prek.tar.gz"
           echo "tar-restored=false" >> "${GITHUB_OUTPUT}"
           exit 0
         fi
         if tar -C "${HOME}" -xzf /tmp/cache-prek.tar.gz && [[ -d "${HOME}/.cache/prek" ]]; then
-          echo "Prek cache restored"
+          echo "✅ Cache tarball extracted successfully"
           echo "tar-restored=true" >> "${GITHUB_OUTPUT}"
           echo "duration-seconds=$((SECONDS - started_at))" >> "${GITHUB_OUTPUT}"
         else
-          echo "Cache extraction failed; treating this as a miss"
+          echo "⚠️ Cache tarball extraction failed — treating as cache miss"
           echo "tar-restored=false" >> "${GITHUB_OUTPUT}"
           rm -rf ~/.cache/prek
         fi
