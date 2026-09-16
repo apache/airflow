@@ -30,6 +30,7 @@ from airflow_breeze.utils.selective_checks import SelectiveChecks
 from airflow_breeze.utils.verification_plan import (
     FLAG_COMMANDS,
     NOT_RUNNABLE_LOCALLY,
+    LeanSelectiveChecks,
     build_local_verification_plan,
     build_unit_test_items,
 )
@@ -62,7 +63,6 @@ def _mock_selective_checks(**flags: object) -> Mock:
     sc.skip_providers_tests = True
     sc.skip_prek_hooks = "identity"
     sc.default_python_version = DEFAULT_PYTHON_MAJOR_MINOR_VERSION
-    sc.full_tests_needed = False
     for flag, value in flags.items():
         setattr(sc, flag, value)
     return sc
@@ -70,7 +70,9 @@ def _mock_selective_checks(**flags: object) -> Mock:
 
 @pytest.mark.parametrize("flag", sorted(FLAG_COMMANDS))
 def test_each_flag_maps_to_its_commands(flag: str):
-    result = build_local_verification_plan(_mock_selective_checks(**{flag: True}), (), "main")
+    result = build_local_verification_plan(
+        _mock_selective_checks(**{flag: True}), (), "main", full_tests_needed=False
+    )
     commands = [item["command"] for item in result["items"]]
     assert commands == [
         "SKIP=identity prek run --all-files",
@@ -94,7 +96,7 @@ def test_each_flag_maps_to_its_commands(flag: str):
 )
 def test_prek_command_follows_basic_checks_only(basic_checks_only: bool, expected: tuple[str, str, str]):
     result = build_local_verification_plan(
-        _mock_selective_checks(basic_checks_only=basic_checks_only), (), "main"
+        _mock_selective_checks(basic_checks_only=basic_checks_only), (), "main", full_tests_needed=False
     )
     prek = result["items"][0]
     assert (prek["kind"], prek["command"], prek["runs_in"]) == expected
@@ -103,7 +105,7 @@ def test_prek_command_follows_basic_checks_only(basic_checks_only: bool, expecte
 def test_docs_only_change_mirrors_the_ci_cell():
     files = ("airflow-core/docs/index.rst",)
     sc = _selective_checks(files)
-    result = build_local_verification_plan(sc, files, "main")
+    result = build_local_verification_plan(sc, files, "main", full_tests_needed=False)
     assert [item["command"] for item in result["items"]] == [
         f"SKIP={sc.skip_prek_hooks} prek run --all-files",
         "breeze build-docs apache-airflow",
@@ -114,7 +116,7 @@ def test_core_change_splits_db_and_non_db_cells():
     files = ("airflow-core/src/airflow/models/dag.py",)
     sc = _selective_checks(files)
     core_types = " ".join(c["test_types"] for c in json.loads(sc.core_test_types_list_as_strings_in_json))
-    result = build_local_verification_plan(sc, files, "main")
+    result = build_local_verification_plan(sc, files, "main", full_tests_needed=False)
     unit = [
         item["command"] for item in result["items"] if item["command"].startswith("breeze testing core-tests")
     ]
@@ -153,9 +155,10 @@ def test_unit_test_commands_use_the_same_flags_as_the_ci_script(group: str):
         assert frozenset(tokens[:cut] + tokens[cut + 2 :]) in ci_flag_sets, item.command
 
 
-def test_empty_diff_prints_only_the_always_items():
+def test_empty_diff_prints_only_prek():
     sc = _selective_checks(())
-    commands = [item["command"] for item in build_local_verification_plan(sc, (), "main")["items"]]
+    plan = build_local_verification_plan(sc, (), "main", full_tests_needed=False)
+    commands = [item["command"] for item in plan["items"]]
     assert (
         commands[0]
         == f"SKIP_BREEZE_PREK_HOOKS=true SKIP={sc.skip_prek_hooks} prek run --from-ref main --to-ref HEAD"
@@ -166,7 +169,7 @@ def test_empty_diff_prints_only_the_always_items():
 def test_release_branch_drops_providers_tests():
     files = ("airflow-core/src/airflow/models/dag.py",)
     result = build_local_verification_plan(
-        _selective_checks(files, default_branch="v3-1-test"), files, "v3-1-test"
+        _selective_checks(files, default_branch="v3-1-test"), files, "v3-1-test", full_tests_needed=False
     )
     commands = [item["command"] for item in result["items"]]
     assert any(command.startswith("breeze testing core-tests") for command in commands)
@@ -175,8 +178,43 @@ def test_release_branch_drops_providers_tests():
 
 def test_prek_command_quotes_base_ref():
     result = build_local_verification_plan(
-        _mock_selective_checks(basic_checks_only=True), (), "branch; echo unexpected"
+        _mock_selective_checks(basic_checks_only=True), (), "branch; echo unexpected", full_tests_needed=False
     )
     assert result["items"][0]["command"].endswith(
         "prek run --from-ref 'branch; echo unexpected' --to-ref HEAD"
+    )
+
+
+def test_lean_plan_skips_the_full_suite_expansion_for_ci_tooling_changes():
+    files = ("dev/breeze/src/airflow_breeze/breeze.py",)
+    ci = _selective_checks(files)
+    lean = LeanSelectiveChecks(
+        files=files, commit_ref=NEUTRAL_COMMIT, github_event=GithubEvents.PULL_REQUEST, default_branch="main"
+    )
+    assert ci.full_tests_needed is True
+    full_commands = [
+        i["command"]
+        for i in build_local_verification_plan(ci, files, "main", full_tests_needed=True)["items"]
+    ]
+    lean_commands = [
+        i["command"]
+        for i in build_local_verification_plan(lean, files, "main", full_tests_needed=True)["items"]
+    ]
+    assert any(c.startswith("breeze testing core-tests") for c in full_commands)
+    assert not any(c.startswith("breeze testing") for c in lean_commands)
+    assert "cd dev/breeze && uv run --locked pytest" in lean_commands
+
+
+def test_lean_and_full_plans_agree_when_the_change_does_not_expand():
+    files = ("airflow-core/src/airflow/models/dag.py",)
+    lean = LeanSelectiveChecks(
+        files=files, commit_ref=NEUTRAL_COMMIT, github_event=GithubEvents.PULL_REQUEST, default_branch="main"
+    )
+    assert (
+        build_local_verification_plan(lean, files, "main", full_tests_needed=False)["items"]
+        == (
+            build_local_verification_plan(_selective_checks(files), files, "main", full_tests_needed=False)[
+                "items"
+            ]
+        )
     )

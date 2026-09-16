@@ -34,7 +34,7 @@ from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.reproduce_ci import SKIP_LOCAL_REPRODUCTION
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_verbose
-from airflow_breeze.utils.verification_plan import build_local_verification_plan
+from airflow_breeze.utils.verification_plan import LeanSelectiveChecks, build_local_verification_plan
 
 
 def get_changed_files_against(base_ref: str) -> tuple[str, ...]:
@@ -66,10 +66,16 @@ def get_changed_files_against(base_ref: str) -> tuple[str, ...]:
     show_default=True,
     help="Git ref the change will be merged into. Changed files are computed from its merge-base with HEAD.",
 )
+@click.option(
+    "--full",
+    is_flag=True,
+    help="List everything CI runs for the default matrix cell, including the full suite CI adds "
+    "when a change touches CI tooling or dependency files.",
+)
 @click.option("--json", "as_json", is_flag=True, help="Print machine-readable JSON instead of a table.")
 @option_verbose
 @click.pass_context
-def verify(ctx: click.Context, base_ref: str, as_json: bool):
+def verify(ctx: click.Context, base_ref: str, full: bool, as_json: bool):
     from airflow_breeze.utils.selective_checks import SelectiveChecks
 
     if as_json:
@@ -77,14 +83,18 @@ def verify(ctx: click.Context, base_ref: str, as_json: bool):
     # SelectiveChecks narrates its decisions on stdout; keep stdout for the result only.
     with contextlib.redirect_stdout(sys.stderr if get_verbose() else io.StringIO()):
         changed_files = get_changed_files_against(base_ref)
-        sc = SelectiveChecks(
+        kwargs = dict(
             files=changed_files,
             commit_ref="HEAD",
             default_branch=AIRFLOW_BRANCH,
             default_constraints_branch=DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
             github_event=GithubEvents.PULL_REQUEST,
         )
-        result = build_local_verification_plan(sc, changed_files, base_ref)
+        ci = SelectiveChecks(**kwargs)
+        sc = ci if full else LeanSelectiveChecks(**kwargs)
+        result = build_local_verification_plan(
+            sc, changed_files, base_ref, full_tests_needed=ci.full_tests_needed
+        )
     if as_json:
         print(json.dumps(result, indent=2))
         return
@@ -93,16 +103,16 @@ def verify(ctx: click.Context, base_ref: str, as_json: bool):
         f"[info]{len(changed_files)} changed file(s) against {base_ref}, "
         f"CI default Python {result['default_python_version']}[/]\n"
     )
-    table = Table(title="What CI runs for this change", show_lines=False)
+    table = Table(title="What CI runs for this change" if full else "What to run for this change")
     for column in ("kind", "runs_in", "command"):
         table.add_column(column)
     for item in result["items"]:
         table.add_row(item["kind"], item["runs_in"], escape(item["command"]))
     console.print(table)
-    if result["full_tests_needed"]:
+    if result["full_tests_needed"] and not full:
         console.print(
-            "\n[warning]CI runs the full suite for this change because it touches CI tooling or dependency "
-            "files. Run what covers your change locally and leave the rest to CI.[/]"
+            "\n[warning]CI also runs the full suite for this change because it touches CI tooling or "
+            "dependency files. Pass --full to list it.[/]"
         )
     console.print(
         f"\n[warning]Covers Python {result['default_python_version']} on sqlite only; other Python versions, "

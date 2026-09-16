@@ -405,6 +405,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Verify flags",
             "options": [
                 "--base-ref",
+                "--full",
                 "--json",
             ],
         },

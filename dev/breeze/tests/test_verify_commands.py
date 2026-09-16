@@ -87,8 +87,12 @@ def test_selective_checks_narration_is_hidden_unless_verbose(mock_files):
 def test_full_suite_expansion_is_explained(files: tuple[str, ...], expanded: bool):
     with patch("airflow_breeze.commands.verify_commands.get_changed_files_against", return_value=files):
         result = CliRunner().invoke(verify, [], catch_exceptions=False)
+        full = CliRunner().invoke(verify, ["--full"], catch_exceptions=False)
     assert result.exit_code == 0
-    assert ("CI runs the full suite for this change" in " ".join(result.output.split())) is expanded
+    assert ("CI also runs the full suite" in " ".join(result.output.split())) is expanded
+    assert "CI also runs the full suite" not in " ".join(full.output.split())
+    assert ("breeze testing core-tests" in " ".join(full.output.split())) is expanded
+    assert "breeze testing core-tests" not in " ".join(result.output.split())
 
 
 @patch("airflow_breeze.commands.verify_commands.run_command")
