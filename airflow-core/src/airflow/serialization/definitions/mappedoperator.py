@@ -471,8 +471,6 @@ class SerializedMappedOperator(DAGNode):
     # TODO (GH-52141): Copied from sdk. Find a better place for this to live in.
     @methodtools.lru_cache(maxsize=1)
     def get_parse_time_mapped_ti_count(self) -> int:
-        current_count = self._get_specified_expand_input().get_parse_time_mapped_ti_count()
-
         def _get_parent_count() -> int:
             try:
                 if (group := self.get_closest_mapped_task_group()) is None:
@@ -482,12 +480,13 @@ class SerializedMappedOperator(DAGNode):
                 return 1
 
         parent_count = _get_parent_count()
-        mapped_ti_count = parent_count * current_count
-
+        # A batched task always creates ``batch_size`` instances: items are routed round-robin at
+        # runtime, so the count never depends on (or needs to measure) the input.
         if self.batch_size > 0:
-            if self.batch_size < mapped_ti_count:
-                return self.batch_size
-        return mapped_ti_count
+            return parent_count * self.batch_size
+
+        current_count = self._get_specified_expand_input().get_parse_time_mapped_ti_count()
+        return parent_count * current_count
 
     def iter_mapped_dependencies(self) -> Iterator[Operator]:
         """Upstream dependencies that provide XComs used by this task for task mapping."""
@@ -535,6 +534,12 @@ def _(task: SerializedBaseOperator | TaskSDKBaseOperator, run_id: str, *, sessio
 def _(task: SerializedMappedOperator | TaskSDKMappedOperator, run_id: str, *, session: Session) -> int:
     from airflow.serialization.serialized_objects import BaseSerialization, _ExpandInputRef
 
+    group = task.get_closest_mapped_task_group()
+    parent_count = 1 if group is None else get_mapped_ti_count(group, run_id, session=session)
+    # See get_parse_time_mapped_ti_count: a batched task's count is fixed by batch_size alone.
+    if task.batch_size > 0:
+        return parent_count * task.batch_size
+
     exp_input = task._get_specified_expand_input()
     # TODO (GH-52141): 'task' here should be scheduler-bound and returns scheduler expand input.
     if not hasattr(exp_input, "get_total_map_length"):
@@ -551,16 +556,7 @@ def _(task: SerializedMappedOperator | TaskSDKMappedOperator, run_id: str, *, se
     else:
         current_count = exp_input.get_total_map_length(run_id, session=session)
 
-    group = task.get_closest_mapped_task_group()
-    if group is None:
-        mapped_ti_count = current_count
-    else:
-        parent_count = get_mapped_ti_count(group, run_id, session=session)
-        mapped_ti_count = parent_count * current_count
-
-    if task.batch_size > 0:
-        return min(task.batch_size, mapped_ti_count)
-    return mapped_ti_count
+    return parent_count * current_count
 
 
 @get_mapped_ti_count.register

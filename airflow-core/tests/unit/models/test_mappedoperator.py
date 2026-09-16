@@ -1831,23 +1831,22 @@ def test_mapped_operator_retry_delay_explicit(dag_maker):
 
 
 @pytest.mark.parametrize(
-    ("batch_size", "items", "expected"),
+    ("batch_size", "items"),
     [
-        pytest.param(5, [1, 2, 3], 3, id="batch_size-larger-than-items-clamped-to-items"),
-        pytest.param(2, [1, 2, 3], 2, id="batch_size-smaller-than-items-returned-as-is"),
-        pytest.param(3, [1, 2, 3], 3, id="batch_size-equal-to-items"),
+        pytest.param(5, [1, 2, 3], id="batch_size-larger-than-items"),
+        pytest.param(2, [1, 2, 3], id="batch_size-smaller-than-items"),
+        pytest.param(3, [1, 2, 3], id="batch_size-equal-to-items"),
+        pytest.param(2, 5, id="scalar-input-is-never-measured"),
     ],
 )
-def test_get_mapped_ti_count_clamps_to_items_count_when_batch_size_exceeds_it(
-    dag_maker, session, batch_size, items, expected
-):
+def test_batched_ti_count_is_batch_size_regardless_of_items(dag_maker, session, batch_size, items):
     from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
 
-    with dag_maker(dag_id=f"test_batch_size_clamp_{batch_size}", session=session, serialized=True) as dag:
+    with dag_maker(dag_id=f"test_batch_size_{batch_size}", session=session, serialized=True) as dag:
         MockOperator.partial(task_id="task").batch(size=batch_size).iterate(arg1=items)
 
     dr = dag_maker.create_dagrun()
     task = dag.task_dict["task"]
 
-    result = get_mapped_ti_count(task, dr.run_id, session=session)
-    assert result == expected
+    assert task.get_parse_time_mapped_ti_count() == batch_size
+    assert get_mapped_ti_count(task, dr.run_id, session=session) == batch_size

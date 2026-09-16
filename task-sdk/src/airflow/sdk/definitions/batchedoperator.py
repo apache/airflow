@@ -85,7 +85,9 @@ class BatchableOperator(Generic[T], metaclass=ABCMeta):
         round-robin (item ``i`` goes to task instance ``i % size``), not split into ``size``
         contiguous chunks — this is *not* the same semantics as ``itertools.batched(iterable, size)``.
         See :class:`~airflow.sdk.definitions._internal.expandinput.BatchedExpandInput` for why
-        round-robin is used instead of contiguous chunking.
+        round-robin is used instead of contiguous chunking. Exactly ``size`` task instances are
+        always created; if the input yields fewer than ``size`` items, the surplus instances run
+        with no items and succeed immediately.
     """
 
     operator_partial: T
@@ -166,7 +168,8 @@ class BatchedOperator(BatchableOperator[OperatorPartial]):
     :param operator_partial: The OperatorPartial instance to be batched and expanded.
     :param size: The number of task instances to create for mapping. Items are distributed across
         them round-robin (item ``i`` goes to task instance ``i % size``), not split into ``size``
-        contiguous chunks.
+        contiguous chunks. Exactly ``size`` task instances are always created, even when the input
+        yields fewer items.
     """
 
     @property
@@ -317,7 +320,8 @@ class DecoratedBatchedOperator(BatchableOperator[_TaskDecorator]):
     :param operator_partial: The _TaskDecorator instance to be batched and expanded.
     :param size: The number of task instances to create for mapping. Items are distributed across
         them round-robin (item ``i`` goes to task instance ``i % size``), not split into ``size``
-        contiguous chunks.
+        contiguous chunks. Exactly ``size`` task instances are always created, even when the input
+        yields fewer items.
     """
 
     @property
