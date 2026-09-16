@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import re
 from subprocess import CompletedProcess
 from unittest.mock import patch
 
@@ -25,12 +26,18 @@ from click.testing import CliRunner
 
 from airflow_breeze.commands.verify_commands import verify
 
+ANSI = re.compile(r"\x1b\[[0-9;]*m")
+
 
 @patch(
     "airflow_breeze.commands.verify_commands.get_changed_files_against",
     return_value=("airflow-core/docs/index.rst",),
 )
-def test_json_output_keeps_stdout_parseable(mock_files):
+def test_json_output_keeps_stdout_parseable(mock_files, monkeypatch):
+    # GitHub Actions makes breeze print a "how to reproduce" banner after every command.
+    monkeypatch.setenv("CI", "true")
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.setenv("GITHUB_SHA", "0" * 40)
     result = CliRunner().invoke(verify, ["--json"], catch_exceptions=False)
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
@@ -55,7 +62,7 @@ def test_json_output_keeps_stdout_parseable(mock_files):
 def test_unknown_base_ref_is_a_clean_usage_error(mock_run):
     result = CliRunner().invoke(verify, ["--base-ref", "no-such-branch"])
     assert result.exit_code == 1
-    rendered = " ".join(result.output.replace("│", " ").split())
+    rendered = " ".join(ANSI.sub("", result.output).replace("│", " ").split())
     assert "git merge-base failed for base ref 'no-such-branch': fatal: Not a valid object name" in rendered
 
 
