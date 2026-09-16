@@ -49,6 +49,7 @@ def find_step(path, *, step_id=None, name=None):
 def run_shell(script, env):
     return subprocess.run(
         ["bash", "--noprofile", "--norc", "-e", "-o", "pipefail", "-c", script],
+        cwd=ROOT,
         env={**os.environ, **env},
         capture_output=True,
         text=True,
