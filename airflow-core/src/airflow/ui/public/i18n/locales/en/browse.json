@@ -8,8 +8,23 @@
     },
     "filters": {
       "eventType": "Event Type"
+    }
+  },
+  "dagBundles": {
+    "active": "Active",
+    "bundle_one": "Dag Bundle",
+    "bundle_other": "Dag Bundles",
+    "columns": {
+      "active": "Active",
+      "importErrors": "Import Errors",
+      "lastRefreshed": "Last Refreshed",
+      "name": "Name",
+      "version": "Version"
     },
-    "title": "Audit Log"
+    "inactive": "Inactive",
+    "neverRefreshed": "Never",
+    "notRefreshedYet": "Not refreshed yet",
+    "notVersioned": "Not versioned"
   },
   "deadlines": {
     "columns": {
@@ -57,6 +72,8 @@
       "successTitle": "XCom Updated",
       "title": "Edit XCom"
     },
+    "entry_one": "XCom Entry",
+    "entry_other": "XCom Entries",
     "key": "Key",
     "title": "XCom",
     "value": "Value"

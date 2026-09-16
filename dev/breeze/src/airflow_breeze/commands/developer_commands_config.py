@@ -142,12 +142,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
         {
-            "name": "Run experimental workers",
-            "options": [
-                "--worker-type",
-            ],
-        },
-        {
             "name": "Installing packages after entering shell",
             "options": [
                 "--airflow-constraints-location",
@@ -262,12 +256,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
         {
-            "name": "Run experimental workers",
-            "options": [
-                "--worker-type",
-            ],
-        },
-        {
             "name": "Installing packages after entering shell",
             "options": [
                 "--airflow-constraints-location",
@@ -334,6 +322,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Other options",
             "options": [
                 "--forward-credentials",
+                "--include-mypy-volume",
                 "--skip-image-upgrade-check",
             ],
         },
@@ -385,7 +374,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Misc options",
             "options": [
-                "--python",
                 "--include-commits",
                 "--github-repository",
                 "--builder",

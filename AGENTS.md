@@ -22,7 +22,7 @@ Don't spell out **Directed Acyclic Graph** except for historical context.
 
 - Install prek: `uv tool install prek`
 - Enable commit hooks: `prek install`
-- Install breeze shim (one-time, per machine): `scripts/tools/setup_breeze` — installs `~/.local/bin/breeze` that runs breeze via `uvx` from the current git worktree's `dev/breeze` (so each worktree, including ephemeral agent worktrees, gets its own breeze tied to its sources). See [ADR 0017](dev/breeze/doc/adr/0017-use-uvx-to-run-breeze-from-local-sources.md).
+- Install breeze shim (one-time, per machine): `scripts/tools/setup_breeze` — installs `~/.local/bin/breeze` that runs breeze via `uv run --locked` from the current git worktree's `dev/breeze`, with dependencies pinned by `dev/breeze/uv.lock` (so each worktree, including ephemeral agent worktrees, gets its own breeze tied to its sources). See [ADR 0017](dev/breeze/doc/adr/0017-use-uvx-to-run-breeze-from-local-sources.md).
 - **Never run pytest, python, or airflow commands directly on the host** — always use `breeze`.
 - Place temporary scripts in `dev/` (mounted as `/opt/airflow/dev/` inside Breeze).
 
@@ -52,7 +52,7 @@ Don't spell out **Directed Acyclic Graph** except for historical context.
 - **Lint with ruff only:** `prek run ruff --from-ref <target_branch>`
 - **Format with ruff only:** `prek run ruff-format --from-ref <target_branch>`
 - **Run regular (fast) static checks:** `prek run --from-ref <target_branch> --stage pre-commit`
-- **Run manual (slower) checks:** `prek run --from-ref <target_branch> --stage manual`
+- **Run manual (slower) checks:** `prek run --from-ref <target_branch> --stage manual --skip compile-ui-assets-dev --skip view-skill-eval --skip run-skill-eval-codex` (the skipped hooks start long-running local servers or provision the opt-in Codex environment rather than run checks that complete)
 - **Build docs:** `breeze build-docs`
 - **Determine which tests to run based on changed files:** `breeze ci selective-check --commit-ref <commit_with_squashed_changes>`
 <!-- END generated-commands, please keep comment here to allow auto update -->
@@ -140,7 +140,7 @@ reported as such are described in "What is NOT considered a security vulnerabili
 - Imports at top of file. Valid exceptions: circular imports, lazy loading for worker isolation, `TYPE_CHECKING` blocks.
 - Guard heavy type-only imports (e.g., `kubernetes.client`) with `TYPE_CHECKING` in multi-process code paths.
 - Define dedicated exception classes or use existing exceptions such as `ValueError` instead of raising the broad `AirflowException` directly. Each error case should have a specific exception type that conveys what went wrong. **Never add new direct `raise AirflowException(...)` usages — the community is actively reducing them, not adding more, and the `check-no-new-airflow-exceptions` prek hook enforces this across `airflow-core`, `airflow-ctl`, `task-sdk`, `providers`, and `shared`.** Prefer a Python built-in (`ValueError`, `TypeError`, `OSError`, …) or a dedicated class in the appropriate `exceptions.py`. The only acceptable way an `AirflowException` line may move is relocating an already-existing one verbatim during a refactor (e.g. moving code between files) — that is not a new usage. When you touch code that already raises `AirflowException`, prefer narrowing it to a more specific exception rather than leaving or duplicating it.
-- Translate domain-layer exceptions to `HTTPException` at FastAPI route boundaries. In `airflow-core/src/airflow/core_api/` route handlers, catch errors raised by domain code (e.g., `ValueError` from `airflow.state.metastore.MetastoreStateBackend` for a missing row or invalid input) and re-raise as `HTTPException` with the right status (`404` for not-found, `400` for invalid input). Otherwise they propagate as `500 Internal Server Error`, leaking internals and misleading clients.
+- Translate domain-layer exceptions to `HTTPException` at FastAPI route boundaries. In `airflow-core/src/airflow/api_fastapi/core_api/` route handlers, catch errors raised by domain code (e.g., `ValueError` from `airflow.state.metastore.MetastoreBackend` for a missing row or invalid input) and re-raise as `HTTPException` with the right status (`404` for not-found, `400` for invalid input). Otherwise they propagate as `500 Internal Server Error`, leaking internals and misleading clients.
 - Bulk `DELETE`/`UPDATE` in the scheduler loop or any synchronous interval task (e.g. `call_regular_interval` callbacks) must be batched with `LIMIT` and committed between batches — never issue a single unbounded bulk write against a user-driven table. Unbounded bulk writes hold row locks for the entire transaction (blocking concurrent writers) and stall the scheduler main loop. Filter columns used by the cleanup must be indexed. Follow the batching pattern in `airflow-core/src/airflow/utils/db_cleanup.py`.
 - Name functions and methods with action verbs: `get_`, `extract_`, `find_`, `compute_`, `build_`, etc. Avoid noun-only names like `_serialize_keys` or `_base_names` — they read as attributes, not callables. Predicates (`is_`, `has_`) are the one exception.
 - Apache License header on all new files (prek enforces this).
@@ -172,7 +172,9 @@ Write commit messages focused on user impact, not implementation details.
 
 - **Good:** `Fix airflow dags test command failure without serialized Dags`
 - **Good:** `UI: Fix Grid view not refreshing after task actions`
+- **Good:** `Update foo function`
 - **Bad:** `Initialize Dag bundles in CLI get_dag function`
+- **Bad:** `Update foo function (#12345)`
 - **Bad:** `fix(cli): dags test failure` — Airflow does not use Conventional Commits
   (`feat:`, `fix:`, `chore:` …). Write the subject as plain prose. A `commit-msg`
   prek hook (`check-no-conventional-commit-message`) rejects these, and CI checks
@@ -187,6 +189,14 @@ Use the **imperative mood** and a plain message — do **not** use Conventional 
 (`fix:`, `feat:`, `chore:`, `docs:`, `refactor:`, …). apache/airflow does not follow that
 convention. (Area tags the project already uses, like `UI:` / `API:` / `Helm:`, are fine;
 Conventional-Commit `type:` tokens are not.) The same rule applies to PR titles.
+
+Do not include an issue or PR number in the PR title. GitHub already appends
+the actual PR number automatically when a PR is squash-merged (this is why
+Airflow's git history is full of titles like `... (#71609)`). Manually
+adding a number in the title duplicates that auto-added number, and readers
+cannot tell whether the number in the title refers to an issue or a PR —
+which is misleading in the commit history and changelog. Reference the
+issue only in the PR description, not the title
 
 The commit message **body** should describe **why** the change is made — the motivation and
 context — and **never what** the change is. The diff already shows what changed; restating it in
@@ -294,7 +304,10 @@ code review checklist in [`.github/instructions/code-review.instructions.md`](.g
    described in this file.
 4. Run regular (fast) static checks (`prek run --from-ref <target_branch> --stage pre-commit`)
    and fix any failures. This includes mypy checks for non-provider projects (airflow-core, task-sdk, airflow-ctl, dev, scripts, devel-common).
-5. Run manual (slower) checks (`prek run --from-ref <target_branch> --stage manual`) and fix any failures.
+5. Run manual (slower) checks
+   (`prek run --from-ref <target_branch> --stage manual --skip compile-ui-assets-dev --skip view-skill-eval --skip run-skill-eval-codex`)
+   and fix any failures. The skipped hooks start long-running local servers or provision the
+   opt-in Codex environment rather than run checks that complete.
 6. Run relevant individual tests and confirm they pass.
 7. Find which tests to run for the changes with selective-checks and run those tests in parallel to confirm they pass and check for CI-specific issues.
 8. Check for security issues — no secrets, no injection vulnerabilities, no unsafe patterns.
@@ -472,31 +485,36 @@ participating in that same PR/issue discussion.
 
 ## apache-magpie framework
 
-This repo adopts the [`apache/magpie`](https://github.com/apache/magpie)
-framework via the snapshot mechanism. The framework provides the
-`pr-management-*` skills (triage, code-review, stats, mentor); they are
-gitignored symlinks into the `.apache-magpie/` snapshot directory.
+This repo uses the [`apache/magpie`](https://github.com/apache/magpie)
+framework, installed from its plugin marketplace. The framework provides
+the `pr-management-*` skills (triage, code-review, stats, mentor) among
+others. Nothing framework-related is committed here — install it in your
+own agent harness. In Claude Code:
 
-A fresh clone needs the snapshot populated before any framework skill is
-invocable. Run `/magpie-setup` (or follow
-[`.claude/skills/magpie-setup/`](.claude/skills/magpie-setup/)) to fetch
-it per the committed [`.apache-magpie.lock`](.apache-magpie.lock). The
-contributor-facing summary of the adoption + setup flow lives in the
-[Agent-assisted contribution section of `README.md`](README.md#agent-assisted-contribution-apache-magpie).
+```text
+/plugin marketplace add apache/magpie
+/plugin install magpie-pr-management@apache-magpie
+```
 
-Adopter-specific modifications to framework-skill workflows live in
-[`.apache-magpie-overrides/`](.apache-magpie-overrides/) — never edit
-the snapshot directly. Framework changes go via PR to
+`magpie@apache-magpie` installs every family at once; other families
+(`magpie-security`, `magpie-release-management`, …) install individually.
+The contributor-facing summary lives in the [Agent-assisted contribution
+section of `README.md`](README.md#agent-assisted-contribution-apache-magpie).
+
+Airflow-specific modifications to framework-skill workflows live in
+[`.apache-magpie-overrides/`](.apache-magpie-overrides/) — the installed
+plugin reads them at run time. Never edit the installed plugin itself;
+framework changes go via PR to
 [`apache/magpie`](https://github.com/apache/magpie).
 
 ### Reviewing pull requests
 
-With apache-magpie installed locally, use the
-`magpie-pr-management-code-review` skill for PR code review. It posts
-findings as **inline review comments** anchored to `file:line`, presented
-**individually for accept/skip** before anything is submitted — prefer it
-over an ad-hoc review pass or a generic review command. A body-only review
-is the explicit opt-out (`inline:off`).
+With the `magpie-pr-management` plugin installed, use the
+`magpie-pr-management:pr-management-code-review` skill for PR code review.
+It posts findings as **inline review comments** anchored to `file:line`,
+presented **individually for accept/skip** before anything is submitted —
+prefer it over an ad-hoc review pass or a generic review command. A
+body-only review is the explicit opt-out (`inline:off`).
 
 ## Boundaries
 

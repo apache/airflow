@@ -24,13 +24,8 @@ from datetime import timedelta
 
 import pytest
 
-try:
-    from airflow.sdk.timezone import datetime
-except ImportError:
-    from airflow.utils.timezone import datetime  # type: ignore[no-redef]
-
 from airflow.models.dag import DAG
-from airflow.providers.common.compat.sdk import AirflowSensorTimeout, TaskDeferred
+from airflow.providers.common.compat.sdk import AirflowSensorTimeout, TaskDeferred, timezone
 from airflow.providers.standard.sensors.filesystem import FileSensor
 from airflow.providers.standard.triggers.file import FileTrigger
 
@@ -38,7 +33,7 @@ pytestmark = pytest.mark.db_test
 
 
 TEST_DAG_ID = "unit_tests_file_sensor"
-DEFAULT_DATE = datetime(2015, 1, 1)
+DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 
 
 class TestFileSensor:
@@ -238,3 +233,28 @@ class TestFileSensor:
             task.execute({})
 
         assert isinstance(exc.value.trigger, FileTrigger), "Trigger is not a FileTrigger"
+
+    def test_start_trigger_args_are_not_shared_between_tasks(self):
+        """Each task must carry its own trigger arguments.
+
+        ``start_trigger_args`` is a class attribute, so assigning through it made every task
+        built from this operator advertise the path and timeout of whichever was constructed
+        last.
+        """
+        with DAG(
+            dag_id="test_start_trigger_args_not_shared",
+            schedule=None,
+            start_date=timezone.datetime(2020, 1, 1),
+        ):
+            first = FileSensor(
+                task_id="first", filepath="first.txt", deferrable=True, start_from_trigger=True, timeout=60
+            )
+            second = FileSensor(
+                task_id="second", filepath="second.txt", deferrable=True, start_from_trigger=True, timeout=999
+            )
+
+        assert first.start_trigger_args is not second.start_trigger_args
+        assert first.start_trigger_args.trigger_kwargs["filepath"] == first.path
+        assert second.start_trigger_args.trigger_kwargs["filepath"] == second.path
+        assert first.start_trigger_args.timeout == timedelta(seconds=60)
+        assert second.start_trigger_args.timeout == timedelta(seconds=999)

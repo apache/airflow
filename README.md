@@ -84,6 +84,8 @@ Use Airflow to author workflows (Dags) that orchestrate tasks. The Airflow sched
 
 Airflow works best with workflows that are mostly static and slowly changing. When the Dag structure is similar from one run to the next, it clarifies the unit of work and continuity. Other similar projects include [Luigi](https://github.com/spotify/luigi), [Oozie](https://oozie.apache.org/) and [Azkaban](https://azkaban.github.io/).
 
+Beyond traditional data pipelines, Airflow is widely used to orchestrate machine learning workflows — training, retraining, evaluation, and deployment — and increasingly to orchestrate agentic and LLM-based workloads, coordinating the steps of an AI pipeline (data prep, tool calls, model invocation, evaluation) rather than acting as the agent itself. This isn't a new direction: teams have run ML and AI workloads on Airflow for years, and the ecosystem of providers supporting these use cases (see the [AI & ML section of the Airflow registry](https://airflow.apache.org/registry/providers/?category=ai-ml)) continues to grow.
+
 Airflow is commonly used to process data, but has the opinion that tasks should ideally be idempotent (i.e., results of the task will be the same, and will not create duplicated data in a destination system), and should not pass large quantities of data from one task to the next (though tasks can pass metadata using Airflow's [XCom feature](https://airflow.apache.org/docs/apache-airflow/stable/concepts/xcoms.html)). For high-volume, data-intensive tasks, a best practice is to delegate to external services specializing in that type of work.
 
 Airflow is not a streaming solution, but it is often used to process real-time data, pulling data off streams in batches.
@@ -160,7 +162,7 @@ correct Airflow tag/version/branch and Python versions in the URL.
 
 1. Installing just Airflow:
 
-> Note: Only `pip` installation is currently officially supported.
+> Note: Only `pip` and `uv` installation is currently officially supported.
 
 While it is possible to install Airflow with tools like [Poetry](https://python-poetry.org) or
 [pip-tools](https://pypi.org/project/pip-tools), they do not share the same workflow as
@@ -294,7 +296,7 @@ Apache Airflow version life cycle:
 
 | Version   | Current Patch/Minor   | State       | First Release   | Limited Maintenance   | EOL/Terminated   |
 |-----------|-----------------------|-------------|-----------------|-----------------------|------------------|
-| 3         | 3.3.0                 | Maintenance | Apr 22, 2025    | TBD                   | TBD              |
+| 3         | 3.3.1                 | Maintenance | Apr 22, 2025    | TBD                   | TBD              |
 | 2         | 2.11.2                | EOL         | Dec 17, 2020    | Oct 22, 2025          | Apr 22, 2026     |
 | 1.10      | 1.10.15               | EOL         | Aug 27, 2018    | Dec 17, 2020          | June 17, 2021    |
 | 1.9       | 1.9.0                 | EOL         | Jan 03, 2018    | Aug 27, 2018          | Aug 27, 2018     |
@@ -451,35 +453,34 @@ contributors can appeal a decision by emailing the PMC at
 
 ## Agent-assisted contribution (apache-magpie)
 
-This repo adopts the [`apache/magpie`](https://github.com/apache/magpie)
-framework via a snapshot mechanism. The framework provides
+This repo uses the [`apache/magpie`](https://github.com/apache/magpie)
+framework, installed from its plugin marketplace. The framework provides
 maintainer-facing PR-management skills (`pr-management-triage`,
 `pr-management-code-review`, `pr-management-stats`, `pr-management-mentor`)
 that are exposed as agent skills in agent harnesses such as Claude Code.
 
-The framework is **not** vendored — it lives as a gitignored snapshot
-under `.apache-magpie/`, fetched on demand from the version pinned in
-the committed [`.apache-magpie.lock`](.apache-magpie.lock). The only
-framework artefact committed to this repo is the `magpie-setup` skill
-at [`.github/skills/magpie-setup/`](.github/skills/magpie-setup/);
-everything else is a gitignored symlink the setup skill wires up.
-
-A fresh clone needs the snapshot populated before any framework skill
-is invocable. In your agent harness, run:
+Nothing framework-related is committed to this repo, and a fresh clone
+needs no setup step — the plugin is installed per-user in your own agent
+harness. In Claude Code:
 
 ```text
-/magpie-setup
+/plugin marketplace add apache/magpie
+/plugin install magpie-pr-management@apache-magpie
 ```
 
-(or follow [`.claude/skills/magpie-setup/`](.claude/skills/magpie-setup/))
-to fetch the snapshot per the committed lock, scaffold the gitignored
-symlinks, and install the post-checkout hook that re-creates them on
-each worktree checkout.
+Install `magpie@apache-magpie` instead to get every skill family at once,
+or add further families (`magpie-security`, `magpie-release-management`,
+…) one at a time. Pin a release rather than tracking `main` by adding the
+marketplace from a tag: `/plugin marketplace add apache/magpie@0.2.0`.
+Other harnesses — Codex CLI, Gemini CLI, Copilot, Cursor — are covered in
+the framework's [marketplace
+guide](https://github.com/apache/magpie/blob/main/docs/setup/marketplaces.md).
 
-Adopter-specific modifications to framework workflows live in
+Airflow-specific modifications to framework workflows live in
 [`.apache-magpie-overrides/`](.apache-magpie-overrides/) (committed) —
-never edit the snapshot directly. Framework changes go via PR to
-[`apache/magpie`](https://github.com/apache/magpie).
+the installed plugin reads them at run time, so they apply to every
+contributor without anyone editing the framework. Framework changes go via
+PR to [`apache/magpie`](https://github.com/apache/magpie).
 
 <!-- START Who uses Apache Airflow, please keep comment here to allow auto update of PyPI readme.md -->
 

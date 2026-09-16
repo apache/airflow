@@ -139,6 +139,75 @@ class TestGetDagRuns(TestPublicDagEndpoint):
     @pytest.mark.parametrize(
         ("query_params", "expected_ids"),
         [
+            ({"scheduling_state": "active"}, [DAG1_ID]),
+            ({"scheduling_state": "draining"}, [DAG2_ID]),
+            ({"scheduling_state": "paused"}, [DAG3_ID]),
+            ({"paused": False}, [DAG1_ID, DAG2_ID]),
+        ],
+    )
+    def test_scheduling_state_filter_preserves_paused_filter_semantics(
+        self, test_client, session, query_params, expected_ids
+    ):
+        dag_model = session.get(DagModel, DAG2_ID)
+        dag_model.is_draining = True
+        session.commit()
+
+        response = test_client.get(
+            "/dags",
+            params={
+                "dag_ids": [DAG1_ID, DAG2_ID, DAG3_ID],
+                "exclude_stale": False,
+                **query_params,
+            },
+        )
+
+        assert response.status_code == 200
+        assert [dag["dag_id"] for dag in response.json()["dags"]] == expected_ids
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.parametrize("unfinished_state", [DagRunState.QUEUED, DagRunState.RUNNING])
+    def test_has_unfinished_runs_ignores_recent_run_limit(self, test_client, session, unfinished_state):
+        older_run_after = pendulum.datetime(2030, 1, 1, tz="UTC")
+        newer_run_after = pendulum.datetime(2030, 1, 2, tz="UTC")
+        session.add_all(
+            [
+                DagRun(
+                    dag_id=DAG1_ID,
+                    run_id=f"manual__older_{unfinished_state}",
+                    run_type=DagRunType.MANUAL,
+                    logical_date=older_run_after,
+                    run_after=older_run_after,
+                    state=unfinished_state,
+                    triggered_by=DagRunTriggeredByType.TEST,
+                ),
+                DagRun(
+                    dag_id=DAG1_ID,
+                    run_id="manual__newer_success",
+                    run_type=DagRunType.MANUAL,
+                    logical_date=newer_run_after,
+                    run_after=newer_run_after,
+                    state=DagRunState.SUCCESS,
+                    triggered_by=DagRunTriggeredByType.TEST,
+                ),
+            ]
+        )
+        session.commit()
+
+        response = test_client.get(
+            "/dags",
+            params={"dag_ids": [DAG1_ID, DAG2_ID], "dag_runs_limit": 1},
+        )
+
+        assert response.status_code == 200
+        dags_by_id = {dag["dag_id"]: dag for dag in response.json()["dags"]}
+        assert dags_by_id[DAG1_ID]["latest_dag_runs"][0]["state"] == DagRunState.SUCCESS
+        assert dags_by_id[DAG1_ID]["has_unfinished_runs"] is True
+        assert dags_by_id[DAG2_ID]["has_unfinished_runs"] is False
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.parametrize(
+        ("query_params", "expected_ids"),
+        [
             ({"timetable_type": ["CronTriggerTimetable"], "exclude_stale": False}, [DAG3_ID]),
             ({"timetable_type": ["NullTimetable"], "exclude_stale": False}, [DAG1_ID, DAG2_ID]),
         ],
@@ -174,6 +243,24 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         any_state = test_client.get("/dags", params={"dag_run_state": state, "dag_ids": [DAG1_ID]})
         assert any_state.status_code == 200
         assert [dag["dag_id"] for dag in any_state.json()["dags"]] == [DAG1_ID]
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_last_and_any_run_state_filters_combined(self, test_client, session):
+        # Regression: combining the last-run and any-run state filters must return the
+        # intersection, not raise. The any-run EXISTS subquery must not correlate to the
+        # DagRun the last-run filter joins into the outer query.
+        latest_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == "run_id_5")
+        )
+        latest_run.state = DagRunState.FAILED
+        session.commit()
+
+        response = test_client.get(
+            "/dags",
+            params={"last_dag_run_state": "failed", "dag_run_state": "failed", "dag_ids": [DAG1_ID]},
+        )
+        assert response.status_code == 200
+        assert [dag["dag_id"] for dag in response.json()["dags"]] == [DAG1_ID]
 
     @pytest.fixture
     def setup_hitl_data(self, create_task_instance: TaskInstance, session: Session):

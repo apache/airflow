@@ -35,6 +35,7 @@ except ImportError as e:
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.utils.logging import log_run_summary
+from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
@@ -134,13 +135,11 @@ class LLMSQLQueryOperator(LLMOperator):
         return hook
 
     def execute(self, context: Context) -> str:
-        if self.require_approval and not isinstance(self.prompt, str):
-            raise TypeError(
-                f"{type(self).__name__}: require_approval=True is not supported "
-                f"with a non-string prompt (got {type(self.prompt).__name__}). "
-                f"The approval review body renders the prompt as text. Return a "
-                f"str prompt, or disable require_approval."
-            )
+        if self.require_approval:
+            self.validate_approval_prompt()  # type: ignore[misc]
+
+        # Coerced first so a bad rendered value fails before the expensive setup below.
+        usage_limits = coerce_usage_limits(self.usage_limits)
 
         schema_info = self._get_schema_context()
 
@@ -149,7 +148,7 @@ class LLMSQLQueryOperator(LLMOperator):
         agent = self.llm_hook.create_agent(
             output_type=str, instructions=full_system_prompt, **self.agent_params
         )
-        result = agent.run_sync(self.prompt, usage_limits=self.usage_limits)
+        result = agent.run_sync(self.prompt, usage_limits=usage_limits)
         log_run_summary(self.log, result)
         sql = self._strip_llm_output(result.output, dialect=self._resolved_dialect)
 

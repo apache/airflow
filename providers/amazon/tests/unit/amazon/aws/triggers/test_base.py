@@ -144,3 +144,15 @@ class TestAwsBaseWaiterTrigger:
         assert res.payload["status"] == "error"
         assert "AWS Glue job failed." in res.payload["message"]
         assert res.payload["hello"] == "world"
+
+    def test_event_from_exception(self):
+        self.trigger.return_key = "hello"
+        self.trigger.return_value = "world"
+
+        event = self.trigger._event_from_exception(AirflowException("AWS Glue job failed."))
+
+        assert event.payload == {
+            "status": "error",
+            "message": "AWS Glue job failed.",
+            "hello": "world",
+        }

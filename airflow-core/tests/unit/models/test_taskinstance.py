@@ -23,6 +23,7 @@ import json
 import operator
 import os
 import pathlib
+import re
 from typing import TYPE_CHECKING, cast
 from unittest import mock
 from unittest.mock import patch
@@ -112,7 +113,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
-from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.mock_operators import MockOperator
@@ -3561,6 +3562,27 @@ class TestMappedTaskInstanceReceiveValue:
         assert isinstance(result, dict), f"Expected dict for unmapped task, got {type(result)}"
         assert result == {"key": "value"}
 
+    def test_xcom_pull_single_value_query_is_bounded(self, dag_maker, session):
+        """Pulling one value from one task must ask the database for one row."""
+        with dag_maker(dag_id="test_xcom_pull_bounded", session=session):
+            upstream = PythonOperator(task_id="unmapped_task", python_callable=lambda: {"key": "value"})
+            downstream = PythonOperator(task_id="downstream", python_callable=lambda: None)
+            upstream >> downstream
+
+        dag_run = dag_maker.create_dagrun(logical_date=timezone.utcnow())
+        dag_maker.run_ti("unmapped_task", dag_run=dag_run, session=session)
+
+        ti_downstream = dag_run.get_task_instance("downstream", session=session)
+        ti_downstream.task = dag_maker.dag.task_dict["downstream"]
+
+        with capture_orm_selects("xcom") as statements:
+            result = ti_downstream.xcom_pull(task_ids="unmapped_task", session=session)
+
+        assert result == {"key": "value"}
+        assert statements, "expected xcom_pull to query the xcom table"
+        for sql in statements:
+            assert re.search(r"\bLIMIT 1\b", sql), f"xcom_pull is not bounded to one row: {sql}"
+
     def test_xcom_pull_returns_lazy_sequence_for_mapped_xcom(self, dag_maker, session):
         """
         Test that xcom_pull returns LazyXComSelectSequence when XComs are mapped (map_index >= 0)
@@ -3877,14 +3899,15 @@ def test_runtime_partition_key_does_not_backfill_dag_run_when_none(dag_maker, se
 
 @pytest.mark.backend("sqlite")
 def test_runtime_partition_key_backfill_does_not_deadlock_on_sqlite(dag_maker, session):
-    """Regression test for the SQLite ``database is locked`` deadlock between the
-    writes in ``register_asset_changes_in_db`` and the second connection that
-    ``_create_asset_event`` used to open.
+    """Regression test for the SQLite ``database is locked`` deadlock.
 
-    On file-based SQLite (the default ``-b sqlite`` test backend) the two
-    connections compete for the same RESERVED lock; the SQLite branch of
-    ``_create_asset_event`` must add the event directly to the caller's session
-    instead of opening a second connection.
+    This happens when a second connection is used to trigger while
+    ``register_asset_changes_in_db`` was writing.
+
+    The asset event is now created inline on the caller's session (see
+    ``AssetManager.register_asset_change``) instead of opening a side session, so
+    on file-based SQLite (the default ``-b sqlite`` test backend) there is no
+    longer a second connection competing for the same RESERVED lock.
     """
     asset = Asset(name="hello")
     with dag_maker(dag_id="rt_pk_backfill_sqlite", schedule=PartitionedAtRuntime()) as dag:

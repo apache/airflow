@@ -101,6 +101,7 @@ pkgconf \
 sasl2-bin \
 sqlite3 \
 sudo \
+tdsodbc \
 tk-dev \
 unixodbc \
 unixodbc-dev \
@@ -156,6 +157,7 @@ rsync \
 sasl2-bin \
 sqlite3 \
 sudo \
+tdsodbc \
 unixodbc \
 wget\
 "

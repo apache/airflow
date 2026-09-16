@@ -70,6 +70,17 @@ class TestGCSDagBundle:
             url == f"https://console.cloud.google.com/storage/browser/{GCS_BUCKET_NAME}/{GCS_BUCKET_PREFIX}"
         )
 
+    def test_view_url_template_uses_high_value_cookie_domain(self, monkeypatch):
+        monkeypatch.setenv("GOOGLE_CLOUD_HIGH_VALUE_COOKIE_DOMAIN", "googleapis.cn")
+        bundle = GCSDagBundle(
+            name="test", gcp_conn_id=GCP_CONN_ID, prefix=GCS_BUCKET_PREFIX, bucket_name=GCS_BUCKET_NAME
+        )
+
+        assert (
+            bundle.view_url_template()
+            == f"https://console.cloud.googleapis.cn/storage/browser/{GCS_BUCKET_NAME}/{GCS_BUCKET_PREFIX}"
+        )
+
     def test_supports_versioning(self):
         bundle = GCSDagBundle(
             name="test", gcp_conn_id=GCP_CONN_ID, prefix=GCS_BUCKET_PREFIX, bucket_name=GCS_BUCKET_NAME

@@ -25,7 +25,7 @@ from unittest import mock
 import pytest
 import time_machine
 from fastapi.testclient import TestClient
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import func, select, update
 
 from airflow import plugins_manager
 from airflow._shared.module_loading import qualname
@@ -64,6 +64,7 @@ from tests_common.test_utils.db import (
 )
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu, from_datetime_to_zulu_without_ms
 from tests_common.test_utils.taskinstance import run_task_instance
+from tests_common.test_utils.team import attach_dag_to_team
 from unit.listeners.class_listener import ClassBasedListener
 
 if TYPE_CHECKING:
@@ -334,35 +335,6 @@ def get_dag_run_dict(run: DagRun):
     }
 
 
-def _attach_dag_to_team(session, dag_id: str, *, bundle_name: str, team_name: str) -> str:
-    """
-    Associate a Dag with a team via a team-scoped bundle for multi-team tests.
-
-    Returns the Dag's original bundle name so the caller can restore it during cleanup
-    (``DagModel.bundle_name`` is a foreign key with no ``ON DELETE`` action).
-    """
-    original_bundle_name = session.scalar(select(DagModel.bundle_name).where(DagModel.dag_id == dag_id))
-    bundle = DagBundleModel(name=bundle_name)
-    bundle.teams.append(Team(name=team_name))
-    session.add(bundle)
-    session.flush()
-    session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(bundle_name=bundle_name))
-    session.commit()
-    return original_bundle_name
-
-
-def _detach_dag_from_team(
-    session, dag_id: str, *, bundle_name: str, team_name: str, original_bundle_name: str
-) -> None:
-    """Undo :func:`_attach_dag_to_team`, restoring the Dag's original bundle."""
-    session.execute(
-        update(DagModel).where(DagModel.dag_id == dag_id).values(bundle_name=original_bundle_name)
-    )
-    session.execute(delete(DagBundleModel).where(DagBundleModel.name == bundle_name))
-    session.execute(delete(Team).where(Team.name == team_name))
-    session.commit()
-
-
 class TestGetDagRun:
     @pytest.mark.parametrize(
         ("dag_id", "run_id", "state", "run_type", "triggered_by", "dag_run_note"),
@@ -412,6 +384,14 @@ class TestGetDagRun:
         assert body["run_type"] == run_type
         assert body["triggered_by"] == triggered_by.value
         assert body["note"] == dag_run_note
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_get_dag_run_includes_team_name(self, test_client, session):
+        with attach_dag_to_team(session, DAG1_ID, bundle_name="team-bundle-run", team_name="team-run"):
+            response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}")
+            assert response.status_code == 200
+            assert response.json()["team_name"] == "team-run"
 
     def test_get_dag_run_not_found(self, test_client):
         response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/invalid")
@@ -470,31 +450,17 @@ class TestGetDagRuns:
     @conf_vars({("core", "multi_team"): "True"})
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_get_dag_runs_includes_team_name(self, test_client, session):
-        original_bundle_name = _attach_dag_to_team(
-            session, DAG1_ID, bundle_name="team-bundle-runs", team_name="team-runs"
-        )
-        try:
+        with attach_dag_to_team(session, DAG1_ID, bundle_name="team-bundle-runs", team_name="team-runs"):
             response = test_client.get(f"/dags/{DAG1_ID}/dagRuns")
             assert response.status_code == 200
             body = response.json()
             assert body["dag_runs"]
             assert all(run["team_name"] == "team-runs" for run in body["dag_runs"])
-        finally:
-            _detach_dag_from_team(
-                session,
-                DAG1_ID,
-                bundle_name="team-bundle-runs",
-                team_name="team-runs",
-                original_bundle_name=original_bundle_name,
-            )
 
     @conf_vars({("core", "multi_team"): "True"})
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_get_dag_runs_filtered_by_team(self, test_client, session):
-        original_bundle_name = _attach_dag_to_team(
-            session, DAG1_ID, bundle_name="team-bundle-filter", team_name="team-filter"
-        )
-        try:
+        with attach_dag_to_team(session, DAG1_ID, bundle_name="team-bundle-filter", team_name="team-filter"):
             response = test_client.get("/dags/~/dagRuns", params={"teams": ["team-filter"]})
             assert response.status_code == 200
             body = response.json()
@@ -505,14 +471,6 @@ class TestGetDagRuns:
             response = test_client.get("/dags/~/dagRuns", params={"teams": ["nonexistent-team"]})
             assert response.status_code == 200
             assert response.json()["total_entries"] == 0
-        finally:
-            _detach_dag_from_team(
-                session,
-                DAG1_ID,
-                bundle_name="team-bundle-filter",
-                team_name="team-filter",
-                original_bundle_name=original_bundle_name,
-            )
 
     def test_invalid_order_by_raises_400(self, test_client):
         response = test_client.get("/dags/test_dag1/dagRuns?order_by=invalid")
@@ -659,7 +617,8 @@ class TestGetDagRuns:
         body = response.json()
         assert body["next_cursor"] is not None
         assert body["previous_cursor"] is None
-        assert body["total_entries"] is None
+        assert body["total_entries"] == 4
+        assert body["total_entries_limit"] == 50_000
         assert len(body["dag_runs"]) == 2
 
         response2 = test_client.get(
@@ -669,7 +628,8 @@ class TestGetDagRuns:
         assert response2.status_code == 200, response2.json()
         body2 = response2.json()
         assert body2["previous_cursor"] is not None
-        assert body2["total_entries"] is None
+        assert body2["total_entries"] == 4
+        assert body2["total_entries_limit"] == 50_000
         assert len(body2["dag_runs"]) == 2
         first_page_ids = {(r["dag_id"], r["dag_run_id"]) for r in body["dag_runs"]}
         second_page_ids = {(r["dag_id"], r["dag_run_id"]) for r in body2["dag_runs"]}
@@ -681,14 +641,15 @@ class TestGetDagRuns:
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_cursor_pagination_returns_cursor_response(self, test_client, order_by):
-        """When cursor param is provided, response has cursor fields and no total_entries."""
+        """When cursor param is provided, response has cursor fields and a bounded total_entries."""
         response1 = test_client.get(
             "/dags/~/dagRuns",
             params={"limit": 2, "order_by": order_by, "cursor": ""},
         )
         assert response1.status_code == 200
         body1 = response1.json()
-        assert body1["total_entries"] is None
+        assert body1["total_entries"] == 4
+        assert body1["total_entries_limit"] == 50_000
         assert len(body1["dag_runs"]) == 2
         next_cursor = body1["next_cursor"]
         assert next_cursor is not None
@@ -702,7 +663,8 @@ class TestGetDagRuns:
         body2 = response2.json()
         assert body2["next_cursor"] is None
         assert body2["previous_cursor"] is not None
-        assert body2["total_entries"] is None
+        assert body2["total_entries"] == 4
+        assert body2["total_entries_limit"] == 50_000
 
     @pytest.mark.parametrize(
         "order_by",
@@ -725,7 +687,8 @@ class TestGetDagRuns:
             )
             assert response.status_code == 200, response.json()
             body = response.json()
-            assert body["total_entries"] is None
+            assert body["total_entries"] == total_runs
+            assert body["total_entries_limit"] == 50_000
             forward_pages.append(body)
             forward_ids.extend((r["dag_id"], r["dag_run_id"]) for r in body["dag_runs"])
 
@@ -759,6 +722,20 @@ class TestGetDagRuns:
 
         all_backward = backward_ids + [(r["dag_id"], r["dag_run_id"]) for r in forward_pages[-1]["dag_runs"]]
         assert all_backward == forward_ids
+
+    @mock.patch("airflow.api_fastapi.common.db.common.EXACT_COUNT_LIMIT", 2)
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_cursor_pagination_total_entries_capped(self, test_client):
+        """With more matching runs than the cap, total_entries is reported as the cap."""
+        response = test_client.get(
+            "/dags/~/dagRuns",
+            params={"limit": 1, "order_by": "id", "cursor": ""},
+        )
+        assert response.status_code == 200, response.json()
+        body = response.json()
+        # 4 runs match but the count stops scanning at the cap.
+        assert body["total_entries"] == 2
+        assert body["total_entries_limit"] == 2
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_cursor_pagination_invalid_token(self, test_client):
@@ -1932,7 +1909,16 @@ class TestGetDagRunAssetTriggerEvents:
         ["test_partition_key", None],
         ids=["partitioned", "non-partitioned"],
     )
-    def test_should_respond_200(self, partition_key, test_client, dag_maker, session):
+    @pytest.mark.parametrize(
+        ("state", "start_date_is_none"),
+        [
+            pytest.param(DagRunState.RUNNING, False, id="running"),
+            pytest.param(DagRunState.QUEUED, True, id="queued-without-start-date"),
+        ],
+    )
+    def test_should_respond_200(
+        self, partition_key, state, start_date_is_none, test_client, dag_maker, session
+    ):
         asset1 = Asset(name="ds1", uri="file:///da1")
 
         # Use PartitionedAtRuntime for partitioned cases so the partition_key gate does not reject the key.
@@ -1970,12 +1956,15 @@ class TestGetDagRunAssetTriggerEvents:
             # explicitly so dag_maker does not try to infer it via next_dagrun_info (which returns None).
             create_dagrun_kwargs["logical_date"] = None
         dr = dag_maker.create_dagrun(**create_dagrun_kwargs)
+        dr.state = state
+        if start_date_is_none:
+            dr.start_date = None
         dr.consumed_asset_events.append(event)
 
         session.commit()
         assert event.timestamp
 
-        with assert_queries_count(3):
+        with assert_queries_count(4):
             response = test_client.get(
                 "/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents",
             )
@@ -2002,9 +1991,14 @@ class TestGetDagRunAssetTriggerEvents:
                             "data_interval_start": from_datetime_to_zulu_without_ms(dr.data_interval_start),
                             "end_date": None,
                             "logical_date": from_datetime_to_zulu_without_ms(dr.logical_date),
-                            "start_date": from_datetime_to_zulu_without_ms(dr.start_date),
-                            "state": "running",
+                            "start_date": (
+                                None
+                                if start_date_is_none
+                                else from_datetime_to_zulu_without_ms(dr.start_date)
+                            ),
+                            "state": state.value,
                             "partition_key": partition_key,
+                            "triggering": True,
                         }
                     ],
                     "partition_key": partition_key,
@@ -2013,6 +2007,58 @@ class TestGetDagRunAssetTriggerEvents:
             "total_entries": 1,
         }
         assert response.json() == expected_response
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.parametrize("num_events", [1, 5])
+    def test_query_count_does_not_scale_with_consumed_events(
+        self, num_events, test_client, dag_maker, session
+    ):
+        """A run consuming N asset events must not issue a query per event (guard against N+1)."""
+        asset1 = Asset(name="ds1", uri="file:///da1")
+        with dag_maker(
+            dag_id="source_dag", start_date=START_DATE1, schedule=timedelta(days=1), session=session
+        ):
+            EmptyOperator(task_id="task", outlets=[asset1])
+        source_run = dag_maker.create_dagrun()
+        ti = source_run.task_instances[0]
+        asset1_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset1.uri))
+
+        events = [
+            AssetEvent(
+                asset_id=asset1_id,
+                source_task_id=ti.task_id,
+                source_dag_id=ti.dag_id,
+                source_run_id=ti.run_id,
+                source_map_index=ti.map_index,
+                timestamp=START_DATE1 + timedelta(minutes=index),
+            )
+            for index in range(num_events)
+        ]
+        session.add_all(events)
+
+        with dag_maker(
+            dag_id="TEST_DAG_ID", start_date=START_DATE1, schedule=timedelta(days=1), session=session
+        ):
+            pass
+        consuming_run = dag_maker.create_dagrun(run_id="TEST_DAG_RUN_ID", run_type=DagRunType.ASSET_TRIGGERED)
+        for event in events:
+            consuming_run.consumed_asset_events.append(event)
+        session.commit()
+
+        # Constant regardless of the number of consumed events (parametrized 1 vs 5).
+        with assert_queries_count(4):
+            response = test_client.get("/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents")
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["total_entries"] == num_events
+        # Only the run's most recent consumed event triggered it; the rest were merely included.
+        triggering_by_event = {
+            event["id"]: event["created_dagruns"][0]["triggering"] for event in payload["asset_events"]
+        }
+        newest_event_id = max(event.id for event in events)
+        assert triggering_by_event[newest_event_id] is True
+        assert all(value is False for eid, value in triggering_by_event.items() if eid != newest_event_id)
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(
@@ -2055,6 +2101,23 @@ class TestClearDagRun:
             event="clear_dag_run",
             logical_date=None,
         )
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_clear_dag_run_whose_dag_version_was_deleted(self, test_client, session):
+        """A run that kept its bundle version after ``airflow db clean`` removed its Dag version."""
+        session.execute(
+            update(DagRun)
+            .where(DagRun.dag_id == DAG1_ID, DagRun.run_id == DAG1_RUN1_ID)
+            .values(created_dag_version_id=None, bundle_version="deleted-version")
+        )
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear",
+            json={"dry_run": False},
+        )
+        assert response.status_code == 200
+        assert response.json()["state"] == "queued"
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.post(
@@ -3757,6 +3820,25 @@ class TestTriggerDagRun:
 
         assert response_1.json()["dag_run_id"] != response_2.json()["dag_run_id"]
 
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.user.SimpleAuthManagerUser.get_display_name",
+        return_value="Jane Doe",
+    )
+    def test_trigger_records_triggering_user_display_name(
+        self, mock_display_name, dag_maker, test_client, session
+    ):
+        dag_id = "test_trigger_display_name"
+        with dag_maker(dag_id=dag_id, schedule=None, session=session, serialized=True):
+            EmptyOperator(task_id="task")
+        session.commit()
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns",
+            json={"logical_date": "2024-01-01T00:00:00Z"},
+        )
+        assert response.status_code == 200
+        run = session.scalars(select(DagRun).where(DagRun.run_id == response.json()["dag_run_id"])).one()
+        assert run.triggering_user_name == "Jane Doe"
+
     @time_machine.travel("2025-10-02 12:00:00", tick=False)
     @pytest.mark.usefixtures("custom_timetable_plugin")
     def test_custom_timetable_generate_run_id_for_manual_trigger(self, dag_maker, test_client, session):
@@ -4372,6 +4454,32 @@ class TestWaitDagRun:
                 method="GET",
                 access_entity=DagAccessEntity.XCOM,
                 details=DagDetails(id=DAG1_ID),
+                user=mock.ANY,
+            )
+
+    @pytest.mark.parametrize("team_name", ["team_b", None])
+    def test_authorizes_xcom_against_the_dags_team(self, test_client, team_name):
+        """The XCom check must carry the Dag's team, matching what the route dependency above already
+        resolves — see the call site's comment for why."""
+        with (
+            mock.patch(
+                "airflow.api_fastapi.core_api.routes.public.dag_run.get_auth_manager",
+                autospec=True,
+            ) as mock_get_auth_manager,
+            mock.patch.object(DagModel, "get_team_name", return_value=team_name, autospec=True),
+        ):
+            mock_get_auth_manager.return_value.is_authorized_dag.return_value = True
+
+            response = test_client.get(
+                f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait",
+                params={"interval": "1", "result": "task_1"},
+            )
+
+            assert response.status_code == 200
+            mock_get_auth_manager.return_value.is_authorized_dag.assert_called_once_with(
+                method="GET",
+                access_entity=DagAccessEntity.XCOM,
+                details=DagDetails(id=DAG1_ID, team_name=team_name),
                 user=mock.ANY,
             )
 

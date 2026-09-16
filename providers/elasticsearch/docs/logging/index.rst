@@ -37,9 +37,7 @@ First, to use the handler, ``airflow.cfg`` must be configured as follows:
     [elasticsearch]
     host = <host>:<port>
 
-On Airflow 3.x you can also route remote logging to Elasticsearch through the provider
-dispatch mechanism by adding an ``elasticsearch://`` scheme to
-``[logging] remote_base_log_folder``:
+On Airflow 3.3.0 or above you can also route remote logging to Elasticsearch through the provider dispatch mechanism by adding an ``elasticsearch://`` scheme to ``[logging] remote_base_log_folder``:
 
 .. code-block:: ini
 

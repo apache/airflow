@@ -584,7 +584,7 @@ class PostgresHook(DbApiHook):
         """
         return self.dialect.get_primary_keys(table=table, schema=schema)
 
-    def get_openlineage_database_info(self, connection) -> DatabaseInfo:
+    def get_openlineage_database_info(self, connection: Connection) -> DatabaseInfo:
         """Return Postgres/Redshift specific information for OpenLineage."""
         from airflow.providers.openlineage.sqlparser import DatabaseInfo
 

@@ -17,9 +17,16 @@
  * under the License.
  */
 import { createInstance } from "i18next";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { convertDetectedLanguage, i18nBaseOptions } from "./config";
+import { VersionService } from "openapi/requests/services.gen";
+
+import {
+  convertDetectedLanguage,
+  i18nBaseOptions,
+  resolveExtraLanguages,
+  resolveI18nVersion,
+} from "./config";
 
 // getBestMatchFromCodes is the resolver i18next runs on the array the
 // LanguageDetector returns. It is not part of i18next's public types
@@ -87,5 +94,48 @@ describe("i18n language resolution", () => {
   it("still honors a genuinely preferred non-English language", async () => {
     expect(await resolveLanguage(["hi"])).toBe("hi");
     expect(await resolveLanguage(["hi-IN", "en"])).toBe("hi");
+  });
+});
+
+describe("resolveI18nVersion", () => {
+  it("resolves to the running version", async () => {
+    vi.spyOn(VersionService, "getVersion").mockResolvedValueOnce({ git_version: null, version: "3.2.2" });
+
+    await expect(resolveI18nVersion()).resolves.toBe("3.2.2");
+  });
+
+  it("falls back to a cache-busting value, not an empty string, when the version lookup fails", async () => {
+    vi.spyOn(VersionService, "getVersion").mockRejectedValueOnce(new Error("network error"));
+
+    await expect(resolveI18nVersion()).resolves.not.toBe("");
+  });
+});
+
+describe("resolveExtraLanguages", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("returns the plugin languages listed by the manifest", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ json: () => Promise.resolve({ languages: ["eo", "tlh"] }), ok: true }),
+    );
+
+    await expect(resolveExtraLanguages()).resolves.toStrictEqual(["eo", "tlh"]);
+  });
+
+  it("degrades to no extra languages when the manifest is missing or malformed", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ json: () => Promise.resolve("not-a-manifest"), ok: true }),
+    );
+    await expect(resolveExtraLanguages()).resolves.toStrictEqual([]);
+
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false }));
+    await expect(resolveExtraLanguages()).resolves.toStrictEqual([]);
+
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network error")));
+    await expect(resolveExtraLanguages()).resolves.toStrictEqual([]);
   });
 });

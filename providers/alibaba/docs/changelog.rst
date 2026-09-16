@@ -26,6 +26,20 @@
 Changelog
 ---------
 
+3.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add OSSRemoteLogIO.from_config and register oss remote logging scheme (#70682)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix no-op assertion in MaxCompute run_sql test (#69406)``
+   * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
 3.3.9
 .....
 

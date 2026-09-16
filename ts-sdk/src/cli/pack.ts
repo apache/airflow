@@ -18,12 +18,12 @@
  */
 
 // airflow-ts-pack: bundle a TypeScript entrypoint into the single-file
-// artifact NodeCoordinator consumes — `bundle.mjs` with the airflow
-// metadata embedded as a leading `//# airflowMetadata=<base64>` comment.
+// artifact NodeCoordinator consumes — `bundle.mjs` with metadata and an
+// integrity layout descriptor embedded in JavaScript comments.
 //
-// Mirrors airflow-go-pack: build first, then run the built bundle with
-// --airflow-metadata so the manifest comes from the bundle's own task
-// registry and schema version, never from a hand-written sidecar.
+// Build first, then run the built bundle with --airflow-metadata so the
+// manifest comes from the bundle's own Dag registry and schema version,
+// never from a hand-written sidecar.
 
 import { execFileSync } from "node:child_process";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -34,20 +34,20 @@ import {
   AIRFLOW_METADATA_SENTINEL,
   type BundleManifest,
 } from "../coordinator/manifest.js";
+import { encodeBundle } from "./bundle-encoder.js";
+import { warnOnSuspiciousIds } from "./validate.js";
 
-const AIRFLOW_BUNDLE_METADATA_VERSION = "1.0";
 const BUNDLE_FILENAME = "bundle.mjs";
-// bundle.mjs is written only after validation, so failures leave no partial artifact.
+// Write bundle.mjs only after the build and manifest checks succeed, so a
+// failed pack cannot leave a partial final artifact.
 const STAGING_FILENAME = "bundle.pack-staging.mjs";
 const MANIFEST_TIMEOUT_MS = 60_000;
 const MANIFEST_MAX_BUFFER_BYTES = 64 * 1024 * 1024;
-const EMBEDDED_METADATA_MAX_BYTES = 1024 * 1024;
-export const EMBEDDED_METADATA_PREFIX = "//# airflowMetadata=";
 
 const USAGE = `Usage: airflow-ts-pack <entry> [--outdir <dir>] [--source <name>]
 
 Bundles <entry> into <outdir>/${BUNDLE_FILENAME} with esbuild and embeds the
-airflow metadata generated from the bundle's registered tasks.
+airflow metadata generated from the bundle's served Dags.
 
 Options:
   --outdir <dir>   Output directory (default: dist)
@@ -88,32 +88,6 @@ export function parsePackArgs(argv: readonly string[]): PackArgs {
   return { entry, outdir, source: source ?? path.basename(entry) };
 }
 
-export interface PackMetadata {
-  airflow_bundle_metadata_version: string;
-  sdk: { language: string; version: string; supervisor_schema_version: string };
-  source: string;
-  dags: BundleManifest["dags"];
-}
-
-// JSON string literals are valid YAML double-quoted scalars, so every
-// scalar below is emitted through JSON.stringify for correct escaping.
-export function renderMetadataYaml(metadata: PackMetadata): string {
-  const lines = [
-    `airflow_bundle_metadata_version: ${JSON.stringify(metadata.airflow_bundle_metadata_version)}`,
-    "sdk:",
-    `  language: ${JSON.stringify(metadata.sdk.language)}`,
-    `  version: ${JSON.stringify(metadata.sdk.version)}`,
-    `  supervisor_schema_version: ${JSON.stringify(metadata.sdk.supervisor_schema_version)}`,
-    `source: ${JSON.stringify(metadata.source)}`,
-    "dags:",
-  ];
-  for (const [dagId, dag] of Object.entries(metadata.dags)) {
-    lines.push(`  ${JSON.stringify(dagId)}:`);
-    lines.push(`    tasks: [${dag.tasks.map((task) => JSON.stringify(task)).join(", ")}]`);
-  }
-  return `${lines.join("\n")}\n`;
-}
-
 function readSdkVersion(): string {
   const packageJsonUrl = new URL("../../package.json", import.meta.url);
   const { version } = JSON.parse(readFileSync(packageJsonUrl, "utf-8")) as { version: string };
@@ -129,9 +103,16 @@ function readBundleManifest(bundlePath: string): BundleManifest {
       maxBuffer: MANIFEST_MAX_BUFFER_BYTES,
     });
   } catch (error) {
-    throw new Error(`Running the bundle with ${AIRFLOW_METADATA_FLAG} failed: ${String(error)}`, {
-      cause: error,
-    });
+    const stderr = (error as { stderr?: string }).stderr ?? "";
+    const reported = stderr
+      .split("\n")
+      .reverse()
+      .find((line) => /^\w*Error: /.test(line.trim()))
+      ?.trim();
+    throw new Error(
+      reported ?? `Running the bundle with ${AIRFLOW_METADATA_FLAG} failed: ${String(error)}`,
+      { cause: error },
+    );
   }
 
   // Import-time logging from user code lands on stdout too; pick the sentinel line.
@@ -143,26 +124,50 @@ function readBundleManifest(bundlePath: string): BundleManifest {
     throw new Error(`Bundle produced no ${AIRFLOW_METADATA_FLAG} output`);
   }
 
-  let manifest: BundleManifest;
+  let parsed: unknown;
   try {
-    manifest = JSON.parse(line.slice(AIRFLOW_METADATA_SENTINEL.length)) as BundleManifest;
+    parsed = JSON.parse(line.slice(AIRFLOW_METADATA_SENTINEL.length));
   } catch (error) {
     throw new Error(`Bundle produced invalid ${AIRFLOW_METADATA_FLAG} output: ${String(error)}`, {
       cause: error,
     });
   }
-  if (!manifest.supervisor_schema_version || !manifest.dags || typeof manifest.dags !== "object") {
+  if (!isBundleManifest(parsed)) {
     throw new Error(`Bundle produced incomplete ${AIRFLOW_METADATA_FLAG} output`);
+  }
+  const manifest = parsed;
+  // The line is whatever the bundle printed and nothing downstream re-validates
+  // it, so check each Dag entry down to the task-id element.
+  for (const [dagId, dag] of Object.entries(manifest.dags)) {
+    if (dag == null || !isTaskIdList(dag.tasks)) {
+      throw new Error(
+        `Bundle produced ${AIRFLOW_METADATA_FLAG} output with a malformed entry for Dag "${dagId}"`,
+      );
+    }
   }
   return manifest;
 }
 
-// esbuild keeps an entry hashbang as line 1, where the metadata comment must go;
-// NodeCoordinator always runs the bundle through `node`, so drop it.
-function stripShebang(bundle: string): string {
-  if (!bundle.startsWith("#!")) return bundle;
-  const newline = bundle.indexOf("\n");
-  return newline === -1 ? "" : bundle.slice(newline + 1);
+// The document is checked before anything is read off it: JSON.parse also yields
+// null and primitives, and `null.supervisor_schema_version` would surface as a
+// raw TypeError rather than a report about the bundle.
+function isBundleManifest(value: unknown): value is BundleManifest {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const { supervisor_schema_version: version, dags } = value as Partial<BundleManifest>;
+  return (
+    // Rendered into the manifest verbatim, where the schema requires a non-empty
+    // string, so a truthy number or boolean would travel to Airflow as-is.
+    typeof version === "string" &&
+    version.length > 0 &&
+    typeof dags === "object" &&
+    dags !== null &&
+    // An array would pass the typeof check and yield Dags named "0", "1", ...
+    !Array.isArray(dags)
+  );
+}
+
+function isTaskIdList(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string" && item.length > 0);
 }
 
 async function loadEsbuild(): Promise<typeof import("esbuild")> {
@@ -193,33 +198,29 @@ export async function runPack(argv: readonly string[]): Promise<void> {
     });
 
     const manifest = readBundleManifest(stagingPath);
-    if (Object.keys(manifest.dags).length === 0) {
-      throw new Error(
-        `${args.entry} registered no tasks; call registerTask(...) before startCoordinator()`,
-      );
+    const dagEntries = Object.entries(manifest.dags);
+    if (dagEntries.length === 0) {
+      throw new Error(`${args.entry} served no Dags; pass them to serveDags(new DagRegistry(...))`);
     }
+    // Warn rather than fail, as airflow-go-pack does: the shared schema allows a
+    // Dag with no tasks.
+    for (const [dagId, dag] of dagEntries) {
+      if (dag.tasks.length === 0) {
+        process.stderr.write(`warning: dag ${JSON.stringify(dagId)} has no tasks\n`);
+      }
+    }
+    warnOnSuspiciousIds(manifest.dags);
 
-    const metadataYaml = renderMetadataYaml({
-      airflow_bundle_metadata_version: AIRFLOW_BUNDLE_METADATA_VERSION,
-      sdk: {
-        language: "typescript",
-        version: readSdkVersion(),
-        supervisor_schema_version: manifest.supervisor_schema_version,
-      },
-      source: args.source,
-      dags: manifest.dags,
+    const bundle = encodeBundle({
+      bundleManifest: manifest,
+      sdkVersion: readSdkVersion(),
+      entrypointName: args.source,
+      executable: readFileSync(stagingPath),
     });
-    const metadataLine = `${EMBEDDED_METADATA_PREFIX}${Buffer.from(metadataYaml, "utf-8").toString("base64")}\n`;
-    if (metadataLine.length > EMBEDDED_METADATA_MAX_BYTES) {
-      throw new Error(
-        `Embedded airflow metadata is ${metadataLine.length} bytes, ` +
-          `over the ${EMBEDDED_METADATA_MAX_BYTES} byte limit; reduce the number of registered tasks`,
-      );
-    }
-    writeFileSync(bundlePath, metadataLine + stripShebang(readFileSync(stagingPath, "utf-8")));
+    writeFileSync(bundlePath, bundle);
   } finally {
     rmSync(stagingPath, { force: true });
   }
 
-  console.log(`Wrote ${bundlePath} (airflow metadata embedded)`);
+  console.log(`Wrote ${bundlePath} (airflow metadata and integrity embedded)`);
 }

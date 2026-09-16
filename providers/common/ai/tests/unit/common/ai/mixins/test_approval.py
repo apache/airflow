@@ -148,6 +148,34 @@ class TestDeferForApproval:
 
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)
+    def test_modification_schema_overrides_output_param_schema(
+        self, mock_upsert, mock_trigger_cls, approval_op_with_modifications, context
+    ):
+        schema = {"type": "string", "enum": ["task_a", "task_b"]}
+
+        approval_op_with_modifications.defer_for_approval(context, "task_a", modification_schema=schema)
+
+        param = mock_upsert.call_args[1]["params"]["output"]
+        assert param["schema"] == schema
+
+    @patch(HITL_TRIGGER_PATH, autospec=True)
+    @patch(UPSERT_HITL_PATH)
+    def test_array_schema_passes_list_param_value(
+        self, mock_upsert, mock_trigger_cls, approval_op_with_modifications, context
+    ):
+        choices = ["task_a", "task_b"]
+        schema = {"type": "array", "items": {"type": "string", "enum": choices}, "examples": choices}
+
+        approval_op_with_modifications.defer_for_approval(context, ["task_a"], modification_schema=schema)
+
+        param = mock_upsert.call_args[1]["params"]["output"]
+        assert param["value"] == ["task_a"]
+        assert param["schema"] == schema
+        defer_kwargs = approval_op_with_modifications.defer.call_args[1]
+        assert defer_kwargs["kwargs"]["generated_output"] == '["task_a"]'
+
+    @patch(HITL_TRIGGER_PATH, autospec=True)
+    @patch(UPSERT_HITL_PATH)
     def test_no_modifications_params_empty(self, mock_upsert, mock_trigger_cls, approval_op, context):
         approval_op.defer_for_approval(context, "output")
 
@@ -279,6 +307,52 @@ class TestDeferForApproval:
             approval_op_with_modifications.execute_complete(
                 {}, generated_output="original output", event=event
             )
+
+    def test_approved_with_list_modified_output_is_serialized(self, approval_op_with_modifications):
+        event = {
+            "chosen_options": ["Approve"],
+            "responded_by_user": "editor",
+            "params_input": {"output": ["task_b", "task_c"]},
+        }
+
+        result = approval_op_with_modifications.execute_complete(
+            {}, generated_output='["task_a"]', event=event
+        )
+
+        assert result == '["task_b","task_c"]'
+
+    def test_approved_with_unmodified_list_output_returns_original(self, approval_op_with_modifications):
+        event = {
+            "chosen_options": ["Approve"],
+            "responded_by_user": "editor",
+            "params_input": {"output": ["task_a"]},
+        }
+
+        result = approval_op_with_modifications.execute_complete(
+            {}, generated_output='["task_a"]', event=event
+        )
+
+        assert result == '["task_a"]'
+
+    def test_approved_with_non_string_list_items_raises(self, approval_op_with_modifications):
+        event = {
+            "chosen_options": ["Approve"],
+            "responded_by_user": "editor",
+            "params_input": {"output": ["task_a", 2]},
+        }
+
+        with pytest.raises(HITLTriggerEventError, match="items must be strings, got int"):
+            approval_op_with_modifications.execute_complete({}, generated_output='["task_a"]', event=event)
+
+    def test_approved_with_cleared_output_raises(self, approval_op_with_modifications):
+        event = {
+            "chosen_options": ["Approve"],
+            "responded_by_user": "editor",
+            "params_input": {"output": None},
+        }
+
+        with pytest.raises(HITLTriggerEventError, match="must not be empty"):
+            approval_op_with_modifications.execute_complete({}, generated_output='["task_a"]', event=event)
 
     def test_approved_with_unmodified_output(self, approval_op_with_modifications):
         event = {

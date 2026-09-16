@@ -29,6 +29,7 @@ from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin
 from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
+from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.compat.sdk import BaseOperator
 
 try:
@@ -76,10 +77,25 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         See `pydantic-ai Agent docs <https://ai.pydantic.dev/api/agent/>`__
         for the full list.
     :param usage_limits: Optional pydantic-ai
-        :class:`~pydantic_ai.usage.UsageLimits` enforced on the run. Pass
-        ``UsageLimits(request_limit=..., total_tokens_limit=..., ...)`` to fail
-        the task when the agent exceeds the configured token, request, or tool
-        budget. ``None`` (default) means no enforcement.
+        :class:`~pydantic_ai.usage.UsageLimits` enforced on the run, or a dict
+        of the same fields (e.g.
+        ``{"cost_limit": "{{ params.budget }}", "request_limit": 5}``). The dict
+        form is templated: each value is rendered by Jinja like any other
+        ``template_fields`` entry, then coerced to that field's type (``Decimal``,
+        ``int``, or ``bool``). A value that cannot be coerced -- a Variable
+        that exists but is empty renders to ``""``, a typo renders to a
+        non-numeric string -- fails the task with a ``ValueError`` naming the
+        field and the rendered value, instead of silently disabling the
+        limit. A ``UsageLimits`` instance passed directly is used as-is and
+        is not templated or validated. ``None`` (default) means no
+        enforcement.
+
+        A dict that omits ``request_limit`` still gets pydantic-ai's default of
+        ``50`` requests -- pass ``"request_limit": None`` explicitly for no
+        request cap. This matches building a ``UsageLimits`` directly, but it is
+        easy to miss when moving from ``usage_limits=None`` to a dict that only
+        sets ``cost_limit``. See :ref:`howto/operator:llm` for the full set of
+        caveats.
     :param require_approval: If ``True``, the task defers after generating
         output and waits for a human reviewer to approve or reject via the
         HITL interface.  Default ``False``.
@@ -104,6 +120,7 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         "model_id",
         "system_prompt",
         "agent_params",
+        "usage_limits",
     )
 
     def __init__(
@@ -115,7 +132,7 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         system_prompt: str = "",
         output_type: type = str,
         agent_params: dict[str, Any] | None = None,
-        usage_limits: UsageLimits | None = None,
+        usage_limits: UsageLimits | dict[str, Any] | None = None,
         require_approval: bool = False,
         approval_timeout: timedelta | None = None,
         allow_modifications: bool = False,
@@ -134,6 +151,7 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         # user opts in, dump to a dict so the value is deserializable anywhere.
         self._serialize_model_output = serialize_output or not _CORE_WALKER
         self.agent_params = agent_params or {}
+        # No validation here -- see coerce_usage_limits() docstring for why.
         self.usage_limits = usage_limits
         self.require_approval = require_approval
         self.approval_timeout = approval_timeout
@@ -147,7 +165,7 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         Delegates to :meth:`~PydanticAIHook.get_hook` which looks up
         the connection's ``conn_type`` and instantiates the matching subclass
         (e.g. :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIAzureHook`
-        for ``pydanticai-azure`` connections).
+        for ``pydanticai_azure`` connections).
         """
         hook_params = {
             "model_id": self.model_id,
@@ -155,18 +173,16 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         return PydanticAIHook.get_hook(self.llm_conn_id, hook_params=hook_params)
 
     def execute(self, context: Context) -> Any:
-        if self.require_approval and not isinstance(self.prompt, str):
-            raise TypeError(
-                f"{type(self).__name__}: require_approval=True is not supported "
-                f"with a non-string prompt (got {type(self.prompt).__name__}). "
-                f"The approval review body renders the prompt as text. Return a "
-                f"str prompt, or disable require_approval."
-            )
+        if self.require_approval:
+            self.validate_approval_prompt()  # type: ignore[misc]
+
+        # Coerced first so a bad rendered value fails before the expensive setup below.
+        usage_limits = coerce_usage_limits(self.usage_limits)
 
         agent: Agent[object, Any] = self.llm_hook.create_agent(
             output_type=self.output_type, instructions=self.system_prompt, **self.agent_params
         )
-        result = agent.run_sync(self.prompt, usage_limits=self.usage_limits)
+        result = agent.run_sync(self.prompt, usage_limits=usage_limits)
         log_run_summary(self.log, result)
         output = result.output
 

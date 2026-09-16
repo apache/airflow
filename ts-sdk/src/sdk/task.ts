@@ -37,8 +37,8 @@ export interface TaskContext {
    * AbortSignal that fires when Airflow terminates the task subprocess
    * with SIGTERM or SIGINT.
    *
-   * Pass this signal to `fetch()`, timers, or other abortable APIs for
-   * cooperative cancellation and cleanup.
+   * Pass this signal to `fetch()`, timers, or any other API that accepts an
+   * abort signal for cooperative cancellation and cleanup.
    */
   readonly signal: AbortSignal;
 }

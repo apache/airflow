@@ -71,16 +71,58 @@ How it works
 When a task fails, ``LLMRetryPolicy``:
 
 1. Sends the exception message to the configured LLM. By default, the message
-   is first masked through Airflow's secrets masker (see ``redact_exception``
-   below) before it is added to the prompt.
+   is first masked through Airflow's secrets masker (see ``redactor`` below)
+   and truncated to ``max_exception_length`` characters before it is added
+   to the prompt.
 2. The LLM classifies the error into a category (``rate_limit``, ``auth``,
-   ``network``, ``data``, ``transient``, ``permanent``)
+   ``network``, ``data``, ``resource``, ``transient``, ``permanent``)
 3. Based on the classification, returns RETRY (with a suggested delay) or FAIL
 4. The classification reason is logged in the task logs
+
+This classification call is a separate LLM request, made by ``LLMRetryPolicy``
+itself rather than by an operator -- it is not subject to an operator's
+``usage_limits``, and it runs on every task failure regardless
+of any cost cap configured on the failing task. It is bounded by ``timeout``
+and ``max_exception_length``, but not by a cost limit.
 
 If the LLM call fails (provider down, timeout, bad credentials), the policy
 falls back to ``fallback_rules`` if configured, or to the task's standard
 retry behaviour.
+
+What the model can and cannot do
+--------------------------------
+
+The model answers two questions: retry or not, and how long to wait. It is
+given no tools and there is no way to attach any, so it cannot run code, call
+an API, read a connection, or reach your data. Beyond your ``instructions``,
+it sees only the exception's class name, the exception message (after
+redaction and truncation), and how many attempts are left. The prompt says
+``attempt {try_number} of {max_tries}``, so the model knows the limit, not
+just where it is right now -- that is what makes an instruction like "retry
+once, then stop" (see the Snowflake example below) actually work. It returns
+four fields: ``category``, ``should_retry``, ``suggested_delay_seconds``, and
+``reasoning``. Only ``should_retry`` and ``suggested_delay_seconds`` affect
+the run.
+
+``category`` and ``reasoning`` are only recorded on a RETRY. They are written
+to the task instance's ``retry_reason`` (truncated to 500 characters, see
+below), then cleared once the next attempt starts running. On a FAIL they are
+not written anywhere -- they only show up in the task log.
+
+Two limits are worth knowing about:
+
+* RETRY cannot give a task more attempts than ``retries`` allows. FAIL, though, ends the task
+  straight away even when attempts were left, so a wrong classification costs
+  the task the retries it would otherwise have had.
+* A positive ``suggested_delay_seconds`` is used as returned. There is no
+  upper limit -- a task's own ``max_retry_delay`` does not clamp it. But 0 or
+  a negative value is not used as a delay at all: it is treated the same as
+  no delay, so the task's own ``retry_delay`` / ``retry_exponential_backoff``
+  / ``max_retry_delay`` apply instead (see
+  :doc:`apache-airflow:core-concepts/tasks`). A model told to retry
+  immediately can still wait out the task's default delay. If particular
+  delays matter to you, state them in ``instructions`` as the examples below
+  do.
 
 Custom instructions
 -------------------
@@ -158,22 +200,71 @@ Parameters
    * - ``timeout``
      - 30.0
      - Max seconds to wait for the LLM response before falling back.
+   * - ``redactor``
+     - None (uses ``redact_registered_secrets``)
+     - Callable ``(str) -> str`` applied to the exception's string
+       representation before it is added to the classification prompt. The
+       default only masks values already registered via ``mask_secret()``
+       (e.g. connection passwords Airflow captured while resolving the
+       failing task's connections) -- it is not general-purpose PII
+       detection and will not catch arbitrary sensitive strings that were
+       never registered as secrets. Passing a custom callable **replaces**
+       the default masker entirely rather than stacking on top of it.
    * - ``redact_exception``
      - True
-     - When ``True``, the exception's string representation is passed through
-       Airflow's secrets masker before being added to the classification
-       prompt. This only masks values already registered via
-       ``mask_secret()`` (e.g. connection passwords Airflow captured while
-       resolving the failing task's connections) -- it is not general-purpose
-       PII detection and will not catch arbitrary sensitive strings that were
-       never registered as secrets. Set to ``False`` only if you are certain
-       your exception messages contain no sensitive data and you need the
-       raw text for accurate classification.
+     - Whether to redact the exception's string representation before it is
+       added to the classification prompt. Set to ``False`` to disable
+       redaction entirely. Raises ``ValueError`` at construction time if
+       combined with an explicit ``redactor``.
+   * - ``max_exception_length``
+     - 4096
+     - Maximum number of characters of the (already redacted) exception
+       message included in the prompt. Longer messages are truncated with a
+       trailing ``"... (truncated)"`` marker. Must be a positive integer.
+
+Custom redactors
+----------------
+
+The default ``redactor`` only masks values already registered with Airflow's
+secrets masker via ``mask_secret()``. It does not detect free-text PII --
+email addresses, customer names, account numbers -- that were never
+registered as secrets. If your task's exception messages can contain that
+kind of data, supply your own ``redactor`` callable. It **replaces** the
+default masker rather than running in addition to it, so combine your own
+logic with :func:`~airflow.providers.common.ai.policies.retry.redact_registered_secrets`
+yourself if you still want known-secret masking too:
+
+.. code-block:: python
+
+    import re
+
+    from airflow.providers.common.ai.policies.retry import redact_registered_secrets
+
+    EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
+
+
+    def redact_emails_and_secrets(message: str) -> str:
+        return redact_registered_secrets(EMAIL_RE.sub("<email>", message))
+
+
+    llm_policy = LLMRetryPolicy(
+        llm_conn_id="pydanticai_default",
+        redactor=redact_emails_and_secrets,
+        max_exception_length=2048,  # keep long tracebacks from inflating token cost
+    )
+
+To disable redaction entirely (for example, if you are certain your
+exception messages contain no sensitive data and need the raw text for
+accurate classification), pass ``redact_exception=False``:
+
+.. code-block:: python
+
+    LLMRetryPolicy(llm_conn_id="pydanticai_default", redact_exception=False)
 
 Local LLM support
 -----------------
 
-By default, ``redact_exception`` already masks known secrets before the
+By default, the built-in ``redactor`` already masks known secrets before the
 exception data reaches the LLM provider. For environments where exception
 data must not leave your own infrastructure at all -- even in masked form --
 point to a local model via Ollama or vLLM instead, so the classification

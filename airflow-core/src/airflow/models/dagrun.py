@@ -286,7 +286,7 @@ class DagRun(Base, LoggingMixin):
     # This is nullable because it's too costly to migrate dagruns created prior
     # to this column's addition (Airflow 3.2.0). If you want a reasonable
     # meaningful non-null value, use ``dr.created_at or dr.run_after``.
-    created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=True, default=timezone.utcnow)
+    created_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True, default=timezone.utcnow)
     updated_at: Mapped[datetime | None] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=True
     )
@@ -393,6 +393,14 @@ class DagRun(Base, LoggingMixin):
     backfill = relationship(Backfill, uselist=False)
     backfill_max_active_runs = association_proxy("backfill", "max_active_runs")
     max_active_runs = association_proxy("dag_model", "max_active_runs")
+
+    @property
+    def team_name(self) -> str | None:
+        """Name of the team owning this run's Dag, or ``None`` when it is not team-owned."""
+        # Gate before touching ``dag_model``: single-team deployments must not pay for the load.
+        if not airflow_conf.getboolean("core", "multi_team"):
+            return None
+        return self.dag_model.team_name if self.dag_model else None
 
     note = association_proxy("dag_run_note", "content", creator=_creator_note)
 
@@ -748,7 +756,6 @@ class DagRun(Base, LoggingMixin):
 
         :meta private:
         """
-        from airflow.models.backfill import BackfillDagRun
         from airflow.models.dag import DagModel
 
         query = (
@@ -756,13 +763,11 @@ class DagRun(Base, LoggingMixin):
             .with_hint(cls, "USE INDEX (idx_dag_run_running_dags)", dialect_name="mysql")
             .where(cls.state == DagRunState.RUNNING)
             .join(DagModel, DagModel.dag_id == cls.dag_id)
-            .join(BackfillDagRun, BackfillDagRun.dag_run_id == DagRun.id, isouter=True)
             .where(
                 DagModel.is_paused == false(),
                 DagModel.is_stale == false(),
             )
             .order_by(
-                nulls_first(cast("ColumnElement[Any]", BackfillDagRun.sort_ordinal), session=session),
                 nulls_first(cast("ColumnElement[Any]", cls.last_scheduling_decision), session=session),
                 cls.run_after,
             )
@@ -1018,7 +1023,7 @@ class DagRun(Base, LoggingMixin):
             session.execute(
                 update(DagModel)
                 .where(or_(*filter_query))
-                .values(is_paused=True)
+                .values(is_paused=True, is_draining=False)
                 .execution_options(synchronize_session="fetch")
             )
             session.add(
@@ -1791,9 +1796,6 @@ class DagRun(Base, LoggingMixin):
             else:
                 true_delay = first_start_date - self.run_after
                 if true_delay.total_seconds() > 0:
-                    stats.timing(
-                        f"dagrun.{dag.dag_id}.first_task_scheduling_delay", true_delay, tags=self.stats_tags
-                    )
                     stats.timing("dagrun.first_task_scheduling_delay", true_delay, tags=self.stats_tags)
                 if self.queued_at is not None:
                     start_delay = first_start_date - self.queued_at

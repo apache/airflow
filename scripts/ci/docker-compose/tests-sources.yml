@@ -44,6 +44,7 @@ services:
       - ../../../providers/alibaba/tests:/opt/airflow/providers/alibaba/tests
       - ../../../providers/amazon/tests:/opt/airflow/providers/amazon/tests
       - ../../../providers/anthropic/tests:/opt/airflow/providers/anthropic/tests
+      - ../../../providers/apache/arrow/tests:/opt/airflow/providers/apache/arrow/tests
       - ../../../providers/apache/beam/tests:/opt/airflow/providers/apache/beam/tests
       - ../../../providers/apache/cassandra/tests:/opt/airflow/providers/apache/cassandra/tests
       - ../../../providers/apache/drill/tests:/opt/airflow/providers/apache/drill/tests
@@ -93,6 +94,7 @@ services:
       - ../../../providers/grpc/tests:/opt/airflow/providers/grpc/tests
       - ../../../providers/hashicorp/tests:/opt/airflow/providers/hashicorp/tests
       - ../../../providers/http/tests:/opt/airflow/providers/http/tests
+      - ../../../providers/ibm/db2/tests:/opt/airflow/providers/ibm/db2/tests
       - ../../../providers/ibm/mq/tests:/opt/airflow/providers/ibm/mq/tests
       - ../../../providers/imap/tests:/opt/airflow/providers/imap/tests
       - ../../../providers/influxdb/tests:/opt/airflow/providers/influxdb/tests

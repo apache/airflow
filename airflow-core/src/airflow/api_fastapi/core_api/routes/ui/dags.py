@@ -41,6 +41,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryDagDisplayNamePrefixPatternSearch,
     QueryDagIdPatternSearch,
     QueryDagIdPrefixPatternSearch,
+    QueryDagSchedulingStateFilter,
     QueryExcludeStaleFilter,
     QueryFavoriteFilter,
     QueryHasAssetScheduleFilter,
@@ -68,7 +69,6 @@ from airflow.api_fastapi.core_api.datamodels.ui.dags import (
     DAGWithLatestDagRunsResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.routes.ui.dashboard import STATE_COUNT_CAP
 from airflow.api_fastapi.core_api.security import (
     GetUserDep,
     ReadableDagsFilterDep,
@@ -79,9 +79,12 @@ from airflow.models import DagModel, DagRun
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.hitl import HITLDetail
 from airflow.models.taskinstance import TaskInstance
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 
 dags_router = AirflowRouter(prefix="/dags", tags=["DAG"])
+
+# Per-dag run counts read at most this many rows per state; the UI shows "N+" at the cap.
+STATE_COUNT_CAP = 1000
 
 
 @dags_router.get(
@@ -111,6 +114,7 @@ def get_dags(
     dag_display_name_prefix_pattern: QueryDagDisplayNamePrefixPatternSearch,
     exclude_stale: QueryExcludeStaleFilter,
     paused: QueryPausedFilter,
+    scheduling_state: QueryDagSchedulingStateFilter,
     has_import_errors: QueryHasImportErrorsFilter,
     last_dag_run_state: QueryLastDagRunStateFilter,
     dag_run_state: QueryAnyDagRunStateFilter,
@@ -158,6 +162,7 @@ def get_dags(
         filters=[
             exclude_stale,
             paused,
+            scheduling_state,
             has_import_errors,
             dag_id_pattern,
             dag_id_prefix_pattern,
@@ -192,6 +197,25 @@ def get_dags(
         DagFavorite.user_id == user_id, DagFavorite.dag_id.in_([dag.dag_id for dag in dags])
     )
     favorite_dag_ids = set(session.scalars(favorites_select))
+
+    has_unfinished_runs_by_dag_id: dict[str, bool] = {}
+    if dags:
+        unfinished_run_exists = (
+            select(DagRun.id)
+            .where(
+                DagRun.dag_id == DagModel.dag_id,
+                DagRun.state.in_(State.unfinished_dr_states),
+            )
+            .exists()
+        )
+        has_unfinished_runs_by_dag_id = {
+            dag_id: has_unfinished_runs
+            for dag_id, has_unfinished_runs in session.execute(
+                select(DagModel.dag_id, unfinished_run_exists).where(
+                    DagModel.dag_id.in_([dag.dag_id for dag in dags])
+                )
+            )
+        }
 
     recent_dag_runs: list = []
     if dags:
@@ -265,6 +289,7 @@ def get_dags(
             {
                 "asset_expression": dag.asset_expression,
                 "latest_dag_runs": [],
+                "has_unfinished_runs": has_unfinished_runs_by_dag_id[dag.dag_id],
                 "pending_actions": pending_actions_by_dag_id[dag.dag_id],
                 "is_favorite": dag.dag_id in favorite_dag_ids,
                 "team_name": team_names_by_dag_id.get(dag.dag_id),
@@ -319,7 +344,12 @@ def get_dag_timetable_types(
 
 @dags_router.get(
     "/{dag_id}/latest_run",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN))],
 )
 def get_latest_run_info(dag_id: str, session: SessionDep) -> DAGRunLightResponse | None:

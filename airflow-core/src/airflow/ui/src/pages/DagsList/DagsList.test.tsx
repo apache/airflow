@@ -17,29 +17,88 @@
  * under the License.
  */
 import "@testing-library/jest-dom";
-import { render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { delay, http, HttpResponse } from "msw";
+import { setupServer, type SetupServer } from "msw/node";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { DAGS_LIST_DISPLAY_KEY } from "src/constants/localStorage";
+import { handlers } from "src/mocks/handlers";
 import { AppWrapper } from "src/utils/AppWrapper";
 
-afterEach(() => localStorage.clear());
+let server: SetupServer;
+
+beforeAll(() => {
+  server = setupServer(...handlers);
+  server.listen({ onUnhandledRequest: "bypass" });
+});
+
+afterEach(() => {
+  server.resetHandlers();
+  localStorage.clear();
+});
+afterAll(() => server.close());
 
 describe("Dag Filters", () => {
+  it("passes an exact scheduling state from the URL to the API", async () => {
+    let requestedSchedulingState: string | null = null;
+
+    server.use(
+      http.get("/ui/dags", ({ request }) => {
+        requestedSchedulingState = new URL(request.url).searchParams.get("scheduling_state");
+
+        return HttpResponse.json({ dags: [], total_entries: 0 });
+      }),
+    );
+
+    render(<AppWrapper initialEntries={["/dags?scheduling_state=active"]} />);
+
+    await waitFor(() => expect(requestedSchedulingState).toBe("active"));
+    expect(await screen.findByTestId("scheduling_state-pill")).toHaveTextContent("schedulingState.active");
+  });
+
   it("Filter by selected last run state", async () => {
     render(<AppWrapper initialEntries={["/dags"]} />);
 
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
 
-    const trigger = within(screen.getByTestId("dags-last-run-state-filter")).getByRole("combobox");
+    fireEvent.click(screen.getByTestId("add-filter-button"));
+    fireEvent.click(await screen.findByTestId("add-filter-last_dag_run_state"));
 
-    await waitFor(() => trigger.click());
-    await waitFor(() => screen.getByTestId("dags-last-run-state-filter-success").click());
+    // A newly added select opens straight onto its options, so there is no trigger to click.
+    await waitFor(() => screen.getByTestId("last_dag_run_state-filter-success").click());
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
 
-    await waitFor(() => trigger.click());
-    await waitFor(() => screen.getByTestId("dags-last-run-state-filter-failed").click());
+    fireEvent.click(await screen.findByTestId("last_dag_run_state-pill"));
+    await waitFor(() => screen.getByTestId("last_dag_run_state-filter").click());
+    await waitFor(() => screen.getByTestId("last_dag_run_state-filter-failed").click());
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument());
+  });
+
+  it("keeps the listed Dags on screen while a newly added filter is still loading", async () => {
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument());
+
+    server.use(
+      http.get("/ui/dags", async () => {
+        await delay("infinite");
+
+        return HttpResponse.json({ dags: [], total_entries: 0 });
+      }),
+    );
+
+    fireEvent.click(screen.getByTestId("add-filter-button"));
+    fireEvent.click(await screen.findByTestId("add-filter-last_dag_run_state"));
+    await waitFor(() => screen.getByTestId("last_dag_run_state-filter-success").click());
+
+    await waitFor(() => {
+      expect(screen.getByTestId("last_dag_run_state-pill")).toBeInTheDocument();
+      expect(screen.getByRole("progressbar")).toBeVisible();
+    });
+
+    expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument();
+    expect(screen.queryAllByTestId("skeleton")).toHaveLength(0);
   });
 });
 

@@ -211,6 +211,12 @@ def raise_on_4xx_5xx_with_note(response: httpx.Response):
         e.add_note(
             f"Correlation-id={response.headers.get('correlation-id', None) or response.request.headers.get('correlation-id', 'no-correlation-id')}"
         )
+        # .detail sits behind the generic message and only reaches logs where a handler
+        # logs it by hand. Add it as a note too, so uncaught paths (e.g. the executor) keep it.
+
+        detail = getattr(e, "detail", None)
+        if detail is not None:
+            e.add_note(f"Server error detail: {detail!r}")
         raise
 
 
@@ -720,7 +726,7 @@ class TaskStateStoreOperations:
     def get(self, ti_id: uuid.UUID, key: str) -> TaskStateStoreResponse | ErrorResponse:
         """Get a task store value from the API server."""
         try:
-            resp = self.client.get(f"store/ti/{ti_id}/{key}")
+            resp = self.client.get(f"store/ti/{ti_id}/{quote(key, safe='')}")
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
                 log.debug("Task store key not found", ti_id=ti_id, key=key)
@@ -731,12 +737,12 @@ class TaskStateStoreOperations:
     def set(self, ti_id: uuid.UUID, key: str, value: JsonValue, expires_at: datetime | None) -> OKResponse:
         """Set a task store value via the API server."""
         body = TaskStateStorePutBody(value=value, expires_at=expires_at)
-        self.client.put(f"store/ti/{ti_id}/{key}", content=body.model_dump_json())
+        self.client.put(f"store/ti/{ti_id}/{quote(key, safe='')}", content=body.model_dump_json())
         return OKResponse(ok=True)
 
     def delete(self, ti_id: uuid.UUID, key: str) -> OKResponse:
         """Delete a single task store key via the API server."""
-        self.client.delete(f"store/ti/{ti_id}/{key}")
+        self.client.delete(f"store/ti/{ti_id}/{quote(key, safe='')}")
         return OKResponse(ok=True)
 
     def clear(self, ti_id: uuid.UUID) -> OKResponse:
@@ -1091,6 +1097,17 @@ class ConnectionTestOperations:
         self.client.patch(f"connection-tests/{id}", content=body.model_dump_json())
 
 
+class CallbackOperations:
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def run(self, callback_id: uuid.UUID) -> None:
+        """Exchange the single-use callback token for an execution token."""
+        self.client.patch(f"callbacks/{callback_id}/run")
+
+
 class BearerAuth(httpx.Auth):
     def __init__(self, token: str):
         self.token: str = token
@@ -1297,6 +1314,12 @@ class Client(httpx.Client):
     def connection_tests(self) -> ConnectionTestOperations:
         """Operations related to Connection Tests."""
         return ConnectionTestOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def callbacks(self) -> CallbackOperations:
+        """Operations related to Callbacks."""
+        return CallbackOperations(self)
 
     @lru_cache()  # type: ignore[misc]
     @property

@@ -63,6 +63,8 @@ def compare_attributes(path1, path2):
         # Storing last heartbeat for historic TIs is not interesting/useful
         "last_heartbeat_at",
         "id",
+        # Resolved through the dag_run relationship, not stored on the TI row
+        "team_name",
     }  # exclude attrs not necessary to be in TaskInstanceHistory
     if not diff:
         return

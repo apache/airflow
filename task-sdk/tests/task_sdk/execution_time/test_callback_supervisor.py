@@ -30,7 +30,12 @@ from unittest.mock import ANY, Mock, patch
 import pytest
 import structlog
 
-from airflow.sdk.execution_time.callback_supervisor import CallbackSubprocess, Path, execute_callback
+from airflow.sdk.execution_time.callback_supervisor import (
+    CallbackSubprocess,
+    Path,
+    execute_callback,
+    supervise_callback,
+)
 from airflow.sdk.execution_time.comms import (
     BundleInfo,
     ConnectionResult,
@@ -42,6 +47,8 @@ from airflow.sdk.execution_time.comms import (
     VariableResult,
     _RequestFrame,
 )
+
+from tests_common.test_utils.config import conf_vars
 
 
 def callback_no_args():
@@ -547,3 +554,57 @@ class TestCallbackSubprocessStart:
             self.mock_super_start.call_args.kwargs["target"]()
 
         assert exc_info.value.code == 1
+
+    @pytest.mark.parametrize("option_value", ["True", "False"])
+    def test_start_keeps_bare_fork_regardless_of_exec_option(self, base_start_kwargs, option_value):
+        """
+        ``[core] execute_tasks_new_python_interpreter`` is a task-process opt-in and must not reach the
+        callback child: its target is a closure, which only a bare fork can run.
+        """
+        with conf_vars({("core", "execute_tasks_new_python_interpreter"): option_value}):
+            CallbackSubprocess.start(**base_start_kwargs)
+
+        assert self.mock_super_start.call_args.kwargs.get("use_exec", False) is False
+
+
+class TestSuperviseCallbackExchangesTokenFirst:
+    """No callback code may run until the single-use token has been exchanged."""
+
+    CALLBACK_ID = "01890a5d-ac70-7a5b-b7d5-0dd5b1c7be47"
+
+    def _supervise(self, client):
+        return supervise_callback(
+            id=self.CALLBACK_ID,
+            callback_path="does.not.matter",
+            callback_kwargs={},
+            dag_rel_path=Path("dag.py"),
+            client=client,
+        )
+
+    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
+    @patch.object(CallbackSubprocess, "start")
+    def test_exchange_happens_before_the_subprocess_starts(self, mock_start, _nondumpable):
+        calls: list[str] = []
+        client = Mock()
+        client.callbacks.run.side_effect = lambda callback_id: calls.append("exchange")
+
+        def record_start(**kwargs):
+            calls.append("start")
+            return Mock(wait=Mock(return_value=0))
+
+        mock_start.side_effect = record_start
+
+        assert self._supervise(client) == 0
+        client.callbacks.run.assert_called_once_with(uuid.UUID(self.CALLBACK_ID))
+        assert calls == ["exchange", "start"]
+
+    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
+    @patch.object(CallbackSubprocess, "start")
+    def test_rejected_exchange_prevents_the_subprocess_from_starting(self, mock_start, _nondumpable):
+        client = Mock()
+        client.callbacks.run.side_effect = RuntimeError("409 Conflict: token already exchanged")
+
+        with pytest.raises(RuntimeError, match="already exchanged"):
+            self._supervise(client)
+
+        mock_start.assert_not_called()

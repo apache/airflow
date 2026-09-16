@@ -17,23 +17,88 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from unittest import mock
 from unittest.mock import call
 
 import pytest
 
-from airflow_breeze.global_constants import ALLOWED_POSTGRES_VERSIONS, CURRENT_POSTGRES_VERSIONS
+from airflow_breeze.global_constants import (
+    ALLOWED_POSTGRES_VERSIONS,
+    CI_IMAGE_SOURCES_HASH_LABEL,
+    CURRENT_POSTGRES_VERSIONS,
+)
+from airflow_breeze.params.build_ci_params import BuildCiParams
+from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.utils.docker_command_utils import (
     autodetect_docker_context,
     bring_all_compose_projects_down,
     check_docker_compose_version,
+    check_docker_is_running,
+    check_docker_permission_denied,
     check_docker_version,
     discover_running_compose_projects,
     enter_shell,
     get_images_to_pull,
     is_known_breeze_compose_project,
+    prepare_docker_build_command,
     pull_images_with_retries,
 )
+
+
+@pytest.mark.parametrize(
+    ("exception", "expected_message"),
+    [
+        pytest.param(
+            subprocess.TimeoutExpired(["docker", "info"], 30),
+            "[error]Docker did not respond within 30 seconds.[/]\n"
+            "[warning]Please make sure Docker is running and responsive.[/]",
+            id="timeout",
+        ),
+        pytest.param(
+            FileNotFoundError(2, "No such file or directory", "docker"),
+            "[error]Docker executable was not found.[/]\n"
+            "[warning]Please install Docker and ensure `docker` is available on PATH.[/]",
+            id="missing-executable",
+        ),
+    ],
+)
+@mock.patch("airflow_breeze.utils.docker_command_utils.console_print")
+@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
+def test_check_docker_is_running_reports_unavailable_docker(
+    mock_run_command, mock_console_print, exception, expected_message
+):
+    mock_run_command.side_effect = exception
+
+    with pytest.raises(SystemExit) as error:
+        check_docker_is_running()
+
+    assert error.value.code == 1
+    mock_run_command.assert_called_once_with(
+        ["docker", "info"],
+        no_output_dump_on_exception=True,
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=30,
+    )
+    mock_console_print.assert_called_once_with(expected_message)
+
+
+@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
+def test_check_docker_permission_denied_uses_bounded_info_probe(mock_run_command):
+    mock_run_command.return_value.returncode = 0
+
+    assert check_docker_permission_denied() is False
+
+    mock_run_command.assert_called_once_with(
+        ["docker", "info"],
+        no_output_dump_on_exception=True,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=30,
+    )
 
 
 @mock.patch("airflow_breeze.utils.docker_command_utils.check_docker_permission_denied")
@@ -553,3 +618,24 @@ def test_pull_images_with_retries_does_not_pull_when_all_images_are_present(mock
     assert pull_images_with_retries("breeze-test", env={}, skip_images={CI_IMAGE}) is True
     assert not any(c.args[0][:2] == ["docker", "pull"] for c in mock_run_command.call_args_list)
     mock_sleep.assert_not_called()
+
+
+@mock.patch("airflow_breeze.utils.docker_command_utils.calculate_ci_sources_hash")
+@mock.patch("airflow_breeze.utils.docker_command_utils.check_if_buildx_plugin_installed")
+def test_prepare_docker_build_command_labels_ci_image_with_sources_hash(
+    mock_check_if_buildx_plugin_installed, mock_calculate_ci_sources_hash
+):
+    mock_check_if_buildx_plugin_installed.return_value = False
+    mock_calculate_ci_sources_hash.return_value = "hash-of-sources"
+    command = prepare_docker_build_command(BuildCiParams())
+    label_index = command.index("--label")
+    assert command[label_index + 1] == f"{CI_IMAGE_SOURCES_HASH_LABEL}=hash-of-sources"
+
+
+@mock.patch("airflow_breeze.utils.docker_command_utils.check_if_buildx_plugin_installed")
+def test_prepare_docker_build_command_does_not_add_sources_hash_label_to_prod_image(
+    mock_check_if_buildx_plugin_installed,
+):
+    mock_check_if_buildx_plugin_installed.return_value = False
+    command = prepare_docker_build_command(BuildProdParams())
+    assert not any(flag.startswith(CI_IMAGE_SOURCES_HASH_LABEL) for flag in command)

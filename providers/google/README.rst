@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-google``
 
-Release: ``22.3.0``
+Release: ``22.5.0``
 
 
 Google services including:
@@ -43,7 +43,7 @@ This is a provider package for ``google`` provider. All classes for this provide
 are in ``airflow.providers.google`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/22.3.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/22.5.0/>`_.
 
 Installation
 ------------
@@ -57,9 +57,9 @@ The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 Requirements
 ------------
 
-==========================================  ====================================================================
+==========================================  ==================================================================
 PIP package                                 Version required
-==========================================  ====================================================================
+==========================================  ==================================================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.13.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
@@ -77,7 +77,7 @@ PIP package                                 Version required
 ``google-auth``                             ``>=2.29.0``
 ``google-auth-httplib2``                    ``>=0.0.1``
 ``google-genai``                            ``>=2.8.0``
-``google-cloud-aiplatform[evaluation]``     ``>=1.155.0``
+``google-cloud-aiplatform[evaluation]``     ``>=1.164.0``
 ``ray[default]``                            ``>=2.42.0; python_version < "3.13"``
 ``ray[default]``                            ``>=2.49.0; python_version >= "3.13" and python_version < "3.14"``
 ``ray[default]``                            ``>=2.55.0; python_version >= "3.14" and python_version < "3.15"``
@@ -122,12 +122,12 @@ PIP package                                 Version required
 ``google-cloud-run``                        ``>=0.10.0``
 ``google-cloud-batch``                      ``>=0.13.0``
 ``grpcio-gcp``                              ``>=0.2.2``
-``httpx``                                   ``>=0.25.0``
+``httpx2``                                  ``>=2.0.0``
 ``looker-sdk``                              ``>=22.4.0,!=24.18.0``
 ``pandas-gbq``                              ``>=0.7.0``
-``pandas``                                  ``>=2.1.2,<3; python_version < "3.13"``
-``pandas``                                  ``>=2.2.3,<3; python_version >= "3.13" and python_version < "3.14"``
-``pandas``                                  ``>=2.3.3,<3; python_version >= "3.14"``
+``pandas``                                  ``>=2.1.2; python_version < "3.13"``
+``pandas``                                  ``>=2.2.3; python_version >= "3.13" and python_version < "3.14"``
+``pandas``                                  ``>=2.3.3; python_version >= "3.14"``
 ``proto-plus``                              ``>=1.26.0``
 ``pyarrow``                                 ``>=18.0.0; python_version < "3.14"``
 ``pyarrow``                                 ``>=22.0.0; python_version >= "3.14"``
@@ -138,7 +138,7 @@ PIP package                                 Version required
 ``tenacity``                                ``>=8.3.0``
 ``immutabledict``                           ``>=4.2.0``
 ``types-protobuf``                          ``>=5.27.0,!=5.29.1.20250402``
-==========================================  ====================================================================
+==========================================  ==================================================================
 
 Optional cross provider package dependencies
 --------------------------------------------
@@ -157,6 +157,7 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 Dependent package                                                                                                         Extra
 ========================================================================================================================  ====================
 `apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                      ``amazon``
+`apache-airflow-providers-apache-beam <https://airflow.apache.org/docs/apache-airflow-providers-apache-beam>`_            ``apache.beam``
 `apache-airflow-providers-apache-cassandra <https://airflow.apache.org/docs/apache-airflow-providers-apache-cassandra>`_  ``apache.cassandra``
 `apache-airflow-providers-cncf-kubernetes <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes>`_    ``cncf.kubernetes``
 `apache-airflow-providers-common-messaging <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging>`_  ``common.messaging``
@@ -183,6 +184,7 @@ Optional dependencies
 ====================  ====================================================
 Extra                 Dependencies
 ====================  ====================================================
+``apache.beam``       ``apache-airflow-providers-apache-beam>=6.2.2``
 ``cncf.kubernetes``   ``apache-airflow-providers-cncf-kubernetes>=10.1.0``
 ``fab``               ``apache-airflow-providers-fab>=2.0.0``
 ``leveldb``           ``plyvel>=1.5.1; python_version < '3.13'``
@@ -198,7 +200,7 @@ Extra                 Dependencies
 ``postgres``          ``apache-airflow-providers-postgres``
 ``presto``            ``apache-airflow-providers-presto``
 ``salesforce``        ``apache-airflow-providers-salesforce``
-``sftp``              ``apache-airflow-providers-sftp``
+``sftp``              ``apache-airflow-providers-sftp>=5.3.3``
 ``ssh``               ``apache-airflow-providers-ssh``
 ``trino``             ``apache-airflow-providers-trino``
 ``http``              ``apache-airflow-providers-http``
@@ -207,4 +209,4 @@ Extra                 Dependencies
 ====================  ====================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/22.3.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/22.5.0/changelog.html>`_.
