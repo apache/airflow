@@ -296,9 +296,9 @@ Create a Job Definition
 
 - ``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN``, with the value being the PostgreSQL connection string in the following format using the values set during the `Database section <#create-the-rds-db-instance>`_ above:
 
-.. code-block:: bash
-
-   postgresql+psycopg://<username>:<password>@<endpoint>/<database_name>
+.. include:: general.rst
+  :start-after: .. BEGIN SQL_ALCHEMY_CONN
+  :end-before: .. END SQL_ALCHEMY_CONN
 
 7. Add other configuration as necessary for Airflow generally (see `here <https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html>`__), the Batch executor (see :ref:`here <config-options>`) or for remote logging (see :ref:`here <logging>`). Note that any configuration changes should be made across the entire Airflow environment to keep configuration consistent.
 
