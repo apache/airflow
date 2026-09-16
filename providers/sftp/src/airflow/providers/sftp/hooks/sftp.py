@@ -948,7 +948,7 @@ class SFTPHookAsync(BaseHook):
         :param remote_full_path: Full path to the remote file.
         :param local_full_path: Full path to the local file or a binary file-like buffer.
         :param chunk_size: Size of chunks to read at a time (default: 64KB).
-        :param prefetch: Whether to allow pipelined read-ahead requests (default: True). When
+        :param prefetch: Whether to allow read-ahead requests to be sent concurrently (default: True). When
             ``False``, only one request is kept in flight at a time, mirroring
             :meth:`SFTPHook.retrieve_file`'s ``prefetch`` semantics.
         """
@@ -1331,7 +1331,7 @@ class SFTPHookAsync(BaseHook):
 
         :param remote_full_path: full path to the remote directory
         :param local_full_path: full path to the local directory
-        :param prefetch: controls whether read-ahead requests are pipelined (default: True)
+        :param prefetch: whether read-ahead requests are sent concurrently (default: True)
         """
         if await asyncio.to_thread(Path(local_full_path).exists):
             raise AirflowException(f"{local_full_path} already exists")

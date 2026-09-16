@@ -1133,7 +1133,7 @@ class TestSFTPHookAsync:
     @pytest.mark.asyncio
     async def test_retrieve_file_to_path(self, sftp_hook_mocked):
         """
-        Assert that retrieve_file downloads to a local path using sftp.get with pipelined reads.
+        Assert that retrieve_file downloads to a local path using sftp.get with concurrent read-ahead requests.
         """
         hook, sftp_client_mock = sftp_hook_mocked
 
@@ -1146,7 +1146,7 @@ class TestSFTPHookAsync:
 
     @pytest.mark.asyncio
     async def test_retrieve_file_to_path_disables_prefetch(self, sftp_hook_mocked):
-        """Assert that prefetch=False disables pipelined reads by capping max_requests to 1."""
+        """Assert that prefetch=False limits read-ahead to one request in flight by capping max_requests to 1."""
         hook, sftp_client_mock = sftp_hook_mocked
 
         sftp_client = sftp_client_mock.__aenter__.return_value
