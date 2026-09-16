@@ -46,17 +46,19 @@ runs:
     - name: "Compute prek cache key"
       id: cache-key
       shell: bash
-      # Include the actual host ABI/OS and absolute environment paths, not only the target
-      # image platform. Restoring an archive is still followed by prek's environment validation.
+      # Built here rather than assembled from a version each caller formats for itself, which is how
+      # the readers ended up asking for keys no job had ever saved under. uv resolves the hook
+      # environments against the Python on PATH, so callers must run this after Breeze sets it up.
       env:
         PLATFORM: ${{ inputs.platform }}
         UV_VERSION: ${{ steps.versions.outputs.uv-version }}
         PREK_VERSION: ${{ steps.versions.outputs.prek-version }}
-        # Dependency changes in local hooks must not reuse an older environment identity.
-        PREK_CONFIG_HASH: >-
-          ${{ hashFiles('**/.pre-commit-config.yaml', '**/.pre-commit-hooks.yaml',
-          '**/pyproject.toml', '**/uv.lock', '**/setup.cfg', '**/setup.py') }}
-      run: python3 scripts/ci/prek_cache_key.py
+        PREK_CONFIG_HASH: ${{ hashFiles('**/.pre-commit-config.yaml') }}
+      run: |
+        PYTHON_VERSION=$(python3 -c 'import platform; print(platform.python_version())')
+        KEY="cache-prek-v12-${PLATFORM}-python${PYTHON_VERSION}-uv${UV_VERSION}-prek${PREK_VERSION}-${PREK_CONFIG_HASH}"
+        echo "Prek cache key: ${KEY}"
+        echo "key=${KEY}" >> "${GITHUB_OUTPUT}"
     - name: "Install uv"
       shell: bash
       run: pip install "uv==${UV_VERSION}"
@@ -89,6 +91,7 @@ runs:
       id: restore-prek-tar
       shell: bash
       run: |
+        started_at=${SECONDS}
         if [ ! -f /tmp/cache-prek.tar.gz ]; then
           echo "Cache tarball missing. Expected /tmp/cache-prek.tar.gz"
           echo "tar-restored=false" >> "${GITHUB_OUTPUT}"
@@ -97,7 +100,7 @@ runs:
         if tar -C "${HOME}" -xzf /tmp/cache-prek.tar.gz && [[ -d "${HOME}/.cache/prek" ]]; then
           echo "Prek cache restored"
           echo "tar-restored=true" >> "${GITHUB_OUTPUT}"
-          echo "duration-seconds=${SECONDS}" >> "${GITHUB_OUTPUT}"
+          echo "duration-seconds=$((SECONDS - started_at))" >> "${GITHUB_OUTPUT}"
         else
           echo "Cache extraction failed; treating this as a miss"
           echo "tar-restored=false" >> "${GITHUB_OUTPUT}"
@@ -117,11 +120,21 @@ runs:
       # This is idempotent on a healthy hit; prek validates/reuses it and repairs misses normally.
       # Keep the existing bounded retries for transient toolchain download failures.
       run: |
+        before_markers=$(mktemp)
+        after_markers=$(mktemp)
+        trap 'rm -f "${before_markers}" "${after_markers}"' EXIT
+        change_detection_uncertain=false
+        if ! python3 scripts/ci/prek_cache_markers.py "${HOME}/.cache/prek" "${before_markers}"; then
+          echo "Could not snapshot prek installation metadata before installation" >&2
+          change_detection_uncertain=true
+        fi
+
+        started_at=${SECONDS}
         max_attempts=4
         for attempt in $(seq 1 "${max_attempts}"); do
           if prek install-hooks; then
-            echo "duration-seconds=${SECONDS}" >> "${GITHUB_OUTPUT}"
-            exit 0
+            installation_succeeded=true
+            break
           fi
           if [[ "${attempt}" -eq "${max_attempts}" ]]; then
             break
@@ -130,8 +143,25 @@ runs:
           echo "prek install-hooks failed (attempt ${attempt}/${max_attempts}), retrying in ${delay}s"
           sleep "${delay}"
         done
-        echo "prek install-hooks failed after ${max_attempts} attempts" >&2
-        exit 1
+        if [[ "${installation_succeeded:-false}" != "true" ]]; then
+          echo "installation-succeeded=false" >> "${GITHUB_OUTPUT}"
+          echo "cache-changed=false" >> "${GITHUB_OUTPUT}"
+          echo "change-detection-uncertain=${change_detection_uncertain}" >> "${GITHUB_OUTPUT}"
+          echo "prek install-hooks failed after ${max_attempts} attempts" >&2
+          exit 1
+        fi
+
+        cache_changed=false
+        if ! python3 scripts/ci/prek_cache_markers.py "${HOME}/.cache/prek" "${after_markers}"; then
+          echo "Could not snapshot prek installation metadata after installation" >&2
+          change_detection_uncertain=true
+        elif [[ "${change_detection_uncertain}" != "true" ]] && ! cmp -s "${before_markers}" "${after_markers}"; then
+          cache_changed=true
+        fi
+        echo "installation-succeeded=true" >> "${GITHUB_OUTPUT}"
+        echo "cache-changed=${cache_changed}" >> "${GITHUB_OUTPUT}"
+        echo "change-detection-uncertain=${change_detection_uncertain}" >> "${GITHUB_OUTPUT}"
+        echo "duration-seconds=$((SECONDS - started_at))" >> "${GITHUB_OUTPUT}"
       working-directory: ${{ github.workspace }}
     - name: "Show prek log"
       shell: bash
@@ -145,18 +175,38 @@ runs:
         SAVE_CACHE: ${{ inputs.save-cache }}
         STASH_HIT: ${{ steps.restore-prek-cache.outputs.stash-hit }}
         TAR_RESTORED: ${{ steps.restore-prek-tar.outputs.tar-restored }}
+        INSTALLATION_SUCCEEDED: ${{ steps.install-hooks.outputs.installation-succeeded }}
+        CACHE_CHANGED: ${{ steps.install-hooks.outputs.cache-changed }}
+        CHANGE_DETECTION_UNCERTAIN: ${{ steps.install-hooks.outputs.change-detection-uncertain }}
       run: |
         SAVE=false
-        if [[ "${SAVE_CACHE}" == "true" ]]; then
-          if [[ "${STASH_HIT}" != "true" || "${TAR_RESTORED}" != "true" || \
-                "${EVENT_NAME}" == "schedule" ]]; then
-            SAVE=true
-          fi
+        REASON=unchanged
+        if [[ "${SAVE_CACHE}" != "true" ]]; then
+          REASON=reader
+        elif [[ "${INSTALLATION_SUCCEEDED}" != "true" ]]; then
+          REASON=installation-failed
+        elif [[ "${STASH_HIT}" != "true" ]]; then
+          SAVE=true
+          REASON=cache-miss
+        elif [[ "${TAR_RESTORED}" != "true" ]]; then
+          SAVE=true
+          REASON=extraction-failed
+        elif [[ "${CACHE_CHANGED}" == "true" ]]; then
+          SAVE=true
+          REASON=cache-repaired
+        elif [[ "${EVENT_NAME}" == "schedule" ]]; then
+          SAVE=true
+          REASON=scheduled-republication
+        elif [[ "${CHANGE_DETECTION_UNCERTAIN}" == "true" ]]; then
+          SAVE=true
+          REASON=change-detection-uncertain
         fi
         echo "save=${SAVE}" >> "${GITHUB_OUTPUT}"
+        echo "reason=${REASON}" >> "${GITHUB_OUTPUT}"
     - name: "Prepare .tar file from prek cache"
       id: archive-prek
       run: |
+        started_at=${SECONDS}
         # Preserve permissions and links. Prefer bounded parallel compression when available;
         # the gzip fallback requires no additional package installation on a cold runner.
         if command -v pigz >/dev/null 2>&1; then
@@ -165,7 +215,7 @@ runs:
           compressor=(gzip -1)
         fi
         tar -C "${HOME}" -cf - .cache/prek | "${compressor[@]}" > /tmp/cache-prek.tar.gz
-        echo "duration-seconds=${SECONDS}" >> "${GITHUB_OUTPUT}"
+        echo "duration-seconds=$((SECONDS - started_at))" >> "${GITHUB_OUTPUT}"
       shell: bash
       if: steps.cache-policy.outputs.save == 'true'
     - name: "Save prek cache"
@@ -189,6 +239,9 @@ runs:
         INSTALL_SECONDS: ${{ steps.install-hooks.outputs.duration-seconds }}
         ARCHIVE_SECONDS: ${{ steps.archive-prek.outputs.duration-seconds }}
         CACHE_SAVED: ${{ steps.cache-policy.outputs.save }}
+        SAVE_REASON: ${{ steps.cache-policy.outputs.reason }}
+        CACHE_CHANGED: ${{ steps.install-hooks.outputs.cache-changed }}
+        CHANGE_DETECTION_UNCERTAIN: ${{ steps.install-hooks.outputs.change-detection-uncertain }}
       run: |
         {
           printf '### Prek cache preparation\n\n'
@@ -198,6 +251,9 @@ runs:
           printf '| Archive restored | %s |\n' "${TAR_RESTORED:-not run}"
           printf '| Extract (seconds) | %s |\n' "${RESTORE_SECONDS:-not run}"
           printf '| Validate/install (seconds) | %s |\n' "${INSTALL_SECONDS:-not run}"
+          printf '| Installation metadata changed | %s |\n' "${CACHE_CHANGED:-not run}"
+          printf '| Change detection uncertain | %s |\n' "${CHANGE_DETECTION_UNCERTAIN:-not run}"
           printf '| Compress (seconds) | %s |\n' "${ARCHIVE_SECONDS:-not run}"
           printf '| Cache refresh selected | %s |\n' "${CACHE_SAVED:-not run}"
+          printf '| Save reason | %s |\n' "${SAVE_REASON:-not run}"
         } >> "${GITHUB_STEP_SUMMARY}"

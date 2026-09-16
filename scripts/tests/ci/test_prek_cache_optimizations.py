@@ -17,9 +17,7 @@
 
 from __future__ import annotations
 
-import itertools
 import os
-import re
 import shlex
 import shutil
 import subprocess
@@ -28,7 +26,7 @@ from pathlib import Path
 
 import pytest
 import yaml
-from ci import prek_cache_key
+from ci import prek_cache_markers
 
 ROOT = Path(__file__).resolve().parents[3]
 PREK_ACTION = ".github/actions/install-prek/action.yml"
@@ -90,107 +88,113 @@ printf '%s\n' "${name} $*" >> "${COMMAND_LOG}"
 if [[ -n "${FAIL_MATCH:-}" && "${name} $*" == *"${FAIL_MATCH}"* ]]; then
     exit 42
 fi
+if [[ "${name}" == "prek" ]]; then
+    count_file="${COMMAND_COUNT}"
+    count=0
+    [[ ! -f "${count_file}" ]] || count=$(<"${count_file}")
+    count=$((count + 1))
+    printf '%s' "${count}" > "${count_file}"
+    if [[ "${WRITE_MARKER_ATTEMPT:-}" == "${count}" ]]; then
+        marker="${HOME}/.cache/prek/hooks/python-new/.prek-hook.json"
+        mkdir -p "${marker%/*}"
+        printf '{"schema_version":1}' > "${marker}"
+    fi
+    if [[ "${WRITE_LOG_ONLY:-false}" == "true" ]]; then
+        mkdir -p "${HOME}/.cache/prek"
+        printf 'diagnostic\n' >> "${HOME}/.cache/prek/prek.log"
+    fi
+    if (( count <= ${FAIL_ATTEMPTS:-0} )); then
+        exit 42
+    fi
+fi
 """
     )
     command.chmod(0o755)
     for name in ("prek", "sleep"):
         (tools / name).symlink_to(command)
-    return {"PATH": f"{tools}:{os.environ['PATH']}", "COMMAND_LOG": str(log)}
+    return {
+        "PATH": f"{tools}:{os.environ['PATH']}",
+        "COMMAND_LOG": str(log),
+        "COMMAND_COUNT": str(tmp_path / "command-count"),
+    }
 
 
 def read_commands(env):
     return [shlex.split(line) for line in Path(env["COMMAND_LOG"]).read_text().splitlines()]
 
 
-def test_cache_key_is_stable_and_safe():
-    first = {"z": "x/y\n", "a": "1"}
-    key = prek_cache_key.compute_cache_key(first)
-    assert key == prek_cache_key.compute_cache_key(dict(reversed(list(first.items()))))
-    assert re.fullmatch(r"cache-prek-v11-[0-9a-f]{64}", key)
-
-
-@pytest.fixture
-def identity_inputs(tmp_path):
-    return {
-        "PLATFORM": "linux/amd64",
-        "UV_VERSION": "1",
-        "PREK_VERSION": "2",
-        "PREK_CONFIG_HASH": "abc",
-        "GITHUB_WORKSPACE": str(tmp_path),
-    }
-
-
-@pytest.mark.parametrize("field", prek_cache_key.REQUIRED_INPUTS)
-def test_cache_identity_requires_inputs(identity_inputs, field):
-    identity_inputs.pop(field)
-    with pytest.raises(ValueError, match=field):
-        prek_cache_key.build_cache_identity(identity_inputs)
+def test_cache_key_keeps_only_environment_inputs():
+    step = find_step(PREK_ACTION, step_id="cache-key")
+    assert "cache-prek-v12-${PLATFORM}" in step["run"]
+    assert "python${PYTHON_VERSION}" in step["run"]
+    assert "uv${UV_VERSION}" in step["run"]
+    assert "prek${PREK_VERSION}" in step["run"]
+    assert step["env"]["PREK_CONFIG_HASH"] == "${{ hashFiles('**/.pre-commit-config.yaml') }}"
 
 
 @pytest.mark.parametrize(
-    "field",
+    ("inputs", "expected_save", "expected_reason"),
     [
-        *prek_cache_key.REQUIRED_INPUTS,
-        "system",
-        "machine",
-        "os_id",
-        "os_version",
-        "python_version",
-        "python_abi",
-        "python_executable",
-        "python_prefix",
-        "home",
+        ({}, False, "reader"),
+        ({"SAVE_CACHE": "true", "INSTALLATION_SUCCEEDED": "false"}, False, "installation-failed"),
+        ({"SAVE_CACHE": "true", "STASH_HIT": "false"}, True, "cache-miss"),
+        ({"SAVE_CACHE": "true", "TAR_RESTORED": "false"}, True, "extraction-failed"),
+        ({"SAVE_CACHE": "true", "CACHE_CHANGED": "true"}, True, "cache-repaired"),
+        ({"SAVE_CACHE": "true", "EVENT_NAME": "schedule"}, True, "scheduled-republication"),
+        (
+            {"SAVE_CACHE": "true", "CHANGE_DETECTION_UNCERTAIN": "true"},
+            True,
+            "change-detection-uncertain",
+        ),
+        ({"SAVE_CACHE": "true"}, False, "unchanged"),
     ],
 )
-def test_every_environment_component_invalidates_key(identity_inputs, field):
-    identity = prek_cache_key.build_cache_identity(identity_inputs)
-    changed = {**identity, field: identity[field] + "-changed"}
-    assert prek_cache_key.compute_cache_key(identity) != prek_cache_key.compute_cache_key(changed)
-
-
-def test_cache_identity_handles_missing_os_release(identity_inputs, monkeypatch):
-    def unavailable():
-        raise OSError("not available")
-
-    monkeypatch.setattr(prek_cache_key.platform, "freedesktop_os_release", unavailable)
-    identity = prek_cache_key.build_cache_identity(identity_inputs)
-    assert identity["os_id"] == identity["os_version"] == ""
-
-
-def test_cache_key_appends_output(identity_inputs, sandbox, monkeypatch):
-    for key, value in {**identity_inputs, **sandbox}.items():
-        monkeypatch.setenv(key, value)
-    Path(sandbox["GITHUB_OUTPUT"]).write_text("existing=value\n")
-    prek_cache_key.main()
-    assert read_outputs(sandbox)["existing"] == "value"
-    assert read_outputs(sandbox)["key"].startswith("cache-prek-v11-")
-
-
-@pytest.mark.parametrize(
-    "save,hit,restored,event",
-    list(
-        itertools.product(
-            ("true", "false"),
-            ("true", "false", ""),
-            ("true", "false", ""),
-            ("pull_request", "schedule", "push"),
-        )
-    ),
-)
-def test_cache_refresh_policy(sandbox, save, hit, restored, event):
-    env = {**sandbox, "SAVE_CACHE": save, "STASH_HIT": hit, "TAR_RESTORED": restored, "EVENT_NAME": event}
+def test_cache_refresh_policy(sandbox, inputs, expected_save, expected_reason):
+    env = {
+        **sandbox,
+        "SAVE_CACHE": "false",
+        "STASH_HIT": "true",
+        "TAR_RESTORED": "true",
+        "INSTALLATION_SUCCEEDED": "true",
+        "CACHE_CHANGED": "false",
+        "CHANGE_DETECTION_UNCERTAIN": "false",
+        "EVENT_NAME": "pull_request",
+        **inputs,
+    }
     result = run_shell(find_step(PREK_ACTION, step_id="cache-policy")["run"], env)
     assert result.returncode == 0, result.stderr
-    expected = save == "true" and (hit != "true" or restored != "true" or event == "schedule")
-    assert read_outputs(env)["save"] == str(expected).lower()
+    assert read_outputs(env)["save"] == str(expected_save).lower()
+    assert read_outputs(env)["reason"] == expected_reason
 
 
 def test_restored_hooks_are_always_validated(sandbox, fake_tools):
     step = find_step(PREK_ACTION, step_id="install-hooks")
     assert "if" not in step
-    result = run_shell(step["run"], {**sandbox, **fake_tools})
+    result = run_shell(step["run"], {**sandbox, **fake_tools, "WRITE_LOG_ONLY": "true"})
     assert result.returncode == 0, result.stderr
     assert ["prek", "install-hooks"] in read_commands(fake_tools)
+    assert read_outputs(sandbox)["installation-succeeded"] == "true"
+    assert read_outputs(sandbox)["cache-changed"] == "false"
+    assert read_outputs(sandbox)["change-detection-uncertain"] == "false"
+
+
+def test_change_detection_spans_failed_then_successful_attempts(sandbox, fake_tools):
+    result = run_shell(
+        find_step(PREK_ACTION, step_id="install-hooks")["run"],
+        {**sandbox, **fake_tools, "FAIL_ATTEMPTS": "1", "WRITE_MARKER_ATTEMPT": "1"},
+    )
+    assert result.returncode == 0, result.stderr
+    assert read_commands(fake_tools).count(["prek", "install-hooks"]) == 2
+    assert read_outputs(sandbox)["cache-changed"] == "true"
+
+
+def test_unreadable_installation_metadata_is_uncertain(sandbox, fake_tools):
+    marker = Path(sandbox["HOME"]) / ".cache/prek/hooks/python-broken/.prek-hook.json"
+    marker.mkdir(parents=True)
+    result = run_shell(find_step(PREK_ACTION, step_id="install-hooks")["run"], {**sandbox, **fake_tools})
+    assert result.returncode == 0, result.stderr
+    assert read_outputs(sandbox)["cache-changed"] == "false"
+    assert read_outputs(sandbox)["change-detection-uncertain"] == "true"
 
 
 def test_hook_install_failure_remains_fatal(sandbox, fake_tools):
@@ -200,6 +204,129 @@ def test_hook_install_failure_remains_fatal(sandbox, fake_tools):
     )
     assert result.returncode != 0
     assert read_commands(fake_tools).count(["prek", "install-hooks"]) == 4
+    assert read_outputs(sandbox)["installation-succeeded"] == "false"
+
+
+def test_marker_snapshot_uses_relative_paths_and_exact_contents(tmp_path):
+    cache = tmp_path / "prek"
+    hook_marker = cache / "hooks/python-one/.prek-hook.json"
+    repo_marker = cache / "repos/repo-one/.prek-repo.json"
+    hook_marker.parent.mkdir(parents=True)
+    repo_marker.parent.mkdir(parents=True)
+    hook_marker.write_bytes(b'{"hook": 1}\n')
+    repo_marker.write_bytes(b'{"repo": 1}\n')
+
+    snapshot = prek_cache_markers.snapshot_markers(cache)
+
+    assert set(snapshot) == {"hooks/python-one/.prek-hook.json", "repos/repo-one/.prek-repo.json"}
+    assert snapshot == prek_cache_markers.snapshot_markers(cache)
+
+
+def test_repaired_archive_is_reused_without_another_save(sandbox, fake_tools, tmp_path):
+    cache = Path(sandbox["HOME"]) / ".cache/prek"
+    (cache / "hooks/python-incomplete").mkdir(parents=True)
+    install_step = find_step(PREK_ACTION, step_id="install-hooks")
+    policy_step = find_step(PREK_ACTION, step_id="cache-policy")
+
+    first_install = run_shell(install_step["run"], {**sandbox, **fake_tools, "WRITE_MARKER_ATTEMPT": "1"})
+    assert first_install.returncode == 0, first_install.stderr
+    first_outputs = read_outputs(sandbox)
+    assert first_outputs["cache-changed"] == "true"
+
+    Path(sandbox["GITHUB_OUTPUT"]).write_text("")
+    policy_env = {
+        **sandbox,
+        "SAVE_CACHE": "true",
+        "STASH_HIT": "true",
+        "TAR_RESTORED": "true",
+        "INSTALLATION_SUCCEEDED": "true",
+        "CACHE_CHANGED": "true",
+        "CHANGE_DETECTION_UNCERTAIN": "false",
+        "EVENT_NAME": "pull_request",
+    }
+    assert run_shell(policy_step["run"], policy_env).returncode == 0
+    assert read_outputs(sandbox) == {"save": "true", "reason": "cache-repaired"}
+
+    Path(sandbox["GITHUB_OUTPUT"]).write_text("")
+    archive_step = find_step(PREK_ACTION, step_id="archive-prek")
+    assert run_cache_step(archive_step, sandbox, tmp_path).returncode == 0
+    shutil.rmtree(cache)
+    Path(sandbox["GITHUB_OUTPUT"]).write_text("")
+    restore_step = find_step(PREK_ACTION, step_id="restore-prek-tar")
+    assert run_cache_step(restore_step, sandbox, tmp_path).returncode == 0
+
+    Path(sandbox["GITHUB_OUTPUT"]).write_text("")
+    second_install = run_shell(install_step["run"], {**sandbox, **fake_tools})
+    assert second_install.returncode == 0, second_install.stderr
+    second_outputs = read_outputs(sandbox)
+    assert second_outputs["cache-changed"] == "false"
+
+    Path(sandbox["GITHUB_OUTPUT"]).write_text("")
+    second_policy_env = {
+        **policy_env,
+        "CACHE_CHANGED": "false",
+    }
+    assert run_shell(policy_step["run"], second_policy_env).returncode == 0
+    assert read_outputs(sandbox) == {"save": "false", "reason": "unchanged"}
+
+
+@pytest.mark.skipif(
+    os.environ.get("RUN_PREK_INTEGRATION") != "1",
+    reason="Set RUN_PREK_INTEGRATION=1 to exercise real prek 0.5.2",
+)
+def test_real_prek_repair_and_reuse(tmp_path):
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=repository, check=True)
+    (repository / ".pre-commit-config.yaml").write_text(
+        """\
+repos:
+  - repo: local
+    hooks:
+      - id: local-python
+        name: local python
+        entry: python -c 'print("ok")'
+        language: python
+        pass_filenames: false
+"""
+    )
+    cache = tmp_path / "prek-cache"
+    env = {**os.environ, "PREK_HOME": str(cache)}
+    command = ["uvx", "--from", "prek==0.5.2", "prek", "install-hooks"]
+
+    def install():
+        return subprocess.run(
+            command,
+            cwd=repository,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=180,
+            check=False,
+        )
+
+    first_install = install()
+    assert first_install.returncode == 0, first_install.stderr
+    marker = next((cache / "hooks").glob("*/.prek-hook.json"))
+    marker.unlink()
+    before_repair = prek_cache_markers.snapshot_markers(cache)
+
+    repair = install()
+    assert repair.returncode == 0, repair.stderr
+    repaired = prek_cache_markers.snapshot_markers(cache)
+    assert repaired != before_repair
+
+    archive = tmp_path / "prek-cache.tar.gz"
+    with tarfile.open(archive, "w:gz") as handle:
+        handle.add(cache, arcname="prek-cache")
+    shutil.rmtree(cache)
+    with tarfile.open(archive, "r:gz") as handle:
+        handle.extractall(tmp_path, filter="fully_trusted")
+    before_reuse = prek_cache_markers.snapshot_markers(cache)
+
+    reuse = install()
+    assert reuse.returncode == 0, reuse.stderr
+    assert prek_cache_markers.snapshot_markers(cache) == before_reuse
 
 
 @pytest.mark.parametrize("payload", ("missing", "corrupt", "wrong-directory"))
