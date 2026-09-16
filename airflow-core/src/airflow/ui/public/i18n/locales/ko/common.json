@@ -27,6 +27,7 @@
   "breadcrumb": "탐색 경로",
   "browse": {
     "auditLog": "감사 로그",
+    "dagBundles": "Dag 번들",
     "deadlines": "데드라인",
     "jobs": "잡",
     "requiredActions": "필수 작업",
