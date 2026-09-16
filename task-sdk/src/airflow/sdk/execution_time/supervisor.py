@@ -1719,7 +1719,7 @@ class ActivitySubprocess(WatchedSubprocess):
 
         Not valid before the process has finished.
         """
-        if self._terminal_state == SERVER_TERMINATED:
+        if self._terminal_state in (SERVER_TERMINATED, TaskInstanceState.UP_FOR_RETRY):
             return self._terminal_state
         if self._exit_code == 0:
             return self._terminal_state or TaskInstanceState.SUCCESS
@@ -1741,17 +1741,13 @@ class ActivitySubprocess(WatchedSubprocess):
             log.debug("Received message from task runner", msg=msg)
         resp: BaseModel | None = None
         dump_opts: dict[str, bool] = {}
-        if isinstance(msg, TaskState):
+        if isinstance(msg, (TaskState, RetryTask)):
             if self._terminal_state != SERVER_TERMINATED:
                 self._terminal_state = msg.state
                 self._pending_terminal_state_msg = msg
                 self._task_end_time_monotonic = time.monotonic()
                 self._rendered_map_index = msg.rendered_map_index
         elif isinstance(msg, SucceedTask):
-            self._task_end_time_monotonic = time.monotonic()
-            self._rendered_map_index = msg.rendered_map_index
-            self._send_terminal_state_msg(msg)
-        elif isinstance(msg, RetryTask):
             self._task_end_time_monotonic = time.monotonic()
             self._rendered_map_index = msg.rendered_map_index
             self._send_terminal_state_msg(msg)
