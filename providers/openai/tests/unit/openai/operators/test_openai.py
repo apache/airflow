@@ -87,6 +87,14 @@ def test_execute_with_invalid_input(invalid_input):
         operator.execute(context)
 
 
+def _build_execute_context(**overrides) -> Context:
+    # OpenAIResponseOperator.execute pushes to XCom through context["ti"], so a test that lets
+    # execute run to completion has to put a task instance in the context.
+    context = Context(**overrides)
+    context["ti"] = Mock()
+    return context
+
+
 def test_openai_response_operator_execute():
     operator = OpenAIResponseOperator(
         task_id=TASK_ID,
@@ -109,8 +117,7 @@ def test_openai_response_operator_execute():
     mock_hook_instance.create_response.return_value = mock_response
     operator.hook = mock_hook_instance
 
-    context = Context()
-    context["ti"] = Mock()
+    context = _build_execute_context()
     result = operator.execute(context)
 
     # Backward compat: the return value is still the aggregated output text, unchanged
@@ -146,8 +153,7 @@ def test_openai_response_operator_execute_without_usage():
     mock_hook_instance.create_response.return_value = mock_response
     operator.hook = mock_hook_instance
 
-    context = Context()
-    context["ti"] = Mock()
+    context = _build_execute_context()
     result = operator.execute(context)
 
     assert result == "haiku text"
@@ -167,8 +173,7 @@ def test_openai_response_operator_execute_skips_xcom_push_when_disabled():
     mock_hook_instance.create_response.return_value = mock_response
     operator.hook = mock_hook_instance
 
-    context = Context()
-    context["ti"] = Mock()
+    context = _build_execute_context()
     result = operator.execute(context)
 
     assert result == "haiku text"
@@ -193,7 +198,9 @@ def test_openai_response_operator_templates_input_text_and_response_kwargs():
 
 
 def _build_completed_response(**overrides):
-    defaults = {"output_text": "haiku text", "id": "resp_123", "status": "completed"}
+    # execute() reads response.usage; Mock(spec=Response) does not synthesise pydantic
+    # fields, so it has to be set explicitly even when a test does not care about usage.
+    defaults = {"output_text": "haiku text", "id": "resp_123", "status": "completed", "usage": None}
     return Mock(spec=Response, **{**defaults, **overrides})
 
 
@@ -222,7 +229,7 @@ class TestOpenAIResponseOperatorTokenCeilings:
         mock_hook_instance.create_response.return_value = _build_completed_response()
         operator.hook = mock_hook_instance
 
-        operator.execute(Context())
+        operator.execute(_build_execute_context())
 
         mock_hook_instance.create_response.assert_called_once_with(
             input="Write a haiku.", model="gpt-4o-mini", **expected_extra
@@ -247,7 +254,7 @@ class TestOpenAIResponseOperatorTokenCeilings:
         operator.hook = mock_hook_instance
 
         with pytest.raises(ValueError, match=param_name):
-            operator.execute(Context())
+            operator.execute(_build_execute_context())
 
         mock_hook_instance.create_response.assert_not_called()
 
@@ -331,7 +338,7 @@ class TestOpenAIResponseOperatorTokenCeilings:
         mock_hook_instance.create_response.return_value = _build_completed_response()
         operator.hook = mock_hook_instance
 
-        operator.execute(Context())
+        operator.execute(_build_execute_context())
 
         call_kwargs = mock_hook_instance.create_response.call_args.kwargs
         assert param_name not in call_kwargs
@@ -357,7 +364,7 @@ class TestOpenAIResponseOperatorTokenCeilings:
         mock_hook_instance.create_response.return_value = _build_completed_response()
         operator.hook = mock_hook_instance
 
-        operator.execute(Context())
+        operator.execute(_build_execute_context())
 
         call_kwargs = mock_hook_instance.create_response.call_args.kwargs
         for key, expected in (
@@ -394,7 +401,7 @@ class TestOpenAIResponseOperatorTokenCeilings:
         operator.hook = mock_hook_instance
 
         with pytest.raises(ValueError, match=param_name):
-            operator.execute(Context())
+            operator.execute(_build_execute_context())
 
         mock_hook_instance.create_response.assert_not_called()
 
@@ -419,7 +426,7 @@ class TestOpenAIResponseOperatorTokenCeilings:
         operator.hook = mock_hook_instance
 
         with pytest.raises(ValueError, match=param_name):
-            operator.execute(Context())
+            operator.execute(_build_execute_context())
 
         mock_hook_instance.create_response.assert_not_called()
 
@@ -455,7 +462,7 @@ class TestOpenAIResponseOperatorTokenCeilings:
         mock_hook_instance.create_response.return_value = _build_completed_response()
         operator.hook = mock_hook_instance
 
-        operator.execute(Context())
+        operator.execute(_build_execute_context())
 
         call_kwargs = mock_hook_instance.create_response.call_args.kwargs
         assert "max_output_tokens" not in call_kwargs
@@ -499,7 +506,7 @@ class TestOpenAIResponseOperatorTokenCeilings:
         operator.hook = mock_hook_instance
 
         with caplog.at_level("WARNING"):
-            result = operator.execute(Context())
+            result = operator.execute(_build_execute_context())
 
         assert result == output_text
         assert any(
@@ -523,7 +530,7 @@ class TestOpenAIResponseOperatorTokenCeilings:
         operator.hook = mock_hook_instance
 
         with caplog.at_level("WARNING"):
-            result = operator.execute(Context())
+            result = operator.execute(_build_execute_context())
 
         assert result == ""
         assert any("may be truncated or empty" in message for message in caplog.messages)
@@ -539,7 +546,7 @@ class TestOpenAIResponseOperatorTokenCeilings:
         operator.hook = mock_hook_instance
 
         with caplog.at_level("WARNING"):
-            operator.execute(Context())
+            operator.execute(_build_execute_context())
 
         assert any(
             "ended with status failed" in message and "may be empty" in message for message in caplog.messages
