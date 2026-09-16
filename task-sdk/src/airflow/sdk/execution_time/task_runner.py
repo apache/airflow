@@ -976,9 +976,13 @@ class IndexedTaskInstance(RuntimeTaskInstance):
     def next_try_number(self) -> int:
         return self.try_number + 1
 
+    @staticmethod
+    def build_state_key(task_id: str, index: int) -> str:
+        return f"{task_id}_{index}"
+
     @property
     def xcom_key(self) -> str:
-        return f"{self.task_id}_{self.index}"
+        return self.build_state_key(self.task_id, self.index)
 
     @property
     def do_xcom_push(self) -> bool:

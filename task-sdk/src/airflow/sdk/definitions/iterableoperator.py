@@ -419,7 +419,6 @@ class IterableOperator(BaseOperator):
         tasks: Iterable[IndexedTaskInstance],
     ) -> XComIterable | None:
         exceptions: list[Exception] = []
-        checkpoint_keys: list[str] = []
         total = 0
         do_xcom_push = True
 
@@ -434,7 +433,6 @@ class IterableOperator(BaseOperator):
                     tasks,
                 ):
                     total += 1
-                    checkpoint_keys.append(task.xcom_key)
                     do_xcom_push = task.do_xcom_push
 
                     if raised is None:
@@ -512,9 +510,10 @@ class IterableOperator(BaseOperator):
         # index as already-succeeded and replay stale results instead of re-running anything. Only
         # the keys this operator wrote are removed: the store is scoped to the parent task instance,
         # so any state a sub-task stored for itself (a watermark, a remote job id) must survive.
+        # Indices are contiguous from 0 (see execute), so the keys are derived rather than collected.
         store = context["task_state_store"]
-        for key in checkpoint_keys:
-            store.delete(key)
+        for index in range(total):
+            store.delete(IndexedTaskInstance.build_state_key(self.task_id, index))
         if do_xcom_push:
             return XComIterable(
                 task_id=self.task_id,
