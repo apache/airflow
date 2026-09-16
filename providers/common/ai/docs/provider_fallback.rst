@@ -154,6 +154,20 @@ against every connection in the chain before the task sees the failure: N reques
 timeouts, and N billable calls for a request that was never going to succeed. Keep chains
 short, and put deterministic rules for those errors in :doc:`retry_policies`.
 
+**Airflow's task-level** ``retries`` **multiplies on top of the chain.** A task with
+``retries=5`` gets up to six attempts -- the initial attempt plus five retries -- before
+Airflow marks it failed, and each attempt walks the whole chain again if every connection
+is still down. Against the three-connection chain in the example above (the primary plus
+two fallbacks), that is up to 18 upstream calls, not 3, before the task is finally marked
+failed.
+
+**A bad fallback connection fails the whole chain, including a healthy primary.** The
+primary and every fallback are resolved eagerly, before any of them is called, so a
+typo'd fallback ``conn_id`` or a fallback connection missing its ``model`` raises
+immediately -- the task never reaches the primary, even though the primary itself would
+have answered fine. Run ``test_connection`` on the primary to catch this before it costs a
+task; see *Verifying a chain* below.
+
 Verifying a chain
 -----------------
 
