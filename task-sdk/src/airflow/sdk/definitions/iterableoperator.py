@@ -150,9 +150,13 @@ class Checkpoints:
     crash during the rerun resumes from the new checkpoints instead of ignoring them a second time,
     and written again when the block exits without an exception.
 
-    The checkpoints themselves are left to expire with the store's retention: one marker write costs
-    the same whatever the item count, and the store is scoped to the parent task instance, so state a
-    sub-task stored for itself is never touched.
+    The checkpoints themselves are never deleted: one marker write costs the same whatever the item
+    count, and the store is scoped to the parent task instance, so state a sub-task stored for itself
+    is never touched. They expire with the store's default retention (``[state_store]
+    default_retention_days``, 30 days unless configured, 0 disables expiry), which also bounds how
+    long a task that exhausted its retries keeps them. Keeping them until then is intended: a manual
+    clear of such a task resumes from the checkpoints instead of re-running every index, and the
+    marker is what tells a clear-after-success apart from that.
     """
 
     # Same namespace as IndexedTaskState.build_key, for the same reason.
