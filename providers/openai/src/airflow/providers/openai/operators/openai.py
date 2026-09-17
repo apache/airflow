@@ -148,19 +148,10 @@ class OpenAIResponseOperator(BaseOperator):
         For possible options, see:
         https://platform.openai.com/docs/api-reference/responses/create
 
-    ``execute`` also pushes two XCom keys: ``response_id`` (the response's ID, usable as
-    a downstream call's ``previous_response_id``) and ``usage`` (the response's token
-    usage, or ``None`` when the API omits it). ``usage`` is the nested dict returned by
-    ``ResponseUsage.model_dump()``: top-level ``input_tokens``, ``output_tokens`` and
-    ``total_tokens`` counts, plus the nested ``input_tokens_details`` and
-    ``output_tokens_details`` dicts. ``input_tokens_details.cached_tokens`` is part of
-    the ``input_tokens`` total, not additional to it, so pricing a run correctly means
-    reading the breakdown rather than treating ``input_tokens`` as a single uniformly
-    priced count -- see OpenAI's `prompt caching guide
-    <https://platform.openai.com/docs/guides/prompt-caching>`_ for how cached tokens are
-    priced. Beyond that, ``usage`` reports token counts only -- the OpenAI response
-    carries no cost field, so turning any of these counts into a price means multiplying
-    by your own per-token rate.
+    When ``do_xcom_push`` is enabled (the default), ``execute`` also pushes two XCom keys:
+    ``response_id`` (the response's ID) and ``usage`` (the result of
+    ``ResponseUsage.model_dump()``, or ``None`` when the API omits it). Both are skipped
+    when ``do_xcom_push=False``.
     """
 
     template_fields: Sequence[str] = ("input_text", "response_kwargs", "max_output_tokens", "max_tool_calls")

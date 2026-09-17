@@ -60,6 +60,9 @@ caching guide <https://platform.openai.com/docs/guides/prompt-caching>`_ for how
 cached tokens are priced. Beyond that, ``usage`` reports token counts only -- OpenAI's
 response carries no cost field, so turning any of these counts into a price means
 multiplying by your own per-token rate. Setting ``do_xcom_push=False`` skips both pushes.
+It also disables the operator's own ``return_value`` XCom (standard ``BaseOperator``
+behavior), so a downstream task reading ``openai_response.output`` -- which implicitly
+reads the ``return_value`` key -- loses that value too.
 
 Using the Operator
 ^^^^^^^^^^^^^^^^^^^
@@ -119,10 +122,10 @@ know about yet. Options worth knowing about:
   raises ``AttributeError``. Stream responses from a ``@task`` using
   :class:`~airflow.providers.openai.hooks.openai.OpenAIHook` instead.
 - ``store``: whether the response is retained on OpenAI's side, for example so it can later be used
-  as a ``previous_response_id``. Through ``OpenAIResponseOperator``, ``execute`` only passes
-  ``response.id`` to the task log and returns ``response.output_text``, so nothing downstream of
-  this operator's task can retrieve a stored response's id — this only matters when the response
-  is created via ``OpenAIHook`` directly.
+  as a ``previous_response_id``. When ``do_xcom_push`` is enabled, ``execute`` pushes ``response.id``
+  to the ``response_id`` XCom regardless of ``store``, so a downstream task can retrieve it. If
+  ``store=False``, the pushed id has no practical use: nothing was retained on OpenAI's side, so
+  ``previous_response_id`` cannot reference it.
 - ``previous_response_id``: the id of a prior response to continue a multi-turn conversation from.
   Cannot be used together with ``conversation`` — pass one or the other, not both.
 - ``reasoning``: configuration for reasoning models, for example ``{"effort": ...}``. The example
