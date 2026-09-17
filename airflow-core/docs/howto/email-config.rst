@@ -79,6 +79,7 @@ For example a ``html_content_template`` file could look like this:
   Dag: {{ti.dag_id}}<br>
   Task: {{ti.task_id}}<br>
   Run: {{ti.run_id}}<br>
+  State: {{task_state}}<br>
   Try: {{try_number}} out of {{max_tries + 1}}<br>
   {% if ti.start_date is defined and ti.start_date %}Started: {{ti.start_date}}<br>{% endif %}
   {% if ti.end_date is defined and ti.end_date %}Ended: {{ti.end_date}}<br>{% endif %}
