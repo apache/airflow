@@ -20,13 +20,6 @@
 Changelog
 ---------
 
-.. note::
-    The users, roles and permissions endpoints of the FAB auth manager API no longer rebuild the
-    FAB app on every request, so they no longer run the role and permission sync controlled by
-    ``[fab] update_fab_perms`` on each call. The sync still runs when the API server starts and
-    with ``airflow sync-perm``. For example, a custom role created through the API now gets
-    ``can_read`` on ``Website`` only after the next sync.
-
 3.9.0
 .....
 
