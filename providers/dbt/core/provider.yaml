@@ -1,0 +1,54 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+---
+package-name: apache-airflow-providers-dbt-core
+name: dbt Core
+description: |
+    Run `dbt Core <https://github.com/dbt-labs/dbt-core>`__ jobs in a single Kubernetes pod.
+
+state: ready
+versions:
+  - 1.0.0
+
+# Hard dependencies. Amazon (S3) and Google (GCS) are declared as optional
+# extras below instead of hard deps: they are only needed when uploading
+# ``target/`` artifacts and are imported lazily by the operator.
+dependencies:
+  - apache-airflow>=2.9.0
+  - apache-airflow-providers-cncf-kubernetes>=8.0.0
+
+additional-extras:
+  - name: amazon
+    dependencies:
+      - apache-airflow-providers-amazon>=8.0.0
+  - name: google
+    dependencies:
+      - apache-airflow-providers-google>=10.0.0
+
+integrations:
+  - integration-name: dbt Core
+    external-doc-url: https://docs.getdbt.com/docs/introduction
+    how-to-guide:
+      - /docs/operators/dbt.rst
+    tags:
+      - software
+
+operators:
+  - integration-name: dbt Core
+    python-modules:
+      - airflow.providers.dbt.core.operators.dbt
