@@ -978,6 +978,12 @@ def update_config(args) -> None:
             Comma-separated list of configuration options to ignore during update.
             Example: --ignore-option check_slas
 
+        --show-sensitive: flag (optional)
+            Show real values of sensitive options in the dry-run preview. By default sensitive
+            values (passwords, keys, tokens, etc.) are masked as '< hidden >'. Has no effect
+            together with --fix, which always writes real values to airflow.cfg.
+            Example: --show-sensitive
+
     Examples:
         1. Dry-run mode (print the changes in modified airflow.cfg) showing only breaking changes:
             airflow config update
@@ -1075,12 +1081,19 @@ def update_config(args) -> None:
 
     if dry_run:
         console.print("[blue]Dry-run mode enabled. No changes will be written to airflow.cfg.[/blue]")
+        hide_sensitive = not args.show_sensitive
+        if hide_sensitive:
+            console.print(
+                "[blue]Sensitive values are shown as '< hidden >'. Use `--show-sensitive` to "
+                "display them (never paste unmasked output into logs or bug reports).[/blue]"
+            )
         with StringIO() as config_output:
             conf.write_custom_config(
                 file=config_output,
                 comment_out_defaults=True,
                 include_descriptions=True,
                 modifications=modifications,
+                hide_sensitive=hide_sensitive,
             )
             new_config = config_output.getvalue()
         console.print(new_config)

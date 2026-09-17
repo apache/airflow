@@ -284,6 +284,7 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         include_descriptions: bool = True,
         extra_spacing: bool = True,
         modifications: ConfigModifications | None = None,
+        hide_sensitive: bool = False,
     ) -> None:
         """
         Write a configuration file using a ConfigModifications object.
@@ -300,6 +301,8 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         :param include_descriptions: Whether to include section descriptions.
         :param extra_spacing: Whether to insert an extra blank line after each option.
         :param modifications: ConfigModifications instance with rename, remove, and default updates.
+        :param hide_sensitive: If True, values of options registered as sensitive are written as
+            ``< hidden >``. Only suitable for preview output, never for a real configuration file.
         """
         modifications = modifications or ConfigModifications()
         output: dict[str, list[tuple[str, str, bool, str]]] = {}
@@ -329,8 +332,14 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
 
                 default_value = self.get_default_value(effective_section, effective_option, fallback="")
                 is_default = str(value) == str(default_value)
+                value_to_write = str(value)
+                if hide_sensitive and (
+                    self.is_sensitive_option(section, option)
+                    or self.is_sensitive_option(effective_section, effective_option)
+                ):
+                    value_to_write = "< hidden >"
                 output.setdefault(effective_section.lower(), []).append(
-                    (effective_option, str(value), is_default, mod_comment)
+                    (effective_option, value_to_write, is_default, mod_comment)
                 )
 
         for section, options in output.items():
