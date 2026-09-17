@@ -205,9 +205,12 @@ Example of custom logger name:
           },
       )
 
-If you want to limit the log size of the tasks, you can add the handlers.task.max_bytes parameter.
+Rotation and retention of task logs
+-----------------------------------
 
-Example of limiting the size of tasks:
+Airflow does not rotate or delete task log files on its own. Rotation is available through the same
+custom logging config, by setting ``max_bytes`` and ``backup_count`` on the ``task`` handler, which
+limits how large a single task log file can grow:
 
     .. code-block:: python
 
@@ -223,3 +226,29 @@ Example of limiting the size of tasks:
               }
           },
       )
+
+``backup_count`` is the number of rotated files kept for a single task attempt, so it does not limit the
+total size of the log folder — there is one log file per task attempt, and new files keep being created
+for every Dag run.
+
+Time-based retention therefore has to be arranged by the deployment. The
+:doc:`Docker Compose quick-start </howto/docker-compose/index>` runs an ``airflow-log-groomer`` service
+for this, and the official Helm chart provides an equivalent ``logGroomerSidecar``. The Airflow image
+ships the script they use as ``/clean-logs``, so any deployment can run it directly, for example as a
+long-running service:
+
+.. code-block:: bash
+
+    AIRFLOW__LOG_RETENTION_DAYS=30 AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES=15 bash /clean-logs
+
+Any other cleanup, such as a cron job that removes files by modification time, works as well:
+
+.. code-block:: bash
+
+    # Delete task logs that have not been written to for 30 days
+    find "${AIRFLOW_HOME:-/opt/airflow}/logs" -type f -name '*.log*' -mmin +43200 -delete
+
+For production deployments that need to keep logs for longer than the local disk allows, use
+:doc:`remote logging <apache-airflow-providers:core-extensions/logging>` together with the retention
+policy of the storage backend, and set :ref:`config:logging__delete_local_logs` to remove the local
+copies once they are uploaded.

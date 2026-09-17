@@ -183,6 +183,33 @@ def test_airflow_uid_default_in_chown(tmp_path_factory, monkeypatch):
     assert 'chown -v -R ":0" /opt/airflow/{logs,dags,plugins,config}' not in init_cmd, init_cmd
 
 
+@pytest.mark.parametrize(
+    ("dot_env_content", "expected_retention_days"),
+    [("", "15"), ("AIRFLOW__LOG_RETENTION_DAYS=3\n", "3")],
+)
+def test_log_groomer_service_config(tmp_path_factory, monkeypatch, dot_env_content, expected_retention_days):
+    tmp_dir = tmp_path_factory.mktemp("log-groomer")
+    compose_file_path = (
+        AIRFLOW_ROOT_PATH / "airflow-core" / "docs" / "howto" / "docker-compose" / "docker-compose.yaml"
+    )
+    copyfile(compose_file_path, tmp_dir / "docker-compose.yaml")
+    (tmp_dir / ".env").write_text(dot_env_content)
+    monkeypatch.delenv("AIRFLOW__LOG_RETENTION_DAYS", raising=False)
+
+    try:
+        docker.compose.version()
+    except DockerException:
+        pytest.skip("`docker compose` not available. Make sure compose plugin is installed")
+
+    compose = DockerClient(compose_project_directory=tmp_dir).compose
+    rendered = compose.config(return_json=True)
+
+    groomer = rendered["services"]["airflow-log-groomer"]  # type: ignore[index]
+    assert groomer["command"] == ["bash", "/clean-logs"]
+    assert groomer["environment"]["AIRFLOW__LOG_RETENTION_DAYS"] == expected_retention_days
+    assert "airflow-init" in groomer["depends_on"]
+
+
 def print_diagnostics(compose: DockerClient, compose_version: str, docker_version: str):
     console.print("HTTP: GET health")
     try:
