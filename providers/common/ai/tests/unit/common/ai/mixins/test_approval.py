@@ -80,7 +80,7 @@ class FakeOperator(LLMApprovalMixin):
         self.on_approval_timeout = on_approval_timeout
         self.allow_modifications = allow_modifications
         self.approval_notifiers = approval_notifiers
-        self.approval_assigned_users = approval_assigned_users
+        self.approval_assigned_users = list(approval_assigned_users or [])
 
         self.defer = MagicMock()
         self.log = MagicMock()
@@ -269,10 +269,10 @@ class TestDeferForApproval:
 
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)
-    def test_assigned_users_omitted_when_unset(self, mock_upsert, mock_trigger_cls, approval_op, context):
+    def test_assigned_users_empty_when_unset(self, mock_upsert, mock_trigger_cls, approval_op, context):
         approval_op.defer_for_approval(context, "output")
 
-        assert "assigned_users" not in mock_upsert.call_args[1]
+        assert mock_upsert.call_args[1]["assigned_users"] == []
 
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)

@@ -49,7 +49,7 @@ class DeferForApprovalProtocol(Protocol):
     allow_modifications: bool
     on_approval_timeout: Literal["fail", "approve", "reject"]
     approval_notifiers: Sequence[BaseNotifier]
-    approval_assigned_users: list[HITLUser] | None
+    approval_assigned_users: list[HITLUser]
     prompt: str
     task_id: str
     defer: Any
@@ -88,8 +88,10 @@ class LLMApprovalMixin:
 
     ``approval_assigned_users`` restricts the review to the named users, the way
     :class:`~airflow.providers.standard.operators.hitl.HITLOperator` does with
-    ``assigned_users``.  Leaving it unset lets any user with the permission
-    respond.
+    ``assigned_users``.  Leaving it empty lets any user with the permission
+    respond.  The list is stored when the review is first created; clearing
+    the task re-runs it against the existing review row, so a changed list
+    does not take effect.
 
     Operators that use this mixin must set the following attributes:
 
@@ -98,7 +100,7 @@ class LLMApprovalMixin:
     - ``approval_timeout`` (``timedelta | None``)
     - ``on_approval_timeout`` (``Literal["fail", "approve", "reject"]``)
     - ``approval_notifiers`` (``Sequence[BaseNotifier]``)
-    - ``approval_assigned_users`` (``list[HITLUser] | None``)
+    - ``approval_assigned_users`` (``list[HITLUser]``)
     - ``prompt`` (``str``)
     """
 
@@ -190,12 +192,6 @@ class LLMApprovalMixin:
                 },
             }
 
-        # Only pass assigned_users when set: cores before 3.2 have no such argument, and the
-        # operator has already rejected the parameter on those versions.
-        assignee_kwargs: dict[str, Any] = (
-            {"assigned_users": self.approval_assigned_users} if self.approval_assigned_users else {}
-        )
-
         upsert_hitl_detail(
             ti_id=ti_id,
             options=[LLMApprovalMixin.APPROVE, LLMApprovalMixin.REJECT],
@@ -204,7 +200,7 @@ class LLMApprovalMixin:
             defaults=timeout_defaults,
             multiple=False,
             params=hitl_params,
-            **assignee_kwargs,
+            assigned_users=self.approval_assigned_users,
         )
 
         self.subject = subject

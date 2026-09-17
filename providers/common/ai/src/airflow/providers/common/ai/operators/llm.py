@@ -120,8 +120,9 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         output while the open review keeps the original subject and body.
         Default ``None``.
     :param approval_assigned_users: Users allowed to answer the review, as
-        ``{"id": ..., "name": ...}`` dicts.  ``None`` (default) lets any user
-        with the permission respond.  Needs Airflow 3.1+.
+        ``{"id": ..., "name": ...}`` dicts where ``id`` is the auth manager's
+        user id.  ``None`` (default) lets any user with the permission respond.
+        The list is fixed when the review is first created.  Needs Airflow 3.1+.
     :param serialize_output: If ``True`` and ``output_type`` is a Pydantic
         ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
         ``model_dump()`` before being pushed to XCom. Default ``False`` --
@@ -156,7 +157,7 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         on_approval_timeout: Literal["fail", "approve", "reject"] = "fail",
         allow_modifications: bool = False,
         approval_notifiers: BaseNotifier | Iterable[BaseNotifier] | None = None,
-        approval_assigned_users: HITLUser | list[HITLUser] | None = None,
+        approval_assigned_users: HITLUser | Iterable[HITLUser] | None = None,
         serialize_output: bool = False,
         **kwargs: Any,
     ) -> None:
@@ -191,8 +192,6 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
                 "a positive approval_timeout to fire. "
                 "Set both, or leave on_approval_timeout as 'fail'."
             )
-        if approval_assigned_users and not AIRFLOW_V_3_1_PLUS:
-            raise AirflowOptionalProviderFeatureException("approval_assigned_users needs Airflow 3.1+.")
         self.require_approval = require_approval
         self.approval_timeout = approval_timeout
         self.on_approval_timeout = on_approval_timeout
@@ -210,11 +209,30 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         for notifier in self.approval_notifiers:
             if not isinstance(notifier, BaseNotifier):
                 raise TypeError(f"approval_notifiers must contain BaseNotifier instances, got {notifier!r}")
-        self.approval_assigned_users = (
-            [approval_assigned_users]
-            if isinstance(approval_assigned_users, dict)
-            else approval_assigned_users
-        )
+        assigned_users: list[Any]
+        if approval_assigned_users is None:
+            assigned_users = []
+        elif isinstance(approval_assigned_users, dict):
+            assigned_users = [approval_assigned_users]
+        elif isinstance(approval_assigned_users, str) or not isinstance(approval_assigned_users, Iterable):
+            raise TypeError(
+                "approval_assigned_users must be a {'id': str, 'name': str} dict or an iterable of them, "
+                f"got {approval_assigned_users!r}"
+            )
+        else:
+            assigned_users = list(approval_assigned_users)
+        for user in assigned_users:
+            if (
+                not isinstance(user, dict)
+                or not isinstance(user.get("id"), str)
+                or not isinstance(user.get("name"), str)
+            ):
+                raise TypeError(
+                    f"approval_assigned_users entries must be {{'id': str, 'name': str}} dicts, got {user!r}"
+                )
+        if assigned_users and not AIRFLOW_V_3_1_PLUS:
+            raise AirflowOptionalProviderFeatureException("approval_assigned_users needs Airflow 3.1+.")
+        self.approval_assigned_users: list[HITLUser] = assigned_users
 
     @cached_property
     def llm_hook(self) -> PydanticAIHook:

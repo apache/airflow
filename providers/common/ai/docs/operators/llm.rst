@@ -277,10 +277,17 @@ is sensitive, template only ``{{ task.subject }}`` and a link to the review
 into channels outside Airflow's auth boundary.
 
 By default any user with the permission can answer the review.  Pass
-``approval_assigned_users=[{"id": "<user-id>", "name": "<user-name>"}]`` to
-restrict it to named reviewers, the way
+``approval_assigned_users=[{"id": "<auth-manager-user-id>", "name": "<user-name>"}]``
+to restrict it to named reviewers, the way
 :class:`~airflow.providers.standard.operators.hitl.HITLOperator` does with
-``assigned_users``.  This needs Airflow 3.1+.
+``assigned_users``.  ``id`` is the user id reported by the auth manager; under
+the FAB auth manager that is the numeric user row id as a string, not the
+username.  This needs Airflow 3.1+.  On Airflow 3.1.0 through 3.1.5 both
+``id`` and ``name`` must match what the auth manager reports, so a wrong
+``name`` blocks the assigned reviewer as well as everyone else; from 3.1.6 only
+``id`` is compared.  The list is stored when the review is first created:
+clearing the task re-runs it against the existing review row, so a changed
+list does not take effect.
 
 Parameters
 ----------
@@ -310,8 +317,9 @@ Parameters
 - ``approval_notifiers``: Notifier, or list of notifiers, called once the review
   is open.  Default ``None``.
 - ``approval_assigned_users``: Users allowed to answer the review, as
-  ``{"id": ..., "name": ...}`` dicts.  ``None`` (default) lets any user with the
-  permission respond.  Needs Airflow 3.1+.
+  ``{"id": ..., "name": ...}`` dicts where ``id`` is the auth manager's user id.
+  ``None`` (default) lets any user with the permission respond.  Fixed at first
+  run.  Needs Airflow 3.1+.
 
 Logging
 -------
