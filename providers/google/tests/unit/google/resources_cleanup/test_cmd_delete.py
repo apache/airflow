@@ -181,6 +181,7 @@ def test_get_delete_handlers_registers_implemented_handlers():
         "gke",
         "kafka",
         "spanner",
+        "sqladmin",
     ]:
         assert asset_type in handlers
 
