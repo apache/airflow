@@ -27,6 +27,13 @@
 Changelog
 ---------
 
+2.1.0
+.....
+Features
+~~~~~~~~
+
+* ``Split the [kafka_event_producer] topic config option into dagrun_topic and task_instance_topic (#73276)``
+
 2.0.0
 .....
 
