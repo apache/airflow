@@ -26,9 +26,8 @@ import { useDagVersionServiceGetDagVersionDiff } from "openapi/queries";
 
 import { ProgressBar } from "src/system-components";
 
-import { VersionCompareSelect } from "src/pages/Dag/Code/VersionCompareSelect";
-
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { VersionCompareSelect } from "src/components/VersionCompareSelect";
 
 import { VersionDiff } from "./VersionDiff";
 
