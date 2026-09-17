@@ -462,6 +462,87 @@ class TestOpenAIResponseOperatorTokenCeilings:
 
         mock_hook_instance.create_response.assert_not_called()
 
+    def test_native_response_kwargs_valid_ceiling_forwarded_as_int(self):
+        operator = OpenAIResponseOperator(
+            task_id=TASK_ID,
+            conn_id=CONN_ID,
+            input_text="Write a haiku.",
+            response_kwargs={"max_output_tokens": "500"},
+        )
+        operator.render_template_fields(Context(params={}))
+
+        mock_hook_instance = Mock(spec=OpenAIHook)
+        mock_hook_instance.create_response.return_value = _build_completed_response()
+        operator.hook = mock_hook_instance
+
+        operator.execute(_build_execute_context())
+
+        call_kwargs = mock_hook_instance.create_response.call_args.kwargs
+        assert call_kwargs["max_output_tokens"] == 500
+        assert isinstance(call_kwargs["max_output_tokens"], int)
+
+    @pytest.mark.parametrize(
+        "invalid_value",
+        [
+            pytest.param(0, id="zero"),
+            pytest.param(-1, id="negative"),
+            pytest.param(10.5, id="float"),
+            pytest.param(True, id="bool-true"),
+            pytest.param(False, id="bool-false"),
+        ],
+    )
+    @pytest.mark.parametrize("param_name", ["max_output_tokens", "max_tool_calls"])
+    def test_native_response_kwargs_invalid_literal_ceiling_raises_at_construction(
+        self, param_name, invalid_value
+    ):
+        with pytest.raises(ValueError, match=param_name):
+            OpenAIResponseOperator(
+                task_id=TASK_ID,
+                conn_id=CONN_ID,
+                input_text="Write a haiku.",
+                response_kwargs={param_name: invalid_value},
+            )
+
+    @pytest.mark.parametrize(
+        "blank_value", [pytest.param("", id="empty"), pytest.param("   ", id="whitespace")]
+    )
+    @pytest.mark.parametrize("param_name", ["max_output_tokens", "max_tool_calls"])
+    def test_native_response_kwargs_blank_ceiling_is_popped(self, param_name, blank_value):
+        operator = OpenAIResponseOperator(
+            task_id=TASK_ID,
+            conn_id=CONN_ID,
+            input_text="Write a haiku.",
+            response_kwargs={param_name: blank_value},
+        )
+        mock_hook_instance = Mock(spec=OpenAIHook)
+        mock_hook_instance.create_response.return_value = _build_completed_response()
+        operator.hook = mock_hook_instance
+
+        operator.execute(_build_execute_context())
+
+        call_kwargs = mock_hook_instance.create_response.call_args.kwargs
+        assert param_name not in call_kwargs
+
+    @pytest.mark.parametrize("param_name", ["max_output_tokens", "max_tool_calls"])
+    def test_native_response_kwargs_none_value_raises(self, param_name):
+        # Unlike the operator-argument path (a literal None argument means "not supplied" --
+        # filtered out of _supplied_ceilings by the "is not None" check in __init__), a None
+        # value that is a *present key* in response_kwargs must still raise: the dict key's
+        # existence, not the value, is what "supplied" means for the native path.
+        operator = OpenAIResponseOperator(
+            task_id=TASK_ID,
+            conn_id=CONN_ID,
+            input_text="Write a haiku.",
+            response_kwargs={param_name: None},
+        )
+        mock_hook_instance = Mock(spec=OpenAIHook)
+        operator.hook = mock_hook_instance
+
+        with pytest.raises(ValueError, match=param_name):
+            operator.execute(_build_execute_context())
+
+        mock_hook_instance.create_response.assert_not_called()
+
     def test_or_fallback_idiom_raises_under_strict_undefined_dag_binding(self):
         with DAG("test_dag", schedule=None) as dag:
             operator = OpenAIResponseOperator(
