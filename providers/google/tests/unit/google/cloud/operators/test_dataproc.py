@@ -1583,6 +1583,38 @@ def test_create_cluster_operator_extra_links(
     )
 
 
+@pytest.mark.need_serialized_dag
+def test_deprecated_kwargs_template_fields_render(
+    dag_maker, create_task_instance_of_operator, mock_supervisor_comms
+):
+    """Legacy kwargs stashed in _legacy_cluster_kwargs must render after templating."""
+    with pytest.warns(AirflowProviderDeprecationWarning):
+        ti = create_task_instance_of_operator(
+            DataprocCreateClusterOperator,
+            dag_id=TEST_DAG_ID,
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id="{{ params.project_id }}",
+            cluster_name="{{ params.cluster_name }}",
+            num_workers=2,
+            zone="{{ params.zone }}",
+            params={
+                "project_id": GCP_PROJECT,
+                "cluster_name": CLUSTER_NAME,
+                "zone": "custom-zone",
+            },
+        )
+    ti.render_templates()
+    task = ti.task
+    # project_id is its own template field, resolved from self.project_id at build time
+    assert task.project_id == GCP_PROJECT
+    # loose ClusterGenerator kwargs render because _legacy_cluster_kwargs is a template field
+    assert task._legacy_cluster_kwargs["zone"] == "custom-zone"
+    cluster_config = task._build_cluster_config_from_legacy_kwargs()
+    assert "zones/custom-zone" in cluster_config["master_config"]["machine_type_uri"]
+    assert GCP_PROJECT in cluster_config["master_config"]["machine_type_uri"]
+
+
 class TestDataprocClusterDeleteOperator:
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):

@@ -685,6 +685,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         "labels",
         "gcp_conn_id",
         "impersonation_chain",
+        "_legacy_cluster_kwargs",
     )
     template_fields_renderers = {"cluster_config": "json", "virtual_cluster_config": "json"}
 
@@ -729,7 +730,6 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
                 raise AirflowException(
                     "project_id argument is required when building cluster from keywords parameters"
                 )
-            kwargs["project_id"] = project_id
 
             # Defer building cluster_config until execute(), after templated fields render.
             self._legacy_cluster_kwargs: dict | None = dict(kwargs)
@@ -766,12 +766,14 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
     def _build_cluster_config_from_legacy_kwargs(self) -> dict:
         """Build cluster_config from legacy keyword args, called post-render in execute()."""
         if self._legacy_cluster_kwargs is None:
-            raise RuntimeError("The _legacy_cluster_kwargs should be set here!")
+            raise RuntimeError(
+                "_legacy_cluster_kwargs was not populated in __init__; cluster_config can only "
+                "be built from legacy kwargs when the operator is constructed with the deprecated "
+                "keyword parameters (cluster_config/virtual_cluster_config both unset)."
+            )
         cluster_params = inspect.signature(ClusterGenerator.__init__).parameters
-        legacy_kwargs = dict(self._legacy_cluster_kwargs)
-        for arg in list(legacy_kwargs):
-            if arg not in cluster_params:
-                del legacy_kwargs[arg]
+        legacy_kwargs = {k: v for k, v in self._legacy_cluster_kwargs.items() if k in cluster_params}
+        legacy_kwargs["project_id"] = self.project_id  # rendered template field
         return ClusterGenerator(**legacy_kwargs).make()
 
     def _create_cluster(self, hook: DataprocHook):
