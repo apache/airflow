@@ -19,6 +19,7 @@
 
 export { Dag } from "./sdk/dag.js";
 export { Bundle } from "./sdk/bundle.js";
+export { TaskHandler } from "./sdk/task-handler.js";
 export { getClient, getContext } from "./sdk/task.js";
 export { ConnectionNotFoundError, VariableNotFoundError } from "./sdk/client.js";
 export { SUPERVISOR_API_VERSION } from "./coordinator/index.js";
