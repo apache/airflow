@@ -63,11 +63,15 @@ class FakeManagedAgentToolset(BaseManagedAgentToolset):
 
 
 class BrokenAgentRefManagedAgentToolset(FakeManagedAgentToolset):
-    """agent_ref raises, to prove resolving it never blocks invoke()."""
+    """agent_ref raises, to prove one member's broken label never blocks a group."""
+
+    def __init__(self, *, ref_raises: Exception | None = None, **kwargs):
+        super().__init__(**kwargs)
+        self._ref_raises = ref_raises or RuntimeError("connection 'azure_standby' not found")
 
     @property
     def agent_ref(self) -> dict[str, str]:
-        raise RuntimeError("connection 'azure_standby' not found")
+        raise self._ref_raises
 
 
 class TestBaseManagedAgentToolsetConstruction:
@@ -395,9 +399,8 @@ class TestFailoverManagedAgentToolset:
         assert ref["name"] == "specialist-1 -> specialist-1"
 
     def test_agent_ref_property_survives_a_broken_member(self):
-        # Accessed directly, not via call_tool()/invoke(): those wrap every
-        # member access in their own _resolve_agent_ref(), which would mask a bug
-        # in the group's own agent_ref property -- see _resolve_agent_ref().
+        # The group's own property only needs a label per member, so an
+        # unreachable one degrades to "?" -- see _resolve_agent_ref().
         ref = self._group(FakeManagedAgentToolset(), BrokenAgentRefManagedAgentToolset()).agent_ref
         assert ref == {"platform": "failover", "name": "specialist-1 -> ?"}
 
@@ -479,7 +482,8 @@ class TestFailoverMetrics:
 
 
 class TestSafeAgentRef:
-    """agent_ref only labels a call; resolving it must never block the call itself."""
+    """A member's agent_ref only labels a call, so a group tolerates a broken one.
+    A toolset's own broken agent_ref is a bug in that toolset and surfaces."""
 
     async def _call(self, toolset, prompt="what is the number?"):
         tools = await toolset.get_tools(ctx=None)
@@ -493,30 +497,51 @@ class TestSafeAgentRef:
         return FailoverManagedAgentToolset(members=list(members), **kwargs)
 
     @pytest.mark.asyncio
-    async def test_call_tool_survives_a_broken_agent_ref_on_a_lone_toolset(self):
+    async def test_a_toolsets_own_broken_agent_ref_surfaces(self):
+        # Nobody else can serve this call, so swallowing the failure would only
+        # hide the subclass's bug behind a warning and an "unknown" tag.
         toolset = BrokenAgentRefManagedAgentToolset(result="ok")
-        assert await self._call(toolset) == "ok"
+        with pytest.raises(RuntimeError, match="azure_standby"):
+            await self._call(toolset)
 
     @pytest.mark.asyncio
-    async def test_call_tool_survives_a_broken_standby_agent_ref(self):
-        primary = FakeManagedAgentToolset(result="from primary")
-        standby = BrokenAgentRefManagedAgentToolset(result="from standby")
-        group = self._group(primary, standby)
-        assert await self._call(group) == "from primary"
+    @pytest.mark.parametrize(
+        ("via", "broken_position", "primary_raises", "expected"),
+        [
+            pytest.param("call_tool", 1, None, "from primary", id="label-join-over-broken-standby"),
+            pytest.param("invoke", 0, None, "from primary", id="broken-primary-label-still-answers"),
+            pytest.param(
+                "invoke",
+                1,
+                ManagedAgentInvocationError("down"),
+                "from standby",
+                id="broken-standby-label-still-takes-over",
+            ),
+        ],
+    )
+    async def test_a_broken_member_label_never_blocks_the_group(
+        self, via, broken_position, primary_raises, expected
+    ):
+        primary_cls, standby_cls = (
+            (BrokenAgentRefManagedAgentToolset, FakeManagedAgentToolset)
+            if broken_position == 0
+            else (FakeManagedAgentToolset, BrokenAgentRefManagedAgentToolset)
+        )
+        group = self._group(
+            primary_cls(result="from primary", raises=primary_raises),
+            standby_cls(result="from standby"),
+        )
+        answer = await (self._call(group) if via == "call_tool" else group.invoke("q"))
+        assert answer == expected
 
-    @pytest.mark.asyncio
-    async def test_failover_survives_a_broken_primary_agent_ref(self):
-        primary = BrokenAgentRefManagedAgentToolset(result="from primary")
-        standby = FakeManagedAgentToolset(result="from standby")
-        group = self._group(primary, standby)
-        assert await group.invoke("q") == "from primary"
-
-    @pytest.mark.asyncio
-    async def test_failover_survives_a_broken_standby_agent_ref(self):
-        primary = FakeManagedAgentToolset(raises=ManagedAgentInvocationError("down"))
-        standby = BrokenAgentRefManagedAgentToolset(result="from standby")
-        group = self._group(primary, standby)
-        assert await group.invoke("q") == "from standby"
+    def test_model_retry_from_a_member_label_is_not_swallowed(self):
+        # ModelRetry is the calling model's control flow, not a failed lookup.
+        group = self._group(
+            FakeManagedAgentToolset(),
+            BrokenAgentRefManagedAgentToolset(ref_raises=ModelRetry("rephrase")),
+        )
+        with pytest.raises(ModelRetry):
+            _ = group.agent_ref
 
 
 class TestInvokedMetric:

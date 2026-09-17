@@ -79,14 +79,19 @@ member ends up serving the call. Summing ``managed_agent.invoked`` by
 names from lone toolsets; filter by ``tool`` instead when a group and its
 members share a dashboard.
 
-``platform`` can also show up as the literal string ``"unknown"``: when the
-toolset's identity fails to resolve -- a connection lookup failing, or a bug
-in the subclass's own ``agent_ref`` implementation -- the call logs a
-warning and proceeds anyway rather than failing outright, and it is that
-fallback -- not a real platform -- that lands in the tag. An ``"unknown"``
-bucket therefore means the invocation went out without a confirmed
-platform; the task log's warning at the same timestamp is where to find
-out why.
+``platform`` can also show up as the literal string ``"unknown"``, but only
+when a subclass's ``agent_ref`` returns a dict with no ``platform`` key: the
+tag degrades rather than failing the call over a missing label. It is not the
+bucket for an identity that fails to resolve. ``call_tool()`` reads the
+toolset's own ``agent_ref`` directly, so one that *raises* -- a connection
+lookup failing, or a bug in the subclass -- fails the tool call rather than
+sending the invocation out under an ``"unknown"`` tag.
+
+The one identity failure a call tolerates is a *member's*, inside a group: a
+group resolves every member to build its own label, and renders an unreachable
+one as ``?`` in ``name`` with a warning in the task log. That keeps a broken
+standby from failing a call the primary can serve, which is the whole point of
+the group.
 
 .. warning::
 

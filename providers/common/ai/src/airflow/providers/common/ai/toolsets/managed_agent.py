@@ -53,20 +53,27 @@ _PROMPT_SCHEMA: dict[str, Any] = {
 
 def _resolve_agent_ref(toolset: BaseManagedAgentToolset) -> dict[str, str]:
     """
-    Resolve ``agent_ref`` without letting a broken identity block the call.
+    Resolve *another* toolset's ``agent_ref`` without letting it block the call.
 
-    ``agent_ref`` exists to label a call for logs and metrics; any failure
-    inside it -- a connection lookup failing, or a bug in the subclass's own
-    resolution logic -- must never block the invocation it only describes.
-    A failover group's own ``agent_ref`` resolves every member, so one
-    unreachable standby would otherwise fail the whole tool call -- including
-    a healthy primary -- before the primary is ever tried.
+    Only for a group reading its members' identities: a failover group resolves
+    every member to label a call, so one unreachable standby would otherwise
+    fail the whole tool call -- including a healthy primary -- before the
+    primary is ever tried. One member's label is never a precondition for
+    invoking a different member, and the members' exception types are as
+    unenumerable here as they are for ``failover_on``.
+
+    A toolset's own ``agent_ref`` is read directly in :meth:`call_tool`, so a
+    bug there surfaces as itself instead of being logged away. ``ModelRetry``
+    is re-raised because it is the calling model's control flow rather than a
+    resolution failure, and this module never swallows one.
     """
     try:
         return toolset.agent_ref
+    except ModelRetry:
+        raise
     except Exception:
         log.warning(
-            "agent_ref could not be resolved for %s; continuing without it",
+            "agent_ref could not be resolved for member %s; continuing without its label",
             type(toolset).__name__,
             exc_info=True,
         )
@@ -274,7 +281,7 @@ class BaseManagedAgentToolset(AbstractToolset[Any]):
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> Any:
-        ref = _resolve_agent_ref(self)
+        ref = self.agent_ref
         log.info("Consulting managed agent %s on %s", ref.get("name"), ref.get("platform"))
         # Emitted before invoke() runs, not after -- an attempt, not an answer,
         # so a total outage still moves this counter and it stays the right
