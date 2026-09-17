@@ -1,0 +1,1 @@
+The default task alert email no longer carries a ``Mark success`` link. Airflow 3 has no mark-success endpoint to link to, so ``ti.mark_success_url`` returns the same URL as ``ti.log_url``; the duplicate link is gone from the default body and from the ``SmtpNotifier`` template.
