@@ -26,7 +26,11 @@ from typing import TYPE_CHECKING
 import attrs
 import structlog
 
-from airflow.sdk.coordinators._bundle_metadata import ResolvedBundle, convert_roots
+from airflow.sdk.coordinators._bundle_metadata import (
+    ARTIFACT_ROOTS_NOT_CONFIGURED,
+    ResolvedBundle,
+    convert_configured_roots,
+)
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
 from airflow.sdk.coordinators.node._bundle_reader import read_bundle
 
@@ -111,17 +115,24 @@ class NodeCoordinator(SubprocessCoordinator):
     :param node_executable: Path to the ``node`` binary (defaults to
         ``"node"``, which relies on ``$PATH``).
     :param bundles_root: Ordered list of directories scanned for the first
-        verified ``bundle.mjs`` that declares the task instance's Dag.
+        verified ``bundle.mjs`` that declares the task instance's Dag. See
+        :class:`SubprocessCoordinator` for its interaction with
+        ``dag_bundle_name``.
     :param task_startup_timeout: Maximum time the coordinator waits for a task
         process to start, in seconds. The default is 10 seconds.
     """
 
     node_executable: str = "node"
     bundles_root: list[pathlib.Path] = attrs.field(
-        converter=convert_roots,
-        validator=attrs.validators.min_len(1),
+        default=ARTIFACT_ROOTS_NOT_CONFIGURED,
+        converter=convert_configured_roots,
     )
 
+    @property
+    def _explicit_artifact_roots(self) -> tuple[str, list[pathlib.Path]]:
+        return "bundles_root", self.bundles_root
+
     def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
-        bundle = _Bundle.find(self.bundles_root, what.dag_id)
+        roots = self._get_scan_roots()
+        bundle = _Bundle.find(roots, what.dag_id)
         return [self.node_executable, os.fspath(bundle.path)], bundle.schema_version

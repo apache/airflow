@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import pathlib
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
 from task_sdk.coordinators.node._bundle_test_utils import (
@@ -78,9 +79,33 @@ class TestNodeCoordinatorAttributes:
         ]
         assert coordinator.task_startup_timeout == 30.0
 
-    def test_bundles_root_is_required(self):
-        with pytest.raises(ValueError, match="Length of 'bundles_root' must be >= 1"):
-            NodeCoordinator(bundles_root=None)
+    def test_bundles_root_optional_defaults_to_empty(self):
+        coordinator = NodeCoordinator()
+        assert coordinator.bundles_root == []
+        assert coordinator.dag_bundle_name is None
+
+    @pytest.mark.parametrize("bundles_root", [None, []], ids=["none", "empty-list"])
+    def test_explicit_empty_bundles_root_raises(self, bundles_root):
+        with pytest.raises(ValueError, match="must contain at least one path when provided"):
+            NodeCoordinator(bundles_root=bundles_root)
+
+    def test_root_and_dag_bundle_name_are_mutually_exclusive(self):
+        with pytest.raises(ValueError, match="at most one of 'bundles_root' or 'dag_bundle_name'"):
+            NodeCoordinator(bundles_root="/airflow/ts-bundles", dag_bundle_name="artifacts")
+
+    @patch("airflow.sdk.coordinators._subprocess.DagBundlesManager")
+    def test_unconfigured_dag_bundle_name_raises(self, mock_manager):
+        mock_manager.is_bundle_configured.return_value = False
+        with pytest.raises(ValueError, match="unconfigured Dag bundle 'ghost'"):
+            NodeCoordinator(dag_bundle_name="ghost")
+
+    def test_build_command_scans_passed_roots_in_colocated_mode(self, tmp_path):
+        bundle = write_bundle(tmp_path, "test_dag")
+        coordinator = NodeCoordinator()
+        with coordinator._set_scan_roots([tmp_path]):
+            command, schema_version = coordinator._build_execute_task_command(what=_make_ti())
+        assert command == ["node", str(bundle)]
+        assert schema_version == SCHEMA_VERSION
 
 
 class TestNodeCoordinatorExecuteTaskCommand:
@@ -91,9 +116,23 @@ class TestNodeCoordinatorExecuteTaskCommand:
             bundles_root=tmp_path,
         )
 
-        command, schema_version = coordinator._build_execute_task_command(what=_make_ti(dag_id="sales"))
+        with coordinator._set_scan_roots([tmp_path]):
+            command, schema_version = coordinator._build_execute_task_command(what=_make_ti(dag_id="sales"))
 
         assert command == ["/opt/node/bin/node", str(selected)]
+        assert schema_version == SCHEMA_VERSION
+
+    def test_build_execute_task_command_returns_node_bundle_and_schema_version(self, tmp_path):
+        bundle = write_bundle(tmp_path, "test_dag")
+        coordinator = NodeCoordinator(
+            node_executable="/opt/node/bin/node",
+            bundles_root=tmp_path,
+        )
+
+        with coordinator._set_scan_roots([tmp_path]):
+            command, schema_version = coordinator._build_execute_task_command(what=_make_ti())
+
+        assert command == ["/opt/node/bin/node", str(bundle)]
         assert schema_version == SCHEMA_VERSION
 
 
