@@ -66,10 +66,10 @@ class Summary(BaseModel):
     score: float = 0.0
 
 
-def _make_mock_agent(output, make_mock_run_result):
+def _make_mock_agent(output, make_mock_run_result, *, cost=None):
     """Create a mock agent that returns the given output."""
     mock_agent = MagicMock(spec=["run_sync", "instrument"])
-    mock_agent.run_sync.return_value = make_mock_run_result(output)
+    mock_agent.run_sync.return_value = make_mock_run_result(output, cost=cost)
     return mock_agent
 
 
@@ -1191,18 +1191,37 @@ class TestAgentOperatorRunIdentity:
             "output_tokens": 0,
             "total_tokens": 0,
             "tool_calls": 0,
+            "cost": None,
         }
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_run_id_omitted_when_task_instance_has_no_id(self, mock_hook_cls, make_mock_run_result):
-        """Without a task-instance id (e.g. debug runs) no run_id is passed. pydantic-ai auto-generates one."""
-        mock_agent = _make_mock_agent("ok", make_mock_run_result)
+    def test_usage_cost_is_stringified_on_xcom(self, mock_hook_cls, make_mock_run_result):
+        """A non-None run cost (Decimal) is stringified before it goes to XCom."""
+        mock_agent = _make_mock_agent("ok", make_mock_run_result, cost=PRICED_COST)
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = AgentOperator(task_id="t", prompt="run", llm_conn_id="c")
-        op.execute(context=_make_context(_make_ti(id=None)))
+        context = _make_context()
+        op.execute(context=context)
 
-        assert "run_id" not in mock_agent.run_sync.call_args.kwargs
+        pushes = {
+            c.kwargs["key"]: c.kwargs["value"] for c in context["task_instance"].xcom_push.call_args_list
+        }
+        assert pushes["usage"]["cost"] == str(PRICED_COST)
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_run_metadata_not_pushed_when_do_xcom_push_false(self, mock_hook_cls, make_mock_run_result):
+        """do_xcom_push=False suppresses the run_id/usage pushes like any other operator XCom."""
+        mock_agent = _make_mock_agent("ok", make_mock_run_result)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = AgentOperator(task_id="t", prompt="run", llm_conn_id="c", do_xcom_push=False)
+        context = _make_context()
+        op.execute(context=context)
+
+        pushed_keys = {c.kwargs["key"] for c in context["task_instance"].xcom_push.call_args_list}
+        assert "run_id" not in pushed_keys
+        assert "usage" not in pushed_keys
 
     @patch("airflow.providers.common.ai.operators.agent.stamp_identity_on_agent_spans", autospec=True)
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)

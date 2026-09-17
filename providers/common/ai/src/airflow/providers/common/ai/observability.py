@@ -31,6 +31,7 @@ or not configured in this process) no spans are emitted.
 
 from __future__ import annotations
 
+import copy
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Literal, cast
 
@@ -140,14 +141,23 @@ def stamp_identity_on_agent_spans(agent: Agent, attributes: dict[str, Any]) -> N
     all without touching the shared core ``TracerProvider``. No-op when the
     agent is not instrumented with an ``InstrumentationSettings`` (tracing off,
     or the caller supplied its own non-settings ``instrument`` value).
+
+    The settings object may be caller-owned and shared across agents (a single
+    module-level ``InstrumentationSettings`` handed to several tasks) or reused
+    across HITL re-runs. Mutating it in place would leak one run's identity into
+    another and nest ``_IdentityTracer`` wrappers on each stamp, so we wrap a copy
+    and swap it onto this agent, leaving the original untouched.
     """
     from pydantic_ai.models.instrumented import InstrumentationSettings
 
     instrument = agent.instrument
     if isinstance(instrument, InstrumentationSettings):
+        # ``tracer`` is not a constructor arg, so copy then set the attribute.
+        settings = copy.copy(instrument)
         # _IdentityTracer implements the Tracer surface structurally (it cannot
         # subclass Tracer without importing opentelemetry at module load).
-        instrument.tracer = cast("Tracer", _IdentityTracer(instrument.tracer, attributes))
+        settings.tracer = cast("Tracer", _IdentityTracer(instrument.tracer, attributes))
+        agent.instrument = settings
 
 
 class _IdentityTracer:

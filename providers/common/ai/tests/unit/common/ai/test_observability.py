@@ -25,6 +25,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from pydantic_ai import Agent
+from pydantic_ai.models.instrumented import InstrumentationSettings
 from pydantic_ai.models.test import TestModel
 
 from airflow.providers.common.ai import observability
@@ -207,3 +208,24 @@ class TestStampIdentityOnAgentSpans:
         agent.instrument = False
         observability.stamp_identity_on_agent_spans(agent, self._ATTRS)
         assert agent.instrument is False
+
+    def test_wraps_a_copy_without_mutating_or_nesting_shared_settings(self):
+        # A caller-owned settings object handed to several agents (or reused across
+        # HITL re-runs) must stay untouched: each agent gets its own wrapped copy,
+        # and every wrapper wraps the real tracer directly rather than nesting.
+        provider = TracerProvider()
+        shared = InstrumentationSettings(tracer_provider=provider)
+        original_tracer = shared.tracer
+
+        agent1, agent2 = Agent(TestModel()), Agent(TestModel())
+        agent1.instrument = shared
+        agent2.instrument = shared
+        observability.stamp_identity_on_agent_spans(agent1, self._ATTRS)
+        observability.stamp_identity_on_agent_spans(agent2, self._ATTRS)
+
+        assert shared.tracer is original_tracer
+        assert agent1.instrument is not shared
+        assert agent1.instrument is not agent2.instrument
+        assert isinstance(agent1.instrument.tracer, observability._IdentityTracer)
+        assert agent1.instrument.tracer._tracer is original_tracer
+        assert agent2.instrument.tracer._tracer is original_tracer

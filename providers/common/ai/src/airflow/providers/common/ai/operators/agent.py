@@ -485,12 +485,10 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         self._run_identity_attrs = build_run_identity_attributes(ti)
         stamp_identity_on_agent_spans(agent, self._run_identity_attrs)
 
-        run_kwargs: dict[str, Any] = {"usage_limits": usage_limits}
-        if ti.id is not None:
-            # The task-instance id is regenerated on each retry, so it is a
-            # unique, reverse-resolvable join key. It lands on result.run_id, the
-            # run's messages, and the ``gen_ai.agent.call.id`` span attribute.
-            run_kwargs["run_id"] = str(ti.id)
+        # The task-instance id is non-nullable and regenerated on each retry, so it
+        # is a unique, reverse-resolvable join key. It lands on result.run_id, the
+        # run's messages, and the ``gen_ai.agent.call.id`` span attribute.
+        run_kwargs: dict[str, Any] = {"usage_limits": usage_limits, "run_id": str(ti.id)}
         history = self._resolve_message_history()
         if history is not None:
             run_kwargs["message_history"] = history
@@ -596,6 +594,8 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
 
     def _emit_run_metadata(self, context: Context, result: Any) -> None:
         """Expose the pydantic-ai run id and token usage on XCom for downstream tasks."""
+        if not self.do_xcom_push:
+            return
         usage = result.usage
         ti = context["task_instance"]
         ti.xcom_push(key="run_id", value=result.run_id)
@@ -607,6 +607,8 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
                 "output_tokens": usage.output_tokens,
                 "total_tokens": usage.total_tokens,
                 "tool_calls": usage.tool_calls,
+                # Decimal | None, stringified so XCom serialization stays lossless.
+                "cost": str(usage.cost) if usage.cost is not None else None,
             },
         )
 
