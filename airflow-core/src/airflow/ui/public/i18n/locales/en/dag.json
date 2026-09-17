@@ -220,6 +220,7 @@
     "taskInstances": "Task Instances",
     "taskStateStore": "Task State Store",
     "tasks": "Tasks",
+    "versions": "Versions",
     "xcom": "XCom"
   },
   "taskGroups": {
@@ -247,5 +248,34 @@
       "never": "Never"
     },
     "title": "Task State Store"
+  },
+  "versions": {
+    "base": "Compare from",
+    "codeAccess": "Values require access to Dag code",
+    "columns": {
+      "after": "After",
+      "before": "Before",
+      "category": "Category",
+      "impact": "Impact",
+      "occurrences": "Occurrences",
+      "operation": "Operation",
+      "path": "Path"
+    },
+    "heading": "Version {{base}} → Version {{target}}",
+    "observedState": "Observed state",
+    "observedStateBoundary": "Compares currently stored state, not creation-time evidence. Source comparison is unavailable for historical versions; use the Code tab to compare source.",
+    "selectPrompt": "Select two versions to see what changed between them.",
+    "summary": "{{count}} changes · serialized schema {{base}} → {{target}}",
+    "target": "Compare to",
+    "truncated": {
+      "description": "Changes at paths not shown were dropped to stay within the limit, so the count is a lower bound.",
+      "title": "Some changes were not returned"
+    },
+    "unavailable": {
+      "description": "These versions could not be compared. Reason:",
+      "title": "Comparison unavailable"
+    },
+    "valuesHidden": "Values hidden",
+    "valuesShown": "Values shown"
   }
 }
