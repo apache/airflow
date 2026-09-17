@@ -17,13 +17,14 @@
 # under the License.
 from __future__ import annotations
 
+import functools
 from collections.abc import Callable
 
 from airflow.sdk._shared.observability.metrics.base_stats_logger import NoStatsLogger
 from airflow.sdk.configuration import conf
 
 
-def get_stats_factory() -> Callable:
+def get_stats_factory(short_lived: bool = False) -> Callable:
     if conf.getboolean("metrics", "statsd_datadog_enabled"):
         from airflow.sdk.observability.metrics import datadog_logger
 
@@ -35,5 +36,5 @@ def get_stats_factory() -> Callable:
     if conf.getboolean("metrics", "otel_on"):
         from airflow.sdk.observability.metrics import otel_logger
 
-        return otel_logger.get_otel_logger
+        return functools.partial(otel_logger.get_otel_logger, short_lived=short_lived)
     return NoStatsLogger

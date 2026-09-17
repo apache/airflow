@@ -217,6 +217,36 @@ class TestTIRunState:
         clear_db_dags()
         clear_db_assets()
 
+    @mock.patch("airflow.api_fastapi.execution_api.routes.task_instances.stats")
+    def test_ti_run_counts_the_start(self, mock_stats, client, session, create_task_instance):
+        ti = create_task_instance(task_id="test_ti_run_counts_the_start", state=State.QUEUED, session=session)
+        session.commit()
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
+
+        assert response.status_code == 200
+        run_type = getattr(ti.dag_run.run_type, "value", ti.dag_run.run_type)
+        mock_stats.incr.assert_called_once_with(
+            "ti.start", tags={"dag_id": ti.dag_id, "run_type": run_type, "task_id": ti.task_id}
+        )
+
+    @mock.patch("airflow.api_fastapi.execution_api.routes.task_instances.stats")
+    def test_ti_run_duplicate_request_is_not_a_second_start(
+        self, mock_stats, client, session, create_task_instance
+    ):
+        ti = create_task_instance(
+            task_id="test_ti_run_duplicate_request", state=State.RUNNING, session=session
+        )
+        ti.hostname = self.RUN_PAYLOAD["hostname"]
+        ti.unixname = self.RUN_PAYLOAD["unixname"]
+        ti.pid = self.RUN_PAYLOAD["pid"]
+        session.commit()
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
+
+        assert response.status_code == 200
+        mock_stats.incr.assert_not_called()
+
     def test_ti_run_context_exposes_consumed_event_partition_key(self, client, session, create_task_instance):
         """The partition key of each consumed asset event is returned in the run context."""
         ti = create_task_instance(
@@ -1576,6 +1606,87 @@ class TestTIUpdateState:
         clear_db_assets()
         clear_db_logs()
         clear_db_runs()
+
+    @pytest.mark.parametrize(
+        ("payload", "expected_counters", "expect_duration"),
+        [
+            pytest.param(
+                {"state": "success", "end_date": DEFAULT_END_DATE.isoformat()},
+                [
+                    ("ti.finish", {"state": "success"}),
+                    ("operator_successes", {"operator_name": "EmptyOperator"}),
+                    ("ti_successes", {}),
+                ],
+                True,
+                id="success",
+            ),
+            pytest.param(
+                {"state": "failed", "end_date": DEFAULT_END_DATE.isoformat()},
+                [
+                    ("ti.finish", {"state": "failed"}),
+                    ("operator_failures", {"operator_name": "EmptyOperator"}),
+                    ("ti_failures", {}),
+                ],
+                True,
+                id="failed",
+            ),
+            pytest.param(
+                {"state": "up_for_retry", "end_date": DEFAULT_END_DATE.isoformat()},
+                [
+                    ("ti.finish", {"state": "up_for_retry"}),
+                    ("operator_failures", {"operator_name": "EmptyOperator"}),
+                    ("ti_failures", {}),
+                ],
+                True,
+                id="up_for_retry",
+            ),
+            pytest.param(
+                {"state": "skipped", "end_date": DEFAULT_END_DATE.isoformat()},
+                [("ti.finish", {"state": "skipped"})],
+                True,
+                id="skipped",
+            ),
+            pytest.param(
+                {
+                    "state": "deferred",
+                    "trigger_kwargs": {"key": "value"},
+                    "classpath": "my-classpath",
+                    "next_method": "execute_callback",
+                    "next_kwargs": {},
+                    "trigger_timeout": "P1D",
+                },
+                [("ti.finish", {"state": "deferred"})],
+                False,
+                id="deferred",
+            ),
+        ],
+    )
+    @mock.patch("airflow.api_fastapi.execution_api.routes.task_instances.stats")
+    def test_ti_update_state_counts_the_finished_attempt(
+        self, mock_stats, client, session, create_task_instance, payload, expected_counters, expect_duration
+    ):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_counts_the_finished_attempt",
+            state=State.RUNNING,
+            session=session,
+        )
+        ti.start_date = DEFAULT_START_DATE
+        session.commit()
+        run_type = getattr(ti.dag_run.run_type, "value", ti.dag_run.run_type)
+        tags = {"dag_id": ti.dag_id, "run_type": run_type, "task_id": ti.task_id}
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+
+        assert response.status_code == 204
+        assert mock_stats.incr.call_args_list == [
+            mock.call(name, tags={**tags, **extra}) for name, extra in expected_counters
+        ]
+        if expect_duration:
+            mock_stats.timing.assert_called_once_with(
+                "task.duration", (DEFAULT_END_DATE - DEFAULT_START_DATE).total_seconds() * 1000, tags=tags
+            )
+        else:
+            mock_stats.timing.assert_not_called()
 
     @pytest.mark.parametrize(
         ("state", "end_date", "expected_state"),
