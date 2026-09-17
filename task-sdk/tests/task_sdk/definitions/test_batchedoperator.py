@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Callable
+from typing import Any
 from unittest import mock
 
 import pytest
@@ -29,6 +30,7 @@ from airflow.sdk.execution_time.comms import (
     GetTICount,
     GetXCom,
     GetXComSequenceSlice,
+    SetXCom,
     TICount,
     XComResult,
     XComSequenceSliceResult,
@@ -76,6 +78,75 @@ class TestBatchedOperator:
         assert states == [TaskInstanceState.SUCCESS] * 2
         assert set(outputs["0"]) == {0, 2, 4, 6, 8}
         assert set(outputs["1"]) == {1, 3, 5, 7, 9}
+
+    @pytest.mark.parametrize("batch_size", [None, 2])
+    def test_iterate_task_with_dict_return_annotation_pushes_whole_results(
+        self, batch_size, run_ti: RunTI, mock_supervisor_comms
+    ):
+        """A Mapping return annotation makes @task infer multiple_outputs=True. The runner must not
+        apply that to an iterated task: its return value is the XComIterable aggregate, which is not a
+        dict, and every sub-task result is pushed whole rather than fanned out by key."""
+        items = [{"dag_id": "a", "n": 1}, {"dag_id": "b", "n": 2}, {"dag_id": "c", "n": 3}]
+
+        with DAG(dag_id="iterate_dict_return") as dag:
+
+            @dag.task
+            def list_items():
+                return items
+
+            @dag.task
+            def enrich(item: dict) -> dict:
+                return {"dag_id": item["dag_id"], "n": item["n"] * 2}
+
+            target = enrich if batch_size is None else enrich.batch(size=batch_size)
+            target.iterate(item=list_items())
+
+        assert enrich.multiple_outputs is True
+
+        def mock_comms(msg):
+            if isinstance(msg, GetXCom):
+                if msg.task_id == "list_items":
+                    return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=items)
+            elif isinstance(msg, GetXComSequenceSlice):
+                if msg.task_id == "list_items":
+                    return XComSequenceSliceResult(root=items)
+            elif isinstance(msg, GetTICount):
+                if msg.task_ids and msg.task_ids[0] == "enrich":
+                    return TICount(count=2)
+                return TICount(count=1)
+            return mock.DEFAULT
+
+        mock_supervisor_comms.send.side_effect = mock_comms
+
+        map_indexes = [-1] if batch_size is None else [0, 1]
+        pushed: dict[int, dict[str, Any]] = {}
+        for map_index in map_indexes:
+            # Sub-task results are pushed through the async send, the aggregate through the sync one.
+            mock_supervisor_comms.asend.reset_mock()
+            assert run_ti(dag, "enrich", map_index) == TaskInstanceState.SUCCESS
+            pushed[map_index] = {
+                msg.key: msg.value
+                for call in [*mock_supervisor_comms.send.mock_calls, *mock_supervisor_comms.asend.mock_calls]
+                if isinstance(msg := (call.kwargs.get("msg") or call.args[0]), SetXCom)
+                and msg.task_id == "enrich"
+            }
+
+        for map_index, xcoms in pushed.items():
+            assert xcoms[BaseXCom.XCOM_RETURN_KEY]["__classname__"] == "airflow.sdk.bases.xcom.XComIterable"
+            assert xcoms[BaseXCom.XCOM_RETURN_KEY]["__data__"]["map_index"] == map_index
+            assert not {"dag_id", "n"} & xcoms.keys()
+
+        sub_results = [
+            value
+            for xcoms in pushed.values()
+            for key, value in xcoms.items()
+            if key.startswith(f"{BaseXCom.XCOM_RETURN_KEY}_")
+        ]
+        assert sorted(sub_results, key=lambda r: r["dag_id"]) == [
+            {"dag_id": "a", "n": 2},
+            {"dag_id": "b", "n": 4},
+            {"dag_id": "c", "n": 6},
+        ]
 
     @pytest.mark.parametrize(
         ("batch_size", "expand_size"),

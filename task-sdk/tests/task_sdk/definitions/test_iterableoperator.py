@@ -1210,6 +1210,17 @@ class TestIterableOperator:
         assert seen_active_during_run == [True]
         assert task.task not in iterable_op._active_sub_operators
 
+    def test_multiple_outputs_is_ignored(self):
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"arg1": 1}])
+            mapped_op = create_mapped_operator(dag=dag, expand_input=expand_input, task_id="multi")
+
+            iterable_op = IterableOperator(
+                operator=mapped_op, expand_input=expand_input, dag=dag, multiple_outputs=True
+            )
+
+            assert iterable_op.multiple_outputs is False
+
     def test_iterable_execution_timeout_is_none_wrapped_operator_retains_it(self):
         """IterableOperator.execution_timeout is None (not propagated to the outer TI);
         the wrapped operator retains its own execution_timeout for per-task enforcement.

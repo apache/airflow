@@ -487,6 +487,21 @@ class TestTaskDecoratorTaskConcurrency:
             assert xcom_arg.operator.max_workers == 2
 
 
+@pytest.mark.parametrize("batch_size", [None, 2])
+def test_iterate_ignores_multiple_outputs_inferred_from_return_annotation(batch_size):
+    with DAG("test_dag"):
+
+        @task
+        def to_dict(x) -> dict:
+            return {"x": x}
+
+        assert to_dict.multiple_outputs is True
+        target = to_dict if batch_size is None else to_dict.batch(size=batch_size)
+        xcom_arg = target.iterate(x=[1, 2, 3])
+
+        assert xcom_arg.operator.multiple_outputs is False
+
+
 @pytest.mark.parametrize("size", [-1, 0, 1])
 def test_batch_rejects_sizes_below_two(size):
     with DAG("test_dag"):

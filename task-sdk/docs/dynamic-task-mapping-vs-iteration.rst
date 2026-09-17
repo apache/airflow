@@ -227,6 +227,13 @@ difference is negligible, but for hundreds or thousands of items the
 concurrent approach is dramatically faster — see the
 :ref:`benchmarks above <sdk-dynamic-task-mapping-vs-iteration>`.
 
+.. note::
+
+    ``multiple_outputs`` is ignored by ``iterate()``. Each iteration's return value is pushed
+    whole as ``return_value_<index>`` and the task's own return value is the lazy sequence over
+    them, so a ``dict`` return annotation on the task does not fan its keys out into separate
+    XComs the way it does with ``expand()``.
+
 Why Iterable Tasks?
 ---------------------------
 

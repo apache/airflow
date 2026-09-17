@@ -222,6 +222,12 @@ class IterableOperator(BaseOperator):
     :returns: An :class:`XComIterable` if the mapped operator pushes XComs, otherwise ``None``.
 
     .. note::
+        ``multiple_outputs`` is ignored for iterated tasks. Each sub-task's return value is pushed
+        whole as ``return_value_<index>`` and the task's own return value is the ``XComIterable``
+        over them, so a ``Mapping`` return annotation on the wrapped ``@task`` does not fan its
+        keys out into separate XComs the way it does for ``.expand()``.
+
+    .. note::
         Deferred operators (those that raise :class:`~airflow.sdk.exceptions.TaskDeferred`) are not
         supported yet inside IterableOperator. A ``TaskDeferred`` exception raised by an indexed task
         instance will propagate as an error rather than pausing and resuming the task.
@@ -328,6 +334,11 @@ class IterableOperator(BaseOperator):
                 "executor": operator.executor,
                 "executor_config": operator.executor_config,
                 "do_xcom_push": operator.partial_kwargs.get("do_xcom_push", True),
+                # Ignored for iterated tasks (also when passed explicitly): the return value pushed by the
+                # runner is the XComIterable aggregate, not a dict, and every sub-task result is pushed
+                # whole under return_value_<index>. The wrapped @task may still infer True from a
+                # Mapping return annotation, which would make the runner reject the aggregate.
+                "multiple_outputs": False,
                 "inlets": operator.inlets,
                 "outlets": operator.outlets,
                 "task_group": operator.task_group,
@@ -715,6 +726,11 @@ class MappedIterableOperator(MappedOperator):
     @property
     def batch_size(self) -> int:
         return self.delegate.batch_size
+
+    @property
+    def multiple_outputs(self) -> bool:
+        # Same contract as IterableOperator; without this __getattr__ would report the wrapped @task's flag.
+        return False
 
     @property
     def retries(self) -> int:
