@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.providers.amazon.aws.transfers.utils import strip_overlapping_folder_markers
+from airflow.providers.amazon.aws.utils.transfer import strip_overlapping_folder_markers
 
 
 @pytest.mark.parametrize(

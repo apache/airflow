@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING
 from packaging.version import Version
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.amazon.aws.transfers.utils import strip_overlapping_folder_markers
+from airflow.providers.amazon.aws.utils.transfer import strip_overlapping_folder_markers
 from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 
