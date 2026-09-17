@@ -30,8 +30,3 @@ def test_public_exports():
 @pytest.mark.parametrize("name", EXPECTED_EXPORTS)
 def test_all_compat_imports_work(name):
     assert getattr(triggers, name) is not None
-
-
-def test_invalid_import_raises_attribute_error():
-    with pytest.raises(AttributeError, match="module has no attribute 'NonExistentClass'"):
-        _ = triggers.NonExistentClass

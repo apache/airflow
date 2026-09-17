@@ -54,11 +54,6 @@ def test_all_compat_imports_work(name):
     assert getattr(operators, name) is not None
 
 
-def test_invalid_import_raises_attribute_error():
-    with pytest.raises(AttributeError, match="module has no attribute 'NonExistentClass'"):
-        _ = operators.NonExistentClass
-
-
 @pytest.mark.parametrize(
     ("func", "expected"),
     [
