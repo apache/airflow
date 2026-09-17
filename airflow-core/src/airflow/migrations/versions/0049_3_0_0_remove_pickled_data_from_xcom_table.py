@@ -191,14 +191,17 @@ _SQLITE_JSON_VALID_GUARD = "AND NOT json_valid(CAST(value AS TEXT))"
 # cannot proceed. Those rows are moved to _xcom_archive, next to the pickled ones, so the rest of
 # the table converts; the two are told apart by their first byte (0x80 for pickled).
 #
-# The cap applies to the elements, not to the value as a whole, so size alone decides nothing in
-# either direction. A long top-level string can be far bigger than the cap and still convert. In
-# the other direction the parse expands the value enormously, so a value far *under* the cap can
-# still fail: the densest possible input is a bare "1," at two bytes per element, and on
-# PostgreSQL 16 an array of those converts up to about 30 MB of text and fails from roughly 34 MB
-# ("invalid memory alloc request size 1073741824" -- it exhausts the 1 GB allocation limit long
-# before the element cap is reached). Rows are therefore cast one at a time and only the ones that
-# actually fail are moved.
+# That number is JENTRY_OFFLENMASK, and it bounds a single jsonb string too, through
+# checkStringLen() in jsonb.c: a top-level string past it fails with "string too long to represent
+# as jsonb string". So the limit is reached by more than one route, and none of those routes is
+# simply the size of the value.
+#
+# Size also under-detects, which is the dangerous direction: the parse expands the value
+# enormously, so a value far *under* the limit can still fail. The densest possible input is a
+# bare "1," at two bytes per element, and on PostgreSQL 16 an array of those converts up to about
+# 30 MB of text and fails from roughly 34 MB ("invalid memory alloc request size 1073741824" -- it
+# exhausts the 1 GB allocation limit long before the element limit is reached). Rows are therefore
+# cast one at a time and only the ones that actually fail are moved.
 #
 # The size test exists only to keep that probe off rows that cannot be affected, so it is set well
 # below the measured boundary rather than derived from the cap, which is not what a value this
@@ -313,11 +316,12 @@ def _report_oversized_xcom_rows(rows) -> None:
     if not rows:
         return
     print(
-        f"{len(rows)} XCom value(s) cannot be converted to PostgreSQL's JSONB format: a single "
-        f"document holds at most {_PG_JSONB_MAX_ELEMENT_BYTES} bytes of array elements / object "
-        "pairs, and converting a value of this size can exhaust memory before even that. They "
-        "are being moved to the _xcom_archive table, where they stay readable as the original "
-        "bytes. The rows are listed below as dag_id/task_id/run_id/key (bytes):"
+        f"{len(rows)} XCom value(s) cannot be converted to PostgreSQL's JSONB format, which "
+        f"caps both a document's array elements / object pairs and a single string at "
+        f"{_PG_JSONB_MAX_ELEMENT_BYTES} bytes, and can exhaust memory converting a large value "
+        "before either limit is reached. They are being moved to the _xcom_archive table, where "
+        "they stay readable as the original bytes. The rows are listed below as "
+        "dag_id/task_id/run_id/key (bytes):"
     )
     for dag_id, task_id, run_id, key, size in rows[:_OVERSIZED_REPORT_LIMIT]:
         print(f"  {dag_id}/{task_id}/{run_id}/{key} ({size} bytes)")

@@ -304,6 +304,73 @@ class TestPostgresOversized:
                 conn.execute(sa.text(drop))
 
 
+@pytest.mark.db_test
+class TestPostgresOversizedTopLevelString:
+    """
+    A top-level string is bounded by the same 268435455 bytes as a document's elements.
+
+    ``checkStringLen()`` in ``jsonb.c`` applies ``JENTRY_OFFLENMASK`` to strings as well, so a
+    long string is not exempt from the limit the way a raw ``bytea`` value is. This builds one
+    either side of the boundary and checks the migration keeps the one that converts and archives
+    the one that does not. Marked ``long_running`` because it allocates over 256 MB server-side;
+    run it with ``--include-long-running``.
+    """
+
+    _TABLE = "_test_xcom_bigstring"
+    _ARCHIVE = "_test_xcom_bigstring_archive"
+
+    @staticmethod
+    def _insert_string(conn, table, dag_run_id, body_len):
+        """Build a top-level JSON string of ``body_len`` bytes server-side, not over the wire."""
+        conn.execute(
+            sa.text(
+                f"""INSERT INTO {table} SELECT :i, 'task', -1, 'return_value', 'dag', 'run',
+                convert_to('"' || repeat('a', :n) || '"', 'UTF8'), now()"""
+            ),
+            {"i": dag_run_id, "n": body_len},
+        )
+
+    @pytest.mark.backend("postgres")
+    @pytest.mark.long_running
+    def test_string_over_the_limit_is_archived(self):
+        cap = _migration._PG_JSONB_MAX_ELEMENT_BYTES
+        drop = f"DROP TABLE IF EXISTS {self._TABLE}, {self._ARCHIVE}"
+        stmts = _migration._xcom_pg_oversized_statements(table=self._TABLE, archive=self._ARCHIVE)
+        with settings.engine.begin() as conn:
+            conn.execute(sa.text(drop))
+            for name in (self._TABLE, self._ARCHIVE):
+                conn.execute(
+                    sa.text(
+                        f"""CREATE TABLE {name} (
+                            dag_run_id int, task_id text, map_index int, "key" text,
+                            dag_id text, run_id text, value bytea, timestamp timestamptz
+                        )"""
+                    )
+                )
+            # Row 1 sits just under the limit and must survive; row 2 just over it must not.
+            # Both are far larger than the size screen, so the probe is what separates them.
+            self._insert_string(conn, self._TABLE, 1, cap - 100)
+            self._insert_string(conn, self._TABLE, 2, cap + 100)
+        try:
+            with settings.engine.connect() as conn:
+                with pytest.raises(sa.exc.DatabaseError, match="string too long"):
+                    conn.execute(
+                        sa.text(f"SELECT CAST(CONVERT_FROM(value, 'UTF8') AS JSONB) FROM {self._TABLE}")
+                    ).all()
+                conn.rollback()
+            with settings.engine.begin() as conn:
+                conn.execute(sa.text(stmts["create"]))
+                conn.execute(sa.text(stmts["archive"]))
+                conn.execute(sa.text(stmts["delete"]))
+                kept = conn.execute(sa.text(f"SELECT dag_run_id FROM {self._TABLE}")).scalars().all()
+                archived = conn.execute(sa.text(f"SELECT dag_run_id FROM {self._ARCHIVE}")).scalars().all()
+            assert archived == [2]
+            assert kept == [1]
+        finally:
+            with settings.engine.begin() as conn:
+                conn.execute(sa.text(drop))
+
+
 def test_pg_oversized_statements_screen_well_below_the_cap():
     """
     The size screen must sit far below the JSONB element limit to be a safe filter.

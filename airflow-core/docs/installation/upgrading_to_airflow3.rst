@@ -78,9 +78,9 @@ Step 2: Clean and back up your existing Airflow Instance
   upgrade process. These schema changes can take a long time if the database is large. For a faster, safer migration, we recommend that you clean up your Airflow meta-database before the upgrade.
   You can use the ``airflow db clean`` :ref:`Airflow CLI command<cli-db-clean>` to trim your Airflow database.
 
-- On PostgreSQL, ``xcom.value`` changes from ``bytea`` to ``jsonb`` during the upgrade. A single ``jsonb`` document cannot hold more than
-  268435455 bytes of array elements or object pairs, while ``bytea`` allowed up to 1 GB, so an XCom written by Airflow 2 can be too large
-  to convert. The migration moves any such value into the ``_xcom_archive`` table, alongside the pickled values it also cannot convert,
+- On PostgreSQL, ``xcom.value`` changes from ``bytea`` to ``jsonb`` during the upgrade. ``jsonb`` caps both a single document's array
+  elements or object pairs and a single string at 268435455 bytes, while ``bytea`` allowed up to 1 GB, so an XCom written by Airflow 2 can
+  be too large to convert. The migration moves any such value into the ``_xcom_archive`` table, alongside the pickled values it also cannot convert,
   and prints the affected ``dag_id``/``task_id``/``run_id``/``key`` so you can retrieve them afterwards. The archived bytes are the
   original value, but they are no longer visible to tasks or to the UI. To see which XComs this will affect before you upgrade, run:
 
@@ -91,10 +91,9 @@ Step 2: Clean and back up your existing Airflow Instance
       WHERE octet_length(value) > 268435455
       ORDER BY bytes DESC;
 
-  This query is a guide rather than an exact answer: the limit applies to the elements of a document rather than to the value as a whole,
-  so a single long string can exceed it and still convert, while a large array of small numbers can be under it and still fail. Rather
-  than guess, the migration tries the conversion on every value big enough to be a candidate and archives only the ones that actually
-  fail, so the list it prints is authoritative.
+  This query is a guide rather than an exact answer: converting a value expands it, so a large array of small numbers can be well under
+  268435455 bytes and still fail to convert. Rather than guess, the migration tries the conversion on every value big enough to be a
+  candidate and archives only the ones that actually fail, so the list it prints is authoritative.
 
 - Ensure that there are no errors related to Dag processing, such as ``AirflowDagDuplicatedIdException``.  You should
   be able to run ``airflow dags reserialize`` with no errors.  If you have to resolve errors from Dag processing,
