@@ -4206,7 +4206,7 @@ class TestEmailNotifications:
                     assert kwargs["to"] == emails
                     assert (
                         kwargs["html_content"]
-                        == 'Dag: {{ti.dag_id}}<br>Task: {{ti.task_id}}<br>Run: {{ti.run_id}}<br>Try: {{try_number}} out of {{max_tries + 1}}<br>Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+                        == 'Dag: {{ti.dag_id}}<br>Task: {{ti.task_id}}<br>Run: {{ti.run_id}}<br>Try: {{try_number}} out of {{max_tries + 1}}<br>{% if ti.start_date is defined and ti.start_date %}Started: {{ti.start_date}}<br>{% endif %}{% if ti.end_date is defined and ti.end_date %}Ended: {{ti.end_date}}<br>{% endif %}Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
                     )
 
     @pytest.mark.parametrize(
@@ -4264,7 +4264,7 @@ class TestEmailNotifications:
                     assert kwargs["to"] == emails
                     assert (
                         kwargs["html_content"]
-                        == 'Dag: {{ti.dag_id}}<br>Task: {{ti.task_id}}<br>Run: {{ti.run_id}}<br>Try: {{try_number}} out of {{max_tries + 1}}<br>Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+                        == 'Dag: {{ti.dag_id}}<br>Task: {{ti.task_id}}<br>Run: {{ti.run_id}}<br>Try: {{try_number}} out of {{max_tries + 1}}<br>{% if ti.start_date is defined and ti.start_date %}Started: {{ti.start_date}}<br>{% endif %}{% if ti.end_date is defined and ti.end_date %}Ended: {{ti.end_date}}<br>{% endif %}Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
                     )
 
     def test_email_with_custom_templates(self, create_runtime_ti, mock_supervisor_comms, tmp_path):
@@ -4313,6 +4313,46 @@ class TestEmailNotifications:
                     == "<h1>Custom Template</h1><p>Task: {{ti.task_id}}</p><p>Error: {{exception_html}}</p>"
                 )
                 assert kwargs["from_email"] == self.FROM
+
+    def test_default_email_body_renders_without_dates(self, create_runtime_ti, mock_supervisor_comms):
+        from airflow.sdk.execution_time.task_runner import _send_error_email_notification
+
+        task = BaseOperator(task_id="callback_task", email=["test@example.com"], email_on_failure=True)
+        runtime_ti = create_runtime_ti(task=task)
+        # The Dag-processor callback path builds the task instance from the callback request alone,
+        # which carries no dates, and the Dag's Jinja environment is StrictUndefined.
+        callback_ti = RuntimeTaskInstance.model_construct(
+            id=runtime_ti.id,
+            task_id=runtime_ti.task_id,
+            dag_id=runtime_ti.dag_id,
+            run_id=runtime_ti.run_id,
+            try_number=runtime_ti.try_number,
+            dag_version_id=runtime_ti.dag_version_id,
+            task=task,
+            _ti_context_from_server=None,
+            max_tries=0,
+        )
+        context = runtime_ti.get_template_context()
+        log = mock.MagicMock()
+
+        with conf_vars({("email", "from_email"): self.FROM}):
+            with mock.patch("airflow.providers.smtp.notifications.smtp.SmtpNotifier") as mock_smtp_notifier:
+                _send_error_email_notification(task, callback_ti, context, ValueError("boom"), log)
+
+        html_content = mock_smtp_notifier.call_args.kwargs["html_content"]
+        rendered = (
+            task.dag.get_template_env()
+            .from_string(html_content)
+            .render(
+                ti=callback_ti,
+                try_number=callback_ti.try_number,
+                max_tries=callback_ti.max_tries,
+                exception_html="boom",
+            )
+        )
+
+        assert "Started:" not in rendered
+        assert "Ended:" not in rendered
 
     def test_custom_email_backend_is_used(self, create_runtime_ti, mock_supervisor_comms):
         """A custom ``[email] email_backend`` is wrapped and invoked with rendered fields."""
