@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Dag, DagRegistry, serveDags } from "../../../src/index.js";
+import { Bundle, Dag } from "../../../src/index.js";
 
 const fixtureDag = new Dag("fixture_dag");
 fixtureDag.task("extract", async () => "extracted");
@@ -25,4 +25,4 @@ fixtureDag.task("transform", async () => "transformed");
 const otherDag = new Dag("other_dag");
 otherDag.task("solo", async () => undefined);
 
-await serveDags(new DagRegistry(fixtureDag, otherDag));
+await new Bundle(fixtureDag, otherDag).serve();
