@@ -93,21 +93,36 @@ What the model can and cannot do
 --------------------------------
 
 The model answers two questions: retry or not, and how long to wait. It is
-given no tools and there is no way to attach any, so it cannot run code, call an
-API, read a connection, or reach your data. It sees only the exception's class
-name, the exception message (after redaction and truncation), and the attempt
-count. It returns four fields: ``category``, ``should_retry``, ``suggested_delay_seconds``,
-and ``reasoning``. Of the four fields it returns, only ``should_retry`` and
-``suggested_delay_seconds`` affect the run. ``category`` and ``reasoning`` are
-recorded but nothing branches on them.
+given no tools and there is no way to attach any, so it cannot run code, call
+an API, read a connection, or reach your data. Beyond your ``instructions``,
+it sees only the exception's class name, the exception message (after
+redaction and truncation), and how many attempts are left. The prompt says
+``attempt {try_number} of {max_tries}``, so the model knows the limit, not
+just where it is right now -- that is what makes an instruction like "retry
+once, then stop" (see the Snowflake example below) actually work. It returns
+four fields: ``category``, ``should_retry``, ``suggested_delay_seconds``, and
+``reasoning``. Only ``should_retry`` and ``suggested_delay_seconds`` affect
+the run.
+
+``category`` and ``reasoning`` are only recorded on a RETRY. They are written
+to the task instance's ``retry_reason`` (truncated to 500 characters, see
+below), then cleared once the next attempt starts running. On a FAIL they are
+not written anywhere -- they only show up in the task log.
 
 Two limits are worth knowing about:
 
 * RETRY cannot give a task more attempts than ``retries`` allows. FAIL, though, ends the task
   straight away even when attempts were left, so a wrong classification costs
   the task the retries it would otherwise have had.
-* ``suggested_delay_seconds`` is used as returned, with no upper limit. If particular delays
-  matter to you, state them in ``instructions`` as the examples below do.
+* A positive ``suggested_delay_seconds`` is used as returned. There is no
+  upper limit -- a task's own ``max_retry_delay`` does not clamp it. But 0 or
+  a negative value is not used as a delay at all: it is treated the same as
+  no delay, so the task's own ``retry_delay`` / ``retry_exponential_backoff``
+  / ``max_retry_delay`` apply instead (see
+  :doc:`apache-airflow:core-concepts/tasks`). A model told to retry
+  immediately can still wait out the task's default delay. If particular
+  delays matter to you, state them in ``instructions`` as the examples below
+  do.
 
 Custom instructions
 -------------------

@@ -23,9 +23,11 @@ Pydantic AI (Azure OpenAI) Connection
 The ``pydanticai_azure`` connection type configures access to
 `Azure OpenAI <https://azure.microsoft.com/en-us/products/ai-services/openai-service>`__
 via the pydantic-ai framework. It backs ``PydanticAIAzureHook``, the dedicated
-subclass of ``PydanticAIHook`` for Azure's non-standard auth (an endpoint URL
-plus an API version, rather than the plain ``api_key`` + optional ``base_url``
-that the generic :doc:`pydantic_ai` connection assumes).
+subclass of ``PydanticAIHook`` that maps Airflow connection fields to
+Azure-specific parameters: ``api_key``, ``azure_endpoint``, and, for endpoints
+that do not use the OpenAI-compatible v1 API, ``api_version``. The generic
+:doc:`pydantic_ai` connection instead supplies ``api_key`` and an optional
+``base_url``.
 
 .. note::
 
@@ -71,11 +73,14 @@ API Key (Password field)
 
 Azure Endpoint (Host field)
     The Azure OpenAI resource endpoint, e.g.
-    ``https://<resource>.openai.azure.com/openai/deployments/<deployment>``.
+    ``https://<resource>.openai.azure.com/openai/v1``.
 
 API Version (Extra field)
-    Azure OpenAI API version (e.g. ``2024-07-01-preview``). Falls back to the
-    ``OPENAI_API_VERSION`` environment variable when omitted.
+    Azure OpenAI API version (e.g. ``2024-07-01-preview``). Set it when the
+    endpoint path does not end in ``/v1`` and the host is not
+    ``*.models.ai.azure.com``. When required, it falls back to the
+    ``OPENAI_API_VERSION`` environment variable if omitted. Endpoints matching
+    either OpenAI-compatible v1 form reject this field.
 
 Examples
 --------
@@ -85,15 +90,18 @@ Examples
     {
         "conn_type": "pydanticai_azure",
         "password": "<azure-api-key>",
-        "host": "https://<resource>.openai.azure.com",
-        "extra": "{\"model\": \"azure:gpt-4o\", \"api_version\": \"2024-07-01-preview\"}"
+        "host": "https://<resource>.openai.azure.com/openai/v1",
+        "extra": "{\"model\": \"azure:gpt-4o\"}"
     }
 
 Relationship to the hook
 -------------------------
 
 ``PydanticAIAzureHook`` maps the connection's ``password`` to the provider's
-``api_key``, ``host`` to ``azure_endpoint``, and ``extra["api_version"]`` to
-``api_version``, then constructs pydantic-ai's Azure provider with those values.
-If none of them are set, the hook falls back to pydantic-ai's own environment-variable
-resolution (``AZURE_OPENAI_API_KEY``, ``AZURE_OPENAI_ENDPOINT``, ``OPENAI_API_VERSION``).
+``api_key`` and ``host`` to ``azure_endpoint``, and maps
+``extra["api_version"]`` to ``api_version`` when provided. The API version is
+valid only when the endpoint path does not end in ``/v1`` and the host is not
+``*.models.ai.azure.com``. The hook then constructs pydantic-ai's Azure provider
+with those values. If none of them are set, it falls back to pydantic-ai's own
+environment-variable resolution (``AZURE_OPENAI_API_KEY``,
+``AZURE_OPENAI_ENDPOINT``, ``OPENAI_API_VERSION``).

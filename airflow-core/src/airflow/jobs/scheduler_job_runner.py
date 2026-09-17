@@ -2300,6 +2300,22 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         asset, firing on stale history would conflict with the declared topology,
         so the APDR waits. Reactivating the asset resumes evaluation automatically.
         This matches the UI's progress view (``_fetch_active_assets_per_dag``).
+
+        Pausing and draining freeze pending APDRs, mirroring the ``is_paused`` /
+        ``is_draining`` half of :meth:`~airflow.models.dag.DagModel.dags_needing_dagruns`.
+        ``has_import_errors`` needs no predicate of its own: it is only ever set together
+        with ``is_stale`` (``_update_import_errors``) and cleared together with it
+        (``DagModelOperation.update_dags``), so the ``is_stale`` filter above already
+        excludes those Dags. ``exceeds_max_non_backfill`` is the one genuine divergence --
+        an APDR for a Dag already at ``max_active_runs`` still creates its run, which then
+        waits at the QUEUED->RUNNING gate rather than being held back here.
+
+        Nothing accrues while a Dag is inactive -- ``AssetManager.register_asset_change``
+        drops paused and draining Dags before any ``PartitionedAssetKeyLog`` row is
+        written -- so an event produced during the pause is never recorded and a partially
+        satisfied APDR cannot advance past it. On reactivation the APDR resumes from the
+        keys logged before it went inactive, unless the rollup definition changed in the
+        meantime, in which case the stale-fingerprint cleanup below drops it instead.
         """
         # Cap per-tick work so the scheduler transaction stays bounded and other
         # scheduling work isn't starved. Remaining APDRs drain across subsequent ticks.
@@ -2320,6 +2336,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .join(DagModel, DagModel.dag_id == AssetPartitionDagRun.target_dag_id)
                 .where(
                     AssetPartitionDagRun.created_dag_run_id.is_(None),
+                    DagModel.is_paused.is_(False),
                     DagModel.is_draining.is_(False),
                     DagModel.is_stale.is_(False),
                 )
@@ -3023,26 +3040,29 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             ):
                 self._set_exceeds_max_active_runs(dag_model=dag_model, session=session)
 
-            dag_run_reloaded = session.scalar(
-                select(DagRun)
-                .where(DagRun.id == dag_run.id)
-                .options(
-                    selectinload(DagRun.consumed_asset_events).selectinload(AssetEvent.asset),
-                    selectinload(DagRun.consumed_asset_events).selectinload(AssetEvent.source_aliases),
+            callback_to_execute: DagCallbackRequest | None = None
+            if dag.has_on_failure_callback:
+                # Only load the asset events when a callback will actually be produced.
+                dag_run_reloaded = session.scalar(
+                    select(DagRun)
+                    .where(DagRun.id == dag_run.id)
+                    .options(
+                        selectinload(DagRun.consumed_asset_events).selectinload(AssetEvent.asset),
+                        selectinload(DagRun.consumed_asset_events).selectinload(AssetEvent.source_aliases),
+                    )
                 )
-            )
-            if dag_run_reloaded is None:
-                # This should never happen since we just had the dag_run
-                self.log.error("DagRun %s was deleted unexpectedly", dag_run.id)
-                return None
-            dag_run = dag_run_reloaded
-            callback_to_execute = dag_run.produce_dag_callback(
-                dag=dag,
-                success=False,
-                relevant_ti=last_unfinished_ti,
-                reason="timed_out",
-                execute=False,
-            )
+                if dag_run_reloaded is None:
+                    # This should never happen since we just had the dag_run
+                    self.log.error("DagRun %s was deleted unexpectedly", dag_run.id)
+                    return None
+                dag_run = dag_run_reloaded
+                callback_to_execute = dag_run.produce_dag_callback(
+                    dag=dag,
+                    success=False,
+                    relevant_ti=last_unfinished_ti,
+                    reason="timed_out",
+                    execute=False,
+                )
 
             # Team name should be added before listeners are called in notify_dagrun_state_changed()
             self._stamp_team_names([dag_run], session)
