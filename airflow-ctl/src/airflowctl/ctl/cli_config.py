@@ -1132,6 +1132,15 @@ DAG_COMMANDS = (
         ),
     ),
     ActionCommand(
+        name="drain",
+        help="Drain a Dag",
+        func=lazy_load_command("airflowctl.ctl.commands.dag_command.drain"),
+        args=(
+            ARG_DAG_ID,
+            ARG_OUTPUT,
+        ),
+    ),
+    ActionCommand(
         name="next-execution",
         help="Show the next scheduled execution time for a Dag",
         func=lazy_load_command("airflowctl.ctl.commands.dag_command.next_execution"),
