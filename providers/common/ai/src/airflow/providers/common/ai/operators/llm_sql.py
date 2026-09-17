@@ -82,6 +82,9 @@ class LLMSQLQueryOperator(LLMOperator):
     :param dialect: SQL dialect for parsing (``postgres``, ``mysql``, etc.).
         Auto-detected from the database hook if not set.
 
+    ``usage_limits`` is inherited from
+    :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
+
     Human-in-the-Loop approval parameters are inherited from
     :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
     (``require_approval``, ``approval_timeout``, ``on_approval_timeout``,

@@ -135,6 +135,13 @@ Generate SQL for multiple prompts in parallel using ``expand()``:
     :start-after: [START howto_operator_llm_sql_expand]
     :end-before: [END howto_operator_llm_sql_expand]
 
+Usage Limits
+------------
+
+``usage_limits`` caps the request count, token usage, tool calls, or cost of the
+SQL generation run, and fails the task when a budget is exceeded. It is inherited
+from ``LLMOperator`` -- see :ref:`Usage Limits <howto/operator:llm_usage_limits>`.
+
 Human-in-the-Loop Approval
 --------------------------
 

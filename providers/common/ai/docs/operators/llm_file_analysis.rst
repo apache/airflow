@@ -152,6 +152,9 @@ Parameters
   ``BaseModel`` for structured output.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai
   ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
+- ``usage_limits``: Optional pydantic-ai ``UsageLimits`` (or a templated ``dict`` of
+  the same fields) enforced on the run; the task fails when a budget is exceeded.
+  Default ``None``. See :ref:`Usage Limits <howto/operator:llm_usage_limits>`.
 - ``serialize_output``: If ``True`` and ``output_type`` is a Pydantic
   ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
   ``model_dump()`` before being pushed to XCom. Default ``False`` -- the

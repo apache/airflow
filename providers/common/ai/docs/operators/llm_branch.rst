@@ -138,6 +138,9 @@ Parameters
   task ID. When ``True`` the LLM may return one or more task IDs.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai ``Agent``
   constructor (e.g. ``retries``, ``model_settings``). Supports Jinja templating.
+- ``usage_limits``: Optional pydantic-ai ``UsageLimits`` (or a templated ``dict`` of
+  the same fields) enforced on the run; the task fails when a budget is exceeded.
+  Default ``None``. See :ref:`Usage Limits <howto/operator:llm_usage_limits>`.
 - ``require_approval``: If ``True``, the task pauses after the LLM chooses the
   branch(es) and waits for human review before branching.  Default ``False``.
 - ``approval_timeout``: Maximum time to wait for a review (``timedelta``).  ``None``
