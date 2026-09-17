@@ -87,10 +87,10 @@ def test_execute_with_invalid_input(invalid_input):
         operator.execute(context)
 
 
-def _build_execute_context(**overrides) -> Context:
+def _build_execute_context() -> Context:
     # OpenAIResponseOperator.execute pushes to XCom through context["ti"], so a test that lets
     # execute run to completion has to put a task instance in the context.
-    context = Context(**overrides)
+    context = Context()
     context["ti"] = Mock()
     return context
 
