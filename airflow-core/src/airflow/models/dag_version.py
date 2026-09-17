@@ -278,7 +278,7 @@ class DagVersion(Base):
         :param base_version_number: The version number to compare from.
         :param target_version_number: The version number to compare to.
         :param values_status: Whether the caller has authorized disclosing values and digests.
-        :param max_changes: Upper bound on the underlying changes admitted to the result.
+        :param max_changes: Upper bound on output records; repeated redacted changes share a record.
             Defaults to ``DEFAULT_MAX_CHANGES``.
         :param session: The database session.
         :return: The diff result, in the shape named by its ``diff_schema_version``.
