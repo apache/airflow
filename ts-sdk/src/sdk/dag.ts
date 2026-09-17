@@ -20,7 +20,7 @@
 // The Dag authoring surface: `new Dag(dagId)` plus `dag.task(taskId, handler)`.
 
 import { brand, hasBrand } from "./brand.js";
-import type { TaskHandler } from "./task.js";
+import type { TaskFunction } from "./task.js";
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
@@ -38,7 +38,7 @@ function validateEmptySpec(name: string, value: unknown): void {
  * Dag-level options.
  *
  * No fields yet, so only `{}` is accepted: a field that would be silently
- * dropped — `new Dag("d", { schedule: "@daily" })` — is a compile error.
+ * dropped, such as `new Dag("d", { schedule: "@daily" })`, is a compile error.
  *
  * Native Dag declaration will add optional fields here, generated from the
  * serialized-Dag JSON schema as `src/generated/supervisor.ts` is.
@@ -73,7 +73,7 @@ export interface TaskRef {
  * Task references keyed by input name.
  *
  * Stored and validated, but they do not create dependencies or pass values yet
- * — see {@link TaskOptions.inputs}. Each must identify an earlier task in the
+ * (see {@link TaskOptions.inputs}). Each must identify an earlier task in the
  * same Dag. Literal values are not supported.
  */
 export type TaskInputs = Readonly<Record<string, TaskRef>>;
@@ -89,23 +89,23 @@ export interface TaskOptions {
   /**
    * References to the upstream tasks this task consumes.
    *
-   * Not used yet: a handler receives `{ctx, client}` only, and the Python stub
-   * Dag defines task order. Read an upstream return value explicitly instead —
-   * `client.getXCom({ key: "return_value", taskId: "extract" })`, where
+   * Not used yet: a handler takes no arguments, and the Python stub Dag
+   * defines task order. Read an upstream return value explicitly instead, with
+   * `getClient().getXCom({ key: "return_value", taskId: "extract" })`, where
    * omitting `taskId` reads the *running* task's own XCom, not the upstream.
    *
    * In the future these will declare dependencies in native TypeScript Dags.
    */
   readonly inputs?: TaskInputs;
-  /** Task-level options. Stored, but not used yet — see {@link TaskSpec}. */
+  /** Task-level options. Stored, but not used yet (see {@link TaskSpec}). */
   readonly spec?: TaskSpec;
 }
 
-/** Per-task record a Dag retains: the handle, the handler, its spec, and the
+/** Per-task record a Dag retains: the handle, the function, its spec, and the
  *  upstream handles feeding it. */
 export interface TaskRecord {
   readonly task: TaskRef;
-  readonly handler: TaskHandler;
+  readonly fn: TaskFunction;
   readonly spec: TaskSpec;
   /** Upstream handles keyed by input name; empty when the task has no inputs. */
   readonly inputs: TaskInputs;
@@ -130,7 +130,7 @@ export function isDag(value: unknown): value is Dag {
  * TypeScript Dag declaration.
  *
  * Constructing a Dag has no effect beyond the instance itself. Collect the ones
- * a bundle should serve in a `DagRegistry` and pass it to `serveDags(...)`.
+ * a bundle should serve on a `Bundle` and await `bundle.serve()`.
  */
 export class Dag {
   /** Identifier of this Dag. Must match the Python Dag's `dag_id`. */
@@ -150,7 +150,7 @@ export class Dag {
     // Copied and frozen, as task specs and inputs are: nothing reads a spec
     // until the bundle manifest is built, long after the user's module has run,
     // so a later mutation of their object would silently change what is packed.
-    // Shallow — a nested value in a future generated spec stays mutable.
+    // Shallow, so a nested value in a future generated spec stays mutable.
     this.spec = Object.freeze({ ...spec });
   }
 
@@ -167,7 +167,7 @@ export class Dag {
    */
   task<TReturn = unknown>(
     taskId: string,
-    handler: TaskHandler<TReturn>,
+    handler: TaskFunction<TReturn>,
     options: TaskOptions = {},
   ): TaskRef {
     if (typeof handler !== "function") {
@@ -183,15 +183,15 @@ export class Dag {
     const task: TaskRef = Object.freeze({ dagId: this.dagId, taskId });
     this.#tasks.set(taskId, {
       task,
-      handler: handler as TaskHandler,
+      fn: handler as TaskFunction,
       spec: Object.freeze({ ...spec }),
       inputs: Object.freeze({ ...inputs }),
     });
     return task;
   }
 
-  // TypeScript is bypassable — from plain JavaScript, or an `as TaskOptions`
-  // cast — so an unknown key is rejected rather than silently ignored.
+  // TypeScript is bypassable from plain JavaScript or an `as TaskOptions`
+  // cast, so an unknown key is rejected rather than silently ignored.
   #validateOptions(taskId: string, options: TaskOptions): void {
     const value: unknown = options;
     if (!isPlainRecord(value)) {

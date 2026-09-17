@@ -17,11 +17,17 @@
  * under the License.
  */
 
-import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "apache-airflow-ts-sdk";
+// The bundle entry point: one bundle, two Python-owned Dags.
+//
+// Both Dags in `dags/` are declared in Python with `@task.stub` tasks routed to the Node
+// coordinator, so this side only supplies the task bodies.
 
-const dag = new Dag("typescript_example");
+import { Bundle, getClient, TaskHandler } from "apache-airflow-ts-sdk";
 
-export async function buildMessage({ client }: TaskHandlerArgs) {
+import { buildSummaryMessage, summarize } from "./taskflow.js";
+
+export async function buildMessage() {
+  const client = getClient();
   const upstream = await client.getXCom<string>({
     key: "return_value",
     taskId: "python_start",
@@ -37,8 +43,8 @@ export async function buildMessage({ client }: TaskHandlerArgs) {
   };
 }
 
-export async function readConnection({ client }: TaskHandlerArgs) {
-  const connection = await client.getConnection("typescript_example_http");
+export async function readConnection() {
+  const connection = await getClient().getConnection("typescript_example_http");
 
   return {
     id: connection?.id ?? null,
@@ -49,7 +55,14 @@ export async function readConnection({ client }: TaskHandlerArgs) {
   };
 }
 
-dag.task("build_message", buildMessage);
-dag.task("read_connection", readConnection);
-
-await serveDags(new DagRegistry(dag));
+// One register call lists everything this bundle provides.
+// `build_message` appears under both Dags: two different handlers, told apart by the dag_id each
+// is bound to and never by the task_id alone.
+const bundle = new Bundle();
+bundle.register(
+  new TaskHandler("typescript_example", "build_message", buildMessage),
+  new TaskHandler("typescript_example", "read_connection", readConnection),
+  new TaskHandler("typescript_taskflow_example", "summarize", summarize),
+  new TaskHandler("typescript_taskflow_example", "build_message", buildSummaryMessage),
+);
+await bundle.serve();

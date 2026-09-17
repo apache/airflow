@@ -237,13 +237,15 @@ class TestPluginsManager:
         class TestPluginA(AirflowPlugin):
             name = "test_plugin_a"
 
-            external_views = [{"url_route": "/test_route"}, {"wrong_view": "/no_url_route"}]
+            # Malformed on purpose to trigger the warning path; mypy ignores below.
+            external_views = [{"url_route": "/test_route"}, {"wrong_view": "/no_url_route"}]  # type: ignore[typeddict-item, typeddict-unknown-key]
 
         class TestPluginB(AirflowPlugin):
             name = "test_plugin_b"
 
-            external_views = [{"url_route": "/test_route"}]
-            react_apps = [{"url_route": "/test_route"}]
+            # Malformed on purpose to trigger the warning path; mypy ignores below.
+            external_views = [{"url_route": "/test_route"}]  # type: ignore[typeddict-item]
+            react_apps = [{"url_route": "/test_route"}]  # type: ignore[typeddict-item]
 
         with (
             mock_plugin_manager(plugins=[TestPluginA(), TestPluginB()]),
@@ -266,8 +268,9 @@ class TestPluginsManager:
         class TestPluginA(AirflowPlugin):
             name = "test_plugin_a"
 
-            external_views = [[{"nested_list": "/test_route"}], {"url_route": "/test_route"}]
-            react_apps = [[{"nested_list": "/test_route"}], {"url_route": "/test_route_react_app"}]
+            # Malformed on purpose to trigger the warning path; mypy ignores below.
+            external_views = [[{"nested_list": "/test_route"}], {"url_route": "/test_route"}]  # type: ignore[list-item, typeddict-item]
+            react_apps = [[{"nested_list": "/test_route"}], {"url_route": "/test_route_react_app"}]  # type: ignore[list-item, typeddict-item]
 
         with (
             mock_plugin_manager(plugins=[TestPluginA()]),
@@ -300,6 +303,24 @@ class TestPluginsManager:
                 "The React App will not be loaded.",
             ),
         ]
+
+    def test_loads_typed_external_views_and_react_apps(self):
+        class TypedPlugin(AirflowPlugin):
+            name = "typed_plugin"
+
+            # Recommended `ExternalViewDict` / `ReactAppDict` shapes — no `# type: ignore` needed here.
+            external_views = [{"name": "typed-view", "href": "/typed", "url_route": "/typed"}]
+            react_apps = [{"name": "typed-react", "bundle_url": "/typed.js", "url_route": "/typed_react"}]
+
+        with mock_plugin_manager(plugins=[TypedPlugin()]):
+            from airflow import plugins_manager
+
+            external_views, react_apps = plugins_manager._get_ui_plugins()
+
+            assert external_views == [{"name": "typed-view", "href": "/typed", "url_route": "/typed"}]
+            assert react_apps == [
+                {"name": "typed-react", "bundle_url": "/typed.js", "url_route": "/typed_react"}
+            ]
 
     @pytest.mark.parametrize(
         ("applies_to", "error"),
@@ -337,7 +358,13 @@ class TestPluginsManager:
             name = "test_plugin"
 
             external_views = [
-                {"name": "Scoped", "url_route": "/scoped", "destination": "dag", "applies_to": applies_to}
+                {
+                    "name": "Scoped",
+                    "href": "/scoped",
+                    "url_route": "/scoped",
+                    "destination": "dag",
+                    "applies_to": applies_to,
+                }
             ]
 
         with (
@@ -348,7 +375,9 @@ class TestPluginsManager:
 
             external_views, _ = plugins_manager._get_ui_plugins()
 
-            assert external_views == [{"name": "Scoped", "url_route": "/scoped", "destination": "dag"}]
+            assert external_views == [
+                {"name": "Scoped", "href": "/scoped", "url_route": "/scoped", "destination": "dag"}
+            ]
 
         assert caplog.record_tuples == [
             (
@@ -366,6 +395,7 @@ class TestPluginsManager:
             react_apps = [
                 {
                     "name": "Scoped",
+                    "bundle_url": "/scoped.js",
                     "url_route": "/scoped",
                     "destination": "dag_run",
                     "applies_to": {"dag_tags": ["ml"], "task_ids": ["train"], "operators": ["Op"]},
@@ -385,6 +415,7 @@ class TestPluginsManager:
             assert react_apps == [
                 {
                     "name": "Scoped",
+                    "bundle_url": "/scoped.js",
                     "url_route": "/scoped",
                     "destination": "dag_run",
                     "applies_to": {"dag_tags": ["ml"], "task_ids": ["train"], "operators": ["Op"]},
@@ -407,6 +438,7 @@ class TestPluginsManager:
             external_views = [
                 {
                     "name": "Scoped",
+                    "href": "/scoped",
                     "url_route": "/scoped",
                     "destination": "task",
                     "applies_to": {
@@ -880,3 +912,85 @@ class TestWarnAboutUnknownTranslationKeys:
             plugins_manager.warn_about_unknown_translation_keys(plugin_translations, tmp_path / "en")
 
         assert any("'a'" in record.getMessage() for record in caplog.records)
+
+
+class TestExtraLinkTeamVisibility:
+    """``is_extra_link_visible_to_team`` decides whether a team-scoped plugin's operator link
+    is rendered for a given Dag, so the API server can hide one team's links from another."""
+
+    @staticmethod
+    def _link_class():
+        from tests_common.test_utils.compat import BaseOperatorLink
+
+        class SomeLink(BaseOperatorLink):
+            name = "Some Link"
+
+            def get_link(self, operator, ti_key):
+                return "https://example.com"
+
+        return SomeLink
+
+    def test_operator_defined_link_is_visible_to_every_team(self):
+        """A link no plugin registered belongs to the operator, so no team owns it."""
+        from airflow import plugins_manager
+
+        link = self._link_class()()
+        with mock_plugin_manager(plugins=[]):
+            assert plugins_manager.is_extra_link_visible_to_team(link, "team_a") is True
+            assert plugins_manager.is_extra_link_visible_to_team(link, None) is True
+
+    @pytest.mark.parametrize(
+        ("dag_team", "expected"),
+        [
+            pytest.param("team_a", True, id="owning-team"),
+            pytest.param("team_b", False, id="other-team"),
+            pytest.param(None, False, id="teamless-dag"),
+        ],
+    )
+    def test_team_scoped_link_is_visible_only_to_its_team(self, dag_team, expected):
+        from airflow import plugins_manager
+
+        link_class = self._link_class()
+
+        class TeamPlugin(AirflowPlugin):
+            name = "team_a_link_plugin"
+            team_name = "team_a"
+            global_operator_extra_links = [link_class()]
+
+        with mock_plugin_manager(plugins=[TeamPlugin]):
+            assert plugins_manager.is_extra_link_visible_to_team(link_class(), dag_team) is expected
+
+    def test_link_registered_by_a_global_plugin_too_stays_global(self):
+        """Ownership resolves least restrictively: one global registration keeps the link
+        visible everywhere, rather than the team registration narrowing it."""
+        from airflow import plugins_manager
+
+        link_class = self._link_class()
+
+        class TeamPlugin(AirflowPlugin):
+            name = "team_a_link_plugin"
+            team_name = "team_a"
+            global_operator_extra_links = [link_class()]
+
+        class GlobalPlugin(AirflowPlugin):
+            name = "global_link_plugin"
+            global_operator_extra_links = [link_class()]
+
+        with mock_plugin_manager(plugins=[TeamPlugin, GlobalPlugin]):
+            assert plugins_manager.is_extra_link_visible_to_team(link_class(), "team_b") is True
+            assert plugins_manager.is_extra_link_visible_to_team(link_class(), None) is True
+
+    def test_operator_scoped_links_are_tracked_alongside_global_ones(self):
+        """``operator_extra_links`` are team-owned on the same terms as ``global_operator_extra_links``."""
+        from airflow import plugins_manager
+
+        link_class = self._link_class()
+
+        class TeamPlugin(AirflowPlugin):
+            name = "team_a_link_plugin"
+            team_name = "team_a"
+            operator_extra_links = [link_class()]
+
+        with mock_plugin_manager(plugins=[TeamPlugin]):
+            assert plugins_manager.is_extra_link_visible_to_team(link_class(), "team_a") is True
+            assert plugins_manager.is_extra_link_visible_to_team(link_class(), "team_b") is False

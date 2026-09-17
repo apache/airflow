@@ -75,7 +75,7 @@ Deadline Alerts Example
           callback=AsyncCallback(
               SlackWebhookNotifier,
               kwargs={
-                  text: "Deadline missed for {{ dag_run.dag_id }}",
+                  "text": "Deadline missed for {{ dag_run.dag_id }}",
               },
           ),
       ),

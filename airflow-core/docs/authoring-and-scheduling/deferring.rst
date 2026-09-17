@@ -310,7 +310,8 @@ In the sensor part, we'll need to provide the path to ``TimeDeltaTrigger`` as ``
     from datetime import timedelta
     from typing import Any
 
-    from airflow.sdk import BaseSensorOperator, Context, StartTriggerArgs
+    from airflow.sdk import BaseSensorOperator, Context
+    from airflow.triggers.base import StartTriggerArgs
 
 
     class WaitOneHourSensor(BaseSensorOperator):
@@ -337,7 +338,8 @@ In the sensor part, we'll need to provide the path to ``TimeDeltaTrigger`` as ``
     from datetime import timedelta
     from typing import Any
 
-    from airflow.sdk import BaseSensorOperator, Context, StartTriggerArgs
+    from airflow.sdk import BaseSensorOperator, Context
+    from airflow.triggers.base import StartTriggerArgs
 
 
     class WaitHoursSensor(BaseSensorOperator):
@@ -372,7 +374,8 @@ After the trigger has finished executing, the task may be sent back to the worke
     from datetime import timedelta
     from typing import Any
 
-    from airflow.sdk import BaseSensorOperator, Context, StartTriggerArgs
+    from airflow.sdk import BaseSensorOperator, Context
+    from airflow.triggers.base import StartTriggerArgs
 
 
     class WaitHoursSensor(BaseSensorOperator):

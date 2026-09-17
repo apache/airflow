@@ -22,7 +22,11 @@ import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
-import type { DagRunState, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+import type {
+  DagRunState,
+  DagSchedulingState,
+  DAGWithLatestDagRunsResponse,
+} from "openapi/requests/types.gen";
 
 import { RouterLink } from "src/system-components";
 
@@ -34,6 +38,7 @@ import DagRunInfo from "src/components/DagRunInfo";
 import { DataTable } from "src/components/DataTable";
 import type { CardDef } from "src/components/DataTable/types";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
+import { DrainingBadge } from "src/components/DrainingBadge";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { NeedsReviewBadge } from "src/components/NeedsReviewBadge";
 import { SearchBar } from "src/components/SearchBar";
@@ -78,7 +83,9 @@ const createColumns = (
       <TogglePause
         dagDisplayName={original.dag_display_name}
         dagId={original.dag_id}
+        hasUnfinishedRuns={original.has_unfinished_runs}
         isPaused={original.is_paused}
+        schedulingState={original.scheduling_state}
       />
     ),
     enableSorting: false,
@@ -113,7 +120,9 @@ const createColumns = (
   {
     accessorKey: "next_dagrun",
     cell: ({ row: { original } }) =>
-      !original.is_paused && Boolean(original.next_dagrun_run_after) ? (
+      original.is_paused ? undefined : original.scheduling_state === "draining" ? (
+        <DrainingBadge />
+      ) : Boolean(original.next_dagrun_run_after) ? (
         <DagRunInfo
           logicalDate={original.next_dagrun_logical_date}
           runAfter={original.next_dagrun_run_after as string}
@@ -223,6 +232,7 @@ const {
   OFFSET,
   OWNERS,
   PAUSED,
+  SCHEDULING_STATE,
   TAGS,
   TAGS_MATCH_MODE,
   TEAMS,
@@ -255,6 +265,7 @@ export const DagsList = () => {
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   const showPaused = searchParams.get(PAUSED);
+  const schedulingState = searchParams.get(SCHEDULING_STATE) as DagSchedulingState | null;
   const showFavorites = searchParams.get(FAVORITE);
 
   const lastDagRunState = searchParams.get(LAST_DAG_RUN_STATE) as DagRunState;
@@ -326,6 +337,7 @@ export const DagsList = () => {
     owners,
     paused,
     pendingHitl,
+    schedulingState: schedulingState ?? undefined,
     tags: selectedTags,
     tagsMatchMode: selectedMatchMode,
     teams: teams.length > 0 ? teams : undefined,

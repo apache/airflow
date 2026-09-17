@@ -14,21 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-
-class CloudantV1:
-    """Phony class to pass mypy when real class is not imported."""
-
-    def __init__(self, authenticator):
-        pass
-
-    def set_service_url(self, service_url: str):
-        pass
-
-
-class CouchDbSessionAuthenticator:
-    """Phony class to pass mypy when real class is not imported."""
-
-    def __init__(self, username: str, password: str):
-        pass
