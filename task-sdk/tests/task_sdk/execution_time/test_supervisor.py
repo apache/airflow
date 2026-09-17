@@ -67,6 +67,8 @@ from airflow.sdk.api.datamodels._generated import (
     DagRun,
     DagRunState,
     DagRunType,
+    ForwardMetric,
+    MetricKind,
     PreviousTIResponse,
     TaskInstance,
     TaskInstanceState,
@@ -96,6 +98,7 @@ from airflow.sdk.execution_time.comms import (
     DeleteXCom,
     DRCount,
     ErrorResponse,
+    ForwardMetrics,
     GetAssetByName,
     GetAssetByUri,
     GetAssetEventByAsset,
@@ -3479,6 +3482,33 @@ REQUEST_TEST_CASES = [
             response=OKResponse(ok=True),
         ),
         expected_body={"ok": True, "type": "OKResponse"},
+    ),
+    RequestTestCase(
+        message=ForwardMetrics(
+            metrics=[
+                ForwardMetric(
+                    kind=MetricKind.COUNTER,
+                    name="ti_successes",
+                    tags={"dag_id": "test_dag", "task_id": "test_task"},
+                    value=2,
+                )
+            ]
+        ),
+        test_id="forward_metrics",
+        client_mock=ClientMock(
+            method_path="metrics.forward",
+            args=(
+                [
+                    ForwardMetric(
+                        kind=MetricKind.COUNTER,
+                        name="ti_successes",
+                        tags={"dag_id": "test_dag", "task_id": "test_task"},
+                        value=2,
+                    )
+                ],
+            ),
+            response=OKResponse(ok=True),
+        ),
     ),
 ]
 

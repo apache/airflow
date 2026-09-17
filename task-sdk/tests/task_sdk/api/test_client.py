@@ -42,9 +42,11 @@ from airflow.sdk.api.datamodels._generated import (
     DagResponse,
     DagRunState,
     DagRunStateResponse,
+    ForwardMetric,
     HITLDetailRequest,
     HITLDetailResponse,
     HITLUser,
+    MetricKind,
     TaskStateStoreResponse,
     TerminalTIState,
     VariableResponse,
@@ -1840,6 +1842,58 @@ class TestTaskRescheduleOperations:
 
         assert isinstance(result, TaskRescheduleStartDate)
         assert result.start_date == datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+
+
+class TestMetricsOperations:
+    def test_forward_posts_the_batch(self):
+        requests = []
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        metric = ForwardMetric(kind=MetricKind.COUNTER, name="ti_successes", tags={"dag_id": "dag"}, value=2)
+
+        assert client.metrics.forward([metric]) == OKResponse(ok=True)
+
+        assert [(request.method, request.url.path) for request in requests] == [("POST", "/metrics")]
+        assert json.loads(requests[0].read()) == {
+            "metrics": [
+                {
+                    "kind": "counter",
+                    "name": "ti_successes",
+                    "tags": {"dag_id": "dag"},
+                    "value": 2,
+                    "delta": False,
+                    "values": None,
+                }
+            ]
+        }
+
+    def test_forward_to_an_older_api_server_drops_the_batch(self, cap_structlog):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(status_code=404, json={"detail": "Not Found"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        metric = ForwardMetric(kind=MetricKind.COUNTER, name="ti_successes", value=1)
+
+        assert client.metrics.forward([metric]) == OKResponse(ok=False)
+        assert {
+            "log_level": "warning",
+            "event": "API server does not accept forwarded metrics; dropping them",
+            "count": 1,
+        } in cap_structlog
+
+    def test_forward_raises_on_other_errors(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(status_code=422, json={"detail": "Unprocessable"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        metric = ForwardMetric(kind=MetricKind.COUNTER, name="ti_successes", value=1)
+
+        with pytest.raises(ServerResponseError):
+            client.metrics.forward([metric])
 
 
 class TestHITLOperations:

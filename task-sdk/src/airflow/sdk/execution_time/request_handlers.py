@@ -52,6 +52,7 @@ from airflow.sdk.execution_time.comms import (
     DeleteAssetStateStoreByUri,
     DeleteVariable,
     DeleteXCom,
+    ForwardMetrics,
     GetAssetStateStoreByName,
     GetAssetStateStoreByUri,
     GetConnection,
@@ -130,6 +131,12 @@ def handle_mask_secret(msg: MaskSecret) -> None:
 def handle_put_variable(client: Client, msg: PutVariable) -> tuple[BaseModel | None, dict[str, bool]]:
     """Store a variable value."""
     client.variables.set(msg.key, msg.value, msg.description)
+    return None, {}
+
+
+def handle_forward_metrics(client: Client, msg: ForwardMetrics) -> tuple[BaseModel | None, dict[str, bool]]:
+    """Hand metrics batched by the Task SDK to the API server."""
+    client.metrics.forward(msg.metrics)
     return None, {}
 
 

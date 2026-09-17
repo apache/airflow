@@ -108,3 +108,11 @@ class AddMultiTeamToTIRunContext(VersionChange):
     def remove_multi_team_field(response: ResponseInfo) -> None:  # type: ignore[misc]
         """Strip ``multi_team`` from the run context for older clients."""
         response.body.pop("multi_team", None)
+
+
+class AddForwardMetricsEndpoint(VersionChange):
+    """Add the metrics endpoint a supervisor uses to hand Task SDK metrics to the API server."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (endpoint("/metrics", ["POST"]).didnt_exist,)

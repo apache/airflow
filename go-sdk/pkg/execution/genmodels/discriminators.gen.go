@@ -49,6 +49,7 @@ const (
 	TypeDeleteXCom                  = "DeleteXCom"
 	TypeEmailRequest                = "EmailRequest"
 	TypeErrorResponse               = "ErrorResponse"
+	TypeForwardMetrics              = "ForwardMetrics"
 	TypeGetAssetByName              = "GetAssetByName"
 	TypeGetAssetByURI               = "GetAssetByUri"
 	TypeGetAssetEventByAsset        = "GetAssetEventByAsset"
@@ -105,6 +106,7 @@ const (
 	TypeTaskStateStoreResult        = "TaskStateStoreResult"
 	TypeTaskStatesResult            = "TaskStatesResult"
 	TypeTriggerDagRun               = "TriggerDagRun"
+	TypeUpdateDagRunNote            = "UpdateDagRunNote"
 	TypeUpdateHITLDetail            = "UpdateHITLDetail"
 	TypeValidateInletsAndOutlets    = "ValidateInletsAndOutlets"
 	TypeVariableKeysResult          = "VariableKeysResult"
@@ -195,6 +197,9 @@ func EnsureType(m any) any {
 		return b
 	case ErrorResponse:
 		b.Type = TypeErrorResponse
+		return b
+	case ForwardMetrics:
+		b.Type = TypeForwardMetrics
 		return b
 	case GetAssetByName:
 		b.Type = TypeGetAssetByName
@@ -363,6 +368,9 @@ func EnsureType(m any) any {
 		return b
 	case TriggerDagRun:
 		b.Type = TypeTriggerDagRun
+		return b
+	case UpdateDagRunNote:
+		b.Type = TypeUpdateDagRunNote
 		return b
 	case UpdateHITLDetail:
 		b.Type = TypeUpdateHITLDetail

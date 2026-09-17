@@ -136,6 +136,30 @@ func (m *ErrorResponse) DecodeMsgpack(dec *msgpack.Decoder) error {
 	return nil
 }
 
+// DecodeMsgpack applies ForwardMetric's schema defaults that msgpack would otherwise skip.
+func (m *ForwardMetric) DecodeMsgpack(dec *msgpack.Decoder) error {
+	type alias ForwardMetric
+	v := alias{}
+	// Decode once into raw bytes so a nullable default applies only on an absent
+	// wire key, never overwriting an explicit null (both decode to nil).
+	var raw msgpack.RawMessage
+	if err := dec.Decode(&raw); err != nil {
+		return err
+	}
+	if err := msgpack.Unmarshal(raw, &v); err != nil {
+		return err
+	}
+	var present map[string]msgpack.RawMessage
+	if err := msgpack.Unmarshal(raw, &present); err != nil {
+		return err
+	}
+	if _, ok := present["delta"]; !ok {
+		v.Delta = false
+	}
+	*m = ForwardMetric(v)
+	return nil
+}
+
 // DecodeMsgpack applies HITLDetailRequestResult's schema defaults that msgpack would otherwise skip.
 func (m *HITLDetailRequestResult) DecodeMsgpack(dec *msgpack.Decoder) error {
 	type alias HITLDetailRequestResult

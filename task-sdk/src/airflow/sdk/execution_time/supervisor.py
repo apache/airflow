@@ -92,6 +92,7 @@ from airflow.sdk.execution_time.comms import (
     DeleteVariable,
     DeleteXCom,
     ErrorResponse,
+    ForwardMetrics,
     GetAssetByName,
     GetAssetByUri,
     GetAssetEventByAsset,
@@ -150,6 +151,7 @@ from airflow.sdk.execution_time.coordinator import get_coordinator_manager
 from airflow.sdk.execution_time.request_handlers import (
     handle_delete_variable,
     handle_delete_xcom,
+    handle_forward_metrics,
     handle_get_connection,
     handle_get_dag_run_state,
     handle_get_dr_count,
@@ -2053,6 +2055,11 @@ class ActivitySubprocess(WatchedSubprocess):
         self.client.task_instances.skip_downstream_tasks(self.id, msg)
         return None, {}
 
+    def _handle_forward_metrics(
+        self, msg: ForwardMetrics, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        return handle_forward_metrics(self.client, msg)
+
     def _handle_set_rendered_fields(
         self, msg: SetRenderedFields, log: FilteringBoundLogger, req_id: int
     ) -> RequestResult:
@@ -2327,6 +2334,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 ),
                 register_request_method(DeleteAssetStateStoreByUri, _handle_delete_asset_state_store_by_uri),
                 register_request_method(DeleteTaskStateStore, _handle_delete_task_state_store),
+                register_request_method(ForwardMetrics, _handle_forward_metrics),
                 register_request_method(GetAssetByName, _handle_get_asset_by_name),
                 register_request_method(GetAssetByUri, _handle_get_asset_by_uri),
                 register_request_method(GetAssetEventByAsset, _handle_get_asset_event_by_asset),

@@ -1905,6 +1905,105 @@
       "title": "ErrorType",
       "type": "string"
     },
+    "ForwardMetric": {
+      "additionalProperties": false,
+      "description": "One metric aggregated by the Task SDK.\n\nForwarded to a long-lived process like the API server and exported by its stats backend.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/MetricKind"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "tags": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tags"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "delta": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": false,
+          "title": "Delta"
+        },
+        "values": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Values"
+        }
+      },
+      "required": [
+        "kind",
+        "name"
+      ],
+      "title": "ForwardMetric",
+      "type": "object"
+    },
+    "ForwardMetrics": {
+      "description": "Metrics accumulated in the Task SDK since its previous batch.",
+      "properties": {
+        "metrics": {
+          "items": {
+            "$ref": "#/$defs/ForwardMetric"
+          },
+          "title": "Metrics",
+          "type": "array"
+        },
+        "type": {
+          "const": "ForwardMetrics",
+          "default": "ForwardMetrics",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "metrics"
+      ],
+      "title": "ForwardMetrics",
+      "type": "object"
+    },
     "GetAssetByName": {
       "properties": {
         "name": {
@@ -3252,6 +3351,16 @@
       ],
       "title": "MaskSecret",
       "type": "object"
+    },
+    "MetricKind": {
+      "description": "Type of stats operation of a forwarded metric.",
+      "enum": [
+        "counter",
+        "gauge",
+        "timing"
+      ],
+      "title": "MetricKind",
+      "type": "string"
     },
     "OKResponse": {
       "properties": {
