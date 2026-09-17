@@ -1257,6 +1257,15 @@ member ends up serving the call. Summing ``managed_agent.invoked`` by
 names from lone toolsets; filter by ``tool`` instead when a group and its
 members share a dashboard.
 
+``platform`` can also show up as the literal string ``"unknown"``: when the
+toolset's identity fails to resolve -- a connection lookup failing, or a bug
+in the subclass's own ``agent_ref`` implementation -- the call logs a
+warning and proceeds anyway rather than failing outright, and it is that
+fallback -- not a real platform -- that lands in the tag. An ``"unknown"``
+bucket therefore means the invocation went out without a confirmed
+platform; the task log's warning at the same timestamp is where to find
+out why.
+
 .. warning::
 
     ``managed_agent.invoked`` and ``managed_agent.served`` (see `Failover

@@ -419,7 +419,11 @@ metrics:
     description: "Number of managed agent invocations attempted through a
     ``BaseManagedAgentToolset`` tool call, emitted once per attempt whether it
     succeeds or fails, and whether the toolset stands alone or is a member of a
-    ``FailoverManagedAgentToolset`` group. Metric with tool and platform tagging.
+    ``FailoverManagedAgentToolset`` group. Metric with tool and platform tagging;
+    platform is the literal string ``unknown`` when the toolset's identity fails
+    to resolve -- a connection lookup failing, or a bug in the subclass's own
+    ``agent_ref`` implementation -- a case in which the call still proceeds after
+    logging a warning.
     Denominator for managed_agent.failover when read per tool."
     type: "counter"
     legacy_name: "-"
