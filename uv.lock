@@ -29,146 +29,147 @@ exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for 
 exclude-newer-span = "P4D"
 
 [options.exclude-newer-package]
-apache-airflow = false
-apache-airflow-breeze = false
-apache-airflow-core = false
-apache-airflow-ctl = false
-apache-airflow-ctl-tests = false
-apache-airflow-dev = false
-apache-airflow-devel-common = false
-apache-airflow-docker-stack = false
-apache-airflow-docker-tests = false
-apache-airflow-e2e-tests = false
-apache-airflow-helm-chart = false
-apache-airflow-kubernetes-tests = false
-apache-airflow-mypy = false
-apache-airflow-providers = false
-apache-airflow-providers-airbyte = false
-apache-airflow-providers-akeyless = false
-apache-airflow-providers-alibaba = false
+apache-airflow-providers-informatica = false
+apache-airflow-providers-clickhousedb = false
 apache-airflow-providers-amazon = false
-apache-airflow-providers-anthropic = false
-apache-airflow-providers-apache-arrow = false
-apache-airflow-providers-apache-beam = false
-apache-airflow-providers-apache-cassandra = false
+apache-airflow-providers-elasticsearch = false
+apache-airflow-providers-duckdb = false
+apache-airflow-docker-tests = false
+apache-airflow-providers-microsoft-winrm = false
+apache-airflow-providers = false
+apache-airflow-providers-fab = false
+apache-airflow-providers-openlineage = false
+apache-airflow-providers-sftp = false
+apache-airflow-e2e-tests = false
+apache-airflow-shared-logging = false
+apache-airflow-providers-common-dataquality = false
 apache-airflow-providers-apache-drill = false
+apache-airflow-providers-pgvector = false
+apache-airflow-providers-imap = false
+apache-airflow-providers-qdrant = false
+apache-airflow-providers-edge3 = false
+apache-airflow-providers-neo4j = false
+apache-airflow-providers-discord = false
+apache-airflow-providers-opensearch = false
+apache-airflow-providers-samba = false
+apache-airflow-providers-arangodb = false
+apache-airflow-providers-apache-spark = false
+apache-airflow-providers-ftp = false
+apache-airflow-providers-jenkins = false
+apache-airflow-shared-listeners = false
+apache-airflow-shared-providers-discovery = false
+apache-airflow-providers-telegram = false
+apache-airflow-providers-celery = false
+apache-airflow-providers-docker = false
+apache-airflow-providers-sendgrid = false
+apache-airflow-providers-common-ai = false
+apache-airflow = false
+apache-airflow-shared-observability = false
+apache-airflow-dev = false
+apache-airflow-providers-dbt-cloud = false
+apache-airflow-providers-openfaas = false
+apache-airflow-devel-common = false
+apache-airflow-providers-apache-cassandra = false
+apache-airflow-providers-asana = false
+apache-airflow-providers-oracle = false
+apache-airflow-providers-mysql = false
+apache-airflow-providers-alibaba = false
+apache-airflow-providers-microsoft-mssql = false
+apache-airflow-providers-teradata = false
+apache-airflow-providers-jdbc = false
+apache-airflow-helm-chart = false
+apache-airflow-providers-anthropic = false
+apache-airflow-providers-common-io = false
+apache-airflow-providers-cohere = false
+apache-airflow-providers-pinecone = false
+apache-airflow-providers-segment = false
+apache-airflow-providers-redis = false
+apache-airflow-shared-dagnode = false
+apache-airflow-providers-apache-pinot = false
+apache-airflow-providers-weaviate = false
+google-cloud-aiplatform = "2026-08-13T00:00:00Z"
+apache-airflow-providers-akeyless = false
+apache-airflow-providers-salesforce = false
+apache-airflow-providers-ssh = false
+apache-airflow-providers-papermill = false
+apache-airflow-providers-google = false
+pydantic-ai-skills = "2026-07-16T00:00:00Z"
+apache-airflow-providers-apache-beam = false
+apache-airflow-providers-microsoft-psrp = false
+apache-airflow-providers-vertica = false
+apache-airflow-providers-apache-hdfs = false
+apache-airflow-shared-template-rendering = false
+apache-airflow-mypy = false
+apache-airflow-providers-http = false
+apache-airflow-providers-slack = false
+apache-airflow-providers-vespa = false
+apache-airflow-providers-databricks = false
+apache-airflow-shared-state = false
+apache-airflow-docker-stack = false
+apache-airflow-providers-sqlite = false
+apache-airflow-providers-ibm-mq = false
+apache-airflow-shared-module-loading = false
+apache-airflow-providers-yandex = false
+apache-airflow-shared-serialization = false
+apache-airflow-scripts = false
+apache-airflow-providers-exasol = false
+apache-airflow-providers-mongo = false
+apache-airflow-providers-apache-arrow = false
+apache-airflow-providers-apprise = false
+apache-airflow-providers-apache-impala = false
+apache-airflow-ctl = false
+apache-airflow-providers-github = false
+apache-airflow-providers-snowflake = false
+apache-airflow-providers-zendesk = false
+apache-airflow-providers-presto = false
+apache-airflow-providers-airbyte = false
+apache-airflow-providers-apache-hive = false
+apache-airflow-kubernetes-tests = false
+apache-airflow-providers-grpc = false
 apache-airflow-providers-apache-druid = false
 apache-airflow-providers-apache-flink = false
-apache-airflow-providers-apache-hdfs = false
-apache-airflow-providers-apache-hive = false
-apache-airflow-providers-apache-iceberg = false
-apache-airflow-providers-apache-impala = false
-apache-airflow-providers-apache-kafka = false
-apache-airflow-providers-apache-kylin = false
-apache-airflow-providers-apache-livy = false
-apache-airflow-providers-apache-pig = false
-apache-airflow-providers-apache-pinot = false
-apache-airflow-providers-apache-spark = false
-apache-airflow-providers-apache-tinkerpop = false
-apache-airflow-providers-apprise = false
-apache-airflow-providers-arangodb = false
-apache-airflow-providers-asana = false
-apache-airflow-providers-atlassian-jira = false
-apache-airflow-providers-celery = false
-apache-airflow-providers-clickhousedb = false
-apache-airflow-providers-cloudant = false
 apache-airflow-providers-cncf-kubernetes = false
-apache-airflow-providers-cohere = false
-apache-airflow-providers-common-ai = false
-apache-airflow-providers-common-compat = false
-apache-airflow-providers-common-dataquality = false
-apache-airflow-providers-common-io = false
-apache-airflow-providers-common-messaging = false
-apache-airflow-providers-common-sql = false
-apache-airflow-providers-databricks = false
-apache-airflow-providers-datadog = false
-apache-airflow-providers-dbt-cloud = false
-apache-airflow-providers-dingding = false
-apache-airflow-providers-discord = false
-apache-airflow-providers-docker = false
-apache-airflow-providers-edge3 = false
-apache-airflow-providers-elasticsearch = false
-apache-airflow-providers-exasol = false
-apache-airflow-providers-fab = false
-apache-airflow-providers-facebook = false
-apache-airflow-providers-ftp = false
-apache-airflow-providers-git = false
-apache-airflow-providers-github = false
-apache-airflow-providers-google = false
-apache-airflow-providers-grpc = false
-apache-airflow-providers-hashicorp = false
-apache-airflow-providers-http = false
-apache-airflow-providers-ibm-db2 = false
-apache-airflow-providers-ibm-mq = false
-apache-airflow-providers-imap = false
-apache-airflow-providers-influxdb = false
-apache-airflow-providers-informatica = false
-apache-airflow-providers-jdbc = false
-apache-airflow-providers-jenkins = false
-apache-airflow-providers-keycloak = false
-apache-airflow-providers-microsoft-azure = false
-apache-airflow-providers-microsoft-mssql = false
-apache-airflow-providers-microsoft-psrp = false
-apache-airflow-providers-microsoft-winrm = false
-apache-airflow-providers-mongo = false
-apache-airflow-providers-mysql = false
-apache-airflow-providers-neo4j = false
-apache-airflow-providers-odbc = false
-apache-airflow-providers-openai = false
-apache-airflow-providers-openfaas = false
-apache-airflow-providers-openlineage = false
-apache-airflow-providers-opensearch = false
+apache-airflow-providers-apache-pig = false
+apache-airflow-providers-apache-tinkerpop = false
+apache-airflow-shared-timezones = false
+apache-airflow-providers-apache-iceberg = false
+apache-airflow-breeze = false
 apache-airflow-providers-opsgenie = false
-apache-airflow-providers-oracle = false
+apache-airflow-providers-apache-livy = false
+apache-airflow-core = false
+apache-airflow-providers-hashicorp = false
 apache-airflow-providers-pagerduty = false
-apache-airflow-providers-papermill = false
-apache-airflow-providers-pgvector = false
-apache-airflow-providers-pinecone = false
-apache-airflow-providers-postgres = false
-apache-airflow-providers-presto = false
-apache-airflow-providers-qdrant = false
-apache-airflow-providers-redis = false
-apache-airflow-providers-salesforce = false
-apache-airflow-providers-samba = false
-apache-airflow-providers-segment = false
-apache-airflow-providers-sendgrid = false
-apache-airflow-providers-sftp = false
-apache-airflow-providers-singularity = false
-apache-airflow-providers-slack = false
-apache-airflow-providers-smtp = false
-apache-airflow-providers-snowflake = false
-apache-airflow-providers-sqlite = false
-apache-airflow-providers-ssh = false
-apache-airflow-providers-standard = false
-apache-airflow-providers-tableau = false
-apache-airflow-providers-telegram = false
-apache-airflow-providers-teradata = false
+apache-airflow-providers-datadog = false
+apache-airflow-providers-apache-kafka = false
+apache-airflow-providers-influxdb = false
+apache-airflow-providers-keycloak = false
 apache-airflow-providers-trino = false
-apache-airflow-providers-vertica = false
-apache-airflow-providers-vespa = false
-apache-airflow-providers-weaviate = false
-apache-airflow-providers-yandex = false
-apache-airflow-providers-ydb = false
-apache-airflow-providers-zendesk = false
-apache-airflow-scripts = false
+apache-airflow-providers-common-messaging = false
+apache-airflow-providers-standard = false
+apache-airflow-providers-singularity = false
+apache-airflow-providers-common-compat = false
+apache-airflow-ctl-tests = false
+apache-airflow-providers-tableau = false
+apache-airflow-providers-ibm-db2 = false
+apache-airflow-providers-common-sql = false
 apache-airflow-shared-configuration = false
-apache-airflow-shared-dagnode = false
-apache-airflow-shared-listeners = false
-apache-airflow-shared-logging = false
-apache-airflow-shared-module-loading = false
-apache-airflow-shared-observability = false
+apache-airflow-providers-facebook = false
+apache-airflow-providers-ydb = false
+apache-airflow-providers-microsoft-azure = false
 apache-airflow-shared-plugins-manager = false
-apache-airflow-shared-providers-discovery = false
 apache-airflow-shared-secrets-backend = false
 apache-airflow-shared-secrets-masker = false
-apache-airflow-shared-serialization = false
-apache-airflow-shared-state = false
-apache-airflow-shared-template-rendering = false
-apache-airflow-shared-timezones = false
+apache-airflow-providers-git = false
 apache-airflow-task-sdk = false
+apache-airflow-providers-atlassian-jira = false
+apache-airflow-providers-odbc = false
+apache-airflow-providers-postgres = false
+apache-airflow-providers-openai = false
 apache-airflow-task-sdk-integration-tests = false
-google-cloud-aiplatform = "2026-08-13T00:00:00Z"
-pydantic-ai-skills = "2026-07-16T00:00:00Z"
+apache-airflow-providers-smtp = false
+apache-airflow-providers-dingding = false
+apache-airflow-providers-cloudant = false
+apache-airflow-providers-apache-kylin = false
 
 [manifest]
 members = [
@@ -229,6 +230,7 @@ members = [
     "apache-airflow-providers-dingding",
     "apache-airflow-providers-discord",
     "apache-airflow-providers-docker",
+    "apache-airflow-providers-duckdb",
     "apache-airflow-providers-edge3",
     "apache-airflow-providers-elasticsearch",
     "apache-airflow-providers-exasol",
@@ -1085,6 +1087,7 @@ all = [
     { name = "apache-airflow-providers-dingding" },
     { name = "apache-airflow-providers-discord" },
     { name = "apache-airflow-providers-docker" },
+    { name = "apache-airflow-providers-duckdb" },
     { name = "apache-airflow-providers-edge3" },
     { name = "apache-airflow-providers-elasticsearch" },
     { name = "apache-airflow-providers-exasol" },
@@ -1291,6 +1294,9 @@ discord = [
 ]
 docker = [
     { name = "apache-airflow-providers-docker" },
+]
+duckdb = [
+    { name = "apache-airflow-providers-duckdb" },
 ]
 edge3 = [
     { name = "apache-airflow-providers-edge3" },
@@ -1698,6 +1704,8 @@ requires-dist = [
     { name = "apache-airflow-providers-discord", marker = "extra == 'discord'", editable = "providers/discord" },
     { name = "apache-airflow-providers-docker", marker = "extra == 'all'", editable = "providers/docker" },
     { name = "apache-airflow-providers-docker", marker = "extra == 'docker'", editable = "providers/docker" },
+    { name = "apache-airflow-providers-duckdb", marker = "extra == 'all'", editable = "providers/duckdb" },
+    { name = "apache-airflow-providers-duckdb", marker = "extra == 'duckdb'", editable = "providers/duckdb" },
     { name = "apache-airflow-providers-edge3", marker = "extra == 'all'", editable = "providers/edge3" },
     { name = "apache-airflow-providers-edge3", marker = "extra == 'edge3'", editable = "providers/edge3" },
     { name = "apache-airflow-providers-elasticsearch", marker = "extra == 'all'", editable = "providers/elasticsearch" },
@@ -1834,7 +1842,7 @@ requires-dist = [
     { name = "sentry-sdk", marker = "extra == 'sentry'", specifier = ">=2.30.0" },
     { name = "uv", marker = "extra == 'uv'", specifier = ">=0.12.13" },
 ]
-provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "akeyless", "alibaba", "amazon", "anthropic", "apache-arrow", "apache-beam", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "clickhousedb", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "vespa", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
+provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "akeyless", "alibaba", "amazon", "anthropic", "apache-arrow", "apache-beam", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "clickhousedb", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "duckdb", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "vespa", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
 
 [package.metadata.requires-dev]
 ci-image = [
@@ -5308,6 +5316,43 @@ dev = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+]
+docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
+
+[[package]]
+name = "apache-airflow-providers-duckdb"
+version = "0.1.0"
+source = { editable = "providers/duckdb" }
+dependencies = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-providers-common-sql" },
+    { name = "duckdb" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-devel-common" },
+    { name = "apache-airflow-providers-common-sql" },
+    { name = "apache-airflow-task-sdk" },
+]
+docs = [
+    { name = "apache-airflow-devel-common", extra = ["docs"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
+    { name = "duckdb", specifier = ">=1.2.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-devel-common", editable = "devel-common" },
+    { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
