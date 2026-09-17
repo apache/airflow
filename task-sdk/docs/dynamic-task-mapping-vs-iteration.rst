@@ -398,10 +398,10 @@ Avoid Iterable Tasks when:
    Triggerers remain the right choice for long-running polling or waiting tasks
    (e.g., monitoring a remote job or waiting for a Kubernetes pod to complete).
 
-Combining DTM and IT (Dynamic Task Batching)
----------------------------------------------
+Combining DTM and IT (Batched Task Mapping)
+-------------------------------------------
 
-DTM and IT are not mutually exclusive in principle. The *Dynamic Task Batching*
+DTM and IT are not mutually exclusive in principle. The *Batched Task Mapping*
 pattern uses DTM to fan a large dataset out across ``size`` task instances,
 where each mapped task instance then iterates over its share using IT.
 
