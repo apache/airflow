@@ -211,6 +211,130 @@ class TestJobsApiRoutes:
 
             assert [job.task_id for job in fetched if job] == ["high", "medium", "low"]
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="ExecuteCallback requires Airflow 3.3+")
+    @patch(f"{Stats.__module__}.Stats.incr")
+    def test_fetch_returns_callbacks_before_higher_priority_tasks(self, mock_stats_incr, session: Session):
+        """Callbacks outrank tasks whatever their priority_weight, and stay FIFO among themselves."""
+        queued_dttm = timezone.utcnow()
+        # Only queue time may order callbacks. The newer one is heavier and sorts first by id, so a
+        # priority sort, a primary-key walk, or plain insertion order would all return it first.
+        callbacks = [
+            ("11111111-1111-1111-1111-111111111111", 100, queued_dttm),
+            ("22222222-2222-2222-2222-222222222222", 1, queued_dttm - timedelta(seconds=1)),
+        ]
+        with create_session() as session:
+            session.add(
+                EdgeWorkerModel(
+                    worker_name="worker1", state=EdgeWorkerState.IDLE, queues=[QUEUE], team_name=None
+                )
+            )
+            for callback_id, priority_weight, callback_queued_dttm in callbacks:
+                callback = ExecuteCallback(
+                    callback=CallbackDTO(
+                        id=callback_id,
+                        fetch_method=CallbackFetchMethod.IMPORT_PATH,
+                        data={"path": "builtins.dict", "kwargs": {}},
+                    ),
+                    dag_rel_path=Path("test.py"),
+                    bundle_info=BundleInfo(name="test_bundle", version="1.0"),
+                    token="test_token",
+                    log_path="test.log",
+                )
+                session.add(
+                    EdgeJobModel(
+                        dag_id=EXECUTE_CALLBACK_TAG,
+                        task_id=callback_id,
+                        run_id=f"{EXECUTE_CALLBACK_TAG}-{callback_id}",
+                        try_number=0,
+                        map_index=-1,
+                        state=TaskInstanceState.QUEUED,
+                        queue=QUEUE,
+                        concurrency_slots=1,
+                        command=callback.model_dump_json(),
+                        priority_weight=priority_weight,
+                        queued_dttm=callback_queued_dttm,
+                    )
+                )
+            # Queued last and far heavier, so a priority-only ordering would hand it out first.
+            session.add(
+                EdgeJobModel(
+                    dag_id=DAG_ID,
+                    task_id="high",
+                    run_id=RUN_ID,
+                    try_number=1,
+                    map_index=-1,
+                    state=TaskInstanceState.QUEUED,
+                    queue=QUEUE,
+                    concurrency_slots=1,
+                    command=MOCK_COMMAND_STR,
+                    priority_weight=100,
+                    queued_dttm=queued_dttm + timedelta(seconds=1),
+                )
+            )
+            session.commit()
+
+            body = WorkerQueuesBody(free_concurrency=1, queues=[QUEUE], team_name=None)
+            fetched = [fetch("worker1", body, session) for _ in range(3)]
+
+            assert [job.task_id for job in fetched if job] == [callbacks[1][0], callbacks[0][0], "high"]
+
+    @pytest.mark.parametrize(
+        "try_number",
+        [
+            pytest.param(1, id="regular-task"),
+            pytest.param(0, id="only-run-id-differs-from-a-callback"),
+        ],
+    )
+    @patch(f"{Stats.__module__}.Stats.incr")
+    def test_fetch_queues_tasks_of_dag_named_like_callback_tag_by_priority(
+        self, mock_stats_incr, try_number, session: Session
+    ):
+        """``ExecuteCallback`` is a valid Dag id, so tasks of that Dag must not jump the queue."""
+        queued_dttm = timezone.utcnow()
+        with create_session() as session:
+            session.add(
+                EdgeWorkerModel(
+                    worker_name="worker1", state=EdgeWorkerState.IDLE, queues=[QUEUE], team_name=None
+                )
+            )
+            session.add(
+                EdgeJobModel(
+                    dag_id=DAG_ID,
+                    task_id="high",
+                    run_id=RUN_ID,
+                    try_number=1,
+                    map_index=-1,
+                    state=TaskInstanceState.QUEUED,
+                    queue=QUEUE,
+                    concurrency_slots=1,
+                    command=MOCK_COMMAND_STR,
+                    priority_weight=100,
+                    queued_dttm=queued_dttm + timedelta(seconds=1),
+                )
+            )
+            # Lighter but queued first, so it is fetched first only if mistaken for a callback.
+            session.add(
+                EdgeJobModel(
+                    dag_id=EXECUTE_CALLBACK_TAG,
+                    task_id="low",
+                    run_id=RUN_ID,
+                    try_number=try_number,
+                    map_index=-1,
+                    state=TaskInstanceState.QUEUED,
+                    queue=QUEUE,
+                    concurrency_slots=1,
+                    command=MOCK_COMMAND_STR,
+                    priority_weight=1,
+                    queued_dttm=queued_dttm,
+                )
+            )
+            session.commit()
+
+            body = WorkerQueuesBody(free_concurrency=1, queues=[QUEUE], team_name=None)
+            fetched = [fetch("worker1", body, session) for _ in range(2)]
+
+            assert [job.task_id for job in fetched if job] == ["high", "low"]
+
     @patch(f"{Stats.__module__}.Stats.incr")
     def test_fetch_filters_by_worker_team_name(self, mock_stats_incr, session: Session):
         with create_session() as session:
