@@ -644,6 +644,10 @@ Stable API Permissions
      - GET
      - DAGs.can_read, DAG Versions.can_read
      - Viewer
+   * - ``/api/v2/dags/{dag_id}/dagVersions/{base_version_number}/diff/{target_version_number}``
+     - GET
+     - DAGs.can_read, DAG Versions.can_read
+     - Viewer
    * - ``/api/v2/dags/{dag_id}/dagVersions/{version_number}``
      - GET
      - DAGs.can_read, DAG Versions.can_read

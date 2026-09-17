@@ -18,11 +18,12 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
-from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
+from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
@@ -35,14 +36,19 @@ from airflow.api_fastapi.common.parameters import (
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.dag_versions import (
     DAGVersionCollectionResponse,
+    DagVersionDiffResponse,
     DagVersionResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
+    GetUserDep,
     ReadableDagVersionsFilterDep,
     requires_access_dag,
 )
+from airflow.exceptions import DagVersionNotFound
+from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
+from airflow.serialization.dag_version_diff import DEFAULT_MAX_CHANGES, MAX_ALLOWED_CHANGES
 
 dag_versions_router = AirflowRouter(tags=["DagVersion"], prefix="/dags/{dag_id}/dagVersions")
 
@@ -131,4 +137,66 @@ def get_dag_versions(
     return DAGVersionCollectionResponse(
         dag_versions=dag_versions,
         total_entries=total_entries,
+    )
+
+
+@dag_versions_router.get(
+    "/{base_version_number}/diff/{target_version_number}",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.VERSION))],
+)
+def get_dag_version_diff(
+    dag_id: str,
+    base_version_number: int,
+    target_version_number: int,
+    session: SessionDep,
+    user: GetUserDep,
+    max_changes: Annotated[int, Query(gt=0, le=MAX_ALLOWED_CHANGES)] = DEFAULT_MAX_CHANGES,
+) -> DagVersionDiffResponse:
+    """
+    Compare what two stored versions of a Dag currently hold.
+
+    This reports observed state, not why a version was created. Version access returns the changed
+    structure with identifying path components masked; the raw values behind those changes, and the
+    paths that name them, are disclosed only to a caller who may also read the Dag's code.
+    """
+    values_authorized = get_auth_manager().is_authorized_dag(
+        method="GET",
+        access_entity=DagAccessEntity.CODE,
+        details=DagDetails(id=dag_id, team_name=DagModel.get_team_name(dag_id)),
+        user=user,
+    )
+    try:
+        result = DagVersion.get_diff(
+            dag_id,
+            base_version_number,
+            target_version_number,
+            values_status="available" if values_authorized else "unavailable",
+            max_changes=max_changes,
+            session=session,
+        )
+    except DagVersionNotFound as error:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(error))
+    except ValueError as error:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(error))
+
+    changes = result["changes"]
+    return DagVersionDiffResponse(
+        diff_schema_version=result["diff_schema_version"],
+        base_version_number=base_version_number,
+        target_version_number=target_version_number,
+        serialized_dag_schema_versions=result["serialized_dag_schema_versions"],
+        mode=result["mode"],
+        unavailable_reason=result.get("unavailable_reason"),
+        values_status=result["values"]["status"],
+        truncated=result["truncated"],
+        # Counting records would under-report: a redacted record stands for every change sharing
+        # its public path. Dropped paths are not counted either, which is what ``truncated`` says.
+        total_changes=sum(change["occurrence_count"] for change in changes),
+        changes=changes,
     )
