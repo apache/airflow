@@ -25,6 +25,7 @@ import type {
   GetXComOpts,
   SetXComOpts,
   TaskClient,
+  Registerable,
   TaskContext,
   TaskFunction,
   TaskInputs,
@@ -34,12 +35,11 @@ import type {
 } from "../src/index.js";
 import * as sdk from "../src/index.js";
 import {
+  Bundle,
   ConnectionNotFoundError,
   Dag,
-  DagRegistry,
   getClient,
   getContext,
-  serveDags,
   SUPERVISOR_API_VERSION,
   VariableNotFoundError,
 } from "../src/index.js";
@@ -54,29 +54,33 @@ describe("public API", () => {
     expect(upstream).toEqual({ dagId: "public_api_dag", taskId: "public_api_task" });
     expect(downstream).toEqual({ dagId: "public_api_dag", taskId: "public_api_downstream" });
     expect(dag.taskIds).toEqual(["public_api_task", "public_api_downstream"]);
-    // serveDags hands the registry to the runtime, which needs the supervisor's
+    // serve() hands the bundle to the runtime, which needs the supervisor's
     // socket addresses that Airflow puts on argv.
-    await expect(serveDags(new DagRegistry(dag))).rejects.toThrow("Missing --comm");
+    await expect(new Bundle(dag).serve()).rejects.toThrow("Missing --comm");
   });
 
-  // The registry guard runs before the already-served latch, so this holds
-  // regardless of whether another test in this file already served a registry.
+  // A detached `const { serve } = bundle` must say so here rather than fail
+  // deep in the runtime. The guard runs before the already-served latch, so
+  // this holds however many bundles earlier tests in this file served.
   it.each([
-    ["a bare Dag", new Dag("not_a_registry_dag")],
+    ["a bare Dag", new Dag("not_a_bundle_dag")],
     ["a plain object", { register: () => {} }],
     ["null", null],
-  ])("rejects a %s in place of a registry", async (_label, value) => {
-    await expect(serveDags(value as unknown as DagRegistry)).rejects.toThrow(
-      /serveDags\(\.\.\.\) takes a DagRegistry/,
+    ["undefined, as a detached serve receives", undefined],
+  ])("rejects %s as the receiver of serve()", async (_label, value) => {
+    const detached = Bundle.prototype.serve;
+    await expect(detached.call(value as unknown as Bundle)).rejects.toThrow(
+      /bundle\.serve\(\) must be called on a Bundle/,
     );
   });
 
-  it("names the duplicate-copy cause for a registry built by another copy", async () => {
-    // Stands in for a registry from a second resolved copy: same brand, other
+  it("names the duplicate-copy cause for a bundle built by another copy", async () => {
+    // Stands in for a bundle from a second resolved copy: same brand, other
     // class. It still cannot be served, so the point is only that it says why.
     const foreign = {};
-    Object.defineProperty(foreign, Symbol.for("airflow.ts-sdk.DagRegistry"), { value: true });
-    await expect(serveDags(foreign as unknown as DagRegistry)).rejects.toThrow(
+    Object.defineProperty(foreign, Symbol.for("airflow.ts-sdk.Bundle"), { value: true });
+    const detached = Bundle.prototype.serve;
+    await expect(detached.call(foreign as unknown as Bundle)).rejects.toThrow(
       /different copy of apache-airflow-ts-sdk/,
     );
   });
@@ -95,9 +99,9 @@ describe("public API", () => {
       process.argv = [...argv, AIRFLOW_METADATA_FLAG];
       vi.spyOn(process.stdout, "write").mockReturnValue(true);
       try {
-        await serveDags(new DagRegistry(new Dag("served_dag")));
-        await expect(serveDags(new DagRegistry(new Dag("second_call_dag")))).rejects.toThrow(
-          /serveDags\(\.\.\.\) was already called/,
+        await new Bundle(new Dag("served_dag")).serve();
+        await expect(new Bundle(new Dag("second_call_dag")).serve()).rejects.toThrow(
+          /bundle\.serve\(\) was already called/,
         );
       } finally {
         process.argv = argv;
@@ -106,34 +110,30 @@ describe("public API", () => {
     });
 
     it("releases the latch when a serve fails, so the call can be retried", async () => {
-      await expect(serveDags(new DagRegistry(new Dag("first_try")))).rejects.toThrow(
-        "Missing --comm",
-      );
+      await expect(new Bundle(new Dag("first_try")).serve()).rejects.toThrow("Missing --comm");
       // The retry reports why it actually failed, not "already called".
-      await expect(serveDags(new DagRegistry(new Dag("second_try")))).rejects.toThrow(
-        "Missing --comm",
-      );
+      await expect(new Bundle(new Dag("second_try")).serve()).rejects.toThrow("Missing --comm");
     });
   });
 
-  it("exports DagRegistry as the Dag collection a bundle serves", () => {
-    const dag = new Dag("registry_api_dag");
+  it("exports Bundle as the thing that holds what a bundle provides and serves it", () => {
+    const dag = new Dag("bundle_api_dag");
     const handler = async () => "hello";
     dag.task("extract", handler);
-    // Building a registry starts nothing, so a test can dispatch through it
+    // Registering starts nothing, so a test can dispatch through a bundle
     // exactly as the runtime does, with no sockets in scope.
-    const registry = new DagRegistry(dag);
-    expect(registry.getTaskHandler("registry_api_dag", "extract")).toBe(handler);
-    registry.register(new Dag("late_dag"));
-    expect(registry.getTaskHandler("late_dag", "extract")).toBeUndefined();
+    const bundle = new Bundle(dag);
+    expect(bundle.getTaskHandler("bundle_api_dag", "extract")).toBe(handler);
+    bundle.register(new Dag("late_dag"));
+    expect(bundle.getTaskHandler("late_dag", "extract")).toBeUndefined();
   });
 
-  it("keeps registry enumeration out of the public surface", () => {
-    const registry = new DagRegistry();
+  it("keeps bundle enumeration out of the public surface", () => {
+    const bundle = new Bundle();
     for (const name of ["listTasks", "listDags"]) {
-      expect(name in registry).toBe(false);
+      expect(name in bundle).toBe(false);
     }
-    expectTypeOf<keyof DagRegistry>().toEqualTypeOf<"register" | "getTaskHandler">();
+    expectTypeOf<keyof Bundle>().toEqualTypeOf<"register" | "serve" | "getTaskHandler">();
   });
 
   it("does not export the removed registerTask surface or the coordinator itself", () => {
@@ -188,9 +188,18 @@ describe("public API", () => {
     expect(connErr.connId).toBe("missing_conn");
   });
 
-  it("reaches the runtime only through serveDags, which takes a registry", () => {
-    expectTypeOf<typeof serveDags>().toEqualTypeOf<(registry: DagRegistry) => Promise<void>>();
-    expectTypeOf<ConstructorParameters<typeof DagRegistry>>().toEqualTypeOf<Dag[]>();
+  it("reaches the runtime only through bundle.serve(), which takes nothing", () => {
+    // One verb in and one verb out: `serveDags` is gone, and the coordinator
+    // stays unnamed because the object that holds the Dags serves them itself.
+    expectTypeOf<Bundle["serve"]>().toEqualTypeOf<() => Promise<void>>();
+    expectTypeOf<Bundle["register"]>().toEqualTypeOf<(...items: Registerable[]) => void>();
+    expectTypeOf<ConstructorParameters<typeof Bundle>>().toEqualTypeOf<Registerable[]>();
+    expectTypeOf<Registerable>().toEqualTypeOf<Dag>();
+    for (const name of ["serveDags", "DagRegistry"]) {
+      expect(name in sdk).toBe(false);
+    }
+    expectTypeOf<typeof sdk>().not.toHaveProperty("serveDags");
+    expectTypeOf<typeof sdk>().not.toHaveProperty("DagRegistry");
     expectTypeOf(SUPERVISOR_API_VERSION).toMatchTypeOf<string>();
   });
 
@@ -317,10 +326,10 @@ describe("public API", () => {
       dag.task("transform3", async () => undefined, { spec: { retries: 2 } });
       // @ts-expect-error the TaskRef handle is data, not callable.
       upstream();
-      // @ts-expect-error serveDags takes the registry, not a bare Dag.
-      serveDags(dag);
-      // @ts-expect-error a registry is built from Dags, not from task handles.
-      new DagRegistry(upstream);
+      // @ts-expect-error a bundle is built from Dags, not from task handles.
+      new Bundle(upstream);
+      // @ts-expect-error serve() takes nothing; the bundle already holds it all.
+      new Bundle(dag).serve(dag);
     };
     void rejectsPositionalMisuse;
     // @ts-expect-error the TaskRef handle is opaque and does not expose the handler.
