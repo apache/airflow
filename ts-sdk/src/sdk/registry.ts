@@ -19,7 +19,7 @@
 
 import { brand, DUPLICATE_COPY_HINT, hasBrand } from "./brand.js";
 import { Dag, getDagTaskRecords, isDag, type TaskRef } from "./dag.js";
-import type { TaskHandler } from "./task.js";
+import type { TaskFunction } from "./task.js";
 
 // Assigned inside DagRegistry's static block, as Dag does for its tasks.
 let dagsOf: (registry: DagRegistry) => ReadonlyMap<string, Dag>;
@@ -53,7 +53,7 @@ export interface RegisteredDag {
  * handler through {@link getTaskHandler} without any runtime in scope.
  *
  * Lookups delegate live to each Dag's task map, so tasks added to a Dag
- * after registration are visible — the registry records Dag identity, not
+ * after registration are visible: the registry records Dag identity, not
  * a snapshot of its tasks.
  */
 export class DagRegistry {
@@ -80,8 +80,8 @@ export class DagRegistry {
       // Typed as Dag, so narrowing it would collapse to never; these guard
       // callers reaching this from plain JavaScript.
       const candidate: unknown = dag;
-      // Another copy's Dag cannot be registered — lookups read a private task
-      // map keyed to this copy's class — so it is rejected, but by its cause.
+      // Another copy's Dag cannot be registered, since lookups read a private
+      // task map keyed to this copy's class, so it is rejected by its cause.
       if (!(candidate instanceof Dag)) {
         throw new Error(
           isDag(candidate)
@@ -101,14 +101,14 @@ export class DagRegistry {
 
   /** Look up a registered handler, the way the runtime dispatches a task.
    *  Returns `undefined` when no handler exists. */
-  getTaskHandler(dagId: string, taskId: string): TaskHandler | undefined {
+  getTaskHandler(dagId: string, taskId: string): TaskFunction | undefined {
     const dag = this.#dags.get(dagId);
-    return dag ? getDagTaskRecords(dag).get(taskId)?.handler : undefined;
+    return dag ? getDagTaskRecords(dag).get(taskId)?.fn : undefined;
   }
 }
 
 /** Internal: the task handles across a registry's Dags. Not re-exported from the
- *  package root — enumerating what the runtime dispatches is the runtime's job. */
+ *  package root: enumerating what the runtime dispatches is the runtime's job. */
 export function listRegistryTasks(registry: DagRegistry): TaskRef[] {
   return [...dagsOf(registry).values()].flatMap((dag) =>
     [...getDagTaskRecords(dag).values()].map((record) => record.task),

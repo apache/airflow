@@ -115,7 +115,7 @@ describe("Dag", () => {
     expect(dag.spec).toEqual(dagSpec);
     expect(Object.isFrozen(dag.spec)).toBe(true);
     const record = getDagTaskRecords(dag).get("my_task");
-    expect(record?.handler).toBe(handler);
+    expect(record?.fn).toBe(handler);
     expect(record?.spec).toEqual(taskSpec);
     expect(Object.isFrozen(record!.spec)).toBe(true);
   });
