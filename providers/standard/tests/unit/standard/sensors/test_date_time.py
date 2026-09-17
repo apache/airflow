@@ -147,6 +147,7 @@ class TestDateTimeSensor:
             dag=self.dag,
         )
         assert op.start_trigger_args.trigger_kwargs["moment"] == pendulum.parse("2020-01-01T00:00:00+00:00")
+     
 
     def test_async_start_from_trigger_localizes_naive_datetime(self):
         """DateTimeSensorAsync never pokes, so _moment must still localize a naive datetime."""
@@ -157,6 +158,16 @@ class TestDateTimeSensor:
             dag=self.dag,
         )
         assert op.start_trigger_args.trigger_kwargs["moment"] == pendulum.datetime(2020, 1, 1, tz="UTC")
+        
+    def test_async_start_from_trigger_with_templated_target_time(self):
+        op = DateTimeSensorAsync(
+            task_id="templated_async",
+                  		  target_time="{{ data_interval_end.tomorrow().replace(hour=1) }}",
+            start_from_trigger=True,
+            dag=self.dag,
+        )
+
+        assert op.start_from_trigger is False
 
     def test_start_trigger_args_are_not_shared_between_tasks(self):
         """Each task must carry its own trigger arguments.
@@ -189,3 +200,4 @@ class TestDateTimeSensor:
             "moment": "",
             "end_from_trigger": False,
         }
+       
