@@ -177,6 +177,10 @@ You can derive it by inheritance (please refer to the example below). In the exa
 defined as class attributes, but you can also define them as properties if you need to perform
 additional initialization. Please note ``name`` inside this class must be specified.
 
+``name`` must also be unique across all plugins. Airflow registers the first plugin it discovers under a
+given name and skips any later plugin that reuses it, so two plugins sharing a name means one of them is
+not loaded.
+
 Make sure you restart the webserver and scheduler after making changes to plugins so that they take effect.
 
 Plugin Management Interface

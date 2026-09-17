@@ -161,8 +161,8 @@ def get_provider_info():
                     "hidden-fields": ["schema", "port", "login"],
                     "relabeling": {"password": "API Key", "host": "Azure Endpoint"},
                     "placeholders": {
-                        "host": "https://<resource>.openai.azure.com",
-                        "extra": '{"model": "azure:gpt-4o", "api_version": "2024-07-01-preview"}',
+                        "host": "https://<resource>.openai.azure.com/openai/v1",
+                        "extra": '{"model": "azure:gpt-4o"}',
                     },
                 },
                 "conn-fields": {
@@ -173,7 +173,7 @@ def get_provider_info():
                     },
                     "api_version": {
                         "label": "API Version",
-                        "description": "Azure OpenAI API version (e.g. 2024-07-01-preview). Falls back to OPENAI_API_VERSION.",
+                        "description": "Azure OpenAI API version (e.g. 2024-07-01-preview). Set when the endpoint path does not end in /v1 and the host is not *.models.ai.azure.com. Falls back to OPENAI_API_VERSION.",
                         "schema": {"type": ["string", "null"]},
                     },
                 },
