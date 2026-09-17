@@ -617,7 +617,7 @@ def get_data_dependencies(
                     nodes_dict.setdefault(node["id"], node)
                     # Continue the BFS through any other concrete assets this gate combines
                     # with, so their own producers are traced too.
-                    if node["id"].startswith("asset:"):
+                    if _is_readable_asset_node(node["id"], readable_asset_ids):
                         sibling_asset_id = int(node["id"].removeprefix("asset:"))
                         if sibling_asset_id not in processed_assets:
                             next_frontier.add(sibling_asset_id)

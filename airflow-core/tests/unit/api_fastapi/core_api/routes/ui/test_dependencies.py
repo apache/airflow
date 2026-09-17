@@ -641,6 +641,44 @@ class TestGetDependencies:
         assert "gate_asset_b" not in {node["label"] for node in result["nodes"]}
         assert not any(node_id.startswith("task:gate_upstream_b") for node_id in node_ids)
 
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets",
+        autospec=True,
+    )
+    def test_data_dependencies_hides_gate_leaf_without_id(
+        self, mock_get_authorized_assets, dag_maker, test_client, session
+    ):
+        """A gate leaf the Dag processor has not enriched with an id yet is hidden, not a 500."""
+        asset_a = Asset(uri="s3://gate-bucket/a", name="gate_asset_a")
+        asset_b = Asset(uri="s3://gate-bucket/b", name="gate_asset_b")
+        with dag_maker(
+            dag_id="gate_downstream", schedule=(asset_a & asset_b), serialized=True, session=session
+        ):
+            EmptyOperator(task_id="consume")
+        dag_maker.sync_dagbag_to_db()
+        asset_a_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "gate_asset_a"))
+        asset_b_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "gate_asset_b"))
+        mock_get_authorized_assets.return_value = {asset_a_id, asset_b_id}
+        dag_model = session.get(DagModel, "gate_downstream")
+        dag_model.asset_expression = {
+            "all": [
+                {"asset": {"name": "gate_asset_a", "uri": "s3://gate-bucket/a", "id": asset_a_id}},
+                {"asset": {"name": "gate_asset_b", "uri": "s3://gate-bucket/b", "id": None}},
+            ]
+        }
+        session.commit()
+
+        response = test_client.get(
+            "/dependencies", params={"node_id": f"asset:{asset_a_id}", "dependency_type": "data"}
+        )
+
+        assert response.status_code == 200
+        result = response.json()
+        node_ids = {node["id"] for node in result["nodes"]}
+        assert f"asset:{asset_a_id}" in node_ids
+        assert "asset:None" not in node_ids
+        assert "gate_asset_b" not in {node["label"] for node in result["nodes"]}
+
     def test_scheduling_dependencies_include_team_name(self, dag_maker, test_client, session):
         team = Team(name="my-team")
         session.add(team)
