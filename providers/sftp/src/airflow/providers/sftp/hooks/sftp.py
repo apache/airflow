@@ -27,8 +27,8 @@ import os
 import posixpath
 import stat
 import warnings
-from collections.abc import Callable, Generator, Sequence
-from contextlib import contextmanager, suppress
+from collections.abc import AsyncGenerator, Callable, Generator, Sequence
+from contextlib import asynccontextmanager, contextmanager, suppress
 from enum import Enum
 from fnmatch import fnmatch
 from io import BytesIO
@@ -932,6 +932,13 @@ class SFTPHookAsync(BaseHook):
         ssh_client_conn = await asyncssh.connect(**conn_config)
         return ssh_client_conn
 
+    @asynccontextmanager
+    async def _sftp_client(self) -> AsyncGenerator[asyncssh.SFTPClient]:
+        """Open one SSH connection with an SFTP client on it and close both on exit."""
+        async with await self._get_conn() as ssh_conn:
+            async with ssh_conn.start_sftp_client() as sftp:
+                yield sftp
+
     async def retrieve_file(
         self,
         remote_full_path: str,
@@ -952,25 +959,34 @@ class SFTPHookAsync(BaseHook):
             ``False``, only one request is kept in flight at a time, mirroring
             :meth:`SFTPHook.retrieve_file`'s ``prefetch`` semantics.
         """
+        async with self._sftp_client() as sftp:
+            await self._retrieve_file_with_client(
+                sftp, remote_full_path, local_full_path, chunk_size=chunk_size, prefetch=prefetch
+            )
+
+    async def _retrieve_file_with_client(
+        self,
+        sftp: asyncssh.SFTPClient,
+        remote_full_path: str,
+        local_full_path: str | os.PathLike[str] | IO[bytes],
+        chunk_size: int = CHUNK_SIZE,
+        prefetch: bool = True,
+    ) -> None:
         if isinstance(local_full_path, (str, os.PathLike)):
-            async with await self._get_conn() as ssh_conn:
-                async with ssh_conn.start_sftp_client() as sftp:
-                    get_kwargs: dict[str, Any] = {"block_size": chunk_size}
-                    if not prefetch:
-                        get_kwargs["max_requests"] = 1
-                    await sftp.get(remote_full_path, local_full_path, **get_kwargs)
+            get_kwargs: dict[str, Any] = {"block_size": chunk_size}
+            if not prefetch:
+                get_kwargs["max_requests"] = 1
+            await sftp.get(remote_full_path, local_full_path, **get_kwargs)
             return
 
-        async with await self._get_conn() as ssh_conn:
-            async with ssh_conn.start_sftp_client() as sftp:
-                async with sftp.open(remote_full_path, "rb") as remote_file:
-                    while True:
-                        chunk = await remote_file.read(chunk_size)
-                        if not chunk:
-                            break
-                        local_full_path.write(cast("bytes", chunk))
-                    if hasattr(local_full_path, "seek"):
-                        local_full_path.seek(0)
+        async with sftp.open(remote_full_path, "rb") as remote_file:
+            while True:
+                chunk = await remote_file.read(chunk_size)
+                if not chunk:
+                    break
+                local_full_path.write(cast("bytes", chunk))
+            if hasattr(local_full_path, "seek"):
+                local_full_path.seek(0)
 
     async def store_file(
         self,
@@ -995,33 +1011,41 @@ class SFTPHookAsync(BaseHook):
         if isinstance(local_full_path, bytes):
             raise TypeError("Unsupported type for local_full_path: bytes. Wrap raw bytes in BytesIO.")
 
-        async with await self._get_conn() as ssh_conn:
-            async with ssh_conn.start_sftp_client() as sftp:
-                with suppress(asyncssh.SFTPFailure):
-                    remote_path = PurePosixPath(remote_full_path)
-                    await sftp.makedirs(str(remote_path.parent))
+        async with self._sftp_client() as sftp:
+            await self._store_file_with_client(sftp, remote_full_path, local_full_path, confirm=confirm)
 
-                if isinstance(local_full_path, (str, os.PathLike)):
-                    await sftp.put(str(local_full_path), remote_full_path)
-                    uploaded_size = await asyncio.to_thread(os.path.getsize, local_full_path)
-                elif hasattr(local_full_path, "read"):
-                    async with sftp.open(remote_full_path, "wb") as f:
-                        stream = local_full_path
-                        if hasattr(stream, "seek"):
-                            stream.seek(0)
-                        data = stream.read()
-                        await f.write(data)
-                    uploaded_size = len(data)
-                else:
-                    raise TypeError(
-                        f"Unsupported type for local_full_path: {type(local_full_path)}. "
-                        "Expected a binary file-like object or a path-like object."
-                    )
+    async def _store_file_with_client(
+        self,
+        sftp: asyncssh.SFTPClient,
+        remote_full_path: str,
+        local_full_path: str | os.PathLike[str] | IO[bytes],
+        confirm: bool = True,
+    ) -> None:
+        with suppress(asyncssh.SFTPFailure):
+            remote_path = PurePosixPath(remote_full_path)
+            await sftp.makedirs(str(remote_path.parent))
 
-                if confirm:
-                    remote_attrs = await sftp.stat(remote_full_path)
-                    if remote_attrs.size != uploaded_size:
-                        raise OSError(f"size mismatch in put!  {remote_attrs.size} != {uploaded_size}")
+        if isinstance(local_full_path, (str, os.PathLike)):
+            await sftp.put(str(local_full_path), remote_full_path)
+            uploaded_size = await asyncio.to_thread(os.path.getsize, local_full_path)
+        elif hasattr(local_full_path, "read"):
+            async with sftp.open(remote_full_path, "wb") as f:
+                stream = local_full_path
+                if hasattr(stream, "seek"):
+                    stream.seek(0)
+                data = stream.read()
+                await f.write(data)
+            uploaded_size = len(data)
+        else:
+            raise TypeError(
+                f"Unsupported type for local_full_path: {type(local_full_path)}. "
+                "Expected a binary file-like object or a path-like object."
+            )
+
+        if confirm:
+            remote_attrs = await sftp.stat(remote_full_path)
+            if remote_attrs.size != uploaded_size:
+                raise OSError(f"size mismatch in put!  {remote_attrs.size} != {uploaded_size}")
 
     async def mkdir(self, path: str) -> None:
         """
@@ -1088,45 +1112,55 @@ class SFTPHookAsync(BaseHook):
         This mirrors :meth:`SFTPHook.walktree` contract and calls callback functions for
         regular files, directories, and unknown file types.
         """
-        async with await self._get_conn() as ssh_conn:
-            async with ssh_conn.start_sftp_client() as sftp:
-                visited_dirs: set[str] = set()
+        async with self._sftp_client() as sftp:
+            await self._walktree_with_client(sftp, path, fcallback, dcallback, ucallback, recurse=recurse)
 
-                async def _canonical_dir(dir_path: str) -> str:
-                    with suppress(asyncssh.SFTPError):
-                        return os.fsdecode(await sftp.realpath(dir_path))
-                    return posixpath.normpath(dir_path)
+    async def _walktree_with_client(
+        self,
+        sftp: asyncssh.SFTPClient,
+        path: str,
+        fcallback: Callable[[str], Any | None],
+        dcallback: Callable[[str], Any | None],
+        ucallback: Callable[[str], Any | None],
+        recurse: bool = True,
+    ) -> None:
+        visited_dirs: set[str] = set()
 
-                async def _walk(dir_path: str) -> None:
-                    canonical_dir = await _canonical_dir(dir_path)
-                    if canonical_dir in visited_dirs:
-                        return
-                    visited_dirs.add(canonical_dir)
+        async def _canonical_dir(dir_path: str) -> str:
+            with suppress(asyncssh.SFTPError):
+                return os.fsdecode(await sftp.realpath(dir_path))
+            return posixpath.normpath(dir_path)
 
-                    try:
-                        entries = await sftp.readdir(dir_path)
-                    except asyncssh.SFTPNoSuchFile:
-                        # Directory may disappear mid-walk on busy drops; skip and continue.
-                        return
+        async def _walk(dir_path: str) -> None:
+            canonical_dir = await _canonical_dir(dir_path)
+            if canonical_dir in visited_dirs:
+                return
+            visited_dirs.add(canonical_dir)
 
-                    for entry in sorted(entries, key=lambda file: os.fsdecode(file.filename)):
-                        filename = os.fsdecode(entry.filename)
-                        if filename in {".", ".."}:
-                            continue
+            try:
+                entries = await sftp.readdir(dir_path)
+            except asyncssh.SFTPNoSuchFile:
+                # Directory may disappear mid-walk on busy drops; skip and continue.
+                return
 
-                        pathname = posixpath.join(dir_path, filename)
-                        permissions = entry.attrs.permissions
+            for entry in sorted(entries, key=lambda file: os.fsdecode(file.filename)):
+                filename = os.fsdecode(entry.filename)
+                if filename in {".", ".."}:
+                    continue
 
-                        if permissions is not None and stat.S_ISDIR(permissions):
-                            dcallback(pathname)
-                            if recurse:
-                                await _walk(pathname)
-                        elif permissions is not None and stat.S_ISREG(permissions):
-                            fcallback(pathname)
-                        else:
-                            ucallback(pathname)
+                pathname = posixpath.join(dir_path, filename)
+                permissions = entry.attrs.permissions
 
-                await _walk(path)
+                if permissions is not None and stat.S_ISDIR(permissions):
+                    dcallback(pathname)
+                    if recurse:
+                        await _walk(pathname)
+                elif permissions is not None and stat.S_ISREG(permissions):
+                    fcallback(pathname)
+                else:
+                    ucallback(pathname)
+
+        await _walk(path)
 
     async def read_directory(self, path: str = "") -> Sequence[asyncssh.sftp.SFTPName] | None:  # type: ignore[return]
         """Return a list of files along with their attributes on the SFTP server at the provided path."""
@@ -1224,16 +1258,15 @@ class SFTPHookAsync(BaseHook):
 
         :param path: full path to the remote directory to check
         """
-        is_dir = False
-        async with await self._get_conn() as ssh_conn:
-            async with ssh_conn.start_sftp_client() as sftp:
-                try:
-                    attrs = await sftp.stat(path)
-                except asyncssh.SFTPNoSuchFile:
-                    pass
-                else:
-                    is_dir = attrs.permissions is not None and stat.S_ISDIR(attrs.permissions)
-        return is_dir
+        async with self._sftp_client() as sftp:
+            return await self._isdir_with_client(sftp, path)
+
+    async def _isdir_with_client(self, sftp: asyncssh.SFTPClient, path: str) -> bool:
+        try:
+            attrs = await sftp.stat(path)
+        except asyncssh.SFTPNoSuchFile:
+            return False
+        return attrs.permissions is not None and stat.S_ISDIR(attrs.permissions)
 
     async def path_exists(self, path: str) -> bool:
         """
@@ -1241,16 +1274,15 @@ class SFTPHookAsync(BaseHook):
 
         :param path: full path to the remote file or directory
         """
-        exists = False
-        async with await self._get_conn() as ssh_conn:
-            async with ssh_conn.start_sftp_client() as sftp:
-                try:
-                    await sftp.stat(path)
-                except asyncssh.SFTPNoSuchFile:
-                    pass
-                else:
-                    exists = True
-        return exists
+        async with self._sftp_client() as sftp:
+            return await self._path_exists_with_client(sftp, path)
+
+    async def _path_exists_with_client(self, sftp: asyncssh.SFTPClient, path: str) -> bool:
+        try:
+            await sftp.stat(path)
+        except asyncssh.SFTPNoSuchFile:
+            return False
+        return True
 
     async def create_directory(self, path: str) -> None:
         """
@@ -1261,9 +1293,11 @@ class SFTPHookAsync(BaseHook):
 
         :param path: full path to the remote directory to create
         """
-        async with await self._get_conn() as ssh_conn:
-            async with ssh_conn.start_sftp_client() as sftp:
-                await sftp.makedirs(path, exist_ok=True)
+        async with self._sftp_client() as sftp:
+            await self._create_directory_with_client(sftp, path)
+
+    async def _create_directory_with_client(self, sftp: asyncssh.SFTPClient, path: str) -> None:
+        await sftp.makedirs(path, exist_ok=True)
 
     async def delete_file(self, path: str) -> None:
         """
@@ -1271,9 +1305,11 @@ class SFTPHookAsync(BaseHook):
 
         :param path: full path to the remote file
         """
-        async with await self._get_conn() as ssh_conn:
-            async with ssh_conn.start_sftp_client() as sftp:
-                await sftp.unlink(path)
+        async with self._sftp_client() as sftp:
+            await self._delete_file_with_client(sftp, path)
+
+    async def _delete_file_with_client(self, sftp: asyncssh.SFTPClient, path: str) -> None:
+        await sftp.unlink(path)
 
     async def delete_directory(self, path: str, include_files: bool = False) -> None:
         """
@@ -1282,20 +1318,24 @@ class SFTPHookAsync(BaseHook):
         :param path: full path to the remote directory to delete
         :param include_files: whether to recursively delete the directory's contents first
         """
+        async with self._sftp_client() as sftp:
+            await self._delete_directory_with_client(sftp, path, include_files=include_files)
+
+    async def _delete_directory_with_client(
+        self, sftp: asyncssh.SFTPClient, path: str, include_files: bool = False
+    ) -> None:
         files: list[str] = []
         dirs: list[str] = []
 
         if include_files:
-            files, dirs, _ = await self.get_tree_map(path)
+            files, dirs, _ = await self._get_tree_map_with_client(sftp, path)
             dirs = dirs[::-1]  # reverse the order for deleting deepest directories first
 
-        async with await self._get_conn() as ssh_conn:
-            async with ssh_conn.start_sftp_client() as sftp:
-                for file_path in files:
-                    await sftp.remove(file_path)
-                for dir_path in dirs:
-                    await sftp.rmdir(dir_path)
-                await sftp.rmdir(path)
+        for file_path in files:
+            await sftp.remove(file_path)
+        for dir_path in dirs:
+            await sftp.rmdir(dir_path)
+        await sftp.rmdir(path)
 
     async def get_tree_map(
         self, path: str, prefix: str | None = None, delimiter: str | None = None
@@ -1310,6 +1350,16 @@ class SFTPHookAsync(BaseHook):
         :param delimiter: if set paths will be added if end with delimiter
         :return: tuple with list of files, dirs and unknown items
         """
+        async with self._sftp_client() as sftp:
+            return await self._get_tree_map_with_client(sftp, path, prefix=prefix, delimiter=delimiter)
+
+    async def _get_tree_map_with_client(
+        self,
+        sftp: asyncssh.SFTPClient,
+        path: str,
+        prefix: str | None = None,
+        delimiter: str | None = None,
+    ) -> tuple[list[str], list[str], list[str]]:
         files: list[str] = []
         dirs: list[str] = []
         unknowns: list[str] = []
@@ -1319,7 +1369,8 @@ class SFTPHookAsync(BaseHook):
                 list_.append(item) if SFTPHook._is_path_match(item, prefix, delimiter) else None
             )
 
-        await self.walktree(
+        await self._walktree_with_client(
+            sftp,
             path=path,
             fcallback=append_matching_path_callback(files),
             dcallback=append_matching_path_callback(dirs),
@@ -1335,15 +1386,25 @@ class SFTPHookAsync(BaseHook):
         """
         Transfer the remote directory to a local location asynchronously.
 
+        The whole tree is walked and downloaded over a single connection.
+
         :param remote_full_path: full path to the remote directory
         :param local_full_path: full path to the local directory
         :param prefetch: whether read-ahead requests are sent concurrently (default: True)
         """
+        async with self._sftp_client() as sftp:
+            await self._retrieve_directory_with_client(
+                sftp, remote_full_path, local_full_path, prefetch=prefetch
+            )
+
+    async def _retrieve_directory_with_client(
+        self, sftp: asyncssh.SFTPClient, remote_full_path: str, local_full_path: str, prefetch: bool = True
+    ) -> None:
         if await asyncio.to_thread(Path(local_full_path).exists):
             raise FileExistsError(f"{local_full_path} already exists")
         dest = await asyncio.to_thread(Path(local_full_path).resolve)
         await asyncio.to_thread(dest.mkdir, parents=True)
-        files, dirs, _ = await self.get_tree_map(remote_full_path)
+        files, dirs, _ = await self._get_tree_map_with_client(sftp, remote_full_path)
         remote_base = PurePosixPath(remote_full_path)
         for dir_path in dirs:
             relative_path = PurePosixPath(dir_path).relative_to(remote_base)
@@ -1354,7 +1415,7 @@ class SFTPHookAsync(BaseHook):
             relative_path = PurePosixPath(file_path).relative_to(remote_base)
             new_local_path = str(dest / relative_path)
             SFTPHook._validate_within_directory(str(dest), new_local_path)
-            await self.retrieve_file(file_path, new_local_path, prefetch=prefetch)
+            await self._retrieve_file_with_client(sftp, file_path, new_local_path, prefetch=prefetch)
 
     async def store_directory(
         self, remote_full_path: str, local_full_path: str, confirm: bool = True
@@ -1362,25 +1423,35 @@ class SFTPHookAsync(BaseHook):
         """
         Transfer a local directory to the remote location asynchronously.
 
+        The whole tree is created and uploaded over a single connection.
+
         :param remote_full_path: full path to the remote directory
         :param local_full_path: full path to the local directory
         :param confirm: whether to verify each uploaded file's size (default: True)
         """
-        if await self.path_exists(remote_full_path):
+        async with self._sftp_client() as sftp:
+            await self._store_directory_with_client(sftp, remote_full_path, local_full_path, confirm=confirm)
+
+    async def _store_directory_with_client(
+        self, sftp: asyncssh.SFTPClient, remote_full_path: str, local_full_path: str, confirm: bool = True
+    ) -> None:
+        if await self._path_exists_with_client(sftp, remote_full_path):
             raise FileExistsError(f"{remote_full_path} already exists")
-        await self.create_directory(remote_full_path)
+        await self._create_directory_with_client(sftp, remote_full_path)
         entries = await asyncio.to_thread(lambda: list(os.walk(local_full_path)))
         local_base = Path(local_full_path)
         for root, dirs, files in entries:
             for dir_name in dirs:
                 dir_path = Path(root) / dir_name
                 relative_path = dir_path.relative_to(local_base).as_posix()
-                await self.create_directory(str(PurePosixPath(remote_full_path) / relative_path))
+                await self._create_directory_with_client(
+                    sftp, str(PurePosixPath(remote_full_path) / relative_path)
+                )
             for file_name in files:
                 file_path = Path(root) / file_name
                 relative_path = file_path.relative_to(local_base).as_posix()
                 new_remote_path = str(PurePosixPath(remote_full_path) / relative_path)
-                await self.store_file(new_remote_path, str(file_path), confirm=confirm)
+                await self._store_file_with_client(sftp, new_remote_path, str(file_path), confirm=confirm)
 
     async def transfer(
         self,
@@ -1397,7 +1468,8 @@ class SFTPHookAsync(BaseHook):
 
         Mirrors :meth:`SFTPHook.transfer`, including directory transfers, missing-file
         deletes, and the ``confirm``/``prefetch`` options, so ``deferrable=True`` behaves
-        the same as the synchronous path.
+        the same as the synchronous path. Each top-level path is processed over its own
+        single connection, whether it is a file or a whole directory tree.
         """
         if isinstance(local_filepath, str):
             local_filepath_array = [local_filepath] if local_filepath else []
@@ -1420,10 +1492,11 @@ class SFTPHookAsync(BaseHook):
             async def _get(local: str, remote: str):
                 if create_intermediate_dirs:
                     await asyncio.to_thread(Path(os.path.dirname(local)).mkdir, parents=True, exist_ok=True)
-                if await self.isdir(remote):
-                    await self.retrieve_directory(remote, local, prefetch=prefetch)
-                else:
-                    await self.retrieve_file(remote, local, prefetch=prefetch)
+                async with self._sftp_client() as sftp:
+                    if await self._isdir_with_client(sftp, remote):
+                        await self._retrieve_directory_with_client(sftp, remote, local, prefetch=prefetch)
+                    else:
+                        await self._retrieve_file_with_client(sftp, remote, local, prefetch=prefetch)
 
             tasks = [
                 asyncio.create_task(_bounded(_get(local, remote)))
@@ -1433,12 +1506,13 @@ class SFTPHookAsync(BaseHook):
         elif operation.lower() == SFTPOperation.PUT:
 
             async def _put(local: str, remote: str):
-                if create_intermediate_dirs:
-                    await self.create_directory(os.path.dirname(remote))
-                if await asyncio.to_thread(os.path.isdir, local):
-                    await self.store_directory(remote, local, confirm=confirm)
-                else:
-                    await self.store_file(remote, local, confirm=confirm)
+                async with self._sftp_client() as sftp:
+                    if create_intermediate_dirs:
+                        await self._create_directory_with_client(sftp, os.path.dirname(remote))
+                    if await asyncio.to_thread(os.path.isdir, local):
+                        await self._store_directory_with_client(sftp, remote, local, confirm=confirm)
+                    else:
+                        await self._store_file_with_client(sftp, remote, local, confirm=confirm)
 
             tasks = [
                 asyncio.create_task(_bounded(_put(local, remote)))
@@ -1448,13 +1522,14 @@ class SFTPHookAsync(BaseHook):
         elif operation.lower() == SFTPOperation.DELETE:
 
             async def _delete(remote: str):
-                if await self.isdir(remote):
-                    await self.delete_directory(remote, include_files=True)
-                else:
-                    try:
-                        await self.delete_file(remote)
-                    except asyncssh.SFTPNoSuchFile:
-                        self.log.warning("Remote file %s does not exist. Skipping delete.", remote)
+                async with self._sftp_client() as sftp:
+                    if await self._isdir_with_client(sftp, remote):
+                        await self._delete_directory_with_client(sftp, remote, include_files=True)
+                    else:
+                        try:
+                            await self._delete_file_with_client(sftp, remote)
+                        except asyncssh.SFTPNoSuchFile:
+                            self.log.warning("Remote file %s does not exist. Skipping delete.", remote)
 
             tasks = [asyncio.create_task(_bounded(_delete(remote))) for remote in remote_filepath_array]
             await asyncio.gather(*tasks)
