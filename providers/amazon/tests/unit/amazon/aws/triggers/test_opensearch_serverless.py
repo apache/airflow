@@ -152,7 +152,8 @@ class TestOpenSearchServerlessCollectionActiveTrigger:
 
         assert str(_LazyStatusFormatter(trigger.status_queries, not_found)) == NOT_FOUND_MESSAGE
 
-    def test_hook_uses_aws_config(self):
+    @mock.patch(BASE_TRIGGER_CLASSPATH + "OpenSearchServerlessHook")
+    def test_hook_uses_aws_config(self, mock_hook):
         trigger = OpenSearchServerlessCollectionActiveTrigger(
             collection_id=self.COLLECTION_ID,
             aws_conn_id="aws-test-custom-conn",
@@ -161,10 +162,10 @@ class TestOpenSearchServerlessCollectionActiveTrigger:
             botocore_config={"read_timeout": 42},
         )
 
-        hook = trigger.hook()
-
-        assert hook.aws_conn_id == "aws-test-custom-conn"
-        assert hook._region_name == "eu-west-1"
-        assert hook._verify is False
-        assert hook._config is not None
-        assert hook._config.read_timeout == 42
+        assert trigger.hook() == mock_hook.return_value
+        mock_hook.assert_called_once_with(
+            aws_conn_id="aws-test-custom-conn",
+            region_name="eu-west-1",
+            verify=False,
+            config={"read_timeout": 42},
+        )
