@@ -33,7 +33,13 @@ from airflow.providers.edge3.models.db import EdgeDBManager, check_db_manager_co
 from airflow.providers.edge3.models.edge_job import EdgeJobModel, build_job_key
 from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState, reset_metrics
-from airflow.providers.edge3.models.types import is_callback_execute
+from airflow.providers.edge3.models.types import (
+    CALLBACK_JOB_MAP_INDEX,
+    CALLBACK_JOB_TRY_NUMBER,
+    EXECUTE_CALLBACK_TAG,
+    build_callback_run_id,
+    is_callback_execute,
+)
 from airflow.utils.db import DBLocks, create_global_lock
 from airflow.utils.helpers import prune_dict
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -50,6 +56,17 @@ if TYPE_CHECKING:
     CommandType = Sequence[str]
     # Task tuple to send to be executed
     TaskTuple = tuple[TaskInstanceKey, CommandType, str | None, Any | None]
+
+
+# _purge_jobs() reports on or deletes a job only while it is in one of these states.
+_PURGE_HANDLED_STATES = (
+    TaskInstanceState.RUNNING,
+    TaskInstanceState.SUCCESS,
+    TaskInstanceState.FAILED,
+    TaskInstanceState.REMOVED,
+    TaskInstanceState.RESTARTING,
+    TaskInstanceState.UP_FOR_RETRY,
+)
 
 
 class EdgeExecutor(BaseExecutor):
@@ -106,13 +123,11 @@ class EdgeExecutor(BaseExecutor):
         """Put new workload to queue. Airflow 3 entry point to execute a task."""
         key: TaskInstanceKey | CallbackKey
         if is_callback_execute(workload):
-            from airflow.providers.edge3.models.types import EXECUTE_CALLBACK_TAG
-
             existing_job = session.scalars(
                 select(EdgeJobModel).where(
                     EdgeJobModel.dag_id == EXECUTE_CALLBACK_TAG,
                     EdgeJobModel.task_id == workload.callback.id,
-                    EdgeJobModel.run_id == f"{EXECUTE_CALLBACK_TAG}-{workload.callback.id}",
+                    EdgeJobModel.run_id == build_callback_run_id(workload.callback.id),
                 )
             ).first()
 
@@ -124,9 +139,9 @@ class EdgeExecutor(BaseExecutor):
                     EdgeJobModel(
                         dag_id=EXECUTE_CALLBACK_TAG,
                         task_id=str(workload.callback.id),
-                        run_id=f"{EXECUTE_CALLBACK_TAG}-{workload.callback.id}",
-                        map_index=-1,
-                        try_number=0,
+                        run_id=build_callback_run_id(workload.callback.id),
+                        map_index=CALLBACK_JOB_MAP_INDEX,
+                        try_number=CALLBACK_JOB_TRY_NUMBER,
                         queue=self.conf.get_mandatory_value("operators", "default_queue"),
                         concurrency_slots=1,
                         state=TaskInstanceState.QUEUED,
@@ -266,10 +281,10 @@ class EdgeExecutor(BaseExecutor):
         return bool(lifeless_jobs)
 
     def _get_tracked_job_keys(
-        self, session: Session, states: Sequence[TaskInstanceState] | None = None
+        self, session: Session, states: Sequence[TaskInstanceState]
     ) -> set[TaskInstanceKey | CallbackKey]:
         """
-        Read the keys of this team's jobs still in the DB, optionally limited to those in ``states``.
+        Read the keys of this team's jobs that are in one of ``states``.
 
         Rows are read without locking on purpose: an edge worker fetches its next job with
         ``FOR UPDATE SKIP LOCKED``, so locking the queued rows here would make it come back empty.
@@ -280,9 +295,7 @@ class EdgeExecutor(BaseExecutor):
             EdgeJobModel.run_id,
             EdgeJobModel.try_number,
             EdgeJobModel.map_index,
-        ).where(EdgeJobModel.team_name == self.team_name)
-        if states:
-            query = query.where(EdgeJobModel.state.in_(states))
+        ).where(EdgeJobModel.team_name == self.team_name, EdgeJobModel.state.in_(states))
         return {build_job_key(*row) for row in session.execute(query)}
 
     def _purge_jobs(self, session: Session) -> bool:
@@ -295,21 +308,16 @@ class EdgeExecutor(BaseExecutor):
             .with_for_update(skip_locked=True)
             .where(
                 EdgeJobModel.team_name == self.team_name,
-                EdgeJobModel.state.in_(
-                    [
-                        TaskInstanceState.RUNNING,
-                        TaskInstanceState.SUCCESS,
-                        TaskInstanceState.FAILED,
-                        TaskInstanceState.REMOVED,
-                        TaskInstanceState.RESTARTING,
-                        TaskInstanceState.UP_FOR_RETRY,
-                    ]
-                ),
+                EdgeJobModel.state.in_(_PURGE_HANDLED_STATES),
             )
         ).all()
 
-        # Sync DB with executor otherwise runs out of sync in multi scheduler deployment
-        self.running &= self._get_tracked_job_keys(session)
+        # Sync DB with executor otherwise runs out of sync in multi scheduler deployment. Only a queued job
+        # or one handled below keeps its slot. _update_orphaned_jobs() can leave a job in any task instance
+        # state, and a row this method never reads again would hold its slot until the scheduler restarts.
+        self.running &= self._get_tracked_job_keys(
+            session, states=(TaskInstanceState.QUEUED, *_PURGE_HANDLED_STATES)
+        )
 
         for job in jobs:
             if job.key in self.running:

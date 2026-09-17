@@ -627,12 +627,12 @@ class TestQueueWorkload:
             session.execute(delete(EdgeJobModel))
             session.commit()
 
-    def _make_execute_task(self, task_id: str = "test_task") -> ExecuteTask:
+    def _make_execute_task(self, task_id: str = "test_task", dag_id: str = "test_dag") -> ExecuteTask:
         ti = TaskInstanceDTO(
             id=uuid4(),
             dag_version_id=uuid4(),
             task_id=task_id,
-            dag_id="test_dag",
+            dag_id=dag_id,
             run_id="test_run",
             try_number=1,
             map_index=-1,
@@ -697,8 +697,16 @@ class TestQueueWorkload:
         assert executor.slots_available == executor.parallelism - 1
 
     @pytest.mark.parametrize("make_workload", ["_make_execute_task", "_make_execute_callback"])
-    @pytest.mark.parametrize("state", [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS])
-    def test_sync_reports_state_of_queued_workload(self, make_workload, state):
+    @pytest.mark.parametrize(
+        ("job_state", "reported_state"),
+        [
+            (TaskInstanceState.RUNNING, "running"),
+            (TaskInstanceState.SUCCESS, "success"),
+            (TaskInstanceState.FAILED, "failed"),
+            (TaskInstanceState.UP_FOR_RETRY, "failed"),
+        ],
+    )
+    def test_sync_reports_state_of_queued_workload(self, make_workload, job_state, reported_state):
         executor = EdgeExecutor()
         workload = getattr(self, make_workload)()
 
@@ -708,13 +716,13 @@ class TestQueueWorkload:
         executor.sync()
 
         with create_session() as session:
-            session.scalar(select(EdgeJobModel)).state = state
+            session.scalar(select(EdgeJobModel)).state = job_state
             session.commit()
 
         executor.sync()
 
         reported_states = TaskInstanceState if isinstance(workload, ExecuteTask) else CallbackState
-        assert executor.get_event_buffer() == {workload.key: (reported_states(state.value), None)}
+        assert executor.get_event_buffer() == {workload.key: (reported_states(reported_state), None)}
 
     def test_sync_keeps_slot_while_worker_claims_job(self):
         executor = EdgeExecutor()
@@ -740,6 +748,62 @@ class TestQueueWorkload:
         executor.sync()
 
         assert executor.get_event_buffer() == {workload.ti.key: (TaskInstanceState.RUNNING, None)}
+
+    def test_sync_reports_job_that_finishes_after_being_marked_removed(self):
+        executor = EdgeExecutor()
+        workload = self._make_execute_callback()
+
+        with create_session() as session:
+            executor.queue_workload(workload, session=session)
+            session.commit()
+
+        # When a callback job runs past the heartbeat timeout, _update_orphaned_jobs() marks it REMOVED.
+        for job_state in (TaskInstanceState.REMOVED, TaskInstanceState.SUCCESS):
+            with create_session() as session:
+                session.scalar(select(EdgeJobModel)).state = job_state
+                session.commit()
+            executor.sync()
+
+        assert executor.get_event_buffer() == {workload.key: (CallbackState.SUCCESS, None)}
+
+    @pytest.mark.parametrize(
+        "unhandled_state",
+        [TaskInstanceState.SCHEDULED, TaskInstanceState.DEFERRED, TaskInstanceState.UP_FOR_RESCHEDULE],
+    )
+    def test_sync_frees_slot_of_job_in_state_purge_never_handles(self, unhandled_state):
+        executor = EdgeExecutor()
+        workload = self._make_execute_task()
+
+        with create_session() as session:
+            executor.queue_workload(workload, session=session)
+            session.commit()
+
+        # _update_orphaned_jobs() copies the task instance state into the job, whatever that state is.
+        with create_session() as session:
+            session.scalar(select(EdgeJobModel)).state = unhandled_state
+            session.commit()
+        executor.sync()
+
+        assert workload.key not in executor.running
+        assert executor.slots_available == executor.parallelism
+
+    def test_task_in_dag_named_after_callback_tag_keeps_its_task_key(self):
+        executor = EdgeExecutor()
+        workload = self._make_execute_task(dag_id=EXECUTE_CALLBACK_TAG)
+
+        with create_session() as session:
+            executor.queue_workload(workload, session=session)
+            session.commit()
+        executor.sync()
+
+        assert workload.key in executor.running
+
+        with create_session() as session:
+            session.scalar(select(EdgeJobModel)).state = TaskInstanceState.RUNNING
+            session.commit()
+        executor.sync()
+
+        assert executor.get_event_buffer() == {workload.key: (TaskInstanceState.RUNNING, None)}
 
     @pytest.mark.parametrize(
         "finished_state", [TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.REMOVED]

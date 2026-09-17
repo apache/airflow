@@ -32,7 +32,7 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
 from airflow.providers.edge3.models.edge_base import Base
-from airflow.providers.edge3.models.types import EXECUTE_CALLBACK_TAG
+from airflow.providers.edge3.models.types import is_callback_job
 from airflow.providers.edge3.version_compat import AIRFLOW_V_3_3_PLUS
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -47,11 +47,11 @@ def build_job_key(
     """
     Build the key the executor layer uses for a job row.
 
-    A callback row carries the callback id in ``task_id``. A task row maps to the ``airflow.models``
-    ``TaskInstanceKey``, not the ``airflow.sdk`` one, because ``BaseExecutor`` dispatches on it with
-    ``isinstance`` and the two are unrelated classes.
+    A row is a callback only if it has the full identity ``queue_workload()`` writes for callbacks, since
+    ``ExecuteCallback`` is a valid Dag id. A task row maps to the ``airflow.models`` ``TaskInstanceKey``,
+    not the ``airflow.sdk`` one, because ``BaseExecutor`` dispatches on it with ``isinstance``.
     """
-    if AIRFLOW_V_3_3_PLUS and dag_id == EXECUTE_CALLBACK_TAG:
+    if AIRFLOW_V_3_3_PLUS and is_callback_job(dag_id, task_id, run_id, try_number, map_index):
         from airflow.models.callback import CallbackKey
 
         return CallbackKey(id=task_id)
