@@ -61,7 +61,16 @@ class TestOpenSearchServerlessCollectionActiveTrigger:
     )
     def test_serialization(self, collection_name, collection_id, expected_pass):
         """Assert that arguments and classpath are correctly serialized."""
-        call_args = prune_dict({"collection_id": collection_id, "collection_name": collection_name})
+        call_args = prune_dict(
+            {
+                "collection_id": collection_id,
+                "collection_name": collection_name,
+                "aws_conn_id": "aws-test-custom-conn",
+                "region_name": "eu-west-1",
+                "verify": False,
+                "botocore_config": {"read_timeout": 42},
+            }
+        )
 
         if expected_pass:
             trigger = OpenSearchServerlessCollectionActiveTrigger(**call_args)
@@ -71,6 +80,10 @@ class TestOpenSearchServerlessCollectionActiveTrigger:
                 assert kwargs.get("collection_name") == self.COLLECTION_NAME
             if call_args.get("collection_id"):
                 assert kwargs.get("collection_id") == self.COLLECTION_ID
+            assert kwargs["aws_conn_id"] == "aws-test-custom-conn"
+            assert kwargs["region_name"] == "eu-west-1"
+            assert kwargs["verify"] is False
+            assert kwargs["botocore_config"] == {"read_timeout": 42}
 
         if not expected_pass:
             with pytest.raises(
@@ -138,36 +151,15 @@ class TestOpenSearchServerlessCollectionActiveTrigger:
         }
 
         assert str(_LazyStatusFormatter(trigger.status_queries, not_found)) == NOT_FOUND_MESSAGE
-    @pytest.mark.parametrize(
-    ("collection_name", "collection_id"),
-    [
-        pytest.param(COLLECTION_NAME, None, id="collection_name"),
-        pytest.param(None, COLLECTION_ID, id="collection_id"),
-    ],
-)
-    def test_aws_config_serialization(self, collection_name, collection_id):
-        trigger = OpenSearchServerlessCollectionActiveTrigger(
-        collection_name=collection_name,
-        collection_id=collection_id,
-        aws_conn_id="aws-test-custom-conn",
-        region_name="eu-west-1",
-        verify=False,
-        botocore_config={"read_timeout": 42},
-    )
 
-        _, kwargs = trigger.serialize()
-        assert kwargs["aws_conn_id"] == "aws-test-custom-conn"
-        assert kwargs["region_name"] == "eu-west-1"
-        assert kwargs["verify"] is False
-        assert kwargs["botocore_config"] == {"read_timeout": 42}
     def test_hook_uses_aws_config(self):
         trigger = OpenSearchServerlessCollectionActiveTrigger(
-        collection_id=self.COLLECTION_ID,
-        aws_conn_id="aws-test-custom-conn",
-        region_name="eu-west-1",
-        verify=False,
-        botocore_config={"read_timeout": 42},
-    )
+            collection_id=self.COLLECTION_ID,
+            aws_conn_id="aws-test-custom-conn",
+            region_name="eu-west-1",
+            verify=False,
+            botocore_config={"read_timeout": 42},
+        )
 
         hook = trigger.hook()
 
