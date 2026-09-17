@@ -1903,7 +1903,9 @@ class TestSparkSubmitHook:
 
     @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_poll_k8s_driver_custom_container_name_no_match_raises(self, mock_get_client):
-        """An override that matches no container on the pod must raise, not fall back silently."""
+        """An override that matches no container on the pod must raise, not fall back silently,
+        and must delete the now-orphaned driver pod before raising.
+        """
         hook = SparkSubmitHook(
             conn_id="spark_k8s_cluster",
             track_driver_via_k8s_api=True,
@@ -1921,6 +1923,15 @@ class TestSparkSubmitHook:
 
         with pytest.raises(ValueError, match="does not match any of the containers in pod"):
             hook._poll_k8s_driver_via_api()
+
+        import kubernetes
+
+        mock_client.delete_namespaced_pod.assert_called_once_with(
+            "spark-app-abc-driver",
+            "mynamespace",
+            body=kubernetes.client.V1DeleteOptions(),
+            pretty=True,
+        )
 
     @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_poll_k8s_driver_failed_phase_with_completed_container_warns(self, mock_get_client):

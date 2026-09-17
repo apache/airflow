@@ -1255,8 +1255,12 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     if len(pod.spec.containers) == 1:
                         driver_container = container
                 if kubernetes_driver_container_name and not driver_container:
+                    with contextlib.suppress(Exception):
+                        self._delete_driver_pod()
                     raise ValueError(
-                        f"The driver container name provided does not match any of the containers in pod {kubernetes_driver_pod_name}"
+                        f"The driver container name provided does not match any of the containers in pod "
+                        f"{kubernetes_driver_pod_name}. Deleted the driver pod; check "
+                        f"kubernetes_driver_container_name for a typo."
                     )
                 container_completed = False
                 if driver_container:
