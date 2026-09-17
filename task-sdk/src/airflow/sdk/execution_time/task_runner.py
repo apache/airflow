@@ -298,7 +298,8 @@ class RuntimeTaskInstance(TaskInstance):
         # emails; mirror the scheduler-side ``TaskInstance.__repr__`` instead. ``repr()`` deliberately
         # keeps the field dump — that is the form you want when debugging or reading a failed assert.
         prefix = f"<TaskInstance: {self.dag_id}.{self.task_id} {self.run_id} "
-        if self.map_index != -1:
+        # Unlike the scheduler-side column, map_index is nullable here, and None means unmapped too.
+        if self.map_index is not None and self.map_index != -1:
             prefix += f"map_index={self.map_index} "
         state = self.state.value if self.state else None
         return prefix + f"[{state}] ti_id={self.id}>"

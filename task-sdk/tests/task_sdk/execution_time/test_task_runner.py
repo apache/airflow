@@ -3788,6 +3788,7 @@ class TestRuntimeTaskInstance:
             pytest.param(-1, TaskInstanceState.FAILED, "[failed]", id="unmapped"),
             pytest.param(2, TaskInstanceState.FAILED, "map_index=2 [failed]", id="mapped"),
             pytest.param(-1, None, "[None]", id="no-state"),
+            pytest.param(None, TaskInstanceState.FAILED, "[failed]", id="map-index-none"),
         ],
     )
     def test_str_is_human_readable(self, create_runtime_ti, map_index, state, expected_middle):
