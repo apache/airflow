@@ -42,7 +42,7 @@ except ImportError:
     _CORE_WALKER = False
 
 from airflow.providers.common.compat.notifier import BaseNotifier
-from airflow.providers.common.compat.sdk import TaskDeferred
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, TaskDeferred
 
 if AIRFLOW_V_3_3_PLUS:
     # On 3.3+ cores require_approval pauses the task in AWAITING_INPUT; older cores defer
@@ -311,6 +311,56 @@ def _make_context(ti_id=None):
     ti = MagicMock()
     ti.id = ti_id
     return MagicMock(**{"__getitem__": lambda self, key: {"task_instance": ti}[key]})
+
+
+class TestLLMOperatorApprovalVersionGate:
+    """__init__ rejects require_approval on cores without human-in-the-loop support.
+
+    Deliberately carries no class-level 3.1 skipif. These tests simulate an old core by
+    patching the flag, so they must not inherit the sibling class's skip -- and on a
+    genuine pre-3.1 core, such as the 3.0.6 providers-compatibility job, they are the
+    only tests that exercise the gate natively.
+    """
+
+    @pytest.mark.parametrize(
+        ("kwargs", "expected_exception", "match"),
+        [
+            pytest.param(
+                {"require_approval": True},
+                AirflowOptionalProviderFeatureException,
+                "Airflow 3.1",
+                id="require-approval-rejected",
+            ),
+            pytest.param(
+                {"require_approval": True, "on_approval_timeout": "approve"},
+                AirflowOptionalProviderFeatureException,
+                "Airflow 3.1",
+                id="version-beats-combination-rule",
+            ),
+            pytest.param(
+                {"require_approval": True, "on_approval_timeout": "nope"},
+                ValueError,
+                "on_approval_timeout must be",
+                id="literal-check-keeps-precedence",
+            ),
+        ],
+    )
+    @patch("airflow.providers.common.ai.operators.llm.AIRFLOW_V_3_1_PLUS", False)
+    def test_old_core_reports_the_blocking_argument(self, kwargs, expected_exception, match):
+        """Which of two applicable errors __init__ reports, and in which order.
+
+        Dropping on_approval_timeout would not make the operator work on an older core,
+        so the version has to beat the combination rule. A bad literal is wrong on every
+        core, so it keeps its own precise message -- which also pins the guard below the
+        literal check, since hoisting it would swap that message for the version one.
+        """
+        with pytest.raises(expected_exception, match=match):
+            LLMOperator(task_id="t", prompt="p", llm_conn_id="c", **kwargs)
+
+    @patch("airflow.providers.common.ai.operators.llm.AIRFLOW_V_3_1_PLUS", False)
+    def test_operator_without_approval_builds_on_old_core(self):
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c")
+        assert op.require_approval is False
 
 
 @pytest.mark.skipif(

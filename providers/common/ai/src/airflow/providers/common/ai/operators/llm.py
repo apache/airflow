@@ -31,7 +31,8 @@ from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.compat.notifier import BaseNotifier
-from airflow.providers.common.compat.sdk import BaseOperator
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, BaseOperator
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_1_PLUS
 
 try:
     # New enough cores register an operator's declared ``output_type`` classes for
@@ -99,7 +100,7 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         caveats.
     :param require_approval: If ``True``, the task defers after generating
         output and waits for a human reviewer to approve or reject via the
-        HITL interface.  Default ``False``.
+        HITL interface.  Default ``False``. Needs Airflow 3.1+.
     :param approval_timeout: Maximum time to wait for a review.  When
         exceeded, ``on_approval_timeout`` decides the outcome.
     :param on_approval_timeout: What to do when ``approval_timeout`` expires
@@ -172,6 +173,11 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
             raise ValueError(
                 f"on_approval_timeout must be 'fail', 'approve', or 'reject', got {on_approval_timeout!r}."
             )
+        # Checked before the combination rule so an old core reports the core version
+        # rather than sending the user to drop an argument that was never the problem.
+        if require_approval and not AIRFLOW_V_3_1_PLUS:
+            raise AirflowOptionalProviderFeatureException("require_approval=True needs Airflow 3.1+.")
+
         if on_approval_timeout != "fail" and not (
             require_approval and approval_timeout is not None and approval_timeout > timedelta(0)
         ):

@@ -240,6 +240,12 @@ HITL interface.  Optionally allow the reviewer to edit the output before
 approving with ``allow_modifications=True``, and set a deadline with
 ``approval_timeout``.
 
+Human-in-the-loop review needs Airflow 3.1+. On an older core the operator raises
+``AirflowOptionalProviderFeatureException`` when it is constructed, so the Dag file
+fails to import, and with it every Dag defined in that file. A dynamically mapped
+task (``.expand()``) is only constructed when it runs, so there the same error
+surfaces as a task failure -- still before the model is called.
+
 When ``approval_timeout`` expires without a review, the task fails by default.
 Set ``on_approval_timeout="approve"`` to return the generated output instead, so
 an unattended pipeline keeps moving.  ``"reject"`` answers the review with a
@@ -287,7 +293,7 @@ Parameters
   Fails the task when token / request / tool-call budgets are exceeded, or when a
   templated dict value cannot be coerced.  Default ``None``.
 - ``require_approval``: If ``True``, the task defers after generating output and waits
-  for human review.  Default ``False``.
+  for human review. Default ``False``. Needs Airflow 3.1+.
 - ``approval_timeout``: Maximum time to wait for a review (``timedelta``).  ``None``
   means wait indefinitely.  Default ``None``.
 - ``on_approval_timeout``: Outcome when ``approval_timeout`` expires without a
