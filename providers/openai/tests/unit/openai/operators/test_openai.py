@@ -180,21 +180,53 @@ def test_openai_response_operator_execute_skips_xcom_push_when_disabled():
     context["ti"].xcom_push.assert_not_called()
 
 
-def test_openai_response_operator_templates_input_text_and_response_kwargs():
+@pytest.mark.parametrize(
+    ("response_kwargs", "extra_params", "expected_response_kwargs"),
+    [
+        pytest.param(
+            {"previous_response_id": "{{ params.previous_response_id }}"},
+            {"previous_response_id": "resp_prev_123"},
+            {"previous_response_id": "resp_prev_123"},
+            id="flat-string",
+        ),
+        pytest.param(
+            {"instructions": "{% raw %}{{ not_a_variable }}{% endraw %}"},
+            {},
+            {"instructions": "{{ not_a_variable }}"},
+            id="raw-escape",
+        ),
+        pytest.param(
+            {
+                "tools": [{"type": "function", "parameters": {"k": "{{ params.input_text }}"}}],
+                "max_retries": 3,
+            },
+            {},
+            {
+                "tools": [{"type": "function", "parameters": {"k": "Write a haiku."}}],
+                "max_retries": 3,
+            },
+            id="nested-tool-schema",
+        ),
+    ],
+)
+def test_openai_response_operator_templates_input_text_and_response_kwargs(
+    response_kwargs, extra_params, expected_response_kwargs
+):
     with DAG(dag_id="test_openai_response_template_fields", schedule=None, start_date=datetime(2021, 1, 1)):
         operator = OpenAIResponseOperator(
             task_id=TASK_ID,
             conn_id=CONN_ID,
             input_text="{{ params.input_text }}",
-            response_kwargs={"previous_response_id": "{{ params.previous_response_id }}"},
+            response_kwargs=response_kwargs,
         )
 
-    operator.render_template_fields(
-        {"params": {"input_text": "Write a haiku.", "previous_response_id": "resp_prev_123"}}
-    )
+    operator.render_template_fields({"params": {"input_text": "Write a haiku.", **extra_params}})
 
     assert operator.input_text == "Write a haiku."
-    assert operator.response_kwargs == {"previous_response_id": "resp_prev_123"}
+    assert operator.response_kwargs == expected_response_kwargs
+    # The nested tool-schema case must not stringify the non-template int leaf.
+    if "max_retries" in expected_response_kwargs:
+        assert isinstance(operator.response_kwargs["max_retries"], int)
 
 
 def _build_completed_response(**overrides):
