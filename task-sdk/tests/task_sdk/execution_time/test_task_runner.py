@@ -171,6 +171,7 @@ from airflow.sdk.execution_time.context import (
 )
 from airflow.sdk.execution_time.task_runner import (
     IndexedTaskInstance,
+    IndexedTaskState,
     RuntimeTaskInstance,
     TaskRunnerMarker,
     _defer_task,
@@ -2197,6 +2198,25 @@ def test_rendered_map_index_updates_sent_progressively(create_runtime_ti, mock_s
 
     # Verify that rendered_map_index is set (existing behavior)
     assert ti.rendered_map_index == "Label: test_task"
+
+
+class TestIndexedTaskState:
+    @pytest.mark.parametrize(
+        "result",
+        [
+            pytest.param(('[{"@odata.context": "..."}]', "6C5EF9E6CBBE"), id="tuple"),
+            pytest.param(datetime(2026, 9, 17, 21, 16, 7, tzinfo=dt_timezone.utc), id="datetime"),
+            pytest.param([{"a": 1}, {"b": [1, 2]}], id="plain_json"),
+        ],
+    )
+    def test_result_survives_the_state_store_message_and_round_trips(self, result):
+        """The checkpoint is sent as a JsonValue, so a result that is not plain JSON has to be
+        serialized on the way in and restored on the way out."""
+        serialized = IndexedTaskState(status=TaskInstanceState.SUCCESS, result=result).serialize()
+
+        msg = SetTaskStateStore(ti_id=uuid7(), key="_iterable_0", value=serialized, expires_at=None)
+
+        assert IndexedTaskState.deserialize(msg.value).result == result
 
 
 class TestIndexedTaskInstance:

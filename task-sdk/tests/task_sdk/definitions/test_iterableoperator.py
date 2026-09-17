@@ -685,7 +685,7 @@ class TestIterableOperator:
                 materialized = list(iterable_op.execute(context=context))
 
                 assert materialized == [(1, None, None), (2, None, None)]
-                assert store["_iterable_0"]["result"] == (1, None, None)
+                assert IndexedTaskState.deserialize(store["_iterable_0"]).result == (1, None, None)
                 assert store["_iterable_completed"] == {"completed": True, "try_number": 2}
 
     def test_execute_resumes_from_checkpoints_on_retry_after_failure(self):

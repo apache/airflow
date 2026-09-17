@@ -152,7 +152,12 @@ from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.listener import get_listener_manager
 from airflow.sdk.observability.metrics import stats_utils
-from airflow.sdk.serde import allow_class, iter_pydantic_models
+from airflow.sdk.serde import (
+    allow_class,
+    deserialize as serde_deserialize,
+    iter_pydantic_models,
+    serialize as serde_serialize,
+)
 from airflow.sdk.state import TaskScope
 from airflow.sdk.timezone import coerce_datetime
 
@@ -927,9 +932,12 @@ class IndexedTaskState:
         return f"_iterable_{index}"
 
     def serialize(self) -> dict[str, Any]:
+        # The checkpoint travels to the supervisor as a JsonValue, which rejects anything that is not
+        # plain JSON (tuples, datetimes, models, ...). Serde turns those into JSON-compatible
+        # structures and restores them on read, exactly as XCom does with the same result.
         data: dict[str, Any] = {"status": self.status.value}
         if self.result is not None:
-            data["result"] = self.result
+            data["result"] = serde_serialize(self.result)
         if self.outlet_events:
             data["outlet_events"] = self.outlet_events
         return data
@@ -940,7 +948,7 @@ class IndexedTaskState:
             return None
         return cls(
             status=TaskInstanceState(raw["status"]),
-            result=raw.get("result"),
+            result=serde_deserialize(raw.get("result")),
             outlet_events=raw.get("outlet_events"),
         )
 
