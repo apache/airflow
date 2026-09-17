@@ -154,9 +154,10 @@ decide how much of a deployment can be told apart:
     a metric to the kind of process that produced it.
 
 ``service.instance.id``
-    Which process of that component reported the metric. It is unset by default, so processes
-    running the same component (e.g. 2+ schedulers) are indistinguishable. Set it per process
-    to attribute a metric to one of them.
+    Which process of that component reported the metric. The SDK generates a random one for every
+    process, so two schedulers produce separate series, but nothing in the id says which scheduler
+    is which. Set it per process to attribute a metric to one of them. Short-lived Task SDK
+    processes such as task runners are the exception, see `Short-lived processes`_.
 
 Airflow reads ``service.name`` from ``OTEL_SERVICE_NAME``, and every other resource attribute from
 ``OTEL_RESOURCE_ATTRIBUTES``:
@@ -183,6 +184,37 @@ deliberately — for example, the lowest number of open slots any scheduler obse
 How the attributes surface depends on the backend. Those implementing the OpenTelemetry
 `Prometheus compatibility <https://opentelemetry.io/docs/specs/otel/compatibility/prometheus_and_openmetrics/>`_
 spec expose them as the ``job`` and ``instance`` labels.
+
+.. _short-lived-processes:
+
+Short-lived processes
+^^^^^^^^^^^^^^^^^^^^^
+
+A task runs in a process that exits when the attempt ends, so a running total exported by that
+process never grows if the values are cumulative. Task SDK processes therefore export counters
+and histograms as **delta** values and share ``service.instance.id=task-sdk``, so that every
+attempt adds to the same series. ``OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE`` and
+``OTEL_RESOURCE_ATTRIBUTES`` override either, if set.
+
+For backends that support delta values natively, no change is needed. Backends that only
+accept cumulative values, such as Prometheus, need the Collector to convert the
+values back and to keep idle series long enough for the next run of a Dag to add to them:
+
+.. code-block:: yaml
+
+   processors:
+     deltatocumulative:
+       max_stale: 168h  # 1 week
+   exporters:
+     prometheus:
+       endpoint: 0.0.0.0:8889
+       metric_expiration: 168h  # 1 week
+   service:
+     pipelines:
+       metrics:
+         receivers: [otlp]
+         processors: [deltatocumulative, batch]
+         exporters: [prometheus]
 
 
 Enable Https
@@ -328,6 +360,12 @@ On earlier versions, use the ``Stats`` class instead:
 
     These metrics are silently dropped unless a backend is enabled (see `Setup - StatsD`_
     or `Setup - OpenTelemetry`_).
+
+.. note::
+
+    With OpenTelemetry, a metric emitted from inside a task leaves the task's process as a delta
+    value under ``service.instance.id=task-sdk``. A backend that only accepts cumulative values,
+    such as Prometheus, needs the Collector to convert it back, see `Short-lived processes`_.
 
 .. note::
 

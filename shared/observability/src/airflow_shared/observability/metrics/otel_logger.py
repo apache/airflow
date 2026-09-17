@@ -32,7 +32,7 @@ from opentelemetry.sdk.metrics._internal.export import (
     PeriodicExportingMetricReader,
 )
 from opentelemetry.sdk.metrics.view import ExponentialBucketHistogramAggregation, View
-from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+from opentelemetry.sdk.resources import SERVICE_INSTANCE_ID, SERVICE_NAME, Resource
 
 from ..common import get_otel_data_exporter
 from ..exceptions import InvalidStatsNameException
@@ -454,6 +454,7 @@ def get_otel_logger(
     metrics_block_list: str | None = None,
     stat_name_handler: Callable[[str], str] | None = None,
     statsd_influxdb_enabled: bool = False,
+    service_instance_id: str | None = None,
 ) -> SafeOtelLogger:
     """
     Build and return a :class:`SafeOtelLogger` backed by a configured :class:`MeterProvider`.
@@ -463,6 +464,9 @@ def get_otel_logger(
     so that bucket boundaries adapt automatically to the observed data range.  This avoids
     the need to hand-tune explicit bucket boundaries for metrics that span very different
     scales (milliseconds to hours).
+
+    ``service_instance_id`` replaces the per-process id the SDK generates; the caller decides when
+    sharing one id between processes is correct.
 
     A ``MeterProvider`` already built from ``OTEL_CONFIG_FILE`` is used as-is: the declarative
     configuration spec makes that file the sole source of SDK construction.
@@ -481,7 +485,11 @@ def get_otel_logger(
     otel_env_config = load_metrics_env_config()
 
     effective_service_name: str = otel_env_config.service_name or service_name or "airflow"
-    resource = Resource.create(attributes={SERVICE_NAME: effective_service_name})
+    resource_attributes = {SERVICE_NAME: effective_service_name}
+    if service_instance_id:
+        # Explicit attributes win over the per-process id the SDK generates and over OTEL_RESOURCE_ATTRIBUTES.
+        resource_attributes[SERVICE_INSTANCE_ID] = service_instance_id
+    resource = Resource.create(attributes=resource_attributes)
 
     # https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#periodic-exporting-metricreader
     interval = otel_env_config.interval_ms or conf_interval

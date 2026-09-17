@@ -422,6 +422,12 @@ def ti_run(
     if token.claims.scope == "workload":
         issue_execution_token(services, response, sub=str(task_instance_id))
 
+    # Emitted last for the same reason as task.queued_duration below. Every state other than QUEUED
+    # either raised above or was a duplicate request from a running task.
+    if previous_state == TaskInstanceState.QUEUED:
+        dr._team_name = dr.team_name
+        stats.incr("ti.start", tags={**dr.stats_tags, "task_id": ti.task_id})
+
     if emit_queued_duration:
         # Emitted last so a 5xx cannot double-count the wait: the SDK retries those, and the
         # rollback returns the TI to QUEUED for the retry to sample it again. Only the session
@@ -745,6 +751,16 @@ def ti_update_state(
             session=session,
         )
 
+    # Don't let metrics fail the request: the state update above would be rolled back with it.
+    try:
+        ti = session.get(TI, task_instance_id)
+        if ti is not None:
+            _emit_task_finish_metrics(
+                ti, updated_state, getattr(ti_patch_payload, "end_date", None), session=session
+            )
+    except Exception:
+        log.warning("Failed to emit task metrics", exc_info=True)
+
     if updated_state == TaskInstanceState.SUCCESS:
         if conf.getboolean("state_store", "clear_on_success"):
             scope = TaskScope(
@@ -785,6 +801,26 @@ def _build_rejected_gate_payload(
     if retry:
         return TIRetryStatePayload(state=IntermediateTIState.UP_FOR_RETRY, retry_reason=reason, **carried)
     return TITerminalStatePayload(state=TerminalStateNonSuccess.FAILED, retry_reason=reason, **carried)
+
+
+def _emit_task_finish_metrics(
+    ti: TI, state: TaskInstanceState, end_date: UtcDateTime | None, *, session: SessionDep
+) -> None:
+    """Count the finished attempt by outcome and operator, and record how long it ran."""
+    # Load the team name so that it's available for stats_tags, which reads it off the transient _team_name.
+    ti.dag_run._team_name = get_team_name_for_ti(ti.id, session)
+    tags = ti.stats_tags
+    stats.incr("ti.finish", tags={**tags, "state": state.value})
+    if state == TaskInstanceState.SUCCESS:
+        if ti.operator:
+            stats.incr("operator_successes", tags={**tags, "operator_name": ti.operator})
+        stats.incr("ti_successes", tags=tags)
+    elif state in (TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY):
+        if ti.operator:
+            stats.incr("operator_failures", tags={**tags, "operator_name": ti.operator})
+        stats.incr("ti_failures", tags=tags)
+    if end_date and ti.start_date:
+        stats.timing("task.duration", (end_date - ti.start_date).total_seconds() * 1000, tags=tags)
 
 
 def _emit_task_span(ti, state, *, resolver: TaskCoordinateResolver):
