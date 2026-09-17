@@ -4206,7 +4206,7 @@ class TestEmailNotifications:
                     assert kwargs["to"] == emails
                     assert (
                         kwargs["html_content"]
-                        == 'Try {{try_number}} out of {{max_tries + 1}}<br>Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+                        == 'Dag: {{ti.dag_id}}<br>Task: {{ti.task_id}}<br>Run: {{ti.run_id}}<br>Try: {{try_number}} out of {{max_tries + 1}}<br>Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
                     )
 
     @pytest.mark.parametrize(
@@ -4264,7 +4264,7 @@ class TestEmailNotifications:
                     assert kwargs["to"] == emails
                     assert (
                         kwargs["html_content"]
-                        == 'Try {{try_number}} out of {{max_tries + 1}}<br>Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+                        == 'Dag: {{ti.dag_id}}<br>Task: {{ti.task_id}}<br>Run: {{ti.run_id}}<br>Try: {{try_number}} out of {{max_tries + 1}}<br>Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
                     )
 
     def test_email_with_custom_templates(self, create_runtime_ti, mock_supervisor_comms, tmp_path):

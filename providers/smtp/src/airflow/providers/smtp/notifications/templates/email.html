@@ -40,6 +40,18 @@
                                     <td style="width:140px;color:#6b7280;font-weight:bold;vertical-align:top;">State:</td>
                                     <td style="vertical-align:top;">{{ task_state }}</td>
                                 </tr>
+                                {% if ti.start_date %}
+                                <tr>
+                                    <td style="width:140px;color:#6b7280;font-weight:bold;vertical-align:top;">Started:</td>
+                                    <td style="vertical-align:top;">{{ ti.start_date }}</td>
+                                </tr>
+                                {% endif %}
+                                {% if ti.end_date %}
+                                <tr>
+                                    <td style="width:140px;color:#6b7280;font-weight:bold;vertical-align:top;">Ended:</td>
+                                    <td style="vertical-align:top;">{{ ti.end_date }}</td>
+                                </tr>
+                                {% endif %}
                                 <tr>
                                     <td style="width:140px;color:#6b7280;font-weight:bold;vertical-align:top;">Host:</td>
                                     <td style="vertical-align:top;">{{ ti.hostname }}</td>

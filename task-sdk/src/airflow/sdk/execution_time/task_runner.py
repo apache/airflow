@@ -2146,7 +2146,10 @@ def _send_error_email_notification(
         # For reporting purposes, we report based on 1-indexed,
         # not 0-indexed lists (i.e. Try 1 instead of Try 0 for the first attempt).
         html_content = (
-            "Try {{try_number}} out of {{max_tries + 1}}<br>"
+            "Dag: {{ti.dag_id}}<br>"
+            "Task: {{ti.task_id}}<br>"
+            "Run: {{ti.run_id}}<br>"
+            "Try: {{try_number}} out of {{max_tries + 1}}<br>"
             "Exception:<br>{{exception_html}}<br>"
             'Log: <a href="{{ti.log_url}}">Link</a><br>'
             "Host: {{ti.hostname}}<br>"

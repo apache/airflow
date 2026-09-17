@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import tempfile
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from unittest import mock
 from unittest.mock import AsyncMock
 
@@ -50,6 +51,8 @@ TEST_DAG_ID = "test_dag"
 TEST_TASK_ID = "test_task"
 TEST_TASK_STATE = TaskInstanceState.FAILED
 TEST_RUN_ID = "test_run"
+TEST_START_DATE = datetime(2026, 2, 8, 19, 19, 29, tzinfo=timezone.utc)
+TEST_END_DATE = datetime(2026, 2, 8, 19, 19, 35, tzinfo=timezone.utc)
 
 # Jinja template patterns
 DAG_ID_TEMPLATE_STRING = "{{dag.dag_id}}"
@@ -194,6 +197,8 @@ class TestSmtpNotifier:
             dag_id=TEST_DAG_ID, task_id=TEST_TASK_ID, run_id=TEST_RUN_ID, state=state
         )
         mock_ti.log_url = "http://localhost:8080/log"
+        mock_ti.start_date = TEST_START_DATE
+        mock_ti.end_date = TEST_END_DATE
         notifier = SmtpNotifier(from_email=TEST_SENDER, to=TEST_RECEIVER)
         mock_smtphook_hook.return_value.__enter__.return_value.subject_template = None
         mock_smtphook_hook.return_value.__enter__.return_value.html_content_template = None
@@ -211,6 +216,25 @@ class TestSmtpNotifier:
         for value in (TEST_DAG_ID, TEST_TASK_ID, TEST_RUN_ID):
             assert value in content
         assert f'href="{mock_ti.log_url}"' in content
+        assert str(TEST_START_DATE) in content
+        assert str(TEST_END_DATE) in content
+
+    @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
+    def test_default_template_omits_missing_timestamps(
+        self, mock_smtphook_hook, create_dag_without_db, mock_task_instance
+    ):
+        mock_ti = mock_task_instance(dag_id=TEST_DAG_ID, task_id=TEST_TASK_ID, run_id=TEST_RUN_ID)
+        mock_ti.start_date = None
+        mock_ti.end_date = None
+        notifier = SmtpNotifier(from_email=TEST_SENDER, to=TEST_RECEIVER)
+        mock_smtphook_hook.return_value.__enter__.return_value.subject_template = None
+        mock_smtphook_hook.return_value.__enter__.return_value.html_content_template = None
+
+        notifier({"dag": create_dag_without_db(TEST_DAG_ID), "ti": mock_ti})
+
+        content = mock_smtphook_hook.return_value.__enter__().send_email_smtp.call_args.kwargs["html_content"]
+        assert "Started:" not in content
+        assert "Ended:" not in content
 
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
     def test_notifier_with_nondefault_connection_extra(
