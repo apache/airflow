@@ -21,7 +21,9 @@ import json
 import logging
 import os
 import time
+import warnings
 from datetime import datetime, timezone
+from enum import Enum
 from fnmatch import fnmatch
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any
@@ -44,6 +46,27 @@ CONFIG_SECTION = "kafka_event_producer"
 SCHEMA_VERSION = 1
 
 
+class EventProducerKafkaTopic(Enum):
+    """Event Producer Kafka Topic types to configure."""
+
+    DAG_RUN = "dag_run"
+    TASK_INSTANCE = "task_instance"
+
+
+TOPIC_CONFIG_MAP = {
+    EventProducerKafkaTopic.DAG_RUN: "dagrun_topic",
+    EventProducerKafkaTopic.TASK_INSTANCE: "task_instance_topic",
+}
+
+
+def _on_delivery_dag_run(err, msg):
+    return _on_delivery(EventProducerKafkaTopic.DAG_RUN, err, msg)
+
+
+def _on_delivery_task_instance(err, msg):
+    return _on_delivery(EventProducerKafkaTopic.TASK_INSTANCE, err, msg)
+
+
 @lru_cache(maxsize=1)
 def _dag_run_events_enabled() -> bool:
     return conf.getboolean(CONFIG_SECTION, "dag_run_events_enabled", fallback="False")
@@ -59,9 +82,18 @@ def _get_kafka_config_id() -> str:
     return conf.get(CONFIG_SECTION, "kafka_config_id", fallback="").strip()
 
 
-@lru_cache(maxsize=1)
-def _get_topic() -> str:
-    return conf.get(CONFIG_SECTION, "topic", fallback="airflow.events")
+@lru_cache(maxsize=len(EventProducerKafkaTopic))
+def _get_topic(topic_type: EventProducerKafkaTopic) -> str:
+    topic = conf.get(CONFIG_SECTION, "topic", fallback = None)
+    if topic is not None:
+        warnings.warn(
+            f"""The ``topic`` option in [{CONFIG_SECTION}] has been split into ``dagrun_topic`` and ``task_instance_topic`` -
+            please update your config.""",
+            DeprecationWarning,
+            stacklevel=4,
+        )
+        return topic
+    return conf.get(CONFIG_SECTION, TOPIC_CONFIG_MAP[topic_type], fallback="airflow.events")
 
 
 @lru_cache(maxsize=1)
@@ -157,8 +189,12 @@ def _task_instance_event_allowed(dag_id: str, task_id: str) -> bool:
 # the topic flags track whether the topic exists on the broker and whether we're
 # currently in a back-off window after a failed topic check.
 _producer: Producer | None = None
-_topic_exists: bool = False
 _topic_check_retry_after: float = 0.0
+_topic_existence_map = {EventProducerKafkaTopic.DAG_RUN: False, EventProducerKafkaTopic.TASK_INSTANCE: False}
+_on_delivery_map = {
+    EventProducerKafkaTopic.DAG_RUN: _on_delivery_dag_run,
+    EventProducerKafkaTopic.TASK_INSTANCE: _on_delivery_task_instance,
+}
 
 
 def _reset_state_after_fork() -> None:
@@ -169,9 +205,12 @@ def _reset_state_after_fork() -> None:
     do not survive ``os.fork``. The child re-initializes its own producer on first use
     and re-verifies the topic.
     """
-    global _producer, _topic_exists, _topic_check_retry_after
+    global _producer, _topic_existence_map, _topic_check_retry_after
     _producer = None
-    _topic_exists = False
+    _topic_existence_map = {
+        EventProducerKafkaTopic.DAG_RUN: False,
+        EventProducerKafkaTopic.TASK_INSTANCE: False,
+    }
     _topic_check_retry_after = 0.0
 
 
@@ -202,15 +241,15 @@ def _get_producer() -> Producer | None:
     return _producer
 
 
-def _check_topic_exists() -> bool:
+def _check_topic_exists(topic_type: EventProducerKafkaTopic) -> bool:
     """
     Verify the configured topic exists on the broker, with a retry-after-failure cooldown.
 
     Once the topic has been confirmed, the result is kept for the process lifetime; until
     then, failed checks are retried on a configured interval.
     """
-    global _topic_exists, _topic_check_retry_after
-    if _topic_exists:
+    global _topic_existence_map, _topic_check_retry_after  # noqa: PLW0602
+    if _topic_existence_map[topic_type]:
         return True
     if time.monotonic() < _topic_check_retry_after:
         return False
@@ -231,11 +270,11 @@ def _check_topic_exists() -> bool:
         _topic_check_retry_after = time.monotonic() + _get_topic_check_retry_interval()
         return False
 
-    if _get_topic() not in topics:
+    if _get_topic(topic_type) not in topics:
         log.warning(
             "Kafka event producer: topic %r not found on the broker. Will retry after %ds. "
             "Create the topic on the broker to enable publishing.",
-            _get_topic(),
+            _get_topic(topic_type),
             _get_topic_check_retry_interval(),
         )
         _topic_check_retry_after = time.monotonic() + _get_topic_check_retry_interval()
@@ -245,9 +284,9 @@ def _check_topic_exists() -> bool:
         "Kafka event producer attached: pid=%s source=%r topic=%r",
         os.getpid(),
         _get_source(),
-        _get_topic(),
+        _get_topic(topic_type),
     )
-    _topic_exists = True
+    _topic_existence_map[topic_type] = True
     return True
 
 
@@ -258,7 +297,7 @@ def _flush_producer_at_exit(producer: Producer) -> None:
         log.debug("Kafka event producer: error flushing producer on exit", exc_info=True)
 
 
-def _on_delivery(err, _msg) -> None:
+def _on_delivery(topic_type: EventProducerKafkaTopic, err, _msg) -> None:
     if err is None:
         return
     log.warning("Kafka event producer: delivery failed: %s", err)
@@ -269,8 +308,8 @@ def _on_delivery(err, _msg) -> None:
     from confluent_kafka import KafkaError
 
     if err.code() in (KafkaError.UNKNOWN_TOPIC_OR_PART, KafkaError._UNKNOWN_TOPIC):
-        global _topic_exists, _topic_check_retry_after
-        _topic_exists = False
+        global _topic_existence_map, _topic_check_retry_after  # noqa: PLW0602
+        _topic_existence_map[topic_type] = False
         _topic_check_retry_after = time.monotonic() + _get_topic_check_retry_interval()
 
 
@@ -285,6 +324,7 @@ def _produce_dr_message(event: str, dag_run: DagRun, msg: str) -> None:
         return
     try:
         _produce_message(
+            EventProducerKafkaTopic.DAG_RUN,
             event,
             dag_id,
             dag_run.run_id,
@@ -319,6 +359,7 @@ def _produce_ti_message(
         return
     try:
         _produce_message(
+            EventProducerKafkaTopic.TASK_INSTANCE,
             event,
             dag_id,
             task_instance.run_id,
@@ -342,10 +383,18 @@ def _get_ti_payload(ti, previous_state, error=None) -> dict[str, Any]:
     return payload
 
 
-def _produce_message(event: str, dag_id: str, run_id: str, payload: dict[str, Any]) -> None:
-    if not _dag_run_events_enabled() and not _task_instance_events_enabled():
-        return
-    if not _check_topic_exists():
+def _produce_message(
+    topic_type: EventProducerKafkaTopic, event: str, dag_id: str, run_id: str, payload: dict[str, Any]
+) -> None:
+    if topic_type == EventProducerKafkaTopic.DAG_RUN:
+        if not _dag_run_events_enabled():
+            return
+    elif topic_type == EventProducerKafkaTopic.TASK_INSTANCE:
+        if not _task_instance_events_enabled():
+            return
+    else:
+        raise ValueError(f"Invalid topic type: {topic_type}")
+    if not _check_topic_exists(topic_type):
         return
     producer = _get_producer()
     if producer is None:
@@ -366,10 +415,10 @@ def _produce_message(event: str, dag_id: str, run_id: str, payload: dict[str, An
     key = f"{dag_id}/{run_id}".encode()
     try:
         producer.produce(
-            _get_topic(),
+            _get_topic(topic_type),
             key=key,
             value=json.dumps(body, default=str).encode("utf-8"),
-            on_delivery=_on_delivery,
+            on_delivery=_on_delivery_map[topic_type],
         )
         producer.poll(0)
     except Exception as ex:
