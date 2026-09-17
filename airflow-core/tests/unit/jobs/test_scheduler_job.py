@@ -542,6 +542,12 @@ class TestSchedulerJob:
         ti1.refresh_from_db(session=session)
         assert ti1.state == State.SUCCESS
         self.job_runner.executor.callback_sink.send.assert_not_called()
+        expected_failure_tags = {
+            "dag_id": dag_id,
+            "task_id": ti1.task_id,
+            "run_type": "manual",
+            "failure_kind": "unclassified",
+        }
         mock_stats.incr.assert_has_calls(
             [
                 mock.call(
@@ -550,11 +556,9 @@ class TestSchedulerJob:
                 ),
                 mock.call(
                     "operator_failures_EmptyOperator",
-                    tags={"dag_id": dag_id, "task_id": ti1.task_id, "run_type": "manual"},
+                    tags=expected_failure_tags,
                 ),
-                mock.call(
-                    "ti_failures", tags={"dag_id": dag_id, "task_id": ti1.task_id, "run_type": "manual"}
-                ),
+                mock.call("ti_failures", tags=expected_failure_tags),
             ],
             any_order=True,
         )
@@ -695,6 +699,12 @@ class TestSchedulerJob:
         ti1.refresh_from_db(session=session)
         assert ti1.state == State.SUCCESS
         self.job_runner.executor.callback_sink.send.assert_not_called()
+        expected_failure_tags = {
+            "dag_id": dag_id,
+            "task_id": task_id,
+            "run_type": "manual",
+            "failure_kind": "unclassified",
+        }
         mock_stats.incr.assert_has_calls(
             [
                 mock.call(
@@ -703,9 +713,9 @@ class TestSchedulerJob:
                 ),
                 mock.call(
                     "operator_failures_EmptyOperator",
-                    tags={"dag_id": dag_id, "task_id": task_id, "run_type": "manual"},
+                    tags=expected_failure_tags,
                 ),
-                mock.call("ti_failures", tags={"dag_id": dag_id, "task_id": task_id, "run_type": "manual"}),
+                mock.call("ti_failures", tags=expected_failure_tags),
             ],
             any_order=True,
         )
