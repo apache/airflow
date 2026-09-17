@@ -294,9 +294,8 @@ class RuntimeTaskInstance(TaskInstance):
     __rich_repr__.angular = True  # type: ignore[attr-defined]
 
     def __str__(self) -> str:
-        # ``{{ ti }}`` renders this, and Pydantic's field dump leaks UUIDs and nested objects into
-        # emails; mirror the scheduler-side ``TaskInstance.__repr__`` instead. ``repr()`` deliberately
-        # keeps the field dump — that is the form you want when debugging or reading a failed assert.
+        # ``{{ ti }}`` renders this, so mirror the scheduler-side ``TaskInstance.__repr__`` rather than
+        # Pydantic's field dump, which leaks UUIDs into emails; ``repr()`` deliberately keeps that dump.
         prefix = f"<TaskInstance: {self.dag_id}.{self.task_id} {self.run_id} "
         # Unlike the scheduler-side column, map_index is nullable here, and None means unmapped too.
         if self.map_index is not None and self.map_index != -1:
@@ -2135,7 +2134,7 @@ def _send_error_email_notification(
         subject = Path(subject_template_file).read_text()
     else:
         # Fallback to default
-        subject = "Airflow alert: {{ti}}"
+        subject = "[Airflow] {{ti.dag_id}}.{{ti.task_id}} {{task_state}} - Run {{ti.run_id}}"
 
     html_content_template_file = conf.get("email", "html_content_template", fallback=None)
 
@@ -2150,6 +2149,7 @@ def _send_error_email_notification(
             "Dag: {{ti.dag_id}}<br>"
             "Task: {{ti.task_id}}<br>"
             "Run: {{ti.run_id}}<br>"
+            "State: {{task_state}}<br>"
             "Try: {{try_number}} out of {{max_tries + 1}}<br>"
             "{% if ti.start_date is defined and ti.start_date %}Started: {{ti.start_date}}<br>{% endif %}"
             "{% if ti.end_date is defined and ti.end_date %}Ended: {{ti.end_date}}<br>{% endif %}"
@@ -2168,6 +2168,8 @@ def _send_error_email_notification(
         "exception_html": exception_html,
         "try_number": ti.try_number,
         "max_tries": ti.max_tries,
+        # ti.state is an enum whose str() renders as "TaskInstanceState.FAILED"; use its value.
+        "task_state": ti.state.value if ti.state else "unknown",
     }
     email_context = {**context, **additional_context}
     to_emails = task.email
