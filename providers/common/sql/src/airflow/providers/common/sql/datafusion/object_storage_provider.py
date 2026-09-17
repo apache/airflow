@@ -38,7 +38,7 @@ class S3ObjectStorageProvider(ObjectStorageProvider):
     def create_object_store(self, path: str, connection_config: ConnectionConfig | None = None):
         """Create an S3 object store using DataFusion's AmazonS3."""
         if connection_config is None:
-            raise ValueError("connection_config must be provided for %s", self.get_storage_type)
+            raise ValueError(f"connection_config must be provided for {self.get_storage_type}")
 
         try:
             credentials = connection_config.credentials
