@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
+import importlib
 import json
 from collections.abc import Callable
 from unittest.mock import MagicMock, patch
@@ -23,6 +25,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from confluent_kafka import KafkaError
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.apache.kafka.plugins import event_producer
 from airflow.providers.apache.kafka.plugins.event_producer import DagRunListener, TaskListener
@@ -79,8 +82,23 @@ def _clear_cached_values():
 
     # Reset the module-level producer and topic state.
     event_producer._producer = None
-    event_producer._topic_exists = False
+    event_producer._topic_existence_map = {
+        event_producer.EventProducerKafkaTopic.DAG_RUN: False,
+        event_producer.EventProducerKafkaTopic.TASK_INSTANCE: False,
+    }
     event_producer._topic_check_retry_after = 0.0
+
+
+def pytest_generate_tests(metafunc):
+    if "topic_type" in metafunc.fixturenames:
+        metafunc.parametrize(
+            "topic_type",
+            [
+                event_producer.EventProducerKafkaTopic.DAG_RUN,
+                event_producer.EventProducerKafkaTopic.TASK_INSTANCE,
+            ],
+            indirect=True,
+        )
 
 
 @pytest.fixture
@@ -188,7 +206,8 @@ def test_get_enabled_listeners(configs, expected_listener_classes):
 @conf_vars(
     {
         ("kafka_event_producer", "dag_run_events_enabled"): "True",
-        ("kafka_event_producer", "topic"): _KAFKA_TOPIC,
+        ("kafka_event_producer", "dagrun_topic"): _KAFKA_TOPIC,
+        ("kafka_event_producer", "task_instance_topic"): _KAFKA_TOPIC,
         ("kafka_event_producer", "source"): _SOURCE,
     }
 )
@@ -225,7 +244,8 @@ def test_produce_dr_message(
 @conf_vars(
     {
         ("kafka_event_producer", "task_instance_events_enabled"): "True",
-        ("kafka_event_producer", "topic"): _KAFKA_TOPIC,
+        ("kafka_event_producer", "dagrun_topic"): _KAFKA_TOPIC,
+        ("kafka_event_producer", "task_instance_topic"): _KAFKA_TOPIC,
         ("kafka_event_producer", "source"): _SOURCE,
     }
 )
@@ -326,23 +346,32 @@ class TestGetProducer:
 class TestCheckTopicExists:
     """Tests for the topic check and its retry-after-failure cooldown."""
 
+    @pytest.fixture
+    def topic_type(self, request) -> event_producer.EventProducerKafkaTopic:
+        return request.param
+
     @pytest.fixture(autouse=True)
     def _topic_conf(self):
-        with conf_vars({("kafka_event_producer", "topic"): _KAFKA_TOPIC}):
+        with conf_vars(
+            {
+                ("kafka_event_producer", "dagrun_topic"): _KAFKA_TOPIC,
+                ("kafka_event_producer", "task_instance_topic"): _KAFKA_TOPIC,
+            }
+        ):
             yield
 
-    def test_topic_exists_kept_for_process_lifetime(self):
+    def test_topic_exists_kept_for_process_lifetime(self, topic_type):
         kafka_producer_mock = MagicMock()
         kafka_producer_mock.list_topics.return_value.topics.__contains__.return_value = True
 
         with patch(_PRODUCER_CLS, return_value=kafka_producer_mock):
-            assert event_producer._check_topic_exists() is True
+            assert event_producer._check_topic_exists(topic_type) is True
             # Once confirmed, the broker is not queried again.
-            assert event_producer._check_topic_exists() is True
+            assert event_producer._check_topic_exists(topic_type) is True
 
         kafka_producer_mock.list_topics.assert_called_once()
 
-    def test_topic_doesnt_exist(self, monkeypatch):
+    def test_topic_doesnt_exist(self, monkeypatch, topic_type):
         kafka_producer_mock = MagicMock()
         kafka_producer_mock.list_topics.return_value.topics.__contains__.return_value = False
 
@@ -350,7 +379,7 @@ class TestCheckTopicExists:
         monkeypatch.setattr(event_producer.log, "warning", log_warning_mock)
 
         with patch(_PRODUCER_CLS, return_value=kafka_producer_mock):
-            assert event_producer._check_topic_exists() is False
+            assert event_producer._check_topic_exists(topic_type) is False
 
         log_warning_mock.assert_called_once()
         # Format string + the two formatting args are passed positionally to log.warning.
@@ -359,7 +388,7 @@ class TestCheckTopicExists:
         assert topic_arg == _KAFKA_TOPIC
         assert retry_interval_arg == event_producer._get_topic_check_retry_interval()
 
-    def test_list_topics_failure_warns_and_sets_cooldown(self, monkeypatch):
+    def test_list_topics_failure_warns_and_sets_cooldown(self, monkeypatch, topic_type):
         kafka_producer_mock = MagicMock()
         kafka_producer_mock.list_topics.side_effect = ValueError("broker down")
 
@@ -367,15 +396,15 @@ class TestCheckTopicExists:
         monkeypatch.setattr(event_producer.log, "warning", log_warning_mock)
 
         with patch(_PRODUCER_CLS, return_value=kafka_producer_mock):
-            assert event_producer._check_topic_exists() is False
+            assert event_producer._check_topic_exists(topic_type) is False
             # Within the cooldown window the check is not retried.
-            assert event_producer._check_topic_exists() is False
+            assert event_producer._check_topic_exists(topic_type) is False
 
         kafka_producer_mock.list_topics.assert_called_once()
         log_warning_mock.assert_called_once()
         assert "topic check failed" in log_warning_mock.call_args.args[0]
 
-    def test_retried_after_failure_cooldown(self, monkeypatch):
+    def test_retried_after_failure_cooldown(self, monkeypatch, topic_type):
         time_now = [1000.0]
         monkeypatch.setattr(event_producer.time, "monotonic", lambda: time_now[0])
 
@@ -385,36 +414,36 @@ class TestCheckTopicExists:
 
         with patch(_PRODUCER_CLS, return_value=kafka_producer_mock):
             # First check fails: the topic is missing.
-            assert event_producer._check_topic_exists() is False
+            assert event_producer._check_topic_exists(topic_type) is False
             assert kafka_producer_mock.list_topics.call_count == 1
 
             # The interval hasn't passed and the check isn't retried.
             time_now[0] += 1
-            assert event_producer._check_topic_exists() is False
+            assert event_producer._check_topic_exists(topic_type) is False
             assert kafka_producer_mock.list_topics.call_count == 1
 
             # Past the interval. The check is retried and succeeds this time.
             kafka_producer_mock.list_topics.return_value.topics.__contains__.return_value = True
             time_now[0] += event_producer._get_topic_check_retry_interval() + 1
-            assert event_producer._check_topic_exists() is True
+            assert event_producer._check_topic_exists(topic_type) is True
             assert kafka_producer_mock.list_topics.call_count == 2
 
-    def test_producer_init_failure_sets_cooldown(self, monkeypatch):
+    def test_producer_init_failure_sets_cooldown(self, monkeypatch, topic_type):
         time_now = [1000.0]
         monkeypatch.setattr(event_producer.time, "monotonic", lambda: time_now[0])
 
         with patch(_PRODUCER_CLS, side_effect=ValueError("boom")) as producer_cls_mock:
-            assert event_producer._check_topic_exists() is False
+            assert event_producer._check_topic_exists(topic_type) is False
             assert producer_cls_mock.call_count == 1
 
             # The interval hasn't passed and the producer initialization isn't retried.
             time_now[0] += 1
-            assert event_producer._check_topic_exists() is False
+            assert event_producer._check_topic_exists(topic_type) is False
             assert producer_cls_mock.call_count == 1
 
             # Past the interval. The producer initialization is retried.
             time_now[0] += event_producer._get_topic_check_retry_interval() + 1
-            assert event_producer._check_topic_exists() is False
+            assert event_producer._check_topic_exists(topic_type) is False
             assert producer_cls_mock.call_count == 2
 
     @pytest.mark.parametrize(
@@ -426,7 +455,7 @@ class TestCheckTopicExists:
         ],
     )
     def test_delivery_report_invalidates_topic_confirmation_only_on_missing_topic(
-        self, monkeypatch, kafka_error, topic_exists_expected
+        self, monkeypatch, kafka_error, topic_exists_expected, topic_type
     ):
         """
         If the delivery report failed and the topic is gone, ``_topic_exists`` must be reset so that the
@@ -439,22 +468,69 @@ class TestCheckTopicExists:
         kafka_producer_mock = MagicMock()
         kafka_producer_mock.list_topics.return_value.topics.__contains__.return_value = True
         with patch(_PRODUCER_CLS, return_value=kafka_producer_mock):
-            assert event_producer._check_topic_exists() is True
-            assert event_producer._topic_exists is True
+            assert event_producer._check_topic_exists(topic_type) is True
+            assert event_producer._topic_existence_map[topic_type] is True
 
             err = MagicMock()
             err.code.return_value = kafka_error
-            event_producer._on_delivery(err, MagicMock())
+            event_producer._on_delivery_map[topic_type](err, MagicMock())
 
-            assert event_producer._topic_exists is topic_exists_expected
+            assert event_producer._topic_existence_map[topic_type] is topic_exists_expected
 
             if not topic_exists_expected:
                 # Cooldown holds off the immediate re-check.
-                assert event_producer._check_topic_exists() is False
+                assert event_producer._check_topic_exists(topic_type) is False
                 # After the cooldown, the check re-verifies; the topic is still on the broker,
                 # so confirmation is restored.
                 time_now[0] += event_producer._get_topic_check_retry_interval() + 1
-                assert event_producer._check_topic_exists() is True
+                assert event_producer._check_topic_exists(topic_type) is True
+
+
+@pytest.mark.parametrize(
+    ("topic", "dagrun_topic", "task_instance_topic", "dagrun_expected", "task_instance_expected"),
+    [
+        pytest.param(
+            "airflow.events",
+            "airflow.dagrun",
+            "airflow.task",
+            "airflow.events",
+            "airflow.events",
+            id="default_to_topic",
+        ),
+        pytest.param(None, None, None, "airflow.events", "airflow.events", id="fallback_to_default"),
+        pytest.param(
+            None, "airflow.dagrun", "airflow.task", "airflow.dagrun", "airflow.task", id="new_settings"
+        ),
+        pytest.param("airflow.foo", None, None, "airflow.foo", "airflow.foo", id="old_setting"),
+    ],
+)
+def test_get_topic(topic, dagrun_topic, task_instance_topic, dagrun_expected, task_instance_expected):
+    # Check that ``topic`` is properly deprecated
+    ctxt = (
+        pytest.raises(
+            AirflowProviderDeprecationWarning,
+            match=r"""The ``topic`` option in \[kafka_event_producer\] has been split into ``dagrun_topic`` and ``task_instance_topic`` -
+            please update your config\.""",
+        )
+        if topic is not None
+        else contextlib.nullcontext()
+    )
+    with (
+        conf_vars(
+            {
+                (event_producer.CONFIG_SECTION, "topic"): topic,
+                (event_producer.CONFIG_SECTION, "dagrun_topic"): dagrun_topic,
+                (event_producer.CONFIG_SECTION, "task_instance_topic"): task_instance_topic,
+            }
+        ),
+        ctxt,
+    ):
+        importlib.reload(event_producer)
+        assert event_producer._get_topic(event_producer.EventProducerKafkaTopic.DAG_RUN) == dagrun_expected
+        assert (
+            event_producer._get_topic(event_producer.EventProducerKafkaTopic.TASK_INSTANCE)
+            == task_instance_expected
+        )
 
 
 class TestFilters:
@@ -466,7 +542,8 @@ class TestFilters:
             {
                 ("kafka_event_producer", "dag_run_events_enabled"): "True",
                 ("kafka_event_producer", "task_instance_events_enabled"): "True",
-                ("kafka_event_producer", "topic"): _KAFKA_TOPIC,
+                ("kafka_event_producer", "dagrun_topic"): _KAFKA_TOPIC,
+                ("kafka_event_producer", "task_instance_topic"): _KAFKA_TOPIC,
             }
         ):
             yield
