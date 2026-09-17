@@ -67,6 +67,13 @@ class TestMain:
         assert hook.main() == 1
         assert matrix.README_MATRIX_HEADER + "\n" + matrix.README_MATRIX_FOOTER in wired.read_text()
 
+    def test_renamed_schema_version_constant_fails_without_writing(self, wired):
+        hook.GO_MESSAGES.write_text(
+            'package execution\n\nconst SupervisorSchemaVersionRenamed = "2020-01-01"\n'
+        )
+        assert hook.main() == 1
+        assert matrix.README_MATRIX_HEADER + "\n" + matrix.README_MATRIX_FOOTER in wired.read_text()
+
     def test_schema_version_matches_go_source(self):
         sdk = next(entry for entry in matrix.LANG_SDKS if entry["id"] == hook.SDK_ID)
         doc = matrix.load_capabilities(sdk["capabilities_yaml"], expected_sdk=hook.SDK_ID)

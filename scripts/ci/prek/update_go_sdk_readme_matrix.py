@@ -67,6 +67,14 @@ def check_schema_version(doc: CapabilitiesDoc) -> bool:
     except OSError as error:
         console.print(f"[red]Could not read {GO_MESSAGES}: {error}[/]")
         return False
+    if go_version is None:
+        console.print(
+            "[red]Could not read SupervisorSchemaVersion from go-sdk/pkg/execution/messages.go: "
+            "the constant is missing, or its declaration no longer matches this hook's pattern. "
+            "Restore the constant, or update SCHEMA_VERSION_PATTERN if the declaration changed. "
+            "Editing go-sdk/capabilities.yaml cannot fix this.[/]"
+        )
+        return False
     declared = doc["supervisor_schema_version"]
     if go_version == declared:
         return True
