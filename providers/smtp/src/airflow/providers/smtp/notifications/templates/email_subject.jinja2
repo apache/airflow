@@ -17,7 +17,9 @@
  under the License.
 #}
 {% if ti is defined %}
-DAG {{ ti.dag_id }} - Task {{ ti.task_id }} - Run ID {{ ti.run_id }} in State {{ ti.state }}
+{# ti.state is an enum whose str() renders as "TaskInstanceState.FAILED"; use its value. #}
+{% set task_state = ti.state.value | default(ti.state, true) or "unknown" %}
+[Airflow] {{ ti.dag_id }}.{{ ti.task_id }} {{ task_state }} - Run {{ ti.run_id }}
 {% elif slas is defined %}
 SLA Missed for DAG {{ dag.dag_id }} - Task {{ slas[0].task_id }}
 {% endif %}
