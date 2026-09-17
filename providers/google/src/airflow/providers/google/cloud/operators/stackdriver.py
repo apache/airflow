@@ -86,6 +86,7 @@ class StackdriverListAlertPoliciesOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "filter_",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     operator_extra_links = (StackdriverPoliciesLink(),)
     ui_color = "#e5ffcc"
@@ -186,6 +187,7 @@ class StackdriverEnableAlertPoliciesOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "filter_",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     operator_extra_links = (StackdriverPoliciesLink(),)
 
@@ -268,6 +270,7 @@ class StackdriverDisableAlertPoliciesOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "filter_",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     operator_extra_links = (StackdriverPoliciesLink(),)
 
@@ -347,6 +350,7 @@ class StackdriverUpsertAlertOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "alerts",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     template_ext: Sequence[str] = (".json",)
     operator_extra_links = (StackdriverPoliciesLink(),)
@@ -427,6 +431,7 @@ class StackdriverDeleteAlertOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "name",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     ui_color = "#e5ffcc"
@@ -517,6 +522,7 @@ class StackdriverListNotificationChannelsOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "filter_",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     operator_extra_links = (StackdriverNotificationsLink(),)
 
@@ -616,6 +622,7 @@ class StackdriverEnableNotificationChannelsOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "filter_",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     operator_extra_links = (StackdriverNotificationsLink(),)
 
@@ -700,6 +707,7 @@ class StackdriverDisableNotificationChannelsOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "filter_",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     operator_extra_links = (StackdriverNotificationsLink(),)
 
@@ -785,6 +793,7 @@ class StackdriverUpsertNotificationChannelOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "channels",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     template_ext: Sequence[str] = (".json",)
     operator_extra_links = (StackdriverNotificationsLink(),)
@@ -867,6 +876,7 @@ class StackdriverDeleteNotificationChannelOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "name",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     ui_color = "#e5ffcc"

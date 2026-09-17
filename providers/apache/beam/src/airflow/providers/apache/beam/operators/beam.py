@@ -187,6 +187,8 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
         (optional) defaults to None.
     """
 
+    template_fields: Sequence[str] = ("gcp_conn_id",)
+
     def __init__(
         self,
         *,
@@ -348,6 +350,7 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
         "pipeline_options",
         "default_pipeline_options",
         "dataflow_config",
+        "gcp_conn_id",
     )
     template_fields_renderers = {"dataflow_config": "json", "pipeline_options": "json"}
     operator_extra_links = (DataflowJobLink(),) if GOOGLE_PROVIDER else ()
@@ -544,6 +547,7 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
         "pipeline_options",
         "default_pipeline_options",
         "dataflow_config",
+        "gcp_conn_id",
     )
     template_fields_renderers = {"dataflow_config": "json", "pipeline_options": "json"}
     ui_color = "#0273d4"
@@ -749,6 +753,7 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
         "pipeline_options",
         "default_pipeline_options",
         "dataflow_config",
+        "gcp_conn_id",
     ]
     template_fields_renderers = {"dataflow_config": "json", "pipeline_options": "json"}
     operator_extra_links = (DataflowJobLink(),) if GOOGLE_PROVIDER else ()

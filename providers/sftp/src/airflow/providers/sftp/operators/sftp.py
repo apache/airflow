@@ -80,7 +80,7 @@ class SFTPOperator(BaseOperator):
 
     """
 
-    template_fields: Sequence[str] = ("local_filepath", "remote_filepath", "remote_host")
+    template_fields: Sequence[str] = ("local_filepath", "remote_filepath", "remote_host", "ssh_conn_id")
 
     def __init__(
         self,
