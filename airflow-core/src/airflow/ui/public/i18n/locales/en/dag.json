@@ -262,13 +262,15 @@
       "path": "Path"
     },
     "heading": "Version {{base}} → Version {{target}}",
+    "maxChanges": "Max changes",
+    "maxChangesDefault": "Default",
     "observedState": "Observed state",
     "observedStateBoundary": "Compares currently stored state, not creation-time evidence. Source comparison is unavailable for historical versions; use the Code tab to compare source.",
     "selectPrompt": "Select two versions to see what changed between them.",
     "summary": "{{count}} changes · serialized schema {{base}} → {{target}}",
     "target": "Compare to",
     "truncated": {
-      "description": "Changes at paths not shown were dropped to stay within the limit, so the count is a lower bound.",
+      "description": "Changes at paths not shown were dropped to stay within the limit, so the count is a lower bound. Raise max changes to return more.",
       "title": "Some changes were not returned"
     },
     "unavailable": {
