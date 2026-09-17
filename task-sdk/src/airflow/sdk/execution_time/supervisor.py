@@ -1804,23 +1804,39 @@ class ActivitySubprocess(WatchedSubprocess):
         """
         The final state of the TaskInstance.
 
-        By default, this will be derived from the exit code of the task
-        (0=success, failed otherwise) but can be changed by the subprocess
-        sending a TaskState message, as long as the process exits with 0
+        If the subprocess reported a terminal state via message (TaskState, SucceedTask,
+        RetryTask, etc.) before exiting, that message is authoritative and takes precedence
+        over the exit code -- even over a genuinely non-zero one, e.g. from
+        `_handle_process_overtime_if_needed()`'s SIGTERM once `_terminal_state` is already set.
+        Two concrete cases this covers:
+
+        * `SucceedTask` writes SUCCESS directly (`_send_terminal_state_msg`) before the process
+          exits. Without this precedence, a later non-zero exit code would override the
+          confirmed SUCCESS and `update_task_state_if_needed()` would call `.finish()` against a
+          row `succeed()` already wrote, which 409s.
+        * `TaskState(SKIPPED)` makes no direct API call (see `_handle_request`); the row is
+          still RUNNING and `finish()` is the intended, not-yet-issued writer. Without this
+          precedence, a later non-zero exit code overrides the confirmed SKIPPED with FAILED,
+          or -- with retries configured -- resolves to UP_FOR_RETRY and skips the write
+          entirely, leaving the row stuck RUNNING.
+
+        Only fall back to deriving the state from the exit code when no terminal message was
+        ever received at all.
 
         Not valid before the process has finished.
         """
+        if self._terminal_state is not None:
+            return self._terminal_state
+
         if self._exit_code == 0:
-            return self._terminal_state or TaskInstanceState.SUCCESS
-        if self._exit_code != 0 and self._terminal_state == SERVER_TERMINATED:
-            return SERVER_TERMINATED
+            return TaskInstanceState.SUCCESS
 
         # Any non zero exit code indicates a failure
         # If retries are configured, mark as UP_FOR_RETRY
         # Negative exit codes indicate signal kills (often transient)
         # Positive exit codes can also be transient failures like network issues in a task communicating to
         # external services
-        if self._exit_code != 0 and self._should_retry:
+        if self._should_retry:
             return TaskInstanceState.UP_FOR_RETRY
 
         return TaskInstanceState.FAILED
