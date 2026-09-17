@@ -1,0 +1,83 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "apache-airflow-providers-dbt-core"
+dynamic = ["version"]
+description = "Provider package apache-airflow-providers-dbt-core for Apache Airflow: run dbt Core jobs in a single Kubernetes pod."
+requires-python = ">=3.10"
+license = "Apache-2.0"
+authors = [{ name = "Apache Software Foundation", email = "dev@airflow.apache.org" }]
+maintainers = [{ name = "Apache Software Foundation", email = "dev@airflow.apache.org" }]
+keywords = ["airflow-provider", "dbt", "dbt.core", "airflow", "integration"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Framework :: Apache Airflow",
+    "Framework :: Apache Airflow :: Provider",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+
+# Hard dependencies. cncf.kubernetes provides KubernetesPodOperator, which this
+# operator subclasses. amazon/google are optional (see [optional-dependencies]).
+dependencies = [
+    "apache-airflow>=2.9.0",
+    "apache-airflow-providers-cncf-kubernetes>=8.0.0",
+]
+
+[project.optional-dependencies]
+# Only needed to upload the dbt ``target/`` artifacts to object storage; the
+# operator imports these lazily and guards them with
+# AirflowOptionalProviderFeatureException.
+amazon = ["apache-airflow-providers-amazon>=8.0.0"]
+google = ["apache-airflow-providers-google>=10.0.0"]
+
+[project.urls]
+"Homepage" = "https://airflow.apache.org/"
+"Source Code" = "https://github.com/apache/airflow"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-dbt-core/"
+
+# __version__ lives in the package __init__; keep it the single source of truth.
+[tool.hatch.version]
+path = "src/airflow/providers/dbt/core/__init__.py"
+
+# src/ layout: map ``src/airflow`` -> ``airflow`` in the wheel. ``airflow`` and
+# ``airflow.providers`` are PEP 420 namespace packages shared across providers,
+# so no top-level __init__.py is added.
+[tool.hatch.build.targets.wheel]
+packages = ["src/airflow"]
+# run.sh is read at runtime via importlib.resources ("airflow.providers.dbt.core"
+# -> run.sh); ship it as package data. Non-.py files inside the package tree are
+# included by default; the artifacts entry makes that explicit and durable.
+artifacts = ["**/*.sh"]
+exclude = ["**/__pycache__", "**/*.pyc"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/provider.yaml",
+    "/pyproject.toml",
+]
