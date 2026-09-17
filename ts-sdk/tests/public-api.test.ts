@@ -26,7 +26,7 @@ import type {
   SetXComOpts,
   TaskClient,
   TaskContext,
-  TaskHandler,
+  TaskFunction,
   TaskInputs,
   TaskOptions,
   TaskRef,
@@ -37,6 +37,8 @@ import {
   ConnectionNotFoundError,
   Dag,
   DagRegistry,
+  getClient,
+  getContext,
   serveDags,
   SUPERVISOR_API_VERSION,
   VariableNotFoundError,
@@ -153,6 +155,27 @@ describe("public API", () => {
     expectTypeOf<typeof sdk>().not.toHaveProperty("startCoordinator");
   });
 
+  describe("the task-handler getters", () => {
+    it("throw outside a handler, naming the accessor", () => {
+      // The full scope behaviour is covered in tests/sdk/task-scope.test.ts;
+      // this pins that both reach the package root and say what went wrong.
+      expect(() => getContext()).toThrow(/^getContext\(\) is only available inside a task handler/);
+      expect(() => getClient()).toThrow(/^getClient\(\) is only available inside a task handler/);
+    });
+
+    it("are the only way a handler reaches the runtime", () => {
+      // A handler is a plain function of its own data, so the SDK hands it no
+      // parameter at all and the scope is not something an author installs.
+      expectTypeOf<TaskFunction>().toEqualTypeOf<() => unknown | Promise<unknown>>();
+      expectTypeOf<typeof getContext>().toEqualTypeOf<() => TaskContext>();
+      expectTypeOf<typeof getClient>().toEqualTypeOf<() => TaskClient>();
+      for (const name of ["TaskHandlerArgs", "runInTaskScope", "TaskScope"]) {
+        expect(name in sdk).toBe(false);
+      }
+      expectTypeOf<typeof sdk>().not.toHaveProperty("runInTaskScope");
+    });
+  });
+
   it("exports public error classes", () => {
     const err = new VariableNotFoundError("missing");
     expect(err).toBeInstanceOf(Error);
@@ -185,7 +208,7 @@ describe("public API", () => {
     expectTypeOf<Dag["task"]>().toEqualTypeOf<
       <TReturn = unknown>(
         taskId: string,
-        handler: TaskHandler<TReturn>,
+        handler: TaskFunction<TReturn>,
         options?: TaskOptions,
       ) => TaskRef
     >();

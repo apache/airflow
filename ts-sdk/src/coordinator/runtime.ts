@@ -26,7 +26,8 @@
 // where `my-bundle.mjs` is a user-bundled Node script that imports
 // the SDK, creates `Dag` objects, attaches a handler per task with
 // `dag.task(...)`, collects them in a `DagRegistry`, then awaits
-// `serveDags(registry)`.
+// `serveDags(registry)`. Each handler runs inside a task scope, which is what
+// `getContext()` and `getClient()` read.
 //
 // Lifecycle:
 //   1. Parse --comm / --logs from argv
@@ -54,7 +55,7 @@ import {
 } from "./protocol.js";
 import { DagRegistry, isDagRegistry, listRegistryTasks } from "../sdk/registry.js";
 import { DUPLICATE_COPY_HINT } from "../sdk/brand.js";
-import type { TaskContext, TaskHandlerArgs } from "../sdk/task.js";
+import { runInTaskScope, type TaskContext } from "../sdk/task.js";
 import type { JsonValue } from "../sdk/client-types.js";
 
 export const ABORT_GRACE_PERIOD_MS = 30_000;
@@ -82,8 +83,8 @@ function serveLatch(): Record<symbol, boolean | undefined> {
  * ```
  *
  * The registry is the bundle's complete set of Dags: this process serves one
- * supervisor request, so a second call — which would connect a second pair of
- * sockets — is rejected. A call that fails is not a serve, and may be retried.
+ * supervisor request, so a second call, which would connect a second pair of
+ * sockets, is rejected. A call that fails is not a serve, and may be retried.
  * Resolves when Airflow's supervisor has been sent the terminal frame for the
  * work this process was started for; the same call also answers the build-time
  * `--airflow-metadata` query `airflow-ts-pack` makes.
@@ -361,18 +362,20 @@ async function handleTask(
 
   const ctx = buildContext(details, signal);
   const client = createCoordinatorClient(comm, ctx, clientLogs);
-  const args: TaskHandlerArgs = { ctx, client };
   // Startup-details fields already logged above (`Received task
   // startup details`); this line just marks the handler-call boundary.
   logs.debug("Dispatching to handler", { task_id: ctx.taskId });
 
   try {
-    const result = await handler(args);
+    // The scope is installed around the call, not awaited inside it: the store
+    // follows the handler across every `await` it makes, so `getContext()` and
+    // `getClient()` work at any depth without the handler being handed either.
+    const result = await runInTaskScope({ ctx, client }, () => handler());
     if (result !== undefined) {
       await client.setXCom({ key: "return_value", value: result as JsonValue });
     }
     // SucceedTask MUST include task_outlets and outlet_events as
-    // empty lists — the Execution API's TISuccessStatePayload
+    // empty lists, since the Execution API's TISuccessStatePayload
     // tagged-union validator rejects null for these fields.
     const response: RuntimeSucceedTask = {
       type: "SucceedTask",

@@ -71,6 +71,9 @@ if AIRFLOW_V_3_0_PLUS or AIRFLOW_V_3_1_PLUS:
 else:
     from airflow.models.xcom import XCom  # type: ignore[no-redef]
 
+if not AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.task_instance_session import set_current_task_instance_session
+
 if TYPE_CHECKING:
     from airflow.sdk import Context
 
@@ -116,6 +119,24 @@ def _clear_all_db_objects():
     db.clear_db_runs()
     if AIRFLOW_V_3_0_PLUS:
         db.clear_db_dag_bundles()
+
+
+@contextmanager
+def task_instance_session():
+    """
+    Provide the session Airflow 2 renders a mapped task's template fields with.
+
+    There, ``MappedOperator.render_template_fields`` takes its session from a module global
+    that ``get_current_task_instance_session`` fills in and never clears, so rendering outside
+    this context manager leaves a session behind and the next ``TaskInstance.run`` anywhere in
+    the process fails with "Session already set for this task". Airflow 3 renders without a
+    session, so there is nothing to set.
+    """
+    if AIRFLOW_V_3_0_PLUS:
+        yield
+        return
+    with create_session() as session, set_current_task_instance_session(session=session):
+        yield
 
 
 def create_context(task, persist_to_db=False, map_index=None):
@@ -461,7 +482,8 @@ class TestKubernetesPodOperator:
         context = create_context(mapped, map_index=0)
         context.update({"dag_run": context["ti"].dag_run, "foo": "footemplated", "bar": "bartemplated"})
 
-        mapped.render_template_fields(context)
+        with task_instance_session():
+            mapped.render_template_fields(context)
 
         rendered = context["task"]
         assert rendered.env_vars[0].name == "bartemplated"

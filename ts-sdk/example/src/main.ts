@@ -17,11 +17,12 @@
  * under the License.
  */
 
-import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "apache-airflow-ts-sdk";
+import { Dag, DagRegistry, getClient, serveDags } from "apache-airflow-ts-sdk";
 
 const dag = new Dag("typescript_example");
 
-export async function buildMessage({ client }: TaskHandlerArgs) {
+export async function buildMessage() {
+  const client = getClient();
   const upstream = await client.getXCom<string>({
     key: "return_value",
     taskId: "python_start",
@@ -37,8 +38,8 @@ export async function buildMessage({ client }: TaskHandlerArgs) {
   };
 }
 
-export async function readConnection({ client }: TaskHandlerArgs) {
-  const connection = await client.getConnection("typescript_example_http");
+export async function readConnection() {
+  const connection = await getClient().getConnection("typescript_example_http");
 
   return {
     id: connection?.id ?? null,
