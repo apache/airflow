@@ -24,10 +24,16 @@ The ``pydanticai_vertex`` connection type configures access to
 `Google Vertex AI <https://cloud.google.com/vertex-ai>`__ via the pydantic-ai
 framework. It backs ``PydanticAIVertexHook``, the dedicated subclass of
 ``PydanticAIHook`` for Google Cloud's project/location/service-account
+<<<<<<< HEAD
 credential shape, which does not fit the plain ``api_key`` + ``base_url``
 shape that the generic :doc:`pydantic_ai` connection assumes. All fields live
 in ``extra``; the ``password`` and ``host`` fields are hidden in the connection
 form.
+=======
+credential shape. The generic :doc:`pydantic_ai` connection can use the same
+credentials when they are supplied in ``extra``. This dedicated connection type
+exposes them as form inputs and hides the ``password`` and ``host`` fields.
+>>>>>>> 72f237a98b (warn origin error, fix docs)
 
 .. note::
 
