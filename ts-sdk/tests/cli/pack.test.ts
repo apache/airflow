@@ -188,7 +188,7 @@ describe("runPack", () => {
     if (outdir) rmSync(outdir, { recursive: true, force: true });
   });
 
-  it("bundles the entry and embeds metadata from the bundle's registry", async () => {
+  it("bundles the entry and embeds metadata from the bundle's bundle", async () => {
     outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
     const nested = path.join(outdir, "dist");
     await runPack([FIXTURE_ENTRY, "--outdir", nested]);
@@ -272,10 +272,10 @@ describe("runPack", () => {
     writeFileSync(
       entry,
       [
-        `import { Dag, DagRegistry, serveDags } from ${JSON.stringify(SDK_INDEX)};`,
+        `import { Bundle, Dag } from ${JSON.stringify(SDK_INDEX)};`,
         'const bigDag = new Dag("big_dag");',
         'for (let i = 0; i < 5000; i += 1) bigDag.task(String(i).padStart(240, "t"), async () => undefined);',
-        "await serveDags(new DagRegistry(bigDag));",
+        "await new Bundle(bigDag).serve();",
       ].join("\n"),
     );
 
@@ -315,10 +315,10 @@ describe("runPack", () => {
     writeFileSync(
       entry,
       [
-        `import { Dag, DagRegistry, serveDags } from ${JSON.stringify(SDK_INDEX)};`,
+        `import { Bundle, Dag } from ${JSON.stringify(SDK_INDEX)};`,
         `const suspiciousDag = new Dag(${JSON.stringify(dagId)});`,
         `suspiciousDag.task(${JSON.stringify(taskId)}, async () => undefined);`,
-        "await serveDags(new DagRegistry(suspiciousDag));",
+        "await new Bundle(suspiciousDag).serve();",
       ].join("\n"),
     );
     const stderr = captureStderr();
@@ -382,10 +382,10 @@ describe("runPack", () => {
     writeFileSync(
       entry,
       [
-        `import { Dag, DagRegistry, serveDags } from ${JSON.stringify(SDK_INDEX)};`,
+        `import { Bundle, Dag } from ${JSON.stringify(SDK_INDEX)};`,
         'const salesDag = new Dag("sales_dag");',
         'salesDag.task("extract", async () => undefined);',
-        'await serveDags(new DagRegistry(salesDag, new Dag("empty_dag")));',
+        'await new Bundle(salesDag, new Dag("empty_dag")).serve();',
       ].join("\n"),
     );
     const stderr = captureStderr();
@@ -399,18 +399,18 @@ describe("runPack", () => {
     );
   });
 
-  it("packs only the Dags the served registry holds", async () => {
+  it("packs only the Dags the served bundle holds", async () => {
     outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
     const entry = path.join(outdir, "forgotten-entry.ts");
     writeFileSync(
       entry,
       [
-        `import { Dag, DagRegistry, serveDags } from ${JSON.stringify(SDK_INDEX)};`,
+        `import { Bundle, Dag } from ${JSON.stringify(SDK_INDEX)};`,
         'const salesDag = new Dag("sales_dag");',
         'salesDag.task("extract", async () => undefined);',
         'const billingDag = new Dag("billing_dag");',
         'billingDag.task("charge", async () => undefined);',
-        "await serveDags(new DagRegistry(salesDag));",
+        "await new Bundle(salesDag).serve();",
       ].join("\n"),
     );
 

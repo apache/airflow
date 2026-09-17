@@ -36,15 +36,15 @@ import {
   startCoordinator,
 } from "../../src/coordinator/runtime.js";
 import { Dag } from "../../src/sdk/dag.js";
-import { DagRegistry } from "../../src/sdk/registry.js";
+import { Bundle } from "../../src/sdk/bundle.js";
 import { getClient, getContext } from "../../src/sdk/task.js";
 
 const testDag = new Dag("test_dag");
 const otherDag = new Dag("other_dag");
-// The registry the runtime dispatches through. startCoordinator() is driven
-// directly rather than through serveDags(), so these tests can supply mock
+// The bundle the runtime dispatches through. startCoordinator() is driven
+// directly rather than through bundle.serve(), so these tests can supply mock
 // socket addresses.
-const registry = new DagRegistry(testDag, otherDag);
+const bundle = new Bundle(testDag, otherDag);
 
 interface MockResult {
   firstResponse: { id: number; body: unknown; isResponse: boolean } | null;
@@ -150,7 +150,7 @@ async function driveSupervisor(initialFrame: unknown, responder?: Responder): Pr
   const commAccept = acceptOne(comm.server);
   const logsAccept = acceptOne(logs.server);
 
-  const runtimeDone = startCoordinator(registry, {
+  const runtimeDone = startCoordinator(bundle, {
     commAddr: `127.0.0.1:${comm.port}`,
     logsAddr: `127.0.0.1:${logs.port}`,
     argv: [],
@@ -221,7 +221,7 @@ describe("coordinator runtime integration", () => {
 
     const logsSockPromise = acceptOne(logs.server);
     const commSockPromise = acceptOne(comm.server);
-    const runtimeDone = startCoordinator(registry, {
+    const runtimeDone = startCoordinator(bundle, {
       commAddr: `127.0.0.1:${comm.port}`,
       logsAddr: `127.0.0.1:${logs.port}`,
       argv: [],
@@ -297,7 +297,7 @@ describe("coordinator runtime integration", () => {
     const logsAccept = acceptOne(logs.server);
 
     testDag.task("terminal_timeout", async () => undefined);
-    const runtimeDone = startCoordinator(registry, {
+    const runtimeDone = startCoordinator(bundle, {
       commAddr: `127.0.0.1:${comm.port}`,
       logsAddr: `127.0.0.1:${logs.port}`,
       argv: [],
