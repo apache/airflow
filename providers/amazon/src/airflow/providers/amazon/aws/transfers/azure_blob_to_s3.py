@@ -82,6 +82,8 @@ class AzureBlobStorageToS3Operator(BaseOperator):
         "prefix",
         "delimiter",
         "dest_s3_key",
+        "wasb_conn_id",
+        "aws_conn_id",
     )
 
     def __init__(

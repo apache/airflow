@@ -66,7 +66,15 @@ class FTPToS3Operator(BaseOperator):
         transfer. Default is True.
     """
 
-    template_fields: Sequence[str] = ("ftp_path", "s3_bucket", "s3_key", "ftp_filenames", "s3_filenames")
+    template_fields: Sequence[str] = (
+        "ftp_path",
+        "s3_bucket",
+        "s3_key",
+        "ftp_filenames",
+        "s3_filenames",
+        "ftp_conn_id",
+        "aws_conn_id",
+    )
 
     def __init__(
         self,

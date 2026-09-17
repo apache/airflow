@@ -86,6 +86,7 @@ class CloudMonitoringListAlertPoliciesOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "filter_",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     operator_extra_links = (CloudMonitoringPoliciesLink(),)
     ui_color = "#e5ffcc"
@@ -186,6 +187,7 @@ class CloudMonitoringEnableAlertPoliciesOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "filter_",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     operator_extra_links = (CloudMonitoringPoliciesLink(),)
 
@@ -268,6 +270,7 @@ class CloudMonitoringDisableAlertPoliciesOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "filter_",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     operator_extra_links = (CloudMonitoringPoliciesLink(),)
 
@@ -347,6 +350,7 @@ class CloudMonitoringUpsertAlertOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "alerts",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     template_ext: Sequence[str] = (".json",)
     operator_extra_links = (CloudMonitoringPoliciesLink(),)
@@ -427,6 +431,7 @@ class CloudMonitoringDeleteAlertOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "name",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     ui_color = "#e5ffcc"
@@ -517,6 +522,7 @@ class CloudMonitoringListNotificationChannelsOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "filter_",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     operator_extra_links = (CloudMonitoringNotificationsLink(),)
 
@@ -616,6 +622,7 @@ class CloudMonitoringEnableNotificationChannelsOperator(GoogleCloudBaseOperator)
     template_fields: Sequence[str] = (
         "filter_",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     operator_extra_links = (CloudMonitoringNotificationsLink(),)
 
@@ -700,6 +707,7 @@ class CloudMonitoringDisableNotificationChannelsOperator(GoogleCloudBaseOperator
     template_fields: Sequence[str] = (
         "filter_",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     operator_extra_links = (CloudMonitoringNotificationsLink(),)
 
@@ -785,6 +793,7 @@ class CloudMonitoringUpsertNotificationChannelOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "channels",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     template_ext: Sequence[str] = (".json",)
     operator_extra_links = (CloudMonitoringNotificationsLink(),)
@@ -867,6 +876,7 @@ class CloudMonitoringDeleteNotificationChannelOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "name",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     ui_color = "#e5ffcc"

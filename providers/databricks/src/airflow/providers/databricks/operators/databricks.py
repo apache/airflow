@@ -1848,6 +1848,8 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
     :param retry_on_timeout: Whether Databricks retries timed-out tasks.
     """
 
+    template_fields: Sequence[str] = ("databricks_conn_id",)
+
     def __init__(
         self,
         caller: str = "DatabricksTaskBaseOperator",
@@ -2399,6 +2401,7 @@ class DatabricksNotebookOperator(DatabricksTaskBaseOperator):
         "max_retries",
         "min_retry_interval_millis",
         "retry_on_timeout",
+        "databricks_conn_id",
     )
     CALLER = "DatabricksNotebookOperator"
 

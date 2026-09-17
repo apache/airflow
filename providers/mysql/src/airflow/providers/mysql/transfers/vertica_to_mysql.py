@@ -62,7 +62,14 @@ class VerticaToMySqlOperator(BaseOperator):
         server must support loading local files via this command (it is disabled by default).
     """
 
-    template_fields: Sequence[str] = ("sql", "mysql_table", "mysql_preoperator", "mysql_postoperator")
+    template_fields: Sequence[str] = (
+        "sql",
+        "mysql_table",
+        "mysql_preoperator",
+        "mysql_postoperator",
+        "vertica_conn_id",
+        "mysql_conn_id",
+    )
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {
         "sql": "sql",
