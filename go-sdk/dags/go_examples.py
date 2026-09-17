@@ -54,7 +54,8 @@ default Python executor and are independent of the bundle.
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
+from uuid import UUID
 
 from airflow.sdk import dag, task
 
@@ -165,6 +166,11 @@ def via_struct_map(payload: dict): ...
 def via_plain_map(labels: dict): ...
 
 
+# Annotations select native Go types.
+@task.stub(queue="golang")
+def via_temporal_args(when: datetime, window: timedelta, trace_id: UUID): ...
+
+
 @dag(dag_id="taskflow_binding_dag")
 def taskflow_binding_dag():
     """
@@ -184,6 +190,7 @@ def taskflow_binding_dag():
       default no Go field claims.
     * ``via_flat_map`` / ``via_struct_map`` / ``via_plain_map``: one dict bound
       whole into a struct, onto a struct's map field, and into a plain Go map.
+    * ``via_temporal_args``: formatted strings bound to native temporal and UUID types.
 
     Each ``via_struct_*`` call mixes a ``threshold`` literal with ``make_region``'s
     XCom, so struct fields are proven against both argument sources. The Go
@@ -205,6 +212,12 @@ def taskflow_binding_dag():
     via_flat_map(config={"region": "eu-west-1", "count": 3})
     via_struct_map(payload={"region": "eu-west-1", "count": 3})
     via_plain_map(labels={"team": "data", "tier": "gold"})
+    # Cross-runtime arguments use JSON strings.
+    via_temporal_args(
+        when="2024-01-02T03:04:05Z",
+        window="PT5M",
+        trace_id="6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+    )
 
 
 taskflow_binding_dag()

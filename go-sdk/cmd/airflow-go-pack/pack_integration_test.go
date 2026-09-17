@@ -166,6 +166,7 @@ dags:
       - "via_flat_map"
       - "via_struct_map"
       - "via_plain_map"
+      - "via_temporal_args"
 `
 	assert.Equal(t, expectedManifest, string(metadata))
 

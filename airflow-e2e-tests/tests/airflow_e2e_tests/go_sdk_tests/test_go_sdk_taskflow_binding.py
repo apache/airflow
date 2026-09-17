@@ -83,6 +83,7 @@ def test_all_tasks_succeeded(completed_run: _CompletedRun):
         "via_flat_map",
         "via_struct_map",
         "via_plain_map",
+        "via_temporal_args",
     ):
         assert completed_run.ti_states.get(task_id) == "success", completed_run.ti_states
 
@@ -168,3 +169,13 @@ def test_via_plain_map_decodes_dict_into_a_typed_map(completed_run: _CompletedRu
     """``via_plain_map`` passes one dict literal onto a Go ``map[string]string``
     parameter, so it decodes with no struct involved at all."""
     assert completed_run.xcom("via_plain_map") == {"team": "data", "tier": "gold"}
+
+
+def test_via_temporal_args_binds_formatted_strings_onto_native_go_types(
+    completed_run: _CompletedRun,
+):
+    assert completed_run.xcom("via_temporal_args") == {
+        "when": "2024-01-02T03:04:05Z",
+        "window_seconds": 300,
+        "trace_id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+    }

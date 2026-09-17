@@ -21,7 +21,9 @@ import (
 	"context"
 	"log/slog"
 	"testing"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -177,4 +179,36 @@ func TestViaPlainMapRejectsWrongBinding(t *testing.T) {
 	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
 	_, err := ViaPlainMap(ctx, slog.Default(), map[string]string{"team": "wrong"})
 	assert.ErrorContains(t, err, "plain map bound incorrectly")
+}
+
+func TestViaTemporalArgs(t *testing.T) {
+	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
+	got, err := ViaTemporalArgs(
+		ctx, slog.Default(),
+		time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC),
+		5*time.Minute,
+		uuid.MustParse("6ba7b810-9dad-11d1-80b4-00c04fd430c8"),
+	)
+	require.NoError(t, err)
+
+	summary, ok := got.(map[string]any)
+	require.True(t, ok, "ViaTemporalArgs should return a map summary, got %T", got)
+	assert.Equal(t, "2024-01-02T03:04:05Z", summary["when"])
+	assert.Equal(t, 300.0, summary["window_seconds"])
+	assert.Equal(t, "6ba7b810-9dad-11d1-80b4-00c04fd430c8", summary["trace_id"])
+}
+
+func TestViaTemporalArgsRejectsWrongBinding(t *testing.T) {
+	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
+	trace := uuid.MustParse("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
+	when := time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC)
+
+	_, err := ViaTemporalArgs(ctx, slog.Default(), when.Add(time.Hour), 5*time.Minute, trace)
+	assert.ErrorContains(t, err, "datetime bound incorrectly")
+
+	_, err = ViaTemporalArgs(ctx, slog.Default(), when, 300, trace)
+	assert.ErrorContains(t, err, "timedelta bound incorrectly")
+
+	_, err = ViaTemporalArgs(ctx, slog.Default(), when, 5*time.Minute, uuid.Nil)
+	assert.ErrorContains(t, err, "UUID bound incorrectly")
 }
