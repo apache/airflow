@@ -49,6 +49,44 @@ class TestS3ToFTPOperator:
         mock_s3_hook_get_key.return_value.download_fileobj.assert_called_once_with(mock_local_tmp_file_value)
         mock_ftp_hook_store_file.assert_called_once_with(operator.ftp_path, mock_local_tmp_file_value.name)
 
+    @mock.patch.object(S3ToFTPOperator, "_download_from_s3")
+    @mock.patch("airflow.providers.amazon.aws.transfers.s3_to_ftp.FTPHook")
+    @mock.patch("airflow.providers.amazon.aws.transfers.s3_to_ftp.S3Hook")
+    def test_execute_prefix_matches_and_replaces_only_leading_prefix(
+        self, mock_s3_hook_class, mock_ftp_hook_class, mock_download_from_s3
+    ):
+        mock_s3_hook = mock_s3_hook_class.return_value
+        mock_s3_hook.list_keys.return_value = [
+            "source/pre_one.txt",
+            "source/xpre_two.txt",
+            "source/pre_again_pre_.txt",
+        ]
+        operator = S3ToFTPOperator(
+            task_id=TASK_ID,
+            s3_bucket=BUCKET,
+            s3_key="source/",
+            ftp_path="/destination/",
+            s3_filenames="pre_",
+            ftp_filenames="new_",
+        )
+
+        operator.execute(None)
+
+        assert mock_download_from_s3.call_args_list == [
+            mock.call(
+                mock_s3_hook,
+                mock_ftp_hook_class.return_value,
+                "source/pre_one.txt",
+                "/destination/new_one.txt",
+            ),
+            mock.call(
+                mock_s3_hook,
+                mock_ftp_hook_class.return_value,
+                "source/pre_again_pre_.txt",
+                "/destination/new_again_pre_.txt",
+            ),
+        ]
+
 
 class TestS3ToFTPOperatorInit:
     """Unit tests for S3ToFTPOperator.__init__ that do not require an FTP server."""

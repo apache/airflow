@@ -109,16 +109,16 @@ class S3ToFTPOperator(BaseOperator):
                 self.log.info("Getting files in s3://%s/%s", self.s3_bucket, self.s3_key)
                 all_keys = s3_hook.list_keys(bucket_name=self.s3_bucket, prefix=self.s3_key) or []
                 filenames = [k[len(self.s3_key) :] for k in all_keys]
-                if self.s3_filenames == "*":
+                s3_prefix: str = self.s3_filenames
+                if s3_prefix == "*":
                     files = filenames
                 else:
-                    s3_prefix: str = self.s3_filenames
-                    files = [f for f in filenames if s3_prefix in f]
+                    files = [f for f in filenames if f.startswith(s3_prefix)]
 
                 for file in files:
                     self.log.info("Moving file %s", file)
                     if self.ftp_filenames and isinstance(self.ftp_filenames, str):
-                        ftp_filename = file.replace(self.s3_filenames, self.ftp_filenames)
+                        ftp_filename = file.replace(s3_prefix, self.ftp_filenames, 1)
                     else:
                         ftp_filename = file
                     self._download_from_s3(
