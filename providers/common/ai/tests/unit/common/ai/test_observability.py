@@ -17,11 +17,14 @@
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import pytest
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from pydantic_ai import Agent
 from pydantic_ai.models.test import TestModel
 
 from airflow.providers.common.ai import observability
@@ -141,3 +144,66 @@ class TestEndToEndSpanEmission:
         assert genai
         # With the opt-in, the prompt text is present on the spans.
         assert self._PROMPT in attrs_blob
+
+
+class TestBuildRunIdentityAttributes:
+    @pytest.mark.parametrize(("map_index", "expected_map_index"), [(3, 3), (None, -1)])
+    def test_builds_expected_attributes(self, map_index, expected_map_index):
+        ti = SimpleNamespace(
+            id="ti-1", dag_id="d", task_id="t", run_id="r", try_number=2, map_index=map_index
+        )
+        assert observability.build_run_identity_attributes(ti) == {
+            "airflow.dag_id": "d",
+            "airflow.task_id": "t",
+            "airflow.dag_run.run_id": "r",
+            "airflow.task_instance.try_number": 2,
+            "airflow.task_instance.map_index": expected_map_index,
+            "airflow.task_instance.id": "ti-1",
+        }
+
+
+class TestStampIdentityOnAgentSpans:
+    _ATTRS = {
+        "airflow.dag_id": "d",
+        "airflow.task_id": "t",
+        "airflow.dag_run.run_id": "r",
+        "airflow.task_instance.try_number": 2,
+        "airflow.task_instance.map_index": -1,
+        "airflow.task_instance.id": "ti-xyz",
+    }
+
+    def test_attributes_and_run_id_land_on_genai_spans(self):
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+
+        hook = PydanticAIHook(llm_conn_id="c", model_id="test")
+        with (
+            patch.object(observability, "conf", _conf(enabled=True)),
+            patch.object(observability, "_live_tracer_provider", return_value=provider),
+            patch.object(hook, "get_conn", return_value=TestModel()),
+        ):
+            agent = hook.create_agent(instructions="be helpful")
+            observability.stamp_identity_on_agent_spans(agent, self._ATTRS)
+            agent.run_sync("hi", run_id="ti-xyz")
+
+        genai = [
+            s
+            for s in exporter.get_finished_spans()
+            if s.attributes and any(k.startswith("gen_ai.") for k in s.attributes)
+        ]
+        assert genai, "expected gen_ai spans to be emitted"
+        # Every GenAI span carries the full Airflow identity, not just the agent-run span.
+        for span in genai:
+            for key, value in self._ATTRS.items():
+                assert span.attributes.get(key) == value
+        # run_id passed to the run surfaces as the OTel agent-call id.
+        assert any(s.attributes.get("gen_ai.agent.call.id") == "ti-xyz" for s in genai)
+
+    def test_noop_when_agent_not_instrumented(self):
+        # A non-InstrumentationSettings ``instrument`` (here ``False``) is left
+        # untouched: stamping must not wrap it or raise.
+        agent = Agent(TestModel())
+        agent.instrument = False
+        observability.stamp_identity_on_agent_spans(agent, self._ATTRS)
+        assert agent.instrument is False
