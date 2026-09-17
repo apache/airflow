@@ -37,7 +37,7 @@
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "找不到任务。",
-      "title": "受影响的任务: {{count}}"
+      "title": "受影响的任务：{{count}}"
     },
     "clear": {
       "button": "清除 {{type}}",
@@ -95,18 +95,18 @@
   },
   "schedulingActions": {
     "cancelDrain": "恢复调度",
-    "drain": "排空后暂停",
-    "drainPrompt": "此 Dag 有正在进行的 Dag 执行。排空会等待这些执行完成后再暂停 Dag；立即暂停则会马上停止调度，不等待它们完成。",
+    "drain": "完成后暂停",
+    "drainPrompt": "此 Dag 有正在进行的 Dag 执行。您可以等待这些执行全部完成后再暂停 Dag，或立即停止调度而不等待它们完成。",
     "pauseNow": "立即暂停"
   },
   "schedulingBanner": {
-    "message": "此 Dag 正在排空，将在其运行中的 Dag 执行完成后暂停。"
+    "message": "此 Dag 将在当前的 Dag 执行全部完成后自动暂停。"
   },
   "schedulingState": {
     "active": "已启用",
-    "draining": "排空中",
-    "drainingBadgeTooltip": "此 Dag 将在其运行中的 Dag 执行完成后暂停。",
-    "drainingTooltip": "正在排空 {{dagDisplayName}}，将在运行中的 Dag 执行完成后暂停。点击可恢复调度。",
+    "draining": "完成后将暂停",
+    "drainingBadgeTooltip": "此 Dag 将在当前的 Dag 执行全部完成后自动暂停。",
+    "drainingTooltip": "{{dagDisplayName}} 将在当前的 Dag 执行全部完成后自动暂停。点击可恢复调度。",
     "label": "调度状态",
     "paused": "暂停",
     "placeholder": "选择调度状态..."
@@ -124,16 +124,16 @@
       "desc": "按显示名称排序 (Z-A)"
     },
     "lastRunAfter": {
-      "asc": "按上次执行的最早可执行时间排序 (从早到晚)",
-      "desc": "按上次执行的最早可执行时间排序 (从晚到早)"
+      "asc": "按上次执行的最早可执行时间排序（从早到晚）",
+      "desc": "按上次执行的最早可执行时间排序（从晚到早）"
     },
     "lastRunState": {
       "asc": "按上次执行状态排序 (A-Z)",
       "desc": "按上次执行状态排序 (Z-A)"
     },
     "nextDagRun": {
-      "asc": "按下次执行时间排序 (由近而远)",
-      "desc": "按下次执行时间排序 (由远而近)"
+      "asc": "按下次执行时间排序（由近而远）",
+      "desc": "按下次执行时间排序（由远而近）"
     },
     "placeholder": "排序方式"
   },

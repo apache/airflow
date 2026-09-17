@@ -55,7 +55,7 @@
   "configForm": {
     "advancedOptions": "高级选项",
     "configJson": "配置 JSON",
-    "invalidJson": "无效的 JSON 格式: {{errorMessage}}"
+    "invalidJson": "无效的 JSON 格式：{{errorMessage}}"
   },
   "dagWarnings": {
     "error_one": "1 个错误",
@@ -71,7 +71,7 @@
     }
   },
   "durationChart": {
-    "duration": "持续时间 (秒)",
+    "duration": "持续时间（秒）",
     "lastDagRun_one": "最近 1 次 Dag 执行",
     "lastDagRun_other": "最近 {{count}} 次 Dag 执行",
     "lastTaskInstance_one": "最近 1 次任务实例",

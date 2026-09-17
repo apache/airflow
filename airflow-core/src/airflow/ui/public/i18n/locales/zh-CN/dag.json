@@ -100,7 +100,7 @@
       "placeholder": "搜索日志..."
     },
     "settings": "日志设置",
-    "viewInExternal": "在 {{name}} 中查看日志(重试 {{attempt}})",
+    "viewInExternal": "在 {{name}} 中查看日志（重试 {{attempt}}）",
     "warning": "WARNING"
   },
   "notFound": {
@@ -151,7 +151,7 @@
     },
     "graphFilters": {
       "clearFilters": "清除筛选器",
-      "durationGte": "最短持续时间 (秒)",
+      "durationGte": "最短持续时间（秒）",
       "durationGteHint": "对于已映射任务，统计所有实例的总时长",
       "mapIndex": "最小映射索引",
       "mapIndexHint": "展开已映射任务，至少显示到此索引",

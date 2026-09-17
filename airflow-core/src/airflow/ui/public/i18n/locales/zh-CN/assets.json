@@ -34,7 +34,7 @@
     },
     "materialize": {
       "description": "触发此资源上游的 Dag",
-      "descriptionWithDag": "触发此资源上游的 Dag: {{dagName}}",
+      "descriptionWithDag": "触发此资源上游的 Dag：{{dagName}}",
       "label": "物化",
       "unpauseDag": "触发时取消暂停 {{dagName}}"
     },

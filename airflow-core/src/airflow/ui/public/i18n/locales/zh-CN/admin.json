@@ -169,7 +169,7 @@
     "import": {
       "button": "导入",
       "conflictResolution": "选择变量冲突解决方式",
-      "errorParsingJsonFile": "解析 JSON 文件时发生错误：请上传包含变量的 JSON 文件 (例如：{\"key\": \"value\", ...})。",
+      "errorParsingJsonFile": "解析 JSON 文件时发生错误：请上传包含变量的 JSON 文件（例如：{\"key\": \"value\", ...}）。",
       "options": {
         "fail": {
           "description": "如果检测到任何已存在的变量，则导入失败。",
@@ -187,7 +187,7 @@
       "parsingFile": "正在解析文件...",
       "title": "导入变量",
       "upload": "上传 JSON 文件",
-      "uploadPlaceholder": "上传包含变量的 JSON 文件 (例如：{\"key\": \"value\", ...})"
+      "uploadPlaceholder": "上传包含变量的 JSON 文件（例如：{\"key\": \"value\", ...}）"
     },
     "noRowsMessage": "找不到变量",
     "searchPlaceholder": "搜索键",
