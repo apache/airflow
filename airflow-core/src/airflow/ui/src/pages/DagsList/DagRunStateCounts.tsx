@@ -20,8 +20,11 @@ import { HStack, Portal, Skeleton, Tooltip } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type { DagRunState } from "openapi/requests/types.gen";
+
+import { RouterLink } from "src/system-components";
+
 import { StateBadge } from "src/components/StateBadge";
-import { RouterLink } from "src/components/ui";
+
 import { SearchParamsKeys } from "src/constants/searchParams";
 
 const DISPLAYED_STATES: ReadonlyArray<DagRunState> = ["success", "failed", "running", "queued"];

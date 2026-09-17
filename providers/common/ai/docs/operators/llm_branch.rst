@@ -98,16 +98,21 @@ matching
 teardown carve-out applies only to rejection: approving branches as usual,
 so a teardown that is not among the chosen branch(es) is skipped like any
 other unselected downstream task. Set ``fail_on_reject=True`` to fail the
-task on rejection instead (generally discouraged). Letting
-``approval_timeout`` expire fails the task (``HITLTimeoutError``).
+task on rejection instead (generally discouraged), or
+``ignore_downstream_trigger_rules=True`` to skip every downstream task rather
+than only the direct ones, so a task whose trigger rule would still run it is
+skipped too. Letting ``approval_timeout`` expire fails the task
+(``HITLTimeoutError``) unless ``on_approval_timeout`` answers the review for
+you; a timeout-driven rejection then skips downstream like any other rejection.
 
 ``require_approval=True`` requires a string prompt: a decorated callable
 returning a ``Sequence[UserContent]`` raises ``TypeError`` before the LLM
 call.
 
-Apart from ``fail_on_reject``, which is specific to this operator,
-``approval_timeout`` and the rest of the approval behaviour are inherited
-from :ref:`LLMOperator <howto/operator:llm>`.
+Apart from ``fail_on_reject`` and ``ignore_downstream_trigger_rules``, which
+are specific to this operator, ``approval_timeout``, ``on_approval_timeout``,
+and the rest of the approval behaviour are inherited from
+:ref:`LLMOperator <howto/operator:llm>`.
 
 How It Works
 ------------
@@ -137,10 +142,17 @@ Parameters
   branch(es) and waits for human review before branching.  Default ``False``.
 - ``approval_timeout``: Maximum time to wait for a review (``timedelta``).  ``None``
   means wait indefinitely.  Default ``None``.
+- ``on_approval_timeout``: Outcome when ``approval_timeout`` expires without a
+  review: ``"fail"`` (default), ``"approve"``, or ``"reject"``.  Requires
+  ``require_approval=True`` and a positive ``approval_timeout``.
 - ``allow_modifications``: If ``True``, the reviewer can change the chosen
   branch(es) before approving.  Default ``False``.
 - ``fail_on_reject``: If ``True``, a rejected review fails the task instead of
-  skipping the downstream tasks.  Generally discouraged.  Default ``False``.
+  skipping the downstream tasks.  Generally discouraged.  Only takes effect
+  with ``require_approval=True``.  Default ``False``.
+- ``ignore_downstream_trigger_rules``: If ``True``, a rejected review skips every
+  downstream task rather than only the direct ones.  Only takes effect with
+  ``require_approval=True``.  Default ``False``.
 
 Logging
 -------

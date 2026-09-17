@@ -20,9 +20,11 @@ import { useTranslation } from "react-i18next";
 import { FiBookOpen } from "react-icons/fi";
 
 import type { TaskResponse } from "openapi/requests/types.gen";
-import { TaskIcon } from "src/assets/TaskIcon";
+
 import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
+
+import { TaskIcon } from "src/assets/TaskIcon";
 
 export const Header = ({ task }: { readonly task: TaskResponse }) => {
   const { t: translate } = useTranslation();

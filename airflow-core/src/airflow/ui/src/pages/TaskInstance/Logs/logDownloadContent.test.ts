@@ -20,7 +20,9 @@ import type { TFunction } from "i18next";
 import { describe, expect, it } from "vitest";
 
 import type { TaskInstancesLogResponse } from "openapi/requests/types.gen";
+
 import { renderStructuredLog } from "src/components/renderStructuredLog";
+
 import { parseStreamingLogContent } from "src/utils/logs";
 
 /** Same construction as Logs.tsx getLogString (download path). */

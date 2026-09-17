@@ -16,16 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Flex, HStack, Text, Textarea, VStack } from "@chakra-ui/react";
 import type { ChangeEvent } from "react";
 import { useRef, useState } from "react";
+
+import { Box, Button, Flex, HStack, Text, Textarea, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiEdit, FiEye } from "react-icons/fi";
 
+import { Dialog, MARKDOWN_DIALOG_STORAGE_KEY, ResizableWrapper } from "src/system-components";
+
 import NoteIcon from "src/components/NoteIcon";
 import ReactMarkdown from "src/components/ReactMarkdown";
-import { Dialog } from "src/components/ui";
-import { MARKDOWN_DIALOG_STORAGE_KEY, ResizableWrapper } from "src/components/ui/ResizableWrapper";
 
 export const MAX_NOTE_LENGTH = 1000;
 

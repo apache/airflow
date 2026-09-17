@@ -153,13 +153,11 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
                 )
             )
             if task_instance is None:
-                raise AirflowException(
-                    "TaskInstance with dag_id: %s,task_id: %s, run_id: %s and map_index: %s is not found",
-                    ti.dag_id,
-                    ti.task_id,
-                    ti.run_id,
-                    ti.map_index,
+                msg = (
+                    f"TaskInstance with dag_id: {ti.dag_id}, task_id: {ti.task_id}, "
+                    f"run_id: {ti.run_id} and map_index: {ti.map_index} is not found"
                 )
+                raise AirflowException(msg)
             return task_instance
 
         async def get_task_state(self):
@@ -177,13 +175,11 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
             try:
                 task_state = task_states_response[ti.run_id][ti.task_id]
             except Exception:
-                raise AirflowException(
-                    "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
-                    ti.dag_id,
-                    ti.task_id,
-                    ti.run_id,
-                    ti.map_index,
+                msg = (
+                    f"TaskInstance with dag_id: {ti.dag_id}, task_id: {ti.task_id}, "
+                    f"run_id: {ti.run_id} and map_index: {ti.map_index} is not found"
                 )
+                raise AirflowException(msg)
             return task_state
 
         async def safe_to_cancel(self) -> bool:
@@ -311,13 +307,11 @@ class DataprocSubmitJobDirectTrigger(DataprocBaseTrigger):
                 )
             )
             if task_instance is None:
-                raise RuntimeError(
-                    "TaskInstance with dag_id: %s,task_id: %s, run_id: %s and map_index: %s is not found",
-                    ti.dag_id,
-                    ti.task_id,
-                    ti.run_id,
-                    ti.map_index,
+                msg = (
+                    f"TaskInstance with dag_id: {ti.dag_id}, task_id: {ti.task_id}, "
+                    f"run_id: {ti.run_id} and map_index: {ti.map_index} is not found"
                 )
+                raise RuntimeError(msg)
             return task_instance
 
         async def get_task_state(self):
@@ -335,13 +329,11 @@ class DataprocSubmitJobDirectTrigger(DataprocBaseTrigger):
             try:
                 task_state = task_states_response[ti.run_id][ti.task_id]
             except Exception:
-                raise RuntimeError(
-                    "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
-                    ti.dag_id,
-                    ti.task_id,
-                    ti.run_id,
-                    ti.map_index,
+                msg = (
+                    f"TaskInstance with dag_id: {ti.dag_id}, task_id: {ti.task_id}, "
+                    f"run_id: {ti.run_id} and map_index: {ti.map_index} is not found"
                 )
+                raise RuntimeError(msg)
             return task_state
 
         async def safe_to_cancel(self) -> bool:
@@ -456,13 +448,11 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
                 )
             )
             if task_instance is None:
-                raise AirflowException(
-                    "TaskInstance with dag_id: %s,task_id: %s, run_id: %s and map_index: %s is not found.",
-                    ti.dag_id,
-                    ti.task_id,
-                    ti.run_id,
-                    ti.map_index,
+                msg = (
+                    f"TaskInstance with dag_id: {ti.dag_id}, task_id: {ti.task_id}, "
+                    f"run_id: {ti.run_id} and map_index: {ti.map_index} is not found"
                 )
+                raise AirflowException(msg)
             return task_instance
 
     async def get_task_state(self):
@@ -480,13 +470,11 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
         try:
             task_state = task_states_response[ti.run_id][ti.task_id]
         except Exception:
-            raise AirflowException(
-                "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
-                ti.dag_id,
-                ti.task_id,
-                ti.run_id,
-                ti.map_index,
+            msg = (
+                f"TaskInstance with dag_id: {ti.dag_id}, task_id: {ti.task_id}, "
+                f"run_id: {ti.run_id} and map_index: {ti.map_index} is not found"
             )
+            raise AirflowException(msg)
         return task_state
 
     async def safe_to_cancel(self) -> bool:
@@ -550,7 +538,8 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
                     self.log.info("Deleted cluster %s during cancellation.", self.cluster_name)
             except Exception as e:
                 self.log.error("Error during cancellation handling: %s", e)
-                raise AirflowException("Error during cancellation handling: %s", e)
+                msg = f"Error during cancellation handling: {e}"
+                raise AirflowException(msg)
 
     async def fetch_cluster(self) -> Cluster:
         """Fetch the cluster status."""

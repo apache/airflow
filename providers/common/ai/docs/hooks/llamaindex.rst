@@ -33,6 +33,16 @@ singleton. Operators pass the resolved model directly to LlamaIndex
 constructors, so concurrent tasks in the same worker don't race on shared
 state.
 
+``get_llm()`` and ``get_embedding_model()`` return LlamaIndex's ``OpenAI`` /
+``OpenAIEmbedding`` classes, which validate ``model=`` client-side against
+LlamaIndex's OpenAI-only model-name allowlists before any request is sent.
+Pointing **host** at an Ollama or vLLM endpoint does not add support for
+those backends: their model names (e.g. ``llama3.2``) are never in the
+OpenAI allowlist, so the call fails on the model name, not on connectivity.
+``get_embedding_model()`` raises immediately at construction;
+``get_llm()`` defers the error until the first call that reads
+``.metadata`` (``.chat()`` / ``.complete()``).
+
 OpenAI by default, BYO for other vendors
 ----------------------------------------
 
@@ -73,8 +83,9 @@ The hook reads credentials from the Airflow connection of type ``llamaindex``:
 
 - **password** -- API key (passed as ``api_key`` to ``OpenAIEmbedding`` /
   ``OpenAI``).
-- **host** -- Optional base URL (passed as ``api_base``; useful for custom
-  OpenAI-compatible endpoints, Ollama, vLLM).
+- **host** -- Optional base URL (passed as ``api_base``). Only useful for
+  an OpenAI-compatible proxy that accepts OpenAI's exact model names (e.g.
+  an internal gateway) -- not Ollama or vLLM (see above).
 - **extra** JSON --
   ``{"embed_model": "text-embedding-3-small", "llm_model": "gpt-4o"}`` --
   default model identifiers stored on the connection.

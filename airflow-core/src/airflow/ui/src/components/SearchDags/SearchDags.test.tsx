@@ -22,6 +22,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DagService } from "openapi/requests/services.gen";
 import type { DAGWithLatestDagRunsCollectionResponse } from "openapi/requests/types.gen";
+
 import { TabEntity, TabName } from "src/constants/tab";
 import { BaseWrapper } from "src/utils/Wrapper";
 import type { DagSearchOption } from "src/utils/option";
@@ -191,6 +192,7 @@ describe("SearchDags", () => {
           fileloc: "/dags/new_dag.py",
           has_import_errors: false,
           has_task_concurrency_limits: false,
+          has_unfinished_runs: false,
           is_backfillable: false,
           is_favorite: false,
           is_paused: false,

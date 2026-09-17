@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Center, Flex } from "@chakra-ui/react";
 import { useRef, type ReactNode } from "react";
+
+import { Center, Flex } from "@chakra-ui/react";
 import { NavLink, useLocation } from "react-router-dom";
 
 import { useContainerWidth } from "src/utils";

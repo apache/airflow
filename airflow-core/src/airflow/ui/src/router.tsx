@@ -21,9 +21,10 @@ import { createBrowserRouter } from "react-router-dom";
 
 import { UseConfigServiceGetConfigsKeyFn } from "openapi/queries";
 import { ConfigService } from "openapi/requests/services.gen";
-import { TabEntity, TabName, TaskInstanceTab } from "src/constants/tab";
+
 import { BaseLayout } from "src/layouts/BaseLayout";
 import { DagsLayout } from "src/layouts/DagsLayout";
+
 import { Asset } from "src/pages/Asset";
 import { AssetEvents } from "src/pages/Asset/AssetEvents";
 import { AssetStateStore } from "src/pages/Asset/AssetStateStore";
@@ -37,6 +38,7 @@ import { Code } from "src/pages/Dag/Code";
 import { Details as DagDetails } from "src/pages/Dag/Details";
 import { Overview } from "src/pages/Dag/Overview";
 import { Tasks } from "src/pages/Dag/Tasks";
+import { DagBundles } from "src/pages/DagBundles";
 import { DagRuns } from "src/pages/DagRuns";
 import { DagsList } from "src/pages/DagsList";
 import { Dashboard } from "src/pages/Dashboard";
@@ -70,6 +72,8 @@ import { TaskInstances } from "src/pages/TaskInstances";
 import { TaskStateStore } from "src/pages/TaskStateStore";
 import { Variables } from "src/pages/Variables";
 import { XCom } from "src/pages/XCom";
+
+import { TabEntity, TabName, TaskInstanceTab } from "src/constants/tab";
 
 import { StorageLayout } from "./layouts/StorageLayout";
 import { client } from "./queryClient";
@@ -156,6 +160,10 @@ export const routerConfig = [
         path: "assets/:assetId",
       },
       {
+        element: <DagBundles />,
+        path: "dag_bundles",
+      },
+      {
         element: <Deadlines />,
         path: "deadlines",
       },
@@ -185,7 +193,7 @@ export const routerConfig = [
       },
       {
         element: <Security />,
-        path: "security/:page",
+        path: "security/:page/*",
       },
       {
         element: <Connections />,

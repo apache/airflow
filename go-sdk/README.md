@@ -194,6 +194,17 @@ func extract(ctx sdk.TIRunContext, log *slog.Logger) (any, error) {
 `TryNumber`; `ctx.DagRun()` returns `DagID`, `RunID`, and the `*time.Time` fields `LogicalDate`,
 `DataIntervalStart`, and `DataIntervalEnd` (nil when the run has no such value, e.g. a manual trigger).
 
+### Task logging
+
+In coordinator mode, the injected logger filters records using Airflow's configured `[logging] logging_level` before sending them to the supervisor. Airflow also propagates `[logging] namespace_levels`; use a group-scoped logger to set the namespace:
+
+```go
+databaseLog := log.WithGroup("example.database")
+databaseLog.Debug("query complete", "rows", 42)
+```
+
+Namespace levels use longest dotted-prefix matching, so an `example=DEBUG` override also applies to `example.database` unless a more specific override takes precedence.
+
 ## Deployment
 
 A Python task runner executes the Go task directly, with no separate Go worker process to run on the host.
@@ -312,9 +323,18 @@ The [`adr/`](./adr) directory records the design decisions behind the SDK:
   the executable *is* the bundle.
 - [ADR 0005](./adr/0005-retire-go-edge-worker.md): retire the standalone Go Edge Worker and make the
   coordinator the only execution path.
+- [ADR 0006](./adr/0006-mixed-lang-task-handler-interface.md): bundle registration and the Mixed Lang
+  task handler interface — `airflow.Bundle`/`Register`/`Serve`; Cross language TaskFlow: flat positional binding, `arg:` tagged structs, and the untagged folded-name fallback.
+- [ADR 0007](./adr/0007-native-dag-interface.md): the proposed Native Dag interface (`airflow.Dag`/
+  `dag.Task`/`airflow.Inputs`/`Before`-`After`)
 
 Cross-cutting Lang-SDK decisions — the coordinator architecture and how non-Python tasks integrate with
 Airflow core surfaces — are recorded in [`airflow-core/adr/lang-sdk/`](../airflow-core/adr/lang-sdk).
+Two of them shape the interfaces above:
+[ADR-0008](../airflow-core/adr/lang-sdk/0008-control-flow-constructs.md) for grouping, conditions,
+branching, and triggering a Dag run, and
+[ADR-0009](../airflow-core/adr/lang-sdk/0009-provider-operators-as-generated-dsl.md) for reaching
+Python provider operators from a native Dag.
 
 The normative, language-agnostic on-disk bundle format (the footer layout, manifest fields, and what the
 `ExecutableCoordinator` reads) is specified in

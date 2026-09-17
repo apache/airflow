@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Mark } from "@chakra-ui/react";
 import type { PropsWithChildren } from "react";
+
+import { Mark } from "@chakra-ui/react";
 
 import { splitBySearchQuery } from "./utils";
 

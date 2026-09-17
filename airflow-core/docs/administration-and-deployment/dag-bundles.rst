@@ -226,6 +226,57 @@ Starting Airflow 3.0.2 git is pre installed in the base image. However, if you a
   ENV GIT_PYTHON_REFRESH=quiet
 
 
+Monitoring Dag bundles
+----------------------
+
+The **Dag Bundles** page under *Browse* shows, for each bundle, the version Airflow currently holds,
+when a Dag processor last refreshed it, its import-error count, and whether it is still configured
+-- so you can tell whether a commit has been picked up without reading the Dag source. The page
+refreshes itself while open, and the same data is available at ``GET /api/v2/dagBundles`` for a
+deployment pipeline to poll.
+
+.. note::
+
+   Under the FAB auth manager the *Browse* entry needs a ``apache-airflow-providers-fab`` release
+   that maps the new menu item onto the ``DAGs`` resource; upgrade to the latest one if the entry is
+   missing. On an older release the lookup falls back to a FAB resource named after the menu item,
+   no such resource exists, and the entry is hidden for every role including ``Admin``. The page is
+   still reachable at ``/dag_bundles`` and the API is unaffected, so a missing *Browse* entry means
+   the provider needs upgrading, not that the feature is off.
+
+``version`` is whatever the bundle reports; for a Git Dag bundle it is the commit SHA of the tracking
+ref. Bundles that do not support versioning, such as ``LocalDagBundle``, report ``null``.
+
+``last_refreshed`` is the last *successful* refresh and advances whether or not the version changed.
+The cadence is the bundle's :ref:`config:dag_processor__refresh_interval`, checked every
+:ref:`config:dag_processor__bundle_refresh_check_interval`.
+
+Some caveats:
+
+* A failing refresh looks like one that is not due, since a refresh that raises is logged and leaves
+  ``last_refreshed`` at its last success. Check the Dag processor logs, and
+  ``/api/v2/jobs?job_type=DagProcessorJob`` for a live processor.
+* A new version does not mean the new Dags are running, because bundles are refreshed before their
+  Dags are parsed.
+* The version and the import-error count together cannot confirm that a particular commit parsed,
+  so do not treat the pair as a deployment-health check. Import errors are not recorded against a
+  version, a file whose parse exceeds
+  :ref:`config:dag_processor__dag_file_processor_timeout` is killed without writing an import-error
+  row at all, and the count only covers errors you are allowed to read. A count of zero therefore
+  means "nothing I can show you", not "this commit is healthy". To tie a running Dag to a commit,
+  read the Dag's version in ``/api/v2/dags/{dag_id}/dagVersions``.
+* With several Dag processors the row reflects whichever refreshed last, as they share one row per
+  bundle.
+* A bundle is listed for users who can read at least one Dag recorded against it. A bundle holding
+  no registered Dag at all -- a first deploy whose only file fails to import, for instance -- has no
+  Dag to authorize against, so it is listed only for users who may read import errors for files with
+  no registered Dag (``Admin`` by default under the FAB auth manager).
+
+``active`` is false when the bundle was missing from the configuration of whatever last ran a full
+sync, which also means processors that disagree about ``dag_bundle_config_list`` will deactivate
+each other's bundles. An inactive bundle keeps its last version and timestamp, frozen rather than
+current.
+
 Using DAG Bundles with User Impersonation
 -----------------------------------------
 
