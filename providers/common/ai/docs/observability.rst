@@ -117,8 +117,3 @@ for a managed cloud or enterprise self-hosted deployment, or
 `Arize Phoenix <https://arize.com/docs/phoenix/tracing/tutorial/your-first-traces>`__
 for an open-source, self-hosted workflow. The integration guides provide the
 endpoint and authentication settings for each destination.
-
-After collecting traces, see the `LLM evaluation guide <https://arize.com/resources/llm-evaluation/>`__
-for general model and application evaluation, or the
-`agent evaluation guide <https://arize.com/guides/ai-agent-handbook/agent-evaluation/>`__
-for tool-using and multi-step agent workflows.
