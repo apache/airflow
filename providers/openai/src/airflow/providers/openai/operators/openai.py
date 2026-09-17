@@ -150,8 +150,11 @@ class OpenAIResponseOperator(BaseOperator):
 
     When ``do_xcom_push`` is enabled (the default), ``execute`` also pushes two XCom keys:
     ``response_id`` (the response's ID) and ``usage`` (the result of
-    ``ResponseUsage.model_dump()``, or ``None`` when the API omits it). Both are skipped
-    when ``do_xcom_push=False``.
+    ``ResponseUsage.model_dump()``, or ``None`` when the API omits it). When ``usage`` is
+    not ``None`` it also carries a ``try_number`` key recording which attempt produced it --
+    XCom is cleared at the start of every attempt, so this makes it visible that the value
+    only reflects the current attempt rather than a silently under-reported total across
+    retries. Both XCom pushes are skipped when ``do_xcom_push=False``.
     """
 
     template_fields: Sequence[str] = ("input_text", "response_kwargs", "max_output_tokens", "max_tool_calls")
@@ -322,7 +325,16 @@ class OpenAIResponseOperator(BaseOperator):
             # model_dump (not a hand-picked field list) keeps a token-usage dimension
             # the API adds later from being silently dropped; mode="json" keeps the
             # value XCom-serializable.
-            usage = response.usage.model_dump(mode="json") if response.usage is not None else None
+            #
+            # XCom is cleared at the start of every attempt, so this key only ever holds
+            # the last one. Stamping the attempt makes that visible rather than silently
+            # under-reporting total spend across retries. Built as a new dict rather than
+            # mutating what model_dump() returned.
+            usage = (
+                {**response.usage.model_dump(mode="json"), "try_number": context["ti"].try_number}
+                if response.usage is not None
+                else None
+            )
             context["ti"].xcom_push(key="usage", value=usage)
         return response.output_text
 

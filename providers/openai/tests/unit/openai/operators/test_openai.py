@@ -87,11 +87,12 @@ def test_execute_with_invalid_input(invalid_input):
         operator.execute(context)
 
 
-def _build_execute_context() -> Context:
+def _build_execute_context(try_number: int = 1) -> Context:
     # OpenAIResponseOperator.execute pushes to XCom through context["ti"], so a test that lets
     # execute run to completion has to put a task instance in the context.
     context = Context()
     context["ti"] = Mock()
+    context["ti"].try_number = try_number
     return context
 
 
@@ -138,6 +139,47 @@ def test_openai_response_operator_execute():
             "output_tokens": 7,
             "output_tokens_details": {"reasoning_tokens": 2},
             "total_tokens": 12,
+            "try_number": 1,
+        },
+    )
+
+
+def test_openai_response_operator_execute_records_try_number():
+    # Uses a non-default try_number so this test only passes if the "try_number" value in the
+    # pushed usage dict is actually read from context["ti"].try_number at execute time, not a
+    # value that happens to coincide with _build_execute_context()'s default of 1.
+    operator = OpenAIResponseOperator(
+        task_id=TASK_ID,
+        conn_id=CONN_ID,
+        input_text="Write a haiku.",
+        model="test_model",
+    )
+    mock_hook_instance = Mock(spec=OpenAIHook)
+    usage = ResponseUsage(
+        input_tokens=5,
+        input_tokens_details=InputTokensDetails(cached_tokens=1, cache_write_tokens=0),
+        output_tokens=7,
+        output_tokens_details=OutputTokensDetails(reasoning_tokens=2),
+        total_tokens=12,
+    )
+    mock_response = Mock(
+        spec=Response, output_text="haiku text", id="resp_123", status="completed", usage=usage
+    )
+    mock_hook_instance.create_response.return_value = mock_response
+    operator.hook = mock_hook_instance
+
+    context = _build_execute_context(try_number=3)
+    operator.execute(context)
+
+    context["ti"].xcom_push.assert_any_call(
+        key="usage",
+        value={
+            "input_tokens": 5,
+            "input_tokens_details": {"cache_write_tokens": 0, "cached_tokens": 1},
+            "output_tokens": 7,
+            "output_tokens_details": {"reasoning_tokens": 2},
+            "total_tokens": 12,
+            "try_number": 3,
         },
     )
 

@@ -59,7 +59,11 @@ treating ``input_tokens`` as a single uniformly priced count -- see OpenAI's `pr
 caching guide <https://platform.openai.com/docs/guides/prompt-caching>`_ for how
 cached tokens are priced. Beyond that, ``usage`` reports token counts only -- OpenAI's
 response carries no cost field, so turning any of these counts into a price means
-multiplying by your own per-token rate. Setting ``do_xcom_push=False`` skips both pushes.
+multiplying by your own per-token rate. When ``usage`` is not ``None`` it also carries a
+``try_number`` key recording which attempt produced it -- XCom is cleared at the start of
+every attempt, so on a retried task instance the ``usage`` XCom only ever reflects the
+most recent attempt, and ``try_number`` makes that scope explicit instead of letting it
+silently under-report total spend across retries. Setting ``do_xcom_push=False`` skips both pushes.
 It also disables the operator's own ``return_value`` XCom (standard ``BaseOperator``
 behavior), so a downstream task reading ``openai_response.output`` -- which implicitly
 reads the ``return_value`` key -- loses that value too.
