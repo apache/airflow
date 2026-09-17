@@ -281,6 +281,10 @@ read or edit in place. The ``/*! */`` license banners of bundled dependencies ar
 a function name, so minified names are safe: a Dag and a task are named by the string ids their registration
 states, and a handler is dispatched by reference.
 
+Because the shipped code is not the code anyone wrote, the packer also embeds the entry module verbatim in a
+``/*# airflowSource ... #*/`` block comment, verified by its own digest, so Airflow has something readable to
+display for the Dag. Only the entry module is embedded, not the modules it imports.
+
 ``esbuild`` is an optional peer dependency: packing is build-time only, so the runtime install of
 ``apache-airflow-ts-sdk`` skips it, and it must be installed separately before running ``airflow-ts-pack``.
 
