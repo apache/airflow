@@ -50,10 +50,10 @@ _naming_convention = {
 
 
 def _get_live_bind():
-    """Return the connection to introspect, or ``None`` in offline (``--sql``) mode."""
-    # In --sql mode alembic swaps the connection for a MockConnection that writes to the output
-    # buffer, so op.get_bind() is never None there and sa.inspect() on it raises
-    # NoInspectionAvailable. as_sql is the only reliable way to tell the two modes apart.
+    """Return the live database connection, or ``None`` in offline (``--sql``) mode."""
+    # Do not reach for op.get_bind() directly: in --sql mode alembic swaps the connection for a
+    # MockConnection that writes to the output buffer, so it is never None there and sa.inspect()
+    # on it raises NoInspectionAvailable. as_sql is the only reliable discriminator.
     return None if op.get_context().as_sql else op.get_bind()
 
 

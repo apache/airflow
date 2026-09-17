@@ -352,6 +352,15 @@ try:
                     }
                     assert "idx_permission_view_id" not in index_names
                     assert "idx_role_id" not in index_names
+
+                    # The downgrade left no unique constraint on email at all, so this second
+                    # upgrade runs the drops against objects that are already gone — the state a
+                    # database is in after the revision failed part-way through.
+                    command.upgrade(config, revision="02ca36b0235b")
+                    uq_names = {
+                        uq["name"] for uq in sa.inspect(connection).get_unique_constraints("ab_register_user")
+                    }
+                    assert "ab_register_user_email_uq" in uq_names
             finally:
                 pymysql_engine.dispose()
                 current_revision = manager.get_current_revision()
