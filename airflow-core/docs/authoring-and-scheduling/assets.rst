@@ -691,7 +691,7 @@ the downstream Dag will not be triggered for that partition.
 
 The same applies when a mapper cannot transform a key. For example, if an
 upstream event has ``partition_key="random-text"`` and the downstream mapping
-uses ``DailyMapper`` (which expects a timestamp-like key), no downstream
+uses ``StartOfDayMapper`` (which expects a timestamp-like key), no downstream
 partition match can be produced, so the downstream Dag is not triggered for
 that key.
 

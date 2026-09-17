@@ -23,7 +23,17 @@ from unittest import mock
 import pytest
 
 from airflow.models import Connection
-from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
+from airflow.providers.common.compat.sdk import TaskDeferred
+from airflow.providers.microsoft.azure.exceptions import (
+    AzureBatchAutoScaleFormulaMissingError,
+    AzureBatchJobPreparationTaskMissingError,
+    AzureBatchLatestImageSpecIncompleteError,
+    AzureBatchPoolSizingConflictError,
+    AzureBatchPoolSizingMissingError,
+    AzureBatchRequiredParametersMissingError,
+    AzureBatchVmImageSpecIncompleteError,
+    AzureBatchVmPublisherMissingError,
+)
 from airflow.providers.microsoft.azure.hooks.batch import AzureBatchHook
 from airflow.providers.microsoft.azure.operators.batch import AzureBatchOperator
 from airflow.providers.microsoft.azure.triggers.batch import AzureBatchTrigger
@@ -145,6 +155,68 @@ class TestAzureBatchOperator:
             target_dedicated_nodes=1,
             timeout=2,
         )
+        self.operator_latest_image_incomplete = AzureBatchOperator(
+            task_id=TASK_ID,
+            batch_pool_id=BATCH_POOL_ID,
+            batch_pool_vm_size=BATCH_VM_SIZE,
+            batch_job_id=BATCH_JOB_ID,
+            batch_task_id=BATCH_TASK_ID,
+            vm_publisher=self.test_vm_publisher,
+            vm_sku=self.test_vm_sku,
+            vm_node_agent_sku_id=self.test_node_agent_sku,
+            batch_task_command_line="echo hello",
+            azure_batch_conn_id=self.test_vm_conn_id,
+            use_latest_verified_vm_image_and_sku=True,
+            target_dedicated_nodes=1,
+            timeout=2,
+        )
+        self.operator_vm_image_incomplete = AzureBatchOperator(
+            task_id=TASK_ID,
+            batch_pool_id=BATCH_POOL_ID,
+            batch_pool_vm_size=BATCH_VM_SIZE,
+            batch_job_id=BATCH_JOB_ID,
+            batch_task_id=BATCH_TASK_ID,
+            vm_publisher=self.test_vm_publisher,
+            vm_offer=self.test_vm_offer,
+            vm_node_agent_sku_id=self.test_node_agent_sku,
+            batch_task_command_line="echo hello",
+            azure_batch_conn_id=self.test_vm_conn_id,
+            target_dedicated_nodes=1,
+            timeout=2,
+        )
+        self.operator_sizing_conflict = AzureBatchOperator(
+            task_id=TASK_ID,
+            batch_pool_id=BATCH_POOL_ID,
+            batch_pool_vm_size=BATCH_VM_SIZE,
+            batch_job_id=BATCH_JOB_ID,
+            batch_task_id=BATCH_TASK_ID,
+            vm_publisher=self.test_vm_publisher,
+            vm_offer=self.test_vm_offer,
+            vm_sku=self.test_vm_sku,
+            vm_node_agent_sku_id=self.test_node_agent_sku,
+            batch_task_command_line="echo hello",
+            azure_batch_conn_id=self.test_vm_conn_id,
+            enable_auto_scale=True,
+            auto_scale_formula=FORMULA,
+            target_dedicated_nodes=1,
+            timeout=2,
+        )
+        self.operator_release_without_preparation = AzureBatchOperator(
+            task_id=TASK_ID,
+            batch_pool_id=BATCH_POOL_ID,
+            batch_pool_vm_size=BATCH_VM_SIZE,
+            batch_job_id=BATCH_JOB_ID,
+            batch_task_id=BATCH_TASK_ID,
+            vm_publisher=self.test_vm_publisher,
+            vm_offer=self.test_vm_offer,
+            vm_sku=self.test_vm_sku,
+            vm_node_agent_sku_id=self.test_node_agent_sku,
+            batch_task_command_line="echo hello",
+            azure_batch_conn_id=self.test_vm_conn_id,
+            target_dedicated_nodes=1,
+            batch_job_release_task=mock.MagicMock(),
+            timeout=2,
+        )
 
     @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
     def test_execute_without_failures(self, wait_mock):
@@ -166,7 +238,7 @@ class TestAzureBatchOperator:
     def test_execute_with_failures(self, wait_mock):
         wait_mock.return_value = True
         self.operator.batch_pool_id = None
-        with pytest.raises(AirflowException):
+        with pytest.raises(AzureBatchRequiredParametersMissingError):
             self.operator.execute(None)
 
     @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
@@ -181,7 +253,7 @@ class TestAzureBatchOperator:
     @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
     def test_operator_fails_no_dedicated_nodes_or_autoscale(self, wait_mock):
         wait_mock.return_value = True
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(AzureBatchPoolSizingMissingError) as ctx:
             self.operator_fail.execute(None)
         assert (
             str(ctx.value) == "Either target_dedicated_nodes or enable_auto_scale must be set. None was set"
@@ -190,16 +262,44 @@ class TestAzureBatchOperator:
     @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
     def test_operator_fails_no_formula(self, wait_mock):
         wait_mock.return_value = True
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(AzureBatchAutoScaleFormulaMissingError) as ctx:
             self.operator_no_formula.execute(None)
         assert str(ctx.value) == "The auto_scale_formula is required when enable_auto_scale is set"
 
     @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
     def test_operator_fails_invalid_args(self, wait_mock):
         wait_mock.return_value = True
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(AzureBatchVmPublisherMissingError) as ctx:
             self.operator_invalid.execute(None)
         assert str(ctx.value) == "You must specify vm_publisher"
+
+    @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
+    def test_operator_fails_latest_image_without_vm_offer(self, wait_mock):
+        wait_mock.return_value = True
+        with pytest.raises(AzureBatchLatestImageSpecIncompleteError) as ctx:
+            self.operator_latest_image_incomplete.execute(None)
+        assert "use_latest_image_and_sku" in str(ctx.value)
+
+    @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
+    def test_operator_fails_vm_publisher_without_vm_sku(self, wait_mock):
+        wait_mock.return_value = True
+        with pytest.raises(AzureBatchVmImageSpecIncompleteError) as ctx:
+            self.operator_vm_image_incomplete.execute(None)
+        assert "vm_sku" in str(ctx.value)
+
+    @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
+    def test_operator_fails_auto_scale_with_dedicated_nodes(self, wait_mock):
+        wait_mock.return_value = True
+        with pytest.raises(AzureBatchPoolSizingConflictError) as ctx:
+            self.operator_sizing_conflict.execute(None)
+        assert "must not be set" in str(ctx.value)
+
+    @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
+    def test_operator_fails_release_task_without_preparation_task(self, wait_mock):
+        wait_mock.return_value = True
+        with pytest.raises(AzureBatchJobPreparationTaskMissingError) as ctx:
+            self.operator_release_without_preparation.execute(None)
+        assert "batch_job_preparation_task" in str(ctx.value)
 
     def test_cleaning_works(self):
         self.operator.clean_up(job_id="myjob")

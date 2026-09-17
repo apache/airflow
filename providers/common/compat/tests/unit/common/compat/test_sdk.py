@@ -18,7 +18,11 @@
 
 from __future__ import annotations
 
+import builtins
+
 import pytest
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 
 def test_all_compat_imports_work():
@@ -44,6 +48,24 @@ def test_all_compat_imports_work():
         for name, error in failed_imports:
             error_msg += f"  - {name}: {error}\n"
         pytest.fail(error_msg)
+
+
+@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow < 3.0")
+@pytest.mark.parametrize("name", ["BaseBranchOperator", "BranchMixIn"])
+def test_branching_imports_work_without_standard_provider(name, monkeypatch):
+    """On Airflow 2 the standard provider is optional, so core paths must be used as fallback."""
+    from airflow.providers.common.compat import sdk
+
+    real_import = builtins.__import__
+
+    def fake_import(module_name, *args, **kwargs):
+        if module_name.startswith("airflow.providers.standard"):
+            raise ModuleNotFoundError(f"No module named {module_name!r}")
+        return real_import(module_name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+
+    assert getattr(sdk, name) is not None
 
 
 def test_invalid_import_raises_attribute_error():

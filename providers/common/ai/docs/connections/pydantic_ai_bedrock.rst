@@ -15,18 +15,41 @@
     specific language governing permissions and limitations
     under the License.
 
-.. _howto/connection:pydanticai-bedrock:
+.. _howto/connection:pydanticai_bedrock:
 
 Pydantic AI (AWS Bedrock) Connection
 =======================================
 
-The ``pydanticai-bedrock`` connection type configures access to
+The ``pydanticai_bedrock`` connection type configures access to
 `AWS Bedrock <https://aws.amazon.com/bedrock/>`__ via the pydantic-ai framework.
 It backs ``PydanticAIBedrockHook``, the dedicated subclass of ``PydanticAIHook``
 for Bedrock's AWS-style credentials — IAM keys, a bearer token, or the default
 credential chain — none of which fit the plain ``api_key`` + ``base_url`` shape
 that the generic :doc:`pydantic_ai` connection assumes. All fields live in
 ``extra``; the ``password`` and ``host`` fields are hidden in the connection form.
+
+.. note::
+
+    This connection type was previously named ``pydanticai-bedrock``.
+
+    Connections stored as a URI or as JSON need no change: ``-`` is how ``_`` is
+    encoded in a URI scheme, so ``pydanticai-bedrock`` is decoded to ``pydanticai_bedrock``
+    on read and resolves as before. That covers ``AIRFLOW_CONN_*`` environment
+    variables and secrets backends such as HashiCorp Vault, AWS Secrets Manager and
+    GCP Secret Manager.
+
+    A connection whose type is stored verbatim does need updating, because the
+    hyphen is preserved and no longer matches a registered hook. That means rows in
+    the metadata database, including any created through the UI, and connections
+    imported in object form from a local file:
+
+    .. code-block:: bash
+
+        airflow connections get <conn_id> -o json    # confirm conn_type is 'pydanticai-bedrock'
+        airflow connections delete <conn_id>
+        airflow connections add <conn_id> --conn-type pydanticai_bedrock ...
+
+    In the UI, edit the connection and re-pick its type.
 
 Default Connection IDs
 ----------------------
@@ -95,7 +118,7 @@ the instance role or environment:
 .. code-block:: json
 
     {
-        "conn_type": "pydanticai-bedrock",
+        "conn_type": "pydanticai_bedrock",
         "extra": "{\"model\": \"bedrock:us.anthropic.claude-opus-4-5\", \"region_name\": \"us-east-1\"}"
     }
 
@@ -104,7 +127,7 @@ the instance role or environment:
 .. code-block:: json
 
     {
-        "conn_type": "pydanticai-bedrock",
+        "conn_type": "pydanticai_bedrock",
         "extra": "{\"model\": \"bedrock:us.anthropic.claude-opus-4-5\", \"region_name\": \"us-east-1\", \"aws_access_key_id\": \"AKIA...\", \"aws_secret_access_key\": \"...\"}"
     }
 
@@ -113,6 +136,6 @@ the instance role or environment:
 .. code-block:: json
 
     {
-        "conn_type": "pydanticai-bedrock",
+        "conn_type": "pydanticai_bedrock",
         "extra": "{\"model\": \"bedrock:us.anthropic.claude-opus-4-5\", \"api_key\": \"<bearer-token>\"}"
     }
