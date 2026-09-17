@@ -167,7 +167,7 @@ If you want to control your task's state from within custom Task/Operator code, 
 These can be useful if your code has extra knowledge about its environment and wants to fail/skip faster - e.g., skipping when it knows there's no data available, or fast-failing when it detects its API key is invalid (as that will not be fixed by a retry).
 
 Infrastructure replacement attempts
-----------------------------------
+-----------------------------------
 
 Administrators can set :ref:`config:core__max_infra_retries` to grant additional attempts when an
 executor confirms that infrastructure stopped a task. The default is ``0``, which disables
