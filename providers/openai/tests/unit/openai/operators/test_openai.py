@@ -96,12 +96,20 @@ def _build_execute_context(try_number: int = 1) -> Context:
     return context
 
 
-def test_openai_response_operator_execute():
+@pytest.mark.parametrize(
+    ("do_xcom_push", "expected_push_count"),
+    [
+        pytest.param(True, 2, id="enabled"),
+        pytest.param(False, 0, id="disabled"),
+    ],
+)
+def test_openai_response_operator_execute_xcom_push(do_xcom_push, expected_push_count):
     operator = OpenAIResponseOperator(
         task_id=TASK_ID,
         conn_id=CONN_ID,
         input_text="Write a haiku.",
         model="test_model",
+        do_xcom_push=do_xcom_push,
         response_kwargs={"instructions": "Be concise.", "previous_response_id": "resp_prev"},
     )
     mock_hook_instance = Mock(spec=OpenAIHook)
@@ -112,10 +120,7 @@ def test_openai_response_operator_execute():
         output_tokens_details=OutputTokensDetails(reasoning_tokens=2),
         total_tokens=12,
     )
-    mock_response = Mock(
-        spec=Response, output_text="haiku text", id="resp_123", status="completed", usage=usage
-    )
-    mock_hook_instance.create_response.return_value = mock_response
+    mock_hook_instance.create_response.return_value = _build_completed_response(usage=usage)
     operator.hook = mock_hook_instance
 
     context = _build_execute_context()
@@ -130,18 +135,22 @@ def test_openai_response_operator_execute():
         instructions="Be concise.",
         previous_response_id="resp_prev",
     )
-    context["ti"].xcom_push.assert_any_call(key="response_id", value="resp_123")
-    context["ti"].xcom_push.assert_any_call(
-        key="usage",
-        value={
-            "input_tokens": 5,
-            "input_tokens_details": {"cache_write_tokens": 0, "cached_tokens": 1},
-            "output_tokens": 7,
-            "output_tokens_details": {"reasoning_tokens": 2},
-            "total_tokens": 12,
-            "try_number": 1,
-        },
-    )
+    # Pins the exact number of pushes so a stray extra key regresses this test instead of
+    # slipping through assert_any_call, which only checks presence, not exhaustiveness.
+    assert context["ti"].xcom_push.call_count == expected_push_count
+    if do_xcom_push:
+        context["ti"].xcom_push.assert_any_call(key="response_id", value="resp_123")
+        context["ti"].xcom_push.assert_any_call(
+            key="usage",
+            value={
+                "input_tokens": 5,
+                "input_tokens_details": {"cache_write_tokens": 0, "cached_tokens": 1},
+                "output_tokens": 7,
+                "output_tokens_details": {"reasoning_tokens": 2},
+                "total_tokens": 12,
+                "try_number": 1,
+            },
+        )
 
 
 def test_openai_response_operator_execute_records_try_number():
@@ -200,26 +209,6 @@ def test_openai_response_operator_execute_without_usage():
 
     assert result == "haiku text"
     context["ti"].xcom_push.assert_any_call(key="usage", value=None)
-
-
-def test_openai_response_operator_execute_skips_xcom_push_when_disabled():
-    operator = OpenAIResponseOperator(
-        task_id=TASK_ID,
-        conn_id=CONN_ID,
-        input_text="Write a haiku.",
-        model="test_model",
-        do_xcom_push=False,
-    )
-    mock_hook_instance = Mock(spec=OpenAIHook)
-    mock_response = Mock(spec=Response, output_text="haiku text", id="resp_123", status="completed")
-    mock_hook_instance.create_response.return_value = mock_response
-    operator.hook = mock_hook_instance
-
-    context = _build_execute_context()
-    result = operator.execute(context)
-
-    assert result == "haiku text"
-    context["ti"].xcom_push.assert_not_called()
 
 
 @pytest.mark.parametrize(
