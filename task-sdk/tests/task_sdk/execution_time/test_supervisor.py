@@ -4585,6 +4585,85 @@ class TestSignalRetryLogic:
 
         assert mock_watched_subprocess.final_state == TaskInstanceState.FAILED
 
+    @pytest.mark.parametrize("should_retry", [True, False])
+    def test_confirmed_terminal_state_takes_precedence_over_later_nonzero_exit_code(
+        self, mocker, should_retry
+    ):
+        """
+        A terminal state reported via message (e.g. SucceedTask) is authoritative even if the
+        subprocess is later killed with a genuinely non-zero exit code -- e.g.
+        `_handle_process_overtime_if_needed()` sending SIGTERM once `_terminal_state` is already
+        set. Regression test for https://github.com/apache/airflow/issues/65708.
+
+        Only `should_retry=False` actually reproduces the original crash: with
+        `should_retry=True` the pre-fix code already returned UP_FOR_RETRY, which is in
+        STATES_SENT_DIRECTLY, so `update_task_state_if_needed()` would already skip `.finish()`.
+        The crash needs `should_retry=False`, where the pre-fix code fell through to FAILED,
+        which is *not* in that set -- triggering a spurious `.finish()` call and a 409 against
+        the already-correct DB row. Both values are asserted here so the fix is pinned for
+        either configuration, not just the value that happens to match the new state.
+        """
+        mock_watched_subprocess = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=mocker.Mock(),
+        )
+        mock_watched_subprocess._terminal_state = TaskInstanceState.SUCCESS
+        mock_watched_subprocess._exit_code = 1  # genuinely observed, e.g. an exception in finalize()'s
+        # callbacks (task_runner.py's outer "except Exception ... sys.exit(1)")
+        mock_watched_subprocess._should_retry = should_retry
+
+        # Call update_task_state_if_needed() (and assert on its observable effect) before
+        # asserting on final_state itself: on pre-fix code, final_state ignores
+        # _terminal_state entirely and derives FAILED/UP_FOR_RETRY from the exit code alone,
+        # so the final_state assertion below already fails on base for both should_retry
+        # values -- if it ran first, pytest would stop there and finish.assert_not_called()
+        # would never execute against unfixed code, silently passing without pinning anything.
+        mock_watched_subprocess.update_task_state_if_needed()
+        mock_watched_subprocess.client.task_instances.finish.assert_not_called()
+
+        assert mock_watched_subprocess.final_state == TaskInstanceState.SUCCESS
+
+    @pytest.mark.parametrize("should_retry", [True, False])
+    def test_confirmed_skipped_state_persists_over_later_nonzero_exit_code(self, mocker, should_retry):
+        """
+        TaskState(SKIPPED) makes no direct API call (see `_handle_request`), so `finish()` is
+        the intended, not-yet-issued writer for that row -- unlike SUCCESS, there is no
+        already-written row to fall back on if the terminal state is lost. Regression test for
+        https://github.com/apache/airflow/issues/65708.
+
+        On pre-fix code, a later genuinely non-zero exit code (e.g. from
+        `_handle_process_overtime_if_needed()`'s SIGTERM) overrides the confirmed SKIPPED:
+        `should_retry=False` writes FAILED over what should have been SKIPPED, and
+        `should_retry=True` resolves to UP_FOR_RETRY and skips the write entirely, leaving the
+        row stuck RUNNING. Both values are asserted here so the fix is pinned either way.
+        """
+        mock_watched_subprocess = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=mocker.Mock(),
+        )
+        mock_watched_subprocess._terminal_state = TaskInstanceState.SKIPPED
+        mock_watched_subprocess._exit_code = 1  # genuinely observed, e.g. an exception in finalize()'s
+        # callbacks (task_runner.py's outer "except Exception ... sys.exit(1)")
+        mock_watched_subprocess._should_retry = should_retry
+
+        mock_watched_subprocess.update_task_state_if_needed()
+        mock_watched_subprocess.client.task_instances.finish.assert_called_once_with(
+            id=TI_ID,
+            state=TaskInstanceState.SKIPPED,
+            when=mocker.ANY,
+            rendered_map_index=None,
+        )
+
+        assert mock_watched_subprocess.final_state == TaskInstanceState.SKIPPED
+
 
 def test_remote_logging_conn_caches_connection_not_client(monkeypatch):
     """Test that connection caching doesn't retain API client references."""
