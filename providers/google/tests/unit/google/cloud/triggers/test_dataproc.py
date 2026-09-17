@@ -20,6 +20,7 @@ import asyncio
 import contextlib
 import logging
 from asyncio import CancelledError, Future, sleep
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
@@ -27,6 +28,7 @@ from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, Job, JobStat
 from google.protobuf.any_pb2 import Any
 from google.rpc.status_pb2 import Status
 
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.triggers.dataproc import (
     DataprocBatchTrigger,
     DataprocClusterTrigger,
@@ -37,7 +39,7 @@ from airflow.providers.google.cloud.triggers.dataproc import (
 from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
 from airflow.triggers.base import TriggerEvent
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
 
 TEST_PROJECT_ID = "project-id"
 TEST_REGION = "region"
@@ -377,6 +379,49 @@ class TestDataprocClusterTrigger:
 
         assert mock_delete_cluster.call_count == 0
         mock_delete_cluster.assert_not_called()
+
+    @pytest.mark.asyncio
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_0_PLUS, reason="The task state is read through the task SDK on Airflow 3 only"
+    )
+    @pytest.mark.parametrize("map_index", [-1, 3])
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_task_states", autospec=True)
+    async def test_get_task_state_missing_task_instance_reports_identifiers(
+        self, mock_get_task_states, cluster_trigger, map_index
+    ):
+        cluster_trigger.task_instance = SimpleNamespace(
+            dag_id="test_dag", task_id="test_task", run_id="test_run", map_index=map_index
+        )
+        mock_get_task_states.return_value = {}
+
+        with pytest.raises(AirflowException) as exc_info:
+            await cluster_trigger.get_task_state()
+
+        assert str(exc_info.value) == (
+            "TaskInstance with dag_id: test_dag, task_id: test_task, "
+            f"run_id: test_run and map_index: {map_index} is not found"
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger.get_async_hook")
+    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger.get_sync_hook")
+    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger.safe_to_cancel")
+    async def test_cluster_trigger_cancellation_failure_reports_cause(
+        self, mock_safe_to_cancel, mock_get_sync_hook, mock_get_async_hook, cluster_trigger
+    ):
+        mock_safe_to_cancel.return_value = True
+        mock_get_async_hook.return_value.get_cluster.return_value = Future()
+        mock_get_sync_hook.return_value.delete_cluster.side_effect = ValueError("cluster is already deleted")
+
+        async_gen = cluster_trigger.run()
+        task = asyncio.create_task(async_gen.__anext__())
+        await sleep(0)
+        task.cancel()
+
+        with pytest.raises(AirflowException) as exc_info:
+            await task
+
+        assert str(exc_info.value) == "Error during cancellation handling: cluster is already deleted"
 
 
 class TestDataprocBatchTrigger:

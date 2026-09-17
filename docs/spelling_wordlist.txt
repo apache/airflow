@@ -3,6 +3,7 @@ abc
 AbstractFileSystem
 AbstractToolset
 accessor
+accessors
 AccessSecretVersionResponse
 aci
 Ack
@@ -798,6 +799,7 @@ hiveserver
 hmsclient
 hoc
 homebrew
+honoured
 hookimpl
 hookspec
 HostAliases

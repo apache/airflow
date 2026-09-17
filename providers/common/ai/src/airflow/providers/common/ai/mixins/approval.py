@@ -22,6 +22,7 @@ import logging
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Protocol
 
+from jinja2 import TemplateError
 from pydantic import BaseModel, TypeAdapter
 
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_3_PLUS
@@ -34,6 +35,9 @@ if AIRFLOW_V_3_3_PLUS:
 log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from airflow.providers.common.compat.notifier import BaseNotifier
     from airflow.sdk import Context
 
 
@@ -43,6 +47,7 @@ class DeferForApprovalProtocol(Protocol):
     approval_timeout: timedelta | None
     allow_modifications: bool
     on_approval_timeout: Literal["fail", "approve", "reject"]
+    approval_notifiers: Sequence[BaseNotifier]
     prompt: str
     task_id: str
     defer: Any
@@ -69,12 +74,23 @@ class LLMApprovalMixin:
     task resumes as if a reviewer had chosen it.  The chosen option is also
     pre-highlighted for the reviewer in the HITL form.
 
+    ``approval_notifiers`` are called once the review is open, so a reviewer
+    learns about it without watching the Required Actions page, the way
+    :class:`~airflow.providers.standard.operators.hitl.HITLOperator` does with
+    ``notifiers``.  The review ``subject`` and ``body`` are exposed as
+    ``{{ task.subject }}`` and ``{{ task.body }}`` in notifier templates.  A
+    notifier whose delivery raises is logged without failing the task, while a
+    template error fails the task.  A retry re-runs the LLM and re-notifies
+    with the regenerated output, while the open review keeps the original
+    subject and body.
+
     Operators that use this mixin must set the following attributes:
 
     - ``require_approval`` (``bool``)
     - ``allow_modifications`` (``bool``)
     - ``approval_timeout`` (``timedelta | None``)
     - ``on_approval_timeout`` (``Literal["fail", "approve", "reject"]``)
+    - ``approval_notifiers`` (``Sequence[BaseNotifier]``)
     - ``prompt`` (``str``)
     """
 
@@ -175,6 +191,16 @@ class LLMApprovalMixin:
             multiple=False,
             params=hitl_params,
         )
+
+        self.subject = subject
+        self.body = body
+        for notifier in self.approval_notifiers:
+            try:
+                notifier({**context})
+            except TemplateError:
+                raise
+            except Exception:
+                log.exception("Approval notifier %s failed; the review stays open", notifier)
 
         if AIRFLOW_V_3_3_PLUS:
             # New core (3.3+): park the task in AWAITING_INPUT -- no trigger, no triggerer. The
