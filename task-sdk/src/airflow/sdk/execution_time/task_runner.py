@@ -2168,7 +2168,7 @@ def _send_error_email_notification(
         "exception_html": exception_html,
         "try_number": ti.try_number,
         "max_tries": ti.max_tries,
-        # ti.state is an enum whose str() renders as "TaskInstanceState.FAILED"; use its value.
+        # Pass the value, not the enum: str() on it renders as "TaskInstanceState.FAILED".
         "task_state": ti.state.value if ti.state else "unknown",
     }
     email_context = {**context, **additional_context}
