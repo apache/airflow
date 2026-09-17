@@ -967,6 +967,15 @@ export const UseDagVersionServiceGetDagVersionsKeyFn = ({ bundleName, bundleVers
   orderBy?: string[];
   versionNumber?: number;
 }, queryKey?: Array<unknown>) => [useDagVersionServiceGetDagVersionsKey, ...(queryKey ?? [{ bundleName, bundleVersion, dagId, limit, offset, orderBy, versionNumber }])];
+export type DagVersionServiceGetDagVersionDiffDefaultResponse = Awaited<ReturnType<typeof DagVersionService.getDagVersionDiff>>;
+export type DagVersionServiceGetDagVersionDiffQueryResult<TData = DagVersionServiceGetDagVersionDiffDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useDagVersionServiceGetDagVersionDiffKey = "DagVersionServiceGetDagVersionDiff";
+export const UseDagVersionServiceGetDagVersionDiffKeyFn = ({ baseVersionNumber, dagId, maxChanges, targetVersionNumber }: {
+  baseVersionNumber: number;
+  dagId: string;
+  maxChanges?: number;
+  targetVersionNumber: number;
+}, queryKey?: Array<unknown>) => [useDagVersionServiceGetDagVersionDiffKey, ...(queryKey ?? [{ baseVersionNumber, dagId, maxChanges, targetVersionNumber }])];
 export type MonitorServiceGetHealthDefaultResponse = Awaited<ReturnType<typeof MonitorService.getHealth>>;
 export type MonitorServiceGetHealthQueryResult<TData = MonitorServiceGetHealthDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useMonitorServiceGetHealthKey = "MonitorServiceGetHealth";

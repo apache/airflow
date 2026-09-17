@@ -10682,6 +10682,91 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/{dag_id}/dagVersions/{base_version_number}/diff/{target_version_number}:
+    get:
+      tags:
+      - DagVersion
+      summary: Get Dag Version Diff
+      description: 'Compare what two stored versions of a Dag currently hold.
+
+
+        This reports observed state, not why a version was created. Version access
+        returns the changed
+
+        structure with identifying path components masked; the raw values behind those
+        changes, and the
+
+        paths that name them, are disclosed only to a caller who may also read the
+        Dag''s code.'
+      operationId: get_dag_version_diff
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: base_version_number
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Base Version Number
+      - name: target_version_number
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Target Version Number
+      - name: max_changes
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 5000
+          exclusiveMinimum: 0
+          default: 500
+          title: Max Changes
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DagVersionDiffResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/hitlDetails:
     patch:
       tags:
@@ -14680,6 +14765,160 @@ components:
       - dag_display_name
       title: DagTagResponse
       description: Dag Tag serializer for responses.
+    DagVersionDiffCategory:
+      type: string
+      enum:
+      - asset
+      - authorization
+      - callback
+      - deadline
+      - dependency
+      - metadata
+      - param
+      - provenance
+      - schedule
+      - task
+      - unknown
+      title: DagVersionDiffCategory
+      description: What part of a Dag a difference belongs to. Mirrors ``DiffCategory``.
+    DagVersionDiffChangeResponse:
+      properties:
+        path:
+          type: string
+          title: Path
+        operation:
+          $ref: '#/components/schemas/DagVersionDiffOperation'
+        category:
+          $ref: '#/components/schemas/DagVersionDiffCategory'
+        impact:
+          $ref: '#/components/schemas/DagVersionDiffImpact'
+        occurrence_count:
+          type: integer
+          title: Occurrence Count
+          description: How many underlying changes this record stands for. Always
+            1 when values are disclosed, since each change is then its own record;
+            a redacted record merges every change sharing its path and operation.
+        before_digest:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Before Digest
+        after_digest:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: After Digest
+        before_value:
+          anyOf:
+          - {}
+          - type: 'null'
+          title: Before Value
+        after_value:
+          anyOf:
+          - {}
+          - type: 'null'
+          title: After Value
+      type: object
+      required:
+      - path
+      - operation
+      - category
+      - impact
+      - occurrence_count
+      title: DagVersionDiffChangeResponse
+      description: One structural difference between two stored Dag versions.
+    DagVersionDiffImpact:
+      type: string
+      enum:
+      - authorization
+      - execution
+      - metadata
+      - provenance
+      - unknown
+      title: DagVersionDiffImpact
+      description: What a difference affects. Mirrors ``DiffImpact``.
+    DagVersionDiffMode:
+      type: string
+      enum:
+      - observed_state
+      - unavailable
+      title: DagVersionDiffMode
+      description: Whether a comparison could be made at all.
+    DagVersionDiffOperation:
+      type: string
+      enum:
+      - added
+      - removed
+      - changed
+      title: DagVersionDiffOperation
+      description: How a difference presents at its path.
+    DagVersionDiffResponse:
+      properties:
+        diff_schema_version:
+          type: integer
+          title: Diff Schema Version
+        base_version_number:
+          type: integer
+          title: Base Version Number
+        target_version_number:
+          type: integer
+          title: Target Version Number
+        serialized_dag_schema_versions:
+          additionalProperties:
+            anyOf:
+            - type: integer
+            - type: 'null'
+          propertyNames:
+            enum:
+            - base
+            - target
+          type: object
+          title: Serialized Dag Schema Versions
+        mode:
+          $ref: '#/components/schemas/DagVersionDiffMode'
+        unavailable_reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Unavailable Reason
+        values_status:
+          $ref: '#/components/schemas/DagVersionDiffValuesStatus'
+        truncated:
+          type: boolean
+          title: Truncated
+          description: Whether a change at a path not already in `changes` was dropped
+            to stay within `max_changes`. Paths that are absent are absent, not unchanged.
+        total_changes:
+          type: integer
+          title: Total Changes
+          description: Underlying changes across every disclosed path, not the number
+            of records. Exact when `truncated` is false; a lower bound when it is
+            true, because the changes at dropped paths are not counted.
+        changes:
+          items:
+            $ref: '#/components/schemas/DagVersionDiffChangeResponse'
+          type: array
+          title: Changes
+      type: object
+      required:
+      - diff_schema_version
+      - base_version_number
+      - target_version_number
+      - serialized_dag_schema_versions
+      - mode
+      - values_status
+      - truncated
+      - total_changes
+      - changes
+      title: DagVersionDiffResponse
+      description: Observed-state difference between two stored Dag versions.
+    DagVersionDiffValuesStatus:
+      type: string
+      enum:
+      - available
+      - unavailable
+      title: DagVersionDiffValuesStatus
+      description: Whether the caller was authorized to see values. Mirrors ``ValuesStatus``.
     DagVersionResponse:
       properties:
         id:
