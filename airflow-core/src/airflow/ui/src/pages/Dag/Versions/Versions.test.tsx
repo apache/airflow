@@ -127,6 +127,12 @@ describe("Versions", () => {
     await waitFor(() => expect(screen.getByTestId("search")).toHaveTextContent("base_version_number=3"));
   });
 
+  it("prompts for a version with translated text", () => {
+    renderVersions("");
+
+    expect(screen.getAllByText("versionSelect.placeholder")).toHaveLength(2);
+  });
+
   it("forwards max changes from the URL", () => {
     renderVersions("?base_version_number=1&target_version_number=3&max_changes=42");
 

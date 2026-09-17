@@ -149,6 +149,9 @@ def get_dag_versions(
         ]
     ),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.VERSION))],
+    # A value key is present only when that side has one, which is how a missing side is told apart
+    # from a stored null. Serializing unset fields as null would erase that.
+    response_model_exclude_unset=True,
 )
 def get_dag_version_diff(
     dag_id: str,
@@ -156,7 +159,17 @@ def get_dag_version_diff(
     target_version_number: int,
     session: SessionDep,
     user: GetUserDep,
-    max_changes: Annotated[int, Query(gt=0, le=MAX_ALLOWED_CHANGES)] = DEFAULT_MAX_CHANGES,
+    max_changes: Annotated[
+        int,
+        Query(
+            description=(
+                "Largest number of records `changes` may hold. A repeat of a path already recorded "
+                "does not count towards it, and `truncated` says whether the bound dropped anything."
+            ),
+            gt=0,
+            le=MAX_ALLOWED_CHANGES,
+        ),
+    ] = DEFAULT_MAX_CHANGES,
 ) -> DagVersionDiffResponse:
     """
     Compare what two stored versions of a Dag currently hold.
@@ -168,7 +181,7 @@ def get_dag_version_diff(
     values_authorized = get_auth_manager().is_authorized_dag(
         method="GET",
         access_entity=DagAccessEntity.CODE,
-        details=DagDetails(id=dag_id, team_name=DagModel.get_team_name(dag_id)),
+        details=DagDetails(id=dag_id, team_name=DagModel.get_team_name(dag_id, session=session)),
         user=user,
     )
     try:
