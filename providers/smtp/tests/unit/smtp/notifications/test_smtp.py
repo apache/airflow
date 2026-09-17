@@ -49,7 +49,7 @@ TEST_DAG_ID = "test_dag"
 TEST_TASK_ID = "test_task"
 TEST_TASK_STATE = None
 TEST_RUN_ID = "test_run"
-TEST_LOG_URL = f"http://localhost:8080/dags/{TEST_DAG_ID}/runs/{TEST_RUN_ID}/tasks/{TEST_TASK_ID}"
+TEST_LOG_URL = "http://localhost:8080/log-url"
 
 # Jinja template patterns
 DAG_ID_TEMPLATE_STRING = "{{dag.dag_id}}"
