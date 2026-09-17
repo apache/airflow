@@ -933,6 +933,18 @@
           "title": "Bundle Name",
           "type": "string"
         },
+        "bundle_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bundle Version"
+        },
         "callback_requests": {
           "items": {
             "discriminator": {
