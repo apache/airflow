@@ -976,7 +976,7 @@ class SFTPHookAsync(BaseHook):
             get_kwargs: dict[str, Any] = {"block_size": chunk_size}
             if not prefetch:
                 get_kwargs["max_requests"] = 1
-            await sftp.get(remote_full_path, local_full_path, **get_kwargs)
+            await sftp.get(remote_full_path, os.fspath(local_full_path), **get_kwargs)
             return
 
         async with sftp.open(remote_full_path, "rb") as remote_file:
