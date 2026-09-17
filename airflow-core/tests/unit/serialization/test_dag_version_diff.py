@@ -20,6 +20,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import sys
 from contextlib import ExitStack
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -801,16 +802,16 @@ def test_build_diff_excludes_new_group_beyond_change_limit(max_changes, include_
         base_data=base, target_data=target, max_changes=max_changes, include_values=include_values
     )
 
-    assert result["truncated"] is (max_changes == 2)
-    assert sum(change["occurrence_count"] for change in result["changes"]) == max_changes
     if include_values:
+        assert result["truncated"] is (max_changes == 2)
         expected_paths = ["/dag/tasks/a/retries", "/dag/tasks/b/retries", "/dag/tasks/c/queue"]
         assert [change["path"] for change in result["changes"]] == expected_paths[:max_changes]
     else:
-        expected_counts = [("/dag/tasks/*/retries", 2), ("/dag/tasks/*/queue", 1)]
-        assert [
-            (change["path"], change["occurrence_count"]) for change in result["changes"]
-        ] == expected_counts[: max_changes - 1]
+        assert result["truncated"] is False
+        assert [(change["path"], change["occurrence_count"]) for change in result["changes"]] == [
+            ("/dag/tasks/*/retries", 2),
+            ("/dag/tasks/*/queue", 1),
+        ]
 
 
 @pytest.mark.parametrize("max_changes", [3, 2])
@@ -3494,3 +3495,58 @@ def test_build_diff_stops_comparing_after_truncation(compare, include_values, si
     assert result["truncated"] is not repeats_one_public_path
     assert result["changes"][0]["occurrence_count"] == (3 if repeats_one_public_path else 1)
     assert (mock.call("old", "unvisited") in compare.call_args_list) is repeats_one_public_path
+
+
+@pytest.mark.parametrize("include_values", [False, True])
+def test_build_diff_reports_a_real_deep_payload_as_canonicalization_failure(include_values):
+    def payload(value):
+        nested: Any = {"leaf": value}
+        # Use the live limit: BaseOperator.__deepcopy__ can raise it process-wide.
+        for _ in range(sys.getrecursionlimit()):
+            nested = {"__type": "dict", "__var": {"nested": nested}}
+        return _build_payload(tasks=[{"task_id": "extract", "executor_config": nested}])
+
+    result = build_serialized_dag_diff(
+        base_data=payload(1), target_data=payload(2), include_values=include_values
+    )
+
+    assert result["mode"] == "unavailable"
+    assert result["unavailable_reason"] == "serialized_dag_canonicalization_failed"
+
+
+def test_build_diff_canonicalization_failure_logs_why(caplog):
+    payload = _build_payload(tasks=[])
+    payload["client_defaults"] = {"dags": {"catchup": True}}
+
+    result = build_serialized_dag_diff(base_data=payload, target_data=_build_payload(tasks=[]))
+
+    assert result["unavailable_reason"] == "serialized_dag_canonicalization_failed"
+    assert {
+        "event": "Serialized Dag diff canonicalization failed",
+        "error_type": "ValueError",
+        "reason": "unsupported client_defaults sections: ['dags']",
+    } in caplog
+
+
+@pytest.mark.parametrize(
+    ("max_changes", "expected_counts", "truncated"),
+    [
+        # Counting occurrences would drop timezone at the default bound.
+        (2, {"/dag/tasks/*/retries": 600, "/dag/timezone": 1}, False),
+        (500, {"/dag/tasks/*/retries": 600, "/dag/timezone": 1}, False),
+        (1, {"/dag/tasks/*/retries": 600}, True),
+    ],
+)
+def test_build_diff_bound_caps_records_not_repeats(max_changes, expected_counts, truncated):
+    def payload(retries, timezone):
+        built = _build_payload(tasks=[{"task_id": f"t{index}", "retries": retries} for index in range(600)])
+        built["dag"]["timezone"] = timezone
+        return built
+
+    result = build_serialized_dag_diff(
+        base_data=payload(1, "UTC"), target_data=payload(2, "Europe/Berlin"), max_changes=max_changes
+    )
+
+    counts = {change["path"]: change["occurrence_count"] for change in result["changes"]}
+    assert counts == expected_counts
+    assert result["truncated"] is truncated

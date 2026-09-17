@@ -50,7 +50,8 @@ Top-level keys, all always present:
   version found, base before target.
 * ``serialized_dag_canonicalization_failed`` -- a payload could not be normalized (malformed
   structure, an unsupported ``client_defaults`` section, an unencodable value).
-* ``serialized_dag_recursion_limit_exceeded`` -- the comparison walk ran too deep.
+* ``serialized_dag_recursion_limit_exceeded`` -- the comparison walk ran too deep. Defensive
+  guard; deeply nested payloads generally fail canonicalization first.
 * ``serialized_dag_json_encoding_failed`` -- a value could not be encoded as canonical JSON.
 
 :meth:`~airflow.models.dag_version.DagVersion.get_diff` reuses
@@ -406,10 +407,9 @@ def build_serialized_dag_diff(
     access-control roles and permissions, before setting ``include_values=True``.
     This exposes canonicalized values, digests, and identifying path components.
 
-    ``max_changes`` limits underlying changes admitted to the result. Redacted changes
-    with the same public path and operation share a record. Repeats can be counted past
-    the limit until a change needing a new record stops the walk. When ``truncated`` is
-    true, some paths are absent and occurrence counts are lower bounds.
+    ``max_changes`` limits output records. Redacted changes with the same public path
+    and operation share a record. A new record exceeding the limit stops the walk;
+    ``truncated`` is then true and occurrence counts are lower bounds.
 
     An ``unavailable`` result includes the reason comparison failed.
     """
@@ -446,6 +446,7 @@ def build_serialized_dag_diff(
         log.warning(
             "Serialized Dag diff canonicalization failed",
             error_type=type(error).__name__,
+            reason=str(error),
             base_schema_version=base_schema_version,
             target_schema_version=target_schema_version,
         )
@@ -479,7 +480,7 @@ def build_serialized_dag_diff(
 class _ChangeCollector:
     def __init__(self, *, max_changes: int, include_values: bool) -> None:
         self.changes: list[dict[str, Any]] = []
-        self.count = 0
+        self._record_count = 0
         self.max_changes = max_changes
         self.include_values = include_values
         self._truncated = False
@@ -497,15 +498,14 @@ class _ChangeCollector:
         before: Any,
         after: Any,
     ) -> None:
-        self.count += 1
         public_path = _get_public_path(path)
         key = (public_path, operation)
         if not self.include_values and (existing := self._redacted_changes.get(key)) is not None:
-            # Counting a repeat of an already disclosed path adds no record and reveals no new
-            # path, so it stays exact past the bound instead of silently undercounting.
+            # Keep repeated changes from crowding out distinct paths.
             existing["occurrence_count"] += 1
             return
-        if self.count > self.max_changes:
+        self._record_count += 1
+        if self._record_count > self.max_changes:
             self._truncated = True
             return
 
