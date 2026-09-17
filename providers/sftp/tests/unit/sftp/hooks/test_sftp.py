@@ -24,7 +24,7 @@ import shutil
 import stat
 from io import BytesIO, StringIO
 from types import SimpleNamespace
-from unittest.mock import ANY, AsyncMock, MagicMock, Mock, PropertyMock, call, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, call, patch
 
 import paramiko
 import pytest
@@ -1528,7 +1528,7 @@ class TestSFTPHookAsync:
 
         with patch.object(
             hook,
-            "_get_tree_map_with_client",
+            "get_tree_map",
             AsyncMock(return_value=(["/remote/dir/file1", "/remote/dir/sub/file2"], ["/remote/dir/sub"], [])),
         ):
             await hook.delete_directory("/remote/dir", include_files=True)
@@ -1586,7 +1586,7 @@ class TestSFTPHookAsync:
         with (
             patch.object(
                 hook,
-                "_get_tree_map_with_client",
+                "get_tree_map",
                 AsyncMock(
                     return_value=(
                         ["/remote/dir/file1", "/remote/dir/sub/file2"],
@@ -1595,15 +1595,15 @@ class TestSFTPHookAsync:
                     )
                 ),
             ),
-            patch.object(hook, "_retrieve_file_with_client", AsyncMock()) as mock_retrieve_file,
+            patch.object(hook, "retrieve_file", AsyncMock()) as mock_retrieve_file,
         ):
             await hook.retrieve_directory("/remote/dir", str(local_dir))
 
         assert local_dir.is_dir()
         assert (local_dir / "sub").is_dir()
-        mock_retrieve_file.assert_any_await(ANY, "/remote/dir/file1", str(local_dir / "file1"), prefetch=True)
+        mock_retrieve_file.assert_any_await("/remote/dir/file1", str(local_dir / "file1"), prefetch=True)
         mock_retrieve_file.assert_any_await(
-            ANY, "/remote/dir/sub/file2", str(local_dir / "sub" / "file2"), prefetch=True
+            "/remote/dir/sub/file2", str(local_dir / "sub" / "file2"), prefetch=True
         )
 
     @pytest.mark.asyncio
@@ -1615,10 +1615,10 @@ class TestSFTPHookAsync:
         with (
             patch.object(
                 hook,
-                "_get_tree_map_with_client",
+                "get_tree_map",
                 AsyncMock(return_value=(["/remote/dir/../../evil"], [], [])),
             ),
-            patch.object(hook, "_retrieve_file_with_client", AsyncMock()),
+            patch.object(hook, "retrieve_file", AsyncMock()),
         ):
             with pytest.raises(ValueError, match="outside the destination directory"):
                 await hook.retrieve_directory("/remote/dir", str(local_dir))
@@ -1627,7 +1627,7 @@ class TestSFTPHookAsync:
     async def test_store_directory_rejects_existing_remote_path(self, sftp_hook_mocked, tmp_path):
         hook, _ = sftp_hook_mocked
 
-        with patch.object(hook, "_path_exists_with_client", AsyncMock(return_value=True)):
+        with patch.object(hook, "path_exists", AsyncMock(return_value=True)):
             with pytest.raises(FileExistsError, match="already exists"):
                 await hook.store_directory("/remote/dir", str(tmp_path))
 
@@ -1640,19 +1640,19 @@ class TestSFTPHookAsync:
         (local_dir / "sub" / "file2").write_bytes(b"def")
 
         with (
-            patch.object(hook, "_path_exists_with_client", AsyncMock(return_value=False)),
-            patch.object(hook, "_create_directory_with_client", AsyncMock()) as mock_create_directory,
-            patch.object(hook, "_store_file_with_client", AsyncMock()) as mock_store_file,
+            patch.object(hook, "path_exists", AsyncMock(return_value=False)),
+            patch.object(hook, "create_directory", AsyncMock()) as mock_create_directory,
+            patch.object(hook, "store_file", AsyncMock()) as mock_store_file,
         ):
             await hook.store_directory("/remote/dir", str(local_dir))
 
-        mock_create_directory.assert_any_await(ANY, "/remote/dir")
-        mock_create_directory.assert_any_await(ANY, os.path.join("/remote/dir", "sub"))
+        mock_create_directory.assert_any_await("/remote/dir")
+        mock_create_directory.assert_any_await(os.path.join("/remote/dir", "sub"))
         mock_store_file.assert_any_await(
-            ANY, os.path.join("/remote/dir", "file1"), str(local_dir / "file1"), confirm=True
+            os.path.join("/remote/dir", "file1"), str(local_dir / "file1"), confirm=True
         )
         mock_store_file.assert_any_await(
-            ANY, os.path.join("/remote/dir", "sub", "file2"), str(local_dir / "sub" / "file2"), confirm=True
+            os.path.join("/remote/dir", "sub", "file2"), str(local_dir / "sub" / "file2"), confirm=True
         )
 
     @pytest.mark.asyncio
@@ -1660,13 +1660,13 @@ class TestSFTPHookAsync:
         hook, _ = sftp_hook_mocked
 
         with (
-            patch.object(hook, "_isdir_with_client", AsyncMock(return_value=True)),
-            patch.object(hook, "_retrieve_directory_with_client", AsyncMock()) as mock_retrieve_directory,
-            patch.object(hook, "_retrieve_file_with_client", AsyncMock()) as mock_retrieve_file,
+            patch.object(hook, "isdir", AsyncMock(return_value=True)),
+            patch.object(hook, "retrieve_directory", AsyncMock()) as mock_retrieve_directory,
+            patch.object(hook, "retrieve_file", AsyncMock()) as mock_retrieve_file,
         ):
             await hook.transfer(SFTPOperation.GET, local_filepath="/local/dir", remote_filepath="/remote/dir")
 
-        mock_retrieve_directory.assert_awaited_once_with(ANY, "/remote/dir", "/local/dir", prefetch=True)
+        mock_retrieve_directory.assert_awaited_once_with("/remote/dir", "/local/dir", prefetch=True)
         mock_retrieve_file.assert_not_awaited()
 
     @pytest.mark.asyncio
@@ -1674,15 +1674,15 @@ class TestSFTPHookAsync:
         hook, _ = sftp_hook_mocked
 
         with (
-            patch.object(hook, "_isdir_with_client", AsyncMock(return_value=False)),
-            patch.object(hook, "_retrieve_directory_with_client", AsyncMock()) as mock_retrieve_directory,
-            patch.object(hook, "_retrieve_file_with_client", AsyncMock()) as mock_retrieve_file,
+            patch.object(hook, "isdir", AsyncMock(return_value=False)),
+            patch.object(hook, "retrieve_directory", AsyncMock()) as mock_retrieve_directory,
+            patch.object(hook, "retrieve_file", AsyncMock()) as mock_retrieve_file,
         ):
             await hook.transfer(
                 SFTPOperation.GET, local_filepath="/local/file", remote_filepath="/remote/file"
             )
 
-        mock_retrieve_file.assert_awaited_once_with(ANY, "/remote/file", "/local/file", prefetch=True)
+        mock_retrieve_file.assert_awaited_once_with("/remote/file", "/local/file", prefetch=True)
         mock_retrieve_directory.assert_not_awaited()
 
     @pytest.mark.asyncio
@@ -1691,8 +1691,8 @@ class TestSFTPHookAsync:
         local_file = tmp_path / "new" / "dir" / "file"
 
         with (
-            patch.object(hook, "_isdir_with_client", AsyncMock(return_value=False)),
-            patch.object(hook, "_retrieve_file_with_client", AsyncMock()),
+            patch.object(hook, "isdir", AsyncMock(return_value=False)),
+            patch.object(hook, "retrieve_file", AsyncMock()),
         ):
             await hook.transfer(
                 SFTPOperation.GET,
@@ -1710,14 +1710,14 @@ class TestSFTPHookAsync:
         local_dir.mkdir()
 
         with (
-            patch.object(hook, "_store_directory_with_client", AsyncMock()) as mock_store_directory,
-            patch.object(hook, "_store_file_with_client", AsyncMock()) as mock_store_file,
+            patch.object(hook, "store_directory", AsyncMock()) as mock_store_directory,
+            patch.object(hook, "store_file", AsyncMock()) as mock_store_file,
         ):
             await hook.transfer(
                 SFTPOperation.PUT, local_filepath=str(local_dir), remote_filepath="/remote/dir"
             )
 
-        mock_store_directory.assert_awaited_once_with(ANY, "/remote/dir", str(local_dir), confirm=True)
+        mock_store_directory.assert_awaited_once_with("/remote/dir", str(local_dir), confirm=True)
         mock_store_file.assert_not_awaited()
 
     @pytest.mark.asyncio
@@ -1727,14 +1727,14 @@ class TestSFTPHookAsync:
         local_file.write_bytes(b"abc")
 
         with (
-            patch.object(hook, "_store_directory_with_client", AsyncMock()) as mock_store_directory,
-            patch.object(hook, "_store_file_with_client", AsyncMock()) as mock_store_file,
+            patch.object(hook, "store_directory", AsyncMock()) as mock_store_directory,
+            patch.object(hook, "store_file", AsyncMock()) as mock_store_file,
         ):
             await hook.transfer(
                 SFTPOperation.PUT, local_filepath=str(local_file), remote_filepath="/remote/file"
             )
 
-        mock_store_file.assert_awaited_once_with(ANY, "/remote/file", str(local_file), confirm=True)
+        mock_store_file.assert_awaited_once_with("/remote/file", str(local_file), confirm=True)
         mock_store_directory.assert_not_awaited()
 
     @pytest.mark.asyncio
@@ -1742,13 +1742,13 @@ class TestSFTPHookAsync:
         hook, _ = sftp_hook_mocked
 
         with (
-            patch.object(hook, "_isdir_with_client", AsyncMock(return_value=True)),
-            patch.object(hook, "_delete_directory_with_client", AsyncMock()) as mock_delete_directory,
-            patch.object(hook, "_delete_file_with_client", AsyncMock()) as mock_delete_file,
+            patch.object(hook, "isdir", AsyncMock(return_value=True)),
+            patch.object(hook, "delete_directory", AsyncMock()) as mock_delete_directory,
+            patch.object(hook, "delete_file", AsyncMock()) as mock_delete_file,
         ):
             await hook.transfer(SFTPOperation.DELETE, local_filepath=None, remote_filepath="/remote/dir")
 
-        mock_delete_directory.assert_awaited_once_with(ANY, "/remote/dir", include_files=True)
+        mock_delete_directory.assert_awaited_once_with("/remote/dir", include_files=True)
         mock_delete_file.assert_not_awaited()
 
     @pytest.mark.asyncio
@@ -1757,8 +1757,8 @@ class TestSFTPHookAsync:
         hook, _ = sftp_hook_mocked
 
         with (
-            patch.object(hook, "_isdir_with_client", AsyncMock(return_value=False)),
-            patch.object(hook, "_delete_file_with_client", AsyncMock(side_effect=SFTPNoSuchFile("missing"))),
+            patch.object(hook, "isdir", AsyncMock(return_value=False)),
+            patch.object(hook, "delete_file", AsyncMock(side_effect=SFTPNoSuchFile("missing"))),
         ):
             await hook.transfer(SFTPOperation.DELETE, local_filepath=None, remote_filepath="/remote/missing")
 
@@ -1774,18 +1774,18 @@ class TestSFTPHookAsync:
         with (
             patch.object(
                 hook,
-                "_get_tree_map_with_client",
+                "get_tree_map",
                 AsyncMock(return_value=(["/remote/dir/a", "/remote/dir/b", "/remote/dir/c"], [], [])),
             ),
-            patch.object(hook, "_retrieve_file_with_client", AsyncMock()) as mock_retrieve_file,
+            patch.object(hook, "retrieve_file", AsyncMock()) as mock_retrieve_file,
         ):
             await hook.transfer(
                 SFTPOperation.GET, local_filepath=str(local_dir), remote_filepath="/remote/dir"
             )
 
         assert hook._get_conn.await_count == 1
+        assert sftp_cm_mock.__aexit__.await_count == 1
         assert mock_retrieve_file.await_count == 3
-        assert {c.args[0] for c in mock_retrieve_file.await_args_list} == {sftp_client}
 
     @pytest.mark.asyncio
     async def test_transfer_put_directory_uses_single_connection(self, sftp_hook_mocked, tmp_path):
@@ -1797,15 +1797,32 @@ class TestSFTPHookAsync:
         for name in ("a", "b", "sub/c"):
             (local_dir / name).write_bytes(b"x")
 
-        with patch.object(hook, "_store_file_with_client", AsyncMock()) as mock_store_file:
+        with patch.object(hook, "store_file", AsyncMock()) as mock_store_file:
             await hook.transfer(
                 SFTPOperation.PUT, local_filepath=str(local_dir), remote_filepath="/remote/dir"
             )
 
         assert hook._get_conn.await_count == 1
+        assert sftp_cm_mock.__aexit__.await_count == 1
         assert mock_store_file.await_count == 3
-        assert {c.args[0] for c in mock_store_file.await_args_list} == {sftp_client}
         assert sftp_client.makedirs.await_count == 2
+
+    @pytest.mark.asyncio
+    async def test_get_managed_conn_is_shared_by_nested_calls_and_closed_once(self, sftp_hook_mocked):
+        hook, sftp_cm_mock = sftp_hook_mocked
+        sftp_client = sftp_cm_mock.__aenter__.return_value
+        sftp_client.stat = AsyncMock(return_value=SimpleNamespace(permissions=stat.S_IFDIR))
+
+        async with hook.get_managed_conn():
+            assert await hook.isdir("/remote/dir")
+            assert await hook.path_exists("/remote/dir")
+            assert hook.get_conn_count() == 1
+            assert sftp_cm_mock.__aexit__.await_count == 0
+
+        assert hook._get_conn.await_count == 1
+        assert sftp_cm_mock.__aexit__.await_count == 1
+        assert hook.get_conn_count() == 0
+        assert hook.conn is None
 
 
 def test_sftp_operation_values():
