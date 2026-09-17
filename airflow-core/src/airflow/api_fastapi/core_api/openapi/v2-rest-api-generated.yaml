@@ -10578,8 +10578,14 @@ paths:
           type: integer
           maximum: 5000
           exclusiveMinimum: 0
+          description: Largest number of records `changes` may hold. A repeat of a
+            path already recorded does not count towards it, and `truncated` says
+            whether the bound dropped anything.
           default: 500
           title: Max Changes
+        description: Largest number of records `changes` may hold. A repeat of a path
+          already recorded does not count towards it, and `truncated` says whether
+          the bound dropped anything.
       responses:
         '200':
           description: Successful Response

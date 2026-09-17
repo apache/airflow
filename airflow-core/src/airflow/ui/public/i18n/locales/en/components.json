@@ -192,6 +192,7 @@
   "versionSelect": {
     "allVersions": "All Versions",
     "dagVersion": "Dag Version",
+    "placeholder": "Select version",
     "versionCode": "v{{versionCode}}"
   }
 }

@@ -4821,6 +4821,9 @@ export type GetDagVersionsResponse = DAGVersionCollectionResponse;
 export type GetDagVersionDiffData = {
     baseVersionNumber: number;
     dagId: string;
+    /**
+     * Largest number of records `changes` may hold. A repeat of a path already recorded does not count towards it, and `truncated` says whether the bound dropped anything.
+     */
     maxChanges?: number;
     targetVersionNumber: number;
 };

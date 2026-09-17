@@ -1863,7 +1863,7 @@ export const prefetchUseDagVersionServiceGetDagVersions = (queryClient: QueryCli
 * @param data.dagId
 * @param data.baseVersionNumber
 * @param data.targetVersionNumber
-* @param data.maxChanges
+* @param data.maxChanges Largest number of records `changes` may hold. A repeat of a path already recorded does not count towards it, and `truncated` says whether the bound dropped anything.
 * @returns DagVersionDiffResponse Successful Response
 * @throws ApiError
 */
