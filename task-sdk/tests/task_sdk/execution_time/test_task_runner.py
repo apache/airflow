@@ -4211,7 +4211,7 @@ class TestEmailNotifications:
                     )
                     assert (
                         kwargs["html_content"]
-                        == 'Dag: {{ti.dag_id}}<br>Task: {{ti.task_id}}<br>Run: {{ti.run_id}}<br>State: {{task_state}}<br>Try: {{try_number}} out of {{max_tries + 1}}<br>{% if ti.start_date is defined and ti.start_date %}Started: {{ti.start_date}}<br>{% endif %}{% if ti.end_date is defined and ti.end_date %}Ended: {{ti.end_date}}<br>{% endif %}Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+                        == 'Dag: {{ti.dag_id}}<br>Task: {{ti.task_id}}<br>Run: {{ti.run_id}}<br>State: {{task_state}}<br>Try: {{try_number}} out of {{max_tries + 1}}<br>{% if ti.start_date is defined and ti.start_date %}Started: {{ti.start_date}}<br>{% endif %}{% if ti.end_date is defined and ti.end_date %}Ended: {{ti.end_date}}<br>{% endif %}Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>'
                     )
 
     @pytest.mark.parametrize(
@@ -4273,7 +4273,7 @@ class TestEmailNotifications:
                     )
                     assert (
                         kwargs["html_content"]
-                        == 'Dag: {{ti.dag_id}}<br>Task: {{ti.task_id}}<br>Run: {{ti.run_id}}<br>State: {{task_state}}<br>Try: {{try_number}} out of {{max_tries + 1}}<br>{% if ti.start_date is defined and ti.start_date %}Started: {{ti.start_date}}<br>{% endif %}{% if ti.end_date is defined and ti.end_date %}Ended: {{ti.end_date}}<br>{% endif %}Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+                        == 'Dag: {{ti.dag_id}}<br>Task: {{ti.task_id}}<br>Run: {{ti.run_id}}<br>State: {{task_state}}<br>Try: {{try_number}} out of {{max_tries + 1}}<br>{% if ti.start_date is defined and ti.start_date %}Started: {{ti.start_date}}<br>{% endif %}{% if ti.end_date is defined and ti.end_date %}Ended: {{ti.end_date}}<br>{% endif %}Exception:<br>{{exception_html}}<br>Log: <a href="{{ti.log_url}}">Link</a><br>Host: {{ti.hostname}}<br>'
                     )
                     email_context = mock_smtp_notifier.return_value.call_args.args[0]
                     assert email_context["task_state"] == "failed"

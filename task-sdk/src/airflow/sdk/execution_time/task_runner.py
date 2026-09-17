@@ -897,7 +897,8 @@ class RuntimeTaskInstance(TaskInstance):
 
     @property
     def mark_success_url(self) -> str:
-        """URL to mark TI success."""
+        """Alias of ``log_url``."""
+        # Airflow 3 has no mark-success endpoint to link to.
         return self.log_url
 
 
@@ -2156,7 +2157,6 @@ def _send_error_email_notification(
             "Exception:<br>{{exception_html}}<br>"
             'Log: <a href="{{ti.log_url}}">Link</a><br>'
             "Host: {{ti.hostname}}<br>"
-            'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
         )
 
     # Add exception_html to context for template rendering
