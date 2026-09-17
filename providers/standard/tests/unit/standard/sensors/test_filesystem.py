@@ -25,7 +25,12 @@ from datetime import timedelta
 import pytest
 
 from airflow.models.dag import DAG
-from airflow.providers.common.compat.sdk import AirflowSensorTimeout, TaskDeferred, timezone
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowSensorTimeout,
+    TaskDeferred,
+    timezone,
+)
 from airflow.providers.standard.sensors.filesystem import FileSensor
 from airflow.providers.standard.triggers.file import FileTrigger
 
@@ -258,3 +263,10 @@ class TestFileSensor:
         assert second.start_trigger_args.trigger_kwargs["filepath"] == second.path
         assert first.start_trigger_args.timeout == timedelta(seconds=60)
         assert second.start_trigger_args.timeout == timedelta(seconds=999)
+
+    def test_execute_complete_failure_names_the_task_and_path(self):
+        """The message interpolates the task and path rather than rendering as a tuple of format args."""
+        sensor = FileSensor(task_id="waiting_for_drop", filepath="incoming_data.csv")
+
+        with pytest.raises(AirflowException, match="waiting_for_drop task failed as .*incoming_data.csv"):
+            sensor.execute_complete(context={}, event=False)
