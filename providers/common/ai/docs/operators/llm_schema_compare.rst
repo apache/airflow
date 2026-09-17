@@ -181,6 +181,9 @@ Parameters
   :ref:`Customizing the System Prompt <howto/operator:llm_schema_compare>` above).
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai
   ``Agent`` constructor.
+- ``usage_limits``: Optional pydantic-ai ``UsageLimits`` (or a templated ``dict`` of
+  the same fields) enforced on the run; the task fails when a budget is exceeded.
+  Default ``None``. See :ref:`Usage Limits <howto/operator:llm_usage_limits>`.
 - ``db_conn_ids``: List of database connection IDs to compare. Each must resolve
   to a ``DbApiHook``.
 - ``table_names``: Tables to introspect from each ``db_conn_id``.

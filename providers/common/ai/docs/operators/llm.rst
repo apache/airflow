@@ -104,6 +104,8 @@ the full list of supported parameters.
     :start-after: [START howto_operator_llm_agent_params]
     :end-before: [END howto_operator_llm_agent_params]
 
+.. _howto/operator:llm_usage_limits:
+
 Usage Limits
 ------------
 

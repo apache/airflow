@@ -109,6 +109,9 @@ class LLMSchemaCompareOperator(LLMOperator):
         ``"full"`` to include primary keys, foreign keys, and indexes.
         Default ``"full"``.
 
+    ``usage_limits`` is inherited from
+    :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
+
     Human-in-the-Loop approval parameters are inherited from
     :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
     (``require_approval``, ``approval_timeout``, ``on_approval_timeout``,

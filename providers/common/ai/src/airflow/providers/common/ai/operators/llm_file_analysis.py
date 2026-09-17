@@ -70,6 +70,9 @@ class LLMFileAnalysisOperator(LLMOperator):
         read from storage and ``max_text_chars`` limits the final prompt text
         budget. Default ``10``.
 
+    ``usage_limits`` is inherited from
+    :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
+
     Human-in-the-Loop approval parameters are inherited from
     :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
     (``require_approval``, ``approval_timeout``, ``on_approval_timeout``,
