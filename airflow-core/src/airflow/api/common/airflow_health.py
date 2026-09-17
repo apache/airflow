@@ -17,12 +17,13 @@
 from __future__ import annotations
 
 import logging
+from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select
 
 from airflow.configuration import conf
-from airflow.dag_processing.bundles.manager import get_configured_bundle_team_names
+from airflow.dag_processing.bundles.manager import _get_configured_bundle_team_names
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
@@ -34,10 +35,20 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-HEALTHY = "healthy"
-UNHEALTHY = "unhealthy"
-DEGRADED = "degraded"
-DOWN = "down"
+
+class HealthStatus(str, Enum):
+    """Aggregate health of a component: whether it has at least one live instance."""
+
+    HEALTHY = "healthy"
+    UNHEALTHY = "unhealthy"
+
+
+class DetailedHealthStatus(str, Enum):
+    """How much of a component's work has a live instance covering it."""
+
+    HEALTHY = "healthy"
+    DEGRADED = "degraded"
+    DOWN = "down"
 
 
 @provide_session
@@ -76,9 +87,9 @@ def _live_jobs(jobs: list[Job]) -> list[Job]:
     return [job for job in jobs if job.is_alive()]
 
 
-def _legacy_status(jobs: list[Job]) -> str:
+def _legacy_status(jobs: list[Job]) -> HealthStatus:
     """Top-level status: healthy if any instance is alive."""
-    return HEALTHY if any(job.is_alive() for job in jobs) else UNHEALTHY
+    return HealthStatus.HEALTHY if any(job.is_alive() for job in jobs) else HealthStatus.UNHEALTHY
 
 
 def _triggerer_instance_health(job: Job) -> dict[str, Any]:
@@ -110,28 +121,29 @@ def _dag_processor_instance_health(job: Job) -> dict[str, Any]:
 def _configured_bundle_teams() -> dict[str, str | None]:
     """Map every configured Dag bundle to the team owning it, empty when the config is unreadable."""
     try:
-        return get_configured_bundle_team_names()
+        return _get_configured_bundle_team_names()
     except Exception:
         # A health probe must not fail on malformed bundle config; callers fall back to liveness only.
         log.warning("Could not read the Dag bundle configuration", exc_info=True)
         return {}
 
 
-def _liveness_status(jobs: list[Job]) -> str:
+def _liveness_status(jobs: list[Job]) -> DetailedHealthStatus:
     """Status for a component with no declared work partition: one live replica covers everything."""
-    return HEALTHY if any(job.is_alive() for job in jobs) else DOWN
+    return DetailedHealthStatus.HEALTHY if any(job.is_alive() for job in jobs) else DetailedHealthStatus.DOWN
 
 
-def _coverage_status(expected: set[Any], covered: set[Any]) -> str:
+def _coverage_status(expected: set[Any], covered: set[Any]) -> DetailedHealthStatus:
     """Status from how much of a component's declared work partition its live replicas cover."""
     if not expected - covered:
-        return HEALTHY
+        return DetailedHealthStatus.HEALTHY
     if expected & covered:
-        return DEGRADED
-    return DOWN
+        return DetailedHealthStatus.DEGRADED
+    return DetailedHealthStatus.DOWN
 
 
-def _dag_processor_detailed_status(jobs: list[Job]) -> str:
+def _dag_processor_detailed_status(jobs: list[Job]) -> DetailedHealthStatus:
+    """Status from bundle coverage, which partitions processor work with or without multi-team mode."""
     expected = set(_configured_bundle_teams())
     if not expected:
         return _liveness_status(jobs)
@@ -144,11 +156,14 @@ def _dag_processor_detailed_status(jobs: list[Job]) -> str:
     return _coverage_status(expected, covered)
 
 
-def _triggerer_detailed_status(jobs: list[Job]) -> str:
+def _triggerer_detailed_status(jobs: list[Job]) -> DetailedHealthStatus:
+    """Status from team coverage, since a triggerer only picks up triggers for its own team."""
     if not conf.getboolean("core", "multi_team"):
         # Outside multi-team mode no team filter is applied, so any live triggerer serves every trigger.
         return _liveness_status(jobs)
 
+    # ``None`` is a scope in its own right: triggers from bundles that declare no team are only picked
+    # up by a triggerer started without ``--team-name``, so it must stay in the expected set.
     expected = set(_configured_bundle_teams().values())
     if not expected:
         return _liveness_status(jobs)
@@ -158,7 +173,7 @@ def _triggerer_detailed_status(jobs: list[Job]) -> str:
 
 def get_airflow_health() -> dict[str, Any]:
     """Get the health for Airflow metadatabase, scheduler, triggerer, and dag processor."""
-    metadatabase_status = HEALTHY
+    metadatabase_status = HealthStatus.HEALTHY
 
     latest_scheduler_heartbeat = None
     latest_triggerer_heartbeat = None
@@ -168,13 +183,13 @@ def get_airflow_health() -> dict[str, Any]:
     triggerer_instances: list[dict[str, Any]] | None = None
     dag_processor_instances: list[dict[str, Any]] | None = None
 
-    scheduler_status = UNHEALTHY
-    triggerer_status = UNHEALTHY
-    dag_processor_status = UNHEALTHY
+    scheduler_status = HealthStatus.UNHEALTHY
+    triggerer_status = HealthStatus.UNHEALTHY
+    dag_processor_status = HealthStatus.UNHEALTHY
 
-    scheduler_detailed_status = DOWN
-    triggerer_detailed_status = DOWN
-    dag_processor_detailed_status = DOWN
+    scheduler_detailed_status = DetailedHealthStatus.DOWN
+    triggerer_detailed_status = DetailedHealthStatus.DOWN
+    dag_processor_detailed_status = DetailedHealthStatus.DOWN
 
     try:
         scheduler_jobs = get_jobs_health(SchedulerJobRunner)
@@ -187,7 +202,7 @@ def get_airflow_health() -> dict[str, Any]:
                 _job_instance_health(job, "latest_scheduler_heartbeat") for job in live_scheduler_jobs
             ]
     except Exception:
-        metadatabase_status = UNHEALTHY
+        metadatabase_status = HealthStatus.UNHEALTHY
 
     try:
         triggerer_jobs = get_jobs_health(TriggererJobRunner)
@@ -198,9 +213,9 @@ def get_airflow_health() -> dict[str, Any]:
         if live_triggerer_jobs := _live_jobs(triggerer_jobs):
             triggerer_instances = [_triggerer_instance_health(job) for job in live_triggerer_jobs]
     except Exception:
-        metadatabase_status = UNHEALTHY
-        triggerer_status = UNHEALTHY
-        triggerer_detailed_status = DOWN
+        metadatabase_status = HealthStatus.UNHEALTHY
+        triggerer_status = HealthStatus.UNHEALTHY
+        triggerer_detailed_status = DetailedHealthStatus.DOWN
 
     try:
         dag_processor_jobs = get_jobs_health(DagProcessorJobRunner)
@@ -211,9 +226,9 @@ def get_airflow_health() -> dict[str, Any]:
         if live_dag_processor_jobs := _live_jobs(dag_processor_jobs):
             dag_processor_instances = [_dag_processor_instance_health(job) for job in live_dag_processor_jobs]
     except Exception:
-        metadatabase_status = UNHEALTHY
-        dag_processor_status = UNHEALTHY
-        dag_processor_detailed_status = DOWN
+        metadatabase_status = HealthStatus.UNHEALTHY
+        dag_processor_status = HealthStatus.UNHEALTHY
+        dag_processor_detailed_status = DetailedHealthStatus.DOWN
 
     airflow_health_status = {
         "metadatabase": {"status": metadatabase_status},

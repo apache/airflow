@@ -130,14 +130,6 @@ class AsyncConnectionTestResponse(BaseModel):
     created_at: Annotated[datetime, Field(title="Created At")]
 
 
-class BaseInfoResponse(BaseModel):
-    """
-    Base info serializer for responses.
-    """
-
-    status: Annotated[str | None, Field(title="Status")]
-
-
 class BulkActionNotOnExistence(str, Enum):
     """
     Bulk Action to be taken if the entity does not exist.
@@ -704,6 +696,16 @@ class DagWarningType(str, Enum):
     RUNTIME_VARYING_VALUE = "runtime varying value"
 
 
+class DetailedHealthStatus(str, Enum):
+    """
+    How much of a component's work has a live instance covering it.
+    """
+
+    HEALTHY = "healthy"
+    DEGRADED = "degraded"
+    DOWN = "down"
+
+
 class DryRunBackfillResponse(BaseModel):
     """
     Backfill serializer for responses in dry-run mode.
@@ -803,6 +805,15 @@ class HTTPExceptionResponse(BaseModel):
     """
 
     detail: Annotated[str | dict[str, Any], Field(title="Detail")]
+
+
+class HealthStatus(str, Enum):
+    """
+    Aggregate health of a component: whether it has at least one live instance.
+    """
+
+    HEALTHY = "healthy"
+    UNHEALTHY = "unhealthy"
 
 
 class ImportErrorResponse(BaseModel):
@@ -1538,6 +1549,14 @@ class BackfillResponse(BaseModel):
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
 
 
+class BaseInfoResponse(BaseModel):
+    """
+    Base info serializer for responses.
+    """
+
+    status: HealthStatus | None
+
+
 class BulkCreateActionConnectionBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -2003,9 +2022,9 @@ class DagProcessorInfoResponse(BaseModel):
     DagProcessor info serializer for responses.
     """
 
-    status: Annotated[str | None, Field(title="Status")]
+    status: HealthStatus | None
     latest_dag_processor_heartbeat: Annotated[str | None, Field(title="Latest Dag Processor Heartbeat")]
-    detailed_status: Annotated[str | None, Field(title="Detailed Status")]
+    detailed_status: DetailedHealthStatus | None
     instances: Annotated[list[DagProcessorInstanceInfoResponse] | None, Field(title="Instances")] = None
 
 
@@ -2178,9 +2197,9 @@ class SchedulerInfoResponse(BaseModel):
     Scheduler info serializer for responses.
     """
 
-    status: Annotated[str | None, Field(title="Status")]
+    status: HealthStatus | None
     latest_scheduler_heartbeat: Annotated[str | None, Field(title="Latest Scheduler Heartbeat")]
-    detailed_status: Annotated[str | None, Field(title="Detailed Status")]
+    detailed_status: DetailedHealthStatus | None
     instances: Annotated[list[SchedulerInstanceInfoResponse] | None, Field(title="Instances")] = None
 
 
@@ -2317,9 +2336,9 @@ class TriggererInfoResponse(BaseModel):
     Triggerer info serializer for responses.
     """
 
-    status: Annotated[str | None, Field(title="Status")]
+    status: HealthStatus | None
     latest_triggerer_heartbeat: Annotated[str | None, Field(title="Latest Triggerer Heartbeat")]
-    detailed_status: Annotated[str | None, Field(title="Detailed Status")]
+    detailed_status: DetailedHealthStatus | None
     instances: Annotated[list[TriggererInstanceInfoResponse] | None, Field(title="Instances")] = None
 
 

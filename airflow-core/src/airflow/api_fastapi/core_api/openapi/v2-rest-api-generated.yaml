@@ -11820,9 +11820,8 @@ components:
       properties:
         status:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/HealthStatus'
           - type: 'null'
-          title: Status
       type: object
       required:
       - status
@@ -14117,9 +14116,8 @@ components:
       properties:
         status:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/HealthStatus'
           - type: 'null'
-          title: Status
         latest_dag_processor_heartbeat:
           anyOf:
           - type: string
@@ -14127,9 +14125,8 @@ components:
           title: Latest Dag Processor Heartbeat
         detailed_status:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/DetailedHealthStatus'
           - type: 'null'
-          title: Detailed Status
         instances:
           anyOf:
           - items:
@@ -14446,6 +14443,14 @@ components:
         This is the set of allowable values for the ``warning_type`` field
 
         in the DagWarning model.'
+    DetailedHealthStatus:
+      type: string
+      enum:
+      - healthy
+      - degraded
+      - down
+      title: DetailedHealthStatus
+      description: How much of a component's work has a live instance covering it.
     DryRunBackfillCollectionResponse:
       properties:
         backfills:
@@ -14958,6 +14963,14 @@ components:
       - triggerer
       title: HealthInfoResponse
       description: Health serializer for responses.
+    HealthStatus:
+      type: string
+      enum:
+      - healthy
+      - unhealthy
+      title: HealthStatus
+      description: 'Aggregate health of a component: whether it has at least one live
+        instance.'
     ImportErrorCollectionResponse:
       properties:
         import_errors:
@@ -15697,9 +15710,8 @@ components:
       properties:
         status:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/HealthStatus'
           - type: 'null'
-          title: Status
         latest_scheduler_heartbeat:
           anyOf:
           - type: string
@@ -15707,9 +15719,8 @@ components:
           title: Latest Scheduler Heartbeat
         detailed_status:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/DetailedHealthStatus'
           - type: 'null'
-          title: Detailed Status
         instances:
           anyOf:
           - items:
@@ -16859,9 +16870,8 @@ components:
       properties:
         status:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/HealthStatus'
           - type: 'null'
-          title: Status
         latest_triggerer_heartbeat:
           anyOf:
           - type: string
@@ -16869,9 +16879,8 @@ components:
           title: Latest Triggerer Heartbeat
         detailed_status:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/DetailedHealthStatus'
           - type: 'null'
-          title: Detailed Status
         instances:
           anyOf:
           - items:

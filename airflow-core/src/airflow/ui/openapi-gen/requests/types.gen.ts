@@ -303,7 +303,7 @@ export type BackfillResponse = {
  * Base info serializer for responses.
  */
 export type BaseInfoResponse = {
-    status: string | null;
+    status: HealthStatus | null;
 };
 
 /**
@@ -1181,9 +1181,9 @@ export type DagBundleResponse = {
  * DagProcessor info serializer for responses.
  */
 export type DagProcessorInfoResponse = {
-    status: string | null;
+    status: HealthStatus | null;
     latest_dag_processor_heartbeat: string | null;
-    detailed_status: string | null;
+    detailed_status: DetailedHealthStatus | null;
     instances?: Array<DagProcessorInstanceInfoResponse> | null;
 };
 
@@ -1309,6 +1309,11 @@ export type DagVersionResponse = {
  * in the DagWarning model.
  */
 export type DagWarningType = 'asset conflict' | 'duplicate dag id' | 'non-existent pool' | 'runtime varying value';
+
+/**
+ * How much of a component's work has a live instance covering it.
+ */
+export type DetailedHealthStatus = 'healthy' | 'degraded' | 'down';
 
 /**
  * Backfill collection serializer for responses in dry-run mode.
@@ -1508,6 +1513,11 @@ export type HealthInfoResponse = {
     triggerer: TriggererInfoResponse;
     dag_processor?: DagProcessorInfoResponse | null;
 };
+
+/**
+ * Aggregate health of a component: whether it has at least one live instance.
+ */
+export type HealthStatus = 'healthy' | 'unhealthy';
 
 /**
  * Import Error Collection Response.
@@ -1782,9 +1792,9 @@ export type ReprocessBehavior = 'failed' | 'completed' | 'none';
  * Scheduler info serializer for responses.
  */
 export type SchedulerInfoResponse = {
-    status: string | null;
+    status: HealthStatus | null;
     latest_scheduler_heartbeat: string | null;
-    detailed_status: string | null;
+    detailed_status: DetailedHealthStatus | null;
     instances?: Array<SchedulerInstanceInfoResponse> | null;
 };
 
@@ -2138,9 +2148,9 @@ export type TriggerResponse = {
  * Triggerer info serializer for responses.
  */
 export type TriggererInfoResponse = {
-    status: string | null;
+    status: HealthStatus | null;
     latest_triggerer_heartbeat: string | null;
-    detailed_status: string | null;
+    detailed_status: DetailedHealthStatus | null;
     instances?: Array<TriggererInstanceInfoResponse> | null;
 };
 

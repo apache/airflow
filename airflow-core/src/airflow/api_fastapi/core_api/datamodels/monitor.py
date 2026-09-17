@@ -16,13 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+from airflow.api.common.airflow_health import DetailedHealthStatus, HealthStatus
 from airflow.api_fastapi.core_api.base import BaseModel
 
 
 class BaseInfoResponse(BaseModel):
     """Base info serializer for responses."""
 
-    status: str | None
+    status: HealthStatus | None
 
 
 # Instances carry no status of their own: only running replicas are listed, and how healthy the set
@@ -54,7 +55,7 @@ class SchedulerInfoResponse(BaseInfoResponse):
     """Scheduler info serializer for responses."""
 
     latest_scheduler_heartbeat: str | None
-    detailed_status: str | None
+    detailed_status: DetailedHealthStatus | None
     instances: list[SchedulerInstanceInfoResponse] | None = None
 
 
@@ -62,7 +63,7 @@ class TriggererInfoResponse(BaseInfoResponse):
     """Triggerer info serializer for responses."""
 
     latest_triggerer_heartbeat: str | None
-    detailed_status: str | None
+    detailed_status: DetailedHealthStatus | None
     instances: list[TriggererInstanceInfoResponse] | None = None
 
 
@@ -70,7 +71,7 @@ class DagProcessorInfoResponse(BaseInfoResponse):
     """DagProcessor info serializer for responses."""
 
     latest_dag_processor_heartbeat: str | None
-    detailed_status: str | None
+    detailed_status: DetailedHealthStatus | None
     instances: list[DagProcessorInstanceInfoResponse] | None = None
 
 
