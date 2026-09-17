@@ -45,7 +45,12 @@ from airflow.providers.amazon.aws.operators.rds import (
     RdsDeleteDbInstanceOperator,
 )
 from airflow.providers.amazon.aws.sensors.dms import DmsTaskBaseSensor, DmsTaskCompletedSensor
-from airflow.providers.standard.sensors.date_time import DateTimeSensorAsync
+
+try:
+    from airflow.providers.standard.sensors.date_time import DateTimeSensorAsync
+except ImportError:
+    # Fallback for older Airflow versions
+    from airflow.sensors.date_time import DateTimeSensorAsync  # type: ignore[no-redef]
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 

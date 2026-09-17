@@ -35,7 +35,10 @@ from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
 from airflow.providers.fab.www.extensions.init_jinja_globals import init_jinja_globals
 from airflow.providers.fab.www.extensions.init_manifest_files import configure_manifest_files
 from airflow.providers.fab.www.extensions.init_security import init_api_auth
-from airflow.providers.fab.www.extensions.init_session import init_airflow_session_interface
+from airflow.providers.fab.www.extensions.init_session import (
+    init_airflow_session_interface,
+    init_session_max_lifetime,
+)
 from airflow.providers.fab.www.extensions.init_views import (
     init_error_handlers,
     init_plugins,
@@ -127,6 +130,7 @@ def create_app(enable_plugins: bool):
             init_plugins(flask_app)
         elif isinstance(get_auth_manager(), FabAuthManager):
             init_airflow_session_interface(flask_app, db)
+            init_session_max_lifetime(flask_app)
         init_jinja_globals(flask_app, enable_plugins=enable_plugins)
         init_wsgi_middleware(flask_app)
     return flask_app

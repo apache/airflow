@@ -97,6 +97,9 @@ dependencies = [
 "s3fs" = [
     "s3fs>=2023.10.0",
 ]
+"msk" = [
+    "aws-msk-iam-sasl-signer-python>=1.0.1",
+]
 "python3-saml" = [
     # Python 3 saml is not compatible with Python 3.13 yet, so we pin it to < 3.13
     "python3-saml>=1.16.0; python_version < '3.13'",

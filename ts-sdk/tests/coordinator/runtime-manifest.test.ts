@@ -23,7 +23,7 @@ import { AIRFLOW_METADATA_SENTINEL, buildBundleManifest } from "../../src/coordi
 import { startCoordinator } from "../../src/coordinator/runtime.js";
 import { SUPERVISOR_API_VERSION } from "../../src/coordinator/protocol.js";
 import { Dag } from "../../src/sdk/dag.js";
-import { DagRegistry } from "../../src/sdk/registry.js";
+import { Bundle } from "../../src/sdk/bundle.js";
 
 function buildDag(dagId: string, ...taskIds: string[]): Dag {
   const dag = new Dag(dagId);
@@ -34,9 +34,9 @@ function buildDag(dagId: string, ...taskIds: string[]): Dag {
 }
 
 describe("buildBundleManifest", () => {
-  it("maps a registry's Dags to their tasks under the SDK's schema version", () => {
-    const registry = new DagRegistry(buildDag("dag_a", "t1", "t3"), buildDag("dag_b", "t2"));
-    expect(buildBundleManifest(registry)).toEqual({
+  it("maps a bundle's Dags to their tasks under the SDK's schema version", () => {
+    const bundle = new Bundle(buildDag("dag_a", "t1", "t3"), buildDag("dag_b", "t2"));
+    expect(buildBundleManifest(bundle)).toEqual({
       supervisor_schema_version: SUPERVISOR_API_VERSION,
       dags: {
         dag_a: { tasks: ["t1", "t3"] },
@@ -46,23 +46,23 @@ describe("buildBundleManifest", () => {
   });
 
   it("keeps a registered Dag without tasks visible in the manifest", () => {
-    expect(buildBundleManifest(new DagRegistry(buildDag("empty_dag"))).dags).toEqual({
+    expect(buildBundleManifest(new Bundle(buildDag("empty_dag"))).dags).toEqual({
       empty_dag: { tasks: [] },
     });
   });
 
   it("keeps a Dag named __proto__ visible in serialized metadata", () => {
-    const manifest = buildBundleManifest(new DagRegistry(buildDag("__proto__", "task")));
+    const manifest = buildBundleManifest(new Bundle(buildDag("__proto__", "task")));
     const serializedDags = JSON.parse(JSON.stringify(manifest)).dags;
 
     expect(Object.keys(serializedDags)).toEqual(["__proto__"]);
     expect(serializedDags["__proto__"]).toEqual({ tasks: ["task"] });
   });
 
-  it("reports only the Dags the registry was given", () => {
-    const registry = new DagRegistry(buildDag("dag_a", "t1"));
+  it("reports only the Dags the bundle was given", () => {
+    const bundle = new Bundle(buildDag("dag_a", "t1"));
     buildDag("dag_b", "t2");
-    expect(Object.keys(buildBundleManifest(registry).dags)).toEqual(["dag_a"]);
+    expect(Object.keys(buildBundleManifest(bundle).dags)).toEqual(["dag_a"]);
   });
 
   // The server would reject these ids. The manifest keeps them and
@@ -70,7 +70,7 @@ describe("buildBundleManifest", () => {
   it.each(["", "   ", "\t", "my dag", "a/b", "task@1", "d".repeat(251)])(
     "keeps a dagId the server would reject visible in the manifest: %j",
     (dagId) => {
-      const manifest = buildBundleManifest(new DagRegistry(buildDag(dagId, "t1")));
+      const manifest = buildBundleManifest(new Bundle(buildDag(dagId, "t1")));
       expect(manifest.dags[dagId]).toEqual({ tasks: ["t1"] });
     },
   );
@@ -80,7 +80,7 @@ describe("buildBundleManifest", () => {
   it.each(["   ", "\t", "my task", "a/b", "task@1", "t".repeat(251)])(
     "keeps a taskId the server would reject visible in the manifest: %j",
     (taskId) => {
-      const manifest = buildBundleManifest(new DagRegistry(buildDag("example_dag", taskId)));
+      const manifest = buildBundleManifest(new Bundle(buildDag("example_dag", taskId)));
       expect(manifest.dags["example_dag"]).toEqual({ tasks: [taskId] });
     },
   );
@@ -88,7 +88,7 @@ describe("buildBundleManifest", () => {
   it("rejects a non-string dagId before object-key coercion hides it", () => {
     const dag = new Dag(123 as unknown as string);
     dag.task("t1", async () => undefined);
-    expect(() => buildBundleManifest(new DagRegistry(dag))).toThrowError(/Dag ID must be a string/);
+    expect(() => buildBundleManifest(new Bundle(dag))).toThrowError(/Dag ID must be a string/);
   });
 });
 
@@ -100,7 +100,7 @@ describe("startCoordinator --airflow-metadata", () => {
   it("dumps the manifest to stdout and returns without connecting", async () => {
     const write = vi.spyOn(process.stdout, "write").mockReturnValue(true);
 
-    await startCoordinator(new DagRegistry(buildDag("metadata_dag", "only")), {
+    await startCoordinator(new Bundle(buildDag("metadata_dag", "only")), {
       argv: ["node", "bundle.mjs", "--airflow-metadata"],
     });
 

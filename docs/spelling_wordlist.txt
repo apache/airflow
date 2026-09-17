@@ -474,6 +474,7 @@ dependant
 DependencyMixin
 Deprecations
 deprecations
+deprioritize
 deps
 deques
 deregister
