@@ -31,7 +31,8 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 
 import { VersionDiff } from "./VersionDiff";
 
-// Mirrors MAX_ALLOWED_CHANGES on the diff endpoint, which rejects anything larger.
+// Mirrors MAX_ALLOWED_CHANGES on the diff endpoint, which is the real guard: this only spares
+// the caller a rejected request, so a stale value costs a 422 the error alert explains.
 const MAX_CHANGES_LIMIT = 5000;
 
 type SelectedVersionsProps = {

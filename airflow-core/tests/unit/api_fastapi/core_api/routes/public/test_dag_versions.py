@@ -395,10 +395,10 @@ class TestGetDagVersionDiff(TestDagVersionEndpoint):
         assert body["serialized_dag_schema_versions"] == {"base": mock.ANY, "target": mock.ANY}
         assert body["changes"], "a task was added between these versions"
         for change in body["changes"]:
-            assert change["before_value"] is None
-            assert change["after_value"] is None
-            assert change["before_digest"] is None
-            assert change["after_digest"] is None
+            assert "before_value" not in change
+            assert "after_value" not in change
+            assert "before_digest" not in change
+            assert "after_digest" not in change
             assert "task2" not in change["path"], "an identifying component must stay masked"
 
     @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_versions.get_auth_manager")
@@ -415,6 +415,22 @@ class TestGetDagVersionDiff(TestDagVersionEndpoint):
         paths = [change["path"] for change in body["changes"]]
         assert any("task2" in path for path in paths), "the added task is named for a CODE reader"
         assert any(change["after_digest"] is not None for change in body["changes"])
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_versions.get_auth_manager")
+    def test_omits_the_value_a_side_does_not_have(
+        self, mock_get_auth_manager, test_client, make_dag_with_multiple_versions
+    ):
+        """Omission is what tells a missing side apart from a stored null, so it must reach the wire."""
+        mock_get_auth_manager.return_value.is_authorized_dag.return_value = True
+
+        body = test_client.get(self.PATH).json()
+
+        added = [change for change in body["changes"] if change["operation"] == "added"]
+        assert added, "a task was added between these versions"
+        for change in added:
+            assert "before_value" not in change
+            assert "after_value" in change
+            assert change["before_digest"] is None
 
     @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_versions.get_auth_manager")
     def test_reports_total_changes_as_underlying_occurrences(

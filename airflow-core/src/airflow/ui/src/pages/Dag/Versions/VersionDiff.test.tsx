@@ -101,6 +101,26 @@ describe("VersionDiff", () => {
     expect(screen.getByText("versions.truncated.description")).toBeInTheDocument();
   });
 
+  it("marks the side an added change does not have", () => {
+    renderDiff({
+      ...authorized,
+      changes: [
+        {
+          after_digest: "sha256:beef",
+          after_value: "extract",
+          before_digest: null,
+          category: "task",
+          impact: "execution",
+          occurrence_count: 1,
+          operation: "added",
+          path: "/dag/tasks/extract",
+        },
+      ],
+    });
+
+    expect(screen.getByText("—")).toBeInTheDocument();
+  });
+
   it("truncates a value too large to read in a table cell", () => {
     const wholeTask = { __type: "operator", __var: { task_id: "extract", template_fields: "x".repeat(400) } };
 
