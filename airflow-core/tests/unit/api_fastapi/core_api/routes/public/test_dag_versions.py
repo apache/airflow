@@ -16,11 +16,20 @@
 # under the License.
 from __future__ import annotations
 
+from typing import get_args
 from unittest import mock
 
 import pytest
 
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
+from airflow.api_fastapi.core_api.datamodels.dag_versions import (
+    DagVersionDiffCategory,
+    DagVersionDiffImpact,
+    DagVersionDiffValuesStatus,
+)
+from airflow.models.dag_version import ValuesStatus
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.serialization.dag_version_diff import MAX_ALLOWED_CHANGES, DiffCategory, DiffImpact
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_dags, clear_db_serialized_dags
@@ -355,3 +364,126 @@ class TestGetDagVersions(TestDagVersionEndpoint):
     def test_should_respond_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get("/dags/~/dagVersions", params={})
         assert response.status_code == 403
+
+
+class TestGetDagVersionDiff(TestDagVersionEndpoint):
+    """The endpoint reports observed state, with values gated on CODE access."""
+
+    PATH = "/dags/dag_with_multiple_versions/dagVersions/1/diff/2"
+
+    @staticmethod
+    def _withhold_code_access(mock_get_auth_manager):
+        """Grant the VERSION read the dependency needs, refuse the CODE read values require."""
+        mock_get_auth_manager.return_value.is_authorized_dag.side_effect = lambda *, access_entity=None, **_: (
+            access_entity is not DagAccessEntity.CODE
+        )
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_versions.get_auth_manager")
+    def test_withholds_values_without_code_access(
+        self, mock_get_auth_manager, test_client, make_dag_with_multiple_versions
+    ):
+        self._withhold_code_access(mock_get_auth_manager)
+
+        response = test_client.get(self.PATH)
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["mode"] == "observed_state"
+        assert body["values_status"] == "unavailable"
+        assert body["base_version_number"] == 1
+        assert body["target_version_number"] == 2
+        assert body["serialized_dag_schema_versions"] == {"base": mock.ANY, "target": mock.ANY}
+        assert body["changes"], "a task was added between these versions"
+        for change in body["changes"]:
+            assert change["before_value"] is None
+            assert change["after_value"] is None
+            assert change["before_digest"] is None
+            assert change["after_digest"] is None
+            assert "task2" not in change["path"], "an identifying component must stay masked"
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_versions.get_auth_manager")
+    def test_discloses_values_with_code_access(
+        self, mock_get_auth_manager, test_client, make_dag_with_multiple_versions
+    ):
+        mock_get_auth_manager.return_value.is_authorized_dag.return_value = True
+
+        response = test_client.get(self.PATH)
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["values_status"] == "available"
+        paths = [change["path"] for change in body["changes"]]
+        assert any("task2" in path for path in paths), "the added task is named for a CODE reader"
+        assert any(change["after_digest"] is not None for change in body["changes"])
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_versions.get_auth_manager")
+    def test_reports_total_changes_as_underlying_occurrences(
+        self, mock_get_auth_manager, test_client, make_dag_with_multiple_versions
+    ):
+        """A redacted record stands for every change sharing its path, so records are not the count."""
+        self._withhold_code_access(mock_get_auth_manager)
+
+        body = test_client.get(self.PATH).json()
+
+        assert body["total_changes"] == sum(change["occurrence_count"] for change in body["changes"])
+        assert body["total_changes"] >= len(body["changes"])
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_versions.get_auth_manager")
+    def test_reports_total_changes_as_a_lower_bound_when_truncated(
+        self, mock_get_auth_manager, test_client, make_dag_with_multiple_versions
+    ):
+        """A dropped path takes its occurrences with it, so the total stops being exact."""
+        self._withhold_code_access(mock_get_auth_manager)
+
+        full = test_client.get(self.PATH).json()
+        bounded = test_client.get(f"{self.PATH}?max_changes=1").json()
+
+        assert full["truncated"] is False
+        assert bounded["truncated"] is True
+        assert len(bounded["changes"]) == 1
+        assert bounded["total_changes"] < full["total_changes"]
+        assert bounded["total_changes"] == bounded["changes"][0]["occurrence_count"]
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_versions.get_auth_manager")
+    def test_returns_404_for_a_version_that_does_not_exist(
+        self, mock_get_auth_manager, test_client, make_dag_with_multiple_versions
+    ):
+        mock_get_auth_manager.return_value.is_authorized_dag.return_value = True
+
+        response = test_client.get("/dags/dag_with_multiple_versions/dagVersions/1/diff/99")
+
+        assert response.status_code == 404
+        assert "99" in response.json()["detail"]
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_versions.get_auth_manager")
+    def test_returns_400_for_a_version_number_below_one(
+        self, mock_get_auth_manager, test_client, make_dag_with_multiple_versions
+    ):
+        mock_get_auth_manager.return_value.is_authorized_dag.return_value = True
+
+        response = test_client.get("/dags/dag_with_multiple_versions/dagVersions/0/diff/2")
+
+        assert response.status_code == 400
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_versions.get_auth_manager")
+    def test_rejects_a_change_bound_above_the_allowed_maximum(
+        self, mock_get_auth_manager, test_client, make_dag_with_multiple_versions
+    ):
+        mock_get_auth_manager.return_value.is_authorized_dag.return_value = True
+
+        response = test_client.get(f"{self.PATH}?max_changes={MAX_ALLOWED_CHANGES + 1}")
+
+        assert response.status_code == 422
+
+    def test_requires_authentication(self, unauthenticated_test_client):
+        assert unauthenticated_test_client.get(self.PATH).status_code == 401
+
+    def test_requires_authorization(self, unauthorized_test_client):
+        assert unauthorized_test_client.get(self.PATH).status_code == 403
+
+
+def test_diff_enums_mirror_the_engine_literals():
+    """The response enums exist to name the generated client's types; they must not drift."""
+    assert {member.value for member in DagVersionDiffCategory} == set(get_args(DiffCategory))
+    assert {member.value for member in DagVersionDiffImpact} == set(get_args(DiffImpact))
+    assert {member.value for member in DagVersionDiffValuesStatus} == set(get_args(ValuesStatus))
