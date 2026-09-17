@@ -80,6 +80,8 @@ For example a ``html_content_template`` file could look like this:
   Task: {{ti.task_id}}<br>
   Run: {{ti.run_id}}<br>
   Try: {{try_number}} out of {{max_tries + 1}}<br>
+  {% if ti.start_date is defined and ti.start_date %}Started: {{ti.start_date}}<br>{% endif %}
+  {% if ti.end_date is defined and ti.end_date %}Ended: {{ti.end_date}}<br>{% endif %}
   Exception:<br>{{exception_html}}<br>
   Log: <a href="{{ti.log_url}}">Link</a><br>
   Host: {{ti.hostname}}<br>
