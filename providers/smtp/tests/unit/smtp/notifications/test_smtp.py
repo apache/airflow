@@ -24,6 +24,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from airflow.providers.common.compat.sdk import TaskInstanceState
 from airflow.providers.smtp.notifications.smtp import SmtpNotifier, send_smtp_notification
 
 from tests_common.test_utils.config import conf_vars
@@ -47,7 +48,7 @@ DEFAULT_EMAIL_PARAMS = {
 # DAG settings
 TEST_DAG_ID = "test_dag"
 TEST_TASK_ID = "test_task"
-TEST_TASK_STATE = None
+TEST_TASK_STATE = TaskInstanceState.FAILED
 TEST_RUN_ID = "test_run"
 
 # Jinja template patterns
@@ -163,11 +164,51 @@ class TestSmtpNotifier:
         mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_called_once_with(
             from_email=TEST_SENDER,
             to=TEST_RECEIVER,
-            subject=f"DAG {TEST_DAG_ID} - Task {TEST_TASK_ID} - Run ID {TEST_RUN_ID} in State {TEST_TASK_STATE}",
+            subject=f"[Airflow] {TEST_DAG_ID}.{TEST_TASK_ID} {TEST_TASK_STATE.value} - Run {TEST_RUN_ID}",
             html_content=mock.ANY,
             smtp_conn_id=SMTP_CONN_ID,
             **DEFAULT_EMAIL_PARAMS,
         )
+
+    @pytest.mark.parametrize(
+        ("state", "expected_state", "expected_banner"),
+        [
+            pytest.param(TaskInstanceState.FAILED, "failed", "#dc2626", id="failed"),
+            pytest.param(TaskInstanceState.SUCCESS, "success", "#334155", id="success"),
+            pytest.param(None, "unknown", "#334155", id="no-state"),
+        ],
+    )
+    @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
+    def test_default_templates_render_task_details(
+        self,
+        mock_smtphook_hook,
+        create_dag_without_db,
+        mock_task_instance,
+        state,
+        expected_state,
+        expected_banner,
+    ):
+        mock_ti = mock_task_instance(
+            dag_id=TEST_DAG_ID, task_id=TEST_TASK_ID, run_id=TEST_RUN_ID, state=state
+        )
+        mock_ti.log_url = "http://localhost:8080/log"
+        notifier = SmtpNotifier(from_email=TEST_SENDER, to=TEST_RECEIVER)
+        mock_smtphook_hook.return_value.__enter__.return_value.subject_template = None
+        mock_smtphook_hook.return_value.__enter__.return_value.html_content_template = None
+
+        notifier({"dag": create_dag_without_db(TEST_DAG_ID), "ti": mock_ti})
+
+        kwargs = mock_smtphook_hook.return_value.__enter__().send_email_smtp.call_args.kwargs
+        assert (
+            kwargs["subject"]
+            == f"[Airflow] {TEST_DAG_ID}.{TEST_TASK_ID} {expected_state} - Run {TEST_RUN_ID}"
+        )
+        content = kwargs["html_content"]
+        assert f"Airflow task {expected_state}" in content
+        assert expected_banner in content
+        for value in (TEST_DAG_ID, TEST_TASK_ID, TEST_RUN_ID, expected_state):
+            assert value in content
+        assert f'href="{mock_ti.log_url}"' in content
         content = mock_smtphook_hook.return_value.__enter__().send_email_smtp.call_args.kwargs["html_content"]
         assert f"{TRY_NUMBER} of 1" in content
 
