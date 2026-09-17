@@ -48,6 +48,7 @@ def _get_credential_provider(provider: str | None) -> str | None:
 class _ProviderConnectionConfig:
     get_kwargs: Callable[[str | None, str | None, dict[str, Any]], dict[str, Any]]
     replacement_fields: tuple[str, ...] = ()
+    ignored_extra_fields: tuple[str, ...] = ()
 
 
 # Sentinel distinguishing "caller did not pass ``instrument``" from an explicit
@@ -198,6 +199,14 @@ class PydanticAIHook(BaseHook):
                     ignored_fields,
                     list(provider_config.replacement_fields),
                 )
+        ignored_extra_fields = [field for field in provider_config.ignored_extra_fields if extra.get(field)]
+        if ignored_extra_fields:
+            self.log.warning(
+                "Connection extra fields are ignored for provider %r on connection %r: %s",
+                provider_name,
+                conn.conn_id,
+                ignored_extra_fields,
+            )
         return provider_config.get_kwargs(conn.password, conn.host, extra)
 
     def _get_provider_factory_for_model(
@@ -223,7 +232,7 @@ class PydanticAIHook(BaseHook):
             except TypeError as e:
                 raise TypeError(
                     f"Provider {provider!r} rejected connection {conn.conn_id!r} fields "
-                    f"mapped to kwargs {sorted(provider_kwargs)}"
+                    f"mapped to kwargs {sorted(provider_kwargs)}: {e}"
                 ) from e
 
         return create_provider
@@ -238,7 +247,7 @@ class PydanticAIHook(BaseHook):
 
         llm_provider, _ = parse_model_id(llm_model_name)
         embed_provider, _ = parse_model_id(embed_model_name)
-        if embed_provider == "sentence-transformers":
+        if embed_provider is None or embed_provider == "sentence-transformers":
             return
         llm_credential_provider = _get_credential_provider(llm_provider)
         embed_credential_provider = _get_credential_provider(embed_provider)
@@ -703,12 +712,21 @@ _PROVIDER_CONNECTION_CONFIGS: dict[str | None, _ProviderConnectionConfig] = {
     "azure": _ProviderConnectionConfig(PydanticAIAzureHook._get_provider_kwargs),
     "azure-responses": _ProviderConnectionConfig(PydanticAIAzureHook._get_provider_kwargs),
     "bedrock": _ProviderConnectionConfig(
-        PydanticAIBedrockHook._get_provider_kwargs,
-        ("api_key", "base_url", "region_name"),
+        get_kwargs=PydanticAIBedrockHook._get_provider_kwargs,
+        replacement_fields=(
+            "api_key",
+            "base_url",
+            "region_name",
+            "aws_access_key_id",
+            "aws_secret_access_key",
+            "aws_session_token",
+            "profile_name",
+        ),
     ),
     "google": _ProviderConnectionConfig(
-        PydanticAIVertexHook._get_google_provider_kwargs,
-        ("api_key", "base_url"),
+        get_kwargs=PydanticAIVertexHook._get_google_provider_kwargs,
+        replacement_fields=("api_key", "base_url"),
+        ignored_extra_fields=("project", "location", "service_account_info"),
     ),
     "google-cloud": _ProviderConnectionConfig(
         PydanticAIVertexHook._get_google_cloud_provider_kwargs,

@@ -92,10 +92,7 @@ a new instance.
 
     from pydantic_ai.embeddings import EmbeddingSettings
 
-    embedder = hook.get_embedder(
-        settings=EmbeddingSettings(dimensions=512),
-        defer_model_check=False,
-    )
+    embedder = hook.get_embedder(settings=EmbeddingSettings(dimensions=512))
 
 Structured Output
 -----------------

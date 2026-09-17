@@ -283,7 +283,15 @@ class TestPydanticAIHookGetConn:
             (
                 "bedrock:us.anthropic.claude-opus-4-6-v1:0",
                 "bedrock",
-                ["api_key", "base_url", "region_name"],
+                [
+                    "api_key",
+                    "base_url",
+                    "region_name",
+                    "aws_access_key_id",
+                    "aws_secret_access_key",
+                    "aws_session_token",
+                    "profile_name",
+                ],
             ),
             ("google:gemini-2.0-flash", "google", ["api_key", "base_url"]),
             (
@@ -320,6 +328,37 @@ class TestPydanticAIHookGetConn:
             "test_conn",
             ["password", "host"],
             replacement_fields,
+        )
+        mock_infer_model.assert_called_once_with(model_name)
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    def test_google_provider_warns_for_ignored_vertex_fields(self, mock_infer_model):
+        mock_infer_model.return_value = MagicMock(spec=Model)
+        hook = PydanticAIVertexHook(llm_conn_id="vertex_conn")
+        conn = Connection(
+            conn_id="vertex_conn",
+            conn_type="pydanticai_vertex",
+            extra=json.dumps(
+                {
+                    "model": "google:gemini-2.0-flash",
+                    "project": "my-project",
+                    "location": "us-central1",
+                    "service_account_info": {"client_email": "service-account@example.com"},
+                }
+            ),
+        )
+
+        with (
+            patch.object(hook, "get_connection", return_value=conn),
+            patch.object(hook.log, "warning", autospec=True) as mock_warning,
+        ):
+            hook.get_conn()
+
+        mock_warning.assert_called_once_with(
+            "Connection extra fields are ignored for provider %r on connection %r: %s",
+            "google",
+            "vertex_conn",
+            ["project", "location", "service_account_info"],
         )
 
 
@@ -429,7 +468,7 @@ class TestPydanticAIHookGetEmbedder:
 
         with (
             patch.object(hook, "get_connection", return_value=conn),
-            pytest.raises(TypeError, match="embedding_conn.*api_key"),
+            pytest.raises(TypeError, match="embedding_conn.*api_key.*unexpected credential"),
         ):
             hook.get_embedder()
 
@@ -450,6 +489,25 @@ class TestPydanticAIHookGetEmbedder:
             hook.get_embedder()
 
         mock_infer_embedding_model.assert_not_called()
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
+    def test_prefixless_embedding_model_validation_is_delegated(self, mock_infer_embedding_model):
+        mock_infer_embedding_model.side_effect = ValueError(
+            "You must provide a provider prefix when specifying an embedding model name"
+        )
+        hook = PydanticAIHook(
+            model_id="openai:gpt-4o",
+            embed_model_id="text-embedding-3-small",
+        )
+        conn = Connection(conn_id="pydanticai_default", conn_type="pydanticai")
+
+        with (
+            patch.object(hook, "get_connection", return_value=conn),
+            pytest.raises(ValueError, match="provide a provider prefix"),
+        ):
+            hook.get_embedder()
+
+        mock_infer_embedding_model.assert_called_once_with("text-embedding-3-small")
 
     @pytest.mark.parametrize(
         ("llm_model_id", "embed_model_id"),

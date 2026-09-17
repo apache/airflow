@@ -24,9 +24,9 @@ The ``pydanticai_bedrock`` connection type configures access to
 `AWS Bedrock <https://aws.amazon.com/bedrock/>`__ via the pydantic-ai framework.
 It backs ``PydanticAIBedrockHook``, the dedicated subclass of ``PydanticAIHook``
 for Bedrock's AWS-style credentials — IAM keys, a bearer token, or the default
-credential chain — none of which fit the plain ``api_key`` + ``base_url`` shape
-that the generic :doc:`pydantic_ai` connection assumes. All fields live in
-``extra``; the ``password`` and ``host`` fields are hidden in the connection form.
+credential chain. The generic :doc:`pydantic_ai` connection can use the same
+credentials when they are supplied in ``extra``. This dedicated connection type
+exposes them as form inputs and hides the ``password`` and ``host`` fields.
 
 .. note::
 
