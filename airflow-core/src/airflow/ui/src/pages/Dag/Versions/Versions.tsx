@@ -16,32 +16,42 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useState } from "react";
-
-import { Box, Flex, Text } from "@chakra-ui/react";
+import { Box, Flex, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import { useDagVersionServiceGetDagVersionDiff } from "openapi/queries";
 
-import { ProgressBar } from "src/system-components";
+import { NumberInputField, NumberInputRoot, ProgressBar } from "src/system-components";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { VersionCompareSelect } from "src/components/VersionCompareSelect";
 
+import { SearchParamsKeys } from "src/constants/searchParams";
+
 import { VersionDiff } from "./VersionDiff";
+
+// Mirrors MAX_ALLOWED_CHANGES on the diff endpoint, which rejects anything larger.
+const MAX_CHANGES_LIMIT = 5000;
 
 type SelectedVersionsProps = {
   readonly baseVersionNumber: number;
   readonly dagId: string;
+  readonly maxChanges: number | undefined;
   readonly targetVersionNumber: number;
 };
 
 /** Split out so the query only exists once both versions are chosen, rather than being disabled. */
-const SelectedVersionsDiff = ({ baseVersionNumber, dagId, targetVersionNumber }: SelectedVersionsProps) => {
+const SelectedVersionsDiff = ({
+  baseVersionNumber,
+  dagId,
+  maxChanges,
+  targetVersionNumber,
+}: SelectedVersionsProps) => {
   const { data, error, isLoading } = useDagVersionServiceGetDagVersionDiff({
     baseVersionNumber,
     dagId,
+    maxChanges,
     targetVersionNumber,
   });
 
@@ -60,25 +70,74 @@ const SelectedVersionsDiff = ({ baseVersionNumber, dagId, targetVersionNumber }:
   );
 };
 
+const parsePositiveInt = (raw: string | null) => {
+  const parsed = Number(raw);
+
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+};
+
 export const Versions = () => {
   const { t: translate } = useTranslation("dag");
   const { dagId = "" } = useParams();
-  const [baseVersionNumber, setBaseVersionNumber] = useState<number | undefined>(undefined);
-  const [targetVersionNumber, setTargetVersionNumber] = useState<number | undefined>(undefined);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const baseVersionNumber = parsePositiveInt(searchParams.get(SearchParamsKeys.BASE_VERSION_NUMBER));
+  const targetVersionNumber = parsePositiveInt(searchParams.get(SearchParamsKeys.TARGET_VERSION_NUMBER));
+  const requestedMaxChanges = parsePositiveInt(searchParams.get(SearchParamsKeys.MAX_CHANGES));
+  // Clamped rather than passed through, so a hand-edited link cannot make the endpoint reject the
+  // request. The input below shows the clamped value, never a limit that is not in effect.
+  const maxChanges =
+    requestedMaxChanges === undefined ? undefined : Math.min(requestedMaxChanges, MAX_CHANGES_LIMIT);
+
+  const updateParam = (key: string, value: string) =>
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+
+        if (value === "") {
+          next.delete(key);
+        } else {
+          next.set(key, value);
+        }
+
+        return next;
+      },
+      { replace: true },
+    );
 
   return (
     <Box p={2}>
       <Flex alignItems="flex-end" gap={4} mb={4}>
         <VersionCompareSelect
           label={translate("versions.base")}
-          onVersionChange={setBaseVersionNumber}
+          onVersionChange={(versionNumber) =>
+            updateParam(SearchParamsKeys.BASE_VERSION_NUMBER, versionNumber.toString())
+          }
           selectedVersionNumber={baseVersionNumber}
         />
         <VersionCompareSelect
           label={translate("versions.target")}
-          onVersionChange={setTargetVersionNumber}
+          onVersionChange={(versionNumber) =>
+            updateParam(SearchParamsKeys.TARGET_VERSION_NUMBER, versionNumber.toString())
+          }
           selectedVersionNumber={targetVersionNumber}
         />
+        <VStack alignItems="flex-start" gap={1}>
+          <Text fontSize="xs">{translate("versions.maxChanges")}</Text>
+          <NumberInputRoot
+            max={MAX_CHANGES_LIMIT}
+            min={1}
+            onValueChange={({ value }) => updateParam(SearchParamsKeys.MAX_CHANGES, value)}
+            size="sm"
+            value={maxChanges === undefined ? "" : maxChanges.toString()}
+            w={28}
+          >
+            <NumberInputField
+              aria-label={translate("versions.maxChanges")}
+              placeholder={translate("versions.maxChangesDefault")}
+            />
+          </NumberInputRoot>
+        </VStack>
       </Flex>
 
       {baseVersionNumber === undefined || targetVersionNumber === undefined ? (
@@ -87,6 +146,7 @@ export const Versions = () => {
         <SelectedVersionsDiff
           baseVersionNumber={baseVersionNumber}
           dagId={dagId}
+          maxChanges={maxChanges}
           targetVersionNumber={targetVersionNumber}
         />
       )}
