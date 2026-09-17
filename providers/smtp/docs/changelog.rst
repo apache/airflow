@@ -27,6 +27,13 @@
 Changelog
 ---------
 
+.. warning::
+  The default subject of emails sent by ``SmtpNotifier`` changed from
+  ``DAG <dag_id> - Task <task_id> - Run ID <run_id> in State <state>`` to
+  ``[Airflow] <dag_id>.<task_id> <state> - Run <run_id>``, and the default body now names the
+  Dag, the task and the run. Point the ``subject_template`` / ``html_content_template`` connection
+  extras at your own template files to keep the previous wording.
+
 3.0.4
 .....
 

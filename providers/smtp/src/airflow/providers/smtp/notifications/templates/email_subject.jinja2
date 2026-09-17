@@ -21,5 +21,5 @@
 {% set task_state = ti.state.value | default(ti.state, true) or "unknown" %}
 [Airflow] {{ ti.dag_id }}.{{ ti.task_id }} {{ task_state }} - Run {{ ti.run_id }}
 {% elif slas is defined %}
-SLA Missed for DAG {{ dag.dag_id }} - Task {{ slas[0].task_id }}
+SLA Missed for Dag {{ dag.dag_id }} - Task {{ slas[0].task_id }}
 {% endif %}

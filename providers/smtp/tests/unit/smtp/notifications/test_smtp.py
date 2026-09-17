@@ -169,6 +169,8 @@ class TestSmtpNotifier:
             smtp_conn_id=SMTP_CONN_ID,
             **DEFAULT_EMAIL_PARAMS,
         )
+        content = mock_smtphook_hook.return_value.__enter__().send_email_smtp.call_args.kwargs["html_content"]
+        assert f"{TRY_NUMBER} of 1" in content
 
     @pytest.mark.parametrize(
         ("state", "expected_state", "expected_banner"),
@@ -206,11 +208,9 @@ class TestSmtpNotifier:
         content = kwargs["html_content"]
         assert f"Airflow task {expected_state}" in content
         assert expected_banner in content
-        for value in (TEST_DAG_ID, TEST_TASK_ID, TEST_RUN_ID, expected_state):
+        for value in (TEST_DAG_ID, TEST_TASK_ID, TEST_RUN_ID):
             assert value in content
         assert f'href="{mock_ti.log_url}"' in content
-        content = mock_smtphook_hook.return_value.__enter__().send_email_smtp.call_args.kwargs["html_content"]
-        assert f"{TRY_NUMBER} of 1" in content
 
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
     def test_notifier_with_nondefault_connection_extra(
