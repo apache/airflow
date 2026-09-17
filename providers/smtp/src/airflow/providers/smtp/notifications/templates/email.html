@@ -27,7 +27,8 @@
             <td>Log Link:</td>
             <td><a href="{{ ti.log_url }}" style="text-decoration:underline;">{{ ti.log_url }}</a></td>
         </tr>
-        {% if ti.mark_success_url is defined %}
+        {# Airflow 3 aliases mark_success_url to log_url, which would repeat the row above. #}
+        {% if ti.mark_success_url is defined and ti.mark_success_url != ti.log_url %}
         <tr>
             <td>Mark Success Link:</td>
             <td><a href="{{ ti.mark_success_url }}" style="text-decoration:underline;">{{ ti.mark_success_url }}</a></td>

@@ -80,7 +80,11 @@ For example a ``html_content_template`` file could look like this:
   Exception:<br>{{exception_html}}<br>
   Log: <a href="{{ti.log_url}}">Link</a><br>
   Host: {{ti.hostname}}<br>
-  Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>
+
+.. note::
+    ``ti.mark_success_url`` is still available for templates carried over from Airflow 2, but it now
+    returns the same URL as ``ti.log_url`` — mark a task successful from the task instance page it
+    opens.
 
 .. note::
     For more information on setting the configuration, see :doc:`set-config`

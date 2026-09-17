@@ -884,7 +884,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
 
     @property
     def mark_success_url(self) -> str:
-        """URL to mark TI success."""
+        """Alias of ``log_url``, as Airflow 3 has no dedicated mark-success endpoint."""
         return self.log_url
 
     @provide_session
