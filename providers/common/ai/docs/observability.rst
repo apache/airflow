@@ -24,8 +24,11 @@ for each agent run, model call, and tool call, following the
 When enabled, this provider turns that instrumentation on for every agent it
 builds and routes the spans through the OpenTelemetry exporter Airflow already
 uses, so they appear in whatever backend your deployment runs (Jaeger, Tempo,
-Grafana, Phoenix, Langfuse, an OTLP collector, ...), correlated to the task that
-produced them.
+Grafana, `Arize AX <https://arize.com/docs/ax/integrations/orchestration/airflow/airflow-provider>`__,
+`Phoenix <https://arize.com/docs/phoenix/tracing/tutorial/your-first-traces>`__,
+Langfuse, an OTLP collector, ...), correlated to the task that produced them.
+AX supports managed cloud and enterprise self-hosted deployments; Phoenix is
+the open-source, self-hosted option.
 
 This covers all of the LLM operators (:class:`~airflow.providers.common.ai.operators.agent.AgentOperator`,
 ``@task.agent`` / ``@task.llm`` and the SQL / branch / file-analysis / schema-compare
@@ -107,13 +110,3 @@ outputs (``gen_ai.input.messages`` / ``gen_ai.output.messages``), set:
     ``True``.
 
 See :doc:`configurations-ref` for the full list of options.
-
-Exporting traces to Arize
--------------------------
-
-Airflow's OTLP export can send these correlated task and GenAI spans to Arize.
-Use `Arize AX <https://arize.com/docs/ax/integrations/orchestration/airflow/airflow-provider>`__
-for a managed cloud or enterprise self-hosted deployment, or
-`Arize Phoenix <https://arize.com/docs/phoenix/tracing/tutorial/your-first-traces>`__
-for an open-source, self-hosted workflow. The integration guides provide the
-endpoint and authentication settings for each destination.
