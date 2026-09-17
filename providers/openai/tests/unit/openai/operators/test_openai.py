@@ -236,6 +236,37 @@ def _build_completed_response(**overrides):
     return Mock(spec=Response, **{**defaults, **overrides})
 
 
+def test_openai_response_operator_resolves_xcom_arg_nested_in_response_kwargs():
+    with DAG("test_dag", schedule=None) as dag:
+        upstream = BaseOperator(task_id="upstream")
+
+    operator = OpenAIResponseOperator(
+        task_id=TASK_ID,
+        conn_id=CONN_ID,
+        input_text="Write a haiku.",
+        response_kwargs={"previous_response_id": XComArg(upstream, key="response_id")},
+        dag=dag,
+    )
+
+    # Construction must not fail or eagerly resolve the XComArg.
+    assert isinstance(operator.response_kwargs["previous_response_id"], XComArg)
+
+    mock_ti = Mock()
+    mock_ti.xcom_pull.return_value = "resp_123"
+    operator.render_template_fields(Context(ti=mock_ti, expanded_ti_count=None))
+
+    assert operator.response_kwargs["previous_response_id"] == "resp_123"
+
+    mock_hook_instance = Mock(spec=OpenAIHook)
+    mock_hook_instance.create_response.return_value = _build_completed_response()
+    operator.hook = mock_hook_instance
+
+    operator.execute(_build_execute_context())
+
+    call_kwargs = mock_hook_instance.create_response.call_args.kwargs
+    assert call_kwargs["previous_response_id"] == "resp_123"
+
+
 class TestOpenAIResponseOperatorTokenCeilings:
     @pytest.mark.parametrize(
         ("kwargs", "expected_extra"),
