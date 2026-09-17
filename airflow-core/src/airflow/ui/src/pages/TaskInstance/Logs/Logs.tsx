@@ -71,8 +71,11 @@ export const Logs = () => {
     },
   );
 
+  const defaultTryNumber =
+    taskInstance?.state === "up_for_retry" ? taskInstance.try_number - 1 : taskInstance?.try_number;
+
   const onSelectTryNumber = (newTryNumber: number) => {
-    if (newTryNumber === taskInstance?.try_number) {
+    if (newTryNumber === defaultTryNumber) {
       searchParams.delete(SearchParamsKeys.TRY_NUMBER);
     } else {
       searchParams.set(SearchParamsKeys.TRY_NUMBER, newTryNumber.toString());
@@ -80,7 +83,7 @@ export const Logs = () => {
     setSearchParams(searchParams);
   };
 
-  const tryNumber = tryNumberParam === null ? taskInstance?.try_number : parseInt(tryNumberParam, 10);
+  const tryNumber = tryNumberParam === null ? defaultTryNumber : parseInt(tryNumberParam, 10);
 
   const defaultWrap = Boolean(useConfig("default_wrap"));
 
@@ -160,7 +163,7 @@ export const Logs = () => {
     const element = document.createElement("a");
 
     element.href = URL.createObjectURL(new Blob([logContent], { type: "text/plain" }));
-    element.download = `logs_${taskInstance?.dag_id}_${taskInstance?.dag_run_id}_${taskInstance?.task_id}_${taskInstance?.map_index}_${taskInstance?.try_number}.txt`;
+    element.download = `logs_${taskInstance?.dag_id}_${taskInstance?.dag_run_id}_${taskInstance?.task_id}_${taskInstance?.map_index}_${tryNumber}.txt`;
     document.body.append(element);
     element.click();
     element.remove();

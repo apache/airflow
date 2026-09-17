@@ -165,6 +165,33 @@ def test_id_matches_sub_claim(client, session, create_task_instance):
 
 
 class TestTIRunState:
+    @pytest.mark.parametrize("matching_worker", [True, False])
+    def test_restarting_start_distinguishes_original_worker(
+        self, client, session, create_task_instance, matching_worker
+    ):
+        ti = create_task_instance(task_id="restarting_start", state=State.RESTARTING)
+        ti.hostname = "worker"
+        ti.unixname = "airflow"
+        ti.pid = 123
+        session.commit()
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "worker",
+                "unixname": "airflow",
+                "pid": 123 if matching_worker else 456,
+                "start_date": DEFAULT_START_DATE.isoformat(),
+            },
+        )
+        assert response.status_code == 409
+        assert response.json()["detail"]["reason"] == (
+            "invalid_state" if matching_worker else "running_elsewhere"
+        )
+        session.refresh(ti)
+        assert ti.state == State.RESTARTING
+        assert ti.pid == 123
+
     RUN_PAYLOAD = {
         "state": "running",
         "hostname": "random-hostname",
@@ -1319,7 +1346,7 @@ class TestTIRunState:
 class TestTIUpdateState:
     @pytest.mark.parametrize(
         ("interruption", "expected_state", "expected_status"),
-        [("clear", State.RESTARTING, 404), ("failed", State.FAILED, 409)],
+        [("clear", State.RESTARTING, 409), ("failed", State.FAILED, 409)],
     )
     def test_delayed_retry_report_preserves_external_state(
         self, client, session, create_task_instance, interruption, expected_state, expected_status
@@ -1347,7 +1374,69 @@ class TestTIUpdateState:
         assert ti.state == expected_state
         assert ti.end_date == expected_end_date
         if interruption == "clear":
-            assert ti.id != old_id
+            assert ti.id == old_id
+
+    @pytest.mark.parametrize("state", [State.SUCCESS, State.FAILED, State.RUNNING])
+    def test_stopped_report_preserves_server_state(self, client, session, create_task_instance, state):
+        ti = create_task_instance(task_id="stopped_preserves_state", state=state)
+        ti.hostname = "worker"
+        ti.pid = 123
+        session.commit()
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": "server_terminated",
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "hostname": "worker",
+                "pid": 123,
+            },
+        )
+        assert response.status_code == (409 if state == State.RUNNING else 204)
+        session.refresh(ti)
+        assert ti.state == state
+
+    @pytest.mark.parametrize("matching_worker", [True, False])
+    def test_stopped_worker_completes_restart_once(
+        self, client, session, create_task_instance, matching_worker
+    ):
+        ti = create_task_instance(
+            task_id="stopped_restart", state=State.RESTARTING, start_date=DEFAULT_START_DATE
+        )
+        ti.hostname = "original"
+        ti.pid = 123
+        ti.try_number = 3
+        ti.max_tries = 0
+        old_id = ti.id
+        session.commit()
+        payload = {
+            "state": "server_terminated",
+            "end_date": DEFAULT_END_DATE.isoformat(),
+            "hostname": "original" if matching_worker else "duplicate",
+            "pid": 123,
+        }
+
+        response = client.patch(f"/execution/task-instances/{old_id}/state", json=payload)
+
+        assert response.status_code == (204 if matching_worker else 409)
+        session.expunge_all()
+        current = session.scalar(select(TaskInstance).where(TaskInstance.task_id == "stopped_restart"))
+        if not matching_worker:
+            assert (current.id, current.try_number, current.state) == (old_id, 3, State.RESTARTING)
+            return
+        assert current.id != old_id
+        assert current.try_number == 4
+        assert current.max_tries >= 3
+        assert current.state is None
+        history = session.scalar(
+            select(TaskInstanceHistory).where(TaskInstanceHistory.task_instance_id == old_id)
+        )
+        assert history.try_number == 3
+        assert history.end_date == DEFAULT_END_DATE
+        new_id = current.id
+        response = client.patch(f"/execution/task-instances/{old_id}/state", json=payload)
+        assert response.status_code == 204
+        session.refresh(current)
+        assert (current.id, current.try_number, current.state) == (new_id, 4, None)
 
     def setup_method(self):
         clear_db_assets()
@@ -2242,6 +2331,7 @@ class TestTIUpdateState:
             task_id="test_ti_update_state_to_retry",
             state=State.RUNNING,
         )
+        ti.try_number = 3
         session.commit()
 
         response = client.patch(
@@ -2270,6 +2360,50 @@ class TestTIUpdateState:
         ).one()
         assert tih.task_instance_id
         assert tih.task_instance_id != ti.id
+        assert tih.try_number == 3
+        assert ti.try_number == 4
+
+    @pytest.mark.parametrize("replacement_state", [State.UP_FOR_RETRY, State.RUNNING])
+    @pytest.mark.parametrize("reported_state", [State.UP_FOR_RETRY, State.FAILED])
+    def test_retired_attempt_report_does_not_change_replacement(
+        self, client, session, create_task_instance, replacement_state, reported_state
+    ):
+        ti = create_task_instance(task_id="retired_attempt_report", state=State.RUNNING)
+        ti.try_number = 3
+        old_id = ti.id
+        session.commit()
+        payload = {"state": State.UP_FOR_RETRY, "end_date": DEFAULT_END_DATE.isoformat()}
+        assert client.patch(f"/execution/task-instances/{old_id}/state", json=payload).status_code == 204
+        session.expunge_all()
+        replacement = session.scalar(
+            select(TaskInstance).where(TaskInstance.task_id == "retired_attempt_report")
+        )
+        replacement.state = replacement_state
+        replacement.external_executor_id = "replacement-worker"
+        replacement_id = replacement.id
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{old_id}/state", json={**payload, "state": reported_state}
+        )
+
+        assert response.status_code == 410
+        session.refresh(replacement)
+        assert (
+            replacement.id,
+            replacement.try_number,
+            replacement.state,
+            replacement.external_executor_id,
+        ) == (
+            replacement_id,
+            4,
+            replacement_state,
+            "replacement-worker",
+        )
+        history = session.scalars(
+            select(TaskInstanceHistory).where(TaskInstanceHistory.task_id == "retired_attempt_report")
+        ).all()
+        assert [(attempt.task_instance_id, attempt.try_number) for attempt in history] == [(old_id, 3)]
 
     def test_ti_update_state_retry_with_policy_overrides(self, client, session, create_task_instance):
         """Test that retry_delay_seconds and retry_reason from a RetryPolicy are stored on the TI."""
@@ -4881,6 +5015,23 @@ class TestEmitTaskSpan:
         ti_carrier: dict = {}
         TraceContextTextMapPropagator().inject(ti_carrier, context=ti_ctx)
         return dr_carrier, ti_carrier
+
+    def test_retry_span_identifies_finished_attempt(self, client, session, create_task_instance):
+        ti = create_task_instance(task_id="retry_span", state=State.RUNNING)
+        ti.dag_run.context_carrier, ti.context_carrier = self._make_carriers()
+        ti.try_number = 3
+        retiring_id = ti.id
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{retiring_id}/state",
+            json={"state": State.UP_FOR_RETRY, "end_date": DEFAULT_END_DATE.isoformat()},
+        )
+
+        assert response.status_code == 204
+        span = next(span for span in self.exporter.get_finished_spans() if span.name == "task_run.retry_span")
+        assert span.attributes["airflow.task_instance.id"] == str(retiring_id)
+        assert span.attributes["airflow.task_instance.try_number"] == 3
 
     def _make_ti(self, task_id="my_task", map_index=-1, queued_dttm=None, start_date=None):
         dr_carrier, ti_carrier = self._make_carriers()

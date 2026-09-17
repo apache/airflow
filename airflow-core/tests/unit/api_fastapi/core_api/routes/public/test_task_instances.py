@@ -2874,10 +2874,9 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
         from airflow.models.taskinstance import clear_task_instances
 
         clear_task_instances(tis, session)
-        # Simulate the try_number increasing to new values in TI
         for ti in tis:
             if ti.map_index > 0:
-                ti.try_number += 1
+                assert ti.try_number == 2
                 ti.queue = "default_queue"
                 session.merge(ti)
         session.commit()
@@ -4549,10 +4548,9 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
         from airflow.models.taskinstance import clear_task_instances
 
         clear_task_instances(tis, session)
-        # Simulate the try_number increasing to new values in TI
         for ti in tis:
             if ti.map_index > 0:
-                ti.try_number += 1
+                assert ti.try_number == 2
                 ti.queue = "default_queue"
                 session.merge(ti)
         session.commit()

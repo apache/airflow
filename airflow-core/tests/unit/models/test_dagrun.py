@@ -58,6 +58,7 @@ from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_task_instances
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.models.variable import Variable
@@ -2121,6 +2122,72 @@ def test_mapped_literal_length_increase_adds_additional_ti(dag_maker, session):
     ]
 
 
+@pytest.mark.parametrize("try_number", [0, 2])
+@pytest.mark.parametrize("mapped", [False, True])
+def test_restoring_removed_task_allocates_attempt_once(dag_maker, session, try_number, mapped):
+    with dag_maker(session=session):
+        if mapped:
+            BashOperator.partial(task_id="task").expand(bash_command=["true"])
+        else:
+            BashOperator(task_id="task", bash_command="true")
+    dr = dag_maker.create_dagrun()
+    ti = dr.get_task_instance("task", map_index=0 if mapped else -1, session=session)
+    ti.state = TaskInstanceState.REMOVED
+    ti.try_number = try_number
+    old_id = ti.id
+    session.flush()
+
+    for _ in range(2):
+        dr.verify_integrity(dag_version_id=ti.dag_version_id, session=session)
+        session.flush()
+
+    history = session.scalar(
+        select(TaskInstanceHistory).where(TaskInstanceHistory.task_instance_id == old_id)
+    )
+    assert ti.state is None
+    if try_number:
+        assert ti.id != old_id
+        assert ti.try_number == try_number + 1
+        assert history.try_number == try_number
+        assert history.state == TaskInstanceState.REMOVED
+    else:
+        assert ti.id == old_id
+        assert ti.try_number == 0
+        assert history is None
+
+    ti.task = dag_maker.serialized_dag.get_task("task")
+    assert dr.schedule_tis([ti], session=session) == 1
+    session.refresh(ti)
+    assert ti.try_number == try_number + 1
+
+
+def test_verifying_removed_map_index_does_not_allocate_attempt(dag_maker, session):
+    with dag_maker(session=session):
+        BashOperator.partial(task_id="task").expand(bash_command=["true", "true"])
+    dr = dag_maker.create_dagrun()
+    ti = dr.get_task_instance("task", map_index=1, session=session)
+    ti.try_number = 2
+    ti.state = TaskInstanceState.SUCCESS
+    old_id = ti.id
+    session.flush()
+
+    with dag_maker(session=session):
+        BashOperator.partial(task_id="task").expand(bash_command=["true"])
+    dr.dag = dag_maker.serialized_dag
+    dag_version_id = DagVersion.get_latest_version(dr.dag_id, session=session).id
+    for _ in range(3):
+        dr.verify_integrity(dag_version_id=dag_version_id, session=session)
+        session.flush()
+
+    assert ti.state == TaskInstanceState.REMOVED
+    assert ti.id == old_id
+    assert ti.try_number == 2
+    assert (
+        session.scalar(select(TaskInstanceHistory).where(TaskInstanceHistory.task_instance_id == old_id))
+        is None
+    )
+
+
 def test_mapped_literal_length_reduction_adds_removed_state(dag_maker, session):
     """Test that when the length of mapped literal reduces, removed state is added"""
 
@@ -2713,6 +2780,26 @@ def test_schedule_tis_empty_operator_does_not_short_circuit_if_ti_already_queued
     assert refreshed_ti is not None
     assert refreshed_ti.state == TaskInstanceState.QUEUED
     assert refreshed_ti.try_number == 1
+
+
+@pytest.mark.parametrize("state", [None, TaskInstanceState.UP_FOR_RETRY, TaskInstanceState.UP_FOR_RESCHEDULE])
+@pytest.mark.parametrize("try_number", [1, 3])
+def test_schedule_tis_preserves_allocated_attempt(dag_maker, session, state, try_number):
+    with dag_maker(session=session) as dag:
+        BashOperator(task_id="task", bash_command="echo 1")
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("task", session=session)
+    ti.refresh_from_task(dag.get_task("task"))
+    ti.state = state
+    ti.try_number = try_number
+    session.commit()
+    ti_id = ti.id
+
+    assert dr.schedule_tis((ti,), session=session) == 1
+    session.flush()
+    session.expire_all()
+
+    assert session.get(TI, ti_id).try_number == try_number
 
 
 def test_schedule_tis_up_for_reschedule_does_not_increment_try_number(dag_maker, session):

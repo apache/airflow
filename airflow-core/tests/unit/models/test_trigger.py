@@ -513,9 +513,12 @@ def test_submit_event_task_end_failed_respects_retries(
         assert len(tih) == 1
         assert ti.id != old_ti_id
         assert tih[0].task_instance_id == old_ti_id
+        assert tih[0].try_number == 1
+        assert ti.try_number == 2
     else:
         assert tih == []
         assert ti.id == old_ti_id
+        assert ti.try_number == 1
 
 
 @pytest.fixture
