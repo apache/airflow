@@ -163,7 +163,7 @@ failed.
 
 **A bad fallback connection fails the whole chain, including a healthy primary.** The
 primary and every fallback are resolved eagerly, before any of them is called, so a
-typo'd fallback ``conn_id`` or a fallback connection missing its ``model`` raises
+misspelled fallback ``conn_id`` or a fallback connection missing its ``model`` raises
 immediately -- the task never reaches the primary, even though the primary itself would
 have answered fine. Run ``test_connection`` on the primary to catch this before it costs a
 task; see *Verifying a chain* below.
