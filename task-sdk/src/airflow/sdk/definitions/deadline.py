@@ -154,13 +154,21 @@ class DeadlineAlert:
         callback: Callback,
         name: str | None = None,
     ):
+        if not isinstance(interval, (timedelta, VariableInterval)):
+            raise ValueError(
+                f"Interval must be a `timedelta` or a `VariableInterval`, received {type(interval).__name__}."
+            )
+
+        # Serializing blocks subclasses for security reasons, so isinstance is too loose.
+        if type(callback) not in {AsyncCallback, SyncCallback}:
+            raise ValueError(
+                f"Callbacks must be `AsyncCallback` or `SyncCallback`, received {type(callback).__name__}."
+            )
+
+        self.callback = callback
         self.reference = reference
         self.interval = interval
         self.name = name
-
-        if not isinstance(callback, (AsyncCallback, SyncCallback)):
-            raise ValueError(f"Callbacks of type {type(callback).__name__} are not currently supported")
-        self.callback = callback
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, DeadlineAlert):
