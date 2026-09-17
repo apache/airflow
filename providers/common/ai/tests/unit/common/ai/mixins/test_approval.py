@@ -36,6 +36,7 @@ from airflow.providers.common.ai.mixins.approval import (
 )
 from airflow.providers.common.compat.notifier import BaseNotifier
 from airflow.providers.standard.exceptions import HITLRejectException, HITLTriggerEventError
+from airflow.sdk import DAG
 
 if AIRFLOW_V_3_3_PLUS:
     from airflow.sdk.exceptions import TaskAwaitingInput
@@ -97,7 +98,7 @@ def approval_op_with_modifications():
 def context():
     ti = MagicMock()
     ti.id = uuid4()
-    return {"task_instance": ti}
+    return {"task_instance": ti, "dag": DAG("test_dag")}
 
 
 # The legacy trigger path is taken on cores < 3.3; pin the flag so these tests keep
@@ -222,12 +223,13 @@ class TestDeferForApproval:
         assert notifier.sent == [
             "Review output for task `test_task`: ```\nPrompt: Summarize this\n\noutput\n```"
         ]
-        assert set(context) == {"task_instance", "task"}
+        assert set(context) == {"task_instance", "dag", "task"}
 
+    @pytest.mark.parametrize("message", ["{{ 'x' | no_such_filter }}", "{{ task.bodyy }}"])
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)
-    def test_notifier_template_error_fails_the_task(self, mock_upsert, mock_trigger_cls, context):
-        notifier = RecordingNotifier(message="{{ 'x' | no_such_filter }}")
+    def test_notifier_template_error_fails_the_task(self, mock_upsert, mock_trigger_cls, context, message):
+        notifier = RecordingNotifier(message=message)
         op = FakeOperator(approval_notifiers=[notifier])
 
         with pytest.raises(TemplateError):
