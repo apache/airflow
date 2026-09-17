@@ -584,11 +584,18 @@ class TestSFTPOperator:
         args, _ = mock_delete.call_args_list[0]
         assert args == (remote_filepath,)
 
+    @pytest.mark.parametrize(
+        "missing_error",
+        [
+            pytest.param(FileNotFoundError("missing"), id="file_not_found"),
+            pytest.param(OSError(errno.ENOENT, "No such file"), id="paramiko_enoent_ioerror"),
+        ],
+    )
     @mock.patch("airflow.providers.sftp.operators.sftp.SFTPHook.delete_file")
     @mock.patch("airflow.providers.sftp.operators.sftp.SFTPHook.isdir")
-    def test_delete_missing_file_warns(self, mock_isdir, mock_delete, caplog):
+    def test_delete_missing_file_warns(self, mock_isdir, mock_delete, missing_error, caplog):
         mock_isdir.return_value = False
-        mock_delete.side_effect = FileNotFoundError("missing")
+        mock_delete.side_effect = missing_error
         remote_filepath = "/tmp/missing"
         sftp_op = SFTPOperator(
             task_id="test_missing_file_delete_warns",
