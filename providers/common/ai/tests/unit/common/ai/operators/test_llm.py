@@ -41,6 +41,7 @@ try:
 except ImportError:
     _CORE_WALKER = False
 
+from airflow.providers.common.compat.notifier import BaseNotifier
 from airflow.providers.common.compat.sdk import TaskDeferred
 
 if AIRFLOW_V_3_3_PLUS:
@@ -327,6 +328,7 @@ class TestLLMOperatorApproval:
         assert op.allow_modifications is False
         assert op.approval_timeout is None
         assert op.on_approval_timeout == "fail"
+        assert op.approval_notifiers == []
 
     def test_unknown_on_approval_timeout_raises(self):
         with pytest.raises(ValueError, match="on_approval_timeout must be"):
@@ -358,6 +360,31 @@ class TestLLMOperatorApproval:
             ValueError, match="needs require_approval=True and a positive approval_timeout to fire"
         ):
             LLMOperator(task_id="t", prompt="p", llm_conn_id="c", on_approval_timeout="approve", **kwargs)
+
+    def test_single_approval_notifier_normalized_to_list(self):
+        notifier = MagicMock(spec=BaseNotifier)
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", approval_notifiers=notifier)
+        assert op.approval_notifiers == [notifier]
+
+    @pytest.mark.parametrize(
+        ("notifiers", "match"),
+        [
+            (print, r"iterable of BaseNotifier instances, got <built-in function print>"),
+            (5, r"iterable of BaseNotifier instances, got 5"),
+            ("not-a-notifier", r"iterable of BaseNotifier instances, got 'not-a-notifier'"),
+            ({"a": 1}, r"must contain BaseNotifier instances, got 'a'"),
+            ([object()], r"must contain BaseNotifier instances, got <object object"),
+        ],
+        ids=["callable", "int", "str", "dict", "list_of_object"],
+    )
+    def test_rejects_non_notifier_approval_notifiers(self, notifiers, match):
+        with pytest.raises(TypeError, match=match):
+            LLMOperator(task_id="t", prompt="p", llm_conn_id="c", approval_notifiers=notifiers)
+
+    def test_accepts_generator_of_approval_notifiers(self):
+        notifiers = [MagicMock(spec=BaseNotifier), MagicMock(spec=BaseNotifier)]
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", approval_notifiers=iter(notifiers))
+        assert op.approval_notifiers == notifiers
 
     @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
     @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")

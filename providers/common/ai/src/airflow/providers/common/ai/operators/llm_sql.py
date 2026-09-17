@@ -85,7 +85,7 @@ class LLMSQLQueryOperator(LLMOperator):
     Human-in-the-Loop approval parameters are inherited from
     :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
     (``require_approval``, ``approval_timeout``, ``on_approval_timeout``,
-    ``allow_modifications``).
+    ``allow_modifications``, ``approval_notifiers``).
     When ``allow_modifications=True`` and the reviewer edits the SQL, the
     modified query is re-validated against the same safety rules before being
     returned.

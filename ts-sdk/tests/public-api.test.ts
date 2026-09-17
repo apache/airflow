@@ -25,8 +25,9 @@ import type {
   GetXComOpts,
   SetXComOpts,
   TaskClient,
+  Registerable,
   TaskContext,
-  TaskHandler,
+  TaskFunction,
   TaskInputs,
   TaskOptions,
   TaskRef,
@@ -34,11 +35,13 @@ import type {
 } from "../src/index.js";
 import * as sdk from "../src/index.js";
 import {
+  Bundle,
   ConnectionNotFoundError,
   Dag,
-  DagRegistry,
-  serveDags,
+  getClient,
+  getContext,
   SUPERVISOR_API_VERSION,
+  TaskHandler,
   VariableNotFoundError,
 } from "../src/index.js";
 
@@ -52,29 +55,33 @@ describe("public API", () => {
     expect(upstream).toEqual({ dagId: "public_api_dag", taskId: "public_api_task" });
     expect(downstream).toEqual({ dagId: "public_api_dag", taskId: "public_api_downstream" });
     expect(dag.taskIds).toEqual(["public_api_task", "public_api_downstream"]);
-    // serveDags hands the registry to the runtime, which needs the supervisor's
+    // serve() hands the bundle to the runtime, which needs the supervisor's
     // socket addresses that Airflow puts on argv.
-    await expect(serveDags(new DagRegistry(dag))).rejects.toThrow("Missing --comm");
+    await expect(new Bundle(dag).serve()).rejects.toThrow("Missing --comm");
   });
 
-  // The registry guard runs before the already-served latch, so this holds
-  // regardless of whether another test in this file already served a registry.
+  // A detached `const { serve } = bundle` must say so here rather than fail
+  // deep in the runtime. The guard runs before the already-served latch, so
+  // this holds however many bundles earlier tests in this file served.
   it.each([
-    ["a bare Dag", new Dag("not_a_registry_dag")],
+    ["a bare Dag", new Dag("not_a_bundle_dag")],
     ["a plain object", { register: () => {} }],
     ["null", null],
-  ])("rejects a %s in place of a registry", async (_label, value) => {
-    await expect(serveDags(value as unknown as DagRegistry)).rejects.toThrow(
-      /serveDags\(\.\.\.\) takes a DagRegistry/,
+    ["undefined, as a detached serve receives", undefined],
+  ])("rejects %s as the receiver of serve()", async (_label, value) => {
+    const detached = Bundle.prototype.serve;
+    await expect(detached.call(value as unknown as Bundle)).rejects.toThrow(
+      /bundle\.serve\(\) must be called on a Bundle/,
     );
   });
 
-  it("names the duplicate-copy cause for a registry built by another copy", async () => {
-    // Stands in for a registry from a second resolved copy: same brand, other
+  it("names the duplicate-copy cause for a bundle built by another copy", async () => {
+    // Stands in for a bundle from a second resolved copy: same brand, other
     // class. It still cannot be served, so the point is only that it says why.
     const foreign = {};
-    Object.defineProperty(foreign, Symbol.for("airflow.ts-sdk.DagRegistry"), { value: true });
-    await expect(serveDags(foreign as unknown as DagRegistry)).rejects.toThrow(
+    Object.defineProperty(foreign, Symbol.for("airflow.ts-sdk.Bundle"), { value: true });
+    const detached = Bundle.prototype.serve;
+    await expect(detached.call(foreign as unknown as Bundle)).rejects.toThrow(
       /different copy of apache-airflow-ts-sdk/,
     );
   });
@@ -93,9 +100,9 @@ describe("public API", () => {
       process.argv = [...argv, AIRFLOW_METADATA_FLAG];
       vi.spyOn(process.stdout, "write").mockReturnValue(true);
       try {
-        await serveDags(new DagRegistry(new Dag("served_dag")));
-        await expect(serveDags(new DagRegistry(new Dag("second_call_dag")))).rejects.toThrow(
-          /serveDags\(\.\.\.\) was already called/,
+        await new Bundle(new Dag("served_dag")).serve();
+        await expect(new Bundle(new Dag("second_call_dag")).serve()).rejects.toThrow(
+          /bundle\.serve\(\) was already called/,
         );
       } finally {
         process.argv = argv;
@@ -104,34 +111,30 @@ describe("public API", () => {
     });
 
     it("releases the latch when a serve fails, so the call can be retried", async () => {
-      await expect(serveDags(new DagRegistry(new Dag("first_try")))).rejects.toThrow(
-        "Missing --comm",
-      );
+      await expect(new Bundle(new Dag("first_try")).serve()).rejects.toThrow("Missing --comm");
       // The retry reports why it actually failed, not "already called".
-      await expect(serveDags(new DagRegistry(new Dag("second_try")))).rejects.toThrow(
-        "Missing --comm",
-      );
+      await expect(new Bundle(new Dag("second_try")).serve()).rejects.toThrow("Missing --comm");
     });
   });
 
-  it("exports DagRegistry as the Dag collection a bundle serves", () => {
-    const dag = new Dag("registry_api_dag");
+  it("exports Bundle as the thing that holds what a bundle provides and serves it", () => {
+    const dag = new Dag("bundle_api_dag");
     const handler = async () => "hello";
     dag.task("extract", handler);
-    // Building a registry starts nothing, so a test can dispatch through it
+    // Registering starts nothing, so a test can dispatch through a bundle
     // exactly as the runtime does, with no sockets in scope.
-    const registry = new DagRegistry(dag);
-    expect(registry.getTaskHandler("registry_api_dag", "extract")).toBe(handler);
-    registry.register(new Dag("late_dag"));
-    expect(registry.getTaskHandler("late_dag", "extract")).toBeUndefined();
+    const bundle = new Bundle(dag);
+    expect(bundle.getTaskHandler("bundle_api_dag", "extract")).toBe(handler);
+    bundle.register(new Dag("late_dag"));
+    expect(bundle.getTaskHandler("late_dag", "extract")).toBeUndefined();
   });
 
-  it("keeps registry enumeration out of the public surface", () => {
-    const registry = new DagRegistry();
+  it("keeps bundle enumeration out of the public surface", () => {
+    const bundle = new Bundle();
     for (const name of ["listTasks", "listDags"]) {
-      expect(name in registry).toBe(false);
+      expect(name in bundle).toBe(false);
     }
-    expectTypeOf<keyof DagRegistry>().toEqualTypeOf<"register" | "getTaskHandler">();
+    expectTypeOf<keyof Bundle>().toEqualTypeOf<"register" | "serve" | "getTaskHandler">();
   });
 
   it("does not export the removed registerTask surface or the coordinator itself", () => {
@@ -153,6 +156,58 @@ describe("public API", () => {
     expectTypeOf<typeof sdk>().not.toHaveProperty("startCoordinator");
   });
 
+  it("exports TaskHandler as the mixed-language authoring surface", () => {
+    const transform = async () => "transformed";
+    const bundle = new Bundle(new TaskHandler("py_etl", "transform", transform));
+
+    expect(bundle.getTaskHandler("py_etl", "transform")).toBe(transform);
+    // Identity and a body, and no more: no schedule, no task order, no dag_id
+    // of its own to declare.
+    expectTypeOf<keyof TaskHandler>().toEqualTypeOf<"dagId" | "taskId">();
+    expectTypeOf<ConstructorParameters<typeof TaskHandler>>().toEqualTypeOf<
+      [string, string, TaskFunction<unknown>]
+    >();
+  });
+
+  it("does not let a task handler be wired the way a native task is", () => {
+    // The guarantee an earlier draft's separate MixedLangDag class existed to
+    // provide: a handler has no factory to call, so calling one is a compile
+    // error rather than a runtime throw.
+    const rejectsFactoryMisuse = () => {
+      const handler = new TaskHandler("py_etl", "transform", async () => undefined);
+      // @ts-expect-error a task handler is a value, not a callable task factory.
+      handler();
+      // @ts-expect-error dagId and taskId are positional, not an options object.
+      new TaskHandler({ dagId: "py_etl", taskId: "transform" }, async () => undefined);
+      // @ts-expect-error the task_id is always written out, never derived.
+      new TaskHandler("py_etl", async () => undefined);
+      // @ts-expect-error a handler does not expose the function it carries.
+      void handler.handler;
+    };
+    void rejectsFactoryMisuse;
+  });
+
+  describe("the task-handler getters", () => {
+    it("throw outside a handler, naming the accessor", () => {
+      // The full scope behaviour is covered in tests/sdk/task-scope.test.ts;
+      // this pins that both reach the package root and say what went wrong.
+      expect(() => getContext()).toThrow(/^getContext\(\) is only available inside a task handler/);
+      expect(() => getClient()).toThrow(/^getClient\(\) is only available inside a task handler/);
+    });
+
+    it("are the only way a handler reaches the runtime", () => {
+      // A handler is a plain function of its own data, so the SDK hands it no
+      // parameter at all and the scope is not something an author installs.
+      expectTypeOf<TaskFunction>().toEqualTypeOf<() => unknown | Promise<unknown>>();
+      expectTypeOf<typeof getContext>().toEqualTypeOf<() => TaskContext>();
+      expectTypeOf<typeof getClient>().toEqualTypeOf<() => TaskClient>();
+      for (const name of ["TaskHandlerArgs", "runInTaskScope", "TaskScope"]) {
+        expect(name in sdk).toBe(false);
+      }
+      expectTypeOf<typeof sdk>().not.toHaveProperty("runInTaskScope");
+    });
+  });
+
   it("exports public error classes", () => {
     const err = new VariableNotFoundError("missing");
     expect(err).toBeInstanceOf(Error);
@@ -165,9 +220,18 @@ describe("public API", () => {
     expect(connErr.connId).toBe("missing_conn");
   });
 
-  it("reaches the runtime only through serveDags, which takes a registry", () => {
-    expectTypeOf<typeof serveDags>().toEqualTypeOf<(registry: DagRegistry) => Promise<void>>();
-    expectTypeOf<ConstructorParameters<typeof DagRegistry>>().toEqualTypeOf<Dag[]>();
+  it("reaches the runtime only through bundle.serve(), which takes nothing", () => {
+    // One verb in and one verb out: `serveDags` is gone, and the coordinator
+    // stays unnamed because the object that holds the Dags serves them itself.
+    expectTypeOf<Bundle["serve"]>().toEqualTypeOf<() => Promise<void>>();
+    expectTypeOf<Bundle["register"]>().toEqualTypeOf<(...items: Registerable[]) => void>();
+    expectTypeOf<ConstructorParameters<typeof Bundle>>().toEqualTypeOf<Registerable[]>();
+    expectTypeOf<Registerable>().toEqualTypeOf<Dag | TaskHandler>();
+    for (const name of ["serveDags", "DagRegistry"]) {
+      expect(name in sdk).toBe(false);
+    }
+    expectTypeOf<typeof sdk>().not.toHaveProperty("serveDags");
+    expectTypeOf<typeof sdk>().not.toHaveProperty("DagRegistry");
     expectTypeOf(SUPERVISOR_API_VERSION).toMatchTypeOf<string>();
   });
 
@@ -185,7 +249,7 @@ describe("public API", () => {
     expectTypeOf<Dag["task"]>().toEqualTypeOf<
       <TReturn = unknown>(
         taskId: string,
-        handler: TaskHandler<TReturn>,
+        handler: TaskFunction<TReturn>,
         options?: TaskOptions,
       ) => TaskRef
     >();
@@ -294,10 +358,10 @@ describe("public API", () => {
       dag.task("transform3", async () => undefined, { spec: { retries: 2 } });
       // @ts-expect-error the TaskRef handle is data, not callable.
       upstream();
-      // @ts-expect-error serveDags takes the registry, not a bare Dag.
-      serveDags(dag);
-      // @ts-expect-error a registry is built from Dags, not from task handles.
-      new DagRegistry(upstream);
+      // @ts-expect-error a bundle is built from Dags, not from task handles.
+      new Bundle(upstream);
+      // @ts-expect-error serve() takes nothing; the bundle already holds it all.
+      new Bundle(dag).serve(dag);
     };
     void rejectsPositionalMisuse;
     // @ts-expect-error the TaskRef handle is opaque and does not expose the handler.
