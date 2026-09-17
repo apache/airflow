@@ -111,7 +111,7 @@ call.
 
 Apart from ``fail_on_reject`` and ``ignore_downstream_trigger_rules``, which
 are specific to this operator, ``approval_timeout``, ``on_approval_timeout``,
-and the rest of the approval behaviour are inherited from
+``approval_notifiers``, and the rest of the approval behaviour are inherited from
 :ref:`LLMOperator <howto/operator:llm>`.
 
 How It Works
@@ -147,6 +147,8 @@ Parameters
   ``require_approval=True`` and a positive ``approval_timeout``.
 - ``allow_modifications``: If ``True``, the reviewer can change the chosen
   branch(es) before approving.  Default ``False``.
+- ``approval_notifiers``: Notifier, or list of notifiers, called once the review
+  is open.  Default ``None``.
 - ``fail_on_reject``: If ``True``, a rejected review fails the task instead of
   skipping the downstream tasks.  Generally discouraged.  Only takes effect
   with ``require_approval=True``.  Default ``False``.
