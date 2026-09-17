@@ -149,6 +149,43 @@ class TestBatchedOperator:
         ]
 
     @pytest.mark.parametrize(
+        ("fan_out", "expected_mapped_length"),
+        [
+            pytest.param(lambda t, arg: t.expand(**arg), 3000, id="expand"),
+            pytest.param(lambda t, arg: t.iterate(**arg), None, id="iterate"),
+            pytest.param(lambda t, arg: t.batch(size=10).iterate(**arg), None, id="batch-iterate"),
+        ],
+    )
+    def test_upstream_of_batched_iterate_is_not_length_tagged(
+        self, fan_out, expected_mapped_length, run_ti: RunTI, mock_supervisor_comms
+    ):
+        """An upstream push is tagged with mapped_length only when a downstream's instance count depends
+        on it. A batched iterate always creates batch_size instances, so its upstream must push untagged
+        or the API server would reject any input longer than core.max_map_length."""
+        ids = [str(i) for i in range(3000)]
+
+        with DAG(dag_id="length_tagging") as dag:
+
+            @dag.task
+            def get_ids() -> list[str]:
+                return ids
+
+            @dag.task
+            def get_relations(object_id: str):
+                return object_id
+
+            fan_out(get_relations, {"object_id": get_ids()})
+
+        assert run_ti(dag, "get_ids", -1) == TaskInstanceState.SUCCESS
+        pushes = [
+            msg
+            for call in [*mock_supervisor_comms.send.mock_calls, *mock_supervisor_comms.asend.mock_calls]
+            if isinstance(msg := (call.kwargs.get("msg") or call.args[0]), SetXCom)
+            and msg.task_id == "get_ids"
+        ]
+        assert [push.mapped_length for push in pushes] == [expected_mapped_length]
+
+    @pytest.mark.parametrize(
         ("batch_size", "expand_size"),
         [
             (5, 10),  # Batched: size=5 for 10 items

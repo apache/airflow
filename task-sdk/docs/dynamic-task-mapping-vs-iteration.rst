@@ -424,6 +424,11 @@ using a shared event loop for concurrent I/O.
    iterable — potentially an unbounded or paginated stream — has been fully
    drained, defeating the purpose of iterating over it lazily.
 
+   A consequence is that the upstream value is not subject to
+   ``core.max_map_length``: only ``.expand()`` needs the item count to size its
+   fan-out, so only its upstream is length-checked. A ``.batch().iterate()``
+   can consume inputs far larger than that limit.
+
 This pattern would provide:
 
 - **Coarse-grained retry**: if a task instance fails, only its share is retried — not all 17,000 items.

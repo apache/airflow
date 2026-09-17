@@ -21,7 +21,7 @@ import copy
 import os
 import threading
 import warnings
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from itertools import repeat
 from typing import TYPE_CHECKING, Any
 
@@ -55,6 +55,7 @@ from airflow.sdk.execution_time.task_runner import IndexedTaskInstance, IndexedT
 if TYPE_CHECKING:
     import jinja2
 
+    from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.types import OutletEventAccessorsProtocol
@@ -722,6 +723,12 @@ class MappedIterableOperator(MappedOperator):
 
     def prepare_for_execution(self) -> MappedOperator:
         return self
+
+    def iter_mapped_dependencies(self) -> Iterator[AbstractOperator]:
+        # The instance count is fixed by batch_size, so no upstream XCom determines this task's
+        # mapping. Reporting one would make the upstream tag its push with the raw item count, which
+        # the API server caps at core.max_map_length: the very limit .batch() exists to sidestep.
+        return iter(())
 
     @property
     def batch_size(self) -> int:
