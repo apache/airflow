@@ -90,6 +90,7 @@ def get_dag_source(
                 select(DagModel.dag_id).where(
                     DagModel.relative_fileloc == dag_model.relative_fileloc,
                     DagModel.bundle_name == dag_model.bundle_name,
+                    DagModel.is_stale.is_(False),
                 )
             ).all()
         )
