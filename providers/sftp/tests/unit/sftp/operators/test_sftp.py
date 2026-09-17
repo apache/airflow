@@ -733,6 +733,18 @@ class TestSFTPOperatorDeferrable:
             operator.execute(context={})
         assert exc.value.trigger.sftp_conn_id == "my_prod_sftp"
 
+    def test_sftp_operator_defer_without_any_conn_id_raises(self):
+        operator = SFTPOperator(
+            task_id="test_sftp_defer_no_conn_id",
+            sftp_hook=SFTPHook(ssh_conn_id=None, remote_host="example.com"),
+            local_filepath="/tmp/test.txt",
+            remote_filepath="/remote/test.txt",
+            operation=SFTPOperation.PUT,
+            deferrable=True,
+        )
+        with pytest.raises(ValueError, match="requires a connection id"):
+            operator.execute(context={})
+
     def test_sftp_operator_execute_complete_success(self):
         """Test execute_complete returns local_filepath on success."""
         operator = SFTPOperator(

@@ -172,9 +172,15 @@ class SFTPOperator(BaseOperator):
         if self.deferrable:
             from airflow.providers.sftp.triggers.sftp import SFTPTransferTrigger
 
+            sftp_conn_id = self.ssh_conn_id or self.sftp_hook.ssh_conn_id
+            if not sftp_conn_id:
+                raise ValueError(
+                    "deferrable=True requires a connection id: set ssh_conn_id or pass an sftp_hook "
+                    "that was created with one."
+                )
             self.defer(
                 trigger=SFTPTransferTrigger(
-                    sftp_conn_id=self.ssh_conn_id or self.sftp_hook.ssh_conn_id,
+                    sftp_conn_id=sftp_conn_id,
                     local_filepath=self.local_filepath,
                     remote_filepath=self.remote_filepath,
                     operation=self.operation,
