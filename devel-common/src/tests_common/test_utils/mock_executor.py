@@ -122,11 +122,13 @@ class MockExecutor(BaseExecutor):
     def end(self):
         self.sync()
 
-    def change_state(self, key, state, info=None, remove_running=False):
-        super().change_state(key, state, info=info, remove_running=remove_running)
+    def change_state(self, key, state, info=None, remove_running=False, workload_run_id=None):
+        super().change_state(
+            key, state, info=info, remove_running=remove_running, workload_run_id=workload_run_id
+        )
         # The normal event buffer is cleared after reading, we want to keep
         # a list of all events for testing
-        self.sorted_tasks.append((key, (state, info)))
+        self.sorted_tasks.append((key, (state, info, workload_run_id)))
 
     def mock_task_fail(self, dag_id, task_id, run_id: str, try_number=1):
         """

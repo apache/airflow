@@ -163,7 +163,7 @@ def test_state_methods_pick_callback_state_for_callback_key(method_name, expecte
 
     getattr(executor, method_name)(callback_key)
 
-    assert executor.event_buffer[callback_key] == (expected_state, None)
+    assert executor.event_buffer[callback_key] == (expected_state, None, None)
 
 
 def test_fail_and_success():
@@ -557,6 +557,20 @@ def test_running_retry_attempt_type(loop_duration, total_tries):
     assert a.tries_after_min == 1
 
 
+def test_success_consumes_queued_workload_run_id_fifo():
+    """Re-enqueue of the same key keeps earlier run ids for stale events."""
+    executor = BaseExecutor()
+    key = TaskInstanceKey("my_dag1", "my_task1", "run1", 1)
+    executor._workload_run_ids[key].append("run-a")
+    executor._workload_run_ids[key].append("run-b")
+
+    executor.success(key)
+    assert executor.event_buffer[key] == (TaskInstanceState.SUCCESS, None, "run-a")
+
+    executor.success(key)
+    assert executor.event_buffer[key] == (TaskInstanceState.SUCCESS, None, "run-b")
+
+
 def test_state_fail():
     executor = BaseExecutor()
     key = TaskInstanceKey("my_dag1", "my_task1", timezone.utcnow(), 1)
@@ -564,7 +578,7 @@ def test_state_fail():
     info = "info"
     executor.fail(key, info=info)
     assert not executor.running
-    assert executor.event_buffer[key] == (TaskInstanceState.FAILED, info)
+    assert executor.event_buffer[key] == (TaskInstanceState.FAILED, info, None)
 
 
 def test_state_success():
@@ -574,7 +588,7 @@ def test_state_success():
     info = "info"
     executor.success(key, info=info)
     assert not executor.running
-    assert executor.event_buffer[key] == (TaskInstanceState.SUCCESS, info)
+    assert executor.event_buffer[key] == (TaskInstanceState.SUCCESS, info, None)
 
 
 def test_state_queued():
@@ -584,7 +598,7 @@ def test_state_queued():
     info = "info"
     executor.queued(key, info=info)
     assert not executor.running
-    assert executor.event_buffer[key] == (TaskInstanceState.QUEUED, info)
+    assert executor.event_buffer[key] == (TaskInstanceState.QUEUED, info, None)
 
 
 def test_state_running():
@@ -595,7 +609,7 @@ def test_state_running():
     executor.running_state(key, info=info)
     # Running state should not remove a command as running
     assert executor.running
-    assert executor.event_buffer[key] == (TaskInstanceState.RUNNING, info)
+    assert executor.event_buffer[key] == (TaskInstanceState.RUNNING, info, None)
 
 
 def test_repr():

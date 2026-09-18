@@ -366,7 +366,9 @@ class KubernetesExecutor(BaseExecutor):
                     queue,
                 )
 
-        self.event_buffer[key] = (TaskInstanceState.QUEUED, self.scheduler_job_id)
+        self.record_event(
+            key, TaskInstanceState.QUEUED, self.scheduler_job_id, consume_run_id=False
+        )
         job = KubernetesJob(key, command, kube_executor_config, pod_template_file, coordinator_kube_image)
         self.pod_launch_attempts[key] = _PodLaunchAttempt(job=job)
         self.task_queue.put(job)
@@ -837,7 +839,7 @@ class KubernetesExecutor(BaseExecutor):
             return
 
         if state == TaskInstanceState.RUNNING:
-            self.event_buffer[key] = state, None
+            self.record_event(key, state, None, consume_run_id=False)
             return
 
         if self.kube_config.delete_worker_pods:
@@ -911,7 +913,7 @@ class KubernetesExecutor(BaseExecutor):
         if state is None:
             state = self._get_task_instance_state(key, session=session)
 
-        self.event_buffer[key] = state, termination_reason
+        self.record_event(key, state, termination_reason)
 
     def _get_task_instance_state(self, key: TaskInstanceKey, *, session: Session) -> TaskInstanceState | None:
         """Look up the current task instance state from the metadata database."""
