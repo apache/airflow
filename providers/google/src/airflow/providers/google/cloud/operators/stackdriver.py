@@ -20,6 +20,14 @@
 from __future__ import annotations
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
+
+# Re-exported for backwards compatibility: these names were importable from this
+# module before the rename.
+from airflow.providers.google.cloud.hooks.stackdriver import StackdriverHook as StackdriverHook
+from airflow.providers.google.cloud.links.stackdriver import (
+    StackdriverNotificationsLink as StackdriverNotificationsLink,
+    StackdriverPoliciesLink as StackdriverPoliciesLink,
+)
 from airflow.providers.google.cloud.operators.cloud_monitoring import (
     CloudMonitoringDeleteAlertOperator,
     CloudMonitoringDeleteNotificationChannelOperator,

@@ -21,10 +21,17 @@ from __future__ import annotations
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.links.cloud_monitoring import (
+    CLOUD_MONITORING_BASE_LINK,
+    CLOUD_MONITORING_NOTIFICATIONS_LINK,
+    CLOUD_MONITORING_POLICIES_LINK,
     CloudMonitoringNotificationsLink,
     CloudMonitoringPoliciesLink,
 )
 from airflow.providers.google.common.deprecated import deprecated
+
+STACKDRIVER_BASE_LINK = CLOUD_MONITORING_BASE_LINK
+STACKDRIVER_NOTIFICATIONS_LINK = CLOUD_MONITORING_NOTIFICATIONS_LINK
+STACKDRIVER_POLICIES_LINK = CLOUD_MONITORING_POLICIES_LINK
 
 
 @deprecated(
