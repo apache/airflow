@@ -300,16 +300,22 @@ cache:
    never replays responses that belong to a different conversation.
 4. After successful completion, the cached steps are deleted.
 
-If a model request or tool call cannot be fingerprinted -- it carries a value
-that will not serialize to JSON -- that step is not cached, and on retry it runs
-live rather than replaying an unverified entry. This is rarely confined to a
-single step: the usual causes are a non-serializable value in ``model_settings``,
-which is attached to every request, or in the message history, which every later
-request carries forward. Either one degrades all subsequent model steps the same
-way, leaving durable execution with nothing to replay, so the retry re-runs the
-agent at full cost. The ``could not fingerprint model request`` warning in the
-task log marks where this began; making the offending value JSON-serializable
-restores replay.
+Fingerprints are computed from values normalized through pydantic, so ordinary
+types that are not JSON -- a ``datetime`` or ``Decimal`` tool argument, a
+dataclass in ``tool_choice`` -- still fingerprint normally. If a value cannot be
+serialized even then, that step is not cached, and on retry it runs live rather
+than replaying an unverified entry.
+
+On the model path this is rarely confined to a single step: the causes are such a
+value in ``model_settings``, which is attached to every request, or in the message
+history, which every later request carries forward. Either one degrades all
+subsequent model steps the same way, leaving durable execution with nothing to
+replay, so the retry re-runs the agent at full cost. The
+``could not fingerprint model request`` warning names the step where this began.
+
+A tool call is fingerprinted from its name, arguments and call id alone, so
+neither of those causes reaches it. One that cannot be fingerprinted is reported
+as ``could not fingerprint tool call`` and costs only that call.
 
 Replay verification compares the **requests** sent to models and tools, not
 the code behind them. Editing a tool's implementation between attempts does
