@@ -116,7 +116,7 @@ to abuse these privileges. They have access to sensitive credentials
 and can modify them. By default, they don't have access to
 system-level configuration. They should be trusted not to misuse
 sensitive information accessible through connection configuration.
-They also have the ability to create a API Server Denial of Service
+They also have the ability to create an API Server Denial of Service
 situation and should be trusted not to misuse this capability.
 
 Only admin users have access to audit logs by default.
@@ -138,7 +138,7 @@ required to prevent misuse of these privileges. They have full write-only access
 to sensitive credentials stored in connections and can modify them, but cannot view them.
 Access to write sensitive information through connection configuration
 should be trusted not to be abused. They also have the ability to configure connections wrongly
-that might create a API Server Denial of Service situations and specify insecure connection options
+that might create an API Server Denial of Service situation and specify insecure connection options
 which might create situations where executing Dags will lead to arbitrary Remote Code Execution
 for some providers - either community released or custom ones.
 
@@ -898,7 +898,7 @@ up to the Deployment Manager - Airflow does not provide any tooling or mechanism
 expects that the Deployment Manager will provide the tooling to protect access to Dag bundles and
 make sure that only trusted code is submitted there.
 
-Airflow does not implement any of those feature natively, and delegates it to the deployment managers
+Airflow does not implement any of those features natively, and delegates it to the deployment managers
 to deploy all the necessary infrastructure to protect the deployment - as external infrastructure components.
 
 Limiting access for authenticated UI users
@@ -1208,7 +1208,7 @@ Supported deployment platforms
 Apache Airflow officially supports Linux-based deployment environments only. The reference
 deployment, the CI matrix, and the official Docker image are all Linux-targeted (Debian Bookworm).
 macOS is supported for local development but is not a deployment platform. Windows is not supported
-for deployment - except WSL2 for develop (buy only with POSIX filesystem which is the same as Linux).
+for deployment - except WSL2 for development (but only with POSIX filesystem which is the same as Linux).
 
 Vulnerability reports that only manifest on a non-Linux platform — behavior that depends on Windows
 path separators, macOS-specific filesystem semantics, etc. — are **out of scope** for the security

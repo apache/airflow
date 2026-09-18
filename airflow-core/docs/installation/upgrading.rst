@@ -89,7 +89,7 @@ Handling migration problems
 Wrong Encoding in MySQL database
 ................................
 
-If you are using old Airflow 1.10 as a database created initially either manually or with previous version of MySQL,
+If you have an old Airflow 1.10 database that was created initially either manually or with a previous version of MySQL,
 depending on the original character set of your database, you might have problems with migrating to a newer
 version of Airflow and your migration might fail with strange errors ("key size too big", "missing indexes" etc).
 The next chapter describes how to fix the problem manually.

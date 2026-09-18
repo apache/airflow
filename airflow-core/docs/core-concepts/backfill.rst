@@ -39,7 +39,7 @@ Concurrency control
 -------------------
 
 You can set ``max_active_runs`` on a backfill and it will control how many Dag runs in
-the backfill can run concurrently. Backfill ``max_active_runs`` is applied independently
+the backfill can run concurrently. Backfill ``max_active_runs`` is applied independently of
 the Dag ``max_active_runs`` setting.
 
 Once a backfill's Dag runs are actually running, the scheduler does not otherwise

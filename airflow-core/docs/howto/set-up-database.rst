@@ -159,7 +159,7 @@ Setting up a PostgreSQL Database
 --------------------------------
 
 You need to create a database and a database user that Airflow will use to access this database.
-In the example below, a database ``airflow_db`` and user  with username ``airflow_user`` with password ``airflow_pass`` will be created
+In the example below, a database ``airflow_db`` and a user with username ``airflow_user`` with password ``airflow_pass`` will be created
 
 .. code-block:: sql
 
@@ -341,7 +341,7 @@ Setting up a MySQL Database
 ---------------------------
 
 You need to create a database and a database user that Airflow will use to access this database.
-In the example below, a database ``airflow_db`` and user  with username ``airflow_user`` with password ``airflow_pass`` will be created
+In the example below, a database ``airflow_db`` and a user with username ``airflow_user`` with password ``airflow_pass`` will be created
 
 .. code-block:: sql
 
