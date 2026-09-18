@@ -717,8 +717,10 @@ A backend that cannot enforce a field it was given **raises instead of ignoring
 it**, so a spec never gives you a false sense of a restriction being in force.
 The ``sbx`` backend applies ``allow_egress_to`` as a per-sandbox policy rule,
 but only on top of a ``deny-all`` host policy, since a local rule can narrow
-egress and never widen it. Ask for an allowlist against an open host policy and
-it refuses rather than granting nothing quietly.
+egress and never widen it; ``block_network`` has no per-sandbox enforcement at
+all. Ask for either against a host policy that is not already ``deny-all`` and
+it refuses rather than silently leaving the sandbox less restricted than the
+spec asked for.
 
 Using more than one sandbox
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^

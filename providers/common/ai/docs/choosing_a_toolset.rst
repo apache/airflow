@@ -398,7 +398,10 @@ reach whether or not code mode is on. See :ref:`code-mode` and
   ``deny-all`` host policy, since a local rule can narrow egress and never
   widen it; ``block_network`` has no per-sandbox enforcement at all. Ask for
   either against a host policy that is not already ``deny-all`` and the
-  backend raises rather than granting nothing quietly.
+  backend raises rather than silently leaving the sandbox less restricted
+  than the spec asked for. ``block_network`` defaults to ``True``, so a bare
+  ``SandboxSpec()`` with no arguments already asks for it and is refused
+  under the default ``host_network_policy="unknown"``.
 - It does not guarantee reclamation. A failed teardown is logged as a warning
   rather than raised, deliberately, so that a teardown blip cannot fail a
   finished run. Nothing else picks up the slack: the backend that ships has no

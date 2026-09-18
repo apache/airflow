@@ -89,9 +89,10 @@ class SbxSandboxBackend(SandboxBackend):
     author believe a
     :class:`~airflow.providers.common.ai.sandbox.SandboxSpec` restriction is
     in force when it is not, ``create`` raises instead of silently ignoring a
-    spec that names ``allow_egress_to`` or ``block_network``. It lets the
-    spec through only when the Deployment Manager has already declared the
-    host policy as ``deny-all`` through ``host_network_policy``.
+    spec that asks for either -- and since ``block_network`` defaults to
+    ``True``, a bare ``SandboxSpec()`` with no arguments already asks for it.
+    It lets the spec through only when the Deployment Manager has already
+    declared the host policy as ``deny-all`` through ``host_network_policy``.
 
     **Orphans are not reclaimed automatically.** There is no server-side TTL to
     fall back on: if the worker is killed outright, the microVM and its workspace
