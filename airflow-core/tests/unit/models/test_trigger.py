@@ -26,7 +26,7 @@ import pendulum
 import pytest
 import pytz
 from cryptography.fernet import Fernet
-from sqlalchemy import delete, event, func, select
+from sqlalchemy import delete, event, func, insert, select, update
 from sqlalchemy.exc import OperationalError
 
 from airflow._shared.timezones import timezone
@@ -198,6 +198,64 @@ def test_clean_unused(session, dag_maker):
     results = session.scalars(select(Trigger)).all()
     assert len(results) == 4
     assert {result.id for result in results} == expected_trigger_ids
+
+
+@pytest.mark.parametrize("reference_type", ["task-instance", "asset-watcher", "callback"])
+def test_delete_unused_batch_rechecks_new_references(session, create_task_instance, reference_type):
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    session.commit()
+    trigger_id = trigger.id
+
+    if reference_type == "task-instance":
+        task_instance = create_task_instance(
+            session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
+        )
+        session.commit()
+        add_reference = (
+            update(TaskInstance).where(TaskInstance.id == task_instance.id).values(trigger_id=trigger_id)
+        )
+        reference_count = (
+            select(func.count()).select_from(TaskInstance).where(TaskInstance.id == task_instance.id)
+        )
+    elif reference_type == "asset-watcher":
+        asset = AssetModel("race-test")
+        session.add(asset)
+        session.commit()
+        add_reference = insert(AssetWatcherModel).values(
+            name="race-test-watcher", asset_id=asset.id, trigger_id=trigger_id
+        )
+        reference_count = (
+            select(func.count())
+            .select_from(AssetWatcherModel)
+            .where(AssetWatcherModel.asset_id == asset.id, AssetWatcherModel.trigger_id == trigger_id)
+        )
+    else:
+        callback = TriggererCallback(callback_def=AsyncCallback("classpath.callback"))
+        session.add(callback)
+        session.commit()
+        add_reference = update(Callback).where(Callback.id == callback.id).values(trigger_id=trigger_id)
+        reference_count = select(func.count()).select_from(Callback).where(Callback.id == callback.id)
+
+    reference_added = False
+
+    def add_reference_before_delete(connection, cursor, statement, parameters, context, executemany):
+        nonlocal reference_added
+        normalized_statement = " ".join(statement.lower().replace('"', "").replace("`", "").split())
+        if not reference_added and "delete from trigger" in normalized_statement:
+            reference_added = True
+            connection.execute(add_reference)
+
+    event.listen(session.bind, "before_cursor_execute", add_reference_before_delete)
+    try:
+        Trigger._delete_unused_batch(1, session=session)
+        session.commit()
+    finally:
+        event.remove(session.bind, "before_cursor_execute", add_reference_before_delete)
+
+    assert reference_added
+    assert session.scalar(select(func.count()).select_from(Trigger).where(Trigger.id == trigger_id)) == 1
+    assert session.scalar(reference_count) == 1
 
 
 @conf_vars({("triggerer", "unreferenced_triggers_cleanup_batch_size"): "2"})
