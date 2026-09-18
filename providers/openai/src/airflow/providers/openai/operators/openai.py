@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, ClassVar, Literal
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.providers.common.compat.sdk import BaseOperator, conf
 from airflow.providers.openai.exceptions import OpenAIBatchJobException
@@ -39,6 +39,8 @@ class OpenAIEmbeddingOperator(BaseOperator):
                     a list of integers, or a list of lists of integers.
     :param model: The OpenAI model to be used for generating the embeddings.
     :param embedding_kwargs: Additional keyword arguments to pass to the OpenAI `create_embeddings` method.
+
+    Returns one embedding for a single string or token array, and one embedding per item for a batch.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -68,7 +70,7 @@ class OpenAIEmbeddingOperator(BaseOperator):
         """Return an instance of the OpenAIHook."""
         return OpenAIHook(conn_id=self.conn_id)
 
-    def execute(self, context: Context) -> list[float]:
+    def execute(self, context: Context) -> list[float] | list[list[float]]:
         if not self.input_text or not isinstance(self.input_text, (str, list)):
             raise ValueError(
                 "The 'input_text' must be a non-empty string, list of strings, list of integers, or list of lists of integers."
@@ -83,9 +85,11 @@ class OpenAIResponseOperator(BaseOperator):
     """
     Operator that generates a model response using the OpenAI Responses API.
 
-    The operator is synchronous and returns the response's aggregated output text. For
-    ``previous_response_id`` chaining, ``background=True`` responses, or access to the full
-    structured response, use :class:`~airflow.providers.openai.hooks.openai.OpenAIHook` directly.
+    The operator is synchronous and returns the response's aggregated output text; the
+    response id is also pushed to XCom (see below), so a downstream task can pick it up
+    for ``previous_response_id`` chaining without going through the hook. For
+    ``background=True`` responses, or access to the full structured response, use
+    :class:`~airflow.providers.openai.hooks.openai.OpenAIHook` directly.
 
     ``max_output_tokens`` caps the number of tokens generated for the response; ``max_tool_calls``
     caps the number of built-in tool calls the model may make. Both limits are enforced by the
@@ -105,11 +109,14 @@ class OpenAIResponseOperator(BaseOperator):
     :param model: The OpenAI model to use.
     :param response_kwargs: Additional keyword arguments to pass to the OpenAI ``create_response``
         method (for example ``instructions``, ``tools``, ``conversation`` or ``previous_response_id``).
+        Templated, so values (e.g. ``previous_response_id``) may reference upstream XCom.
         Do not set ``background`` or ``stream`` here: ``background=True`` returns before the response
         completes, so this operator logs a warning and the returned output text may be empty, while
         ``stream=True`` returns an object without ``status`` or ``output_text``, so the task raises
         ``AttributeError``. See :ref:`howto/operator:OpenAIResponseOperator` for these and other
-        options this operator can pass through, such as ``truncation`` and ``metadata``.
+        options this operator can pass through, such as ``truncation`` and ``metadata``. ``max_output_tokens``
+        and ``max_tool_calls`` are special-cased when present as keys here -- see their own ``:param:``
+        entries below for the exact validation, coercion, and blank-as-unset rules that apply to them.
     :param max_output_tokens: Optional upper bound on the number of tokens generated for the
         response. Templated, so it renders to a string; accepts an ``int`` or a string containing one.
         Must be a positive integer -- an invalid value raises instead of silently disabling the
@@ -124,7 +131,13 @@ class OpenAIResponseOperator(BaseOperator):
         example an unresolved ``XComArg``, or a Jinja-native-rendered null) also raises -- it is not
         treated as unset. Mutually exclusive with ``max_output_tokens`` in ``response_kwargs`` --
         this is checked when the operator is constructed, regardless of what the templated value
-        later renders to.
+        later renders to. These same validation, type-coercion, blank-as-unset, and
+        supplied-but-``None``-raises rules apply identically when ``max_output_tokens`` is set as a
+        key directly inside ``response_kwargs`` instead of passed as this operator argument -- with
+        one difference: for that key, blank-as-unset means the key is removed from the payload
+        passed to ``create_response`` (rather than never being added, as happens for this operator
+        argument), and a present key whose value is a literal ``None`` still raises, since presence
+        of the key -- not the value -- is what "supplied" means for that path.
     :param max_tool_calls: Optional upper bound on the number of built-in tool calls the model may
         make while generating the response. Same templating, type, validation, blank-as-unset, and
         mutual-exclusion rules as ``max_output_tokens``.
@@ -134,9 +147,17 @@ class OpenAIResponseOperator(BaseOperator):
         :ref:`howto/operator:OpenAIResponseOperator`
         For possible options, see:
         https://platform.openai.com/docs/api-reference/responses/create
+
+    When ``do_xcom_push`` is enabled (the default), ``execute`` also pushes two XCom keys:
+    ``response_id`` (the response's ID) and ``usage`` (the result of
+    ``ResponseUsage.model_dump()``, or ``None`` when the API omits it). When ``usage`` is
+    not ``None`` it also carries a ``try_number`` key recording which attempt produced it --
+    XCom is cleared at the start of every attempt, so this makes it visible that the value
+    only reflects the current attempt rather than a silently under-reported total across
+    retries. Both XCom pushes are skipped when ``do_xcom_push=False``.
     """
 
-    template_fields: Sequence[str] = ("input_text", "max_output_tokens", "max_tool_calls")
+    template_fields: Sequence[str] = ("input_text", "response_kwargs", "max_output_tokens", "max_tool_calls")
 
     _TOKEN_CEILING_PARAM_NAMES: ClassVar[tuple[str, ...]] = ("max_output_tokens", "max_tool_calls")
 
@@ -184,12 +205,22 @@ class OpenAIResponseOperator(BaseOperator):
         else (``str`` templates awaiting ``render_template_fields()``, or template values such as
         ``XComArg`` that resolve later -- including a ``bool``, ``float``, or ``int`` produced by
         Jinja's native rendering with ``render_template_as_native_obj=True``) must wait for
-        ``_build_response_kwargs()`` at ``execute()`` time.
+        ``_build_response_kwargs()`` at ``execute()`` time. Looks for a literal in either place a
+        ceiling can be set -- the operator argument, or a key set natively in ``response_kwargs`` --
+        since ``_validate_no_response_kwargs_conflict()`` (run just before this) already guarantees
+        at most one source per ``param_name``.
         """
         for param_name in self._TOKEN_CEILING_PARAM_NAMES:
-            value = getattr(self, param_name)
-            if value is not None and isinstance(value, (bool, float, int)):
-                self._coerce_token_ceiling(param_name, value)
+            operator_value = getattr(self, param_name)
+            if operator_value is not None and isinstance(operator_value, (bool, float, int)):
+                self._coerce_token_ceiling(param_name, operator_value)
+            # A literal None native to response_kwargs is deliberately not validated here:
+            # isinstance(None, (bool, float, int)) is already False, so it falls through
+            # untouched -- it's rejected later, at execute()-time in _build_response_kwargs(),
+            # which treats a present-but-None key as "supplied but resolved to None".
+            native_value = self.response_kwargs.get(param_name)
+            if native_value is not None and isinstance(native_value, (bool, float, int)):
+                self._coerce_token_ceiling(param_name, native_value)
 
     @cached_property
     def hook(self) -> OpenAIHook:
@@ -218,14 +249,31 @@ class OpenAIResponseOperator(BaseOperator):
         return coerced
 
     def _build_response_kwargs(self) -> dict[str, Any]:
-        """Merge the token-ceiling arguments into ``response_kwargs``, skipping unset ceilings."""
+        """
+        Merge the token-ceiling arguments into ``response_kwargs``, skipping unset ceilings.
+
+        Also pops an already-present native key when its value is blank.
+        """
         response_kwargs = dict(self.response_kwargs)
         for param_name in self._TOKEN_CEILING_PARAM_NAMES:
-            value = getattr(self, param_name)
-            if param_name not in self._supplied_ceilings:
-                continue
-            # Blank means unset; the response_kwargs conflict was already rejected in __init__.
-            if isinstance(value, str) and value.strip() == "":
+            # These two branches can never both match for the same param_name: a ceiling set
+            # both as an operator argument and natively in response_kwargs is already rejected
+            # by _validate_no_response_kwargs_conflict() at __init__ time.
+            if param_name in self._supplied_ceilings:
+                value = getattr(self, param_name)
+                # Blank means unset; the key was never added to the dict copy above, so
+                # there's nothing to remove.
+                if isinstance(value, str) and value.strip() == "":
+                    continue
+            elif param_name in response_kwargs:
+                value = response_kwargs[param_name]
+                # Blank means unset here too, but the key already exists in the copied dict
+                # and must be popped so it disappears from the payload entirely, matching the
+                # "key absent" contract the operator-argument branch gives for free above.
+                if isinstance(value, str) and value.strip() == "":
+                    response_kwargs.pop(param_name)
+                    continue
+            else:
                 continue
             if value is None:
                 raise ValueError(
@@ -272,6 +320,22 @@ class OpenAIResponseOperator(BaseOperator):
                 response.status,
             )
         self.log.info("Generated response %s", response.id)
+        if self.do_xcom_push:
+            context["ti"].xcom_push(key="response_id", value=response.id)
+            # model_dump (not a hand-picked field list) keeps a token-usage dimension
+            # the API adds later from being silently dropped; mode="json" keeps the
+            # value XCom-serializable.
+            #
+            # XCom is cleared at the start of every attempt, so this key only ever holds
+            # the last one. Stamping the attempt makes that visible rather than silently
+            # under-reporting total spend across retries. Built as a new dict rather than
+            # mutating what model_dump() returned.
+            usage = (
+                {**response.usage.model_dump(mode="json"), "try_number": context["ti"].try_number}
+                if response.usage is not None
+                else None
+            )
+            context["ti"].xcom_push(key="usage", value=usage)
         return response.output_text
 
 
@@ -279,43 +343,61 @@ class OpenAITriggerBatchOperator(BaseOperator):
     """
     Operator that triggers an OpenAI Batch API endpoint and waits for the batch to complete.
 
-    :param file_id: Required. The ID of the batch file to trigger.
-    :param endpoint: Required. The OpenAI Batch API endpoint to trigger.
+    :param file_id: Required. The ID of the batch file to trigger. (templated)
+    :param endpoint: Required. The OpenAI Batch API endpoint to trigger. (templated) Allowed values
+        are determined by the OpenAI Batch API; see
+        :meth:`~airflow.providers.openai.hooks.openai.OpenAIHook.create_batch`.
     :param conn_id: Optional. The OpenAI connection ID to use. Defaults to 'openai_default'.
     :param deferrable: Optional. Run operator in the deferrable mode.
     :param wait_seconds: Optional. Number of seconds between checks. Only used when ``deferrable`` is False.
         Defaults to 3 seconds.
     :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
-        Only used when ``deferrable`` is False. Defaults to 24 hour, which is the SLA for OpenAI Batch API.
+        Applies in both deferrable and non-deferrable mode. Defaults to 24 hours, which is the SLA for
+        OpenAI Batch API.
     :param wait_for_completion: Optional. Whether to wait for the batch to complete. If set to False, the operator
         will return immediately after triggering the batch. Defaults to True.
+    :param metadata: Optional. A set of key-value pairs that can be attached to the batch. (templated)
+    :param batch_kwargs: Optional. Additional keyword arguments to pass to the OpenAI `create_batch`
+        method — for example `output_expires_after`, which sets the expiry on the batch's output and
+        error files. Defaults to None.
+    :param poll_interval: Optional. Number of seconds between checks. Only used when ``deferrable`` is True.
+        Defaults to 60 seconds.
 
     .. seealso::
         For more information on how to use this operator, please take a look at the guide:
         :ref:`howto/operator:OpenAITriggerBatchOperator`
     """
 
-    template_fields: Sequence[str] = ("file_id",)
+    template_fields: Sequence[str] = ("file_id", "endpoint", "metadata")
+    template_fields_renderers = {"metadata": "json"}
 
     def __init__(
         self,
         file_id: str,
-        endpoint: Literal["/v1/chat/completions", "/v1/embeddings", "/v1/completions"],
+        endpoint: str,
         conn_id: str = OpenAIHook.default_conn_name,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         wait_seconds: float = 3,
         timeout: float = 24 * 60 * 60,
         wait_for_completion: bool = True,
+        *,
+        metadata: dict[str, str] | None = None,
+        batch_kwargs: dict | None = None,
+        poll_interval: float = 60,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
-        self.conn_id = conn_id
         self.file_id = file_id
         self.endpoint = endpoint
+        self.conn_id = conn_id
         self.deferrable = deferrable
         self.wait_seconds = wait_seconds
         self.timeout = timeout
         self.wait_for_completion = wait_for_completion
+        self.metadata = metadata
+        self.batch_kwargs = batch_kwargs or {}
+        self.poll_interval = poll_interval
+
         self.batch_id: str | None = None
 
     @cached_property
@@ -324,22 +406,38 @@ class OpenAITriggerBatchOperator(BaseOperator):
         return OpenAIHook(conn_id=self.conn_id)
 
     def execute(self, context: Context) -> str | None:
-        batch = self.hook.create_batch(file_id=self.file_id, endpoint=self.endpoint)
+        batch = self.hook.create_batch(
+            file_id=self.file_id,
+            endpoint=self.endpoint,
+            metadata=self.metadata,
+            **self.batch_kwargs,
+        )
         self.batch_id = batch.id
         if self.wait_for_completion:
             if self.deferrable:
+                self.log.info(
+                    "Deferring batch %s, polling every %s seconds via poll_interval "
+                    "(wait_seconds is not used in deferrable mode)",
+                    self.batch_id,
+                    self.poll_interval,
+                )
                 self.defer(
                     timeout=self.execution_timeout,
                     trigger=OpenAIBatchTrigger(
                         conn_id=self.conn_id,
                         batch_id=self.batch_id,
-                        poll_interval=60,
+                        poll_interval=self.poll_interval,
                         timeout=self.timeout,
                     ),
                     method_name="execute_complete",
                 )
             else:
-                self.log.info("Waiting for batch %s to complete", self.batch_id)
+                self.log.info(
+                    "Waiting for batch %s to complete, polling every %s seconds via wait_seconds "
+                    "(poll_interval is not used in non-deferrable mode)",
+                    self.batch_id,
+                    self.wait_seconds,
+                )
                 self.hook.wait_for_batch(self.batch_id, wait_seconds=self.wait_seconds, timeout=self.timeout)
         return self.batch_id
 

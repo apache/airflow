@@ -26,6 +26,7 @@ from unittest import mock
 
 import pytest
 from task_sdk.coordinators.node._bundle_test_utils import (
+    BUNDLE_NAME,
     LAYOUT_PREFIX,
     METADATA_PREFIX,
     OFFSET_WIDTH,
@@ -61,10 +62,10 @@ class TestBundleReader:
 
     def test_rejects_metadata_first_legacy_bundle(self, tmp_path):
         payload = _metadata_json("sales")
-        (tmp_path / "bundle.mjs").write_bytes(METADATA_PREFIX + payload + b"\nexport {};\n")
+        (tmp_path / BUNDLE_NAME).write_bytes(METADATA_PREFIX + payload + b"\nexport {};\n")
 
         with pytest.raises(ValueError, match="no airflow bundle layout"):
-            read_bundle(tmp_path / "bundle.mjs")
+            read_bundle(tmp_path / BUNDLE_NAME)
 
     @pytest.mark.parametrize(
         "metadata_version",
@@ -74,7 +75,7 @@ class TestBundleReader:
         write_bundle(tmp_path, "sales", metadata_version=metadata_version)
 
         with pytest.raises(ValueError, match="unsupported airflow bundle metadata version"):
-            read_bundle(tmp_path / "bundle.mjs")
+            read_bundle(tmp_path / BUNDLE_NAME)
 
     def test_accepts_newer_minor_version_with_unknown_optional_fields(self, tmp_path):
         payload = json.loads(_metadata_json("sales", metadata_version="1.7.3"))
@@ -109,7 +110,7 @@ class TestBundleReader:
         _replace_layout_payload(bundle, payload)
 
         with pytest.raises(ValueError, match=message):
-            read_bundle(tmp_path / "bundle.mjs")
+            read_bundle(tmp_path / BUNDLE_NAME)
 
     @pytest.mark.parametrize("encoding", ["utf-16", "utf-32"])
     def test_rejects_layout_that_is_not_utf8(self, tmp_path, encoding):
@@ -126,7 +127,7 @@ class TestBundleReader:
         _replace_layout_payload(bundle, b"A" * _reader._MAX_LAYOUT_LINE_BYTES)
 
         with pytest.raises(ValueError, match="bundle layout exceeds"):
-            read_bundle(tmp_path / "bundle.mjs")
+            read_bundle(tmp_path / BUNDLE_NAME)
 
     def test_rejects_unterminated_layout(self, tmp_path):
         bundle = write_bundle(tmp_path, "sales")
@@ -134,7 +135,7 @@ class TestBundleReader:
         bundle.write_bytes(layout_line)
 
         with pytest.raises(ValueError, match="bundle layout is not newline-terminated"):
-            read_bundle(tmp_path / "bundle.mjs")
+            read_bundle(tmp_path / BUNDLE_NAME)
 
     def test_requires_metadata_immediately_after_layout(self, tmp_path):
         bundle = write_bundle(tmp_path, "sales")
@@ -142,7 +143,7 @@ class TestBundleReader:
         bundle.write_bytes(contents)
 
         with pytest.raises(ValueError, match="no embedded airflow metadata after its layout"):
-            read_bundle(tmp_path / "bundle.mjs")
+            read_bundle(tmp_path / BUNDLE_NAME)
 
     def test_rejects_unterminated_metadata(self, tmp_path):
         bundle = write_bundle(tmp_path, "sales")
@@ -150,7 +151,7 @@ class TestBundleReader:
         bundle.write_bytes(layout_line + b"\n" + metadata_line)
 
         with pytest.raises(ValueError, match="embedded airflow metadata is not newline-terminated"):
-            read_bundle(tmp_path / "bundle.mjs")
+            read_bundle(tmp_path / BUNDLE_NAME)
 
     @pytest.mark.parametrize(
         "metadata_payload",
@@ -175,7 +176,7 @@ class TestBundleReader:
         _replace_layout_payload(bundle, json.dumps(layout).encode())
 
         with pytest.raises(ValueError, match=f"missing the {section} section"):
-            read_bundle(tmp_path / "bundle.mjs")
+            read_bundle(tmp_path / BUNDLE_NAME)
 
     def test_rejects_invalid_section_digest(self, tmp_path):
         bundle = write_bundle(tmp_path, "sales")
@@ -184,7 +185,7 @@ class TestBundleReader:
         _rewrite_layout(bundle, layout)
 
         with pytest.raises(ValueError, match="64 lowercase hexadecimal digits"):
-            read_bundle(tmp_path / "bundle.mjs")
+            read_bundle(tmp_path / BUNDLE_NAME)
 
     def test_rejects_malformed_offset(self, tmp_path):
         bundle = write_bundle(tmp_path, "sales")
@@ -193,7 +194,7 @@ class TestBundleReader:
         _rewrite_layout(bundle, layout)
 
         with pytest.raises(ValueError, match="16-digit lowercase hexadecimal"):
-            read_bundle(tmp_path / "bundle.mjs")
+            read_bundle(tmp_path / BUNDLE_NAME)
 
     @pytest.mark.parametrize(("start", "end"), [(1, 1), (2, 1)])
     def test_rejects_empty_or_reversed_section(self, tmp_path, start, end):
@@ -204,7 +205,7 @@ class TestBundleReader:
         _rewrite_layout(bundle, layout)
 
         with pytest.raises(ValueError, match="code section must contain at least one byte"):
-            read_bundle(tmp_path / "bundle.mjs")
+            read_bundle(tmp_path / BUNDLE_NAME)
 
     def test_rejects_metadata_offset_mismatch(self, tmp_path):
         bundle = write_bundle(tmp_path, "sales")
@@ -214,7 +215,7 @@ class TestBundleReader:
         _rewrite_layout(bundle, layout)
 
         with pytest.raises(ValueError, match="metadata offsets do not match"):
-            read_bundle(tmp_path / "bundle.mjs")
+            read_bundle(tmp_path / BUNDLE_NAME)
 
     @pytest.mark.parametrize("section", [pytest.param("metadata", id="metadata-before-decode"), "code"])
     def test_rejects_section_digest_mismatch(self, tmp_path, section):
@@ -224,24 +225,24 @@ class TestBundleReader:
         _mutate_byte(bundle, int(layout[section]["start"], 16))  # type: ignore[index, call-overload]
 
         with pytest.raises(ValueError, match=f"{section} SHA-256 mismatch"):
-            read_bundle(tmp_path / "bundle.mjs")
+            read_bundle(tmp_path / BUNDLE_NAME)
 
     def test_rejects_truncated_code(self, tmp_path):
         bundle = write_bundle(tmp_path, "sales")
         bundle.write_bytes(bundle.read_bytes()[:-1])
 
         with pytest.raises(ValueError, match="code offsets do not match"):
-            read_bundle(tmp_path / "bundle.mjs")
+            read_bundle(tmp_path / BUNDLE_NAME)
 
     def test_reports_truncation_while_hashing(self, tmp_path):
         with pytest.raises(ValueError, match="was truncated while hashing its code region"):
-            _hash_region(io.BytesIO(), start=0, end=1, path=tmp_path / "bundle.mjs", section="code")
+            _hash_region(io.BytesIO(), start=0, end=1, path=tmp_path / BUNDLE_NAME, section="code")
 
     def test_rejects_invalid_metadata_json_after_verification(self, tmp_path):
         write_bundle(tmp_path, "sales", metadata_payload=b"not-json")
 
         with pytest.raises(ValueError, match="cannot parse embedded airflow metadata"):
-            read_bundle(tmp_path / "bundle.mjs")
+            read_bundle(tmp_path / BUNDLE_NAME)
 
     @pytest.mark.parametrize(
         "metadata_payload",
@@ -255,13 +256,13 @@ class TestBundleReader:
         write_bundle(tmp_path, "sales", metadata_payload=metadata_payload)
 
         with pytest.raises(ValueError, match="cannot parse embedded airflow metadata"):
-            read_bundle(tmp_path / "bundle.mjs")
+            read_bundle(tmp_path / BUNDLE_NAME)
 
     def test_rejects_metadata_that_is_not_a_mapping(self, tmp_path):
         write_bundle(tmp_path, "sales", metadata_payload=b"[]")
 
         with pytest.raises(ValueError, match="embedded airflow metadata must contain a mapping"):
-            read_bundle(tmp_path / "bundle.mjs")
+            read_bundle(tmp_path / BUNDLE_NAME)
 
     @pytest.mark.parametrize("dags", [None, []], ids=["missing", "not-a-mapping"])
     def test_rejects_missing_or_malformed_dags(self, tmp_path, dags):
@@ -273,7 +274,7 @@ class TestBundleReader:
         write_bundle(tmp_path, metadata_payload=json.dumps(metadata).encode())
 
         with pytest.raises(ValueError, match="metadata must contain a dags mapping"):
-            read_bundle(tmp_path / "bundle.mjs")
+            read_bundle(tmp_path / BUNDLE_NAME)
 
     def test_rejects_oversized_metadata(self, tmp_path):
         write_bundle(
@@ -283,7 +284,7 @@ class TestBundleReader:
         )
 
         with pytest.raises(ValueError, match="embedded airflow metadata exceeds"):
-            read_bundle(tmp_path / "bundle.mjs")
+            read_bundle(tmp_path / BUNDLE_NAME)
 
     def test_rejects_change_during_verification(self, tmp_path, monkeypatch):
         bundle = write_bundle(tmp_path, "sales")
@@ -299,7 +300,7 @@ class TestBundleReader:
         monkeypatch.setattr(_reader, "_hash_region", hash_then_touch)
 
         with pytest.raises(ValueError, match="changed while its integrity was being verified"):
-            read_bundle(tmp_path / "bundle.mjs")
+            read_bundle(tmp_path / BUNDLE_NAME)
 
     def test_rejects_change_after_verification_before_metadata_decode(self, tmp_path, monkeypatch):
         bundle = write_bundle(tmp_path, "sales")
@@ -313,14 +314,14 @@ class TestBundleReader:
         monkeypatch.setattr(_digest_cache, "put", put_then_touch)
 
         with pytest.raises(ValueError, match="changed while it was being read"):
-            read_bundle(tmp_path / "bundle.mjs")
+            read_bundle(tmp_path / BUNDLE_NAME)
 
     @pytest.mark.parametrize(
         ("failure_call", "message"),
         [
-            (1, "cannot read bundle.mjs"),
-            (2, "cannot stat bundle.mjs after verification"),
-            (3, "cannot stat bundle.mjs after reading"),
+            (1, "cannot read bundle.min.mjs"),
+            (2, "cannot stat bundle.min.mjs after verification"),
+            (3, "cannot stat bundle.min.mjs after reading"),
         ],
     )
     def test_translates_fstat_errors(self, tmp_path, monkeypatch, failure_call, message):
@@ -338,7 +339,7 @@ class TestBundleReader:
         monkeypatch.setattr(_reader.os, "fstat", fail_selected_fstat)
 
         with pytest.raises(OSError, match=message):
-            read_bundle(tmp_path / "bundle.mjs")
+            read_bundle(tmp_path / BUNDLE_NAME)
 
     def test_translates_metadata_read_error(self, tmp_path, monkeypatch):
         bundle = write_bundle(tmp_path, "sales")
@@ -351,16 +352,16 @@ class TestBundleReader:
         monkeypatch.setattr(pathlib.Path, "open", path_open)
         monkeypatch.setattr(_reader.os, "fstat", lambda _: bundle.stat())
 
-        with pytest.raises(OSError, match="cannot read bundle.mjs"):
-            read_bundle(tmp_path / "bundle.mjs")
+        with pytest.raises(OSError, match="cannot read bundle.min.mjs"):
+            read_bundle(tmp_path / BUNDLE_NAME)
 
     @mock.patch.object(_reader, "_hash_region", autospec=True)
     def test_reuses_cached_digests_for_unchanged_bundle(self, hash_region, tmp_path):
         write_bundle(tmp_path, "sales")
         hash_region.side_effect = _hash_region
 
-        read_bundle(tmp_path / "bundle.mjs")
-        read_bundle(tmp_path / "bundle.mjs")
+        read_bundle(tmp_path / BUNDLE_NAME)
+        read_bundle(tmp_path / BUNDLE_NAME)
 
         assert hash_region.call_count == 2
 
@@ -383,7 +384,7 @@ class TestBundleReader:
         fstat.return_value.st_ctime_ns += 1
 
         with pytest.raises(ValueError, match="code SHA-256 mismatch"):
-            read_bundle(tmp_path / "bundle.mjs")
+            read_bundle(tmp_path / BUNDLE_NAME)
 
     def test_digest_cache_evicts_least_recently_used_entry(self):
         cache = _reader._BundleDigestCache(maxsize=2)
@@ -392,7 +393,7 @@ class TestBundleReader:
 
         def build_key(inode):
             return _reader._DigestCacheKey(
-                path="bundle.mjs",
+                path="bundle.min.mjs",
                 metadata=section,
                 code=section,
                 device=1,

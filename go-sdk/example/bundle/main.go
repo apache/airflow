@@ -28,6 +28,7 @@ import (
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1/bundlev1server"
 	"github.com/apache/airflow/go-sdk/example/bundle/concurrentxcom"
 	"github.com/apache/airflow/go-sdk/example/bundle/taskflowbinding"
+	"github.com/apache/airflow/go-sdk/example/bundle/variablewrite"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
@@ -57,6 +58,12 @@ func (m *myBundle) RegisterDags(dagbag v1.Registry) error {
 	bindingDag.AddTaskWithName("via_flat_map", taskflowbinding.ViaFlatMap)
 	bindingDag.AddTaskWithName("via_struct_map", taskflowbinding.ViaStructMap)
 	bindingDag.AddTaskWithName("via_plain_map", taskflowbinding.ViaPlainMap)
+
+	variableWriteDag := dagbag.AddDag("variable_write_dag")
+	variableWriteDag.AddTaskWithName(
+		"write_and_delete_variable",
+		variablewrite.WriteAndDeleteVariable,
+	)
 
 	return nil
 }

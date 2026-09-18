@@ -213,7 +213,7 @@ Working with Time Zones
 
 Creating a time zone aware Dag is straightforward. Just ensure you use time zone aware dates
 with `pendulum <https://github.com/python-pendulum/pendulum>`_. Avoid using the standard library
-`timezone <https://docs.python.org/3/library/datetime.html#timezone-objects>`_ as they have known limitations.
+`timezone <https://docs.python.org/3/library/datetime.html#timezone-objects>`_ as it has known limitations.
 
 Recap
 -----

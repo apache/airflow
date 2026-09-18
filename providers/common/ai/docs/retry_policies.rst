@@ -26,6 +26,8 @@ retry decisions. It works with any LLM provider supported by pydantic-ai
 (OpenAI, Anthropic, Bedrock, Vertex, Ollama, etc.).
 
 For the core retry policy concepts, see :doc:`apache-airflow:core-concepts/tasks`.
+If the task also needs to survive a worker crash without losing its progress,
+see :ref:`apache-airflow:concepts-resumable-tasks-retry-policies`.
 
 Setup
 -----

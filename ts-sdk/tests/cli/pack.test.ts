@@ -58,7 +58,7 @@ describe("parsePackArgs", () => {
   it("parses entry with defaults", () => {
     expect(parsePackArgs(["src/main.ts"])).toEqual({
       entry: "src/main.ts",
-      outdir: "dist",
+      outfile: path.join("dist", "bundle.min.mjs"),
       source: "main.ts",
     });
   });
@@ -66,16 +66,33 @@ describe("parsePackArgs", () => {
   it("parses --outdir and --source overrides", () => {
     expect(parsePackArgs(["src/main.ts", "--outdir", "build", "--source", "pipeline.ts"])).toEqual({
       entry: "src/main.ts",
-      outdir: "build",
+      outfile: path.join("build", "bundle.min.mjs"),
       source: "pipeline.ts",
+    });
+  });
+
+  it("parses --outfile as the exact output path", () => {
+    expect(parsePackArgs(["src/main.ts", "--outfile", "out/sales.min.mjs"])).toEqual({
+      entry: "src/main.ts",
+      outfile: "out/sales.min.mjs",
+      source: "main.ts",
     });
   });
 
   it.each([
     [[], "Missing entry file"],
     [["--outdir"], "--outdir requires a value"],
+    [["--outfile"], "--outfile requires a value"],
     [["a.ts", "b.ts"], "Unexpected argument b.ts"],
     [["a.ts", "--bogus"], "Unknown option --bogus"],
+    [
+      ["a.ts", "--outdir", "dist", "--outfile", "dist/sales.min.mjs"],
+      "--outdir and --outfile are mutually exclusive",
+    ],
+    // A bundle written without the suffix would never be found.
+    [["a.ts", "--outfile", "dist/sales.mjs"], "--outfile name must end in .min.mjs"],
+    [["a.ts", "--outfile", "dist/sales.min.js"], "--outfile name must end in .min.mjs"],
+    [["a.ts", "--outfile", "dist/min.mjs.txt"], "--outfile name must end in .min.mjs"],
   ])("rejects %j", (argv, message) => {
     expect(() => parsePackArgs(argv)).toThrow(message);
   });
@@ -188,12 +205,12 @@ describe("runPack", () => {
     if (outdir) rmSync(outdir, { recursive: true, force: true });
   });
 
-  it("bundles the entry and embeds metadata from the bundle's registry", async () => {
+  it("bundles the entry and embeds metadata from the bundle's bundle", async () => {
     outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
     const nested = path.join(outdir, "dist");
     await runPack([FIXTURE_ENTRY, "--outdir", nested]);
 
-    const bundlePath = path.join(nested, "bundle.mjs");
+    const bundlePath = path.join(nested, "bundle.min.mjs");
     expect(existsSync(path.join(nested, "airflow-metadata.yaml"))).toBe(false);
 
     const [layoutLine, metadataLine] = readFileSync(bundlePath, "utf-8").split("\n");
@@ -227,7 +244,7 @@ describe("runPack", () => {
     outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
     await runPack([FIXTURE_ENTRY, "--outdir", outdir]);
 
-    const bundle = readFileSync(path.join(outdir, "bundle.mjs"));
+    const bundle = readFileSync(path.join(outdir, "bundle.min.mjs"));
     const firstNewline = bundle.indexOf("\n");
     const layoutLine = bundle.subarray(0, firstNewline).toString("utf-8");
     expect(layoutLine.startsWith(EMBEDDED_LAYOUT_PREFIX)).toBe(true);
@@ -249,11 +266,51 @@ describe("runPack", () => {
     expect(bundle.toString("utf-8")).not.toContain("airflowSource");
   });
 
+  it("minifies the code region and keeps it runnable", async () => {
+    outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
+    await runPack([FIXTURE_ENTRY, "--outdir", outdir]);
+
+    const bundlePath = path.join(outdir, "bundle.min.mjs");
+    const bundle = readFileSync(bundlePath);
+    const layout = parseHeader(bundle.subarray(0, bundle.indexOf("\n")).toString("utf-8"));
+    const code = bundle
+      .subarray(Number.parseInt(layout.code.start, 16), Number.parseInt(layout.code.end, 16))
+      .toString("utf-8");
+
+    // esbuild indents unminified output; minified output has no indented line.
+    expect(code).not.toContain("\n  ");
+    // Minification must not strip the dependencies' license banners.
+    expect(code).toContain("/*!");
+    // A digest over minified bytes only means something if those bytes still execute.
+    const dumped = execFileSync(process.execPath, [bundlePath, "--airflow-metadata"], {
+      encoding: "utf-8",
+    });
+    expect(
+      JSON.parse(dumped.slice(AIRFLOW_METADATA_SENTINEL.length)).supervisor_schema_version,
+    ).toBe(SUPERVISOR_API_VERSION);
+  });
+
+  it("writes the bundle to an explicit --outfile", async () => {
+    outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
+    const target = path.join(outdir, "nested", "sales.min.mjs");
+
+    await runPack([FIXTURE_ENTRY, "--outfile", target]);
+
+    expect(existsSync(target)).toBe(true);
+    expect(existsSync(path.join(outdir, "nested", "bundle.min.mjs"))).toBe(false);
+    // Staging is written beside the target and cleaned up there.
+    expect(existsSync(path.join(outdir, "nested", "bundle.pack-staging.mjs"))).toBe(false);
+    expect(readFileSync(target).subarray(0, EMBEDDED_LAYOUT_PREFIX.length).toString()).toBe(
+      EMBEDDED_LAYOUT_PREFIX,
+    );
+    expect(JSON.parse(readEmbeddedMetadata(target))).toHaveProperty("dags.fixture_dag");
+  });
+
   it("keeps a shebang entry runnable and reads the manifest past import-time logging", async () => {
     outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
     await runPack([NOISY_ENTRY, "--outdir", outdir]);
 
-    const bundlePath = path.join(outdir, "bundle.mjs");
+    const bundlePath = path.join(outdir, "bundle.min.mjs");
     const bundle = readFileSync(bundlePath, "utf-8");
     expect(bundle.startsWith(EMBEDDED_LAYOUT_PREFIX)).toBe(true);
     expect(bundle).not.toContain("#!/usr/bin/env node");
@@ -272,25 +329,27 @@ describe("runPack", () => {
     writeFileSync(
       entry,
       [
-        `import { Dag, DagRegistry, serveDags } from ${JSON.stringify(SDK_INDEX)};`,
+        `import { Bundle, Dag } from ${JSON.stringify(SDK_INDEX)};`,
         'const bigDag = new Dag("big_dag");',
         'for (let i = 0; i < 5000; i += 1) bigDag.task(String(i).padStart(240, "t"), async () => undefined);',
-        "await serveDags(new DagRegistry(bigDag));",
+        "await new Bundle(bigDag).serve();",
       ].join("\n"),
     );
 
     await expect(runPack([entry, "--outdir", outdir])).rejects.toThrow(
       "over the 1048576 byte limit",
     );
-    expect(existsSync(path.join(outdir, "bundle.mjs"))).toBe(false);
+    expect(existsSync(path.join(outdir, "bundle.min.mjs"))).toBe(false);
     expect(existsSync(path.join(outdir, "bundle.pack-staging.mjs"))).toBe(false);
   });
 
-  it("leaves no bundle behind when the entry serves no Dags", async () => {
+  it("leaves no bundle behind when the entry serves nothing", async () => {
     outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
 
-    await expect(runPack([EMPTY_ENTRY, "--outdir", outdir])).rejects.toThrow("served no Dags");
-    expect(existsSync(path.join(outdir, "bundle.mjs"))).toBe(false);
+    await expect(runPack([EMPTY_ENTRY, "--outdir", outdir])).rejects.toThrow(
+      "served nothing; register Dags or task handlers",
+    );
+    expect(existsSync(path.join(outdir, "bundle.min.mjs"))).toBe(false);
     expect(existsSync(path.join(outdir, "bundle.pack-staging.mjs"))).toBe(false);
   });
 
@@ -315,10 +374,10 @@ describe("runPack", () => {
     writeFileSync(
       entry,
       [
-        `import { Dag, DagRegistry, serveDags } from ${JSON.stringify(SDK_INDEX)};`,
+        `import { Bundle, Dag } from ${JSON.stringify(SDK_INDEX)};`,
         `const suspiciousDag = new Dag(${JSON.stringify(dagId)});`,
         `suspiciousDag.task(${JSON.stringify(taskId)}, async () => undefined);`,
-        "await serveDags(new DagRegistry(suspiciousDag));",
+        "await new Bundle(suspiciousDag).serve();",
       ].join("\n"),
     );
     const stderr = captureStderr();
@@ -326,7 +385,7 @@ describe("runPack", () => {
     await runPack([entry, "--outdir", outdir]);
 
     expect(stderr()).toContain(expected);
-    expect(existsSync(path.join(outdir, "bundle.mjs"))).toBe(true);
+    expect(existsSync(path.join(outdir, "bundle.min.mjs"))).toBe(true);
   });
 
   it("reports the last error from a failed bundle", async () => {
@@ -341,7 +400,7 @@ describe("runPack", () => {
       "message",
       "Error: final failure",
     );
-    expect(existsSync(path.join(outdir, "bundle.mjs"))).toBe(false);
+    expect(existsSync(path.join(outdir, "bundle.min.mjs"))).toBe(false);
     expect(existsSync(path.join(outdir, "bundle.pack-staging.mjs"))).toBe(false);
   });
 
@@ -372,7 +431,7 @@ describe("runPack", () => {
     );
 
     await expect(runPack([entry, "--outdir", outdir])).rejects.toThrow(message);
-    expect(existsSync(path.join(outdir, "bundle.mjs"))).toBe(false);
+    expect(existsSync(path.join(outdir, "bundle.min.mjs"))).toBe(false);
     expect(existsSync(path.join(outdir, "bundle.pack-staging.mjs"))).toBe(false);
   });
 
@@ -382,10 +441,10 @@ describe("runPack", () => {
     writeFileSync(
       entry,
       [
-        `import { Dag, DagRegistry, serveDags } from ${JSON.stringify(SDK_INDEX)};`,
+        `import { Bundle, Dag } from ${JSON.stringify(SDK_INDEX)};`,
         'const salesDag = new Dag("sales_dag");',
         'salesDag.task("extract", async () => undefined);',
-        'await serveDags(new DagRegistry(salesDag, new Dag("empty_dag")));',
+        'await new Bundle(salesDag, new Dag("empty_dag")).serve();',
       ].join("\n"),
     );
     const stderr = captureStderr();
@@ -393,30 +452,30 @@ describe("runPack", () => {
     await runPack([entry, "--outdir", outdir]);
 
     expect(stderr()).toContain('warning: dag "empty_dag" has no tasks\n');
-    expect(JSON.parse(readEmbeddedMetadata(path.join(outdir, "bundle.mjs")))).toHaveProperty(
+    expect(JSON.parse(readEmbeddedMetadata(path.join(outdir, "bundle.min.mjs")))).toHaveProperty(
       "dags.empty_dag.tasks",
       [],
     );
   });
 
-  it("packs only the Dags the served registry holds", async () => {
+  it("packs only the Dags the served bundle holds", async () => {
     outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
     const entry = path.join(outdir, "forgotten-entry.ts");
     writeFileSync(
       entry,
       [
-        `import { Dag, DagRegistry, serveDags } from ${JSON.stringify(SDK_INDEX)};`,
+        `import { Bundle, Dag } from ${JSON.stringify(SDK_INDEX)};`,
         'const salesDag = new Dag("sales_dag");',
         'salesDag.task("extract", async () => undefined);',
         'const billingDag = new Dag("billing_dag");',
         'billingDag.task("charge", async () => undefined);',
-        "await serveDags(new DagRegistry(salesDag));",
+        "await new Bundle(salesDag).serve();",
       ].join("\n"),
     );
 
     await runPack([entry, "--outdir", outdir]);
 
-    const metadata = JSON.parse(readEmbeddedMetadata(path.join(outdir, "bundle.mjs")));
+    const metadata = JSON.parse(readEmbeddedMetadata(path.join(outdir, "bundle.min.mjs")));
     expect(metadata).toHaveProperty("dags.sales_dag");
     expect(metadata).not.toHaveProperty("dags.billing_dag");
   });

@@ -23,6 +23,7 @@ import json
 import pathlib
 
 SCHEMA_VERSION = "2026-06-16"
+BUNDLE_NAME = "bundle.min.mjs"
 LAYOUT_PREFIX = b"//# airflowBundle="
 METADATA_PREFIX = b"//# airflowMetadata="
 OFFSET_WIDTH = 16
@@ -67,6 +68,7 @@ def write_bundle(
     schema_version: str = SCHEMA_VERSION,
     metadata_version: str | None = "1.0",
     metadata_payload: bytes | None = None,
+    name: str = BUNDLE_NAME,
 ) -> pathlib.Path:
     if metadata_payload is None:
         metadata_payload = metadata_json(
@@ -92,7 +94,8 @@ def write_bundle(
     )
     assert len(layout_line) == len(placeholder)
 
-    bundle = root / "bundle.mjs"
+    bundle = root / name
+    bundle.parent.mkdir(parents=True, exist_ok=True)
     bundle.write_bytes(layout_line + metadata_line + code)
     return bundle
 

@@ -27,6 +27,8 @@ from airflow.providers.common.ai.operators.llm_schema_compare import (
     SchemaCompareResult,
 )
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+
 
 def _make_compare_result():
     return SchemaCompareResult(
@@ -114,6 +116,7 @@ class TestLLMSchemaCompareDecoratedOperator:
         forwarded_prompt = mock_agent.run_sync.call_args[0][0]
         assert forwarded_prompt == prompt
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="require_approval needs Airflow >= 3.1.0")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     @patch.object(LLMSchemaCompareOperator, "_build_schema_context", return_value="mocked schema")
     def test_sequence_prompt_with_require_approval_raises_before_run_sync(
