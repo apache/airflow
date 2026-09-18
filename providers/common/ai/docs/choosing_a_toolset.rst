@@ -381,7 +381,7 @@ in this provider is a runnable Dag against a real ``sbx`` host — the only
 toolset here with a system test. It is reachable from the System Tests entry in
 the sidebar.
 
-**Credentials and where it runs.** This is the one route that does not end at an
+**Credentials and where it runs.** This route does not end at an
 Airflow connection. Airflow puts none of its context, connections, variables or
 worker environment into the sandbox; only what you pass through
 :class:`~airflow.providers.common.ai.sandbox.SandboxSpec` goes in. Authorization
@@ -414,8 +414,8 @@ Read the first bullet before planning around this route.
   an answer comes out. Whatever governs what the remote agent may touch lives on
   the vendor's side, which is the trade you are making.
 - It does not define where the credential comes from. The base class leaves
-  authentication to the subclass, so unlike every other route here, nothing in
-  this provider guarantees an Airflow connection is involved.
+  authentication to the subclass, so this route does not guarantee an Airflow
+  connection is involved.
 - Durable replay is off by default. ``replayable`` is ``False`` because a managed
   agent may act on systems Airflow cannot observe, so replaying from the cache
   could skip a side effect. Read-only agents can opt in.
