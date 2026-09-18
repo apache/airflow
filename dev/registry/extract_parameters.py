@@ -54,7 +54,7 @@ from pathlib import Path
 import yaml
 from extract_metadata import fetch_provider_inventory, read_inventory
 from registry_contract_models import validate_modules_catalog, validate_provider_parameters
-from registry_tools.docs_guides import attach_guide_urls, collect_guide_anchors
+from registry_tools.docs_guides import attach_guide_urls, collect_guide_anchors, is_guide_page
 from registry_tools.types import (
     BASE_CLASS_IMPORTS,
     CLASS_LEVEL_CATEGORY_OVERRIDES,
@@ -459,10 +459,13 @@ def read_guide_docs(docs_dir: Path) -> dict[str, str]:
     """Read a provider's authored reST docs from the working tree, keyed by path relative to ``docs_dir``."""
     if not docs_dir.is_dir():
         return {}
-    return {
-        path.relative_to(docs_dir).as_posix(): path.read_text(encoding="utf-8")
-        for path in sorted(docs_dir.rglob("*.rst"))
-    }
+    docs = {}
+    for path in sorted(docs_dir.rglob("*.rst")):
+        relative = path.relative_to(docs_dir).as_posix()
+        if not is_guide_page(relative):
+            continue
+        docs[relative] = path.read_text(encoding="utf-8")
+    return docs
 
 
 def discover_classes_from_provider(

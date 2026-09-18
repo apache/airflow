@@ -59,7 +59,7 @@ except ImportError:
     sys.exit(1)
 
 from extract_metadata import fetch_provider_inventory, read_connection_urls, resolve_connection_docs_url
-from registry_tools.docs_guides import attach_guide_urls, collect_guide_anchors
+from registry_tools.docs_guides import attach_guide_urls, collect_guide_anchors, is_guide_page
 from registry_tools.types import (
     CLASS_LEVEL_CATEGORY_OVERRIDES,
     CLASS_LEVEL_SECTIONS,
@@ -212,8 +212,11 @@ def read_guide_docs(tag: str, layout: str, dir_path: str) -> dict[str, str]:
     for path in git_ls_tree(tag, docs_prefix):
         if not path.endswith(".rst"):
             continue
+        relative = path[len(docs_prefix) :]
+        if not is_guide_page(relative):
+            continue
         if content := git_show(tag, path):
-            docs[path[len(docs_prefix) :]] = content
+            docs[relative] = content
     return docs
 
 
