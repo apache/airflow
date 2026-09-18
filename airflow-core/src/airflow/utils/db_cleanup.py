@@ -484,11 +484,16 @@ def _do_delete(
             session.commit()
 
             # A guarded DELETE (skip_if_referenced) may delete fewer rows than the SELECT
-            # found. That is fine: the SELECT already includes the same NOT EXISTS guard, so
-            # the skipped row is excluded on the next pass too, and the loop drains naturally.
-            # With --batch-size set, continuing here lets subsequent batches clean rows that
-            # were not affected by the race.
+            # found. The SELECT includes the same NOT EXISTS guard, so the skipped row is
+            # excluded on the next pass too and the loop drains naturally. With --batch-size
+            # set, continuing lets subsequent batches clean rows unaffected by the race.
             if deleted == 0:
+                logger.warning(
+                    "Some rows from %s are still referenced by another table and were not "
+                    "deleted; they remain in %s and will be retried on the next cleanup run.",
+                    source_table_name,
+                    target_table_name if not skip_archive else "the archive (which is being dropped)",
+                )
                 continue
 
         except BaseException:

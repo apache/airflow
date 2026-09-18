@@ -671,13 +671,16 @@ class TestDBCleanup:
         assert orphan_id not in remaining  # old and unreferenced -> pruned
 
     def test_do_delete_skip_if_referenced_guards_against_race(self):
-        """_do_delete must not delete a dag_version row that a task_instance references.
+        """_do_delete must not issue a DELETE that violates an ON DELETE RESTRICT FK.
 
-        Even in a race where the TI is inserted after the archive CTAS but before the
-        DELETE, the NOT EXISTS guard that _build_query embeds in the SELECT ensures the
-        row is excluded from every SELECT pass so the loop drains without ever issuing
-        a FK-violating DELETE.
+        Reproduces the real race: the dag_version row passes the SELECT filter and is
+        archived, and only then does a task_instance referencing it appear.  The
+        skip_if_referenced guard on the DELETE must skip the row instead of failing with
+        IntegrityError, and the loop must still drain because the next SELECT pass
+        re-evaluates the same NOT EXISTS guard and excludes it.
         """
+        from airflow.utils.db import reflect_tables
+
         base_date = pendulum.DateTime(2020, 1, 1, tzinfo=pendulum.timezone("UTC"))
         bundle_name = f"race-test-{uuid4()}"
         dag_id = f"race_dag_{uuid4()}"
@@ -688,54 +691,77 @@ class TestDBCleanup:
             session.add(DagModel(dag_id=dag_id, bundle_name=bundle_name))
             session.flush()
 
-            dv = DagVersion(
+            raced_old = DagVersion(
                 dag_id=dag_id,
                 version_number=1,
                 bundle_name=bundle_name,
                 created_at=base_date,
                 last_updated=base_date,
             )
-            session.add(dv)
+            # dag_version is keep_last per dag_id, so a lone version is always the
+            # keep_last survivor and is never eligible for deletion.  A second, newer
+            # version takes that role and leaves raced_old as the deletion candidate.
+            latest = DagVersion(
+                dag_id=dag_id,
+                version_number=2,
+                bundle_name=bundle_name,
+                created_at=base_date.add(minutes=1),
+                last_updated=base_date.add(minutes=1),
+            )
+            session.add_all([raced_old, latest])
             session.flush()
-            dv_id = dv.id
+            raced_old_id, latest_id = raced_old.id, latest.id
 
-            # Insert a TI referencing the dag_version so that the NOT EXISTS guard in
-            # _build_query excludes it from the SELECT, simulating a row that is
-            # still referenced at cleanup time.
+            # Query built while nothing references raced_old, so the first SELECT pass
+            # returns it and _do_delete archives it.
+            cfg = config_dict["dag_version"]
+            query = _build_query(
+                **cfg.__dict__,
+                clean_before_timestamp=base_date.add(days=10),
+                session=session,
+            )
+
             dag_run = DagRun(dag_id, run_id="race-run", run_type=DagRunType.MANUAL, start_date=base_date)
             ti = create_task_instance(
                 PythonOperator(task_id="dummy-task", python_callable=print),
                 run_id=dag_run.run_id,
-                dag_version_id=dv_id,
+                dag_version_id=raced_old_id,
             )
             ti.dag_id = dag_id
             ti.start_date = base_date
-            session.add_all([dag_run, ti])
-            session.commit()
 
-            # Use _build_query (as _cleanup_table does) so that the NOT EXISTS guard
-            # is embedded in the SELECT.  The TI reference keeps the SELECT count at
-            # zero and the loop exits without issuing any DELETE.
-            cfg = config_dict["dag_version"]
-            query = _build_query(
-                **cfg.__dict__,
-                clean_before_timestamp=base_date.add(days=1),
-                session=session,
-            )
+            raced = False
 
-            _do_delete(
-                query=query,
-                orm_model=cfg.orm_model,
-                skip_archive=True,
-                session=session,
-                batch_size=None,
-                skip_if_referenced=cfg.skip_if_referenced,
-                referenced_pk_column=cfg.referenced_pk_column,
-            )
+            def reflect_and_race(tables, session, **kwargs):
+                # _do_delete reflects both source and target right after committing the
+                # archive CTAS and right before building the DELETE — this is the only
+                # seam between the two that fits the race window.  MySQL reflects the
+                # target alone earlier in the same pass, so keying on the two-table call
+                # covers both branches.  If this call site moves, the test stops
+                # reproducing the race and the ``raced`` assertion below will catch it.
+                nonlocal raced
+                if not raced and len(tables) == 2:
+                    raced = True
+                    session.add_all([dag_run, ti])
+                    session.commit()
+                return reflect_tables(tables, session, **kwargs)
+
+            with patch("airflow.utils.db_cleanup.reflect_tables", side_effect=reflect_and_race):
+                _do_delete(
+                    query=query,
+                    orm_model=cfg.orm_model,
+                    skip_archive=True,
+                    session=session,
+                    batch_size=None,
+                    skip_if_referenced=cfg.skip_if_referenced,
+                    referenced_pk_column=cfg.referenced_pk_column,
+                )
 
             remaining = set(session.scalars(select(DagVersion.id).where(DagVersion.dag_id == dag_id)).all())
 
-        assert dv_id in remaining, "dag_version referenced by a task_instance must not be deleted"
+        assert raced, "the TI was never inserted mid-pass; the race was not reproduced"
+        assert raced_old_id in remaining, "dag_version referenced by a task_instance must not be deleted"
+        assert latest_id in remaining, "the keep_last survivor must not be deleted"
 
     def test_table_config_skip_if_referenced_requires_pk_column(self):
         """A misconfigured skip_if_referenced (pk not in columns) must fail fast at construction."""
