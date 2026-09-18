@@ -343,3 +343,57 @@ class RedshiftClusterTrigger(BaseTrigger):
                 await asyncio.sleep(self.poke_interval)
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
+
+
+class RedshiftClusterSettledTrigger(AwsBaseWaiterTrigger):
+    """
+    Wait until a Redshift cluster settles into a non-transitional (deletable) lifecycle.
+
+    A ``delete_cluster`` call is rejected with ``InvalidClusterStateFault`` while an operation is in
+    flight (e.g. a pause or resize). Because a busy cluster can settle into *different* terminal states
+    depending on the in-flight operation (a ``pausing`` cluster becomes ``paused``; a ``resizing`` cluster
+    becomes ``available``), this trigger uses the custom ``cluster_deletable`` waiter, which has one
+    ``success`` acceptor per deletable ``ClusterStatus`` value rather than a single target state.
+
+    :param cluster_identifier: unique identifier of a cluster
+    :param waiter_delay: The amount of time in seconds to wait between attempts.
+    :param waiter_max_attempts: The maximum number of attempts to be made.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param region_name: The AWS region where the cluster is. Used to build the hook.
+    :param verify: Whether or not to verify SSL certificates. Used to build the hook.
+    :param botocore_config: Configuration dictionary for the botocore client. Used to build the hook.
+    """
+
+    def __init__(
+        self,
+        *,
+        cluster_identifier: str,
+        aws_conn_id: str | None = "aws_default",
+        region_name: str | None = None,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 30,
+        **kwargs,
+    ):
+        super().__init__(
+            serialized_fields={"cluster_identifier": cluster_identifier},
+            waiter_name="cluster_deletable",
+            waiter_args={"ClusterIdentifier": cluster_identifier},
+            failure_message="Error while waiting for the redshift cluster to become deletable",
+            status_message="Waiting for redshift cluster to settle into a deletable state",
+            status_queries=["Clusters[].ClusterStatus"],
+            return_key="cluster_identifier",
+            return_value=cluster_identifier,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+            region_name=region_name,
+            **kwargs,
+        )
+
+    def hook(self) -> AwsGenericHook:
+        return RedshiftHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+        )

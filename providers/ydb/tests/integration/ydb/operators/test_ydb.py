@@ -24,9 +24,9 @@ import ydb
 
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.ydb.operators.ydb import YDBExecuteQueryOperator
-from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2024, 1, 1)
 

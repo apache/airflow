@@ -22,6 +22,7 @@ import { MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+
 import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
 import { useDocumentTitle } from "src/utils";
 

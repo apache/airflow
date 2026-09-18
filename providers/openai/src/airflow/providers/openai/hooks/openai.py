@@ -20,7 +20,7 @@ from __future__ import annotations
 import time
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, BinaryIO, Literal
+from typing import TYPE_CHECKING, Any, BinaryIO, Literal, overload
 
 from deprecated import deprecated
 from openai import OpenAI
@@ -55,7 +55,11 @@ if TYPE_CHECKING:
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import BaseHook
-from airflow.providers.openai.exceptions import OpenAIBatchJobException, OpenAIBatchTimeout
+from airflow.providers.openai.exceptions import (
+    OpenAIBatchJobException,
+    OpenAIBatchTimeout,
+    OpenAITriggerEventError,
+)
 
 #: The OpenAI Assistants API (``beta.assistants``/``beta.threads``) is deprecated by OpenAI. The hook
 #: methods wrapping it warn and point at the Responses and Conversations APIs (``create_response`` /
@@ -86,6 +90,26 @@ class BatchStatus(str, Enum):
     def is_in_progress(cls, status: str) -> bool:
         """Check if the batch status is in progress."""
         return status in (cls.VALIDATING, cls.IN_PROGRESS, cls.FINALIZING)
+
+
+#: Statuses the provider's trigger emits in its terminal event.
+TRIGGER_EVENT_STATUSES = frozenset({"success", "error", "cancelled"})
+
+
+def validate_execute_complete_event(event: dict[str, Any] | None = None) -> dict[str, Any]:
+    """
+    Validate the event a deferred task resumes with, returning it if well-formed.
+
+    The event crosses the triggerer/worker boundary through the metadata DB, so a
+    resuming task can receive ``None`` or a status its handler does not recognize
+    (version skew, a custom trigger). Both must fail loudly instead of crashing
+    opaquely or being misread as an outcome.
+    """
+    if event is None:
+        raise OpenAITriggerEventError("Trigger error: event is None")
+    if event.get("status") not in TRIGGER_EVENT_STATUSES:
+        raise OpenAITriggerEventError(f"Unexpected trigger event status {event.get('status')!r}: {event!r}")
+    return event
 
 
 class OpenAIHook(BaseHook):
@@ -470,21 +494,39 @@ class OpenAIHook(BaseHook):
         run = self.conn.beta.threads.runs.update(thread_id=thread_id, run_id=run_id, **kwargs)
         return run
 
+    @overload
+    def create_embeddings(
+        self,
+        text: str | list[int],
+        model: str = "text-embedding-3-small",
+        **kwargs: Any,
+    ) -> list[float]: ...
+
+    @overload
+    def create_embeddings(
+        self,
+        text: list[str] | list[list[int]],
+        model: str = "text-embedding-3-small",
+        **kwargs: Any,
+    ) -> list[list[float]]: ...
+
     def create_embeddings(
         self,
         text: str | list[str] | list[int] | list[list[int]],
         model: str = "text-embedding-3-small",
         **kwargs: Any,
-    ) -> list[float]:
+    ) -> list[float] | list[list[float]]:
         """
         Generate embeddings for the given text using the given model.
 
         :param text: The text to generate embeddings for.
         :param model: The model to use for generating embeddings.
+        :return: One embedding for a single text or token array; one embedding per item for a batch.
         """
         response = self.conn.embeddings.create(model=model, input=text, **kwargs)
-        embeddings: list[float] = response.data[0].embedding
-        return embeddings
+        if isinstance(text, str) or (text and isinstance(text[0], int)):
+            return response.data[0].embedding
+        return [item.embedding for item in sorted(response.data, key=lambda item: item.index)]
 
     def upload_file(self, file: str, purpose: Literal["fine-tune", "assistants", "batch"]) -> FileObject:
         """
@@ -595,21 +637,29 @@ class OpenAIHook(BaseHook):
     def create_batch(
         self,
         file_id: str,
-        endpoint: Literal["/v1/chat/completions", "/v1/embeddings", "/v1/completions"],
+        endpoint: str,
         metadata: dict[str, str] | None = None,
         completion_window: Literal["24h"] = "24h",
+        **kwargs: Any,
     ) -> Batch:
         """
         Create a batch for a given model and files.
 
         :param file_id: The ID of the file to be used for this batch.
-        :param endpoint: The endpoint to use for this batch. Allowed values include:
-            '/v1/chat/completions', '/v1/embeddings', '/v1/completions'.
+        :param endpoint: The endpoint to use for this batch. Allowed values are determined by the
+            OpenAI Batch API; see https://platform.openai.com/docs/api-reference/batch/create for
+            the current list.
         :param metadata: A set of key-value pairs that can be attached to an object.
         :param completion_window: The time window for the batch to complete. Default is 24 hours.
         """
         batch = self.conn.batches.create(
-            input_file_id=file_id, endpoint=endpoint, metadata=metadata, completion_window=completion_window
+            input_file_id=file_id,
+            # endpoint is intentionally str (not the SDK's Literal) so templated values type-check;
+            # the OpenAI service validates the actual value.
+            endpoint=endpoint,  # type: ignore[arg-type]
+            metadata=metadata,
+            completion_window=completion_window,
+            **kwargs,
         )
         return batch
 

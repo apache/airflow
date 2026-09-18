@@ -16,15 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, Spacer, useDisclosure, VStack } from "@chakra-ui/react";
+import { useState } from "react";
+
+import { Box, Flex, useDisclosure } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
 import { useVariableServiceGetVariables } from "openapi/queries";
 import type { VariableResponse } from "openapi/requests/types.gen";
+
+import { Tooltip, ActionBar } from "src/system-components";
+
 import { DataTable } from "src/components/DataTable";
 import {
   SelectionHeaderCheckbox,
@@ -37,8 +41,7 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import { SearchBar } from "src/components/SearchBar";
-import { Tooltip } from "src/components/ui";
-import { ActionBar } from "src/components/ui/ActionBar";
+
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig.tsx";
@@ -169,6 +172,7 @@ export const Variables = () => {
       getKey: (variable) => variable.key,
     });
 
+  const variables = data?.variables ?? [];
   const columns = getColumns({
     hasSelection: selectedRows.size > 0,
     multiTeam: multiTeamEnabled,
@@ -198,36 +202,41 @@ export const Variables = () => {
       onSelectAll={handleSelectAll}
       selectedRows={selectedRows}
     >
-      <VStack alignItems="none">
-        <SearchBar
-          advancedSearch={advancedSearch}
-          defaultValue={variableKeyPattern ?? ""}
-          onChange={handleSearchChange}
-          placeholder={translate("variables.searchPlaceholder")}
-        />
-        <HStack gap={4} mt={2}>
-          <ExpandCollapseButtons
-            collapseLabel={translate("common:expand.collapse")}
-            expandLabel={translate("common:expand.expand")}
-            isExpanded={open}
-            onCollapse={onClose}
-            onExpand={onOpen}
-          />
-          <Spacer />
-          <ImportVariablesButton disabled={selectedRows.size > 0} />
-          <AddVariableButton disabled={selectedRows.size > 0} />
-        </HStack>
-      </VStack>
       <DataTable
         columns={columns}
-        data={data?.variables ?? []}
+        data={variables}
         errorMessage={<ErrorAlert error={error} />}
+        filterActions={
+          <SearchBar
+            advancedSearch={advancedSearch}
+            defaultValue={variableKeyPattern ?? ""}
+            onChange={handleSearchChange}
+            placeholder={translate("variables.searchPlaceholder")}
+          />
+        }
         initialState={tableURLState}
         isFetching={isFetching}
         isLoading={isLoading}
         modelName="admin:variables.variable"
         noRowsMessage={translate("variables.noRowsMessage")}
         onStateChange={setTableURLState}
+        presentationActions={
+          variables.length > 0 ? (
+            <ExpandCollapseButtons
+              collapseLabel={translate("common:expand.collapse")}
+              expandLabel={translate("common:expand.expand")}
+              isExpanded={open}
+              onCollapse={onClose}
+              onExpand={onOpen}
+            />
+          ) : undefined
+        }
+        primaryActions={
+          <>
+            <ImportVariablesButton disabled={selectedRows.size > 0} />
+            <AddVariableButton disabled={selectedRows.size > 0} />
+          </>
+        }
         total={data?.total_entries ?? 0}
       />
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>

@@ -43,6 +43,9 @@ to pick the one that fits your use case:
    * - Natural-language → SQL generation (no execution)
      - :class:`~airflow.providers.common.ai.operators.llm_sql.LLMSQLQueryOperator`
      - ``@task.llm_sql``
+   * - Compare schemas across data sources and detect drift
+     - :class:`~airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator`
+     - ``@task.llm_schema_compare``
    * - Multi-turn reasoning with tools (DB queries, API calls, etc.)
      - :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`
      - ``@task.agent``
@@ -62,7 +65,7 @@ via an ``output_type`` Pydantic model.
 
 **LLMFileAnalysisOperator / @task.llm_file_analysis** — stateless, single-turn file analysis.
 Use this when the prompt should reason over file contents or multimodal attachments already chosen
-by the DAG author. The operator resolves files via ``ObjectStoragePath`` and keeps the interaction
+by the Dag author. The operator resolves files via ``ObjectStoragePath`` and keeps the interaction
 read-only.
 
 **AgentOperator / @task.agent** — multi-turn tool-calling loop. The model decides which tools to

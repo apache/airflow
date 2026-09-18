@@ -101,4 +101,120 @@ def get_provider_info():
             }
         ],
         "queues": ["airflow.providers.apache.kafka.queues.kafka.KafkaMessageQueueProvider"],
+        "plugins": [
+            {
+                "name": "kafka_event_producer",
+                "plugin-class": "airflow.providers.apache.kafka.plugins.event_producer.KafkaEventProducerPlugin",
+            }
+        ],
+        "config": {
+            "apache_kafka": {
+                "description": "Common settings for the Apache Kafka Provider.\n",
+                "options": {
+                    "callback_allowlist": {
+                        "description": "Comma-separated list of callbacks that may be resolved from a Kafka\nconnection extra into confluent-kafka callback options (``error_cb``,\n``throttle_cb``, ``stats_cb``, ``log_cb``, ``oauth_cb``, ``on_commit``).\nEach entry is the full importable path of the callback itself — module\nplus attribute, e.g. ``my_company.kafka.auth.oauth_cb`` — matched exactly\nagainst the dotted-path string on the connection extra (a bare module such\nas ``my_company.kafka.auth`` won't lead to authorization of the callables\ninside it). This is enforced for security reasons, to prevent malicious\ncallbacks from being executed: only paths listed here are resolved, and any\nother string-valued callback is refused. Empty (default) disables\nstring-valued callbacks entirely. Managed authentication (Amazon MSK IAM,\nGoogle Managed Kafka) does not rely on this and is unaffected.\n",
+                        "version_added": "2.0.0",
+                        "type": "string",
+                        "example": "my_company.kafka.auth.oauth_cb",
+                        "default": "",
+                    }
+                },
+            },
+            "kafka_event_producer": {
+                "description": "Settings for the Kafka event producer plugin that publishes Airflow\nDagRun and TaskInstance state-change events to a Kafka topic.\n",
+                "options": {
+                    "dag_run_events_enabled": {
+                        "description": "Publish DagRun state-change events (``dag_run.running``,\n``dag_run.success``, ``dag_run.failed``). When False the\nDagRun listener is not registered.\n",
+                        "version_added": "1.14.1",
+                        "type": "boolean",
+                        "example": None,
+                        "default": "False",
+                    },
+                    "task_instance_events_enabled": {
+                        "description": "Publish TaskInstance state-change events (``task_instance.running``,\n``task_instance.success``, ``task_instance.failed``,\n``task_instance.skipped``). When False the TaskInstance listener\nis not registered.\n",
+                        "version_added": "1.14.1",
+                        "type": "boolean",
+                        "example": None,
+                        "default": "False",
+                    },
+                    "kafka_config_id": {
+                        "description": "Airflow connection used to build the plugin's Kafka producer.\nWhen unset, the producer hook falls back to its default\nconnection (``kafka_default``).\n",
+                        "version_added": "1.14.1",
+                        "type": "string",
+                        "example": "kafka_default",
+                        "default": "",
+                    },
+                    "topic": {
+                        "description": "Topic the plugin publishes events to. The topic must already\nexist on the broker; the plugin will not auto-create it.\n",
+                        "version_added": "1.14.1",
+                        "type": "string",
+                        "example": None,
+                        "default": "airflow.events",
+                    },
+                    "source": {
+                        "description": "Identifier added to every emitted message under the ``source``\nfield so consumers can distinguish Airflow installations that\nshare the same topic. When unset, falls back to the hostname\nof the Airflow component that emits the event (scheduler,\nworker, etc.).\n",
+                        "version_added": "1.14.1",
+                        "type": "string",
+                        "example": "af-prod-eu",
+                        "default": "",
+                    },
+                    "dag_run_dag_id_allowlist": {
+                        "description": "Comma-separated glob patterns. When set, DagRun events are only\nemitted for dag_ids matching at least one pattern. Empty = all dags.\n",
+                        "version_added": "1.14.1",
+                        "type": "string",
+                        "example": "demo_*,test_dag1",
+                        "default": "",
+                    },
+                    "dag_run_dag_id_denylist": {
+                        "description": "Comma-separated glob patterns. DagRun events for dag_ids matching\nany pattern are skipped. Deny takes precedence over allow.\n",
+                        "version_added": "1.14.1",
+                        "type": "string",
+                        "example": "demo_*",
+                        "default": "",
+                    },
+                    "task_instance_dag_id_allowlist": {
+                        "description": "Comma-separated glob patterns. When set, TaskInstance events are\nonly emitted for dag_ids matching at least one pattern.\nEmpty = all dags.\n",
+                        "version_added": "1.14.1",
+                        "type": "string",
+                        "example": "demo_*,test_dag1",
+                        "default": "",
+                    },
+                    "task_instance_dag_id_denylist": {
+                        "description": "Comma-separated glob patterns. TaskInstance events for dag_ids\nmatching any pattern are skipped. Deny takes precedence over allow.\n",
+                        "version_added": "1.14.1",
+                        "type": "string",
+                        "example": "demo_*",
+                        "default": "",
+                    },
+                    "task_instance_task_id_allowlist": {
+                        "description": "Comma-separated glob patterns. When set, TaskInstance events are\nonly emitted for task_ids matching at least one pattern. Applied\nin addition to ``task_instance_dag_id_allowlist`` — both must pass.\nMapped task instances share the same task_id so a single pattern\ncovers all map indices.\n",
+                        "version_added": "1.14.1",
+                        "type": "string",
+                        "example": "load_*,extract_*",
+                        "default": "",
+                    },
+                    "task_instance_task_id_denylist": {
+                        "description": "Comma-separated glob patterns. TaskInstance events for task_ids\nmatching any pattern are skipped. Deny takes precedence over allow.\n",
+                        "version_added": "1.14.1",
+                        "type": "string",
+                        "example": "*_cleanup",
+                        "default": "",
+                    },
+                    "topic_check_timeout": {
+                        "description": "How long (in seconds) each topic existence check is allowed\nto block waiting for a response from the broker.\n",
+                        "version_added": "1.14.1",
+                        "type": "integer",
+                        "example": None,
+                        "default": "10",
+                    },
+                    "topic_check_retry_interval": {
+                        "description": "How long (in seconds) to wait before retrying a topic check,\nin case it failed.\n",
+                        "version_added": "1.14.1",
+                        "type": "integer",
+                        "example": None,
+                        "default": "60",
+                    },
+                },
+            },
+        },
     }

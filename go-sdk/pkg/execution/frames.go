@@ -62,6 +62,8 @@ func encodeRequest(id int64, body any) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := msgpack.NewEncoder(&buf)
 	enc.UseCompactInts(true)
+	// Use JSON field names for user values; explicit msgpack tags still win.
+	enc.SetCustomStructTag("json")
 
 	if err := enc.EncodeArrayLen(2); err != nil {
 		return nil, err

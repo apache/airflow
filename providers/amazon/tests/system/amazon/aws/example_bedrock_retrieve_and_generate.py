@@ -32,7 +32,9 @@ from opensearchpy import (
     AWSV4SignerAuth,
     OpenSearch,
     RequestsHttpConnection,
+    TransportError,
 )
+from tenacity import before_sleep_log, retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook
 from airflow.providers.amazon.aws.hooks.opensearch_serverless import OpenSearchServerlessHook
@@ -216,13 +218,14 @@ def create_collection(collection_name: str):
 
 
 @task
-def create_vector_index(index_name: str, collection_id: str, region: str):
+def create_vector_index(index_name: str, collection_id: str, region: str, bedrock_role_arn: str):
     """
     Use the OpenSearchPy client to create the vector index for the Amazon Open Search Serverless Collection.
 
     :param index_name: The vector index name to create.
     :param collection_id: ID of the collection to be indexed.
     :param region: Name of the AWS region the collection resides in.
+    :param bedrock_role_arn: Arn of the Bedrock Knowledge Base Execution Role.
     """
     # Build the OpenSearch client
     oss_client = OpenSearch(
@@ -271,6 +274,47 @@ def create_vector_index(index_name: str, collection_id: str, region: str):
                 sleep(2)
             else:
                 raise
+
+    # An acknowledged index-creation call does not guarantee the index is ready for use;
+    # OpenSearch Serverless materializes it asynchronously and exposes no status API for it.
+    # Poll a trivial search as a readiness probe so downstream Bedrock ingestion does not
+    # start (and fail) before the index can serve requests.
+    #
+    # The probe authenticates as the Knowledge Base execution role rather than as this task's
+    # own principal. AOSS data access policies propagate per principal, and the Bedrock
+    # ingestion job runs as the Knowledge Base role, so probing with this task's (already
+    # propagated) credentials would not prove the ingestion job can reach the index. Waiting
+    # until the search succeeds as the Knowledge Base role closes the propagation race that
+    # intermittently failed the ingestion job sensor with:
+    #   [security_exception] authentication/authorization failure. Call to Amazon OpenSearch
+    #   Serverless Vector Database did not succeed.
+    assumed = StsHook().conn.assume_role(RoleArn=bedrock_role_arn, RoleSessionName="AossIndexReadinessProbe")
+    kb_role_session = boto3.Session(
+        aws_access_key_id=assumed["Credentials"]["AccessKeyId"],
+        aws_secret_access_key=assumed["Credentials"]["SecretAccessKey"],
+        aws_session_token=assumed["Credentials"]["SessionToken"],
+    )
+    kb_role_oss_client = OpenSearch(
+        hosts=[{"host": f"{collection_id}.{region}.aoss.amazonaws.com", "port": 443}],
+        http_auth=AWSV4SignerAuth(kb_role_session.get_credentials(), region, "aoss"),
+        use_ssl=True,
+        verify_certs=True,
+        connection_class=RequestsHttpConnection,
+        timeout=300,
+    )
+
+    @retry(
+        retry=retry_if_exception_type(TransportError),
+        stop=stop_after_attempt(30),
+        wait=wait_fixed(5),
+        before_sleep=before_sleep_log(log, logging.INFO),
+        reraise=True,
+    )
+    def _wait_for_index_readiness():
+        kb_role_oss_client.search(index=index_name, body={"query": {"match_all": {}}, "size": 0})
+
+    _wait_for_index_readiness()
+    log.info("Index %s is ready.", index_name)
 
 
 @task
@@ -571,7 +615,12 @@ with DAG(
         opensearch_policies,
         collection,
         await_collection,
-        create_vector_index(index_name=index_name, collection_id=collection, region=region_name),
+        create_vector_index(
+            index_name=index_name,
+            collection_id=collection,
+            region=region_name,
+            bedrock_role_arn=test_context[ROLE_ARN_KEY],
+        ),
         copy_data_to_s3(bucket=bucket_name),
         # TEST BODY
         create_knowledge_base,

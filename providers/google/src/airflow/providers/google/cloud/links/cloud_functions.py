@@ -19,9 +19,9 @@
 
 from __future__ import annotations
 
-from airflow.providers.google.cloud.links.base import BaseGoogleLink
+from airflow.providers.google.cloud.links.base import BASE_LINK, BaseGoogleLink
 
-CLOUD_FUNCTIONS_BASE_LINK = "https://console.cloud.google.com/functions"
+CLOUD_FUNCTIONS_BASE_LINK = BASE_LINK + "/functions"
 
 CLOUD_FUNCTIONS_DETAILS_LINK = (
     CLOUD_FUNCTIONS_BASE_LINK + "/details/{location}/{function_name}?project={project_id}"

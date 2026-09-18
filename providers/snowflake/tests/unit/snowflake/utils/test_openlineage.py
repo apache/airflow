@@ -29,7 +29,7 @@ from airflow.providers.common.compat.openlineage.facet import (
     ExternalQueryRunFacet,
     SQLJobFacet,
 )
-from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, timezone
 from airflow.providers.openlineage.conf import namespace
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.providers.snowflake.hooks.snowflake_sql_api import SnowflakeSqlApiHook
@@ -44,7 +44,6 @@ from airflow.providers.snowflake.utils.openlineage import (
     fix_account_name,
     fix_snowflake_sqlalchemy_uri,
 )
-from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 
 

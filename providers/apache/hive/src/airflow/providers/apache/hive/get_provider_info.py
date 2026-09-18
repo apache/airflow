@@ -131,6 +131,11 @@ def get_provider_info():
                         "label": "High Availability mode",
                         "schema": {"type": ["boolean", "null"], "default": False},
                     },
+                    "ssl": {"label": "Ssl", "schema": {"type": ["boolean", "null"], "default": True}},
+                    "zoo_keeper_namespace": {
+                        "label": "Zoo Keeper Namespace",
+                        "schema": {"type": ["string", "null"], "default": "hiveserver2"},
+                    },
                 },
             },
             {

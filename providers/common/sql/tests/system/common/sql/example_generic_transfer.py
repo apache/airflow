@@ -18,8 +18,8 @@
 from __future__ import annotations
 
 from airflow import DAG
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.common.sql.operators.generic_transfer import GenericTransfer
-from airflow.utils import timezone
 
 connection_args = {
     "conn_id": "airflow_db",

@@ -19,25 +19,36 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from functools import cache
-from operator import methodcaller
+from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator, is_mapped
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from typing import Any
+
+    from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
+
 
 @cache
 def get_task_group_children_getter() -> Callable:
     """Get the Task Group Children Getter for the Dag."""
-    sort_order = conf.get("api", "grid_view_sorting_order")
-    if sort_order == "topological":
-        return methodcaller("topological_sort")
-    return methodcaller("hierarchical_alphabetical_sort")
+    if conf.get("api", "grid_view_sorting_order") == "topological":
+        return lambda task_group, group_dict=None: task_group.topological_sort(group_dict=group_dict)
+    return lambda task_group, group_dict=None: task_group.hierarchical_alphabetical_sort()
 
 
-def task_group_to_dict(task_item_or_group, parent_group_is_mapped=False):
+def _ui_colors(node) -> dict[str, str]:
+    """Return the node's ``ui_color``/``ui_fgcolor`` values (hex or Chakra token) for the graph."""
+    return {
+        key: value for key in ("ui_color", "ui_fgcolor") if (value := getattr(node, key, None)) is not None
+    }
+
+
+def task_group_to_dict(task_item_or_group, *, group_dict=None, parent_group_is_mapped=False):
     """Create a nested dict representation of this TaskGroup and its children used to construct the Graph."""
     if isinstance(task := task_item_or_group, (SerializedBaseOperator, SerializedMappedOperator)):
         # we explicitly want the short task ID here, not the full doted notation if in a group
@@ -47,6 +58,7 @@ def task_group_to_dict(task_item_or_group, parent_group_is_mapped=False):
             "label": task_display_name,
             "operator": task.operator_name,
             "type": "task",
+            **_ui_colors(task),
         }
         if task.is_setup:
             node_operator["setup_teardown_type"] = "setup"
@@ -57,10 +69,16 @@ def task_group_to_dict(task_item_or_group, parent_group_is_mapped=False):
         return node_operator
 
     task_group = task_item_or_group
+    if group_dict is None:
+        group_dict = task_group.dag.task_group.get_task_group_dict()
     mapped = is_mapped(task_group)
     children = [
-        task_group_to_dict(child, parent_group_is_mapped=parent_group_is_mapped or mapped)
-        for child in get_task_group_children_getter()(task_group)
+        task_group_to_dict(
+            child,
+            parent_group_is_mapped=parent_group_is_mapped or mapped,
+            group_dict=group_dict,
+        )
+        for child in get_task_group_children_getter()(task_group, group_dict)
     ]
 
     if task_group.upstream_group_ids or task_group.upstream_task_ids:
@@ -78,12 +96,27 @@ def task_group_to_dict(task_item_or_group, parent_group_is_mapped=False):
         "is_mapped": mapped,
         "children": children,
         "type": "task",
+        **_ui_colors(task_group),
     }
     return node
 
 
-def task_group_to_dict_grid(task_item_or_group, parent_group_is_mapped=False):
-    """Create a nested dict representation of this TaskGroup and its children used to construct the Grid."""
+def task_group_to_dict_grid(
+    task_item_or_group,
+    *,
+    group_dict: dict[str | None, SerializedTaskGroup] | None = None,
+    parent_group_is_mapped: bool = False,
+) -> dict[str, Any]:
+    """
+    Create a nested dict representation of this TaskGroup and its children used to construct the Grid.
+
+    :param group_dict: A ``{group_id: group}`` map used to resolve cross-group
+        dependencies. Built once at the top of a render and threaded through the
+        recursion so nested groups reuse it.
+    :param parent_group_is_mapped: Whether an ancestor task group is mapped, propagated to children.
+    """
+    node: dict[str, Any]
+
     if isinstance(task := task_item_or_group, (SerializedMappedOperator, SerializedBaseOperator)):
         mapped = None
         if parent_group_is_mapped or is_mapped(task):
@@ -105,11 +138,17 @@ def task_group_to_dict_grid(task_item_or_group, parent_group_is_mapped=False):
         return node
 
     task_group = task_item_or_group
+    if group_dict is None:
+        group_dict = task_group.dag.task_group.get_task_group_dict()
     task_group_sort = get_task_group_children_getter()
     mapped = is_mapped(task_group)
     children = [
-        task_group_to_dict_grid(x, parent_group_is_mapped=parent_group_is_mapped or mapped)
-        for x in task_group_sort(task_group)
+        task_group_to_dict_grid(
+            child,
+            group_dict=group_dict,
+            parent_group_is_mapped=parent_group_is_mapped or mapped,
+        )
+        for child in task_group_sort(task_group, group_dict)
     ]
 
     node = {

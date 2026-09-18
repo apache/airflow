@@ -42,6 +42,7 @@
   },
   "deadlineAlerts": {
     "completionRule": "Muss innerhalb von {{interval}} nach {{reference}} abgeschlossen sein",
+    "completionRuleDynamic": "Muss innerhalb eines variablen, ab {{reference}} gemessenen Intervalls abgeschlossen werden",
     "count_one": "{{count}} Frist",
     "count_other": "{{count}} Fristen",
     "referenceType": {
@@ -91,10 +92,6 @@
     "critical": "CRITICAL",
     "debug": "DEBUG",
     "error": "ERROR",
-    "fullscreen": {
-      "button": "Vollbild",
-      "tooltip": "Taste {{hotkey}} für Vollbildmodus"
-    },
     "info": "INFO",
     "noTryNumber": "Keine Versuchsnummer",
     "search": {
@@ -105,11 +102,6 @@
     "settings": "Protokoll-Ansicht",
     "viewInExternal": "Protokoll in {{name}} (Versuch {{attempt}}) ansehen",
     "warning": "WARNING"
-  },
-  "navigation": {
-    "navigation": "Navigation: Umschalttaste+{{arrow}}",
-    "openGraphFilters": "Task-Filter: Strg+Umschalt+F",
-    "toggleGroup": "Gruppen umschalten: Leertaste"
   },
   "notFound": {
     "back": "Zurück",
@@ -152,13 +144,7 @@
       "label": "Anzahl von Dag Läufen"
     },
     "dependencies": {
-      "label": "Abhängigkeiten",
-      "options": {
-        "allDagDependencies": "Alle Dag Abhängigkeiten",
-        "externalConditions": "Externe Bedingungen",
-        "onlyTasks": "Nur Tasks"
-      },
-      "placeholder": "Abhängigkeiten"
+      "allDagDependencies": "Alle Dag-Abhängigkeiten"
     },
     "graphDirection": {
       "label": "Richtung des Graph"
@@ -251,6 +237,8 @@
     "deleteWarning": "Der Task verliert diesen gespeicherten Zustand. Wenn der Task diesen Schlüssel verwendet, um externe Arbeiten zu verfolgen (z.B. eine externe Job-ID), kann er diese nicht wieder aufnehmen und startet Arbeiten potentiell wieder von vorne.",
     "edit": "Task Status Zwischenspeicher bearbeiten",
     "emptyStore": "Der Task Status Zwischenspeicher speichert Werte, die über Wiederholungen hinweg bestehen bleiben. Worker können den Task Status Zwischenspeicher über das Task SDK schreiben.",
+    "entry_one": "Eintrag",
+    "entry_other": "Einträge",
     "expiresAt": {
       "column": "Ablaufdatum",
       "custom": "Benutzerdefiniert",

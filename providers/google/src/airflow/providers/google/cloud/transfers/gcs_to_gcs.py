@@ -23,6 +23,8 @@ import warnings
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from google.api_core.exceptions import NotFound
+
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -217,28 +219,10 @@ class GCSToGCSOperator(BaseOperator):
         super().__init__(**kwargs)
 
         self.source_bucket = source_bucket
-        if source_object and WILDCARD in source_object:
-            warnings.warn(
-                "Usage of wildcard (*) in 'source_object' is deprecated, utilize 'match_glob' instead. Planned removal date: October 5, 2026.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
         self.source_object = source_object
-        if source_objects and any(WILDCARD in obj for obj in source_objects):
-            warnings.warn(
-                "Usage of wildcard (*) in 'source_objects' is deprecated, utilize 'match_glob' instead. Planned removal date: October 5, 2026.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
         self.source_objects = source_objects
         self.destination_bucket = destination_bucket
         self.destination_object = destination_object
-        if delimiter:
-            warnings.warn(
-                "Usage of 'delimiter' is deprecated, please use 'match_glob' instead. Planned removal date: October 5, 2026.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
         self.delimiter = delimiter
         self.move_object = move_object
         self.replace = replace
@@ -253,7 +237,29 @@ class GCSToGCSOperator(BaseOperator):
         self.retain_until_time = retain_until_time
         self.retention_mode = retention_mode
 
+    def _warn_on_deprecated_template_fields(self) -> None:
+        if self.source_object and WILDCARD in self.source_object:
+            warnings.warn(
+                "Usage of wildcard (*) in 'source_object' is deprecated, utilize 'match_glob' instead. Planned removal date: October 5, 2026.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+        if self.source_objects and any(WILDCARD in obj for obj in self.source_objects):
+            warnings.warn(
+                "Usage of wildcard (*) in 'source_objects' is deprecated, utilize 'match_glob' instead. Planned removal date: October 5, 2026.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+        if self.delimiter:
+            warnings.warn(
+                "Usage of 'delimiter' is deprecated, please use 'match_glob' instead. Planned removal date: October 5, 2026.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+
     def execute(self, context: Context) -> list[str]:
+        self._warn_on_deprecated_template_fields()
+
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -603,8 +609,15 @@ class GCSToGCSOperator(BaseOperator):
             **rewrite_kwargs,
         )
 
-        if self.move_object:
-            hook.delete(self.source_bucket, source_object)
+        try:
+            if self.move_object:
+                hook.delete(self.source_bucket, source_object)
+
+        # Handle case where the file has already been deleted and a NotFound exception is raised
+        except NotFound:
+            self.log.warning(
+                "Object %s does not exist in the source bucket %s", source_object, self.source_bucket
+            )
 
         return f"gs://{dest_bucket}/{destination_object}"
 

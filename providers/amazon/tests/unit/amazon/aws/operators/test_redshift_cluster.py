@@ -34,6 +34,7 @@ from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftResumeClusterOperator,
 )
 from airflow.providers.amazon.aws.triggers.redshift_cluster import (
+    RedshiftClusterSettledTrigger,
     RedshiftCreateClusterSnapshotTrigger,
     RedshiftDeleteClusterTrigger,
     RedshiftPauseClusterTrigger,
@@ -781,18 +782,19 @@ class TestDeleteClusterOperator:
             cluster_identifier="test_cluster",
             aws_conn_id="aws_conn_test",
             wait_for_completion=False,
+            max_attempts=3,
         )
         with pytest.raises(returned_exception):
             redshift_operator.execute(None)
 
-        assert mock_delete_cluster.call_count == 10
+        assert mock_delete_cluster.call_count == 3
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.delete_cluster")
     def test_delete_cluster_deferrable_mode(self, mock_delete_cluster, mock_cluster_status):
-        """Test delete cluster operator with defer when deferrable param is true"""
+        """When the delete is accepted, deferrable mode waits for deletion to complete."""
         mock_delete_cluster.return_value = True
-        mock_cluster_status.return_value = "available"
+        mock_cluster_status.return_value = "deleting"
         delete_cluster = RedshiftDeleteClusterOperator(
             task_id="task_test",
             cluster_identifier="test_cluster",
@@ -806,16 +808,15 @@ class TestDeleteClusterOperator:
         assert isinstance(exc.value.trigger, RedshiftDeleteClusterTrigger), (
             "Trigger is not a RedshiftDeleteClusterTrigger"
         )
+        # Delete is attempted exactly once (no synchronous busy-retry loop in deferrable mode).
+        mock_delete_cluster.assert_called_once()
 
-    @mock.patch("airflow.providers.amazon.aws.operators.redshift_cluster.RedshiftDeleteClusterOperator.defer")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.delete_cluster")
-    def test_delete_cluster_deferrable_mode_in_paused_state(
-        self, mock_delete_cluster, mock_cluster_status, mock_defer
-    ):
-        """Test delete cluster operator with defer when deferrable param is true"""
+    def test_delete_cluster_deferrable_mode_already_gone(self, mock_delete_cluster, mock_cluster_status):
+        """When the cluster is already gone after the delete, deferrable mode completes without deferring."""
         mock_delete_cluster.return_value = True
-        mock_cluster_status.return_value = "creating"
+        mock_cluster_status.return_value = "cluster_not_found"
         delete_cluster = RedshiftDeleteClusterOperator(
             task_id="task_test",
             cluster_identifier="test_cluster",
@@ -823,10 +824,142 @@ class TestDeleteClusterOperator:
             wait_for_completion=False,
         )
 
-        with pytest.raises(AirflowException):
+        # No TaskDeferred is raised; the operator returns normally.
+        delete_cluster.execute(context=None)
+        mock_delete_cluster.assert_called_once()
+
+    @mock.patch.object(RedshiftHook, "conn")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.delete_cluster")
+    def test_delete_cluster_deferrable_mode_busy_defers_to_settle_trigger(
+        self, mock_delete_cluster, mock_conn
+    ):
+        """A busy cluster (InvalidClusterStateFault) defers to the settle-wait trigger, not a sync loop."""
+        exception = boto3.client("redshift").exceptions.InvalidClusterStateFault({}, "test")
+        mock_conn.exceptions.InvalidClusterStateFault = type(exception)
+        mock_delete_cluster.side_effect = exception
+
+        delete_cluster = RedshiftDeleteClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+            deferrable=True,
+            wait_for_completion=False,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
             delete_cluster.execute(context=None)
 
-        assert not mock_defer.called
+        assert isinstance(exc.value.trigger, RedshiftClusterSettledTrigger), (
+            "Trigger is not a RedshiftClusterSettledTrigger"
+        )
+        assert exc.value.method_name == "_retry_delete_when_settled"
+        # Delete attempted once; the synchronous busy-retry loop never runs in deferrable mode.
+        mock_delete_cluster.assert_called_once()
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.delete_cluster")
+    def test_retry_delete_when_settled_reissues_delete(self, mock_delete_cluster, mock_cluster_status):
+        """The settle-wait callback re-issues the delete and defers to the delete-complete trigger."""
+        mock_delete_cluster.return_value = True
+        mock_cluster_status.return_value = "deleting"
+        delete_cluster = RedshiftDeleteClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+            deferrable=True,
+            wait_for_completion=False,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            delete_cluster._retry_delete_when_settled(
+                context=None, event={"status": "success", "cluster_identifier": "test_cluster"}
+            )
+
+        assert isinstance(exc.value.trigger, RedshiftDeleteClusterTrigger)
+        mock_delete_cluster.assert_called_once()
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.delete_cluster")
+    def test_retry_delete_when_settled_uses_cluster_id_from_event(
+        self, mock_delete_cluster, mock_cluster_status
+    ):
+        """The re-issued delete targets the identifier from the trigger event, not the operator field."""
+        mock_delete_cluster.return_value = True
+        mock_cluster_status.return_value = "cluster_not_found"
+        delete_cluster = RedshiftDeleteClusterOperator(
+            task_id="task_test",
+            cluster_identifier="rerendered_different_value",
+            deferrable=True,
+            wait_for_completion=False,
+        )
+
+        delete_cluster._retry_delete_when_settled(
+            context=None, event={"status": "success", "cluster_identifier": "original_cluster"}
+        )
+
+        mock_delete_cluster.assert_called_once_with(
+            cluster_identifier="original_cluster",
+            skip_final_cluster_snapshot=True,
+            final_cluster_snapshot_identifier=None,
+        )
+
+    @mock.patch.object(RedshiftHook, "conn")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.delete_cluster")
+    def test_retry_delete_when_settled_redefers_on_race(self, mock_delete_cluster, mock_conn):
+        """If the cluster re-enters a transitional state (race), the callback re-defers to settle-wait."""
+        exception = boto3.client("redshift").exceptions.InvalidClusterStateFault({}, "test")
+        mock_conn.exceptions.InvalidClusterStateFault = type(exception)
+        mock_delete_cluster.side_effect = exception
+
+        delete_cluster = RedshiftDeleteClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+            deferrable=True,
+            wait_for_completion=False,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            delete_cluster._retry_delete_when_settled(
+                context=None, event={"status": "success", "cluster_identifier": "test_cluster"}
+            )
+
+        assert isinstance(exc.value.trigger, RedshiftClusterSettledTrigger)
+        assert exc.value.method_name == "_retry_delete_when_settled"
+
+    def test_retry_delete_when_settled_error_event_raises(self):
+        """A non-success event from the settle-wait trigger raises AirflowException."""
+        delete_cluster = RedshiftDeleteClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+            deferrable=True,
+            wait_for_completion=False,
+        )
+        with pytest.raises(AirflowException):
+            delete_cluster._retry_delete_when_settled(
+                context=None, event={"status": "error", "message": "timed out"}
+            )
+
+    @mock.patch.object(RedshiftHook, "delete_cluster")
+    @mock.patch.object(RedshiftHook, "conn")
+    @mock.patch("time.sleep", return_value=None)
+    def test_delete_cluster_sync_mode_still_uses_busy_retry_loop(
+        self, mock_sleep, mock_conn, mock_delete_cluster
+    ):
+        """Sync mode (deferrable=False) must keep the synchronous busy-retry loop unchanged."""
+        exception = boto3.client("redshift").exceptions.InvalidClusterStateFault({}, "test")
+        mock_conn.exceptions.InvalidClusterStateFault = type(exception)
+        mock_delete_cluster.side_effect = [exception, exception, True]
+
+        redshift_operator = RedshiftDeleteClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+            aws_conn_id="aws_conn_test",
+            deferrable=False,
+            wait_for_completion=False,
+        )
+        redshift_operator.execute(None)
+
+        # Three synchronous attempts, and time.sleep was used between the retries.
+        assert mock_delete_cluster.call_count == 3
+        assert mock_sleep.called
 
     def test_delete_cluster_execute_complete_success(self):
         """Asserts that logging occurs as expected"""

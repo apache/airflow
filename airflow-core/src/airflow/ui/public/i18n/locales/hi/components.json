@@ -48,7 +48,6 @@
   },
   "dagWarnings": {
     "error_one": "1 त्रुटि",
-    "error_other": "{{count}} त्रुटियां",
     "errorAndWarning": "1 त्रुटि और {{warningText}}",
     "warning_one": "1 चेतावनी",
     "warning_other": "{{count}} चेतावनियां"
@@ -138,6 +137,7 @@
     "loading": "डैग जानकारी लोड हो रही है...",
     "loadingFailed": "डैग जानकारी लोड करने में विफल। कृपया पुनः प्रयास करें।",
     "manualRunDenied": "इस Dag के लिए मैनुअल रन की अनुमति नहीं है",
+    "partitionKeyHelp": "वैकल्पिक - केवल विभाजित Dags पर लागू होता है",
     "runIdHelp": "वैकल्पिक - प्रदान न किए जाने पर जेनरेट किया जाएगा",
     "selectDescription": "इस डैग का एक रन ट्रिगर करें",
     "selectLabel": "सिंगल रन",

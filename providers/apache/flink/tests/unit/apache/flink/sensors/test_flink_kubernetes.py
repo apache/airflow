@@ -30,8 +30,7 @@ from kubernetes.client.rest import ApiException
 from airflow import DAG
 from airflow.models import Connection
 from airflow.providers.apache.flink.sensors.flink_kubernetes import FlinkKubernetesSensor
-from airflow.providers.common.compat.sdk import AirflowException
-from airflow.utils import timezone
+from airflow.providers.common.compat.sdk import AirflowException, timezone
 
 TEST_NO_STATE_CLUSTER = {
     "apiVersion": "flink.apache.org/v1beta1",

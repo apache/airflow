@@ -271,6 +271,41 @@ class TestGetEmbeddingModel:
         mock_init_embeddings.assert_called_once_with("openai:text-embedding-3-small")
 
 
+class TestConnectionTest:
+    @patch("langchain.chat_models.init_chat_model")
+    @patch.object(LangChainHook, "get_connection")
+    def test_successful_connection(self, mock_get_conn, mock_init_chat_model):
+        mock_get_conn.return_value = _conn(password="sk-test", extra={"model": "openai:gpt-4o"})
+
+        hook = LangChainHook()
+        success, message = hook.test_connection()
+
+        assert success is True
+        assert message == "Model resolved successfully."
+
+    @patch("langchain.chat_models.init_chat_model")
+    @patch.object(LangChainHook, "get_connection")
+    def test_failed_connection(self, mock_get_conn, mock_init_chat_model):
+        mock_get_conn.return_value = _conn(password="sk-test", extra={"model": "openai:gpt-4o"})
+        mock_init_chat_model.side_effect = ValueError("Unknown provider 'badprovider'")
+
+        hook = LangChainHook()
+        success, message = hook.test_connection()
+
+        assert success is False
+        assert "Unknown provider" in message
+
+    @patch.object(LangChainHook, "get_connection")
+    def test_failed_connection_no_model(self, mock_get_conn):
+        mock_get_conn.return_value = _conn()
+
+        hook = LangChainHook()
+        success, message = hook.test_connection()
+
+        assert success is False
+        assert "No chat model identifier set" in message
+
+
 class TestSameHookForBoth:
     """A single hook instance must serve both chat and embedding calls."""
 

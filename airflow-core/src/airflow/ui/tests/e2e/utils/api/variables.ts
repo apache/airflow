@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /**
  * Variable API helpers — create and delete Airflow variables.
  */

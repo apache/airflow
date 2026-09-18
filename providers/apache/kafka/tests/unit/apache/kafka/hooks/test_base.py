@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -27,6 +28,10 @@ from airflow.providers.apache.kafka.hooks.base import (
     _msk_iam_oauth_cb,
 )
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+from tests_common.test_utils.config import conf_vars
+
+CALLBACK_ALLOWLIST = {("apache_kafka", "callback_allowlist"): "json.loads,json.dumps"}
 
 try:
     import importlib.util
@@ -65,10 +70,62 @@ class TestKafkaBaseHook:
         with pytest.raises(ValueError, match="must be provided"):
             hook.get_conn()
 
+    @conf_vars(CALLBACK_ALLOWLIST)
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
+    def test_callbacks_resolved_from_connection_dotted_path(self, mock_get_connection):
+        stats_cb = MagicMock()
+        mock_get_connection.return_value.extra_dejson = {
+            "bootstrap.servers": "localhost:9092",
+            "error_cb": "json.loads",
+            "oauth_cb": "json.dumps",
+            "stats_cb": stats_cb,
+        }
+
+        config = SomeKafkaHook().get_conn
+        assert config["error_cb"] is json.loads
+        assert config["oauth_cb"] is json.dumps
+        # Already-callable values on the connection are passed through unchanged.
+        assert config["stats_cb"] is stats_cb
+
+    @conf_vars(CALLBACK_ALLOWLIST)
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
+    def test_callback_resolution_tolerates_whitespace_in_allowlist(self, mock_get_connection):
+        mock_get_connection.return_value.extra_dejson = {
+            "bootstrap.servers": "localhost:9092",
+            "error_cb": "json.loads",
+        }
+        with conf_vars({("apache_kafka", "callback_allowlist"): "  json.loads ,, json.dumps  "}):
+            config = SomeKafkaHook().get_conn
+        assert config["error_cb"] is json.loads
+
+    @mock.patch.object(KafkaBaseHook, "log")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
+    def test_string_callback_refused_when_allowlist_empty(self, mock_get_connection, mock_log, hook):
+        mock_get_connection.return_value.extra_dejson = {
+            "bootstrap.servers": "localhost:9092",
+            "oauth_cb": "os.system",
+        }
+        with pytest.raises(ValueError, match="callback_allowlist is empty"):
+            _ = hook.get_conn
+        mock_log.warning.assert_called_once()
+
+    @conf_vars(CALLBACK_ALLOWLIST)
+    @mock.patch.object(KafkaBaseHook, "log")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
+    def test_string_callback_refused_when_not_in_allowlist(self, mock_get_connection, mock_log, hook):
+        mock_get_connection.return_value.extra_dejson = {
+            "bootstrap.servers": "localhost:9092",
+            "oauth_cb": "os.system",
+        }
+        with pytest.raises(ValueError, match="oauth_cb='os.system': it is not in the"):
+            _ = hook.get_conn
+        # A populated allowlist is a configuration choice, not a missing one, so no "configure" hint.
+        mock_log.warning.assert_not_called()
+
     @mock.patch("airflow.providers.apache.kafka.hooks.base.AdminClient")
     @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     def test_test_connection(self, mock_get_connection, admin_client, hook):
-        config = {"bootstrap.servers": MagicMock()}
+        config = {"bootstrap.servers": "localhost:9092"}
         mock_get_connection.return_value.extra_dejson = config
         connection = hook.test_connection()
         admin_client.assert_called_once_with(config)
@@ -82,7 +139,7 @@ class TestKafkaBaseHook:
     )
     @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     def test_test_connection_no_topics(self, mock_get_connection, admin_client, hook):
-        config = {"bootstrap.servers": MagicMock()}
+        config = {"bootstrap.servers": "localhost:9092"}
         mock_get_connection.return_value.extra_dejson = config
         connection = hook.test_connection()
         admin_client.assert_called_once_with(config)
@@ -90,14 +147,60 @@ class TestKafkaBaseHook:
         mock_admin_instance.list_topics.assert_called_once_with(timeout=TIMEOUT)
         assert connection == (False, "Failed to establish connection.")
 
+    @conf_vars(CALLBACK_ALLOWLIST)
+    @mock.patch("airflow.providers.apache.kafka.hooks.base.AdminClient")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
+    def test_test_connection_resolves_callbacks(self, mock_get_connection, admin_client, hook):
+        # ``test_connection`` runs the same callback resolution as the runtime clients,
+        # so dotted-path strings on the connection are exercised by the UI test too.
+        mock_get_connection.return_value.extra_dejson = {
+            "bootstrap.servers": "localhost:9092",
+            "error_cb": "json.loads",
+        }
+        assert hook.test_connection() == (True, "Connection successful.")
+        admin_client.assert_called_once_with({"bootstrap.servers": "localhost:9092", "error_cb": json.loads})
+
+    @mock.patch("airflow.providers.apache.kafka.hooks.base.AdminClient")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
+    def test_test_connection_reports_refused_callback(self, mock_get_connection, admin_client, hook):
+        # A callback outside the allowlist must surface as a failed connection test, not build a client.
+        mock_get_connection.return_value.extra_dejson = {
+            "bootstrap.servers": "localhost:9092",
+            "oauth_cb": "os.system",
+        }
+        is_success, message = hook.test_connection()
+        assert is_success is False
+        assert "Refusing to resolve Kafka callback" in message
+        assert "callback_allowlist" in message
+        admin_client.assert_not_called()
+
     @mock.patch("airflow.providers.apache.kafka.hooks.base.AdminClient")
     @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     def test_test_connection_exception(self, mock_get_connection, admin_client, hook):
-        config = {"bootstrap.servers": MagicMock()}
+        config = {"bootstrap.servers": "localhost:9092"}
         mock_get_connection.return_value.extra_dejson = config
         admin_client.return_value.list_topics.side_effect = [ValueError("some error")]
         connection = hook.test_connection()
         assert connection == (False, "some error")
+
+    @mock.patch("airflow.providers.google.cloud.hooks.managed_kafka.ManagedKafkaHook")
+    @mock.patch("airflow.providers.apache.kafka.hooks.base.AdminClient")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
+    def test_test_connection_injects_managed_kafka_oauth(
+        self, mock_get_connection, admin_client, managed_kafka_hook, hook
+    ):
+        # A managed Kafka cluster needs an oauth_cb token callback. test_connection must apply
+        # the same injection as get_conn, otherwise "Test Connection" fails in the UI even though
+        # the hook itself authenticates correctly.
+        config = {
+            "bootstrap.servers": "bootstrap.my-cluster.us-central1.managedkafka.my-project.cloud.goog:9092"
+        }
+        mock_get_connection.return_value.extra_dejson = config
+        connection = hook.test_connection()
+        admin_client.assert_called_once()
+        passed_config = admin_client.call_args.args[0]
+        assert passed_config["oauth_cb"] is managed_kafka_hook.return_value.get_confluent_token
+        assert connection == (True, "Connection successful.")
 
     @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     def test_get_conn_msk_iam_provisioned(self, mock_get_connection, hook):

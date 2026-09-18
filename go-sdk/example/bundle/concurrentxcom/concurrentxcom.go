@@ -28,7 +28,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/apache/airflow/go-sdk/pkg/api"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
@@ -44,17 +43,17 @@ const (
 func PullXComsConcurrently(ctx sdk.TIRunContext, client sdk.Client, log *slog.Logger) (any, error) {
 	ti := ctx.TaskInstance()
 	// PushXCom needs only the ids off the TaskInstance, not the UUID.
-	apiTI := api.TaskInstance{
-		DagId:    ti.DagID,
-		RunId:    ti.RunID,
-		TaskId:   ti.TaskID,
+	taskInstance := sdk.TaskInstance{
+		DagID:    ti.DagID,
+		RunID:    ti.RunID,
+		TaskID:   ti.TaskID,
 		MapIndex: ti.MapIndex,
 	}
 
 	keys := make([]string, numXComs)
 	for i := range keys {
 		keys[i] = fmt.Sprintf("item_%d", i)
-		if err := client.PushXCom(ctx, apiTI, keys[i], i); err != nil {
+		if err := client.PushXCom(ctx, taskInstance, keys[i], i); err != nil {
 			return nil, fmt.Errorf("seeding xcom %s: %w", keys[i], err)
 		}
 	}

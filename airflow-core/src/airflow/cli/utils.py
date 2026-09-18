@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import logging
 import sys
 from collections.abc import Callable
 from typing import TYPE_CHECKING, TypeVar
@@ -76,6 +77,20 @@ def is_stdout(fileio: IOBase) -> bool:
 
     """
     return fileio is sys.stdout
+
+
+def redirect_stdout_log_handlers_to_stderr() -> None:
+    """
+    Redirect any root-logger ``StreamHandler`` writing to stdout so it writes to stderr.
+
+    Called from the CLI entrypoint for commands that emit structured output on
+    stdout (``-o json|yaml|plain|table``), so log lines do not corrupt that
+    output. ``FileHandler`` is a ``StreamHandler`` subclass; the identity check
+    against ``sys.stdout`` correctly skips it.
+    """
+    for handler in logging.getLogger().handlers:
+        if isinstance(handler, logging.StreamHandler) and handler.stream is sys.stdout:
+            handler.setStream(sys.stderr)
 
 
 def print_export_output(command_type: str, exported_items: Collection, file: TextIOWrapper):

@@ -236,6 +236,22 @@ class TestOdbcHook:
         )
         assert hook.driver == "Blah driver"
 
+    def test_allow_driver_in_extra_is_declared_in_provider_config(self):
+        """
+        The hook reads ``[providers.odbc] allow_driver_in_extra``. The option has to be declared in
+        ``provider.yaml`` so that ``airflow config list`` and the configuration reference know about it.
+        """
+        from airflow.providers.odbc.get_provider_info import get_provider_info
+
+        option = get_provider_info()["config"]["providers.odbc"]["options"]["allow_driver_in_extra"]
+        assert option["type"] == "boolean"
+        assert option["default"] == "False"
+
+    def test_allow_driver_in_extra_default_is_resolved_without_fallback(self):
+        from airflow.providers.common.compat.sdk import conf
+
+        assert conf.getboolean("providers.odbc", "allow_driver_in_extra") is False
+
     def test_default_driver_set(self):
         with patch.object(OdbcHook, "default_driver", "Blah driver"):
             hook = mock_db_hook(OdbcHook)

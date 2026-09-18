@@ -3,13 +3,15 @@
     "description": "Descripción",
     "key": "Clave",
     "name": "Nombre",
+    "team": "Equipo",
     "value": "Valor"
   },
   "config": {
     "columns": {
       "section": "Sección"
     },
-    "title": "Configuración de Airflow"
+    "config_one": "Configuración",
+    "config_other": "Configuraciones"
   },
   "connections": {
     "add": "Agregar Conexión",
@@ -19,14 +21,11 @@
       "host": "Host",
       "port": "Puerto"
     },
-    "connection_many": "Conexiones",
     "connection_one": "Conexión",
     "connection_other": "Conexiones",
     "delete": {
-      "deleteConnection_many": "Eliminar {{count}} conexiones",
       "deleteConnection_one": "Eliminar 1 conexión",
       "deleteConnection_other": "Eliminar {{count}} conexiones",
-      "firstConfirmMessage_many": "Estás a punto de eliminar las siguientes conexiones:",
       "firstConfirmMessage_one": "Estás a punto de eliminar la siguiente conexión:",
       "firstConfirmMessage_other": "Estás a punto de eliminar las siguientes conexiones:",
       "title": "Eliminar Conexión"
@@ -52,6 +51,12 @@
     "searchPlaceholder": "Buscar Conexiones",
     "test": "Prueba de Conexión",
     "testDisabled": "La función de prueba de conexión está desactivada. Por favor, contacta a un administrador para activarla.",
+    "testError": {
+      "title": "Prueba de Conexión Fallida"
+    },
+    "testSuccess": {
+      "title": "Prueba de Conexión Exitosa"
+    },
     "typeMeta": {
       "error": "Error al recuperar la Metadata del Tipo de Conexión",
       "standardFields": {
@@ -77,13 +82,33 @@
   "formActions": {
     "save": "Guardar"
   },
+  "jobs": {
+    "columns": {
+      "executorClass": "Clase de Executor",
+      "hostname": "Nombre de Host",
+      "id": "ID",
+      "jobType": "Tipo de Job",
+      "latestHeartbeat": "Último Heartbeat",
+      "unixname": "Nombre de Unix"
+    },
+    "filters": {
+      "allStates": "Todos los Estados",
+      "allTypes": "Todos los Tipos",
+      "dagProcessorJob": "DagProcessorJob",
+      "schedulerJob": "SchedulerJob",
+      "triggererJob": "TriggererJob"
+    },
+    "job_one": "Job",
+    "job_other": "Jobs"
+  },
   "plugins": {
     "columns": {
       "source": "Origen"
     },
-    "importError_many": "Errores de Importación de Plugins",
     "importError_one": "Error de Importación de Plugin",
     "importError_other": "Errores de Importación de Plugins",
+    "plugin_one": "Plugin",
+    "plugin_other": "Plugins",
     "searchPlaceholder": "Buscar por archivo"
   },
   "pools": {
@@ -97,13 +122,13 @@
     "form": {
       "checkbox": "Marcar para incluir tareas diferidas cuando se calculan los slots abiertos del pool",
       "description": "Descripción",
-      "includeDeferred": "Incluir diferidos",
+      "includeDeferred": "Incluir Diferidos",
       "nameMaxLength": "El nombre puede contener un máximo de 256 caracteres",
       "nameRequired": "El nombre es requerido",
-      "slots": "Slots"
+      "slots": "Slots",
+      "slotsHelperText": "Use -1 para slots ilimitados."
     },
     "noPoolsFound": "No se encontraron pools",
-    "pool_many": "Pools",
     "pool_one": "Pool",
     "pool_other": "Pools",
     "searchPlaceholder": "Buscar Pools",
@@ -117,18 +142,18 @@
     "columns": {
       "packageName": "Nombre del Paquete",
       "version": "Versión"
-    }
+    },
+    "provider_one": "Provider",
+    "provider_other": "Providers"
   },
   "variables": {
     "add": "Agregar Variable",
     "columns": {
-      "isEncrypted": "Está encriptada"
+      "isEncrypted": "Está Encriptada"
     },
     "delete": {
-      "deleteVariable_many": "Eliminar {{count}} Variables",
       "deleteVariable_one": "Eliminar 1 Variable",
       "deleteVariable_other": "Eliminar {{count}} Variables",
-      "firstConfirmMessage_many": "Estás a punto de eliminar las siguientes variables:",
       "firstConfirmMessage_one": "Estás a punto de eliminar la siguiente variable:",
       "firstConfirmMessage_other": "Estás a punto de eliminar las siguientes variables:",
       "title": "Eliminar Variable",
@@ -159,13 +184,13 @@
           "title": "Omitir"
         }
       },
+      "parsingFile": "Analizando archivo...",
       "title": "Importar Variables",
       "upload": "Cargar un Archivo JSON",
       "uploadPlaceholder": "Cargar un archivo JSON que contenga variables (e.g., {\"key\": \"value\", ...})"
     },
     "noRowsMessage": "No se encontraron variables",
     "searchPlaceholder": "Buscar Claves",
-    "variable_many": "Variables",
     "variable_one": "Variable",
     "variable_other": "Variables"
   }

@@ -9,8 +9,7 @@
   "config": {
     "columns": {
       "section": "段落"
-    },
-    "title": "Airflow 配置"
+    }
   },
   "connections": {
     "add": "添加连接",

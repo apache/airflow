@@ -54,8 +54,13 @@ class AwsToAwsBaseOperator(BaseOperator):
         super().__init__(**kwargs)
         self.source_aws_conn_id = source_aws_conn_id
         self.dest_aws_conn_id = dest_aws_conn_id
-        self.source_aws_conn_id = source_aws_conn_id
-        if is_arg_set(dest_aws_conn_id):
-            self.dest_aws_conn_id = dest_aws_conn_id
-        else:
-            self.dest_aws_conn_id = self.source_aws_conn_id
+
+    @property
+    def dest_aws_conn_id(self) -> str | None:
+        if is_arg_set(self._dest_aws_conn_id):
+            return self._dest_aws_conn_id
+        return self.source_aws_conn_id
+
+    @dest_aws_conn_id.setter
+    def dest_aws_conn_id(self, value: str | None | ArgNotSet) -> None:
+        self._dest_aws_conn_id = value

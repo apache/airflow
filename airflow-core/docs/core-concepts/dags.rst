@@ -166,7 +166,7 @@ While both Dag constructors get called when the file is accessed, only ``dag_1``
 
     When searching for Dags inside the Dag bundle, Airflow only considers Python files that contain the strings ``airflow`` and ``dag`` (case-insensitively) as an optimization.
 
-    To consider all Python files instead, disable the ``DAG_DISCOVERY_SAFE_MODE`` configuration flag.
+    To consider all Python files instead, set the ``[core] dag_discovery_safe_mode`` configuration flag to ``False``. This is the setting to use when your Dags are defined through a wrapper or abstraction whose source does not contain those strings. The flag is read by the Dag file processor, so set it on that component (and on anything that runs ``airflow dags reserialize``) and restart it for the change to take effect -- otherwise Dags may appear after a manual reserialize and then disappear again on the next processor scan.
 
 You can also provide an ``.airflowignore`` file inside your Dag bundle, or any of its subfolders, which describes patterns of files for the loader to ignore. It covers the directory it's in plus all subfolders underneath it. See  :ref:`.airflowignore <concepts:airflowignore>` below for details of the file syntax.
 
@@ -367,7 +367,7 @@ The ``@task.branch`` can also be used with XComs allowing branching context to d
 If you wish to implement your own operators with branching functionality, you can inherit from :class:`~airflow.operators.branch.BaseBranchOperator`, which behaves similarly to ``@task.branch`` decorator but expects you to provide an implementation of the method ``choose_branch``.
 
 .. note::
-    The ``@task.branch`` decorator is recommended over directly instantiating :class:`~airflow.providers.standard.operators.python.BranchPythonOperator` in a Dag. The latter should generally only be subclassed to implement a custom operator.
+    The ``@task.branch`` decorator is the Taskflow equivalent of :class:`~airflow.providers.standard.operators.python.BranchPythonOperator`. The latter should generally only be subclassed to implement a custom operator.
 
 As with the callable for ``@task.branch``, this method can return the ID of a downstream task, or a list of task IDs, which will be run, and all others will be skipped. It can also return None to skip all downstream task::
 
@@ -802,14 +802,16 @@ Dag pausing, deactivation and deletion
 The Dags have several states when it comes to being "not running". Dags can be paused, deactivated
 and finally all metadata for the Dag can be deleted.
 
-Dag can be paused via UI when it is present in the ``DAGS_FOLDER``, and scheduler stored it in
-the database, but the user chose to disable it via the UI. The "pause" and "unpause" actions are available
-via UI and API. Paused Dags are not scheduled by the Scheduler, but you can trigger them via UI for
-manual runs. In the UI, you can see paused Dags (in ``Paused`` tab). The Dags that are un-paused
-can be found in the ``Active`` tab. When a Dag is paused, any running tasks are allowed to complete and all
-downstream tasks are put in to a state of "Scheduled". When the Dag is unpaused, any "scheduled" tasks will
-begin running according to the Dag logic. Dags with no "scheduled" tasks will begin running according to
-their schedule.
+A Dag can be paused through the UI or API after the scheduler has stored it in the database. Paused Dags do
+not schedule task instances, although you can trigger manual runs. When a Dag is paused, running tasks are
+allowed to complete and downstream tasks remain in the ``scheduled`` state until the Dag is unpaused.
+
+You can also drain a Dag before pausing it. Draining stops the scheduler from creating new Dag runs --
+scheduled and asset-triggered alike -- while letting already queued or running Dag runs continue to schedule
+tasks. As with a paused Dag, you can still trigger runs explicitly. After the outstanding Dag runs finish,
+the scheduler automatically changes the Dag to paused. A backfill started while the Dag is draining extends
+the drain until its Dag runs have been created and finished. While a Dag is draining, you can cancel the drain
+to make the Dag active again.
 
 Dags can be deactivated (do not confuse it with ``Active`` tag in the UI) by removing them from the
 ``DAGS_FOLDER``. When scheduler parses the ``DAGS_FOLDER`` and misses the Dag that it had seen

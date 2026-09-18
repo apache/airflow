@@ -21,6 +21,7 @@ import re
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from typing import Annotated
+from unittest import mock
 
 import pytest
 from fastapi import Depends, FastAPI, HTTPException
@@ -28,23 +29,28 @@ from sqlalchemy import select
 
 from airflow.api_fastapi.common.parameters import (
     FilterParam,
-    NullableDatetimeRangeFilter,
     RangeFilter,
     SortParam,
-    _AssetDependencyFilter,
-    _ConsumingAssetFilter,
-    _escape_like_pattern,
-    _OwnersFilter,
-    _PrefixPatternParam,
     _PrefixSearchParam,
     _SearchParam,
-    _TaskDisplayNamePrefixPatternParam,
     datetime_range_filter_factory,
     filter_param_factory,
 )
+from airflow.api_fastapi.common.parameters.asset import _AssetDependencyFilter, _ConsumingAssetFilter
+from airflow.api_fastapi.common.parameters.dag import _OwnersFilter
+from airflow.api_fastapi.common.parameters.range import NullableDatetimeRangeFilter
+from airflow.api_fastapi.common.parameters.search import (
+    _escape_like_pattern,
+    _PrefixPatternParam,
+    _TaskDisplayNamePrefixPatternParam,
+    regex_param_factory,
+)
 from airflow.models import DagModel, DagRun, Log
+from airflow.models.asset import AssetEvent
 from airflow.models.errors import ParseImportError
 from airflow.models.taskinstance import TaskInstance
+
+from tests_common.test_utils.config import conf_vars
 
 
 class TestFilterParam:
@@ -537,3 +543,55 @@ class TestDatetimeRangeFilterFactory:
         rf = _make_datetime_filter("start_date", upper_bound_lte=bound)
         sql = _compile(rf.to_orm(select(TaskInstance)))
         assert "coalesce" not in sql
+
+
+class TestRegexParamFactory:
+    """The regexp filter dependency must apply the query timeout itself (callers can't forget)."""
+
+    @staticmethod
+    def _depends():
+        return regex_param_factory(AssetEvent.partition_key, "partition_key_regexp_pattern")
+
+    def test_dependency_applies_timeout_when_pattern_provided(self):
+        session = mock.MagicMock()
+        with conf_vars({("api", "regexp_query_timeout"): "30"}):
+            with mock.patch(
+                "airflow.api_fastapi.common.parameters.search.apply_regex_query_timeout"
+            ) as apply_mock:
+                gen = self._depends()(session=session, value="^us")
+                param = next(gen)
+                apply_mock.assert_called_once_with(session)
+                assert param.value == "^us"
+                with pytest.raises(StopIteration):
+                    next(gen)
+
+    def test_dependency_skips_timeout_without_pattern(self):
+        session = mock.MagicMock()
+        with conf_vars({("api", "regexp_query_timeout"): "30"}):
+            with mock.patch(
+                "airflow.api_fastapi.common.parameters.search.apply_regex_query_timeout"
+            ) as apply_mock:
+                gen = self._depends()(session=session, value=None)
+                param = next(gen)
+                apply_mock.assert_not_called()
+                assert param.value is None
+                with pytest.raises(StopIteration):
+                    next(gen)
+
+    def test_dependency_rejects_pattern_when_disabled(self):
+        session = mock.MagicMock()
+        with conf_vars({("api", "regexp_query_timeout"): "0"}):
+            gen = self._depends()(session=session, value="^us")
+            with pytest.raises(HTTPException) as exc:
+                next(gen)
+        assert exc.value.status_code == 400
+        assert "disabled" in exc.value.detail
+
+    def test_dependency_rejects_invalid_regex(self):
+        session = mock.MagicMock()
+        with conf_vars({("api", "regexp_query_timeout"): "30"}):
+            gen = self._depends()(session=session, value="[invalid(")
+            with pytest.raises(HTTPException) as exc:
+                next(gen)
+        assert exc.value.status_code == 400
+        assert "Invalid regular expression" in exc.value.detail

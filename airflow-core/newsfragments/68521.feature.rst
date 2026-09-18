@@ -1,0 +1,1 @@
+Added the ``triggerer.batch_trigger_creation_duration`` metric, which measures the total time spent creating pending triggers during a single trigger runner cycle.

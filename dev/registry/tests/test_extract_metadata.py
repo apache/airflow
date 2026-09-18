@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import http.client
 import json
+import sys
 import textwrap
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -36,6 +37,7 @@ from extract_metadata import (
     find_latest_released_version,
     find_related_providers,
     load_release_tags,
+    main,
     module_path_to_file_path,
     parse_pyproject_toml,
     preserve_nonzero_downloads,
@@ -828,3 +830,57 @@ class TestVersionsListFiltering:
         filtered = [v for v in raw_versions if f"providers-{provider_id}/{v}" in release_tags]
         # Order from raw_versions is preserved; only the phantom is dropped
         assert filtered == ["9.26.0", "9.25.0", "9.24.0"]
+
+
+# ---------------------------------------------------------------------------
+# main() -- connection-types `external-services` propagation
+# ---------------------------------------------------------------------------
+class TestMainConnectionTypesExternalServices:
+    """The connection-types extraction loop lives inline in main() rather than
+    a standalone function, so this drives main() end-to-end (with network and
+    filesystem dependencies mocked/redirected) to prove `external-services`
+    from provider.yaml reaches the written providers.json, and round-trips
+    through the `ConnectionTypeContract` (extra="forbid") validation main()
+    already runs -- catching a key-name drift between provider.yaml, this
+    script, and registry_contract_models.py.
+    """
+
+    @patch("extract_metadata.fetch_provider_inventory", autospec=True, return_value=None)
+    @patch("extract_metadata.fetch_pypi_data_parallel", autospec=True, return_value={})
+    @patch("extract_metadata.load_release_tags", autospec=True, return_value=set())
+    def test_external_services_propagates_to_providers_json(
+        self, _load_release_tags, _fetch_pypi_data_parallel, _fetch_provider_inventory, tmp_path
+    ):
+        providers_dir = tmp_path / "providers"
+        provider_dir = providers_dir / "testprov"
+        provider_dir.mkdir(parents=True)
+        (provider_dir / "provider.yaml").write_text(
+            textwrap.dedent("""\
+                name: Test Provider
+                description: A test provider.
+                versions:
+                  - 1.0.0
+                connection-types:
+                  - connection-type: testconn
+                    hook-class-name: airflow.providers.test.hooks.TestHook
+                    external-services:
+                      - openai
+                      - anthropic
+                """)
+        )
+        output_dir = tmp_path / "output"
+        script_dir = tmp_path / "script"
+        output_dir.mkdir()
+        script_dir.mkdir()
+
+        with (
+            patch("extract_metadata.PROVIDERS_DIR", providers_dir),
+            patch("extract_metadata.OUTPUT_DIR", output_dir),
+            patch("extract_metadata.SCRIPT_DIR", script_dir),
+            patch.object(sys, "argv", ["extract_metadata.py"]),
+        ):
+            main()
+
+        written = json.loads((output_dir / "providers.json").read_text())
+        provider = next(p for p in written["providers"] if p["id"] == "testprov")
+        assert provider["connection_types"][0]["external_services"] == ["openai", "anthropic"]

@@ -32,7 +32,7 @@ from google.cloud.metastore_v1.types.metastore import DatabaseDumpSpec, Restore
 
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.dataproc_metastore import DataprocMetastoreHook
-from airflow.providers.google.cloud.links.base import BaseGoogleLink
+from airflow.providers.google.cloud.links.base import BASE_LINK, BaseGoogleLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.links.storage import StorageLink
 
@@ -42,7 +42,6 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context, TaskInstanceKey
     from airflow.providers.google.version_compat import BaseOperator
 
-BASE_LINK = "https://console.cloud.google.com"
 METASTORE_BASE_LINK = BASE_LINK + "/dataproc/metastore/services/{region}/{service_id}"
 METASTORE_BACKUP_LINK = METASTORE_BASE_LINK + "/backups/{resource}?project={project_id}"
 METASTORE_BACKUPS_LINK = METASTORE_BASE_LINK + "/backuprestore?project={project_id}"

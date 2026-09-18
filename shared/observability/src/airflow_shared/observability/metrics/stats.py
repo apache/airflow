@@ -20,7 +20,7 @@ import logging
 import os
 import re
 import socket
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, Any
 
 from .base_stats_logger import NoStatsLogger
@@ -34,6 +34,25 @@ log = logging.getLogger(__name__)
 
 _VALID_STAT_NAME_CHARS_RE = re.compile(r"^[a-zA-Z0-9_.-]+$")
 _INVALID_STAT_NAME_CHARS_RE = re.compile(r"[^a-zA-Z0-9_.-]")
+
+
+def build_dag_metric_tags(tag_names: Iterable[str]) -> dict[str, str]:
+    """
+    Convert Dag tag strings into metric tags.
+
+    Tags with a non-empty value after a ``:`` (e.g. ``env:prod``) split into a
+    ``key: value`` pair. Plain tags (e.g. ``production``) and tags with no value
+    after the colon (e.g. ``env:``) map to an empty string, emitted as a standalone
+    DogStatsd tag or as ``tag=true`` in InfluxDB line protocol.
+    """
+    result: dict[str, str] = {}
+    for name in tag_names:
+        key, _, value = name.partition(":")
+        result[normalize_name_for_stats(key, log_warning=False)] = normalize_name_for_stats(
+            value, log_warning=False
+        )
+    return result
+
 
 # Module-level singleton state.
 _factory: Callable[[], StatsLogger | NoStatsLogger] | None = None
@@ -142,6 +161,16 @@ def _get_legacy_stat_name_and_tags(
         return _none
 
     required_vars = stat_from_registry.get("name_variables", [])
+
+    # tags=None means this call opted out of tagging (e.g. an untagged aggregate
+    # behind a config flag), so skip the legacy name instead of raising.
+    # Example: ``scheduler.dagruns.running`` uses legacy
+    # ``scheduler.dagruns.running.{dag_id}``; when emitted as an aggregate with
+    # ``tags=None``, we do not try to format ``{dag_id}``. An empty dict still
+    # raises below since that means tags were expected but missing.
+    if required_vars and tags is None:
+        return _none
+
     provided_vars = set(tags.keys()) if tags else set()
     missing_vars = set(required_vars) - provided_vars
     # If there are specified variables in the YAML file that haven't been provided in the tags param.
