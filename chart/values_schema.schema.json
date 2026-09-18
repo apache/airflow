@@ -25,6 +25,66 @@
                     {
                         "properties": {
                             "type": {
+                                "const": "array"
+                            },
+                            "items": false
+                        }
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "const": [
+                                    "array",
+                                    "null"
+                                ]
+                            },
+                            "items": false
+                        }
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "const": "boolean"
+                            }
+                        }
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "const": [
+                                    "boolean",
+                                    "integer",
+                                    "number",
+                                    "string"
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "const": [
+                                    "boolean",
+                                    "null"
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "const": [
+                                    "boolean",
+                                    "null",
+                                    "number",
+                                    "string"
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        "properties": {
+                            "type": {
                                 "const": "integer"
                             }
                         }
@@ -32,21 +92,59 @@
                     {
                         "properties": {
                             "type": {
+                                "const": [
+                                    "integer",
+                                    "null"
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "const": [
+                                    "integer",
+                                    "null",
+                                    "string"
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "const": [
+                                    "integer",
+                                    "string"
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "const": [
+                                    "null",
+                                    "object"
+                                ]
+                            },
+                            "properties": false
+                        }
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "const": [
+                                    "null",
+                                    "string"
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        "properties": {
+                            "type": {
                                 "const": "number"
-                            }
-                        }
-                    },
-                    {
-                        "properties": {
-                            "type": {
-                                "const": "string"
-                            }
-                        }
-                    },
-                    {
-                        "properties": {
-                            "type": {
-                                "const": "boolean"
                             }
                         }
                     },
@@ -61,9 +159,8 @@
                     {
                         "properties": {
                             "type": {
-                                "const": "array"
-                            },
-                            "items": false
+                                "const": "string"
+                            }
                         }
                     }
                 ]

@@ -182,7 +182,7 @@ WARNING:
 {{- end }}
 {{- end }}
 
-{{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.sshKeySecret (not .Values.dags.gitSync.knownHosts)}}
+{{- if and .Values.dags.gitSync.enabled (or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKey) (not .Values.dags.gitSync.knownHosts)}}
 
 #####################################################
 #  WARNING: You should set dags.gitSync.knownHosts  #
@@ -207,7 +207,7 @@ https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#knownhos
 {{- if .Values.flower.extraNetworkPolicies }}
 
 DEPRECATION WARNING:
-   `flower.extraNetworkPolicies` has been renamed to `flower.networkPolicy.peers`.
+   `flower.extraNetworkPolicies` has been renamed to `flower.networkPolicy.ingress.from`.
    Please change your values as support for the old name will be dropped in a future release.
 
 {{- end }}
@@ -1050,6 +1050,14 @@ DEPRECATION WARNING:
   DEPRECATION WARNING:
     The default for `enableServiceLinks` will become False in Chart 2.0.
     If you relied on these environment variables, explicitly set ``enableServiceLinks: true``, or migrate your code to use dns based service lookups.
+
+{{- end }}
+
+{{- if not .Values.securityContexts.disableDefaults }}
+
+ DEPRECATION WARNING:
+    `securityContexts.disableDefaults` equal `false` is deprecated and will default to `true` in a future release.
+    Please set `securityContexts.disableDefaults: true` explicitly, or provide values via `securityContexts.pod` / `securityContexts.containers` (or per-component overrides), before the default changes.
 
 {{- end }}
 

@@ -431,6 +431,20 @@ class TestPgbouncer:
         assert "labels" in jmespath.search("spec.template.metadata", docs[0])
         assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
 
+    @pytest.mark.parametrize(
+        ("pgbouncer_values", "expected"),
+        [
+            ({"enabled": True}, 120),
+            ({"enabled": True, "terminationGracePeriodSeconds": 30}, 30),
+        ],
+    )
+    def test_pgbouncer_termination_grace_period_seconds(self, pgbouncer_values, expected):
+        docs = render_chart(
+            values={"pgbouncer": pgbouncer_values},
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+        assert expected == jmespath.search("spec.template.spec.terminationGracePeriodSeconds", docs[0])
+
 
 class TestPgbouncerConfig:
     """Tests PgBouncer config."""
