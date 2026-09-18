@@ -476,6 +476,13 @@ signal: a hand-maintained class-to-guide table would keep pointing at sections
 that have since been renamed or split, and a link that lands on the wrong section
 is worse than no link. A class documented only in prose gets no Guide link.
 
+Growing the set of modules that get a Guide link means changing that provider's
+section titles to lead with an inline literal, not touching this extractor.
+`common/ai` follows the convention most thoroughly; a couple of other providers
+use the same title shape for a config option name or a single decorator rather
+than a class. Having the right title doesn't guarantee a link — that still
+depends on a same-named module existing in the catalog.
+
 Both extraction paths resolve it — `extract_parameters.py` from the working tree
 for the latest release, `extract_versions.py` from the git tag for superseded ones
 — because a superseded version's page is rendered only from its own metadata file.
