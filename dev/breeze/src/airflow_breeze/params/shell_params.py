@@ -101,6 +101,7 @@ from airflow_breeze.utils.path_utils import (
     SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_ALL_SOURCES_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UI_DIST_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UV_LOCK_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_MYPY_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_PROVIDERS_AND_TESTS_SOURCES_PATH,
@@ -419,8 +420,18 @@ class ShellParams:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_DEBUG_PORTS_PATH)
         if self.mount_sources == MOUNT_SELECTED:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH)
+            if not self.force_lowest_dependencies:
+                compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UV_LOCK_PATH)
         elif self.mount_sources == MOUNT_ALL:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_ALL_SOURCES_PATH)
+            if self.force_lowest_dependencies:
+                # The whole worktree is bound here, so uv.lock cannot be left out of the mount.
+                console_print(
+                    "\n[warning]--force-lowest-dependencies with --mount-sources all will rewrite "
+                    "your uv.lock: the lowest-direct `uv sync` writes its re-resolved lock through "
+                    "the mounted worktree. Use the default --mount-sources selected to keep it "
+                    "untouched, or restore it afterwards with `git checkout -- uv.lock`.[/]\n"
+                )
         elif self.mount_sources == MOUNT_TESTS:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_TESTS_SOURCES_PATH)
         elif self.mount_sources == MOUNT_PROVIDERS_AND_TESTS:
