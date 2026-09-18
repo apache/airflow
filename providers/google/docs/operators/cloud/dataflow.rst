@@ -406,7 +406,8 @@ When the job ID is not known upfront, for example because the job is launched ou
 the job can be identified by its name instead. Parameters ``job_id`` and ``job_name`` are mutually
 exclusive, and exactly one of them must be provided. Dataflow job names are not unique over time,
 so the sensor checks the most recently created job with that name, and keeps waiting if no job with
-that name exists yet::
+that name exists yet. A job left over from an earlier run also counts, so if the same name is reused
+across runs, include something unique to the run in it, for example ``daily-etl-{{ ds_nodash }}``::
 
     wait_for_job_status = DataflowJobStatusSensor(
         task_id="wait_for_job_status",

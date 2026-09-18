@@ -55,7 +55,8 @@ class DataflowJobStatusSensor(BaseSensorOperator):
     :param job_id: ID of the job to be checked.
     :param job_name: Name of the job to be checked. Dataflow job names are not unique over
         time, so the most recently created job with that name is the one being checked. If no
-        job with that name exists yet, the sensor keeps waiting for one to appear.
+        job with that name exists yet, the sensor keeps waiting for one to appear. A job from an
+        earlier run with the same name also counts, so reused names should be made unique per run.
     :param expected_statuses: The expected state(s) of the operation.
         See:
         https://cloud.google.com/dataflow/docs/reference/rest/v1b3/projects.jobs#Job.JobState
