@@ -30,6 +30,7 @@ import structlog
 import time_machine
 from sqlalchemy.orm import Session
 
+from airflow._shared.state import TaskFailureKind
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.cli.cli_config import DefaultHelpParser, GroupCommand
@@ -456,6 +457,58 @@ def test_state_fail():
     executor.fail(key, info=info)
     assert not executor.running
     assert executor.event_buffer[key] == (TaskInstanceState.FAILED, info)
+
+
+def test_state_fail_carries_reason_without_requiring_kind() -> None:
+    executor = BaseExecutor()
+    key = TaskInstanceKey(dag_id="my_dag1", task_id="my_task1", run_id="run", try_number=1, map_index=-1)
+    executor.running.add(key)
+
+    executor.fail(key=key, failure_kind=None, reason="WorkerLost")
+
+    assert executor.get_task_failure_info(key) == (None, "WorkerLost")
+    assert executor.get_task_failure_info(key) is None
+
+
+def test_state_fail_carries_infra_kind_and_reason() -> None:
+    executor = BaseExecutor()
+    key = TaskInstanceKey(dag_id="my_dag1", task_id="my_task1", run_id="run", try_number=1, map_index=-1)
+    executor.running.add(key)
+
+    executor.fail(key=key, failure_kind=TaskFailureKind.INFRA, reason="PreemptionByScheduler")
+
+    assert executor.get_task_failure_info(key) == (TaskFailureKind.INFRA, "PreemptionByScheduler")
+
+
+@pytest.mark.parametrize(
+    "state",
+    [
+        TaskInstanceState.FAILED,
+        TaskInstanceState.SUCCESS,
+        TaskInstanceState.QUEUED,
+        TaskInstanceState.RUNNING,
+    ],
+)
+def test_change_state_discards_previous_failure_info(state: TaskInstanceState) -> None:
+    executor = BaseExecutor()
+    key = TaskInstanceKey(dag_id="dag", task_id="task", run_id="run", try_number=1, map_index=-1)
+    executor.fail(key=key, failure_kind=TaskFailureKind.INFRA, reason="PreemptionByScheduler")
+
+    executor.change_state(key=key, state=state, info="new event")
+
+    assert executor.event_buffer[key] == (state, "new event")
+    assert executor.get_task_failure_info(key) is None
+
+
+def test_legacy_failure_discards_previous_failure_info() -> None:
+    executor = BaseExecutor()
+    key = TaskInstanceKey(dag_id="dag", task_id="task", run_id="run", try_number=1, map_index=-1)
+    executor.fail(key=key, failure_kind=TaskFailureKind.INFRA, reason="PreemptionByScheduler")
+
+    executor.fail(key=key, info="legacy failure")
+
+    assert executor.event_buffer[key] == (TaskInstanceState.FAILED, "legacy failure")
+    assert executor.get_task_failure_info(key) is None
 
 
 def test_state_success():

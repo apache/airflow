@@ -72,6 +72,18 @@ class AssetScope:
 StoreScope = TaskScope | AssetScope
 
 
+class TaskFailureKind(str, Enum):
+    """Cause of a task failure, when Airflow can establish it."""
+
+    INFRA = "infra"
+    APPLICATION = "application"
+    TIMEOUT = "timeout"
+    MANUAL = "manual"
+
+    def __str__(self) -> str:
+        return self.value
+
+
 class AssetStateStoreWriterKind(str, Enum):
     """
     Identifies what kind of writer last updated an asset state store entry.
