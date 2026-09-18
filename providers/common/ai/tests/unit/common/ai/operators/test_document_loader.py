@@ -23,33 +23,32 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow.providers.common.ai.operators.document_loader import DocumentLoaderOperator
+from airflow.sdk import DAG
 
 
 class TestDocumentLoaderInit:
     def test_template_fields_render_source_path_and_metadata(self):
-        """
-        Behavioral check that the templated fields actually get rendered.
-        Replaces the previous tautological assertion that just round-tripped
-        the class attribute.
-        """
+        """The templated fields are substituted by render_template_fields, not merely listed."""
         op = DocumentLoaderOperator(
             task_id="test",
             source_path="/data/{{ ds }}/*.pdf",
-            file_type="{{ var.value.preferred_ext }}",
+            file_type="{{ params.preferred_ext }}",
             metadata_fields={"run_id": "{{ run_id }}"},
         )
-        # Make sure each one is in template_fields so render_template_fields
-        # would substitute them.
-        assert "source_path" in op.template_fields
-        assert "file_type" in op.template_fields
-        assert "file_extensions" in op.template_fields
-        assert "parser" in op.template_fields
-        assert "metadata_fields" in op.template_fields
+
+        op.render_template_fields(
+            context={"ds": "2026-01-01", "run_id": "manual__1", "params": {"preferred_ext": ".pdf"}}
+        )
+
+        assert op.source_path == "/data/2026-01-01/*.pdf"
+        assert op.file_type == ".pdf"
+        assert op.metadata_fields == {"run_id": "manual__1"}
         # source_bytes intentionally not templated -- Jinja stringifies bytes
         # to their repr, which would break binary parsing.
         assert "source_bytes" not in op.template_fields
 
     def test_both_sources_raises(self):
+        # source_path/source_bytes provision is a constructor-time check now.
         with pytest.raises(ValueError, match="not both"):
             DocumentLoaderOperator(task_id="test", source_path="/tmp/file.txt", source_bytes=b"hello")
 
@@ -57,13 +56,41 @@ class TestDocumentLoaderInit:
         with pytest.raises(ValueError, match="Provide exactly one"):
             DocumentLoaderOperator(task_id="test")
 
-    def test_source_bytes_without_file_type_raises(self):
-        with pytest.raises(ValueError, match="file_type"):
+    def test_source_bytes_without_file_type_raises_at_construction(self):
+        # Whether file_type was supplied at all is knowable without rendering, so it is a
+        # Dag-parse-time error like the source_path/source_bytes pair above it.
+        with pytest.raises(ValueError, match="'file_type' is required"):
             DocumentLoaderOperator(task_id="test", source_bytes=b"hello")
 
-    def test_empty_bytes_without_file_type_raises(self):
-        with pytest.raises(ValueError, match="file_type"):
+    def test_empty_bytes_without_file_type_raises_at_construction(self):
+        with pytest.raises(ValueError, match="'file_type' is required"):
             DocumentLoaderOperator(task_id="test", source_bytes=b"")
+
+    def test_source_path_rendering_to_none_raises(self):
+        """A supplied source_path that renders to None raises ValueError, not TypeError.
+
+        Driven through real templating rather than by assigning the attribute, so the test
+        fails if the field ever stops being rendered.
+        """
+        with DAG(dag_id="native", schedule=None, render_template_as_native_obj=True):
+            op = DocumentLoaderOperator(task_id="test", source_path="{{ none }}")
+
+        op.render_template_fields(context={})
+        assert op.source_path is None
+
+        with pytest.raises(ValueError, match="'source_path' was supplied but rendered to None"):
+            op.execute(context={})
+
+    def test_file_type_rendering_to_none_raises(self):
+        """file_type passes the __init__ guard when supplied, then renders away to None."""
+        with DAG(dag_id="native", schedule=None, render_template_as_native_obj=True):
+            op = DocumentLoaderOperator(task_id="test", source_bytes=b"hello", file_type="{{ none }}")
+
+        op.render_template_fields(context={})
+        assert op.file_type is None
+
+        with pytest.raises(ValueError, match="'file_type' was supplied but rendered to None"):
+            op.execute(context={})
 
 
 class TestTextParser:
@@ -410,6 +437,11 @@ class TestFileDiscovery:
         with pytest.raises(ValueError, match="No parser registered"):
             op.execute(context=MagicMock())
 
+    def test_unknown_parser_on_source_bytes_raises(self):
+        op = DocumentLoaderOperator(task_id="test", source_bytes=b"a,b\n1,2", file_type=".csv", parser="cvs")
+        with pytest.raises(ValueError, match="No parser found"):
+            op.execute(context=MagicMock())
+
     def test_nonexistent_glob_raises_file_not_found(self, tmp_path):
         op = DocumentLoaderOperator(task_id="test", source_path=str(tmp_path / "*.nope"))
         with pytest.raises(FileNotFoundError, match="No files found"):
@@ -488,6 +520,39 @@ class TestCloudUriDispatch:
         op = DocumentLoaderOperator(task_id="test", source_path="s3://bucket/missing")
         with pytest.raises(FileNotFoundError, match="neither a file nor a directory"):
             op.execute(context=MagicMock())
+
+    @patch("airflow.sdk.ObjectStoragePath")
+    def test_glob_uri_matches_across_directories(self, mock_osp_cls):
+        def _mock_match(name: str, content: bytes):
+            match = MagicMock()
+            match.is_file.return_value = True
+            match.name = name
+            match.suffix = "." + name.rsplit(".", 1)[-1]
+            match.read_bytes.return_value = content
+            return match
+
+        root = MagicMock()
+        root.glob.return_value = [_mock_match("a.txt", b"alpha"), _mock_match("b.txt", b"beta")]
+        mock_osp_cls.return_value = root
+
+        op = DocumentLoaderOperator(
+            task_id="test",
+            source_path="s3://bucket/logs/**/*.txt",
+            source_conn_id="aws_default",
+        )
+        result = op.execute(context=MagicMock())
+
+        mock_osp_cls.assert_called_once_with("s3://bucket/logs", conn_id="aws_default")
+        root.glob.assert_called_once_with("**/*.txt")
+        assert {doc["text"] for doc in result} == {"alpha", "beta"}
+
+    @patch("airflow.sdk.ObjectStoragePath")
+    def test_glob_in_bucket_segment_raises(self, mock_osp_cls):
+        op = DocumentLoaderOperator(task_id="test", source_path="s3://bucket-*/dir/a.txt")
+        with pytest.raises(ValueError, match="scheme or bucket segment"):
+            op.execute(context=MagicMock())
+
+        mock_osp_cls.assert_not_called()
 
 
 class TestEncoding:

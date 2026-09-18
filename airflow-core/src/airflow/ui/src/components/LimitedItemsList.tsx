@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { type ReactNode, Fragment } from "react";
+
 import { Box, Button, Text, HStack, Stack } from "@chakra-ui/react";
-import React, { type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Popover } from "./ui";
+import { Popover } from "src/system-components";
 
 type ListProps = {
   readonly icon?: ReactNode;
@@ -52,13 +53,13 @@ export const LimitedItemsList = ({
       <Box fontSize="sm">
         {displayItems.map((item, index) => (
           // eslint-disable-next-line react/no-array-index-key
-          <React.Fragment key={index}>
+          <Fragment key={index}>
             <Text as="span">{item}</Text>
             {index < displayItems.length - 1 ||
             (shouldTruncate && remainingItems.length >= 1 && index === displayItems.length - 1) ? (
               <Text as="span">{separator}</Text>
             ) : undefined}
-          </React.Fragment>
+          </Fragment>
         ))}
         {shouldTruncate ? (
           remainingItems.length === 1 ? (

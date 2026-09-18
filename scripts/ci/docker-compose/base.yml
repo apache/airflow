@@ -23,6 +23,9 @@ services:
       - USER=root
       - ADDITIONAL_PATH=~/.local/bin
       - KUBECONFIG=/files/.kube/config
+      # Only some breeze invocations set it, so it cannot go through the shared
+      # _generated_docker_compose.env - see ShellParams.env_variables_for_docker_commands.
+      - PYTHONWARNINGS
     env_file:
       - _generated_docker_compose.env
     volumes:

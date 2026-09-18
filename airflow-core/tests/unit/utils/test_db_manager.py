@@ -277,6 +277,14 @@ class TestBaseDBManager:
 
 
 class TestRunDBManager:
+    def test_get_required_table_names(self):
+        run_db_manager = _create_run_db_manager(LegacyTablesDBManager)
+
+        assert run_db_manager.get_required_table_names() == {
+            "external_legacy_table",
+            "legacy_alembic_version",
+        }
+
     def test_initdb_and_upgradedb_support_legacy_manager_signatures(self, session):
         LegacySignatureExternalManager.initdb_calls = 0
         LegacySignatureExternalManager.upgradedb_calls = 0

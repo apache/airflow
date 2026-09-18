@@ -40,18 +40,21 @@ jobs:
         # Track AMD; ARM is the canary slot and is reported separately by
         # `ci-arm.yml`'s notify-slack job on schedule events.
         workflow-id: ["ci-amd.yml"]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
 
+      - name: "Install uv"
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d  # v10.0.1
+        with:
+          version-file: uv.lock
+
       - name: "Find workflow run status"
         id: find-workflow-run-status
-        run: |
-          python3 -m pip install uv
-          uv run ./dev/breeze/src/airflow_breeze/utils/workflow_status.py
+        run: uv run ./dev/breeze/src/airflow_breeze/utils/workflow_status.py
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           workflow_branch: ${{ matrix.branch }}
@@ -79,7 +82,7 @@ jobs:
 
       - name: "Send Slack notification (new/changed failures)"
         if: steps.notification.outputs.action == 'notify_new'
-        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c  # v3.0.3
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d  # v4.0.0
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
@@ -100,7 +103,7 @@ jobs:
 
       - name: "Send Slack notification (still not fixed)"
         if: steps.notification.outputs.action == 'notify_reminder'
-        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c  # v3.0.3
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d  # v4.0.0
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
@@ -121,7 +124,7 @@ jobs:
 
       - name: "Send Slack notification (all passing)"
         if: steps.notification.outputs.action == 'notify_recovery'
-        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c  # v3.0.3
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d  # v4.0.0
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}

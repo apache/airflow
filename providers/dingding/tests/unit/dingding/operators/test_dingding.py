@@ -20,8 +20,8 @@ from __future__ import annotations
 from unittest import mock
 
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.dingding.operators.dingding import DingdingOperator
-from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 

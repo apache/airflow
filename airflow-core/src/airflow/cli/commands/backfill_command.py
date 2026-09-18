@@ -26,6 +26,7 @@ from tabulate import tabulate
 from airflow import settings
 from airflow.api_fastapi.common.dagbag import resolve_run_on_latest_version
 from airflow.cli.simple_table import AirflowConsole
+from airflow.cli.utils import deprecated_for_airflowctl
 from airflow.exceptions import AirflowConfigException
 from airflow.models.backfill import NoBackfillRunsToCreate, ReprocessBehavior, _create_backfill, _do_dry_run
 from airflow.utils import cli as cli_utils
@@ -38,6 +39,7 @@ log = logging.getLogger(__name__)
 
 
 @cli_utils.action_cli
+@deprecated_for_airflowctl("airflowctl backfill create")
 @providers_configuration_loaded
 def create_backfill(args) -> None:
     """Create backfill job or dry run for a Dag or list of Dags using regex."""

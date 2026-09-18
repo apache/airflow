@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from airflow.providers.common.ai.operators.llm_branch import LLMBranchOperator
 from airflow.providers.common.compat.sdk import dag, task
 
@@ -150,3 +152,36 @@ def example_llm_branch_decorator_multi():
 # [END howto_decorator_llm_branch_multi]
 
 example_llm_branch_decorator_multi()
+
+
+# [START howto_operator_llm_branch_approval]
+@dag(tags=["example"])
+def example_llm_branch_approval():
+    route = LLMBranchOperator(
+        task_id="route_with_approval",
+        prompt="User says: 'I was charged twice for my subscription.'",
+        llm_conn_id="pydanticai_default",
+        system_prompt="Route support tickets to the right team.",
+        require_approval=True,
+        approval_timeout=timedelta(hours=24),
+        allow_modifications=True,
+    )
+
+    @task
+    def handle_billing():
+        return "Handling billing issue"
+
+    @task
+    def handle_auth():
+        return "Handling auth issue"
+
+    @task
+    def handle_general():
+        return "Handling general issue"
+
+    route >> [handle_billing(), handle_auth(), handle_general()]
+
+
+# [END howto_operator_llm_branch_approval]
+
+example_llm_branch_approval()

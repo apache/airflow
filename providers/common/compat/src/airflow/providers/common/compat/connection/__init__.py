@@ -29,20 +29,25 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-async def get_async_connection(conn_id: str) -> Connection:
+async def get_async_connection(conn_id: str, hook: BaseHook | type[BaseHook] | None = None) -> Connection:
     """
     Get an asynchronous Airflow connection that is backwards compatible.
 
     :param conn_id: The provided connection ID.
+    :param hook: Hook (class or instance) to resolve the connection through, so a
+        subclass override of ``aget_connection``/``get_connection`` is honored.
+        Defaults to ``BaseHook``.
     :returns: Connection
     """
     from asgiref.sync import sync_to_async
 
-    if hasattr(BaseHook, "aget_connection"):
-        log.debug("Get connection using `BaseHook.aget_connection().")
-        return await BaseHook.aget_connection(conn_id=conn_id)
-    log.debug("Get connection using `BaseHook.get_connection().")
-    return await sync_to_async(BaseHook.get_connection)(conn_id=conn_id)
+    hook = hook or BaseHook
+    hook_name = hook.__name__ if isinstance(hook, type) else type(hook).__name__
+    if hasattr(hook, "aget_connection"):
+        log.debug("Get connection using `%s.aget_connection()`.", hook_name)
+        return await hook.aget_connection(conn_id=conn_id)
+    log.debug("Get connection using `%s.get_connection()`.", hook_name)
+    return await sync_to_async(hook.get_connection)(conn_id=conn_id)
 
 
 __all__ = [

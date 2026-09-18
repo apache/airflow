@@ -60,5 +60,9 @@ services:
   airflow:
     environment:
       - INTEGRATION_KAFKA=true
+      - AIRFLOW__KAFKA_EVENT_PRODUCER__DAG_RUN_EVENTS_ENABLED=True
+      - AIRFLOW__KAFKA_EVENT_PRODUCER__TASK_INSTANCE_EVENTS_ENABLED=True
+      - AIRFLOW__KAFKA_EVENT_PRODUCER__TOPIC=airflow.events
+      - AIRFLOW__KAFKA_EVENT_PRODUCER__SOURCE=dev-breeze
     depends_on:
       - broker

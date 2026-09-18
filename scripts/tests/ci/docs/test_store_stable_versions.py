@@ -155,6 +155,13 @@ class TestGetPackageVersion:
 
         assert get_package_version("apache-airflow-ctl", tmp_path) == "0.1.3"
 
+    def test_apache_airflow_mypy(self, tmp_path):
+        init_file = tmp_path / "dev" / "mypy" / "src" / "airflow_mypy" / "__init__.py"
+        init_file.parent.mkdir(parents=True)
+        init_file.write_text('__version__ = "0.2.0"\n')
+
+        assert get_package_version("apache-airflow-mypy", tmp_path) == "0.2.0"
+
     def test_task_sdk(self, tmp_path):
         init_file = tmp_path / "task-sdk" / "src" / "airflow" / "sdk" / "__init__.py"
         init_file.parent.mkdir(parents=True)
@@ -212,6 +219,9 @@ class TestMain:
         ctl_init = airflow_root / "airflow-ctl" / "src" / "airflowctl" / "__init__.py"
         ctl_init.parent.mkdir(parents=True)
         ctl_init.write_text('__version__ = "0.1.3"\n')
+        mypy_init = airflow_root / "dev" / "mypy" / "src" / "airflow_mypy" / "__init__.py"
+        mypy_init.parent.mkdir(parents=True)
+        mypy_init.write_text('__version__ = "0.2.0"\n')
         return airflow_root
 
     def _create_docs_build_dir(self, tmp_path, packages):
@@ -225,7 +235,9 @@ class TestMain:
 
     def test_creates_stable_txt(self, tmp_path, monkeypatch):
         airflow_root = self._create_fake_airflow_root(tmp_path)
-        docs_dir = self._create_docs_build_dir(tmp_path, ["apache-airflow", "apache-airflow-ctl"])
+        docs_dir = self._create_docs_build_dir(
+            tmp_path, ["apache-airflow", "apache-airflow-ctl", "apache-airflow-mypy"]
+        )
 
         monkeypatch.setenv("DOCS_BUILD_DIR", str(docs_dir))
         monkeypatch.setenv("AIRFLOW_ROOT", str(airflow_root))
@@ -235,6 +247,7 @@ class TestMain:
         assert result == 0
         assert (docs_dir / "apache-airflow" / "stable.txt").read_text() == "3.2.0\n"
         assert (docs_dir / "apache-airflow-ctl" / "stable.txt").read_text() == "0.1.3\n"
+        assert (docs_dir / "apache-airflow-mypy" / "stable.txt").read_text() == "0.2.0\n"
 
     def test_creates_versioned_directory(self, tmp_path, monkeypatch):
         airflow_root = self._create_fake_airflow_root(tmp_path)

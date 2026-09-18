@@ -1,0 +1,42 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Docker Compose override for ts_sdk E2E test mode.
+#
+# The stock worker image ships no Node.js runtime, so node-provider copies the
+# node binary from the same image conftest builds the bundle with into a
+# shared volume. The bundle is bind-mounted where NodeCoordinator scans, and
+# the worker consumes the "typescript" queue where @task.stub tasks are routed.
+---
+services:
+  node-provider:
+    image: ${NODE_IMAGE:-node:22-slim}
+    command: ["cp", "/usr/local/bin/node", "/opt/nodejs/node"]
+    volumes:
+      - nodejs-bin:/opt/nodejs
+
+  airflow-worker:
+    volumes:
+      - ./ts-bundles:/opt/airflow/ts-bundles:ro
+      - nodejs-bin:/opt/nodejs:ro
+    command: celery worker -q typescript,default
+    depends_on:
+      node-provider:
+        condition: service_completed_successfully
+
+volumes:
+  nodejs-bin:

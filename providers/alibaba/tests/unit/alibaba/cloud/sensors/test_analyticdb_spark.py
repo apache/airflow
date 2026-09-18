@@ -20,7 +20,7 @@ from __future__ import annotations
 from unittest import mock
 
 from airflow.providers.alibaba.cloud.sensors.analyticdb_spark import AnalyticDBSparkSensor
-from airflow.utils import timezone
+from airflow.providers.common.compat.sdk import timezone
 
 ADB_SPARK_SENSOR_STRING = "airflow.providers.alibaba.cloud.sensors.analyticdb_spark.{}"
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)

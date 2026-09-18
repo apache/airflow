@@ -405,12 +405,6 @@ class DatabricksCopyIntoOperator(BaseOperator):
     ) -> None:
         """Create a new ``DatabricksCopyIntoOperator``."""
         super().__init__(**kwargs)
-        if files is not None and pattern is not None:
-            raise AirflowException("Only one of 'pattern' or 'files' should be specified")
-        if table_name == "":
-            raise AirflowException("table_name shouldn't be empty")
-        if file_location == "":
-            raise AirflowException("file_location shouldn't be empty")
         if file_format not in COPY_INTO_APPROVED_FORMATS:
             raise AirflowException(f"file_format '{file_format}' isn't supported")
         self.files = files
@@ -540,6 +534,13 @@ FILEFORMAT = {self._file_format}
         return build_query_tags(context, self.query_tags, self.include_airflow_query_tags)
 
     def execute(self, context: Context) -> Any:
+        # files/table_name/file_location are template fields; validate after rendering.
+        if self.files is not None and self._pattern is not None:
+            raise AirflowException("Only one of 'pattern' or 'files' should be specified")
+        if self.table_name == "":
+            raise AirflowException("table_name shouldn't be empty")
+        if self.file_location == "":
+            raise AirflowException("file_location shouldn't be empty")
         self._sql = self._create_sql_query()
         self.log.info("Executing: %s", self._sql)
         hook = self._get_hook()

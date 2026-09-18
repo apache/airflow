@@ -16,15 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, Separator } from "@chakra-ui/react";
+import { Box } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 
 import { useConfigServiceGetConfig } from "openapi/queries";
 import type { ConfigOption } from "openapi/requests/types.gen";
+
 import { DataTable } from "src/components/DataTable";
 import { ErrorAlert } from "src/components/ErrorAlert";
+
 import { useDocumentTitle } from "src/utils";
 
 type ConfigColums = {
@@ -67,14 +69,14 @@ export const Configs = () => {
     ) ?? [];
 
   return (
-    <>
-      <Heading mb={4}>{translate("config.title")}</Heading>
-      <Separator />
-      {error === null ? (
-        <DataTable columns={columns} data={render} modelName="common:admin.Config" />
-      ) : (
-        <ErrorAlert error={error} />
-      )}
-    </>
+    <Box px={2}>
+      <DataTable
+        columns={columns}
+        data={render}
+        errorMessage={<ErrorAlert error={error} />}
+        modelName="admin:config.config"
+        total={render.length}
+      />
+    </Box>
   );
 };

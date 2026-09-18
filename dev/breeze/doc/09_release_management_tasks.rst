@@ -1080,6 +1080,27 @@ These are all available flags of ``workflow-run publish-docs`` command:
   :width: 100%
   :alt: Breeze workflow-run publish-docs
 
+Resolving the constraints for a release
+"""""""""""""""""""""""""""""""""""""""
+
+To trigger the GitHub Actions workflow that resolves, publishes and tags the constraints belonging to a
+release, you can use the ``breeze workflow-run release-constraints`` command. The release commands trigger
+it themselves, so this is for redoing a candidate's constraints or producing them for a release cut before
+the workflow existed.
+
+The stage is derived from ``--version`` alone, so it cannot be set inconsistently with it. A candidate
+(``3.1.3rc1``) resolves allowing pre-releases for ``apache-airflow-providers-*`` — the providers of the wave
+being voted on are on PyPI only as ``rcN`` versions — and lands on a branch of its own, leaving the shared
+``constraints-X-Y`` branch where it was. A final (``3.1.3``) resolves without them and commits onto
+``constraints-X-Y``, which is what makes the released constraints the baseline everything downstream reads.
+
+These are all available flags of ``workflow-run release-constraints`` command:
+
+.. image:: ./images/output_workflow-run_release-constraints.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_workflow-run_release-constraints.svg
+  :width: 100%
+  :alt: Breeze workflow-run release-constraints
+
 Publishing the schema files to S3
 """""""""""""""""""""""""""""""""
 

@@ -26,6 +26,18 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
 
 
+_METASTORE_PARTITION_SQL = """
+SELECT 'X'
+FROM PARTITIONS A0
+LEFT OUTER JOIN TBLS B0 ON A0.TBL_ID = B0.TBL_ID
+LEFT OUTER JOIN DBS C0 ON B0.DB_ID = C0.DB_ID
+WHERE
+    B0.TBL_NAME = %(table)s AND
+    C0.NAME = %(schema)s AND
+    A0.PART_NAME = %(partition_name)s;
+"""
+
+
 class MetastorePartitionSensor(SqlSensor):
     """
     An alternative to the HivePartitionSensor that talk directly to the MySQL db.
@@ -43,7 +55,7 @@ class MetastorePartitionSensor(SqlSensor):
     :param mysql_conn_id: a reference to the MySQL conn_id for the metastore
     """
 
-    template_fields: Sequence[str] = ("partition_name", "table", "schema")
+    template_fields: Sequence[str] = (*SqlSensor.template_fields, "partition_name", "table", "schema")
     ui_color = "#8da7be"
 
     def __init__(
@@ -58,28 +70,23 @@ class MetastorePartitionSensor(SqlSensor):
         self.partition_name = partition_name
         self.table = table
         self.schema = schema
-        self.first_poke = True
-        self.conn_id = mysql_conn_id
-        # TODO(aoen): We shouldn't be using SqlSensor here but MetastorePartitionSensor.
-        # The problem is the way apply_defaults works isn't compatible with inheritance.
-        # The inheritance model needs to be reworked in order to support overriding args/
-        # kwargs with arguments here, then 'conn_id' and 'sql' can be passed into the
-        # constructor below and apply_defaults will no longer throw an exception.
-        super().__init__(**kwargs)
+        _kwargs: dict[str, Any] = {"conn_id": mysql_conn_id, "sql": _METASTORE_PARTITION_SQL}
+        if kwargs:
+            _kwargs |= kwargs
+        super().__init__(**_kwargs)
 
     def poke(self, context: Context) -> Any:
-        if self.first_poke:
-            self.first_poke = False
-            if "." in self.table:
-                self.schema, self.table = self.table.split(".")
-            self.sql = f"""
-            SELECT 'X'
-            FROM PARTITIONS A0
-            LEFT OUTER JOIN TBLS B0 ON A0.TBL_ID = B0.TBL_ID
-            LEFT OUTER JOIN DBS C0 ON B0.DB_ID = C0.DB_ID
-            WHERE
-                B0.TBL_NAME = '{self.table}' AND
-                C0.NAME = '{self.schema}' AND
-                A0.PART_NAME = '{self.partition_name}';
-            """
+        if "." in self.table:
+            parts = self.table.split(".")
+            if len(parts) != 2:
+                raise ValueError(f"Expected 'schema.table' format, got: {self.table!r}")
+            schema, table = parts
+        else:
+            schema, table = self.schema, self.table
+
+        self.parameters = {
+            "table": table,
+            "schema": schema,
+            "partition_name": self.partition_name,
+        }
         return super().poke(context)

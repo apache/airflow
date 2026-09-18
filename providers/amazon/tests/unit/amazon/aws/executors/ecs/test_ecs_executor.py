@@ -52,10 +52,9 @@ from airflow.providers.amazon.aws.executors.ecs.utils import (
     parse_assign_public_ip,
 )
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
-from airflow.providers.common.compat.sdk import AirflowException, conf
+from airflow.providers.common.compat.sdk import AirflowException, conf, timezone
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.state import State, TaskInstanceState
-from airflow.utils.timezone import utcnow
 from airflow.version import version as airflow_version_str
 
 from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
@@ -882,7 +881,7 @@ class TestAwsEcsExecutor:
                 {"arn": ARN1, "reason": "Sample Failure", "detail": "UnitTest Failure - Please ignore"}
             ],
         }
-        mock_executor._calculate_next_attempt_time = MagicMock(return_value=utcnow())
+        mock_executor._calculate_next_attempt_time = MagicMock(return_value=timezone.utcnow())
         task_key = mock_airflow_key()
         mock_executor.execute_async(task_key, mock_cmd)
         for _ in range(2):
@@ -1312,6 +1311,8 @@ class TestAwsEcsExecutor:
             task.dag_version = mock.Mock(version_data=None)
             task.dag_run = mock.Mock()
             task.dag_run.bundle_version = "1.0.0"
+            # ExecuteTask.make() sources version_data from the run's pinned version.
+            task.dag_run.created_dag_version = mock.Mock(version_data=None)
             task.dag_run.context_carrier = {}
 
             # Mock command generation based on Airflow version

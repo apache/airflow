@@ -33,7 +33,8 @@ that prints the bundle's `airflow-metadata.yaml` spec as JSON, which
 ([`bundlev1server.Serve`](../bundle/bundlev1/bundlev1server/server.go))
 routes through a `decideMode` switch with three modes —
 `--airflow-metadata`, `--comm`/`--logs` (coordinator mode), and the
-default go-plugin path.
+default go-plugin path. The go-plugin path was retired in
+[ADR 0005](0005-retire-go-edge-worker.md).
 
 The container-format assumption running through this ADR — that the
 output is a ZIP archive — is superseded by

@@ -21,7 +21,7 @@ from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.arangodb.hooks.arangodb import ArangoDBHook
-from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
+from airflow.providers.common.compat.sdk import BaseOperator
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
@@ -112,7 +112,7 @@ class ArangoDBCollectionOperator(BaseOperator):
                 self.delete_collection,
             ]
         ):
-            raise AirflowException("At least one operation must be specified.")
+            raise ValueError("At least one operation must be specified.")
 
         if self.documents_to_insert:
             self.log.info(

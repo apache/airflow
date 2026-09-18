@@ -276,7 +276,7 @@ The reviewers might leave several types of responses:
   the comment, you can ask for clarifications. Generally assume good intention of the person who is reviewing
   your code and resolve conversations also having good intentions. Understand that it's not a person that
   is criticised or argued with, but rather the code and the approach. The important thing is to take care
-  about quality of the the code and the project and want to make sure that the code is good.
+  about quality of the code and the project and want to make sure that the code is good.
 
   It's ok to mark the conversation resolved by anyone who can do it - it could be the author, who thinks
   the arguments are changes implemented make the conversation resolved, or the maintainer/person who

@@ -36,6 +36,7 @@
 
     Connection types <connections/http>
     Operators <operators>
+    Deferrable HttpOperator <deferrable>
     Triggers <triggers>
 
 .. toctree::
@@ -78,7 +79,7 @@ apache-airflow-providers-http package
 `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
 
 
-Release: 6.0.4
+Release: 6.1.0
 
 Provider package
 ----------------
@@ -102,7 +103,7 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package                                 Version required
 ==========================================  ======================================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.12.0``
+``apache-airflow-providers-common-compat``  ``>=1.17.0``
 ``requests``                                ``>=2.32.0,<3``
 ``requests-toolbelt``                       ``>=1.0.0``
 ``aiohttp``                                 ``>=3.14.0``
@@ -117,5 +118,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-http 6.0.4 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_http-6.0.4.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_http-6.0.4.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_http-6.0.4.tar.gz.sha512>`__)
-* `The apache-airflow-providers-http 6.0.4 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_http-6.0.4-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_http-6.0.4-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_http-6.0.4-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-http 6.1.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_http-6.1.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_http-6.1.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_http-6.1.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-http 6.1.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_http-6.1.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_http-6.1.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_http-6.1.0-py3-none-any.whl.sha512>`__)

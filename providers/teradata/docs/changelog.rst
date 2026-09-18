@@ -25,6 +25,54 @@
 Changelog
 ---------
 
+3.6.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fail the Teradata compute cluster trigger on an unknown operation (#72696)``
+* ``Fix passphrase quoting in decrypt_remote_file_to_string for Windows (#69908)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+3.6.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix BteqOperator declaring template_fields as a bare string (#70862)``
+
+Misc
+~~~~
+
+* ``Fix Teradata transfer template field initialization (#70392)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.6.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Quote file paths in Teradata TPT shell commands and pass the openssl passphrase via stdin (#69380)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document each provider's optional extras in its docs index (#69478)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Refactor Teradata provider tests to remove legacy unittest imports (#68190)``
+
+
 3.6.0
 .....
 

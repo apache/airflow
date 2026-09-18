@@ -1,0 +1,1 @@
+Fix ``airflow config update --option`` and ``--ignore-option`` never matching any configuration option.

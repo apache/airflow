@@ -196,6 +196,7 @@ class GCSToBigQueryOperator(BaseOperator):
     template_fields: Sequence[str] = (
         "bucket",
         "source_objects",
+        "schema_fields",
         "schema_object",
         "schema_object_bucket",
         "destination_project_dataset_table",
@@ -203,6 +204,7 @@ class GCSToBigQueryOperator(BaseOperator):
         "src_fmt_configs",
         "extra_config",
     )
+    template_fields_renderers = {"schema_fields": "json"}
     template_ext: Sequence[str] = (".sql",)
     ui_color = "#f0eee4"
     operator_extra_links = (BigQueryTableLink(),)
@@ -259,8 +261,6 @@ class GCSToBigQueryOperator(BaseOperator):
         self.configuration: dict[str, Any] = {}
 
         # GCS config
-        if src_fmt_configs is None:
-            src_fmt_configs = {}
         if time_partitioning is None:
             time_partitioning = {}
         if range_partitioning is None:
@@ -270,9 +270,6 @@ class GCSToBigQueryOperator(BaseOperator):
         self.bucket = bucket
         self.source_objects = source_objects
         self.schema_object = schema_object
-
-        if schema_object_bucket is None:
-            schema_object_bucket = bucket
         self.schema_object_bucket = schema_object_bucket
 
         # BQ config
@@ -303,16 +300,6 @@ class GCSToBigQueryOperator(BaseOperator):
 
         self.schema_update_options = schema_update_options
         self.src_fmt_configs = src_fmt_configs
-        if src_fmt_configs:
-            warnings.warn(
-                "The 'src_fmt_configs' parameter is deprecated. Use 'extra_config' instead. "
-                "Note: 'extra_config' uses the fully-nested API structure, so format-specific "
-                "options must be nested under their parent key "
-                "(e.g., {'parquetOptions': {'enableListInference': True}} rather than "
-                "{'enableListInference': True}).",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
         self.extra_config = extra_config
         self.time_partitioning = time_partitioning
         self.range_partitioning = range_partitioning
@@ -357,7 +344,30 @@ class GCSToBigQueryOperator(BaseOperator):
         if job.error_result:
             raise AirflowException(f"BigQuery job {job.job_id} failed: {job.error_result}")
 
+    def _warn_on_deprecated_template_fields(self) -> None:
+        if self.src_fmt_configs:
+            warnings.warn(
+                "The 'src_fmt_configs' parameter is deprecated. Use 'extra_config' instead. "
+                "Note: 'extra_config' uses the fully-nested API structure, so format-specific "
+                "options must be nested under their parent key "
+                "(e.g., {'parquetOptions': {'enableListInference': True}} rather than "
+                "{'enableListInference': True}).",
+                AirflowProviderDeprecationWarning,
+                stacklevel=1,
+            )
+
     def execute(self, context: Context):
+        # Template fields render after __init__, so defaults that depend on a template field
+        # (schema_object_bucket falls back to bucket) and the src_fmt_configs deprecation check
+        # must run here, against the rendered values.
+        if self.src_fmt_configs is None:
+            self.src_fmt_configs = {}
+        if self.schema_object_bucket is None:
+            self.schema_object_bucket = self.bucket
+            # Not captured in the rendered-template view (it defaults after rendering), so log it.
+            self.log.info("schema_object_bucket not set, defaulting to bucket %s", self.bucket)
+        self._warn_on_deprecated_template_fields()
+
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             location=self.location,

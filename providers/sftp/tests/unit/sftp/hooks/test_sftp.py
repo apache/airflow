@@ -774,13 +774,13 @@ class MockAirflowConnectionWithPrivate:
                 {
                     "private_key": "~/keys/my_key",
                     "known_hosts": "unused",
-                    "passphrase": "mypassphrase"
+                    "private_key_passphrase": "mypassphrase"
                 }
                 """
         self.extra_dejson = {
             "private_key": "~/keys/my_key",
             "known_hosts": None,
-            "passphrase": "mypassphrase",
+            "private_key_passphrase": "mypassphrase",
         }
 
 
@@ -945,6 +945,7 @@ class TestSFTPHookAsync:
         hook = SFTPHookAsync()
         await hook._get_conn()
 
+        mock_import_private_key.assert_called_once_with("~/keys/my_key", "mypassphrase")
         expected_connection_details = {
             "host": "localhost",
             "port": 22,

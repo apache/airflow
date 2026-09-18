@@ -118,7 +118,7 @@ def login_callback(request: Request):
 
     if relay_state == "login-redirect":
         response = RedirectResponse(url=url, status_code=303)
-        secure = bool(conf.get("api", "ssl_cert", fallback=""))
+        secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
         # In Airflow 3.1.1 authentication changes, front-end no longer handle the token
         # See https://github.com/apache/airflow/pull/55506
         cookie_path = get_cookie_path()

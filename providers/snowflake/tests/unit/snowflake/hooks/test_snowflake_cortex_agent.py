@@ -125,6 +125,7 @@ class TestSnowflakeCortexAgentHook:
                         ],
                     }
                 ],
+                "stream": False,
             },
             timeout=REQUEST_TIMEOUT,
         )
@@ -175,6 +176,7 @@ class TestSnowflakeCortexAgentHook:
 
         assert payload["thread_id"] == 123
         assert payload["parent_message_id"] == 456
+        assert payload["stream"] is False
 
     @mock.patch(f"{MODULE_PATH}.requests.request")
     @mock.patch(f"{HOOK_PATH}._get_conn_params")
@@ -215,6 +217,7 @@ class TestSnowflakeCortexAgentHook:
         assert payload["orchestration"] == {"max_tokens": 1000}
         assert payload["tools"] == [{"name": "search_tool"}]
         assert payload["tool_resources"] == {"search_tool": {"config": "value"}}
+        assert payload["stream"] is False
 
     @mock.patch(f"{MODULE_PATH}.requests.request")
     @mock.patch(f"{HOOK_PATH}._get_conn_params")

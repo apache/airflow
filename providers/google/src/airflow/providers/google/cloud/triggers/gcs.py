@@ -25,9 +25,9 @@ from typing import Any
 
 from aiohttp import ClientSession
 
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.google.cloud.hooks.gcs import GCSAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from airflow.utils import timezone
 
 
 class GCSBlobTrigger(BaseTrigger):

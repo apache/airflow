@@ -293,7 +293,7 @@ Below is the sample output of the ``airflow info`` command:
     Config info
     executor             | LocalExecutor
     task_logging_handler | airflow.utils.log.file_task_handler.FileTaskHandler
-    sql_alchemy_conn     | postgresql+psycopg2://postgres:airflow@postgres/airflow
+    sql_alchemy_conn     | postgresql+psycopg://postgres:airflow@postgres/airflow
     dags_folder          | /files/dags
     plugins_folder       | /root/airflow/plugins
     base_log_folder      | /root/airflow/logs
@@ -379,7 +379,7 @@ The popular choices are setuptools, poetry, hatch, flit.
 
     mkdir airflow_operators
 
-3. Create the file ``__init__.py`` inside the package and add following code:
+3. Create a file called ``__init__.py`` inside the package and add the following code:
 
 .. code-block:: python
 

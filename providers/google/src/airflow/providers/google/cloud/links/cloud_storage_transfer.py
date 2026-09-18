@@ -21,12 +21,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.providers.google.cloud.links.base import BaseGoogleLink
+from airflow.providers.google.cloud.links.base import BASE_LINK, BaseGoogleLink
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
 
-CLOUD_STORAGE_TRANSFER_BASE_LINK = "https://console.cloud.google.com/transfer"
+CLOUD_STORAGE_TRANSFER_BASE_LINK = BASE_LINK + "/transfer"
 
 CLOUD_STORAGE_TRANSFER_LIST_LINK = CLOUD_STORAGE_TRANSFER_BASE_LINK + "/jobs?project={project_id}"
 

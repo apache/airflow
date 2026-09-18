@@ -1788,6 +1788,26 @@ class TestAsyncPodManager:
                 pod=pod, container_name=container_name, since_time=since_time
             )
 
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.to_thread", new_callable=mock.AsyncMock)
+    async def test_fetch_container_logs_offloads_parse_off_the_event_loop(self, mock_to_thread):
+        """The CPU-bound per-line parse/emit loop is offloaded to a worker thread, not run on the loop."""
+        now = pendulum.datetime(2024, 1, 1, 12, 0, 0)
+        pod = mock.MagicMock()
+        container_name = "base"
+        log_lines = [f"{now.subtract(seconds=2).to_iso8601_string()} hello"]
+        self.mock_async_hook.read_logs.return_value = log_lines
+
+        with mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.pendulum.now", return_value=now):
+            result = await self.async_pod_manager.fetch_container_logs_before_current_sec(
+                pod=pod, container_name=container_name, since_time=now.subtract(minutes=1)
+            )
+
+        assert result == now
+        mock_to_thread.assert_awaited_once_with(
+            self.async_pod_manager._emit_container_logs, log_lines, now, container_name
+        )
+
 
 class TestPodLogsConsumer:
     @pytest.mark.parametrize(

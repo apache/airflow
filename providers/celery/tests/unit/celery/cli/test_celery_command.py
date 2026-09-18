@@ -27,6 +27,7 @@ from io import StringIO
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
+import psutil
 import pytest
 
 from airflow.cli import cli_parser
@@ -38,6 +39,7 @@ from airflow.providers.common.compat.sdk import conf
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
     AIRFLOW_V_3_2_PLUS,
     AIRFLOW_V_3_3_PLUS,
 )
@@ -72,23 +74,38 @@ class TestCeleryStopCommand:
             importlib.reload(cli_parser)
             cls.parser = cli_parser.get_parser()
 
-    @mock.patch("airflow.providers.celery.cli.celery_command.setup_locations")
-    @mock.patch("airflow.providers.celery.cli.celery_command.psutil.Process")
-    def test_if_right_pid_is_read(self, mock_process, mock_setup_locations, tmp_path):
+    @pytest.mark.parametrize(
+        ("process_side_effect", "terminate_side_effect", "expected_terminate_calls"),
+        [
+            pytest.param(None, None, 1, id="worker-running"),
+            pytest.param(psutil.NoSuchProcess(123), None, 0, id="stale-pid-file"),
+            pytest.param(None, psutil.NoSuchProcess(123), 1, id="worker-exits-before-terminate"),
+        ],
+    )
+    @mock.patch("airflow.providers.celery.cli.celery_command.setup_locations", autospec=True)
+    @mock.patch("airflow.providers.celery.cli.celery_command.psutil.Process", autospec=True)
+    def test_stop_worker_handles_missing_process(
+        self,
+        mock_process,
+        mock_setup_locations,
+        process_side_effect,
+        terminate_side_effect,
+        expected_terminate_calls,
+        tmp_path,
+    ):
         args = self.parser.parse_args(["celery", "stop"])
-        pid = "123"
+        pid = 123
         path = tmp_path / "testfile"
-        # Create pid file
-        path.write_text(pid)
-        # Setup mock
+        path.write_text(str(pid))
         mock_setup_locations.return_value = (os.fspath(path), None, None, None)
+        mock_process.side_effect = process_side_effect
+        mock_process.return_value.terminate.side_effect = terminate_side_effect
 
-        # Calling stop_worker should delete the temporary pid file
         celery_command.stop_worker(args)
-        # Check if works as expected
+
         assert not path.exists()
-        mock_process.assert_called_once_with(int(pid))
-        mock_process.return_value.terminate.assert_called_once_with()
+        mock_process.assert_called_once_with(pid)
+        assert mock_process.return_value.terminate.call_args_list == [mock.call()] * expected_terminate_calls
 
     @mock.patch("airflow.providers.celery.cli.celery_command.read_pid_from_pidfile")
     @mock.patch("airflow.providers.celery.executors.celery_executor.app")
@@ -230,6 +247,39 @@ class TestWorkerStart:
         celery_command.worker(args)
 
         mock_set_mp.assert_called_once_with("celery")
+
+
+@pytest.mark.usefixtures("conf_stale_bundle_cleanup_disabled")
+class TestWorkerLogLevel:
+    @pytest.fixture(autouse=True)
+    def _disable_cli_action_logging(self):
+        with (
+            patch("airflow.utils.cli.cli_action_loggers.on_pre_execution"),
+            patch("airflow.utils.cli.cli_action_loggers.on_post_execution"),
+        ):
+            yield
+
+    @classmethod
+    def setup_class(cls):
+        with conf_vars({("core", "executor"): "CeleryExecutor"}):
+            importlib.reload(executor_loader)
+            importlib.reload(cli_parser)
+            cls.parser = cli_parser.get_parser()
+
+    @conf_vars({("logging", "celery_logging_level"): "INFO"})
+    @mock.patch("airflow.providers.celery.cli.celery_command.setup_locations")
+    @mock.patch("airflow.providers.celery.cli.celery_command.Process")
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app")
+    def test_worker_verbose_overrides_configured_celery_loglevel(
+        self, mock_celery_app, mock_popen, mock_locations
+    ):
+        mock_locations.return_value = ("pid_file", None, None, None)
+        args = self.parser.parse_args(["celery", "worker", "--verbose", "--skip-serve-logs"])
+
+        celery_command.worker(args)
+
+        worker_options = mock_celery_app.worker_main.call_args[0][0]
+        assert worker_options[worker_options.index("--loglevel") + 1] == "DEBUG"
 
 
 @pytest.mark.backend("mysql", "postgres")
@@ -433,6 +483,9 @@ class TestWorkerJsonLogs:
             importlib.reload(cli_parser)
             cls.parser = cli_parser.get_parser()
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_1_PLUS, reason="json_output only passed to configure_logging on Airflow 3.1+"
+    )
     @mock.patch("airflow.providers.celery.cli.celery_command.Process")
     @mock.patch("airflow.providers.celery.executors.celery_executor.app")
     @mock.patch("airflow.sdk.log.configure_logging")
@@ -445,6 +498,9 @@ class TestWorkerJsonLogs:
         _, kwargs = mock_configure_logging.call_args
         assert kwargs.get("json_output") is False
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_1_PLUS, reason="json_output only passed to configure_logging on Airflow 3.1+"
+    )
     @mock.patch("airflow.providers.celery.cli.celery_command.Process")
     @mock.patch("airflow.providers.celery.executors.celery_executor.app")
     @mock.patch("airflow.sdk.log.configure_logging")
@@ -458,6 +514,9 @@ class TestWorkerJsonLogs:
         _, kwargs = mock_configure_logging.call_args
         assert kwargs.get("json_output") is True
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_1_PLUS, reason="json_output only passed to configure_logging on Airflow 3.1+"
+    )
     @mock.patch("airflow.providers.celery.cli.celery_command.Process")
     @mock.patch("airflow.providers.celery.executors.celery_executor.app")
     @mock.patch("airflow.sdk.log.configure_logging")
@@ -470,6 +529,22 @@ class TestWorkerJsonLogs:
         mock_configure_logging.assert_called_once()
         _, kwargs = mock_configure_logging.call_args
         assert kwargs.get("json_output") is False
+
+    @mock.patch("airflow.providers.celery.cli.celery_command.AIRFLOW_V_3_1_PLUS", False)
+    @mock.patch("airflow.providers.celery.cli.celery_command.Process")
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app")
+    @mock.patch("airflow.sdk.log.configure_logging")
+    def test_json_output_not_passed_on_airflow_3_0(
+        self, mock_configure_logging, mock_celery_app, mock_popen, mock_pre_exec
+    ):
+        # Airflow 3.0.x's configure_logging has no json_output parameter; passing it
+        # crashes the worker with TypeError. Ensure we omit it below Airflow 3.1.
+        args = self.parser.parse_args(["celery", "worker"])
+        with conf_vars({("logging", "json_logs"): "True"}):
+            celery_command.worker(args)
+        mock_configure_logging.assert_called_once()
+        _, kwargs = mock_configure_logging.call_args
+        assert "json_output" not in kwargs
 
 
 @pytest.mark.backend("mysql", "postgres")
@@ -738,6 +813,15 @@ def test_stale_bundle_cleanup(mock_process):
     assert len(calls) == 1
     actual = [x.kwargs["target"] for x in calls]
     assert actual[0] is _bundle_cleanup_main
+
+
+@patch("airflow.providers.celery.cli.celery_command.Process")
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Doesn't apply to pre-3.0")
+@conf_vars({("dag_processor", "stale_bundle_cleanup_interval"): "not-an-int"})
+def test_stale_bundle_cleanup_skipped_on_non_integer_interval(mock_process):
+    with _run_stale_bundle_cleanup():
+        ...
+    mock_process.assert_not_called()
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Doesn't apply to pre-3.0")

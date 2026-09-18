@@ -52,6 +52,8 @@ There are several ways to connect to Databricks using Airflow.
    i.e. a caller-provided callable returns a short-lived OIDC JWT that is exchanged for a Databricks OAuth token. Unlike the Kubernetes method,
    the subject token is obtained in-process (never read from disk) and can come from any federation-trusted OIDC issuer, so it is not tied to
    Kubernetes and supports both account-wide and service-principal federation policies. Like the Kubernetes method, no long-lived secret is stored in the connection.
+8. Using AWS IAM `OIDC token federation <https://docs.databricks.com/aws/en/dev-tools/auth/provider-aws-iam>`__ (applicable when Airflow runs with AWS credentials)
+   i.e. mint an AWS-signed OIDC JWT via AWS STS ``GetWebIdentityToken`` and exchange it for a Databricks OAuth token. Stores no secrets; requires the provider's ``amazon`` extra.
 
 Default Connection IDs
 ----------------------
@@ -171,6 +173,17 @@ Extra (optional)
               resp = requests.get("https://id.example.com/oidc/token", timeout=10)
               resp.raise_for_status()
               return resp.json()["token"]
+
+    The following parameters enable *AWS IAM OIDC token federation* — mint an AWS-signed OIDC JWT via AWS STS
+    ``GetWebIdentityToken`` and exchange it for a Databricks token. Requires the ``amazon`` extra
+    (``pip install apache-airflow-providers-databricks[amazon]``). See the Databricks `AWS IAM workload identity
+    federation guide <https://docs.databricks.com/aws/en/dev-tools/auth/provider-aws-iam>`_.
+
+    * ``federated_aws``: set ``login`` to ``"federated_aws"`` or add it as a boolean flag (``{"federated_aws": true}``).
+    * ``aws_conn_id``: (optional) AWS connection used for the STS call (default: ``aws_default``).
+    * ``aws_jwt_audience``: (optional) audience of the minted JWT; must match the federation policy (default: ``databricks``).
+    * ``aws_web_identity_token_duration``: (optional) requested JWT lifetime in seconds (default: ``300``, AWS max ``3600``).
+    * ``client_id``: (optional) service principal client UUID for a service principal policy; omit for an account-wide policy.
 
     The following parameters are necessary if using authentication with Kubernetes OIDC token federation:
 

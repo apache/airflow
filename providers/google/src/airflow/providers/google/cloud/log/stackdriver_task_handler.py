@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import contextlib
 import copy
+import inspect
 import logging
 import os
 import shutil
@@ -31,7 +32,7 @@ from functools import cached_property
 from logging import getLogRecordFactory
 from pathlib import Path
 from typing import TYPE_CHECKING
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 import attrs
 from google.cloud import logging as gcp_logging
@@ -41,9 +42,12 @@ from google.cloud.logging_v2.services.logging_service_v2 import LoggingServiceV2
 from google.cloud.logging_v2.types import ListLogEntriesRequest, ListLogEntriesResponse
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
 from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 try:
@@ -93,6 +97,39 @@ class StackdriverRemoteLogIO(LoggingMixin):
     transport_type: type[Transport] = BackgroundThreadTransport
     resource: Resource = _GLOBAL_RESOURCE
     labels: dict[str, str] | None = None
+
+    @classmethod
+    def from_config(cls) -> StackdriverRemoteLogIO:
+        """Build the remote log IO from Airflow logging configuration."""
+        remote_task_handler_kwargs = conf.getjson("logging", "remote_task_handler_kwargs", fallback={})
+        if not isinstance(remote_task_handler_kwargs, dict):
+            raise ValueError(
+                "logging/remote_task_handler_kwargs must be a JSON object (a python dict), we got "
+                f"{type(remote_task_handler_kwargs)}"
+            )
+        # remote_task_handler_kwargs mixes FileTaskHandler kwargs with IO kwargs; only the
+        # latter belong to this class (same split as airflow_local_settings.py).
+        fth_params = frozenset(inspect.signature(FileTaskHandler.__init__).parameters) - {
+            "self",
+            "base_log_folder",
+        }
+        io_kwargs = {k: v for k, v in remote_task_handler_kwargs.items() if k not in fth_params}
+        remote_base_log_folder = conf.get_mandatory_value("logging", "remote_base_log_folder")
+        log_name = urlsplit(remote_base_log_folder).path[1:]
+        if not log_name:
+            raise ValueError(
+                "Cannot derive a Stackdriver log name from "
+                f"logging/remote_base_log_folder: {remote_base_log_folder!r}"
+            )
+        return cls(
+            **{
+                "base_log_folder": os.path.expanduser(conf.get_mandatory_value("logging", "base_log_folder")),
+                "gcp_log_name": log_name,
+                "gcp_key_path": conf.get_mandatory_value("logging", "GOOGLE_KEY_PATH", fallback=None),
+                "delete_local_copy": conf.getboolean("logging", "delete_local_logs"),
+            }
+            | io_kwargs,
+        )
 
     @cached_property
     def credentials_and_project(self) -> tuple[Credentials, str]:
@@ -326,7 +363,7 @@ class StackdriverTaskHandler(logging.Handler):
     LABEL_DAG_ID = LABEL_DAG_ID
     LABEL_LOGICAL_DATE = LABEL_LOGICAL_DATE
     LABEL_TRY_NUMBER = LABEL_TRY_NUMBER
-    LOG_VIEWER_BASE_URL = "https://console.cloud.google.com/logs/viewer"
+    LOG_VIEWER_BASE_URL = "https://console.cloud.{domain}/logs/viewer"
     LOG_NAME = "Google Stackdriver"
 
     trigger_supported = True
@@ -509,7 +546,8 @@ class StackdriverTaskHandler(logging.Handler):
             "advancedFilter": log_filter,
         }
 
-        url = f"{self.LOG_VIEWER_BASE_URL}?{urlencode(url_query_string)}"
+        log_viewer_url = self.LOG_VIEWER_BASE_URL.format(domain=GoogleBaseHook.get_high_value_cookie_domain())
+        url = f"{log_viewer_url}?{urlencode(url_query_string)}"
         return url
 
     def close(self) -> None:

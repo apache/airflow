@@ -78,6 +78,73 @@ class TestConnections:
         with pytest.raises(AirflowException, match='Unknown hook type "unknown_type"'):
             conn.get_hook()
 
+    @pytest.mark.parametrize(
+        ("conn_type", "registered", "expected_remedy"),
+        [
+            pytest.param(
+                "google-cloud-platform",
+                "google_cloud_platform",
+                "Spell this connection's type with '_' to reach it.",
+                id="hyphenated-conn-type",
+            ),
+            pytest.param(
+                "pydanticai_vertex",
+                "pydanticai-vertex",
+                "so this connection cannot reach that hook",
+                id="hyphenated-registration",
+            ),
+        ],
+    )
+    def test_get_hook_names_the_other_spelling_when_it_is_the_registered_one(
+        self, mock_providers_manager, conn_type, registered, expected_remedy
+    ):
+        """Worker-side copy: this is the path a task actually raises from."""
+        mock_providers_manager.return_value.hooks = {registered: mock.MagicMock()}
+        conn = Connection(conn_id="test_conn", conn_type=conn_type)
+
+        with pytest.raises(AirflowException, match="Unknown hook type") as exc_info:
+            conn.get_hook()
+
+        message = str(exc_info.value)
+        assert conn_type in message
+        assert registered in message
+        assert expected_remedy in message
+
+    def test_get_hook_does_not_guess_an_unregistered_spelling(self, mock_providers_manager):
+        """With neither spelling registered, say only what is known."""
+        mock_providers_manager.return_value.hooks = {}
+        conn = Connection(conn_id="test_conn", conn_type="google-cloud-platform")
+
+        with pytest.raises(AirflowException) as exc_info:
+            conn.get_hook()
+
+        assert str(exc_info.value) == 'Unknown hook type "google-cloud-platform"'
+
+    def test_get_hook_does_not_advise_a_spelling_whose_hook_cannot_be_imported(self, mock_providers_manager):
+        """A registered connection type maps to None when its hook cannot be imported."""
+        mock_providers_manager.return_value.hooks = {"google_cloud_platform": None}
+        conn = Connection(conn_id="test_conn", conn_type="google-cloud-platform")
+
+        with pytest.raises(AirflowException) as exc_info:
+            conn.get_hook()
+
+        assert str(exc_info.value) == 'Unknown hook type "google-cloud-platform"'
+
+    def test_get_hook_explains_a_uri_whose_scheme_was_dropped(self, mock_providers_manager):
+        """
+        A URI scheme cannot contain '_' (RFC 3986), so ``foo_bar://h`` parses with no scheme at
+        all and leaves conn_type empty. This is the worker-side copy of that failure, which
+        used to read ``Unknown hook type ""`` and named neither the cause nor the fix.
+        """
+        mock_providers_manager.return_value.hooks = {}
+        conn = Connection(conn_id="test_conn", uri="pydanticai_azure://h")
+        assert conn.conn_type == ""
+
+        with pytest.raises(AirflowException, match="has no connection type") as exc_info:
+            conn.get_hook()
+
+        assert "RFC 3986" in str(exc_info.value)
+
     def test_get_uri(self):
         """Test that get_uri generates the correct URI based on connection attributes."""
 
@@ -104,7 +171,16 @@ class TestConnections:
         assert parsed_uri.path.lstrip("/") == "test_schema"
 
     def test_conn_get(self, mock_supervisor_comms):
-        conn_result = ConnectionResult(conn_id="mysql_conn", conn_type="mysql", host="mysql", port=3306)
+        conn_result = ConnectionResult(
+            conn_id="mysql_conn",
+            conn_type="mysql",
+            host="mysql",
+            port=3306,
+            schema=None,
+            login=None,
+            password=None,
+            extra=None,
+        )
         mock_supervisor_comms.send.return_value = conn_result
 
         conn = Connection.get(conn_id="mysql_conn")
@@ -224,6 +300,58 @@ class TestConnections:
 
         connection.extra = '{"auth": {"type": "oauth"}, "headers": {"User-Agent": "Airflow"}}'
         assert connection.extra_dejson == {"auth": {"type": "oauth"}, "headers": {"User-Agent": "Airflow"}}
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.sdk.definitions.connection.Connection.aextra_dejson")
+    async def test_aget_uri(self, mock_aextra_dejson):
+        """aget_uri must produce the same URI as get_uri and use aextra_dejson."""
+        extra = {"charset": "utf8", "timeout": "30"}
+        mock_aextra_dejson.return_value = extra
+
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="mysql",
+            host="localhost",
+            login="user",
+            password="password",
+            schema="test_schema",
+            port=3306,
+            extra='{"charset": "utf8", "timeout": "30"}',
+        )
+
+        uri = await conn.aget_uri()
+        assert uri == conn.get_uri()
+        mock_aextra_dejson.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_aextra_dejson_calls_amask_secret(self):
+        """aextra_dejson must use amask_secret (async), never the sync mask_secret."""
+        connection = Connection(
+            conn_id="test_conn",
+            conn_type="http",
+            extra='{"api_key": "secret"}',
+        )
+
+        with (
+            mock.patch("airflow.sdk.log.amask_secret") as mock_amask,
+            mock.patch("airflow.sdk.log.mask_secret") as mock_mask,
+        ):
+            result = await connection.aextra_dejson()
+
+        assert result == {"api_key": "secret"}
+        mock_amask.assert_awaited_once_with({"api_key": "secret"})
+        mock_mask.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_aextra_dejson_no_extra(self):
+        """aextra_dejson must return an empty dict without calling amask_secret when extra is None."""
+        connection = Connection(conn_id="test_conn", conn_type="http")
+
+        with mock.patch("airflow.sdk.log.amask_secret") as mock_amask:
+            result = await connection.aextra_dejson()
+
+        assert result == {}
+        mock_amask.assert_not_called()
 
 
 class TestConnectionsFromSecrets:

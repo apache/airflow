@@ -17,11 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
 import os
 import shutil
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING
+from urllib.parse import urlsplit, urlunsplit
 
 import attrs
 from azure.core.exceptions import HttpResponseError
@@ -49,6 +51,34 @@ class WasbRemoteLogIO(LoggingMixin):  # noqa: D101
 
     processors = ()
 
+    @classmethod
+    def from_config(cls) -> WasbRemoteLogIO:
+        """Build the remote log IO from Airflow logging configuration."""
+        remote_task_handler_kwargs = conf.getjson("logging", "remote_task_handler_kwargs", fallback={})
+        if not isinstance(remote_task_handler_kwargs, dict):
+            raise ValueError(
+                "logging/remote_task_handler_kwargs must be a JSON object (a python dict), we got "
+                f"{type(remote_task_handler_kwargs)}"
+            )
+        fth_params = frozenset(inspect.signature(FileTaskHandler.__init__).parameters) - {
+            "self",
+            "base_log_folder",
+        }
+        io_kwargs = {k: v for k, v in remote_task_handler_kwargs.items() if k not in fth_params}
+        return cls(
+            **{
+                "base_log_folder": os.path.expanduser(conf.get_mandatory_value("logging", "base_log_folder")),
+                "remote_base": conf.get_mandatory_value("logging", "remote_base_log_folder").removeprefix(
+                    "wasb://"
+                ),
+                "delete_local_copy": conf.getboolean("logging", "delete_local_logs"),
+                "wasb_container": conf.get_mandatory_value(
+                    "azure_remote_logging", "remote_wasb_log_container", fallback="airflow-logs"
+                ),
+            }
+            | io_kwargs,
+        )
+
     def upload(self, path: str | os.PathLike, ti: RuntimeTI | None = None) -> None:
         """Upload the given log path to the remote storage."""
         path = Path(path)
@@ -65,6 +95,8 @@ class WasbRemoteLogIO(LoggingMixin):  # noqa: D101
             has_uploaded = self.write(log, remote_loc)
             if has_uploaded and self.delete_local_copy:
                 shutil.rmtree(os.path.dirname(local_loc))
+            elif has_uploaded:
+                local_loc.write_text("")
 
     @cached_property
     def hook(self):
@@ -84,6 +116,34 @@ class WasbRemoteLogIO(LoggingMixin):  # noqa: D101
             )
             return None
 
+    def _build_legacy_url(self, blob_name: str) -> str:
+        return f"https://{self.wasb_container}.blob.core.windows.net/{blob_name}"
+
+    def _build_log_source_url(self, blob_name: str) -> str:
+        if not self.hook:
+            return self._build_legacy_url(blob_name)
+
+        blob_service_client = self.hook.blob_service_client
+        account_name = getattr(blob_service_client, "account_name", None)
+        endpoint = getattr(blob_service_client, "primary_endpoint", None)
+        if isinstance(endpoint, str) and endpoint:
+            parsed = urlsplit(endpoint)
+            if parsed.scheme and parsed.netloc:
+                endpoint_path = parsed.path.rstrip("/")
+                # Azurite keeps the account name in the path; WASB SAS-token auth can put a token there.
+                if endpoint_path:
+                    first_path_segment = endpoint_path.strip("/").split("/", maxsplit=1)[0]
+                    if not (isinstance(account_name, str) and first_path_segment == account_name):
+                        endpoint_path = ""
+                account_url = urlunsplit((parsed.scheme, parsed.netloc, endpoint_path, "", ""))
+                return f"{account_url}/{self.wasb_container}/{blob_name}"
+
+        # Best-effort fallback for clients without primary_endpoint; custom endpoints use the branch above.
+        if isinstance(account_name, str) and account_name:
+            return f"https://{account_name}.blob.core.windows.net/{self.wasb_container}/{blob_name}"
+
+        return self._build_legacy_url(blob_name)
+
     def read(self, relative_path, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages | None]:
         messages = []
         logs = []
@@ -100,9 +160,9 @@ class WasbRemoteLogIO(LoggingMixin):  # noqa: D101
             self.log.exception("can't list blobs")
 
         if blob_names:
-            uris = [f"https://{self.wasb_container}.blob.core.windows.net/{b}" for b in blob_names]
+            uris = (self._build_log_source_url(b) for b in blob_names)
             if AIRFLOW_V_3_0_PLUS:
-                messages = uris
+                messages = list(uris)
             else:
                 messages.extend(["Found remote logs:", *[f"  * {x}" for x in sorted(uris)]])
         else:
@@ -164,7 +224,9 @@ class WasbRemoteLogIO(LoggingMixin):  # noqa: D101
         """
         if append and self.wasb_log_exists(remote_log_location):
             old_log = self.wasb_read(remote_log_location)
-            log = f"{old_log}\n{log}" if old_log else log
+            if old_log:
+                sep = "" if old_log.endswith("\n") else "\n"
+                log = f"{old_log}{sep}{log}"
 
         try:
             self.hook.load_string(log, self.wasb_container, remote_log_location, overwrite=True)

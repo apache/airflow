@@ -126,34 +126,6 @@ def generate_mprocs_config() -> str:
             "scrollback": 100000,
         }
 
-    if get_env("GO_WORKER") != "":
-        env = {}
-        env["AIRFLOW__EDGE__API_URL"] = "http://localhost:8080"
-        env["AIRFLOW__BUNDLES__FOLDER"] = "./bin"
-        env["AIRFLOW__LOGGING__BASE_LOG_FOLDER"] = "./logs"
-        env["AIRFLOW__EXECUTION__API_URL"] = "http://localhost:8080/execution/"
-
-        # Build command with environment cleanup
-        go_worker_cmd_parts = [
-            "export AIRFLOW__API_AUTH__SECRET_KEY=${AIRFLOW__API_AUTH__JWT_SECRET}",
-            "export AIRFLOW__LOGGING__SECRET_KEY=${AIRFLOW__API_AUTH__JWT_SECRET}",
-            "unset AIRFLOW__API_AUTH__JWT_SECRET || true",
-            "unset AIRFLOW__DATABASE__SQL_ALCHEMY_CONN || true",
-            "unset AIRFLOW__CELERY__RESULT_BACKEND || true",
-            "unset POSTGRES_HOST_PORT || true",
-            "unset BACKEND || true",
-            "unset POSTGRES_VERSION || true",
-            "export AIRFLOW__LOGGING__BASE_LOG_FOLDER=edge_logs",
-            "go run ./cmd/airflow-go-edge-worker/main.go run",
-        ]
-        go_worker_cmd = " && ".join(go_worker_cmd_parts)
-
-        procs["go_worker"] = {
-            "shell": go_worker_cmd,
-            "cwd": "go-sdk",
-            "env": env,
-        }
-
     # Flower (conditional)
     if get_env_bool("INTEGRATION_CELERY") and get_env_bool("CELERY_FLOWER"):
         if get_env_bool("BREEZE_DEBUG_FLOWER"):

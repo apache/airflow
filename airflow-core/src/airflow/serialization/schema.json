@@ -142,6 +142,19 @@
       "description": "A python dictionary containing values of any type",
       "type": "object"
     },
+    "arg_binding": {
+      "$comment": "One captured TaskFlow call argument of a @task.stub task. Materialized directly by _serialize_node, so it stays plain JSON with no {__type, __var} encoding. The object stays open so future binding fields keep validating on older cores",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "kind": { "type": "string", "enum": [ "xcom", "literal" ] },
+        "value_schema": { "type": "object" },
+        "task_id": { "type": "string" },
+        "value": {},
+        "from_default": { "type": "boolean" }
+      },
+      "required": [ "name", "kind" ]
+    },
     "color": {
       "type": "string",
       "pattern": "^#[a-fA-F0-9]{3,6}$"
@@ -200,6 +213,13 @@
                 {
                     "type": "array",
                     "items": { "$ref": "#/definitions/dict" }
+                },
+                {
+                    "$comment": "Once persisted, a Dag's deadline alerts live as rows in the deadline_alert table and the serialized Dag keeps only a list of UUID strings referencing them (see SerializedDagModel._generate_deadline_uuids). This branch lets the stored form validate at any lifecycle stage, not only before the dict->UUID rewrite.",
+                    "type": "array",
+                    "items": { "type": "string",
+                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+                  }
                 },
                 { "type": "null" }
             ]
@@ -345,7 +365,12 @@
         "is_teardown": {"type": "boolean", "default": false},
         "on_failure_fail_dagrun": {"type": "boolean", "default": false},
         "max_active_tis_per_dag": {"type": "integer"},
-        "max_active_tis_per_dagrun": {"type": "integer"}
+        "max_active_tis_per_dagrun": {"type": "integer"},
+        "_arg_bindings": {
+          "$comment": "Only present on @task.stub tasks called with TaskFlow arguments",
+          "type": "array",
+          "items": { "$ref": "#/definitions/arg_binding" }
+        }
       },
       "dependencies": {
         "expand_input": ["partial_kwargs", "_is_mapped"],

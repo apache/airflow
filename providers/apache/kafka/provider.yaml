@@ -21,7 +21,7 @@ name: Apache Kafka
 
 state: ready
 lifecycle: production
-source-date-epoch: 1779137192
+source-date-epoch: 1788976455
 description: |
   `Apache Kafka  <https://kafka.apache.org/>`__
 # Note that those versions are maintained by release manager - do not update them manually
@@ -29,6 +29,10 @@ description: |
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 2.0.0
+  - 1.16.0
+  - 1.15.1
+  - 1.15.0
   - 1.14.0
   - 1.13.3
   - 1.13.2
@@ -129,3 +133,151 @@ connection-types:
 
 queues:
   - airflow.providers.apache.kafka.queues.kafka.KafkaMessageQueueProvider
+
+plugins:
+  - name: kafka_event_producer
+    plugin-class: airflow.providers.apache.kafka.plugins.event_producer.KafkaEventProducerPlugin
+
+config:
+  apache_kafka:
+    description: |
+      Common settings for the Apache Kafka Provider.
+    options:
+      callback_allowlist:
+        description: |
+          Comma-separated list of callbacks that may be resolved from a Kafka
+          connection extra into confluent-kafka callback options (``error_cb``,
+          ``throttle_cb``, ``stats_cb``, ``log_cb``, ``oauth_cb``, ``on_commit``).
+          Each entry is the full importable path of the callback itself — module
+          plus attribute, e.g. ``my_company.kafka.auth.oauth_cb`` — matched exactly
+          against the dotted-path string on the connection extra (a bare module such
+          as ``my_company.kafka.auth`` won't lead to authorization of the callables
+          inside it). This is enforced for security reasons, to prevent malicious
+          callbacks from being executed: only paths listed here are resolved, and any
+          other string-valued callback is refused. Empty (default) disables
+          string-valued callbacks entirely. Managed authentication (Amazon MSK IAM,
+          Google Managed Kafka) does not rely on this and is unaffected.
+        version_added: 2.0.0
+        type: string
+        example: "my_company.kafka.auth.oauth_cb"
+        default: ""
+  kafka_event_producer:
+    description: |
+      Settings for the Kafka event producer plugin that publishes Airflow
+      DagRun and TaskInstance state-change events to a Kafka topic.
+    options:
+      dag_run_events_enabled:
+        description: |
+          Publish DagRun state-change events (``dag_run.running``,
+          ``dag_run.success``, ``dag_run.failed``). When False the
+          DagRun listener is not registered.
+        version_added: 1.14.1
+        type: boolean
+        example: ~
+        default: "False"
+      task_instance_events_enabled:
+        description: |
+          Publish TaskInstance state-change events (``task_instance.running``,
+          ``task_instance.success``, ``task_instance.failed``,
+          ``task_instance.skipped``). When False the TaskInstance listener
+          is not registered.
+        version_added: 1.14.1
+        type: boolean
+        example: ~
+        default: "False"
+      kafka_config_id:
+        description: |
+          Airflow connection used to build the plugin's Kafka producer.
+          When unset, the producer hook falls back to its default
+          connection (``kafka_default``).
+        version_added: 1.14.1
+        type: string
+        example: "kafka_default"
+        default: ""
+      topic:
+        description: |
+          Topic the plugin publishes events to. The topic must already
+          exist on the broker; the plugin will not auto-create it.
+        version_added: 1.14.1
+        type: string
+        example: ~
+        default: "airflow.events"
+      source:
+        description: |
+          Identifier added to every emitted message under the ``source``
+          field so consumers can distinguish Airflow installations that
+          share the same topic. When unset, falls back to the hostname
+          of the Airflow component that emits the event (scheduler,
+          worker, etc.).
+        version_added: 1.14.1
+        type: string
+        example: "af-prod-eu"
+        default: ""
+      dag_run_dag_id_allowlist:
+        description: |
+          Comma-separated glob patterns. When set, DagRun events are only
+          emitted for dag_ids matching at least one pattern. Empty = all dags.
+        version_added: 1.14.1
+        type: string
+        example: "demo_*,test_dag1"
+        default: ""
+      dag_run_dag_id_denylist:
+        description: |
+          Comma-separated glob patterns. DagRun events for dag_ids matching
+          any pattern are skipped. Deny takes precedence over allow.
+        version_added: 1.14.1
+        type: string
+        example: "demo_*"
+        default: ""
+      task_instance_dag_id_allowlist:
+        description: |
+          Comma-separated glob patterns. When set, TaskInstance events are
+          only emitted for dag_ids matching at least one pattern.
+          Empty = all dags.
+        version_added: 1.14.1
+        type: string
+        example: "demo_*,test_dag1"
+        default: ""
+      task_instance_dag_id_denylist:
+        description: |
+          Comma-separated glob patterns. TaskInstance events for dag_ids
+          matching any pattern are skipped. Deny takes precedence over allow.
+        version_added: 1.14.1
+        type: string
+        example: "demo_*"
+        default: ""
+      task_instance_task_id_allowlist:
+        description: |
+          Comma-separated glob patterns. When set, TaskInstance events are
+          only emitted for task_ids matching at least one pattern. Applied
+          in addition to ``task_instance_dag_id_allowlist`` — both must pass.
+          Mapped task instances share the same task_id so a single pattern
+          covers all map indices.
+        version_added: 1.14.1
+        type: string
+        example: "load_*,extract_*"
+        default: ""
+      task_instance_task_id_denylist:
+        description: |
+          Comma-separated glob patterns. TaskInstance events for task_ids
+          matching any pattern are skipped. Deny takes precedence over allow.
+        version_added: 1.14.1
+        type: string
+        example: "*_cleanup"
+        default: ""
+      topic_check_timeout:
+        description: |
+          How long (in seconds) each topic existence check is allowed
+          to block waiting for a response from the broker.
+        version_added: 1.14.1
+        type: integer
+        example: ~
+        default: "10"
+      topic_check_retry_interval:
+        description: |
+          How long (in seconds) to wait before retrying a topic check,
+          in case it failed.
+        version_added: 1.14.1
+        type: integer
+        example: ~
+        default: "60"

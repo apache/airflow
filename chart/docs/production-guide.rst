@@ -88,6 +88,21 @@ After secret creation, configure the chart to use the secret:
    data:
      metadataSecretName: mydatabase
 
+If your secret stores the connection string under a key other than ``connection`` (for
+example, `CloudNativePG <https://cloudnative-pg.io/>`_ generates credential secrets with
+the connection URI under the ``uri`` key), set ``metadataSecretKey`` accordingly:
+
+.. code-block:: yaml
+   :caption: values.yaml
+
+   data:
+     metadataSecretName: mydatabase-app
+     metadataSecretKey: uri
+
+Similarly, ``resultBackendSecretKey`` and ``brokerUrlSecretKey`` configure the key names
+used with ``resultBackendSecretName`` and ``brokerUrlSecretName``. All of these default to
+``connection`` and only apply when the corresponding secret name is provided.
+
 .. _production-guide:pgbouncer:
 
 Metadata DB Cleanup
@@ -260,6 +275,77 @@ generated using the secret key has a short expiry time though. Make sure that ti
 that you run Airflow components on is synchronized (for example using ntpd). You might get
 "forbidden" errors when the logs are accessed otherwise.
 
+Fernet Key
+----------
+
+Airflow uses a Fernet key to encrypt sensitive data, such as connection passwords, stored in the metadata database.
+See :doc:`Fernet <apache-airflow:security/secrets/fernet>` for background on how this works. If you do not provide a
+key, the chart generates one and stores it in the ``<RELEASE_NAME>-fernet-key`` Kubernetes Secret the first time you
+run ``helm install``.
+
+.. warning::
+
+   The chart only creates that Secret on ``helm install`` -- it is not re-created or otherwise updated by
+   ``helm upgrade``. This applies both to the auto-generated key and to a key you pass through ``fernetKey`` in the values file. To rotate the Fernet key, you need to manage the Secret yourself, as described below.
+
+To provide your own key, either set ``fernetKey`` in the values file:
+
+.. code-block:: yaml
+   :caption: values.yaml
+
+   fernetKey: <fernet_key>
+
+.. warning::
+
+   Due to security concerns, it is advised to use a Kubernetes Secret instead of setting the Fernet key directly in
+   the values file. Never commit a ``values.yaml`` containing a plaintext Fernet key to version control.
+
+or create your own Kubernetes Secret containing a ``fernet-key`` key with a base64-encoded value, and point the chart at it with ``fernetKeySecretName``:
+
+.. code-block:: bash
+
+   kubectl create secret generic my-fernet-key --from-literal="fernet-key=<fernet_key>"
+
+.. code-block:: yaml
+   :caption: values.yaml
+
+   fernetKeySecretName: my-fernet-key
+
+.. note::
+
+   ``kubectl create secret`` only creates an object in the cluster -- it is not tracked anywhere else. Manage this
+   Secret through your Infrastructure-as-a-Code process (for example, a GitOps repository, a Sealed Secret, or
+   an External Secrets Operator resource) so it is not lost on a cluster migration or a full redeploy.
+
+Rotating the Fernet key
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Once connections, variables and triggers have been encrypted with a Fernet key, changing the key outright makes the
+existing encrypted values unreadable. To rotate the key without losing access to them, follow the same procedure as
+:doc:`Rotating encryption keys <apache-airflow:security/secrets/fernet>`, applied to the Kubernetes Secret that backs
+``AIRFLOW__CORE__FERNET_KEY``:
+
+#. Make sure you are using a self-managed Secret through ``fernetKeySecretName``
+#. Update the ``fernet-key`` value in that Secret to a comma-separated list ``new_fernet_key,old_fernet_key``, using
+   the same ``kubectl create secret`` command as above with ``--dry-run=client -o yaml`` piped into ``kubectl apply``
+   so it updates the existing Secret in place instead of failing because it already exists:
+
+   .. code-block:: bash
+
+      kubectl create secret generic my-fernet-key \
+        --from-literal="fernet-key=new_fernet_key,old_fernet_key" \
+        --dry-run=client -o yaml | kubectl apply -f -
+
+   Then restart the Airflow components (for example with ``kubectl rollout restart``) so they pick up the new value
+#. Run ``airflow rotate-fernet-key``, in one of the Airflow components pods, to re-encrypt existing connections, variables and triggers with the new key.
+#. Update the Secret, so it only contains ``new_fernet_key``, and restart the components once more:
+
+   .. code-block:: bash
+
+      kubectl create secret generic my-fernet-key \
+        --from-literal="fernet-key=new_fernet_key" \
+        --dry-run=client -o yaml | kubectl apply -f -
+
 JWT Secret
 ----------
 
@@ -393,13 +479,15 @@ For more information on ``Ingress``, see the
 Gateway API (HTTPRoute)
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-As an alternative to ``Ingress``, the chart can create a
-`Kubernetes Gateway API <https://gateway-api.sigs.k8s.io/>`_ ``HTTPRoute`` for the API server.
+As an alternative to ``Ingress``, the chart can create
+`Kubernetes Gateway API <https://gateway-api.sigs.k8s.io/>`_ ``HTTPRoute`` resources for the API server and Flower.
 This requires the Gateway API CRDs to be installed in the cluster and a ``Gateway`` to already exist —
-the chart only creates the ``HTTPRoute`` and attaches it to the Gateway via ``parentRefs``.
+the chart only creates the ``HTTPRoute`` resources and attaches them to the Gateway via ``parentRefs``.
 
 .. code-block:: yaml
    :caption: values.yaml
+
+   executor: CeleryExecutor
 
    apiServer:
      httpRoute:
@@ -411,16 +499,31 @@ the chart only creates the ``HTTPRoute`` and attaches it to the Gateway via ``pa
        hostnames:
          - airflow.example.com
 
-For fine-grained routing, supply ``apiServer.httpRoute.rules`` directly — the entry mirrors the
-upstream ``HTTPRouteRule`` schema and overrides the default rule generated from ``path`` + ``pathType``.
+   flower:
+     enabled: true
+     httpRoute:
+       enabled: true
+       parentRefs:
+         - name: main-gateway
+           namespace: gateway-system
+           sectionName: https
+       hostnames:
+         - flower.example.com
+
+Flower HTTPRoute resources are only created when Flower itself is created, so ``flower.enabled`` must be
+``true`` and the executor must include ``CeleryExecutor``.
+
+For fine-grained routing, supply ``apiServer.httpRoute.rules`` or ``flower.httpRoute.rules`` directly —
+the entry mirrors the upstream ``HTTPRouteRule`` schema and overrides the default rule generated from
+the corresponding ``apiServer.httpRoute.path`` and ``apiServer.httpRoute.pathType``, or
+``flower.httpRoute.path`` and ``flower.httpRoute.pathType`` values.
 
 .. note::
 
-   ``HTTPRoute`` is an alternative to the API server ``Ingress``, so enable only one of
-   ``ingress.apiServer`` or ``apiServer.httpRoute`` — enabling both at the same time fails template
-   rendering. When ``apiServer.httpRoute.enabled`` is ``true``, the chart also verifies (via Helm
-   ``Capabilities``) that the Gateway API CRDs are installed and fails with a clear message if they
-   are not.
+   ``HTTPRoute`` is an alternative to ``Ingress`` for the same component, so enable only one routing
+   mechanism for each component. Enabling both for the same component fails template rendering.
+   When an ``HTTPRoute`` is enabled, the chart also verifies (via Helm ``Capabilities``) that the Gateway
+   API CRDs are installed and fails with a clear message if they are not.
 
 LoadBalancer Service
 ^^^^^^^^^^^^^^^^^^^^
@@ -686,6 +789,28 @@ This will generate the following scheduler deployment:
          containers:
            - name: scheduler
          ...
+
+Omitting default ``securityContext`` values
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+On OpenShift, the ``restricted`` SCC assigns ``runAsUser`` and ``fsGroup`` automatically and rejects Pods
+that request specific values without the ``anyuid`` SCC in place. Since an empty ``securityContexts.pod``
+falls back to :ref:`uid <parameters:Airflow>` / :ref:`gid <parameters:Airflow>` (as shown above), leaving
+it empty is not enough to avoid hard-coded values. Set ``securityContexts.disableDefaults`` to stop the
+chart from filling in these defaults wherever ``securityContexts.pod`` / ``securityContexts.containers``
+(or the equivalent per-component overrides) are left empty:
+
+.. code-block:: yaml
+   :caption: values.yaml
+
+   securityContexts:
+     disableDefaults: true
+
+This omits ``runAsUser`` / ``fsGroup`` (pod) and ``runAsUser`` (container) from the rendered
+``securityContext`` entirely wherever they are not explicitly set, allowing the SCC to supply its own
+values. Explicit values set in ``securityContexts.pod`` / ``securityContexts.containers`` (or a
+component's local override, e.g. ``scheduler.securityContexts.pod``) still take priority over
+``disableDefaults``.
 
 Built-in secrets and environment variables
 ------------------------------------------

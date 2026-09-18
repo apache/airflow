@@ -1,4 +1,24 @@
 {
+  "alerts": {
+    "seeLessContext": "Εμφάνιση λιγότερων",
+    "seeMoreContext": "Εμφάνιση περισσότερων",
+    "showMoreAlerts_one": "+{{count}} ακόμη ειδοποίηση",
+    "showMoreAlerts_other": "+{{count}} ακόμη ειδοποιήσεις"
+  },
+  "deadlines": {
+    "pending": {
+      "empty": "Δεν υπάρχουν επερχόμενες προθεσμίες",
+      "title": "Επερχόμενες"
+    },
+    "recentlyMissed": {
+      "empty": "Δεν υπάρχουν χαμένες προθεσμίες",
+      "title": "Χαμένες Προθεσμίες"
+    },
+    "showMore": "Εμφάνιση περισσότερων",
+    "title": "Προθεσμίες"
+  },
+  "deferredSlotsNotCounted": "Αναβληθείσες που δεν μετρώνται στις θέσεις: {{count}}",
+  "deferredSlotsNotCountedTooltip": "Οι αναβληθείσες εργασίες που εμφανίζονται στη μπάρα προσμετρώνται στις θέσεις του pool. Οι αναβληθείσες εργασίες που εμφανίζονται κάτω από τη μπάρα προέρχονται από pools που δεν προσμετρούν τις αναβληθείσες εργασίες στις θέσεις.",
   "favorite": {
     "favoriteDags_one": "Πρώτο αγαπημένο Dag ({{count}})",
     "favoriteDags_other": "Πρώτα αγαπημένα Dag ({{count}})",
@@ -29,7 +49,8 @@
   "poolSlots": "Θέσεις Pool",
   "sortBy": {
     "newestFirst": "Νεότερα Πρώτα",
-    "oldestFirst": "Παλαιότερα Πρώτα"
+    "oldestFirst": "Παλαιότερα Πρώτα",
+    "placeholder": "Ταξινόμηση κατά"
   },
   "source": "Πηγή",
   "stats": {
