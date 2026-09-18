@@ -31,11 +31,12 @@ Proposed. Revised after the review on #72047.
 2. **A bundle has one registration verb and serves itself.** `bundle.register(...)` takes Dags and
    task handlers alike, in any mixture, and `await bundle.serve()` starts the runtime over them.
    `Bundle` replaces `DagRegistry`, and the free `serveDags(registry)` function goes with it.
-3. **task_id is optional but should probably be written out here.** Most of the time because of
-   naming convention difference between python and typescript, names won't match. Omitting it defaults
-   the id to the handler's function name — `new TaskHandler(transformStep)` binds the `"transformStep"` fn to the
-   "transformStep" task. On the other hand `new TaskHandler("transform_step", transformStep)` will bind to
-   "transform_step" task.
+3. **task_id is always written out**, because Python owns it. Renaming a TypeScript function must
+   not change which task body Airflow matches, so `new TaskHandler(dagId, taskId, handler)` names
+   the pair explicitly rather than inferring either id from the handler's function name — the same
+   choice the Go SDK's mixed-lang ADR states for the same reason
+   ([`go-sdk/adr/0007`](../../go-sdk/adr/0007-mixed-lang-task-handler-interface.md), decision 4).
+   Task-id defaulting is native-Dag-only ([ADR-0002](0002-native-dag-interface.md)).
 4. **A handler is a plain function of its own data**, destructured by name. `getContext()` and
    `getClient()` supply the rest, so nothing the SDK injects shares a namespace with an author's
    arguments.
