@@ -160,7 +160,7 @@ class DeadlineAlert:
             )
 
         # Serializing blocks subclasses for security reasons, so isinstance is too loose.
-        if type(callback) not in {AsyncCallback, SyncCallback}:
+        if type(callback) not in (AsyncCallback, SyncCallback):
             raise ValueError(
                 f"Callbacks must be `AsyncCallback` or `SyncCallback`, received {type(callback).__name__}."
             )
