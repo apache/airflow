@@ -27,8 +27,8 @@ Prerequisites:
     ``extra='{"model": "openai:gpt-4o-mini", "fallback_conn_ids": ["llm_fallback"]}'``
   - Connection ``llm_primary_down_no_chain``: same as ``llm_primary_down`` but with
     ``extra='{"model": "openai:gpt-4o-mini"}'`` (no ``fallback_conn_ids``) -- used by
-    the operator-argument Dag, so the chain visibly comes from the task instead of
-    the connection
+    the operator-argument and hook-argument Dags, so the chain visibly comes from the
+    task instead of the connection
   - Connection ``llm_fallback`` with ``conn_type='pydanticai'``,
     ``password=<API key>``, ``extra='{"model": "anthropic:claude-haiku-4-5-20251001"}'``
   - ``pip install apache-airflow-providers-common-ai[anthropic]``
@@ -88,7 +88,7 @@ def example_llm_fallback_explicit_chain():
         from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 
         hook = PydanticAIHook(
-            llm_conn_id="llm_primary_down",
+            llm_conn_id="llm_primary_down_no_chain",
             fallback_conn_ids=["llm_fallback"],
         )
         agent = hook.create_agent(instructions="Reply with a single word.")

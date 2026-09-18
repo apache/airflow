@@ -614,10 +614,12 @@ class PydanticAIHook(BaseHook):
         """
         Test connection by resolving the model.
 
-        Validates that the model string is valid and the provider class can be
-        instantiated with the supplied credentials.  Does NOT make an LLM API
-        call — that would be expensive and fail for reasons unrelated to
-        connectivity (quotas, billing, rate limits).
+        A success here can come from this connection's own credentials, or -- when a
+        provider class rejects them with a ``TypeError`` -- from a silent retry against
+        the standard environment variables, which ignores those credentials entirely.
+        See :doc:`/provider_fallback`'s *Verifying a chain* section for how to tell the
+        two apart. Does NOT make an LLM API call — that would be expensive and fail for
+        reasons unrelated to connectivity (quotas, billing, rate limits).
 
         Every connection in ``fallback_conn_ids`` is resolved too, so a
         misconfigured fallback is reported here rather than discovered during

@@ -158,19 +158,27 @@ own ``fallback_conn_ids``, resolution fails with an error rather than following 
 every provider directly on the primary; a flat chain is the one you can read off a single
 connection.
 
-**Non-transient errors still walk the whole chain.** Failover triggers on pydantic-ai's
+**A malformed prompt walks the whole chain.** Failover triggers on pydantic-ai's
 ``ModelAPIError`` family, which includes ``ModelHTTPError`` -- raised for any 4xx as well as
-5xx. A malformed prompt, an expired key, or a misspelled model name is therefore retried
-against every connection in the chain before the task sees the failure: N requests, N
-timeouts, and N billable calls for a request that was never going to succeed. Keep chains
-short, and put deterministic rules for those errors in :doc:`retry_policies`.
+5xx. A malformed prompt is the one error every connection in the chain shares: the same
+request body goes to each of them, so all reject it alike before the task finally sees the
+failure -- N requests, N timeouts, and N billable calls for a request that was never going to
+succeed. An expired key does not cost the same way -- it is per-connection, so the next
+connection in the chain presents its own credentials and, if they are still valid, answers
+normally; that is the chain doing its job, not a repeated failure. A misspelled model name is
+shared across the chain only in the narrower case where the name is bare and every fallback it
+reaches configures no ``model`` of its own: a bare name that itself embeds a ``:`` (a vendor's
+native id) only forwards to a fallback on the *same* platform, and a name that already pins a
+platform is never forwarded at all -- see *Configure it on the connection* above for the full
+forwarding rules. Keep chains short, and put deterministic rules for errors like these in
+:doc:`retry_policies`.
 
 **Airflow's task-level** ``retries`` **multiplies on top of the chain.** A task with
 ``retries=5`` gets up to six attempts -- the initial attempt plus five retries -- before
 Airflow marks it failed, and each attempt walks the whole chain again if every connection
-is still down. Against the three-connection chain in the example above (the primary plus
-two fallbacks), that is up to 18 upstream calls, not 3, before the task is finally marked
-failed.
+is still down. Against the three-connection chain in the JSON extra under *Configure it on
+the connection* above (the primary plus two fallbacks), that is up to 18 upstream calls, not
+3, before the task is finally marked failed.
 
 **A bad fallback connection fails the whole chain, including a healthy primary.** The
 primary and every fallback are resolved eagerly, before any of them is called, so a
@@ -187,11 +195,15 @@ Two checks, neither of which requires waiting for a real outage:
 *Test the connection.* ``test_connection`` on the primary resolves every connection in the
 chain, so a fallback with a missing ``model`` or an unknown connection ID is reported by name
 there rather than discovered mid-incident. Credential fields a provider class rejects with a
-``TypeError`` are not reported this way -- the hook catches that and retries with the
-env-var-based provider constructor, logging a warning either way; that retry still raises a
-``pydantic_ai.exceptions.UserError`` if the required env var is also missing, so check the
-logs for that failure mode rather than relying on ``test_connection``. It also does not call the provider, so a
-well-formed but revoked key still passes -- that is what the drill below is for.
+``TypeError`` are caught by the hook, which retries with the env-var-based provider
+constructor and logs a warning either way; if the required env var is also missing, that
+retry raises ``pydantic_ai.exceptions.UserError``, which ``test_connection`` does surface
+since it wraps the whole resolution in a broad exception handler. What it cannot show is the
+opposite case: the env var *is* set on the worker, the retry quietly succeeds, and
+``test_connection`` reports success even though the credentials you configured on the
+connection were silently ignored -- check the logs for that warning rather than relying on
+``test_connection`` alone. It also does not call the provider, so a well-formed but revoked
+key still passes -- that is what the drill below is for.
 
 *Drill it.* Point the primary at an endpoint nothing listens on and run the Dag. The task
 should still succeed, and the run summary in its log names the model that answered:
