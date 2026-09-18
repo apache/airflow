@@ -1,0 +1,1 @@
+When a deferrable operator's trigger ends a task directly with a ``TaskSuccessEvent``/``TaskFailedEvent`` (without the task resuming on a worker), ``email_on_failure`` and ``email_on_retry`` are now honored. Previously the ``on_failure_callback``/``on_retry_callback`` fired correctly for this path but the failure/retry email notification was silently never sent.
