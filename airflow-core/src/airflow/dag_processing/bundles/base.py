@@ -316,7 +316,6 @@ class BaseDagBundle(ABC):
         self.version = version
         self.version_data = version_data
         self.refresh_interval = refresh_interval
-        self.is_initialized = False
 
         self.base_dir = get_bundle_base_folder(bundle_name=self.name)
         """Base directory for all bundle files for this bundle."""
