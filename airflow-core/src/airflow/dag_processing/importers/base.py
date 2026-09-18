@@ -155,7 +155,7 @@ class AbstractDagImporter(ABC):
                 continue
 
             # Apply safe_mode heuristic if enabled
-            if safe_mode and not might_contain_dag(file_path, safe_mode):
+            if safe_mode and not might_contain_dag(file_path, safe_mode, conf=conf):
                 continue
 
             yield file_path

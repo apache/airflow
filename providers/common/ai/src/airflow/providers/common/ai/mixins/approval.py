@@ -20,8 +20,9 @@ from __future__ import annotations
 import json
 import logging
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Protocol
 
+from jinja2 import TemplateError
 from pydantic import BaseModel, TypeAdapter
 
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_3_PLUS
@@ -34,6 +35,9 @@ if AIRFLOW_V_3_3_PLUS:
 log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from airflow.providers.common.compat.notifier import BaseNotifier
     from airflow.sdk import Context
 
 
@@ -42,6 +46,8 @@ class DeferForApprovalProtocol(Protocol):
 
     approval_timeout: timedelta | None
     allow_modifications: bool
+    on_approval_timeout: Literal["fail", "approve", "reject"]
+    approval_notifiers: Sequence[BaseNotifier]
     prompt: str
     task_id: str
     defer: Any
@@ -62,16 +68,35 @@ class LLMApprovalMixin:
     before approving.  The (possibly modified) output is then returned as the
     task result.
 
+    ``on_approval_timeout`` decides what happens when ``approval_timeout``
+    expires without a response: ``"fail"`` raises ``HITLTimeoutError``, while
+    ``"approve"`` and ``"reject"`` answer the review with that option so the
+    task resumes as if a reviewer had chosen it.  The chosen option is also
+    pre-highlighted for the reviewer in the HITL form.
+
+    ``approval_notifiers`` are called once the review is open, so a reviewer
+    learns about it without watching the Required Actions page, the way
+    :class:`~airflow.providers.standard.operators.hitl.HITLOperator` does with
+    ``notifiers``.  The review ``subject`` and ``body`` are exposed as
+    ``{{ task.subject }}`` and ``{{ task.body }}`` in notifier templates.  A
+    notifier whose delivery raises is logged without failing the task, while a
+    template error fails the task.  A retry re-runs the LLM and re-notifies
+    with the regenerated output, while the open review keeps the original
+    subject and body.
+
     Operators that use this mixin must set the following attributes:
 
     - ``require_approval`` (``bool``)
     - ``allow_modifications`` (``bool``)
     - ``approval_timeout`` (``timedelta | None``)
+    - ``on_approval_timeout`` (``Literal["fail", "approve", "reject"]``)
+    - ``approval_notifiers`` (``Sequence[BaseNotifier]``)
     - ``prompt`` (``str``)
     """
 
     APPROVE = "Approve"
     REJECT = "Reject"
+    TIMEOUT_DEFAULTS: ClassVar[dict[str, list[str]]] = {"approve": [APPROVE], "reject": [REJECT]}
 
     def validate_approval_prompt(self: DeferForApprovalProtocol) -> None:
         """Fail fast when the prompt cannot be rendered as text in the approval review body."""
@@ -99,7 +124,8 @@ class LLMApprovalMixin:
 
         On Airflow 3.3+ the task parks in the ``awaiting_input`` state (no trigger or triggerer
         involved); on older versions it defers to :class:`HITLTrigger`. Either way it resumes in
-        ``execute_complete`` once a response (or timeout default) arrives.
+        ``execute_complete`` once a response (or timeout default) arrives. ``on_approval_timeout``
+        supplies that timeout default; ``"fail"`` supplies none, so the review times out as an error.
 
         :param context: Airflow task context.
         :param output: The generated output to present for review.
@@ -130,6 +156,7 @@ class LLMApprovalMixin:
             output = TypeAdapter(type(output)).dump_json(output).decode()
 
         ti_id = context["task_instance"].id
+        timeout_defaults = LLMApprovalMixin.TIMEOUT_DEFAULTS.get(self.on_approval_timeout)
 
         if subject is None:
             subject = f"Review output for task `{self.task_id}`"
@@ -160,10 +187,20 @@ class LLMApprovalMixin:
             options=[LLMApprovalMixin.APPROVE, LLMApprovalMixin.REJECT],
             subject=subject,
             body=body,
-            defaults=None,
+            defaults=timeout_defaults,
             multiple=False,
             params=hitl_params,
         )
+
+        self.subject = subject
+        self.body = body
+        for notifier in self.approval_notifiers:
+            try:
+                notifier({**context})
+            except TemplateError:
+                raise
+            except Exception:
+                log.exception("Approval notifier %s failed; the review stays open", notifier)
 
         if AIRFLOW_V_3_3_PLUS:
             # New core (3.3+): park the task in AWAITING_INPUT -- no trigger, no triggerer. The
@@ -179,15 +216,23 @@ class LLMApprovalMixin:
             trigger=HITLTrigger(
                 ti_id=ti_id,
                 options=[LLMApprovalMixin.APPROVE, LLMApprovalMixin.REJECT],
-                defaults=None,
+                defaults=timeout_defaults,
                 params=hitl_params,
                 multiple=False,
-                timeout_datetime=utcnow() + self.approval_timeout if self.approval_timeout else None,
+                timeout_datetime=(
+                    utcnow() + self.approval_timeout if self.approval_timeout is not None else None
+                ),
             ),
             method_name="execute_complete",
             kwargs={"generated_output": output},
-            timeout=self.approval_timeout,
         )
+
+    @staticmethod
+    def _describe_responder(event: dict[str, Any]) -> str:
+        responded_by_user = event.get("responded_by_user")
+        if responded_by_user is None:
+            return "the approval timeout default"
+        return responded_by_user["name"]
 
     def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> str:
         """
@@ -199,8 +244,9 @@ class LLMApprovalMixin:
         :param context: Airflow task context.
         :param generated_output: The output that was deferred for review.
         :param event: Trigger event payload containing ``chosen_options``,
-            ``params_input``, and ``responded_by_user``.
-        :raises HITLRejectException: If the reviewer rejected the output.
+            ``params_input``, ``responded_by_user``, and ``timedout``.
+        :raises HITLRejectException: If the reviewer, or the
+            ``on_approval_timeout="reject"`` default, rejected the output.
         :raises HITLTriggerEventError: If the trigger reported an error.
         :raises HITLTimeoutError: If the approval timed out.
         """
@@ -216,13 +262,19 @@ class LLMApprovalMixin:
                 raise HITLTimeoutError(f"Approval timed out: {event['error']}")
             raise HITLTriggerEventError(event)
 
-        responded_by_user = event.get("responded_by_user")
+        responder = self._describe_responder(event)
         chosen = event["chosen_options"]
         if self.APPROVE not in chosen:
-            raise HITLRejectException(f"Output was rejected by the reviewer {responded_by_user}.")
+            if event.get("timedout"):
+                raise HITLRejectException(
+                    "Output was rejected automatically: approval_timeout expired with "
+                    "on_approval_timeout='reject'."
+                )
+            raise HITLRejectException(f"Output was rejected by the reviewer {responder}.")
 
+        log.info("Output approved by %s.", responder)
         output = generated_output
-        params_input: dict[str, Any] = event.get("params_input") or {}
+        params_input: dict[str, Any] = {} if event.get("timedout") else event.get("params_input") or {}
 
         # Only accept modified output when the operator explicitly allows modifications.
         # Without this guard a reviewer could craft a request with params_input even
@@ -260,7 +312,7 @@ class LLMApprovalMixin:
                     }
                 )
             if modified is not None and modified != generated_output:
-                log.info("output=%s modified by the reviewer=%s ", modified, responded_by_user)
+                log.info("output=%s modified by the reviewer=%s ", modified, responder)
                 return modified
 
         return output

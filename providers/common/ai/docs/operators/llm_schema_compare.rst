@@ -121,7 +121,7 @@ Set ``require_approval=True`` to pause the task after the comparison and wait
 for a human reviewer to approve the result before it is returned. The review
 body shows the compatibility verdict, a mismatch severity summary, and the
 full result JSON. Rejecting the review, or letting ``approval_timeout``
-expire, fails the task:
+expire with the default ``on_approval_timeout="fail"``, fails the task:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_schema_compare.py
     :language: python
@@ -132,8 +132,9 @@ expire, fails the task:
 returning a ``Sequence[UserContent]`` raises ``TypeError`` before the LLM
 call.
 
-``approval_timeout``, ``allow_modifications``, and the rest of the approval
-behaviour are inherited from :ref:`LLMOperator <howto/operator:llm>`.
+``approval_timeout``, ``on_approval_timeout``, ``allow_modifications``,
+``approval_notifiers``, and the rest of the approval behaviour are inherited from
+:ref:`LLMOperator <howto/operator:llm>`.
 
 Conditional ETL Based on Schema Compatibility
 ----------------------------------------------
@@ -180,6 +181,9 @@ Parameters
   :ref:`Customizing the System Prompt <howto/operator:llm_schema_compare>` above).
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai
   ``Agent`` constructor.
+- ``usage_limits``: Optional pydantic-ai ``UsageLimits`` (or a templated ``dict`` of
+  the same fields) enforced on the run; the task fails when a budget is exceeded.
+  Default ``None``. See :ref:`Usage Limits <howto/operator:llm_usage_limits>`.
 - ``db_conn_ids``: List of database connection IDs to compare. Each must resolve
   to a ``DbApiHook``.
 - ``table_names``: Tables to introspect from each ``db_conn_id``.
@@ -191,8 +195,13 @@ Parameters
   waits for human review before returning the result.  Default ``False``.
 - ``approval_timeout``: Maximum time to wait for a review (``timedelta``).  ``None``
   means wait indefinitely.  Default ``None``.
+- ``on_approval_timeout``: Outcome when ``approval_timeout`` expires without a
+  review: ``"fail"`` (default), ``"approve"``, or ``"reject"``.  Requires
+  ``require_approval=True`` and a positive ``approval_timeout``.
 - ``allow_modifications``: If ``True``, the reviewer can edit the result JSON
   before approving.  Default ``False``.
+- ``approval_notifiers``: Notifier, or list of notifiers, called once the review
+  is open.  Default ``None``.
 
 Logging
 -------

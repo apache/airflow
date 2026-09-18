@@ -143,6 +143,9 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         from airflow.providers.google.cloud.openlineage.utils import WILDCARD, extract_ds_name_from_gcs_path
         from airflow.providers.openlineage.extractors import OperatorLineage
 
+        if not self.bucket or self.dst is None:
+            return OperatorLineage()
+
         source_facets = {}
         if isinstance(self.src, str):  # Single path provided, possibly relative or with wildcard
             original_src = f"{self.src}"
@@ -165,6 +168,8 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         dest_object = self.dst if os.path.basename(self.dst) else extract_ds_name_from_gcs_path(self.dst)
 
         return OperatorLineage(
-            inputs=[Dataset(namespace="file", name=src, facets=source_facets) for src in source_objects],
+            inputs=[
+                Dataset(namespace="file", name=src, facets=source_facets) for src in source_objects if src
+            ],
             outputs=[Dataset(namespace=f"gs://{self.bucket}", name=dest_object)],
         )

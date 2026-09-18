@@ -80,7 +80,7 @@ is manually ingested. The cleanup step is also skipped, making the intermediate 
   if __name__ == "__main__":
       ingest_testing_data()
       run = dag.test(mark_success_pattern="wait_for_.*|cleanup")
-      print(f"Intermediate csv: {run.get_task_instance('collect_stats').xcom_pull(task_id='collect_stats')}")
+      print(f"Intermediate csv: {run.get_task_instance('collect_stats').xcom_pull(task_ids='collect_stats')}")
 
 
 Debugging Airflow Dags on the command line
