@@ -174,7 +174,8 @@ class TestCachingModelReplayVerification:
         mock_model.request.assert_called_once()
         assert counter.replayed_model == 0
         mock_storage.save_model_response.assert_not_called()
-        assert counter.cached_model == 0
+        # The live call still counts as a step executed fresh.
+        assert counter.cached_model == 1
 
     @pytest.mark.asyncio
     async def test_unverifiable_request_is_not_cached(
@@ -190,7 +191,7 @@ class TestCachingModelReplayVerification:
         assert result is sample_response
         mock_model.request.assert_called_once()
         mock_storage.save_model_response.assert_not_called()
-        assert counter.cached_model == 0
+        assert counter.cached_model == 1
 
     @pytest.mark.asyncio
     async def test_fingerprint_uses_prepared_request_not_raw_arguments(

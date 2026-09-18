@@ -159,7 +159,8 @@ class TestCachingToolsetReplayVerification:
         mock_toolset.call_tool.assert_called_once()
         assert counter.replayed_tool == 0
         mock_storage.save_tool_result.assert_not_called()
-        assert counter.cached_tool == 0
+        # The live tool call still counts as a step executed fresh.
+        assert counter.cached_tool == 1
 
     @pytest.mark.asyncio
     async def test_unverifiable_call_is_not_cached(self, mock_toolset, mock_storage, counter):
@@ -171,7 +172,7 @@ class TestCachingToolsetReplayVerification:
         assert result == "fresh result"
         mock_toolset.call_tool.assert_called_once()
         mock_storage.save_tool_result.assert_not_called()
-        assert counter.cached_tool == 0
+        assert counter.cached_tool == 1
 
 
 class TestSharedCounter:

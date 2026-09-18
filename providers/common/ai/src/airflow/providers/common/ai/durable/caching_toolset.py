@@ -91,6 +91,10 @@ class CachingToolset(WrapperToolset[Any]):
             )
 
         result = await self.wrapped.call_tool(name, tool_args, ctx, tool)
+        # Counts the live tool call, not the write: the run summary reports this as
+        # steps executed fresh, and the tool ran either way. ``save_tool_result``
+        # also returns without writing when the result itself is not serializable.
+        self.counter.cached_tool += 1
         if fingerprint is None:
             # Storing this would write an entry the guard above can never accept,
             # once per step, each write rewriting the whole cache blob.
@@ -101,6 +105,5 @@ class CachingToolset(WrapperToolset[Any]):
             )
             return result
         self.storage.save_tool_result(key, result, fingerprint=fingerprint)
-        self.counter.cached_tool += 1
         log.debug("Durable: cached tool result", step=step, tool=name)
         return result
