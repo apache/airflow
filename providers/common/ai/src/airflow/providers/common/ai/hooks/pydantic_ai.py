@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 from pydantic_ai import Agent
+from pydantic_ai.exceptions import ModelAPIError
 from pydantic_ai.models import infer_model
 from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.providers import infer_provider, infer_provider_class
@@ -221,7 +222,13 @@ class PydanticAIHook(BaseHook):
 
         model = self._resolve_own_model()
         fallback_models = self._resolve_fallback_models()
-        self._model = FallbackModel(model, *fallback_models) if fallback_models else model
+        # Pin pydantic-ai's own default explicitly: the retry-layers docs pin this exact
+        # scope (UnexpectedModelBehavior, UsageLimitExceeded, and ContentFilterError are
+        # deliberately excluded), and pyproject has no upper bound on pydantic-ai-slim, so
+        # an upstream default change would otherwise move that documented behaviour silently.
+        self._model = (
+            FallbackModel(model, *fallback_models, fallback_on=(ModelAPIError,)) if fallback_models else model
+        )
         return self._model
 
     def _qualify_model_name(self, model_name: str) -> str:

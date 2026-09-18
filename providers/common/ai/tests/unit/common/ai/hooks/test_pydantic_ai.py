@@ -21,7 +21,7 @@ import json
 import re
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 from pydantic_ai import Agent
@@ -499,6 +499,27 @@ class TestPydanticAIHookFallback:
             infer_model_stub.models["openai:gpt-5.6-sol"],
             infer_model_stub.models["anthropic:claude-opus-4-6"],
             infer_model_stub.models["groq:llama-4"],
+        ]
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.FallbackModel", autospec=True)
+    def test_chain_pins_fallback_on_to_model_api_error(self, mock_fallback_model, registry, infer_model_stub):
+        """The chain must not drift with pydantic-ai's own ``fallback_on`` default.
+
+        Asserts our own call into ``FallbackModel`` -- not pydantic-ai's dispatch logic, which
+        is a third party's private implementation detail -- so deleting the ``fallback_on=``
+        kwarg from the call site turns this red.
+        """
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
+
+        PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["second"]).get_conn()
+
+        assert mock_fallback_model.mock_calls == [
+            call(
+                infer_model_stub.models["openai:gpt-5.6-sol"],
+                infer_model_stub.models["anthropic:claude-opus-4-6"],
+                fallback_on=(ModelAPIError,),
+            )
         ]
 
     def test_chain_from_connection_extra(self, registry, infer_model_stub):
