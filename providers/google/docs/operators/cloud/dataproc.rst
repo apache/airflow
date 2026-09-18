@@ -511,15 +511,11 @@ The operator appends a unique suffix to the prefix so retried task attempts do n
 ``ALREADY_EXISTS`` when submitting the batch.
 The prefix is used as-is (no normalization), and Dataproc validates the resulting batch ID.
 
-.. code-block:: python
-
-    DataprocCreateBatchOperator(
-        task_id="create_batch",
-        project_id=PROJECT_ID,
-        region=REGION,
-        batch=BATCH_CONFIG,
-        batch_id_prefix="example-managed-spark-batch",
-    )
+.. exampleinclude:: /../../google/tests/system/google/cloud/dataproc/example_dataproc_batch.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_create_batch_operator_with_prefix]
+    :end-before: [END how_to_cloud_dataproc_create_batch_operator_with_prefix]
 
 The executable example below still imports the compatibility name
 ``DataprocCreateBatchOperator``. The preferred alias for new code is
