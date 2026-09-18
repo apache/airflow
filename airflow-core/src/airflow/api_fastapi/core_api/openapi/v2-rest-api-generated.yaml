@@ -591,13 +591,11 @@ paths:
           type: integer
           title: Asset Id
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              anyOf:
-              - $ref: '#/components/schemas/MaterializeAssetBody'
-              - type: 'null'
-              title: Body
+              $ref: '#/components/schemas/MaterializeAssetBody'
       responses:
         '200':
           description: Successful Response
