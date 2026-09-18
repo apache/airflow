@@ -147,17 +147,26 @@ subqueries and joins.
 - Its parser-level closure is opt-in, not the default. ``allowed_tables``
   defaults to ``None`` and the table walk returns immediately while it is unset,
   so out of the box the agent reaches every table the connection can see.
-  ``DESCRIBE`` and ``SHOW`` pass as well, on dialects that parse them, because
-  read-only metadata statements are allowed deliberately. Set ``allowed_tables``
-  and the walk turns fail-closed: dynamic SQL, the ``TABLE <name>`` shorthand and
-  any function sqlglot does not recognize are rejected rather than allowed, so a
-  legitimate bespoke function needs naming in ``allowed_functions``. Statements
+  ``DESCRIBE`` and ``SHOW`` both pass, on dialects that parse them, while
+  ``allowed_tables`` stays unset. Set ``allowed_tables`` and the walk turns
+  fail-closed for ``SHOW``, dynamic SQL, the ``TABLE <name>`` shorthand and any
+  function sqlglot does not recognize — but not for ``DESCRIBE``: it instead
+  becomes an ordinary table reference, allowed only when the table it names is
+  on the list. A legitimate bespoke function then needs naming in
+  ``allowed_functions``. See :ref:`allowed-tables-enforcement` for more
+  constructs it also rejects — that list illustrates the pattern, it is not
+  exhaustive. Statements
   that modify data, ``COPY`` among them, are rejected either way while
   ``allow_writes`` is ``False``.
-- It does not classify failures. Every exception from a tool becomes one
-  ``ModelRetry``, so a connection error and a typo in a column name are treated
-  the same way until the retry budget runs out and the task fails for Airflow to
-  retry.
+- It does not classify failures. A connection error or a typo in a column
+  name reaching ``list_tables``, ``get_schema`` or ``query`` becomes one
+  ``ModelRetry``, so the two are treated the same way until the retry budget
+  runs out and the task fails for Airflow to retry. Two paths do not raise:
+  ``check_query`` catches its own errors and reports them back as a normal
+  ``{"valid": false, ...}`` result, and ``get_schema`` returns a normal
+  ``{"error": ...}`` result instead of raising when the requested table is
+  outside ``allowed_tables`` — other ``get_schema`` failures still raise and
+  still become a ``ModelRetry``.
 
 **A real example.** ``example_pydantic_ai_hook.py`` builds an agent around
 ``SQLToolset`` inside a plain ``@task`` function, with no operator involved:
