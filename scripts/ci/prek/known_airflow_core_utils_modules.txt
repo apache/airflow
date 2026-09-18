@@ -35,6 +35,5 @@ span_status
 sqlalchemy
 state
 strings
-thread_safe_dict
 types
 yaml
