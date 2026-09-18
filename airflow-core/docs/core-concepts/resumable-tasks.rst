@@ -262,6 +262,6 @@ Consider using both when a task:
   credentials.
 
 The two operate independently. A task with ``retries=5`` and a checkpoint
-still stops for good after six failed attempts(the initial attempt plus five retries)
- but each of those retries picks up from the last checkpoint instead of reprocessing
- files it already finished, or resubmitting a job that is still running.
+still stops for good after six failed attempts (the initial attempt plus five
+retries), but each of those retries picks up from the last checkpoint instead of
+reprocessing files it already finished, or resubmitting a job that is still running.
