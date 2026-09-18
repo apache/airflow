@@ -84,3 +84,11 @@ def test_deprecated_operator_warns_and_subclasses_new_operator(old_class, new_cl
     with pytest.warns(AirflowProviderDeprecationWarning, match="CloudMonitoring"):
         obj = old_class(task_id=TEST_TASK_ID, **extra_kwargs)
     assert isinstance(obj, new_class)
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["StackdriverHook", "StackdriverNotificationsLink", "StackdriverPoliciesLink"],
+)
+def test_names_re_exported_before_the_rename_are_still_importable(name):
+    assert hasattr(stackdriver, name)
