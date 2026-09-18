@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example Airflow DAG for Google Cloud Monitoring service.
+Example Airflow Dag for Google Cloud Monitoring service.
 """
 
 from __future__ import annotations

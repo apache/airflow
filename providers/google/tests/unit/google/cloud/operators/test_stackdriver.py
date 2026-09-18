@@ -18,9 +18,15 @@
 from __future__ import annotations
 
 import pytest
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.cloud.monitoring_v3 import AlertPolicy, NotificationChannel
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.google.cloud.hooks import stackdriver as stackdriver_hook
+from airflow.providers.google.cloud.links import stackdriver as stackdriver_links
 from airflow.providers.google.cloud.operators import cloud_monitoring, stackdriver
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 TEST_TASK_ID = "test-cloud-monitoring-operator"
 
@@ -87,8 +93,18 @@ def test_deprecated_operator_warns_and_subclasses_new_operator(old_class, new_cl
 
 
 @pytest.mark.parametrize(
-    "name",
-    ["StackdriverHook", "StackdriverNotificationsLink", "StackdriverPoliciesLink"],
+    ("name", "expected"),
+    [
+        ("StackdriverHook", stackdriver_hook.StackdriverHook),
+        ("StackdriverNotificationsLink", stackdriver_links.StackdriverNotificationsLink),
+        ("StackdriverPoliciesLink", stackdriver_links.StackdriverPoliciesLink),
+        ("GoogleCloudBaseOperator", GoogleCloudBaseOperator),
+        ("PROVIDE_PROJECT_ID", PROVIDE_PROJECT_ID),
+        ("AlertPolicy", AlertPolicy),
+        ("NotificationChannel", NotificationChannel),
+        ("DEFAULT", DEFAULT),
+        ("_MethodDefault", _MethodDefault),
+    ],
 )
-def test_names_re_exported_before_the_rename_are_still_importable(name):
-    assert hasattr(stackdriver, name)
+def test_names_re_exported_before_the_rename_are_still_importable(name, expected):
+    assert getattr(stackdriver, name) is expected
