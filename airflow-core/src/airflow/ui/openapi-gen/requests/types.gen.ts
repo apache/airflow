@@ -72,8 +72,8 @@ export type AssetEventResponse = {
     name?: string | null;
     group?: string | null;
     extra?: {
-        [key: string]: JsonValue;
-    } | null;
+    [key: string]: JsonValue;
+} | null;
     source_task_id?: string | null;
     source_dag_id?: string | null;
     source_run_id?: string | null;
@@ -157,8 +157,8 @@ export type AssetResponse = {
     uri: string;
     group: string;
     extra?: {
-        [key: string]: JsonValue;
-    } | null;
+    [key: string]: JsonValue;
+} | null;
     created_at: string;
     updated_at: string;
     scheduled_dags: Array<DagScheduleAssetReference>;
@@ -274,8 +274,8 @@ export type BackfillPostBody = {
     to_date: string;
     run_backwards?: boolean;
     dag_run_conf?: {
-        [key: string]: unknown;
-    } | null;
+    [key: string]: unknown;
+} | null;
     reprocess_behavior?: ReprocessBehavior;
     max_active_runs?: number;
     /**
@@ -293,8 +293,8 @@ export type BackfillResponse = {
     from_date: string;
     to_date: string;
     dag_run_conf: {
-        [key: string]: unknown;
-    } | null;
+    [key: string]: unknown;
+} | null;
     is_paused: boolean;
     reprocess_behavior: ReprocessBehavior;
     max_active_runs: number;
@@ -733,9 +733,9 @@ export type Config = {
 export type ConfigOption = {
     key: string;
     value: string | [
-        string,
-        string
-    ];
+    string,
+    string
+];
 };
 
 /**
@@ -896,19 +896,19 @@ export type DAGDetailsResponse = {
     end_date: string | null;
     is_paused_upon_creation: boolean | null;
     params: {
-        [key: string]: unknown;
-    } | null;
+    [key: string]: unknown;
+} | null;
     render_template_as_native_obj: boolean;
     template_search_path: Array<(string)> | null;
     timezone: string | null;
     last_parsed: string | null;
     default_args: {
-        [key: string]: unknown;
-    } | null;
+    [key: string]: unknown;
+} | null;
     rerun_with_latest_version?: boolean | null;
     owner_links?: {
-        [key: string]: (string);
-    } | null;
+    [key: string]: (string);
+} | null;
     is_favorite?: boolean;
     active_runs_count?: number;
     team_name?: string | null;
@@ -1059,8 +1059,8 @@ export type DAGRunResponse = {
     triggered_by: DagRunTriggeredByType | null;
     triggering_user_name: string | null;
     conf: {
-        [key: string]: unknown;
-    } | null;
+    [key: string]: unknown;
+} | null;
     note: string | null;
     dag_versions: Array<DagVersionResponse>;
     bundle_version: string | null;
@@ -1379,17 +1379,17 @@ export type DagVersionResponse = {
 };
 
 /**
- * How much of a component's work has a live instance covering it.
- */
-export type DetailedHealthStatus = 'healthy' | 'degraded' | 'down';
-
-/**
  * Enum for DAG warning types.
  *
  * This is the set of allowable values for the ``warning_type`` field
  * in the DagWarning model.
  */
 export type DagWarningType = 'asset conflict' | 'duplicate dag id' | 'non-existent pool' | 'runtime varying value';
+
+/**
+ * How much of a component's work has a live instance covering it.
+ */
+export type DetailedHealthStatus = 'healthy' | 'degraded' | 'down';
 
 /**
  * Backfill collection serializer for responses in dry-run mode.
@@ -1572,8 +1572,8 @@ export type HITLUser = {
  */
 export type HTTPExceptionResponse = {
     detail: string | {
-        [key: string]: unknown;
-    };
+    [key: string]: unknown;
+};
 };
 
 export type HTTPValidationError = {
@@ -1610,6 +1610,7 @@ export type ImportErrorResponse = {
     import_error_id: number;
     timestamp: string;
     filename: string;
+    source_reference?: string | null;
     bundle_name: string | null;
     stack_trace: string;
     /**
@@ -1665,8 +1666,8 @@ export type MaterializeAssetBody = {
     logical_date?: string | null;
     run_after?: string | null;
     conf?: {
-        [key: string]: unknown;
-    } | null;
+    [key: string]: unknown;
+} | null;
     note?: string | null;
     partition_key?: string | null;
     bundle_version?: string | null;
@@ -2131,11 +2132,11 @@ export type TaskResponse = {
     doc_md: string | null;
     operator_name: string | null;
     params: {
-        [key: string]: unknown;
-    } | null;
+    [key: string]: unknown;
+} | null;
     class_ref: {
-        [key: string]: unknown;
-    } | null;
+    [key: string]: unknown;
+} | null;
     is_mapped: boolean | null;
     /**
      * Extract and return extra_links.
@@ -2202,8 +2203,8 @@ export type TriggerDAGRunPostBody = {
     logical_date: string | null;
     run_after?: string | null;
     conf?: {
-        [key: string]: unknown;
-    } | null;
+    [key: string]: unknown;
+} | null;
     note?: string | null;
     partition_key?: string | null;
     bundle_version?: string | null;
@@ -2506,8 +2507,8 @@ export type ConnectionHookMetaData = {
     hook_name: string;
     standard_fields: StandardHookFields | null;
     extra_fields: {
-        [key: string]: unknown;
-    } | null;
+    [key: string]: unknown;
+} | null;
 };
 
 /**
@@ -2808,8 +2809,8 @@ export type LightGridTaskInstanceSummary = {
     task_display_name: string;
     state: TaskInstanceState | null;
     child_states: {
-        [key: string]: (number);
-    } | null;
+    [key: string]: (number);
+} | null;
     min_start_date: string | null;
     max_end_date: string | null;
     dag_version_number?: number | null;
@@ -2899,8 +2900,8 @@ export type PartitionedDagRunCollectionResponse = {
     partitioned_dag_runs: Array<PartitionedDagRunResponse>;
     total: number;
     asset_expressions?: {
-        [key: string]: (AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll | null);
-    } | null;
+    [key: string]: (AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll | null);
+} | null;
 };
 
 /**
@@ -2993,13 +2994,13 @@ export type TeamResponse = {
  */
 export type Theme = {
     tokens?: {
-        [key: string]: ThemeColors;
-    } | null;
+    [key: string]: ThemeColors;
+} | null;
     globalCss?: {
-        [key: string]: {
-            [key: string]: unknown;
-        };
-    } | null;
+    [key: string]: {
+        [key: string]: unknown;
+    };
+} | null;
     icon?: string | null;
     icon_dark_mode?: string | null;
 };
@@ -3009,21 +3010,21 @@ export type Theme = {
  */
 export type ThemeColors = {
     brand?: {
-        [key: string]: {
-            [key: string]: OklchColor;
-        };
-    } | null;
+    [key: string]: {
+        [key: string]: OklchColor;
+    };
+} | null;
     gray?: {
-        [key: string]: {
-            [key: string]: OklchColor;
-        };
-    } | null;
+    [key: string]: {
+        [key: string]: OklchColor;
+    };
+} | null;
     black?: {
-        [key: string]: OklchColor;
-    } | null;
+    [key: string]: OklchColor;
+} | null;
     white?: {
-        [key: string]: OklchColor;
-    } | null;
+    [key: string]: OklchColor;
+} | null;
 };
 
 /**
@@ -4462,7 +4463,7 @@ export type GetImportErrorsData = {
     limit?: number;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, timestamp, source_reference, bundle_name, stacktrace, import_error_id, filename`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, timestamp, filename, source_reference, bundle_name, stacktrace, import_error_id`
      */
     orderBy?: Array<(string)>;
 };

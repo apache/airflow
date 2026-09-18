@@ -5216,13 +5216,13 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, timestamp,
-            source_reference, bundle_name, stacktrace, import_error_id, filename`'
+            filename, source_reference, bundle_name, stacktrace, import_error_id`'
           default:
           - id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
-          with `-` for descending order. Supported attributes: `id, timestamp, source_reference,
-          bundle_name, stacktrace, import_error_id, filename`'
+          with `-` for descending order. Supported attributes: `id, timestamp, filename,
+          source_reference, bundle_name, stacktrace, import_error_id`'
       - name: filename_pattern
         in: query
         required: false
@@ -14735,14 +14735,6 @@ components:
       - bundle_url
       title: DagVersionResponse
       description: Dag Version serializer for responses.
-    DetailedHealthStatus:
-      type: string
-      enum:
-      - healthy
-      - degraded
-      - down
-      title: DetailedHealthStatus
-      description: How much of a component's work has a live instance covering it.
     DagWarningType:
       type: string
       enum:
@@ -14757,6 +14749,14 @@ components:
         This is the set of allowable values for the ``warning_type`` field
 
         in the DagWarning model.'
+    DetailedHealthStatus:
+      type: string
+      enum:
+      - healthy
+      - degraded
+      - down
+      title: DetailedHealthStatus
+      description: How much of a component's work has a live instance covering it.
     DryRunBackfillCollectionResponse:
       properties:
         backfills:
@@ -15305,6 +15305,11 @@ components:
         filename:
           type: string
           title: Filename
+        source_reference:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source Reference
         bundle_name:
           anyOf:
           - type: string

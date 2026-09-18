@@ -784,16 +784,6 @@ class DagVersionResponse(BaseModel):
     bundle_url: Annotated[str | None, Field(title="Bundle Url")]
 
 
-class DetailedHealthStatus(str, Enum):
-    """
-    How much of a component's work has a live instance covering it.
-    """
-
-    HEALTHY = "healthy"
-    DEGRADED = "degraded"
-    DOWN = "down"
-
-
 class DagWarningType(str, Enum):
     """
     Enum for DAG warning types.
@@ -806,6 +796,16 @@ class DagWarningType(str, Enum):
     DUPLICATE_DAG_ID = "duplicate dag id"
     NON_EXISTENT_POOL = "non-existent pool"
     RUNTIME_VARYING_VALUE = "runtime varying value"
+
+
+class DetailedHealthStatus(str, Enum):
+    """
+    How much of a component's work has a live instance covering it.
+    """
+
+    HEALTHY = "healthy"
+    DEGRADED = "degraded"
+    DOWN = "down"
 
 
 class DryRunBackfillResponse(BaseModel):
@@ -926,6 +926,7 @@ class ImportErrorResponse(BaseModel):
     import_error_id: Annotated[int, Field(title="Import Error Id")]
     timestamp: Annotated[datetime, Field(title="Timestamp")]
     filename: Annotated[str, Field(title="Filename")]
+    source_reference: Annotated[str | None, Field(title="Source Reference")] = None
     bundle_name: Annotated[str | None, Field(title="Bundle Name")]
     stack_trace: Annotated[str, Field(title="Stack Trace")]
     file_token: Annotated[

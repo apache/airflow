@@ -1523,7 +1523,7 @@ export const prefetchUseImportErrorServiceGetImportError = (queryClient: QueryCl
 * @param data The data for the request.
 * @param data.limit
 * @param data.offset
-* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, timestamp, source_reference, bundle_name, stacktrace, import_error_id, filename`
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, timestamp, filename, source_reference, bundle_name, stacktrace, import_error_id`
 * @param data.filenamePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `filename_prefix_pattern` on large tables — see "Filtering with pattern parameters".
 * @param data.filenamePrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
 * @param data.filename Exact filename match. Returns only the import error for this specific file path.

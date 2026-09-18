@@ -40,16 +40,21 @@ class TestFullFilePath:
         [
             pytest.param("dags/my_dag.py", "/bundle/dags/my_dag.py", id="relative-file"),
             pytest.param(
-                "archive.zip:dags/my_dag.py",
-                "/bundle/archive.zip:dags/my_dag.py",
+                "archive.zip/dags/my_dag.py",
+                "/bundle/archive.zip/dags/my_dag.py",
                 id="relative-archive-member",
             ),
             pytest.param(
-                "/elsewhere/archive.zip:dags/my_dag.py",
-                "/elsewhere/archive.zip:dags/my_dag.py",
+                "/elsewhere/archive.zip/dags/my_dag.py",
+                "/elsewhere/archive.zip/dags/my_dag.py",
                 id="absolute-archive-member",
             ),
             pytest.param("/bundle/dags/my_dag.py", "/bundle/dags/my_dag.py", id="already-under-bundle"),
+            pytest.param(
+                "/bundle-sibling/dags/my_dag.py",
+                "/bundle-sibling/dags/my_dag.py",
+                id="sibling-bundle-prefix",
+            ),
         ],
     )
     def test_resolves_reference_against_bundle(self, source_reference, expected):
@@ -57,15 +62,25 @@ class TestFullFilePath:
 
         assert error.full_file_path() == expected
 
+    @pytest.mark.usefixtures("bundle_path")
+    def test_resolves_filename_when_source_reference_is_none(self):
+        error = ParseImportError(bundle_name="my-bundle", filename="dags/my_dag.py")
+
+        assert error.full_file_path() == "/bundle/dags/my_dag.py"
+
     @pytest.mark.parametrize(
-        ("bundle_name", "source_reference"),
+        ("bundle_name", "source_reference", "filename"),
         [
-            pytest.param(None, "dags/my_dag.py", id="missing-bundle"),
-            pytest.param("my-bundle", None, id="missing-reference"),
+            pytest.param(None, "dags/my_dag.py", None, id="missing-bundle"),
+            pytest.param("my-bundle", None, None, id="missing-reference"),
         ],
     )
-    def test_raises_when_reference_is_incomplete(self, bundle_name, source_reference):
-        error = ParseImportError(bundle_name=bundle_name, source_reference=source_reference)
+    def test_raises_when_reference_is_incomplete(self, bundle_name, source_reference, filename):
+        error = ParseImportError(
+            bundle_name=bundle_name, source_reference=source_reference, filename=filename
+        )
 
-        with pytest.raises(ValueError, match="bundle_name and source_reference must not be None"):
+        with pytest.raises(
+            ValueError, match=r"bundle_name and \(source_reference or filename\) must not be None"
+        ):
             error.full_file_path()

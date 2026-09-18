@@ -5153,13 +5153,6 @@ export const $DagVersionResponse = {
     description: 'Dag Version serializer for responses.'
 } as const;
 
-export const $DetailedHealthStatus = {
-    type: 'string',
-    enum: ['healthy', 'degraded', 'down'],
-    title: 'DetailedHealthStatus',
-    description: "How much of a component's work has a live instance covering it."
-} as const;
-
 export const $DagWarningType = {
     type: 'string',
     enum: ['asset conflict', 'duplicate dag id', 'non-existent pool', 'runtime varying value'],
@@ -5168,6 +5161,13 @@ export const $DagWarningType = {
 
 This is the set of allowable values for the \`\`warning_type\`\` field
 in the DagWarning model.`
+} as const;
+
+export const $DetailedHealthStatus = {
+    type: 'string',
+    enum: ['healthy', 'degraded', 'down'],
+    title: 'DetailedHealthStatus',
+    description: "How much of a component's work has a live instance covering it."
 } as const;
 
 export const $DryRunBackfillCollectionResponse = {
@@ -5984,6 +5984,17 @@ export const $ImportErrorResponse = {
         filename: {
             type: 'string',
             title: 'Filename'
+        },
+        source_reference: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Source Reference'
         },
         bundle_name: {
             anyOf: [
