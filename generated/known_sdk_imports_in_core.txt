@@ -23,7 +23,7 @@ airflow-core/src/airflow/models/xcom_arg.py::1
 airflow-core/src/airflow/plugins_manager.py::1
 airflow-core/src/airflow/providers_manager.py::5
 airflow-core/src/airflow/secrets/__init__.py::1
-airflow-core/src/airflow/serialization/decoders.py::2
+airflow-core/src/airflow/serialization/decoders.py::3
 airflow-core/src/airflow/serialization/definitions/baseoperator.py::1
 airflow-core/src/airflow/serialization/definitions/dag.py::1
 airflow-core/src/airflow/serialization/definitions/mappedoperator.py::5
