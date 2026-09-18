@@ -73,7 +73,9 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         the primary provider is unavailable. Overrides the ``fallback_conn_ids``
         set in the connection's extra field. ``None`` (default) reads the
         connection's own extra field; an explicit ``[]`` disables a chain
-        configured there.
+        configured there. See
+        :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook`
+        for how blank entries in the list are dropped.
     :param system_prompt: System-level instructions for the LLM agent.
     :param output_type: Expected output type. Default ``str``. Set to a Pydantic
         ``BaseModel`` subclass for structured output; the model instance is
