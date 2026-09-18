@@ -164,11 +164,17 @@ def _enable_tcp_keepalive() -> None:
     HTTPConnection.default_socket_options = default_options_cast + socket_options_cast
 
 
+def _team_kwargs(team_name: str | None) -> dict[str, str]:
+    """Only pass ``team_name`` when set, since older Airflow releases have no team-aware lookup."""
+    return {"team_name": team_name} if team_name else {}
+
+
 def get_kube_client(
     in_cluster: bool | None = None,
     cluster_context: str | None = None,
     config_file: str | None = None,
     use_client_factory: bool = False,
+    team_name: str | None = None,
 ) -> client.CoreV1Api:
     """
     Retrieve Kubernetes client.
@@ -178,12 +184,17 @@ def get_kube_client(
     :param config_file: configuration file
     :param use_client_factory: whether to honor the ``client_factory`` setting; only the
         KubernetesExecutor passes this, so other callers are unaffected by the setting
+    :param team_name: team the executor is running for, so a team can point its executor at its
+        own cluster; a team that sets no factory gets the default client rather than the one
+        configured in the un-prefixed section, matching how team config resolves everywhere else
     :return: kubernetes client
     """
     # An import path rather than a callable, so that KubernetesJobWatcher can re-resolve it in
     # its own process, where the spawn start method would not carry a callable over.
     if use_client_factory and (
-        client_factory := conf.getimport("kubernetes_executor", "client_factory", fallback=None)
+        client_factory := conf.getimport(
+            "kubernetes_executor", "client_factory", fallback=None, **_team_kwargs(team_name)
+        )
     ):
         return client_factory()
 
@@ -235,6 +246,7 @@ async def get_async_kube_client(
     cluster_context: str | None = None,
     config_file: str | None = None,
     use_client_factory: bool = False,
+    team_name: str | None = None,
 ) -> async_client.CoreV1Api:
     """
     Retrieve an asynchronous Kubernetes client.
@@ -249,14 +261,17 @@ async def get_async_kube_client(
     :param config_file: configuration file
     :param use_client_factory: whether to honor the ``async_client_factory`` setting; only the
         KubernetesExecutor passes this, so other callers are unaffected by the setting
+    :param team_name: team the executor is running for, resolved the same way as in
+        :func:`get_kube_client`
     :return: asynchronous kubernetes client
     """
     if use_client_factory:
+        team_kwargs = _team_kwargs(team_name)
         if async_client_factory := conf.getimport(
-            "kubernetes_executor", "async_client_factory", fallback=None
+            "kubernetes_executor", "async_client_factory", fallback=None, **team_kwargs
         ):
             return async_client_factory()
-        if conf.get("kubernetes_executor", "client_factory", fallback=None):
+        if conf.get("kubernetes_executor", "client_factory", fallback=None, **team_kwargs):
             # Building a default client here would silently issue concurrent pod creations with
             # different credentials than the factory-built sync client, so fail loudly instead.
             raise ValueError(
