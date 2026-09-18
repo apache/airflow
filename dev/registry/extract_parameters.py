@@ -475,7 +475,7 @@ def discover_classes_from_provider(
     """Discover classes from a single provider by importing its modules at runtime.
 
     Reads the provider.yaml to find which modules/classes to inspect, imports them,
-    and returns metadata for each discovered class with all 12 Module fields.
+    and returns metadata for each discovered class with all 13 Module fields.
     """
     with open(provider_yaml_path) as f:
         provider_yaml = yaml.safe_load(f)
