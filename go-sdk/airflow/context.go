@@ -38,7 +38,7 @@ type (
 // asks the task to stop, and it exposes what Airflow gives the task: [Context.Logger],
 // [Context.Client], [Context.TaskInstance] and [Context.DagRun].
 //
-// [NewContext] builds one.
+// [NewContext] builds one. The zero Context is not usable.
 type Context struct {
 	context.Context
 
@@ -55,7 +55,8 @@ type taskValues struct {
 
 type contextKey struct{}
 
-// NewContext returns a [Context] backed by ctx. It panics if ctx is nil.
+// NewContext returns a [Context] backed by ctx.
+// It panics if ctx, logger or client is nil, so every accessor on the returned Context is safe.
 //
 // The runtime calls it when it binds a handler's first parameter.
 // Call it directly to unit-test a handler:
@@ -73,8 +74,13 @@ func NewContext(
 	ti TaskInstance,
 	dagRun DagRun,
 ) Context {
-	if ctx == nil {
-		panic("airflow.NewContext: cannot create airflow.Context from nil context.Context")
+	switch {
+	case ctx == nil:
+		panic("airflow.NewContext: nil context.Context")
+	case logger == nil:
+		panic("airflow.NewContext: nil logger")
+	case client == nil:
+		panic("airflow.NewContext: nil client")
 	}
 	values := taskValues{logger: logger, client: client, ti: ti, dagRun: dagRun}
 	return Context{Context: context.WithValue(ctx, contextKey{}, values), values: values}
@@ -96,15 +102,9 @@ func FromContext(ctx context.Context) (Context, bool) {
 	return Context{Context: ctx, values: values}, true
 }
 
-// Logger writes to the task's Airflow log. It never returns nil.
-//
+// Logger writes to the task's Airflow log.
 // The logger takes a context, so pass the same Context: actx.Logger().InfoContext(actx, "msg").
-func (c Context) Logger() *slog.Logger {
-	if c.values.logger == nil {
-		return slog.Default()
-	}
-	return c.values.logger
-}
+func (c Context) Logger() *slog.Logger { return c.values.logger }
 
 // Client reads Airflow Variables, Connections and XCom.
 // Its calls take a context, so pass the same Context: actx.Client().GetVariable(actx, "name").

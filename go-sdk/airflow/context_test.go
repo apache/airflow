@@ -64,13 +64,20 @@ func TestNewContextAccessors(t *testing.T) {
 	)
 }
 
-// A nil base context is a programming error, so fail at construction
-// rather than hand out a value that panics later.
-func TestNewContextNilBase(t *testing.T) {
-	var nilBase context.Context
-	assert.Panics(t, func() {
-		NewContext(nilBase, slog.Default(), &fakeClient{}, TaskInstance{}, DagRun{})
-	})
+// Fail at construction rather than hand out a Context whose accessors return nil.
+func TestNewContextRejectsNilArgs(t *testing.T) {
+	logger, client, ti, dagRun := testValues()
+
+	cases := map[string]func(){
+		"nil context": func() { NewContext(nil, logger, client, ti, dagRun) },
+		"nil logger":  func() { NewContext(context.Background(), nil, client, ti, dagRun) },
+		"nil client":  func() { NewContext(context.Background(), logger, nil, ti, dagRun) },
+	}
+	for name, build := range cases {
+		t.Run(name, func(t *testing.T) {
+			assert.Panics(t, build)
+		})
+	}
 }
 
 // execution.Serve traps the supervisor's SIGINT/SIGTERM into the context
@@ -95,16 +102,6 @@ func TestContextDoneFollowsBaseCancellation(t *testing.T) {
 		t.Fatal("actx.Done() must fire when the base context is cancelled")
 	}
 	assert.ErrorIs(t, actx.Err(), context.Canceled)
-}
-
-// The zero Context is not supported, but logging on it must not panic.
-func TestZeroContextLoggerFallsBackToDefault(t *testing.T) {
-	var zero Context
-
-	assert.Same(t, slog.Default(), zero.Logger())
-	assert.Nil(t, zero.Client())
-	assert.Equal(t, TaskInstance{}, zero.TaskInstance())
-	assert.Equal(t, DagRun{}, zero.DagRun())
 }
 
 func TestFromContextOnTaskContext(t *testing.T) {
