@@ -177,6 +177,50 @@ To consume data from topic you can use
     :start-after: [START how_to_cloud_managed_kafka_consume_from_topic_operator]
     :end-before: [END how_to_cloud_managed_kafka_consume_from_topic_operator]
 
+Configure an explicit OAuth callback
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For a Google Managed Kafka bootstrap server, the Apache Kafka provider automatically uses
+``google_cloud_default`` to generate an OAuth token. To authenticate with a different
+:ref:`Google Cloud connection <howto/connection:google_cloud_platform>`, configure the
+Google provider's public ``oauth_cb`` function explicitly instead. The Google Cloud principal
+must have permission to connect to the cluster; see Google's
+`SASL authentication guide <https://docs.cloud.google.com/managed-service-for-apache-kafka/docs/authentication-kafka>`_.
+
+Add the callback's full import path to the Airflow configuration. String-valued callbacks are
+disabled unless their exact paths are listed in ``[apache_kafka] callback_allowlist``:
+
+.. code-block:: ini
+
+    [apache_kafka]
+    callback_allowlist = airflow.providers.google.cloud.hooks.managed_kafka.oauth_cb
+
+Create a :ref:`Kafka connection <howto/connection:kafka>` with the following Extra
+(``Config Dict`` in the Airflow UI), replacing the bootstrap server and ``gcp_conn_id``
+with your values:
+
+.. code-block:: json
+
+    {
+        "bootstrap.servers": "bootstrap.my-cluster.us-central1.managedkafka.my-project.cloud.goog:9092",
+        "security.protocol": "SASL_SSL",
+        "sasl.mechanisms": "OAUTHBEARER",
+        "group.id": "my-consumer-group",
+        "oauth_cb": "airflow.providers.google.cloud.hooks.managed_kafka.oauth_cb",
+        "sasl.oauthbearer.config": "{\"gcp_conn_id\":\"google_kafka_prod\"}"
+    }
+
+``sasl.oauthbearer.config`` is a JSON string inside the Kafka connection's Extra JSON.
+``confluent-kafka`` passes it to ``oauth_cb(config_str)``, which selects the Google Cloud
+connection named by ``gcp_conn_id``. Set the Kafka operator's ``kafka_config_id`` to this
+Kafka connection ID. An explicit ``oauth_cb`` is preserved instead of the automatic callback.
+
+.. warning::
+
+    The callback allowlist restricts which function can be imported, but not which Google
+    Cloud connection it uses. Anyone who can edit this Kafka connection can change
+    ``gcp_conn_id``; restrict access to the connection accordingly.
+
 Reference
 ^^^^^^^^^
 
