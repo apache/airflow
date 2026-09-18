@@ -230,25 +230,25 @@ Comparison
 .. _concepts-resumable-tasks-retry-policies:
 
 Retry policies and durable execution
--------------------------------------
+------------------------------------
 
-Durable execution, taken broadly, is fine-grained workflow control: rich
-primitives for retries, backoff, and fallbacks, configurable at the level
-of a single task, combined with state that survives a worker crash so a
-workflow can span days without losing progress. Airflow provides two
-primitives for this.
+Long-running tasks typically need two separate things together: a retry
+policy, and durable execution as defined above. Each is configurable per
+task, and together they let a workflow span days without losing progress.
 
-A **retry policy** is the primitive for retries, backoff, and fallbacks. It
-decides whether a task gets another attempt, and how long to wait before
-it. This is :class:`~airflow.sdk.RetryPolicy` and :class:`~airflow.sdk.RetryDecision`
-(see :ref:`concepts:retry-policies`), or the LLM-driven
+A **retry policy** decides whether a failed attempt gets another try, and
+how long to wait before it. This is :class:`~airflow.sdk.RetryPolicy` and
+:class:`~airflow.sdk.RetryDecision` (see :ref:`concepts:retry-policies`), or
+the LLM-driven
 :class:`~airflow.providers.common.ai.policies.retry.LLMRetryPolicy`, which
-uses a model to read the error and make that call (see
+uses a model to read the error and make that call. That policy adds its own
+``fallback_rules``, applied when the classification call itself fails, so
+the decision does not depend on the model being reachable (see
 :doc:`apache-airflow-providers-common-ai:retry_policies`).
 
-**The task state store** is the primitive for state that survives a worker
-crash. Described above, it is what lets a task recover a checkpoint written
-by the attempt before it, rather than starting over.
+**Durable execution** is what that next attempt resumes from. Backed by the
+task state store described above, it is what lets a task recover a
+checkpoint written by the attempt before it, rather than starting over.
 
 Long-running tasks, or LLM-driven tasks like agentic workflows, benefit
 most from both: the retry policy decides whether the error is worth
@@ -262,6 +262,6 @@ Consider using both when a task:
   credentials.
 
 The two operate independently. A task with ``retries=5`` and a checkpoint
-still stops for good after 5 failed attempts, but each of those 5 attempts
-picks up from the last checkpoint instead of reprocessing files it already
-finished, or resubmitting a job that is still running.
+still stops for good after six failed attempts(the initial attempt plus five retries)
+ but each of those retries picks up from the last checkpoint instead of reprocessing
+ files it already finished, or resubmitting a job that is still running.
