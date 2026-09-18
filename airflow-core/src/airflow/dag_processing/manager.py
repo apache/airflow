@@ -48,6 +48,7 @@ from uuid6 import uuid7
 from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.metrics.stats import normalize_name_for_stats
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import (
     BundleUsageTrackingManager,
@@ -90,20 +91,9 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
 
-    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.dag_processing.bundles.base import BaseDagBundle
     from airflow.sdk.api.client import Client
-
-
-def _make_execution_api() -> InProcessExecutionAPI:
-    # This is a seriously weighty import, pulling in svcs, cadwyn, fastapi, aiohttp, etc.
-    #
-    # Defer it so that an import of this module for types (e.g. DagFileStat, DagFileInto) doesn't need to pay
-    # that cost.
-    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
-
-    return InProcessExecutionAPI()
 
 
 class DagParsingStat(NamedTuple):
@@ -303,7 +293,7 @@ class DagFileProcessorManager(LoggingMixin):
     )
     """Resolved once per process so file discovery and the deactivation scan use the same value."""
 
-    _api_server: InProcessExecutionAPI = attrs.field(init=False, factory=_make_execution_api)
+    _api_server: InProcessExecutionAPI = attrs.field(init=False, factory=InProcessExecutionAPI)
     """API server to interact with Metadata DB"""
 
     def register_exit_signals(self):

@@ -101,7 +101,6 @@ if TYPE_CHECKING:
 
     from structlog.typing import FilteringBoundLogger
 
-    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
     from airflow.sdk.api.client import Client
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.context import Context
@@ -565,13 +564,6 @@ def _execute_email_callbacks(dagbag: DagBag, request: EmailRequest, log: Filteri
             task_id=request.ti.task_id,
             run_id=request.ti.run_id,
         )
-
-
-def in_process_api_server() -> InProcessExecutionAPI:
-    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
-
-    api = InProcessExecutionAPI()
-    return api
 
 
 @attrs.define(kw_only=True)

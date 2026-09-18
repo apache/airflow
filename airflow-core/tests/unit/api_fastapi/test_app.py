@@ -86,7 +86,7 @@ def test_all_apps(mock_create_task_exec_api, mock_init_plugins, mock_init_views,
     mock_init_plugins.assert_called_once_with(test_app)
 
     # Assert that execution-related functions were also called
-    mock_create_task_exec_api.assert_called_once_with()
+    mock_create_task_exec_api.assert_called_once_with(dag_bag=test_app.state.dag_bag)
 
 
 @pytest.mark.parametrize("apps", ["all", "core", "execution"])
