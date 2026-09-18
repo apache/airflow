@@ -349,7 +349,7 @@ class PydanticAIHook(BaseHook):
 
         llm_provider, _ = parse_model_id(llm_model_name)
         embed_provider, _ = parse_model_id(embed_model_name)
-        if embed_provider is None or embed_provider == "sentence-transformers":
+        if llm_provider is None or embed_provider is None or embed_provider == "sentence-transformers":
             return
         llm_credential_provider = _get_credential_provider(llm_provider)
         embed_credential_provider = _get_credential_provider(embed_provider)
@@ -642,11 +642,11 @@ class PydanticAIHook(BaseHook):
                 "on the connection."
             )
 
-        self._validate_embedding_connection_provider(embed_model_name, extra)
         provider_factory = self._get_provider_factory_for_model(conn, embed_model_name, extra)
         if provider_factory is None:
             embedding_model = infer_embedding_model(embed_model_name)
         else:
+            self._validate_embedding_connection_provider(embed_model_name, extra)
             embedding_model = infer_embedding_model(embed_model_name, provider_factory=provider_factory)
 
         constructor_kwargs = dict(embedder_kwargs)
@@ -1095,6 +1095,6 @@ _PROVIDER_CONNECTION_CONFIGS: dict[str | None, _ProviderConnectionConfig] = {
     ),
     "google-cloud": _ProviderConnectionConfig(
         PydanticAIVertexHook._get_google_cloud_provider_kwargs,
-        ("api_key", "base_url", "project", "location"),
+        ("api_key", "base_url", "project", "location", "service_account_info"),
     ),
 }
