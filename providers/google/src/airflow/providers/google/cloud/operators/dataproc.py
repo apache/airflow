@@ -2552,8 +2552,6 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
                 metadata=self.metadata,
             )
         except AlreadyExists:
-            if not batch_id:
-                raise ValueError("Dataproc reported an existing batch without a requested batch_id.")
             self.log.info("Batch with given id already exists.")
             self.log.info("Attaching to the job %s if it is still running.", batch_id)
         else:
@@ -2703,8 +2701,6 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
                 metadata=self.metadata,
             )
         except AlreadyExists:
-            if not requested_batch_id:
-                raise ValueError("Dataproc reported an existing batch without a requested batch_id.")
             self.log.info("Batch with given id already exists.")
             self.log.info("Attaching to the job %s if it is still running.", requested_batch_id)
         else:
