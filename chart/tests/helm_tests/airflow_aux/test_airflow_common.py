@@ -423,34 +423,77 @@ class TestAirflowCommon:
             "templates/api-server/api-server-deployment.yaml",
             "templates/triggerer/triggerer-deployment.yaml",
             "templates/dag-processor/dag-processor-deployment.yaml",
+            "templates/flower/flower-deployment.yaml",
+            "templates/cleanup/cleanup-cronjob.yaml",
+            "templates/database-cleanup/database-cleanup-cronjob.yaml",
+            "templates/jobs/migrate-database-job.yaml",
+            "templates/jobs/create-user-job.yaml",
         ]
         docs = render_chart(
-            values={"mountConfigAsDir": True, "airflowLocalSettings": "# local settings"},
+            values={
+                "mountConfigAsDir": True,
+                "airflowLocalSettings": "# local settings",
+                "executor": "CeleryExecutor,KubernetesExecutor",
+                "flower": {"enabled": True},
+                "cleanup": {"enabled": True},
+                "databaseCleanup": {"enabled": True},
+            },
             show_only=components,
         )
-        assert len(docs) == len(components)
         dir_mount = {"name": "config", "mountPath": "/opt/airflow/config", "readOnly": True}
         for doc in docs:
-            mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", doc)
-            # airflow.cfg / airflow_local_settings.py are now served from the mounted directory
-            assert dir_mount in mounts
-            assert not [m for m in mounts if m.get("subPath") in ("airflow.cfg", "airflow_local_settings.py")]
-            # AIRFLOW_CONFIG points Airflow at the config in the mounted directory
-            env = jmespath.search("spec.template.spec.containers[0].env", doc)
-            assert {"name": "AIRFLOW_CONFIG", "value": "/opt/airflow/config/airflow.cfg"} in env
+            pod = "spec.jobTemplate.spec.template.spec" if doc["kind"] == "CronJob" else "spec.template.spec"
+            assert jmespath.search(f"{pod}.containers[0].volumeMounts[?name=='config' && !subPath]", doc) == [
+                dir_mount
+            ]
+            assert (
+                jmespath.search(
+                    f"{pod}.containers[0].volumeMounts[?subPath=='airflow.cfg' || subPath=='airflow_local_settings.py']",
+                    doc,
+                )
+                == []
+            )
+            assert jmespath.search(f"{pod}.containers[0].env[?name=='AIRFLOW_CONFIG'].value", doc) == [
+                "/opt/airflow/config/airflow.cfg"
+            ]
 
     def test_config_mounted_via_subpath_by_default(self):
+        docs = render_chart(show_only=["templates/scheduler/scheduler-deployment.yaml"])
+        mounts = "spec.template.spec.containers[0].volumeMounts"
+        assert jmespath.search(f"{mounts}[?subPath=='airflow.cfg']", docs[0]) == [
+            {
+                "name": "config",
+                "mountPath": "/opt/airflow/airflow.cfg",
+                "subPath": "airflow.cfg",
+                "readOnly": True,
+            }
+        ]
+        assert jmespath.search(f"{mounts}[?subPath=='airflow_local_settings.py']", docs[0]) == []
+        assert jmespath.search(f"{mounts}[?name=='config' && !subPath]", docs[0]) == []
+        assert jmespath.search("spec.template.spec.containers[0].env[?name=='AIRFLOW_CONFIG']", docs[0]) == []
+
+    def test_local_settings_mounted_via_subpath_when_set(self):
         docs = render_chart(
             values={"airflowLocalSettings": "# local settings"},
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
-        mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
-        assert {
-            "name": "config",
-            "mountPath": "/opt/airflow/airflow.cfg",
-            "subPath": "airflow.cfg",
-            "readOnly": True,
-        } in mounts
+        mounts = "spec.template.spec.containers[0].volumeMounts"
+        assert jmespath.search(f"{mounts}[?subPath=='airflow.cfg']", docs[0]) == [
+            {
+                "name": "config",
+                "mountPath": "/opt/airflow/airflow.cfg",
+                "subPath": "airflow.cfg",
+                "readOnly": True,
+            }
+        ]
+        assert jmespath.search(f"{mounts}[?subPath=='airflow_local_settings.py']", docs[0]) == [
+            {
+                "name": "config",
+                "mountPath": "/opt/airflow/config/airflow_local_settings.py",
+                "subPath": "airflow_local_settings.py",
+                "readOnly": True,
+            }
+        ]
 
     def test_priority_class_name(self):
         docs = render_chart(
