@@ -19,10 +19,11 @@
 A module's ``docs_url`` points at generated API reference, which tells a reader
 what the arguments are but not how the thing is meant to be used. The prose
 guides carry that, and they already mark it: a how-to guide documents one class
-per section, titled with the class name (``HookToolset``, ``SQLToolset``).
+(or a class and its task-flow decorator) per section, titled with the name(s)
+(``HookToolset``, ``SQLToolset``, ``AgentOperator`` & ``@task.agent``).
 
 So the mapping is read back out of the guides rather than curated anywhere: a
-hand-maintained class-to-guide table would rot silently every time a guide is
+hand-maintained name-to-guide table would rot silently every time a guide is
 split, renamed, or a class is dropped, and a rotten link is worse than none.
 Callers supply the reST they can see (a git tag, or the working tree) and get
 back only the anchors those sources actually contain.
@@ -38,9 +39,19 @@ from typing import Any
 # punctuation character, at least as long as the title itself.
 _ADORNMENT_CHARS = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
 
-# Only titles opening with a class name as an inline literal are treated as
-# documenting it, so prose headings ("Bounded query results") never produce a link.
-_LEADING_CLASS_LITERAL = re.compile(r"^``([A-Za-z_][A-Za-z0-9_]*)``")
+# A single inline-literal name: a class (``HookToolset``) or a task-flow
+# decorator (``@task.llm_file_analysis``) -- narrow enough that it still can't
+# match arbitrary prose wrapped in backticks.
+_INLINE_LITERAL_NAME = r"``(@?[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)``"
+_INLINE_LITERAL_NAME_RE = re.compile(_INLINE_LITERAL_NAME)
+
+# Only titles opening with a run of inline-literal names are treated as
+# documenting them, so prose headings ("Bounded query results") never produce a
+# link. A run is one or more names joined by "&", "," or "/" -- how guides write
+# a section that covers both an operator and its decorator
+# (``AgentOperator`` & ``@task.agent``). The run stops at the first thing that
+# is neither a name nor a separator, so it never reaches into prose.
+_LEADING_LITERAL_NAME_RUN = re.compile(rf"^{_INLINE_LITERAL_NAME}(?:\s*[&,/]\s*{_INLINE_LITERAL_NAME})*")
 
 
 def slugify_section_anchor(title: str) -> str:
@@ -54,18 +65,18 @@ def slugify_section_anchor(title: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
 
 
-def _extract_class_name_from_title(title: str) -> str | None:
-    """Return the class a section title leads with, or None if it names prose.
+def _extract_leading_names_from_title(title: str) -> list[str]:
+    """Return the names a section title leads with, or [] if it names prose.
 
-    A guide marks a section as being *about a class* by opening its title with the
-    class as an inline literal -- ``HookToolset``, or
+    A guide marks a section as being *about* one or more names by opening its
+    title with them as inline literals -- ``HookToolset``, or
     ``AgentOperator`` & ``@task.agent`` where one section covers the operator and
     its decorator. Requiring that markup is what keeps a single-word prose heading
     ("Guidelines") from claiming to document a class of the same name, and it is a
     convention the guides already follow rather than one imposed on them.
     """
-    match = _LEADING_CLASS_LITERAL.match(title)
-    return match.group(1) if match else None
+    match = _LEADING_LITERAL_NAME_RUN.match(title)
+    return _INLINE_LITERAL_NAME_RE.findall(match.group(0)) if match else []
 
 
 def _is_adornment(line: str) -> bool:
@@ -91,21 +102,23 @@ def _extract_section_titles(text: str) -> list[str]:
 
 
 def collect_guide_anchors(docs: Mapping[str, str]) -> dict[str, str]:
-    """Map class name -> ``<page>.html#<anchor>`` for every documented class.
+    """Map name -> ``<page>.html#<anchor>`` for every documented class or decorator.
 
     ``docs`` maps a page path relative to the provider's docs directory (e.g.
-    ``toolsets.rst``) to its reST source. When two pages document the same class
-    name, the first page in sorted order wins, so a rebuild of the same sources
-    always produces the same link.
+    ``toolsets.rst``) to its reST source. A title can lead with more than one name
+    (``AgentOperator`` & ``@task.agent``), in which case every leading name gets
+    the same anchor. When two pages document the same name, the first page in
+    sorted order wins, so a rebuild of the same sources always produces the same
+    link.
     """
     anchors: dict[str, str] = {}
     for page in sorted(docs):
         page_url = re.sub(r"\.rst$", ".html", page)
         for title in _extract_section_titles(docs[page]):
-            class_name = _extract_class_name_from_title(title)
-            if not class_name or class_name in anchors:
-                continue
-            anchors[class_name] = f"{page_url}#{slugify_section_anchor(title)}"
+            for name in _extract_leading_names_from_title(title):
+                if name in anchors:
+                    continue
+                anchors[name] = f"{page_url}#{slugify_section_anchor(title)}"
     return anchors
 
 

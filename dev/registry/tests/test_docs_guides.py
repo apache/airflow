@@ -114,12 +114,42 @@ def test_collect_guide_anchors_prefers_first_page_in_sorted_order():
 def test_collect_guide_anchors_handles_a_title_covering_more_than_the_class():
     # Verified against the published guide: this heading is served at
     # .../operators/agent.html#agentoperator-task-agent, so the anchor comes from
-    # the whole title while the class name comes from the leading literal.
+    # the whole title while both the operator and its decorator get linked to it.
     guide = "``AgentOperator`` & ``@task.agent``\n===================================\n\nProse.\n"
 
     assert collect_guide_anchors({"operators/agent.rst": guide}) == {
-        "AgentOperator": "operators/agent.html#agentoperator-task-agent"
+        "AgentOperator": "operators/agent.html#agentoperator-task-agent",
+        "@task.agent": "operators/agent.html#agentoperator-task-agent",
     }
+
+
+def test_collect_guide_anchors_links_a_decorator_name_with_underscores():
+    # ``@task.llm_file_analysis`` is the real decorator name for the common.ai
+    # provider's LLMFileAnalysisOperator; the leading-literal charset must admit
+    # "@" and "." for it to ever get a link.
+    guide = (
+        "``LLMFileAnalysisOperator`` & ``@task.llm_file_analysis``\n"
+        "==========================================================\n\n"
+        "Prose.\n"
+    )
+
+    assert collect_guide_anchors({"operators/llm_file_analysis.rst": guide}) == {
+        "LLMFileAnalysisOperator": (
+            "operators/llm_file_analysis.html#llmfileanalysisoperator-task-llm-file-analysis"
+        ),
+        "@task.llm_file_analysis": (
+            "operators/llm_file_analysis.html#llmfileanalysisoperator-task-llm-file-analysis"
+        ),
+    }
+
+
+def test_collect_guide_anchors_ignores_a_prose_title_mentioning_a_literal():
+    # The title doesn't *open* with the literal, so nothing after "Using" should
+    # ever be scanned for further inline literals -- a prose heading that happens
+    # to mention one in passing must not produce a link.
+    guide = "Using ``foo`` in a pipeline\n============================\n\nProse.\n"
+
+    assert collect_guide_anchors({"toolsets.rst": guide}) == {}
 
 
 def test_collect_guide_anchors_requires_a_long_enough_underline():
