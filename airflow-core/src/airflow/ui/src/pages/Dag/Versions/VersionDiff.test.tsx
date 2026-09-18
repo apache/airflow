@@ -17,14 +17,28 @@
  * under the License.
  */
 import "@testing-library/jest-dom";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import {
+  $DagVersionDiffCategory,
+  $DagVersionDiffImpact,
+  $DagVersionDiffOperation,
+} from "openapi/requests/schemas.gen";
 import type { DagVersionDiffResponse } from "openapi/requests/types.gen";
 
 import { Wrapper } from "src/utils/Wrapper";
 
+import dagLocale from "../../../../public/i18n/locales/en/dag.json";
 import { VersionDiff } from "./VersionDiff";
+
+// The cells render these tokens through the label maps below, so a value the engine gains without
+// a label would reach the user as a bare token.
+const LABEL_GROUPS = {
+  categories: dagLocale.versions.categories,
+  impacts: dagLocale.versions.impacts,
+  operations: dagLocale.versions.operations,
+};
 
 const redacted: DagVersionDiffResponse = {
   base_version_number: 1,
@@ -74,6 +88,25 @@ const renderDiff = (diff: DagVersionDiffResponse) =>
 
 // The test harness passes translation keys through untranslated, so assertions on chrome use the
 // key and assertions on content use the data the API returned.
+describe.each([
+  ["categories", $DagVersionDiffCategory.enum],
+  ["impacts", $DagVersionDiffImpact.enum],
+  ["operations", $DagVersionDiffOperation.enum],
+] as const)("VersionDiff %s labels", (group, values) => {
+  it("cover exactly what the API can return", () => {
+    expect(Object.keys(LABEL_GROUPS[group]).sort()).toEqual([...values].sort());
+  });
+});
+
+describe("VersionDiff summary", () => {
+  it("carries both plural forms, since i18next resolves it with a count", () => {
+    // A single `summary` key would render "1 changes" for a one-change comparison.
+    expect(dagLocale.versions).not.toHaveProperty("summary");
+    expect(dagLocale.versions.summary_one).toContain("{{count}}");
+    expect(dagLocale.versions.summary_other).toContain("{{count}}");
+  });
+});
+
 describe("VersionDiff", () => {
   it("withholds value columns when the caller may not see values", () => {
     renderDiff(redacted);
@@ -142,6 +175,64 @@ describe("VersionDiff", () => {
 
     expect(text.endsWith("…")).toBe(true);
     expect(text.length).toBeLessThan(200);
+  });
+
+  it("renders a stored null as a value, not as an absent side", () => {
+    renderDiff({
+      ...authorized,
+      changes: [
+        {
+          after_digest: "sha256:beef",
+          after_value: null,
+          before_digest: "sha256:cafe",
+          before_value: "alice",
+          category: "task",
+          impact: "execution",
+          occurrence_count: 1,
+          operation: "changed",
+          path: "/dag/tasks/extract/owner",
+        },
+      ],
+    });
+
+    expect(screen.getByText("null")).toBeInTheDocument();
+    expect(screen.queryByText("—")).not.toBeInTheDocument();
+  });
+
+  it("puts each side in its own column", () => {
+    renderDiff(authorized);
+
+    const cells = within(screen.getAllByRole("row")[1] as HTMLElement).getAllByRole("cell");
+
+    expect(cells[4]).toHaveTextContent("1");
+    expect(cells[5]).toHaveTextContent("alice");
+    expect(cells[6]).toHaveTextContent("bob");
+  });
+
+  it("labels the disclosure state the response reports", () => {
+    renderDiff(authorized);
+
+    expect(screen.getByText("versions.valuesShown")).toBeInTheDocument();
+    expect(screen.queryByText("versions.valuesHidden")).not.toBeInTheDocument();
+  });
+
+  it("says so when two versions hold the same state", () => {
+    renderDiff({ ...redacted, changes: [], total_changes: 0 });
+
+    expect(screen.getByText("versions.noChanges")).toBeInTheDocument();
+    expect(screen.queryByText("versions.columns.path")).not.toBeInTheDocument();
+  });
+
+  it("reports an unavailable comparison that carries no reason", () => {
+    renderDiff({
+      ...redacted,
+      changes: [],
+      mode: "unavailable",
+      total_changes: 0,
+      unavailable_reason: null,
+    });
+
+    expect(screen.getByText("versions.unavailable.withoutReason")).toBeInTheDocument();
   });
 
   it("reports why a comparison could not be made instead of an empty table", () => {

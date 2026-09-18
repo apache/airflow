@@ -16,9 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useState } from "react";
+
 import { Box, Flex, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
+import { useDebouncedCallback } from "use-debounce";
 
 import { useDagVersionServiceGetDagVersionDiff } from "openapi/queries";
 
@@ -34,6 +37,9 @@ import { VersionDiff } from "./VersionDiff";
 // Mirrors MAX_ALLOWED_CHANGES on the diff endpoint, which is the real guard: this only spares
 // the caller a rejected request, so a stale value costs a 422 the error alert explains.
 const MAX_CHANGES_LIMIT = 5000;
+// Every distinct bound is its own request, and each one re-reads and compares two whole serialized
+// Dags, so a keystroke is too cheap a trigger.
+const MAX_CHANGES_DEBOUNCE_MS = 400;
 
 type SelectedVersionsProps = {
   readonly baseVersionNumber: number;
@@ -49,12 +55,17 @@ const SelectedVersionsDiff = ({
   maxChanges,
   targetVersionNumber,
 }: SelectedVersionsProps) => {
-  const { data, error, isLoading } = useDagVersionServiceGetDagVersionDiff({
-    baseVersionNumber,
-    dagId,
-    maxChanges,
-    targetVersionNumber,
-  });
+  const { data, error, isLoading } = useDagVersionServiceGetDagVersionDiff(
+    {
+      baseVersionNumber,
+      dagId,
+      maxChanges,
+      targetVersionNumber,
+    },
+    undefined,
+    // Changing the bound is a new query key; without this the table would blank out while it loads.
+    { placeholderData: (previous) => previous },
+  );
 
   return (
     <>
@@ -74,7 +85,7 @@ const SelectedVersionsDiff = ({
 const parsePositiveInt = (raw: string | null) => {
   const parsed = Number(raw);
 
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : undefined;
 };
 
 export const Versions = () => {
@@ -86,9 +97,12 @@ export const Versions = () => {
   const targetVersionNumber = parsePositiveInt(searchParams.get(SearchParamsKeys.TARGET_VERSION_NUMBER));
   const requestedMaxChanges = parsePositiveInt(searchParams.get(SearchParamsKeys.MAX_CHANGES));
   // Clamped rather than passed through, so a hand-edited link cannot make the endpoint reject the
-  // request. The input below shows the clamped value, never a limit that is not in effect.
+  // request. An empty bound means the endpoint's own default applies.
   const maxChanges =
     requestedMaxChanges === undefined ? undefined : Math.min(requestedMaxChanges, MAX_CHANGES_LIMIT);
+  // The field keeps what was typed while the debounced write settles; the URL only ever holds a
+  // bound the endpoint accepts.
+  const [maxChangesDraft, setMaxChangesDraft] = useState(maxChanges === undefined ? "" : `${maxChanges}`);
 
   const updateParam = (key: string, value: string) =>
     setSearchParams(
@@ -106,20 +120,29 @@ export const Versions = () => {
       { replace: true },
     );
 
+  const writeMaxChanges = useDebouncedCallback((value: string) => {
+    const parsed = parsePositiveInt(value);
+
+    updateParam(
+      SearchParamsKeys.MAX_CHANGES,
+      parsed === undefined ? "" : `${Math.min(parsed, MAX_CHANGES_LIMIT)}`,
+    );
+  }, MAX_CHANGES_DEBOUNCE_MS);
+
   return (
     <Box p={2}>
       <Flex alignItems="flex-end" gap={4} mb={4}>
         <VersionCompareSelect
           label={translate("versions.base")}
           onVersionChange={(versionNumber) =>
-            updateParam(SearchParamsKeys.BASE_VERSION_NUMBER, versionNumber.toString())
+            updateParam(SearchParamsKeys.BASE_VERSION_NUMBER, `${versionNumber}`)
           }
           selectedVersionNumber={baseVersionNumber}
         />
         <VersionCompareSelect
           label={translate("versions.target")}
           onVersionChange={(versionNumber) =>
-            updateParam(SearchParamsKeys.TARGET_VERSION_NUMBER, versionNumber.toString())
+            updateParam(SearchParamsKeys.TARGET_VERSION_NUMBER, `${versionNumber}`)
           }
           selectedVersionNumber={targetVersionNumber}
         />
@@ -128,9 +151,12 @@ export const Versions = () => {
           <NumberInputRoot
             max={MAX_CHANGES_LIMIT}
             min={1}
-            onValueChange={({ value }) => updateParam(SearchParamsKeys.MAX_CHANGES, value)}
+            onValueChange={({ value }) => {
+              setMaxChangesDraft(value);
+              writeMaxChanges(value);
+            }}
             size="sm"
-            value={maxChanges === undefined ? "" : maxChanges.toString()}
+            value={maxChangesDraft}
             w={28}
           >
             <NumberInputField

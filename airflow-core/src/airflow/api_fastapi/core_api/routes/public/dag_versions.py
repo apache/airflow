@@ -149,8 +149,8 @@ def get_dag_versions(
         ]
     ),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.VERSION))],
-    # A value key is present only when that side has one, which is how a missing side is told apart
-    # from a stored null. Serializing unset fields as null would erase that.
+    # Serializing unset fields as null would erase the absent-vs-null distinction the value
+    # fields document.
     response_model_exclude_unset=True,
 )
 def get_dag_version_diff(
@@ -208,8 +208,6 @@ def get_dag_version_diff(
         unavailable_reason=result.get("unavailable_reason"),
         values_status=result["values"]["status"],
         truncated=result["truncated"],
-        # Counting records would under-report: a redacted record stands for every change sharing
-        # its public path. Dropped paths are not counted either, which is what ``truncated`` says.
         total_changes=sum(change["occurrence_count"] for change in changes),
         changes=changes,
     )
