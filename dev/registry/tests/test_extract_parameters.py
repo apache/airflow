@@ -38,6 +38,7 @@ from extract_parameters import (
     get_category,
     is_durable_capable,
     load_resumable_job_mixin,
+    read_guide_docs,
     supports_deferrable,
 )
 
@@ -909,6 +910,23 @@ FAKE_PROVIDER_YAML = {
         },
     ],
 }
+
+
+# ---------------------------------------------------------------------------
+# read_guide_docs
+# ---------------------------------------------------------------------------
+def test_read_guide_docs_skips_generated_and_release_note_pages(tmp_path):
+    (tmp_path / "_api" / "x").mkdir(parents=True)
+    (tmp_path / "_api" / "x" / "index.rst").write_text("Generated.\n")
+    (tmp_path / "changelog.rst").write_text("Release notes.\n")
+    (tmp_path / "toolsets.rst").write_text("``HookToolset``\n---------------\n\nProse.\n")
+
+    result = read_guide_docs(tmp_path)
+
+    # Mutation canary: if the `is_guide_page` filter in read_guide_docs is
+    # removed, this dict grows two more keys -- "_api/x/index.rst" and
+    # "changelog.rst" -- and this assertion goes red.
+    assert set(result) == {"toolsets.rst"}
 
 
 # ---------------------------------------------------------------------------

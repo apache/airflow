@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import textwrap
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import pytest
 from extract_versions import (
@@ -28,6 +28,7 @@ from extract_versions import (
     SCRIPT_DIR,
     extract_modules_from_yaml,
     extract_version_data,
+    read_guide_docs,
 )
 from registry_tools.types import CLASS_LEVEL_SECTIONS, DICT_SHAPED_CLASS_LEVEL_SECTIONS
 
@@ -264,3 +265,27 @@ class TestExtractModulesGuideUrls:
         modules = self._extract(layout="old")
 
         assert "guide_url" not in modules[0]
+
+
+class TestReadGuideDocs:
+    def test_skips_generated_and_release_note_pages_before_calling_git_show(self):
+        docs_prefix = "providers/test/docs/"
+        paths = [
+            docs_prefix + "_api/x/index.rst",
+            docs_prefix + "changelog.rst",
+            docs_prefix + "toolsets.rst",
+        ]
+
+        with (
+            patch("extract_versions.git_ls_tree", autospec=True, return_value=paths),
+            patch("extract_versions.git_show", autospec=True, return_value="Prose.\n") as mock_git_show,
+        ):
+            result = read_guide_docs("providers-test/1.0.0", "new", "test")
+
+        # Mutation canary: if the `is_guide_page` filter in read_guide_docs is
+        # removed, this dict grows two more keys and this assertion goes red.
+        assert set(result) == {"toolsets.rst"}
+        # Mutation canary: without the filter, git_show is also called for the
+        # two skipped paths -- this assertion goes red too, proving the
+        # `continue` runs before git_show, not just before the dict write.
+        assert mock_git_show.call_args_list == [call("providers-test/1.0.0", docs_prefix + "toolsets.rst")]
