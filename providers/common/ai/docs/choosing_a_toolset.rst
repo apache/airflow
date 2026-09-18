@@ -363,10 +363,12 @@ this one answers "here is somewhere to work".
   in the worker with the worker's credentials. It contains model-written code, so
   pairing it with a credential-bearing toolset on the same agent puts the
   credential back within reach. :ref:`sandbox-boundaries` sets this out in full.
-- It cannot apply a per-sandbox network rule on the backend that ships today.
-  ``sbx`` governs egress through a host-level ``sbx policy``, and the backend says
-  so rather than letting a Dag author believe a per-sandbox restriction is in
-  force.
+- It cannot enforce network isolation on its own. The backend applies
+  ``allow_egress_to`` as a per-sandbox policy rule, but only on top of a
+  ``deny-all`` host policy, since a local rule can narrow egress and never
+  widen it; ``block_network`` has no per-sandbox enforcement at all. Ask for
+  either against a host policy that is not already ``deny-all`` and the
+  backend raises rather than granting nothing quietly.
 - It does not guarantee reclamation. A failed teardown is logged as a warning
   rather than raised, deliberately, so that a teardown blip cannot fail a
   finished run. Nothing else picks up the slack: the backend that ships has no
