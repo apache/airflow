@@ -100,7 +100,10 @@ dependencies = [
     # https://github.com/apache/airflow/issues/68562
     "fastapi[standard-no-fastapi-cloud-cli]>=0.129.0,<0.137.0",
     "uvicorn>=0.37.0",
-    "starlette>=1.0.1",
+    # 1.3.1 is the first release whose urlencoded FormParser enforces max_fields/max_part_size
+    # and reports them as a 400. Below it, an unauthenticated form body to POST /auth/token is
+    # parsed with no field-count or field-size bound at all.
+    "starlette>=1.3.1",
     "httpx>=0.25.0",
     'importlib_metadata>=6.5;python_version<"3.12"',
     'importlib_metadata>=7.0;python_version>="3.12"',
