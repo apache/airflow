@@ -1203,11 +1203,12 @@ def test_retry_policy_fail_persists_reason(create_runtime_ti, mock_supervisor_co
 
     task = _AlwaysFails(
         task_id="fail_with_reason",
+        retries=2,
         retry_policy=ExceptionRetryPolicy(
             rules=[RetryRule(exception=RuntimeError, action=RetryAction.FAIL, reason="do not retry")]
         ),
     )
-    ti = create_runtime_ti(task=task, should_retry=True)
+    ti = create_runtime_ti(task=task)
 
     state, msg, error = run(ti, ti.get_template_context(), mock.MagicMock())
 
@@ -1225,17 +1226,46 @@ def test_retry_policy_retry_exhausted_persists_combined_reason(create_runtime_ti
 
     task = _AlwaysFails(
         task_id="retry_exhausted",
+        retries=2,
         retry_policy=ExceptionRetryPolicy(
             rules=[RetryRule(exception=RuntimeError, action=RetryAction.RETRY, reason="rate limit")]
         ),
     )
-    ti = create_runtime_ti(task=task, try_number=3, max_tries=2, should_retry=False)
+    ti = create_runtime_ti(task=task, try_number=3)
 
     state, msg, error = run(ti, ti.get_template_context(), mock.MagicMock())
 
     assert state == TaskInstanceState.FAILED
     assert isinstance(msg, TaskState)
     assert msg.retry_reason == "rate limit; retries exhausted (3 of 3)"
+
+
+def test_retry_policy_retry_exhausted_reason_is_truncated_with_suffix_kept(
+    create_runtime_ti, mock_supervisor_comms
+):
+    """A long reason is truncated to 500 chars total, with the exhausted-suffix always kept."""
+
+    class _AlwaysFails(BaseOperator):
+        def execute(self, context):
+            raise RuntimeError("boom")
+
+    long_reason = "z" * 600
+    task = _AlwaysFails(
+        task_id="retry_exhausted_long_reason",
+        retries=2,
+        retry_policy=ExceptionRetryPolicy(
+            rules=[RetryRule(exception=RuntimeError, action=RetryAction.RETRY, reason=long_reason)]
+        ),
+    )
+    ti = create_runtime_ti(task=task, try_number=3)
+
+    state, msg, error = run(ti, ti.get_template_context(), mock.MagicMock())
+
+    assert state == TaskInstanceState.FAILED
+    assert isinstance(msg, TaskState)
+    assert msg.retry_reason is not None
+    assert len(msg.retry_reason) == 500
+    assert msg.retry_reason.endswith("; retries exhausted (3 of 3)")
 
 
 def test_plain_retries_exhausted_has_no_reason(create_runtime_ti, mock_supervisor_comms):
@@ -1245,8 +1275,8 @@ def test_plain_retries_exhausted_has_no_reason(create_runtime_ti, mock_superviso
         def execute(self, context):
             raise RuntimeError("boom")
 
-    task = _AlwaysFails(task_id="plain_exhausted")
-    ti = create_runtime_ti(task=task, try_number=3, max_tries=2, should_retry=False)
+    task = _AlwaysFails(task_id="plain_exhausted", retries=2)
+    ti = create_runtime_ti(task=task, try_number=3)
 
     state, msg, error = run(ti, ti.get_template_context(), mock.MagicMock())
 

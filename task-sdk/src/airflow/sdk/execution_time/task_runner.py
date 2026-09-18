@@ -1887,19 +1887,20 @@ def _handle_current_task_failed(
                 state=TaskInstanceState.FAILED,
                 end_date=ti.end_date,
                 rendered_map_index=ti.rendered_map_index,
-                retry_reason=decision.reason,
+                retry_reason=decision.reason[:500] if decision.reason is not None else None,
             ),
             TaskInstanceState.FAILED,
         )
     if decision is not None and decision.action == RetryAction.RETRY:
         return _finalize_task_failure(
-            ti, retry_delay_override=decision.retry_delay, retry_reason=decision.reason
+            ti, log, retry_delay_override=decision.retry_delay, retry_reason=decision.reason
         )
-    return _finalize_task_failure(ti)
+    return _finalize_task_failure(ti, log)
 
 
 def _finalize_task_failure(
     ti: RuntimeTaskInstance,
+    log: Logger,
     retry_delay_override: timedelta | None = None,
     retry_reason: str | None = None,
 ) -> tuple[RetryTask, TaskInstanceState] | tuple[TaskState, TaskInstanceState]:
@@ -1933,10 +1934,12 @@ def _finalize_task_failure(
             retry_kwargs["retry_reason"] = retry_reason[:500]
         return RetryTask(**retry_kwargs), TaskInstanceState.UP_FOR_RETRY
     if retry_reason is not None and ti._ti_context_from_server is not None:
-        # max_tries is the retry count, not the attempt count -- total attempts is max_tries + 1.
-        total_attempts = ti._ti_context_from_server.max_tries + 1
-        suffix = f"; retries exhausted ({ti.try_number} of {total_attempts})"
-        retry_reason = f"{retry_reason[: 500 - len(suffix)]}{suffix}"
+        max_tries = ti._ti_context_from_server.max_tries
+        if max_tries > 0:
+            # max_tries is the retry count, not the attempt count -- total attempts is max_tries + 1.
+            suffix = f"; retries exhausted ({ti.try_number} of {max_tries + 1})"
+            retry_reason = f"{retry_reason[: 500 - len(suffix)]}{suffix}"
+        log.info("Retry policy decision", action="fail", reason=retry_reason)
     return (
         TaskState(
             state=TaskInstanceState.FAILED,
