@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, cast
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 
 from airflow import models
 from airflow.exceptions import AirflowException, DagNotFound
@@ -80,10 +80,12 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, *, session: Sessio
 
     # Delete entries in Import Errors table for a deleted Dag
     # This handles the case when the dag_id is changed in the file
-    targets = [ref for ref in (dag.relative_fileloc, dag.fileloc) if ref]
     session.execute(
         delete(ParseImportError).where(
-            ParseImportError.source_reference.in_(targets),
+            or_(
+                ParseImportError.source_reference == dag.relative_fileloc,
+                ParseImportError.filename == dag.fileloc,
+            ),
             ParseImportError.bundle_name == dag.bundle_name,
         )
     )

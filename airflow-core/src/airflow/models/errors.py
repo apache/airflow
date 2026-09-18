@@ -21,7 +21,7 @@ from datetime import datetime
 from pathlib import Path
 
 from sqlalchemy import Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column, synonym
+from sqlalchemy.orm import Mapped, mapped_column
 
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models.base import Base, StringID
@@ -34,20 +34,18 @@ class ParseImportError(Base):
     __tablename__ = "import_error"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     timestamp: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    filename: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     source_reference: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     bundle_name: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     stacktrace: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    filename = synonym("source_reference")
-
     def full_file_path(self) -> str:
         """Return the full file path of the dag."""
-        if self.bundle_name is None or self.source_reference is None:
-            raise ValueError("bundle_name and source_reference must not be None")
-        bundle = DagBundlesManager().get_bundle(self.bundle_name)
-        ref = self.source_reference
-        # A reference may address a member inside a container (``archive.zip:dags/my_dag.py``); the
-        # anchor alone decides whether it is already rooted, so the separator is never parsed here.
-        if ref.startswith(str(bundle.path)) or Path(ref).is_absolute():
+        ref = self.source_reference or self.filename
+        if self.bundle_name is None or ref is None:
+            raise ValueError("bundle_name and (source_reference or filename) must not be None")
+        ref_path = Path(ref)
+        if ref_path.is_absolute():
             return ref
-        return str(bundle.path / ref)
+        bundle = DagBundlesManager().get_bundle(self.bundle_name)
+        return str(bundle.path / ref_path)

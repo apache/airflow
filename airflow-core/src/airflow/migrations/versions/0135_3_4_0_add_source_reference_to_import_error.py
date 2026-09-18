@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Rename filename to source_reference in import_error.
+Add source_reference to import_error.
 
 Revision ID: ca8499dc1004
 Revises: b6a9c2e7d410
@@ -39,12 +39,12 @@ airflow_version = "3.4.0"
 
 
 def upgrade():
-    """Apply rename filename to source_reference in import_error."""
+    """Apply add source_reference to import_error."""
     with op.batch_alter_table("import_error", schema=None) as batch_op:
-        batch_op.alter_column("filename", new_column_name="source_reference", type_=sa.String(length=1024))
+        batch_op.add_column(sa.Column("source_reference", sa.String(length=1024), nullable=True))
 
 
 def downgrade():
-    """Unapply rename filename to source_reference in import_error."""
+    """Unapply add source_reference to import_error."""
     with op.batch_alter_table("import_error", schema=None) as batch_op:
-        batch_op.alter_column("source_reference", new_column_name="filename", type_=sa.String(length=1024))
+        batch_op.drop_column("source_reference")

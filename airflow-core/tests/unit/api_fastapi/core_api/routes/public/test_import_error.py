@@ -119,7 +119,7 @@ def import_errors(*, session: Session = NEW_SESSION) -> list[ParseImportError]:
     _import_errors = [
         ParseImportError(
             bundle_name=bundle,
-            source_reference=filename,
+            filename=filename,
             stacktrace=stacktrace,
             timestamp=timestamp,
         )
@@ -171,6 +171,7 @@ class TestGetImportError:
                 {
                     "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP1),
                     "filename": FILENAME1,
+                    "source_reference": None,
                     "stack_trace": STACKTRACE1,
                     "bundle_name": BUNDLE_NAME,
                 },
@@ -181,6 +182,7 @@ class TestGetImportError:
                 {
                     "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP2),
                     "filename": FILENAME2,
+                    "source_reference": None,
                     "stack_trace": STACKTRACE2,
                     "bundle_name": BUNDLE_NAME,
                 },
@@ -191,6 +193,7 @@ class TestGetImportError:
                 {
                     "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP3),
                     "filename": FILENAME3,
+                    "source_reference": None,
                     "stack_trace": STACKTRACE3,
                     "bundle_name": BUNDLE_NAME,
                 },
@@ -229,6 +232,32 @@ class TestGetImportError:
             }
         )
         assert response.json() == expected_body
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_get_import_error_with_source_reference(
+        self, mock_get_auth_manager, test_client, session, permitted_dag_model_all
+    ):
+        error = ParseImportError(
+            bundle_name=BUNDLE_NAME,
+            filename=FILENAME1,
+            source_reference="archive.zip/dags/my_dag.py",
+            stacktrace=STACKTRACE1,
+            timestamp=TIMESTAMP1,
+        )
+        session.add(error)
+        session.commit()
+
+        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, permitted_dag_model_all)
+        response = test_client.get(f"/importErrors/{error.id}")
+        assert response.status_code == 200
+        assert response.json() == {
+            "import_error_id": error.id,
+            "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP1),
+            "filename": FILENAME1,
+            "source_reference": "archive.zip/dags/my_dag.py",
+            "stack_trace": STACKTRACE1,
+            "bundle_name": BUNDLE_NAME,
+        }
 
     def test_should_raises_401_unauthenticated(self, unauthenticated_test_client, import_errors):
         import_error_id = import_errors[0].id
@@ -275,6 +304,7 @@ class TestGetImportError:
             "import_error_id": import_error_id,
             "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP1),
             "filename": FILENAME1,
+            "source_reference": None,
             "stack_trace": "REDACTED - you do not have read permission on all Dags in the file",
             "bundle_name": BUNDLE_NAME,
             "file_token": url_safe_serializer.dumps(
@@ -316,6 +346,7 @@ class TestGetImportError:
                 "import_error_id": import_error_id,
                 "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP1),
                 "filename": FILENAME1,
+                "source_reference": None,
                 "stack_trace": STACKTRACE1,
                 "bundle_name": BUNDLE_NAME,
                 "file_token": url_safe_serializer.dumps(
@@ -565,7 +596,7 @@ class TestGetImportErrors:
         session.add(
             ParseImportError(
                 bundle_name=other_bundle,
-                source_reference=shared_filename,
+                filename=shared_filename,
                 stacktrace="wrong bundle error",
                 timestamp=TIMESTAMP1,
             )
@@ -618,7 +649,7 @@ class TestGetImportErrors:
         # has no Dag for it.
         error = ParseImportError(
             bundle_name=BUNDLE_NAME,
-            source_reference=FILENAME1,
+            filename=FILENAME1,
             stacktrace=STACKTRACE1,
             timestamp=TIMESTAMP1,
         )
@@ -785,6 +816,7 @@ class TestGetImportErrors:
                     "import_error_id": import_errors[0].id,
                     "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP1),
                     "filename": FILENAME1,
+                    "source_reference": None,
                     "stack_trace": expected_stack_trace,
                     "bundle_name": BUNDLE_NAME,
                     "file_token": url_safe_serializer.dumps(
@@ -968,7 +1000,7 @@ class TestImportErrorFileAuthorization:
     ) -> ParseImportError:
         error = ParseImportError(
             bundle_name=BUNDLE_NAME,
-            source_reference=self.LONELY_FILE_RELATIVE,
+            filename=self.LONELY_FILE_RELATIVE,
             stacktrace=self.LONELY_STACKTRACE,
             timestamp=TIMESTAMP1,
         )
@@ -985,7 +1017,7 @@ class TestImportErrorFileAuthorization:
     ) -> ParseImportError:
         error = ParseImportError(
             bundle_name=BUNDLE_NAME,
-            source_reference=self.MIXED_FILE_RELATIVE,
+            filename=self.MIXED_FILE_RELATIVE,
             stacktrace=self.MIXED_STACKTRACE,
             timestamp=TIMESTAMP2,
         )
@@ -1134,7 +1166,7 @@ class TestImportErrorFileAuthorization:
             session.add_all([team, bundle])
             error = ParseImportError(
                 bundle_name="team_b_bundle",
-                source_reference="team_b_unregistered.py",
+                filename="team_b_unregistered.py",
                 stacktrace="team b stack trace",
                 timestamp=TIMESTAMP1,
             )
