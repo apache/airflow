@@ -59,6 +59,9 @@ capabilities:
     supported: true
     since: "3.3"
     note: "@task.stub"
+  taskflow-binding:
+    supported: false
+    note: "bind @task.stub literal/XCom args to the native handler"
   task-logging:
     supported: true
     since: "3.3"

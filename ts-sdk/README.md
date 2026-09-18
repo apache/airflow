@@ -245,6 +245,7 @@ Do not edit the table by hand. Update the manifest and run the `update-ts-sdk-re
 | state: `removed` | MAY | ✓ | 3.4 |  |
 | **Runtime capabilities** |  |  |  |  |
 | capability: `mixed-lang-stub-target` | MUST | ✓ | 3.4 | @task.stub |
+| capability: `taskflow-binding` | MUST | ✗ | – | bind @task.stub literal/XCom args to the native handler |
 | capability: `task-logging` | MUST | ✓ | 3.4 | structured records over the log socket |
 | capability: `xcom-read-write` | MUST | ✓ | 3.4 | getXCom / setXCom |
 | capability: `connection-read` | MUST | ✓ | 3.4 | getConnection |
