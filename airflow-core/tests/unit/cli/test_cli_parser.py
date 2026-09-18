@@ -713,6 +713,28 @@ class TestCliSubprocess:
         assert CONFIG_FILE.exists()
         assert "celery_config_options" in CONFIG_FILE.read_text()
 
+    def test_providers_lazy_loaded_does_not_write_config(self, tmp_path):
+        """``providers lazy-loaded`` must not write the default config, which would initialize ProvidersManager."""
+        env = {"PYTHONPATH": os.pathsep.join(sys.path), "AIRFLOW_HOME": str(tmp_path)}
+        config_file = tmp_path / "airflow.cfg"
+
+        def run_airflow(*command: str) -> None:
+            subprocess.run(
+                [sys.executable, "-m", "airflow", *command],
+                env=env,
+                check=False,
+                text=True,
+                capture_output=True,
+            )
+
+        run_airflow("providers", "lazy-loaded")
+        assert not config_file.exists()
+
+        # Control: the same environment does write the config for a command that is not excluded, so the
+        # assertion above cannot pass just because the subprocess died before reaching the command.
+        run_airflow("providers", "list")
+        assert config_file.exists()
+
     def test_airflow_config_output_contains_providers_by_default(self):
         """Test that airflow config has providers excluded in config list when asked for it."""
         CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
