@@ -297,7 +297,7 @@ class TestPydanticAIHookGetConn:
             (
                 "google-cloud:gemini-2.0-flash",
                 "google-cloud",
-                ["api_key", "base_url", "project", "location"],
+                ["api_key", "base_url", "project", "location", "service_account_info"],
             ),
         ],
     )
@@ -491,6 +491,25 @@ class TestPydanticAIHookGetEmbedder:
         mock_infer_embedding_model.assert_not_called()
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
+    def test_mixed_providers_use_default_resolution_without_embedding_connection_fields(
+        self, mock_infer_embedding_model
+    ):
+        embedding_model = MagicMock(spec=EmbeddingModel)
+        mock_infer_embedding_model.return_value = embedding_model
+        hook = PydanticAIBedrockHook(embed_model_id="openai:text-embedding-3-small")
+        conn = Connection(
+            conn_id="pydanticai_bedrock_default",
+            conn_type="pydanticai_bedrock",
+            extra='{"model": "bedrock:us.anthropic.claude-opus-4-5"}',
+        )
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            result = hook.get_embedder()
+
+        assert result.model is embedding_model
+        mock_infer_embedding_model.assert_called_once_with("openai:text-embedding-3-small")
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
     def test_prefixless_embedding_model_validation_is_delegated(self, mock_infer_embedding_model):
         mock_infer_embedding_model.side_effect = ValueError(
             "You must provide a provider prefix when specifying an embedding model name"
@@ -508,6 +527,28 @@ class TestPydanticAIHookGetEmbedder:
             hook.get_embedder()
 
         mock_infer_embedding_model.assert_called_once_with("text-embedding-3-small")
+
+    @pytest.mark.parametrize("llm_model_name", ["gpt-4o", "test"])
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
+    def test_prefixless_llm_model_skips_embedding_provider_validation(
+        self, mock_infer_embedding_model, llm_model_name
+    ):
+        embedding_model = MagicMock(spec=EmbeddingModel)
+        mock_infer_embedding_model.return_value = embedding_model
+        hook = PydanticAIHook(embed_model_id="openai:text-embedding-3-small")
+        conn = Connection(
+            conn_id="pydanticai_default",
+            conn_type="pydanticai",
+            password="openai-key",
+            extra=json.dumps({"model": llm_model_name}),
+        )
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            result = hook.get_embedder()
+
+        assert result.model is embedding_model
+        assert mock_infer_embedding_model.call_args.args == ("openai:text-embedding-3-small",)
+        assert "provider_factory" in mock_infer_embedding_model.call_args.kwargs
 
     @pytest.mark.parametrize(
         ("llm_model_id", "embed_model_id"),

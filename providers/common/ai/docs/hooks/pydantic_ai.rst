@@ -64,7 +64,9 @@ Set ``embed_model_id`` on the hook or ``embed_model`` in the connection's extra 
 then call ``get_embedder()``. Use ``embed_conn_id`` when the embedding provider uses
 different credentials or an endpoint from the LLM provider; it defaults to
 ``llm_conn_id``. Different LLM and embedding providers require separate connections
-so credentials cannot be reused for the wrong provider. Equivalent OpenAI and Azure
+when the embedding provider uses connection-level credentials or an endpoint, so those
+values cannot be reused for the wrong provider. They can share a connection when each
+provider resolves its credentials from the environment. Equivalent OpenAI and Azure
 chat/response prefixes can share their provider's embedding connection. Local
 ``sentence-transformers:`` embeddings can also share the LLM connection because they
 do not use provider credentials. The resolved ``Embedder`` is cached on the hook instance.
@@ -82,8 +84,7 @@ do not use provider credentials. The resolved ``Embedder`` is cached on the hook
 
 Keyword arguments accepted by pydantic-ai's `Embedder constructor
 <https://ai.pydantic.dev/api/embeddings/#pydantic_ai.embeddings.Embedder.__init__>`__
-can be passed directly to ``get_embedder()``. These currently include ``settings``,
-``defer_model_check``, and ``instrument``. Caller-supplied ``instrument`` takes
+can be passed directly to ``get_embedder()``. These currently include ``settings`` and ``instrument``. Caller-supplied ``instrument`` takes
 precedence over Airflow's automatic instrumentation. Repeated calls with the same
 arguments return the cached instance; passing different arguments creates and caches
 a new instance.
