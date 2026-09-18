@@ -43,6 +43,11 @@ TEST_DEADLINE_CALLBACK = AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_
 
 
 class TestDeadlineAlert:
+    class SubclassedCallback(SyncCallback):
+        """Stand-in for a Dag author's own Callback subclass, which DeadlineAlert must reject."""
+
+        ...
+
     @pytest.mark.parametrize(
         ("test_alert", "should_equal"),
         [
@@ -140,8 +145,6 @@ class TestDeadlineAlert:
 
         alert_set = {alert1, alert2}
         assert len(alert_set) == 1
-
-    class SubclassedCallback(SyncCallback): ...
 
     @pytest.mark.parametrize(
         ("test_callback", "expected_name", "expected_pass"),
