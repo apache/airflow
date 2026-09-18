@@ -1056,11 +1056,12 @@ ARG_TRIGGERER_TEAM_NAME = Arg(
     help="Team name to scope this triggerer to. Requires core.multi_team to be enabled.",
 )
 
+DEFAULT_DAG_LIST_COLUMNS = ("dag_id", "fileloc", "owners", "is_paused", "bundle_name", "bundle_version")
 ARG_DAG_LIST_COLUMNS = Arg(
     ("--columns",),
     type=string_list_type,
-    help="List of columns to render. (default: ['dag_id', 'fileloc', 'owner', 'is_paused'])",
-    default=("dag_id", "fileloc", "owners", "is_paused", "bundle_name", "bundle_version"),
+    help=f"List of columns to render. (default: {list(DEFAULT_DAG_LIST_COLUMNS)})",
+    default=DEFAULT_DAG_LIST_COLUMNS,
 )
 
 ARG_ASSET_LIST_COLUMNS = Arg(
