@@ -75,6 +75,14 @@ func (m *mockXComClient) UnmarshalJSONVariable(ctx context.Context, key string, 
 	panic("unimplemented")
 }
 
+func (m *mockXComClient) SetVariable(ctx context.Context, key, value, description string) error {
+	panic("unimplemented")
+}
+
+func (m *mockXComClient) DeleteVariable(ctx context.Context, key string) error {
+	panic("unimplemented")
+}
+
 func (m *mockXComClient) GetConnection(ctx context.Context, connID string) (sdk.Connection, error) {
 	panic("unimplemented")
 }
