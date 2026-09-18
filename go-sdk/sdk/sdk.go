@@ -35,7 +35,7 @@ const (
 	XComReturnValueKey = "return_value"
 )
 
-// VariableClient reads Airflow Variables.
+// VariableClient reads, writes, and deletes Airflow Variables.
 //
 // Go has no function overloading, so the "give me the raw string" and
 // "give me a decoded struct" cases are split into two methods rather
@@ -67,6 +67,19 @@ type VariableClient interface {
 	//
 	// pointer must be a non-nil pointer, as required by encoding/json.
 	UnmarshalJSONVariable(ctx context.Context, key string, pointer any) error
+
+	// SetVariable stores value under key, creating the Variable or replacing
+	// an existing one. An empty description is sent as null, which clears any
+	// description the Variable already had.
+	//
+	// The value is stored as-is: encode structured data (for example with
+	// json.Marshal) before storing it. A value supplied by a secrets backend
+	// (for example an AIRFLOW_VAR_<KEY> environment variable) still takes
+	// precedence over the stored value when the Variable is read back.
+	SetVariable(ctx context.Context, key, value, description string) error
+
+	// DeleteVariable removes the Variable stored under key.
+	DeleteVariable(ctx context.Context, key string) error
 }
 
 // ConnectionClient reads Airflow Connections.
@@ -107,8 +120,8 @@ type XComClient interface {
 	PushXCom(ctx context.Context, ti TaskInstance, key string, value any) error
 }
 
-// Client is the full task-facing API: read Variables and Connections, and
-// read/write XCom. A task that declares an sdk.Client parameter is handed one
+// Client is the full task-facing API: read/write Variables, read Connections,
+// and read/write XCom. A task that declares an sdk.Client parameter is handed one
 // by the runtime. If a task needs only one capability, ask for the narrower
 // VariableClient, ConnectionClient, or XComClient instead.
 type Client interface {

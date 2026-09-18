@@ -115,7 +115,7 @@ class LLMSchemaCompareOperator(LLMOperator):
     Human-in-the-Loop approval parameters are inherited from
     :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
     (``require_approval``, ``approval_timeout``, ``on_approval_timeout``,
-    ``allow_modifications``, ``approval_notifiers``).
+    ``allow_modifications``, ``approval_notifiers``, ``approval_assigned_users``).
     The task pauses after the comparison and only returns the result once a
     reviewer approves. The review body shows the compatibility verdict, a
     mismatch severity summary, and the full result JSON.

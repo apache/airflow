@@ -27,7 +27,7 @@ Proposed.
 
 ## Decision
 
-1. **One Dag type, constructed then registered.** `airflow.Dag(dagId, spec)` returns a `*airflow.DagRef` that is complete before `bundle.Register(dag)` takes it — the same verb that registers Mixed Lang task handlers ([ADR 6](0006-mixed-lang-task-handler-interface.md)).
+1. **One Dag type, constructed then registered.** `airflow.Dag(dagId, spec)` returns a `*airflow.DagRef` that is complete before `bundle.Register(dag)` takes it — the same verb that registers Mixed Lang task handlers ([ADR 7](0007-mixed-lang-task-handler-interface.md)).
    Naming rule: `airflow.X(...)` constructs, `*airflow.XRef` is the entity; what every Dag must have is a positional parameter for dag_id, and the rest travels in a spec struct.
 2. **Tasks register through `dag.Task(fn any, opts ...airflow.TaskOption)`**, returning a `*airflow.TaskRef`. `airflow.Inputs(...)` and a bare `airflow.TaskSpec{}` both implement `TaskOption`.
 3. **At most one `airflow.TaskSpec` per task.** A second one is a registration error rather than something to merge, so a task's attributes are only ever written in one place.
@@ -188,4 +188,4 @@ const (
   program to completion. `Inputs` keeps the typed outputs that style is reached for.
 - **Labelling the call**, `loaded.Before(notify).Label("when empty")`. Rejected: one call fans out, so a single label on the call cannot give `a.Before(b, c)` a different label per edge.
 - **A positional task_id**, `dag.Task(taskId, fn, opts...)`. Rejected: It's more straightforward and native for Go user to define a Task without defining the task_id explicitly. They could still set the task_id other than the function name in the TaskSpec.
-- **Separate `Dag` and `MixedLangDag` types.** Rejected: Python has one Dag class, and the Mixed Lang case is not a Dag at all ([ADR 6](0006-mixed-lang-task-handler-interface.md)).
+- **Separate `Dag` and `MixedLangDag` types.** Rejected: Python has one Dag class, and the Mixed Lang case is not a Dag at all ([ADR 7](0007-mixed-lang-task-handler-interface.md)).

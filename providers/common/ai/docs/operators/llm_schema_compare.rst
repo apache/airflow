@@ -133,7 +133,8 @@ returning a ``Sequence[UserContent]`` raises ``TypeError`` before the LLM
 call.
 
 ``approval_timeout``, ``on_approval_timeout``, ``allow_modifications``,
-``approval_notifiers``, and the rest of the approval behaviour are inherited from
+``approval_notifiers``, ``approval_assigned_users``, and the rest of the approval
+behaviour are inherited from
 :ref:`LLMOperator <howto/operator:llm>`.
 
 Conditional ETL Based on Schema Compatibility
@@ -202,6 +203,8 @@ Parameters
   before approving.  Default ``False``.
 - ``approval_notifiers``: Notifier, or list of notifiers, called once the review
   is open.  Default ``None``.
+- ``approval_assigned_users``: Users allowed to answer the review.  ``None``
+  (default) lets any user with the permission respond.  Needs Airflow 3.1+.
 
 Logging
 -------
