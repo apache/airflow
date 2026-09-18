@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import re
 import sys
 from pathlib import Path
@@ -40,6 +41,7 @@ from airflow.providers.common.ai.hooks.pydantic_ai import (
     PydanticAIHook,
     PydanticAIVertexHook,
     _has_recognized_provider_prefix,
+    _looks_like_unrecognized_provider_prefix,
 )
 from airflow.providers.common.compat.sdk import AirflowNotFoundException
 
@@ -347,6 +349,31 @@ class TestPydanticAIHookModelProviderResolution:
 
         assert hook.get_conn() is infer_model_stub.models[f"{prefix}:foo"]
 
+    @pytest.mark.parametrize(
+        ("hook_class", "conn_type"),
+        [
+            pytest.param(PydanticAIHook, "pydanticai", id="generic"),
+            pytest.param(PydanticAIAzureHook, "pydanticai_azure", id="azure"),
+            pytest.param(PydanticAIBedrockHook, "pydanticai_bedrock", id="bedrock"),
+            pytest.param(PydanticAIVertexHook, "pydanticai_vertex", id="vertex"),
+        ],
+    )
+    def test_test_sentinel_is_never_platform_prefixed(
+        self, registry, infer_model_stub, hook_class, conn_type
+    ):
+        """The literal ``"test"`` model name is pydantic-ai's dry-run sentinel and must reach
+        ``infer_model`` unprefixed on every connection type, including ones with a platform.
+
+        Mutation canary: dropping the ``model_name == "test"`` early return in
+        ``_qualify_model_name`` makes this raise on the generic hook (no default model
+        provider) and resolve to e.g. ``"azure:test"`` on the vendor hooks -- either way the
+        ``is infer_model_stub.models["test"]`` identity assertion fails.
+        """
+        registry.add("primary", conn_type=conn_type, hook_class=hook_class, extra={"model": "test"})
+        hook = hook_class(llm_conn_id="primary")
+
+        assert hook.get_conn() is infer_model_stub.models["test"]
+
     def test_prefixed_model_id_used_verbatim(self, registry, infer_model_stub):
         """A name that already contains ``:`` pins its own platform and is never re-prefixed."""
         registry.add(
@@ -476,6 +503,67 @@ class TestPydanticAIHookModelProviderResolution:
         mock_infer_provider_class.side_effect = ValueError("Unknown provider: bogus")
 
         assert _has_recognized_provider_prefix("bogus:foo") is False
+
+    @pytest.mark.parametrize(
+        ("prefix", "expected"),
+        [
+            ("google-vertex", True),
+            ("google-gla", True),
+            ("openi", True),
+            ("us.anthropic.claude-opus-4-6-v1", False),  # Bedrock native id: contains '.'
+            (
+                "azure",
+                True,
+            ),  # shape-only check; caller only invokes this after ruling out recognized prefixes
+        ],
+    )
+    def test_looks_like_unrecognized_provider_prefix(self, prefix, expected):
+        assert _looks_like_unrecognized_provider_prefix(prefix) is expected
+
+    def test_vertex_stale_gateway_prefix_warns_but_still_resolves(self, registry, infer_model_stub, caplog):
+        registry.add(
+            "primary",
+            conn_type="pydanticai_vertex",
+            hook_class=PydanticAIVertexHook,
+            extra={"model": "google-vertex:gemini-2.0-flash", "api_key": "some-key"},
+        )
+        hook = PydanticAIVertexHook(llm_conn_id="primary")
+
+        with caplog.at_level(logging.WARNING):
+            model = hook.get_conn()
+
+        assert model is infer_model_stub.models["google-cloud:google-vertex:gemini-2.0-flash"]
+        assert any("google-vertex" in r.message and "typo" in r.message for r in caplog.records)
+
+    def test_bedrock_native_id_does_not_warn(self, registry, infer_model_stub, caplog):
+        """Mutation canary: dropping the '.' exclusion (or the shape check entirely) makes this
+        assert fail -- the legitimate Bedrock id would start logging a warning on every resolution.
+        """
+        registry.add(
+            "primary",
+            conn_type="pydanticai_bedrock",
+            hook_class=PydanticAIBedrockHook,
+            extra={"model": "us.anthropic.claude-opus-4-6-v1:0"},
+        )
+        hook = PydanticAIBedrockHook(llm_conn_id="primary")
+
+        with caplog.at_level(logging.WARNING):
+            hook.get_conn()
+
+        assert not any("typo" in r.message for r in caplog.records)
+
+    def test_generic_connection_typo_prefix_names_the_bad_segment(self, registry, infer_model_stub):
+        """A colon-bearing name with an unrecognized prefix must name that prefix, not tell the
+        user their already-set 'provider:model' string doesn't exist.
+        """
+        registry.add("primary", extra={"model": "openi:gpt-5"})
+        hook = PydanticAIHook(llm_conn_id="primary")
+
+        with pytest.raises(ValueError, match="primary") as exc_info:
+            hook.get_conn()
+
+        assert "openi" in str(exc_info.value)
+        assert "openi:gpt-5" in str(exc_info.value)
 
 
 class TestPydanticAIHookFallback:
@@ -673,24 +761,14 @@ class TestPydanticAIHookFallback:
         with pytest.raises(ValueError, match="No model specified for connection 'second'"):
             hook.get_conn()
 
-    def test_bedrock_style_bare_model_id_forwarded_to_fallback_without_own_model(
-        self, registry, infer_model_stub
-    ):
-        """A primary's bare model id with an embedded ``:`` of its own is still forwardable.
+    def test_bedrock_style_bare_model_id_not_forwarded_across_platforms(self, registry, infer_model_stub):
+        """A primary's bare model id with an embedded ``:`` of its own is a native vendor id, and a
+        native vendor id is never valid on another platform -- it must not be forwarded there.
 
-        The forwarding-priority check in ``_resolve_own_model`` has to use the same
-        "recognized provider prefix" test as ``_qualify_model_name`` -- not the old
-        ``":" in forwarded_model_id`` check -- or a Bedrock-style bare id (which contains a
-        ``:`` from its own version suffix, not a platform prefix) would be wrongly treated as
-        already-pinned and never forwarded. Using a different fallback platform (Azure) makes
-        the resolved keys distinguishable so a wrong-prefix regression cannot hide behind two
-        identical strings.
-
-        Mutation canary: reverting the forwarding check to ``":" not in forwarded_model_id``
-        makes the fallback treat ``"us.anthropic.claude-opus-4-6-v1:0"`` as already-pinned and
-        skip it, so ``hook.get_conn()`` itself raises "No model specified for connection
-        'azure_dr'" instead of returning -- failing this test before the identity assertion is
-        even reached.
+        Mutation canary: dropping the ``":" not in forwarded_model_id or forwarded_model_provider
+        == self.model_provider`` gate (reverting to just ``not _has_recognized_provider_prefix``)
+        makes the Bedrock id forward to the Azure fallback and this raise never fires --
+        ``pytest.raises`` would report no exception raised.
         """
         registry.add("primary", conn_type="pydanticai_bedrock", hook_class=PydanticAIBedrockHook)
         registry.add("azure_dr", conn_type="pydanticai_azure", hook_class=PydanticAIAzureHook)
@@ -700,13 +778,49 @@ class TestPydanticAIHookFallback:
             model_id="us.anthropic.claude-opus-4-6-v1:0",
             fallback_conn_ids=["azure_dr"],
         )
+        with pytest.raises(ValueError, match="No model specified for connection 'azure_dr'"):
+            hook.get_conn()
+
+    def test_bedrock_style_bare_model_id_forwarded_within_same_platform(self, registry, infer_model_stub):
+        """The cross-platform gate must not block Bedrock-to-Bedrock forwarding of the same shape."""
+        registry.add("primary", conn_type="pydanticai_bedrock", hook_class=PydanticAIBedrockHook)
+        registry.add("bedrock_dr", conn_type="pydanticai_bedrock", hook_class=PydanticAIBedrockHook)
+
+        hook = PydanticAIBedrockHook(
+            llm_conn_id="primary",
+            model_id="us.anthropic.claude-opus-4-6-v1:0",
+            fallback_conn_ids=["bedrock_dr"],
+        )
         model = hook.get_conn()
 
         assert isinstance(model, FallbackModel)
         assert model.models == [
             infer_model_stub.models["bedrock:us.anthropic.claude-opus-4-6-v1:0"],
-            infer_model_stub.models["azure:us.anthropic.claude-opus-4-6-v1:0"],
+            infer_model_stub.models["bedrock:us.anthropic.claude-opus-4-6-v1:0"],
         ]
+
+    def test_forwarded_bare_name_error_attributes_to_primary(self, registry, infer_model_stub):
+        """A bare name forwarded from the primary must not blame the fallback for a name it never
+        configured -- the error must name the primary connection that actually set it.
+
+        Mutation canary: dropping ``forwarded_from_conn_id`` threading (reverting
+        ``_qualify_model_name`` to always report the current connection as the source) makes this
+        assert fail: the message would say the name came from 'openai_dr' itself, not 'primary'.
+        """
+        registry.add(
+            "primary",
+            conn_type="pydanticai_bedrock",
+            hook_class=PydanticAIBedrockHook,
+            extra={"model": "claude-opus-4-5", "fallback_conn_ids": ["openai_dr"]},
+        )
+        registry.add("openai_dr")  # generic connection type, no model_provider, no own model
+
+        hook = PydanticAIBedrockHook(llm_conn_id="primary")
+        with pytest.raises(ValueError, match="forwarded from primary connection 'primary'") as exc_info:
+            hook.get_conn()
+
+        assert "openai_dr" in str(exc_info.value)
+        assert "claude-opus-4-5" in str(exc_info.value)
 
     def test_non_pydanticai_fallback_raises(self, registry, infer_model_stub):
         """``BaseHook.get_hook`` dispatches on conn_type alone and can return anything."""

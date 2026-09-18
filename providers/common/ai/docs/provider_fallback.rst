@@ -55,9 +55,20 @@ name would not produce, such as Bedrock's region-prefixed ``us.anthropic.`` mode
 name that already pins a platform (its segment before the first ``:`` is itself a
 recognized provider, e.g. ``"openai:gpt-5"``) is *not* forwarded; a fallback with no
 ``model`` of its own still raises "no model specified" rather than trying a prefixed name
-meant for a different provider. See :doc:`connections/pydantic_ai_azure`,
-:doc:`connections/pydantic_ai_bedrock` and :doc:`connections/pydantic_ai_vertex` for how
-each vendor connection resolves a bare name.
+meant for a different provider.
+
+A bare name with no ``:`` of its own (e.g. ``"gpt-5"``) forwards to any fallback
+regardless of platform, since nothing about the spelling is vendor-specific. A bare name
+that itself contains a ``:`` -- a vendor's own native model id, such as Bedrock's
+version-suffixed ``"us.anthropic.claude-opus-4-6-v1:0"`` -- only forwards to a fallback on
+the *same* platform: that spelling is only meaningful on the vendor that produced it, so a
+Bedrock primary's native id reaches a Bedrock fallback but not an Azure one. For example,
+a Bedrock primary with ``fallback_conn_ids: ["bedrock_dr"]`` forwards
+``"us.anthropic.claude-opus-4-6-v1:0"`` to ``bedrock_dr`` unchanged; the same primary with
+``fallback_conn_ids: ["azure_dr"]`` does not forward it to ``azure_dr`` at all, and
+``azure_dr`` raises "no model specified" unless its own extra sets a ``model``. See
+:doc:`connections/pydantic_ai_azure`, :doc:`connections/pydantic_ai_bedrock` and
+:doc:`connections/pydantic_ai_vertex` for how each vendor connection resolves a bare name.
 
 Configure it on the operator
 -----------------------------

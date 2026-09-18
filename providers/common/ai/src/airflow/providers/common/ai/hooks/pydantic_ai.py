@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
@@ -62,6 +63,27 @@ def _has_recognized_provider_prefix(model_name: str) -> bool:
     except ValueError:
         return False
     return True
+
+
+_PROVIDER_SLUG_RE = re.compile(r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$")
+
+
+def _looks_like_unrecognized_provider_prefix(prefix: str) -> bool:
+    """
+    Return whether *prefix* has the shape of a plausible-but-wrong provider name.
+
+    Only called after ``_has_recognized_provider_prefix`` has already said the segment
+    isn't a real provider. A short, hyphenated, all-lowercase slug (``"google-vertex"``,
+    ``"google-gla"``, a typo like ``"openi"``) is the shape of something the user meant as
+    a provider prefix. A vendor's own dotted native id (Bedrock's
+    ``"us.anthropic.claude-opus-4-6-v1"``) never matches -- the ``.`` rules it out -- so this
+    does not fire for the legitimate embedded-colon case.
+
+    This is a heuristic, not an exhaustive classifier: a prefix with uppercase letters,
+    underscores, a leading digit, or a stray ``.`` of its own will silently skip the
+    warning even if it was meant as a typo'd provider name.
+    """
+    return bool(_PROVIDER_SLUG_RE.match(prefix))
 
 
 class PydanticAIHook(BaseHook):
@@ -231,7 +253,7 @@ class PydanticAIHook(BaseHook):
         )
         return self._model
 
-    def _qualify_model_name(self, model_name: str) -> str:
+    def _qualify_model_name(self, model_name: str, *, forwarded_from_conn_id: str | None = None) -> str:
         """
         Prefix a bare model name with this connection's platform.
 
@@ -244,16 +266,57 @@ class PydanticAIHook(BaseHook):
         has no platform of its own (``model_provider`` is ``None``), so a bare name there
         raises instead of reaching pydantic-ai's own, less actionable ``Unknown model``
         error.
+
+        :param forwarded_from_conn_id: The primary connection's ID, set only when
+            *model_name* was forwarded down a fallback chain rather than configured
+            directly on this connection -- see :meth:`_resolve_own_model`. Used to
+            attribute an unresolvable name to where it actually came from instead of
+            blaming this (fallback) connection for a name it never set.
         """
+        if model_name == "test":
+            return model_name
         if _has_recognized_provider_prefix(model_name):
             return model_name
-        if self.model_provider is None:
+        if self.model_provider is not None:
+            if ":" in model_name and _looks_like_unrecognized_provider_prefix(model_name.partition(":")[0]):
+                prefix = model_name.partition(":")[0]
+                self.log.warning(
+                    "Model name '%s' on connection '%s' contains ':' but its prefix '%s' is not a "
+                    "provider pydantic-ai recognizes; treating the whole string as a bare %s model id "
+                    "and resolving it as '%s:%s'. If '%s' was meant to be a provider prefix, this looks "
+                    "like it might be a typo.",
+                    model_name,
+                    self.llm_conn_id,
+                    prefix,
+                    self.model_provider,
+                    self.model_provider,
+                    model_name,
+                    prefix,
+                )
+            return f"{self.model_provider}:{model_name}"
+
+        if forwarded_from_conn_id is not None:
             raise ValueError(
-                f"Connection '{self.llm_conn_id}' has no default model provider, so the bare "
-                f"model name '{model_name}' cannot be resolved. Use a vendor connection type "
-                "(Azure/Bedrock/Vertex) or set an explicit 'provider:model' string."
+                f"Connection '{self.llm_conn_id}' has no default model provider, so the bare model "
+                f"name '{model_name}' -- forwarded from primary connection '{forwarded_from_conn_id}' "
+                f"-- cannot be resolved here. Give '{forwarded_from_conn_id}' a 'provider:model' "
+                f"string, or set an explicit 'model' on '{self.llm_conn_id}'."
             )
-        return f"{self.model_provider}:{model_name}"
+
+        prefix, sep, _ = model_name.partition(":")
+        if sep:
+            raise ValueError(
+                f"Connection '{self.llm_conn_id}' has no default model provider, and '{prefix}' is "
+                f"not a provider pydantic-ai recognizes, so '{model_name}' cannot be resolved. If "
+                "this is a vendor's own model id containing a ':' (e.g. a Bedrock-style "
+                "version-suffixed id), use a vendor connection type (Azure/Bedrock/Vertex) instead; "
+                f"if '{prefix}' is meant to be a provider prefix, check it for a typo."
+            )
+        raise ValueError(
+            f"Connection '{self.llm_conn_id}' has no default model provider, so the bare model name "
+            f"'{model_name}' cannot be resolved. Use a vendor connection type (Azure/Bedrock/Vertex) "
+            "or set an explicit 'provider:model' string."
+        )
 
     def _get_configured_model_name(self) -> str | KnownModelName | None:
         """Return the model name this connection configures, hook argument winning over the extra."""
@@ -262,7 +325,13 @@ class PydanticAIHook(BaseHook):
         _, extra = self._get_conn_and_extra()
         return extra.get("model")
 
-    def _resolve_own_model(self, *, forwarded_model_id: str | None = None) -> Model:
+    def _resolve_own_model(
+        self,
+        *,
+        forwarded_model_id: str | None = None,
+        forwarded_from_conn_id: str | None = None,
+        forwarded_model_provider: str | None = None,
+    ) -> Model:
         """
         Resolve the ``Model`` for this hook's own connection, ignoring any fallback chain.
 
@@ -273,19 +342,37 @@ class PydanticAIHook(BaseHook):
             is a bare name: a name that already pins a platform (see
             :func:`_has_recognized_provider_prefix`) names a model of the *primary's*
             provider, not this connection's, so it is not forwarded -- this connection
-            still raises "no model specified" in that case.
+            still raises "no model specified" in that case. A bare name that itself
+            contains a ``:`` (a vendor's own native id, e.g. Bedrock's
+            ``us.anthropic.claude-opus-4-6-v1:0``) is only forwarded when
+            *forwarded_model_provider* matches this connection's own :attr:`model_provider`
+            -- that spelling is only meaningful on the platform that produced it.
+        :param forwarded_from_conn_id: The primary connection's ID, for error messages
+            attributing an unresolvable forwarded name to where it actually came from.
+        :param forwarded_model_provider: The primary connection's :attr:`model_provider`,
+            used to gate cross-platform forwarding of names with an embedded ``:``.
         """
         conn, extra = self._get_conn_and_extra()
 
         model_name: str | KnownModelName | None = self._get_configured_model_name()
-        if not model_name and forwarded_model_id and not _has_recognized_provider_prefix(forwarded_model_id):
+        forwarded = False
+        if (
+            not model_name
+            and forwarded_model_id
+            and not _has_recognized_provider_prefix(forwarded_model_id)
+            and (":" not in forwarded_model_id or forwarded_model_provider == self.model_provider)
+        ):
             model_name = forwarded_model_id
+            forwarded = True
         if not model_name:
             raise ValueError(
                 f"No model specified for connection '{self.llm_conn_id}'. Set model_id on the "
                 "hook or the Model field on the connection."
             )
-        model_name = self._qualify_model_name(model_name)
+        model_name = self._qualify_model_name(
+            model_name,
+            forwarded_from_conn_id=forwarded_from_conn_id if forwarded else None,
+        )
 
         api_key: str | None = conn.password or None
         base_url: str | None = conn.host or None
@@ -388,7 +475,13 @@ class PydanticAIHook(BaseHook):
                     f"{FALLBACK_CONN_IDS_EXTRA_KEY}. Chains are not resolved recursively -- list "
                     f"every provider directly on '{self.llm_conn_id}' instead."
                 )
-            models.append(hook._resolve_own_model(forwarded_model_id=forwarded_model_id))
+            models.append(
+                hook._resolve_own_model(
+                    forwarded_model_id=forwarded_model_id,
+                    forwarded_from_conn_id=self.llm_conn_id,
+                    forwarded_model_provider=self.model_provider,
+                )
+            )
 
         self.log.info("Resolved LLM fallback chain: %s", " -> ".join([self.llm_conn_id, *fallback_conn_ids]))
         return models
