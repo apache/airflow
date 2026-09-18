@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, overload
 
 import attrs
 
+from airflow._shared.module_loading import qualname
 from airflow.sdk.definitions.callback import AsyncCallback, Callback, SyncCallback
 from airflow.sdk.definitions.variable import Variable
 from airflow.sdk.exceptions import AirflowRuntimeError, RemovedInAirflow4Warning
@@ -243,8 +244,16 @@ class DeadlineReference:
         # All DagRun-related deadline types.
         DAGRUN: DeadlineReferenceTypes = DAGRUN_CREATED + DAGRUN_QUEUED
 
+        # The attributes above that a custom reference can be classified under.  DAGRUN is their
+        # union rather than a classification of its own, so it is deliberately absent.
+        _CLASSIFICATIONS = ("DAGRUN_CREATED", "DAGRUN_QUEUED")
+
     DAGRUN_LOGICAL_DATE: DeadlineReferenceType = DagRunLogicalDateDeadline()
     DAGRUN_QUEUED_AT: DeadlineReferenceType = DagRunQueuedAtDeadline()
+
+    # These map short class name to qualname(s); used to handle custom reference name collisions.
+    _custom_reference_name_map: dict[str, str] = {}
+    _contested_reference_names: dict[str, list[str]] = {}
 
     @classmethod
     def AVERAGE_RUNTIME(cls, max_runs: int = 0, min_runs: int | None = None) -> DeadlineReferenceType:
@@ -280,18 +289,22 @@ class DeadlineReference:
         This makes the reference available to Dag authors as ``DeadlineReference.<ClassName>`` and
         records when it should be evaluated.
 
-        .. warning::
+        .. note::
 
             Adding the reference to this namespace is **not** the same as registering the plugin.
-            This only affects the process that runs the Dag file; it does not
-            make the class resolvable when the scheduler deserializes the Dag.  The class must
-            *also* be listed in the ``deadline_references`` attribute of an ``AirflowPlugin``, or
-            deserialization raises ``DeadlineReferenceNotRegistered``.  See
-            :external:doc:`howto/deadline-alerts`.
+            This only affects the process that runs the Dag file; it does not make the class
+            resolvable when the scheduler deserializes the Dag.  The class must *also* be listed in
+            the ``deadline_references`` attribute of an ``AirflowPlugin``, or deserialization raises
+            ``DeadlineReferenceNotRegistered``.  See :external:doc:`howto/deadline-alerts`.
+
+        If two classes share the same name but have different module paths, the shorthand is
+        withheld from both and a warning names the competing classes.  In that case, users can
+        still import the class directly; the classes themselves remain valid references either way.
 
         :param reference_class: The custom reference class inheriting from BaseDeadlineReference
-        :param deadline_reference_type: A DeadlineReference.TYPES for when the deadline should be evaluated ("DAGRUN_CREATED",
-            "DAGRUN_QUEUED", etc.); defaults to DeadlineReference.TYPES.DAGRUN_CREATED
+        :param deadline_reference_type: A DeadlineReference.TYPES for when the deadline should be
+            evaluated ("DAGRUN_CREATED", "DAGRUN_QUEUED", etc.);
+            defaults to DeadlineReference.TYPES.DAGRUN_CREATED
         """
         # Default to DAGRUN_CREATED if no deadline_reference_type specified
         if deadline_reference_type is None:
@@ -313,19 +326,69 @@ class DeadlineReference:
                 f"registered as a deadline reference. If it takes parameters, decorate it with "
                 f"@dataclass and give every field a default value. Original error: {e}"
             ) from e
-        setattr(cls, reference_class.__name__, reference_instance)
-        logger.info("Registered DeadlineReference %s", reference_class.__name__)
+        name = reference_class.__name__
+        key = qualname(reference_class)
 
-        # Add to appropriate deadline_reference_type classification
-        if deadline_reference_type is cls.TYPES.DAGRUN_CREATED:
-            cls.TYPES.DAGRUN_CREATED = cls.TYPES.DAGRUN_CREATED + (reference_class,)
-        elif deadline_reference_type is cls.TYPES.DAGRUN_QUEUED:
-            cls.TYPES.DAGRUN_QUEUED = cls.TYPES.DAGRUN_QUEUED + (reference_class,)
+        if name in cls._contested_reference_names:
+            # There is a conflict; do not register the short name.
+            claimed_names = cls._contested_reference_names[name]
+            if key not in claimed_names:
+                claimed_names.append(key)
+            logger.warning(
+                "DeadlineReference.%s is claimed by more than one class (%s), so it is not available "
+                "as a shorthand.  Import the class you want directly instead.",
+                name,
+                ", ".join(sorted(claimed_names)),
+            )
+        elif (previous := cls._custom_reference_name_map.get(name)) is not None:
+            if previous == key:
+                # Class was registered in a previous parse, refresh the value in case user code changed.
+                setattr(cls, name, reference_instance)
+            else:
+                # Two different classes want the same shorthand, reject BOTH.
+                # Without this, the import order arbitrarily decides which gets the
+                # name and potentially breaks a Dag file which uses the short name.
+                delattr(cls, name)
+                cls._contested_reference_names[name] = [cls._custom_reference_name_map.pop(name), key]
+                logger.warning(
+                    "DeadlineReference.%s is claimed by more than one class (%s), so it is no longer "
+                    "available as a shorthand.  Import the class you want directly instead.",
+                    name,
+                    ", ".join(sorted((previous, key))),
+                )
+        elif hasattr(cls, name):
+            # Custom reference name can not shadow built-in references.
+            raise ValueError(
+                f"{key} cannot be added to the DeadlineReference namespace as {name!r}, because "
+                f"DeadlineReference.{name} already exists.  Rename the class."
+            )
+        else:
+            # New reference class name, no collisions.
+            setattr(cls, name, reference_instance)
+            cls._custom_reference_name_map[name] = key
+
+        if cls._custom_reference_name_map.get(name) == key:
+            logger.info("Added DeadlineReference.%s (%s)", name, key)
+
+        # Resolve which classification this reference belongs in.
+        for candidate in cls.TYPES._CLASSIFICATIONS:
+            if deadline_reference_type is getattr(cls.TYPES, candidate):
+                classification = candidate
+                break
         else:
             raise ValueError(
                 f"Invalid deadline reference type {deadline_reference_type}; "
                 "must be a valid DeadlineReference.TYPES option."
             )
+
+        # A contested class is still a valid reference: it serializes under its own qualname and
+        # resolves through the plugin registry, so only the shorthand is withheld.  Drop any earlier
+        # registration of the same qualname rather than appending beside it, because a re-parse
+        # produces a new class object for the same reference.  Both tuples are filtered so that a
+        # reference whose classification changes does not linger in the one it left.
+        for attr in cls.TYPES._CLASSIFICATIONS:
+            kept = tuple(existing for existing in getattr(cls.TYPES, attr) if qualname(existing) != key)
+            setattr(cls.TYPES, attr, kept + (reference_class,) if attr == classification else kept)
 
         # Refresh the combined DAGRUN tuple
         cls.TYPES.DAGRUN = cls.TYPES.DAGRUN_CREATED + cls.TYPES.DAGRUN_QUEUED
