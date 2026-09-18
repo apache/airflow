@@ -916,6 +916,7 @@ jdk
 jenkins
 JenkinsRequest
 Jetson
+Jev
 Jiajie
 Jinja
 jinja

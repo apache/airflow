@@ -1602,6 +1602,17 @@ pydantic-ai-skills = "2026-07-16T00:00:00Z"
 # past that release so 1.164.0 resolves while any later release stays quarantined.
 # Remove once the rolling window advances past 2026-08-12.
 google-cloud-aiplatform = "2026-08-13T00:00:00Z"
+# Temporary: pydantic-ai-slim 2.45.0 is the release that added TypeSafeModel, required by
+# the apache-airflow-providers-common-ai[typesafe] floor, and it was published 2026-09-18,
+# inside the "4 days" exclude-newer window. pydantic-graph is pinned in lockstep because
+# pydantic-ai-slim requires the exact matching version, and typesafe-sdk because the
+# typesafe extra requires >=0.6.0, whose first release is also inside the window. These pin
+# the per-package cutoffs just past those releases so they resolve while any later release
+# stays quarantined.
+# Remove all three once the rolling window advances past 2026-09-18.
+pydantic-ai-slim = "2026-09-19T00:00:00Z"
+pydantic-graph = "2026-09-19T00:00:00Z"
+typesafe-sdk = "2026-09-19T00:00:00Z"
 
 [tool.uv.pip]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
@@ -1756,6 +1767,10 @@ apache-airflow-task-sdk-integration-tests = false
 pydantic-ai-skills = "2026-07-16T00:00:00Z"
 # Temporary: see the google-cloud-aiplatform note in `[tool.uv.exclude-newer-package]`.
 google-cloud-aiplatform = "2026-08-13T00:00:00Z"
+# Temporary: see the pydantic-ai-slim note in `[tool.uv.exclude-newer-package]`.
+pydantic-ai-slim = "2026-09-19T00:00:00Z"
+pydantic-graph = "2026-09-19T00:00:00Z"
+typesafe-sdk = "2026-09-19T00:00:00Z"
 
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
