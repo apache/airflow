@@ -139,6 +139,8 @@ def fingerprint_model_request(
     messages: list[ModelMessage],
     model_settings: ModelSettings | None,
     model_request_parameters: ModelRequestParameters,
+    *,
+    step: int | None = None,
 ) -> str | None:
     """
     Fingerprint a model request: model identity, message history, settings, and request parameters.
@@ -151,6 +153,7 @@ def fingerprint_model_request(
     which prevents the step from being replayed or cached. Because model settings
     and message history are carried into every later request, such a value in
     either usually degrades every subsequent model step of the run the same way.
+    ``step`` is attached to that warning so the log names where it began.
     """
     try:
         dumped = ModelMessagesTypeAdapter.dump_python(messages, mode="json")
@@ -168,12 +171,19 @@ def fingerprint_model_request(
         log.warning(
             "Durable: could not fingerprint model request; this step will not be cached and will "
             "execute live on retry. If the cause is in model settings or message history, every "
-            "later model step of this run is affected too"
+            "later model step of this run is affected too",
+            step=step,
         )
         return None
 
 
-def fingerprint_tool_call(name: str, tool_args: dict[str, Any], tool_call_id: str | None) -> str | None:
+def fingerprint_tool_call(
+    name: str,
+    tool_args: dict[str, Any],
+    tool_call_id: str | None,
+    *,
+    step: int | None = None,
+) -> str | None:
     """
     Fingerprint a tool call: tool name, arguments, and the model-issued call id.
 
@@ -193,5 +203,6 @@ def fingerprint_tool_call(name: str, tool_args: dict[str, Any], tool_call_id: st
             "Durable: could not fingerprint tool call; this step will not be cached and will "
             "execute live on retry",
             tool=name,
+            step=step,
         )
         return None

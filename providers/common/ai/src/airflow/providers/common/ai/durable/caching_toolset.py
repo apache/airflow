@@ -90,7 +90,7 @@ class CachingToolset(WrapperToolset[Any]):
             return await self.wrapped.call_tool(name, tool_args, ctx, tool)
 
         key = build_tool_step_key(step)
-        fingerprint = fingerprint_tool_call(name, tool_args, ctx.tool_call_id)
+        fingerprint = fingerprint_tool_call(name, tool_args, ctx.tool_call_id, step=step)
         found, cached, cached_fingerprint = self.storage.load_tool_result(key)
         if found:
             if fingerprint is not None and cached_fingerprint == fingerprint:

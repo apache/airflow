@@ -179,6 +179,7 @@ class CachingModel(WrapperModel):
             messages,
             prepared_settings,
             prepared_parameters,
+            step=step,
         )
 
         cached: ModelResponse | None
