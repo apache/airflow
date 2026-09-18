@@ -1217,6 +1217,34 @@ Example usage:
      breeze release-management constraints-version-check --python 3.10 --airflow-constraints-mode constraints-source-providers --explain-why
 
 
+Mirror the hardened Python base images
+""""""""""""""""""""""""""""""""""""""
+
+The CI and PROD images are built on a Docker Hardened Image for Python. Pulling that image from
+its origin requires a Docker Hub login, so the tags Airflow builds on are mirrored to Airflow's
+own public registry and ``BASE_IMAGE`` points there - building the images then needs no registry
+credentials at all. A scheduled workflow keeps the mirror current; this command is what it runs,
+and what you run by hand when a new Python patch release needs mirroring straight away.
+
+Both the pinned tag and the floating major/minor tag are mirrored, so documentation and ad-hoc
+builds can keep referring to the floating one.
+
+These are all available flags of ``release-management mirror-base-images`` command:
+
+.. image:: ./images/output_release-management_mirror-base-images.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_mirror-base-images.svg
+  :width: 100%
+  :alt: Breeze mirror base images
+
+Example usage:
+
+.. code-block:: bash
+
+     breeze release-management mirror-base-images --python 3.10
+
+Without ``--python`` every currently supported Python version is mirrored.
+
+
 -----
 
 Next step: Follow the `UI Tasks <10_ui_tasks.rst>`_ to learn more about UI tasks.
