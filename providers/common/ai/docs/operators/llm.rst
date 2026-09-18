@@ -104,6 +104,8 @@ the full list of supported parameters.
     :start-after: [START howto_operator_llm_agent_params]
     :end-before: [END howto_operator_llm_agent_params]
 
+.. _howto/operator:llm_usage_limits:
+
 Usage Limits
 ------------
 
@@ -240,6 +242,12 @@ HITL interface.  Optionally allow the reviewer to edit the output before
 approving with ``allow_modifications=True``, and set a deadline with
 ``approval_timeout``.
 
+Human-in-the-loop review needs Airflow 3.1+. On an older core the operator raises
+``AirflowOptionalProviderFeatureException`` when it is constructed, so the Dag file
+fails to import, and with it every Dag defined in that file. A dynamically mapped
+task (``.expand()``) is only constructed when it runs, so there the same error
+surfaces as a task failure -- still before the model is called.
+
 When ``approval_timeout`` expires without a review, the task fails by default.
 Set ``on_approval_timeout="approve"`` to return the generated output instead, so
 an unattended pipeline keeps moving.  ``"reject"`` answers the review with a
@@ -253,6 +261,36 @@ Reject the primary button:
     :language: python
     :start-after: [START howto_operator_llm_approval]
     :end-before: [END howto_operator_llm_approval]
+
+A pending review is not surfaced as a notification.  Pass
+``approval_notifiers`` to tell the reviewers about it through any Airflow
+notifier (Slack, email, ...), the way
+:class:`~airflow.providers.standard.operators.hitl.HITLOperator` does with
+``notifiers``.  The notifiers run once the review is open and can reference
+the review ``{{ task.subject }}`` and ``{{ task.body }}`` in their templates,
+as the example above does.  The ``@task.llm`` decorator and the operator
+subclasses accept the same parameter.  A notifier whose delivery fails is
+logged and the task still waits for the review; a template error fails the
+task.  A retry re-runs the LLM and re-notifies with the regenerated output,
+while the open review keeps the original subject and body.
+
+The default ``body`` contains the rendered prompt and the output.  Where either
+is sensitive, template only ``{{ task.subject }}`` and a link to the review
+into channels outside Airflow's auth boundary.
+
+By default any user with the permission can answer the review.  Pass
+``approval_assigned_users=[{"id": "<auth-manager-user-id>", "name": "<user-name>"}]``
+to restrict it to named reviewers, the way
+:class:`~airflow.providers.standard.operators.hitl.HITLOperator` does with
+``assigned_users``.  ``id`` is the user id reported by the auth manager: with
+the default ``SimpleAuthManager`` it is the username from
+``simple_auth_manager_users``; under the FAB auth manager it is the numeric
+user row id as a string, not the username.  This needs Airflow 3.1+.  On Airflow 3.1.0 through 3.1.5 both
+``id`` and ``name`` must match what the auth manager reports, so a wrong
+``name`` blocks the assigned reviewer as well as everyone else; from 3.1.6 only
+``id`` is compared.  The list is stored when the review is first created:
+clearing the task re-runs it against the existing review row, so a changed
+list does not take effect.
 
 Parameters
 ----------
@@ -271,7 +309,7 @@ Parameters
   Fails the task when token / request / tool-call budgets are exceeded, or when a
   templated dict value cannot be coerced.  Default ``None``.
 - ``require_approval``: If ``True``, the task defers after generating output and waits
-  for human review.  Default ``False``.
+  for human review. Default ``False``. Needs Airflow 3.1+.
 - ``approval_timeout``: Maximum time to wait for a review (``timedelta``).  ``None``
   means wait indefinitely.  Default ``None``.
 - ``on_approval_timeout``: Outcome when ``approval_timeout`` expires without a
@@ -279,6 +317,12 @@ Parameters
   ``require_approval=True`` and a positive ``approval_timeout``.
 - ``allow_modifications``: If ``True``, the reviewer can edit the output before
   approving.  Default ``False``.
+- ``approval_notifiers``: Notifier, or list of notifiers, called once the review
+  is open.  Default ``None``.
+- ``approval_assigned_users``: Users allowed to answer the review, as
+  ``{"id": ..., "name": ...}`` dicts where ``id`` is the auth manager's user id.
+  ``None`` (default) lets any user with the permission respond.  Fixed at first
+  run.  Needs Airflow 3.1+.
 
 Logging
 -------

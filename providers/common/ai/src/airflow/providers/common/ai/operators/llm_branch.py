@@ -59,10 +59,13 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
     :param agent_params: Additional keyword arguments passed to the pydantic-ai
         ``Agent`` constructor (e.g. ``retries``, ``model_settings``, ``tools``).
 
+    ``usage_limits`` is inherited from
+    :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
+
     Human-in-the-Loop approval parameters are inherited from
     :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
     (``require_approval``, ``approval_timeout``, ``on_approval_timeout``,
-    ``allow_modifications``).
+    ``allow_modifications``, ``approval_notifiers``, ``approval_assigned_users``).
     The task pauses after the LLM chooses the branch(es) and only skips the
     unselected downstream tasks once a reviewer approves. Rejecting the
     review skips the direct downstream tasks except teardowns, matching

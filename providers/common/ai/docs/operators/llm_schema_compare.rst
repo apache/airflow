@@ -132,8 +132,9 @@ expire with the default ``on_approval_timeout="fail"``, fails the task:
 returning a ``Sequence[UserContent]`` raises ``TypeError`` before the LLM
 call.
 
-``approval_timeout``, ``on_approval_timeout``, ``allow_modifications``, and
-the rest of the approval behaviour are inherited from
+``approval_timeout``, ``on_approval_timeout``, ``allow_modifications``,
+``approval_notifiers``, ``approval_assigned_users``, and the rest of the approval
+behaviour are inherited from
 :ref:`LLMOperator <howto/operator:llm>`.
 
 Conditional ETL Based on Schema Compatibility
@@ -181,6 +182,9 @@ Parameters
   :ref:`Customizing the System Prompt <howto/operator:llm_schema_compare>` above).
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai
   ``Agent`` constructor.
+- ``usage_limits``: Optional pydantic-ai ``UsageLimits`` (or a templated ``dict`` of
+  the same fields) enforced on the run; the task fails when a budget is exceeded.
+  Default ``None``. See :ref:`Usage Limits <howto/operator:llm_usage_limits>`.
 - ``db_conn_ids``: List of database connection IDs to compare. Each must resolve
   to a ``DbApiHook``.
 - ``table_names``: Tables to introspect from each ``db_conn_id``.
@@ -197,6 +201,10 @@ Parameters
   ``require_approval=True`` and a positive ``approval_timeout``.
 - ``allow_modifications``: If ``True``, the reviewer can edit the result JSON
   before approving.  Default ``False``.
+- ``approval_notifiers``: Notifier, or list of notifiers, called once the review
+  is open.  Default ``None``.
+- ``approval_assigned_users``: Users allowed to answer the review.  ``None``
+  (default) lets any user with the permission respond.  Needs Airflow 3.1+.
 
 Logging
 -------

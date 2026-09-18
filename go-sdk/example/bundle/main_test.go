@@ -47,6 +47,16 @@ func (m *mockVars) UnmarshalJSONVariable(ctx context.Context, key string, pointe
 	panic("unimplemented")
 }
 
+// SetVariable implements sdk.VariableClient.
+func (m *mockVars) SetVariable(ctx context.Context, key, value, description string) error {
+	panic("unimplemented")
+}
+
+// DeleteVariable implements sdk.VariableClient.
+func (m *mockVars) DeleteVariable(ctx context.Context, key string) error {
+	panic("unimplemented")
+}
+
 var _ sdk.VariableClient = (*mockVars)(nil)
 
 func Test_transform(t *testing.T) {

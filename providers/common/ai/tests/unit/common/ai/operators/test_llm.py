@@ -41,7 +41,8 @@ try:
 except ImportError:
     _CORE_WALKER = False
 
-from airflow.providers.common.compat.sdk import TaskDeferred
+from airflow.providers.common.compat.notifier import BaseNotifier
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, TaskDeferred
 
 if AIRFLOW_V_3_3_PLUS:
     # On 3.3+ cores require_approval pauses the task in AWAITING_INPUT; older cores defer
@@ -312,6 +313,66 @@ def _make_context(ti_id=None):
     return MagicMock(**{"__getitem__": lambda self, key: {"task_instance": ti}[key]})
 
 
+class TestLLMOperatorApprovalVersionGate:
+    """__init__ rejects require_approval on cores without human-in-the-loop support.
+
+    Deliberately carries no class-level 3.1 skipif. These tests simulate an old core by
+    patching the flag, so they must not inherit the sibling class's skip -- and on a
+    genuine pre-3.1 core, such as the 3.0.6 providers-compatibility job, they are the
+    only tests that exercise the gate natively.
+    """
+
+    @pytest.mark.parametrize(
+        ("kwargs", "expected_exception", "match"),
+        [
+            pytest.param(
+                {"require_approval": True},
+                AirflowOptionalProviderFeatureException,
+                "Airflow 3.1",
+                id="require-approval-rejected",
+            ),
+            pytest.param(
+                {"require_approval": True, "on_approval_timeout": "approve"},
+                AirflowOptionalProviderFeatureException,
+                "Airflow 3.1",
+                id="version-beats-combination-rule",
+            ),
+            pytest.param(
+                {"require_approval": True, "on_approval_timeout": "nope"},
+                ValueError,
+                "on_approval_timeout must be",
+                id="literal-check-keeps-precedence",
+            ),
+        ],
+    )
+    @patch("airflow.providers.common.ai.operators.llm.AIRFLOW_V_3_1_PLUS", False)
+    def test_old_core_reports_the_blocking_argument(self, kwargs, expected_exception, match):
+        """Which of two applicable errors __init__ reports, and in which order.
+
+        Dropping on_approval_timeout would not make the operator work on an older core,
+        so the version has to beat the combination rule. A bad literal is wrong on every
+        core, so it keeps its own precise message -- which also pins the guard below the
+        literal check, since hoisting it would swap that message for the version one.
+        """
+        with pytest.raises(expected_exception, match=match):
+            LLMOperator(task_id="t", prompt="p", llm_conn_id="c", **kwargs)
+
+    @patch("airflow.providers.common.ai.operators.llm.AIRFLOW_V_3_1_PLUS", False)
+    def test_operator_without_approval_builds_on_old_core(self):
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c")
+        assert op.require_approval is False
+
+    @patch("airflow.providers.common.ai.operators.llm.AIRFLOW_V_3_1_PLUS", False)
+    def test_approval_assigned_users_rejected_on_old_core(self):
+        with pytest.raises(AirflowOptionalProviderFeatureException, match="needs Airflow 3.1"):
+            LLMOperator(
+                task_id="t",
+                prompt="p",
+                llm_conn_id="c",
+                approval_assigned_users={"id": "u1", "name": "alice"},
+            )
+
+
 @pytest.mark.skipif(
     not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
 )
@@ -327,6 +388,8 @@ class TestLLMOperatorApproval:
         assert op.allow_modifications is False
         assert op.approval_timeout is None
         assert op.on_approval_timeout == "fail"
+        assert op.approval_notifiers == []
+        assert op.approval_assigned_users == []
 
     def test_unknown_on_approval_timeout_raises(self):
         with pytest.raises(ValueError, match="on_approval_timeout must be"):
@@ -358,6 +421,60 @@ class TestLLMOperatorApproval:
             ValueError, match="needs require_approval=True and a positive approval_timeout to fire"
         ):
             LLMOperator(task_id="t", prompt="p", llm_conn_id="c", on_approval_timeout="approve", **kwargs)
+
+    def test_single_approval_notifier_normalized_to_list(self):
+        notifier = MagicMock(spec=BaseNotifier)
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", approval_notifiers=notifier)
+        assert op.approval_notifiers == [notifier]
+
+    @pytest.mark.parametrize(
+        ("notifiers", "match"),
+        [
+            (print, r"iterable of BaseNotifier instances, got <built-in function print>"),
+            (5, r"iterable of BaseNotifier instances, got 5"),
+            ("not-a-notifier", r"iterable of BaseNotifier instances, got 'not-a-notifier'"),
+            ({"a": 1}, r"must contain BaseNotifier instances, got 'a'"),
+            ([object()], r"must contain BaseNotifier instances, got <object object"),
+        ],
+        ids=["callable", "int", "str", "dict", "list_of_object"],
+    )
+    def test_rejects_non_notifier_approval_notifiers(self, notifiers, match):
+        with pytest.raises(TypeError, match=match):
+            LLMOperator(task_id="t", prompt="p", llm_conn_id="c", approval_notifiers=notifiers)
+
+    def test_accepts_generator_of_approval_notifiers(self):
+        notifiers = [MagicMock(spec=BaseNotifier), MagicMock(spec=BaseNotifier)]
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", approval_notifiers=iter(notifiers))
+        assert op.approval_notifiers == notifiers
+
+    @pytest.mark.parametrize(
+        "assigned_users",
+        [
+            {"id": "u1", "name": "alice"},
+            [{"id": "u1", "name": "alice"}],
+            iter([{"id": "u1", "name": "alice"}]),
+        ],
+        ids=["single", "list", "generator"],
+    )
+    def test_approval_assigned_users_normalized_to_list(self, assigned_users):
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", approval_assigned_users=assigned_users)
+        assert op.approval_assigned_users == [{"id": "u1", "name": "alice"}]
+
+    @pytest.mark.parametrize(
+        ("assigned_users", "match"),
+        [
+            ("alice", r"dict or an iterable of them, got 'alice'"),
+            (5, r"dict or an iterable of them, got 5"),
+            ({}, r"entries must be \{'id': str, 'name': str\} dicts, got \{\}"),
+            ([{"id": "u1"}], r"entries must be .* got \{'id': 'u1'\}"),
+            ([{"id": 1, "name": "alice"}], r"entries must be .* got \{'id': 1, 'name': 'alice'\}"),
+            (["alice"], r"entries must be .* got 'alice'"),
+        ],
+        ids=["str", "int", "empty_dict", "missing_name", "non_str_id", "list_of_str"],
+    )
+    def test_rejects_malformed_approval_assigned_users(self, assigned_users, match):
+        with pytest.raises(TypeError, match=match):
+            LLMOperator(task_id="t", prompt="p", llm_conn_id="c", approval_assigned_users=assigned_users)
 
     @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
     @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")

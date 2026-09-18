@@ -25,6 +25,7 @@ from pydantic import BaseModel
 from pydantic_ai.usage import UsageLimits
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
+from airflow.providers.common.compat.notifier import BaseNotifier
 from airflow.providers.common.compat.sdk import dag, task
 
 
@@ -180,6 +181,17 @@ example_llm_operator_templated_usage_limits()
 
 
 # [START howto_operator_llm_approval]
+class LogNotifier(BaseNotifier):
+    template_fields = ("message",)
+
+    def __init__(self, message: str) -> None:
+        super().__init__()
+        self.message = message
+
+    def notify(self, context) -> None:
+        self.log.info(self.message)
+
+
 @dag(tags=["example"])
 def example_llm_operator_approval():
 
@@ -192,6 +204,7 @@ def example_llm_operator_approval():
         approval_timeout=timedelta(hours=24),
         on_approval_timeout="approve",
         allow_modifications=True,
+        approval_notifiers=LogNotifier(message="{{ task.subject }}\n{{ task.body }}"),
     )
 
 

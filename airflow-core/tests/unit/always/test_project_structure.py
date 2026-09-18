@@ -90,8 +90,6 @@ class TestProjectStructure:
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/utils/test_delete_from.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/utils/test_k8s_hashlib_wrapper.py",
             "providers/common/ai/tests/unit/common/ai/test_exceptions.py",
-            "providers/common/compat/tests/unit/common/compat/standard/test_operators.py",
-            "providers/common/compat/tests/unit/common/compat/standard/test_triggers.py",
             "providers/common/compat/tests/unit/common/compat/standard/test_utils.py",
             "providers/common/messaging/tests/unit/common/messaging/providers/test_sqs.py",
             "providers/fab/tests/unit/fab/auth_manager/api_fastapi/datamodels/test_login.py",
