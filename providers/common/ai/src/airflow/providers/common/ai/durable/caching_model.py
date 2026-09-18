@@ -114,12 +114,14 @@ class CachingModel(WrapperModel):
             )
 
         response = await self.wrapped.request(messages, model_settings, model_request_parameters)
+        # Counts the live model call, not the write: the run summary reports this
+        # as steps executed fresh, and the call was paid for either way.
+        self.counter.cached_model += 1
         if fingerprint is None:
             # Storing this would write an entry the guard above can never accept,
             # once per step, each write rewriting the whole cache blob.
             log.debug("Durable: not caching model response that cannot be verified on replay", step=step)
             return response
         self.storage.save_model_response(key, response, fingerprint=fingerprint)
-        self.counter.cached_model += 1
         log.debug("Durable: cached model response", step=step)
         return response
