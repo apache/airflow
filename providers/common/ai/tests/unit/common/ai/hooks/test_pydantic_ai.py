@@ -863,7 +863,6 @@ class TestPydanticAIHookFallback:
         "fallback_conn_ids",
         [
             pytest.param("second,third", id="comma-separated-string"),
-            pytest.param(["second", ""], id="empty-entry"),
             pytest.param(["second", 3], id="non-string-entry"),
         ],
     )
@@ -871,8 +870,69 @@ class TestPydanticAIHookFallback:
         registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
 
         hook = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=fallback_conn_ids)
-        with pytest.raises(ValueError, match="must be a list of non-empty connection IDs"):
+        with pytest.raises(ValueError, match="must be a list of connection IDs"):
             hook.get_conn()
+
+    @pytest.mark.parametrize(
+        "fallback_conn_ids",
+        [
+            pytest.param(["second", ""], id="trailing-blank-entry"),
+            pytest.param(["second", "  "], id="trailing-whitespace-entry"),
+            pytest.param(["second", "\n"], id="trailing-newline-entry"),
+        ],
+    )
+    def test_blank_entries_are_dropped_from_param(self, registry, infer_model_stub, fallback_conn_ids):
+        """The Fallback Connections field is a textarea split on newline whose blur handler
+        only guards the all-blank case, so a trailing blank line is what most saved chains
+        actually look like; it must resolve as a working chain, not raise.
+        """
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
+
+        model = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=fallback_conn_ids).get_conn()
+
+        assert isinstance(model, FallbackModel)
+        assert model.models == [
+            infer_model_stub.models["openai:gpt-5.6-sol"],
+            infer_model_stub.models["anthropic:claude-opus-4-6"],
+        ]
+
+    def test_blank_entries_are_dropped_from_extra(self, registry, infer_model_stub):
+        """Same drop-blank behavior applies when the chain comes from connection extra."""
+        registry.add(
+            "primary",
+            extra={"model": "openai:gpt-5.6-sol", "fallback_conn_ids": ["second", ""]},
+        )
+        registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
+
+        model = PydanticAIHook(llm_conn_id="primary").get_conn()
+
+        assert isinstance(model, FallbackModel)
+        assert model.models == [
+            infer_model_stub.models["openai:gpt-5.6-sol"],
+            infer_model_stub.models["anthropic:claude-opus-4-6"],
+        ]
+
+    def test_blank_only_chain_behaves_like_no_chain(self, registry, infer_model_stub):
+        """Dropping every entry must fall back to the bare model, matching the ``[]`` opt-out."""
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+
+        model = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["", "  "]).get_conn()
+
+        assert model is infer_model_stub.models["openai:gpt-5.6-sol"]
+
+    def test_fallback_entries_are_stripped(self, registry, infer_model_stub):
+        """Whitespace around a kept entry must not leak into the connection lookup."""
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
+
+        model = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["  second  "]).get_conn()
+
+        assert isinstance(model, FallbackModel)
+        assert model.models == [
+            infer_model_stub.models["openai:gpt-5.6-sol"],
+            infer_model_stub.models["anthropic:claude-opus-4-6"],
+        ]
 
     @pytest.mark.parametrize(
         "malformed",
@@ -893,7 +953,7 @@ class TestPydanticAIHookFallback:
         registry.add("primary", extra={"model": "openai:gpt-5.6-sol", "fallback_conn_ids": malformed})
 
         hook = PydanticAIHook(llm_conn_id="primary")
-        with pytest.raises(ValueError, match="must be a list of non-empty connection IDs"):
+        with pytest.raises(ValueError, match="must be a list of connection IDs"):
             hook.get_conn()
 
     def test_fallback_without_a_model_names_the_connection(self, registry, infer_model_stub):

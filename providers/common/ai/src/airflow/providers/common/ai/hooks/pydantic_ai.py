@@ -121,10 +121,12 @@ class PydanticAIHook(BaseHook):
     :param fallback_conn_ids: Connection IDs to fail over to, in order, when the
         primary provider is unavailable.  Overrides the ``fallback_conn_ids``
         list stored in the connection's extra field; pass an empty list to
-        disable a chain configured there.  Each entry may point at any
-        ``pydanticai*`` connection type, so the chain can span providers (for
-        example OpenAI, then Bedrock).  See :meth:`get_conn` for the failover
-        semantics and their cost.
+        disable a chain configured there.  Blank or whitespace-only entries
+        (including a trailing blank line from the Fallback Connections textarea)
+        are dropped; a chain left entirely blank is treated the same as passing
+        ``[]``.  Each entry may point at any ``pydanticai*`` connection type, so
+        the chain can span providers (for example OpenAI, then Bedrock).  See
+        :meth:`get_conn` for the failover semantics and their cost.
     """
 
     conn_name_attr = "llm_conn_id"
@@ -402,7 +404,14 @@ class PydanticAIHook(BaseHook):
         return infer_model(model_name)
 
     def _get_fallback_conn_ids(self) -> list[str]:
-        """Return the configured fallback connection IDs, hook argument winning over the extra."""
+        """
+        Return the configured fallback connection IDs, hook argument winning over the extra.
+
+        Blank entries (including whitespace-only ones) are dropped and surviving entries are
+        stripped: the Fallback Connections field renders as a textarea that splits on newline,
+        and its blur handler only guards against an all-blank value, so a trailing blank line
+        is what most saved chains actually look like.
+        """
         if self.fallback_conn_ids is not None:
             raw: Any = self.fallback_conn_ids
         else:
@@ -411,12 +420,12 @@ class PydanticAIHook(BaseHook):
             if raw is None:
                 raw = []
 
-        if not isinstance(raw, (list, tuple)) or not all(isinstance(item, str) and item for item in raw):
+        if not isinstance(raw, (list, tuple)) or not all(isinstance(item, str) for item in raw):
             raise ValueError(
                 f"{FALLBACK_CONN_IDS_EXTRA_KEY} for connection '{self.llm_conn_id}' must be a list "
-                f"of non-empty connection IDs, got {raw!r}."
+                f"of connection IDs, got {raw!r}."
             )
-        return list(raw)
+        return [stripped for item in raw if (stripped := item.strip())]
 
     def _resolve_fallback_models(self) -> list[Model]:
         """
