@@ -21,7 +21,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { DagVersionDiffResponse } from "openapi/requests/types.gen";
+import type { DagVersionDiffResponse, DagVersionResponse } from "openapi/requests/types.gen";
 
 import { TimezoneProvider } from "src/context/timezone";
 import { BaseWrapper } from "src/utils/Wrapper";
@@ -67,15 +67,28 @@ const diff: DagVersionDiffResponse = {
   values_status: "unavailable",
 };
 
-const versions = [3, 2, 1].map((versionNumber) => ({
+const versions: Array<DagVersionResponse> = [3, 2, 1].map((versionNumber) => ({
   bundle_name: "dags-folder",
+  bundle_url: null,
   bundle_version: null,
   created_at: "2025-01-01T00:00:00Z",
+  dag_display_name: "test_dag",
   dag_id: "test_dag",
+  id: `00000000-0000-0000-0000-00000000000${versionNumber}`,
   version_number: versionNumber,
 }));
 
 const SearchProbe = () => <div data-testid="search">{useLocation().search}</div>;
+
+const lastDiffRequest = () =>
+  mockGetDagVersionDiff.mock.calls.at(-1)?.[0] as Record<string, unknown> | undefined;
+
+const lastDiffOptions = () =>
+  mockGetDagVersionDiff.mock.calls.at(-1)?.[2] as Record<string, unknown> | undefined;
+
+// Chakra compiles `visibility` to a class, so the two states are compared rather than read.
+const progressClassOf = (view: { container: HTMLElement }) =>
+  view.container.querySelector(".chakra-progress__root")?.className;
 
 const renderVersions = (search: string) =>
   render(
@@ -102,27 +115,33 @@ describe("Versions", () => {
   it("compares the versions named in the URL", () => {
     renderVersions("?base_version_number=1&target_version_number=3");
 
-    expect(mockGetDagVersionDiff).toHaveBeenCalledWith({
+    expect(lastDiffRequest()).toEqual({
       baseVersionNumber: 1,
       dagId: "test_dag",
       maxChanges: undefined,
       targetVersionNumber: 3,
     });
+    // Without it the table blanks out whenever the bound changes the query key.
+    expect(typeof lastDiffOptions()?.placeholderData).toBe("function");
     expect(screen.getByText("/dag/tasks/*/retries")).toBeInTheDocument();
   });
 
-  it("requests nothing while a version parameter is not a version number", () => {
-    renderVersions("?base_version_number=abc&target_version_number=3");
+  it.each(["abc", "1.5", "0", "-1", "Infinity", "", "1e21"])(
+    "requests nothing while a version parameter is %s",
+    (base) => {
+      renderVersions(`?base_version_number=${base}&target_version_number=3`);
 
-    expect(mockGetDagVersionDiff).not.toHaveBeenCalled();
-    expect(screen.getByText("versions.selectPrompt")).toBeInTheDocument();
-  });
+      expect(mockGetDagVersionDiff).not.toHaveBeenCalled();
+      expect(screen.getByText("versions.selectPrompt")).toBeInTheDocument();
+    },
+  );
 
   it("puts a chosen version in the URL", async () => {
-    const { container } = renderVersions("");
+    renderVersions("");
 
-    fireEvent.click(container.querySelectorAll(".chakra-select__trigger")[0] as Element);
-    fireEvent.click(container.querySelectorAll(".chakra-select__item")[0] as Element);
+    // The listbox stays aria-hidden until it animates open, so the options are matched directly.
+    fireEvent.click(screen.getAllByRole("combobox")[0] as HTMLElement);
+    fireEvent.click(screen.getAllByRole("option", { hidden: true })[0] as HTMLElement);
 
     await waitFor(() => expect(screen.getByTestId("search")).toHaveTextContent("base_version_number=3"));
   });
@@ -136,15 +155,63 @@ describe("Versions", () => {
   it("forwards max changes from the URL", () => {
     renderVersions("?base_version_number=1&target_version_number=3&max_changes=42");
 
-    expect(mockGetDagVersionDiff).toHaveBeenCalledWith(expect.objectContaining({ maxChanges: 42 }));
+    expect(lastDiffRequest()).toMatchObject({ maxChanges: 42 });
     expect(screen.getByLabelText("versions.maxChanges")).toHaveValue("42");
   });
 
   it("clamps a max changes the endpoint would reject", () => {
     renderVersions("?base_version_number=1&target_version_number=3&max_changes=99999");
 
-    expect(mockGetDagVersionDiff).toHaveBeenCalledWith(expect.objectContaining({ maxChanges: 5000 }));
+    expect(lastDiffRequest()).toMatchObject({ maxChanges: 5000 });
     expect(screen.getByLabelText("versions.maxChanges")).toHaveValue("5000");
+  });
+
+  it.each([
+    ["42", "max_changes=42"],
+    ["99999", "max_changes=5000"],
+  ])("writes a typed max changes of %s to the URL as %s", async (typed, expected) => {
+    renderVersions("?base_version_number=1&target_version_number=3");
+
+    const input = screen.getByLabelText("versions.maxChanges");
+
+    fireEvent.focus(input);
+    fireEvent.input(input, { target: { value: typed } });
+
+    await waitFor(() => expect(screen.getByTestId("search")).toHaveTextContent(expected));
+  });
+
+  it.each(["", "0"])("drops the max changes parameter when the field becomes %s", async (typed) => {
+    renderVersions("?base_version_number=1&target_version_number=3&max_changes=42");
+
+    const input = screen.getByLabelText("versions.maxChanges");
+
+    fireEvent.focus(input);
+    fireEvent.input(input, { target: { value: typed } });
+
+    await waitFor(() => expect(screen.getByTestId("search")).not.toHaveTextContent("max_changes"));
+  });
+
+  it("reports a failed comparison", () => {
+    mockGetDagVersionDiff.mockReturnValue({
+      data: undefined,
+      error: { body: { detail: "boom" }, status: 400 },
+      isLoading: false,
+    });
+
+    renderVersions("?base_version_number=1&target_version_number=3");
+
+    expect(screen.getByText("boom")).toBeInTheDocument();
+  });
+
+  it("shows progress only while the comparison loads", () => {
+    mockGetDagVersionDiff.mockReturnValue({ data: undefined, error: null, isLoading: true });
+    const loading = renderVersions("?base_version_number=1&target_version_number=3");
+
+    mockGetDagVersionDiff.mockReturnValue({ data: diff, error: null, isLoading: false });
+    const loaded = renderVersions("?base_version_number=1&target_version_number=3");
+
+    expect(progressClassOf(loading)).not.toBe(progressClassOf(loaded));
+    expect(progressClassOf(loading)).toBeDefined();
   });
 
   it("puts a typed max changes in the URL", async () => {

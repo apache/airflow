@@ -263,6 +263,15 @@ either keep one Dag per source file, or restrict ``DagAccessEntity.CODE`` to
 roles that are trusted to read every Dag that has ever co-existed in any
 source file.
 
+``DagAccessEntity.CODE`` also governs how much the version-comparison endpoint
+(``GET /api/v2/dags/{dag_id}/dagVersions/{base_version_number}/diff/{target_version_number}``)
+discloses. ``DagAccessEntity.VERSION`` read alone returns which parts of the
+stored Dag differ, with identifying path components masked; the values behind
+those differences, and the paths naming them, are returned only to a caller who
+may also read the Dag's code. Those values come from the stored serialized Dag
+rather than the source file, so the co-located-Dag caveats above do not apply —
+a comparison never discloses anything about a Dag other than the one requested.
+
 
 Security contexts for Dag author submitted code
 -----------------------------------------------

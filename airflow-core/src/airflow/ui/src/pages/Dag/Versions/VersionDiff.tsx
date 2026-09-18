@@ -27,7 +27,7 @@ type VersionDiffProps = {
   readonly targetVersionNumber: number;
 };
 
-const IMPACT_COLOURS: Record<string, string> = {
+const IMPACT_COLORS: Record<string, string> = {
   authorization: "orange",
   execution: "red",
   metadata: "blue",
@@ -44,8 +44,9 @@ const renderValue = (value: unknown) => {
     return "—";
   }
 
-  // A stored null is a value; only an absent side gets the dash above.
-  const text = typeof value === "string" ? value : JSON.stringify(value);
+  // A stored null is a value; only an absent side gets the dash above. An empty string is quoted
+  // so it reads as a value rather than as a blank cell.
+  const text = typeof value === "string" ? value || '""' : JSON.stringify(value);
 
   return text.length > MAX_VALUE_LENGTH ? `${text.slice(0, MAX_VALUE_LENGTH)}…` : text;
 };
@@ -58,9 +59,15 @@ export const VersionDiff = ({ baseVersionNumber, diff, targetVersionNumber }: Ve
     return (
       <Alert.Root status="info" title={translate("versions.unavailable.title")}>
         <Alert.Description>
-          {translate("versions.unavailable.description")}{" "}
-          {/* A machine token, so it is shown as code rather than folded into a translated sentence. */}
-          <Code fontSize="sm">{diff.unavailable_reason}</Code>
+          {diff.unavailable_reason === null || diff.unavailable_reason === undefined ? (
+            translate("versions.unavailable.withoutReason")
+          ) : (
+            <>
+              {translate("versions.unavailable.description")}{" "}
+              {/* A machine token, so it is shown as code rather than folded into a translated sentence. */}
+              <Code fontSize="sm">{diff.unavailable_reason}</Code>
+            </>
+          )}
         </Alert.Description>
       </Alert.Root>
     );
@@ -75,9 +82,9 @@ export const VersionDiff = ({ baseVersionNumber, diff, targetVersionNumber }: Ve
           </Heading>
           <Text color="fg.muted" fontSize="sm">
             {translate("versions.summary", {
-              base: diff.serialized_dag_schema_versions.base ?? "?",
+              baseSchema: diff.serialized_dag_schema_versions.base ?? "?",
               count: diff.total_changes,
-              target: diff.serialized_dag_schema_versions.target ?? "?",
+              targetSchema: diff.serialized_dag_schema_versions.target ?? "?",
             })}
           </Text>
         </Box>
@@ -100,48 +107,58 @@ export const VersionDiff = ({ baseVersionNumber, diff, targetVersionNumber }: Ve
         </Alert.Root>
       ) : undefined}
 
-      <Table.Root striped>
-        <Table.Header>
-          <Table.Row>
-            <Table.ColumnHeader>{translate("versions.columns.path")}</Table.ColumnHeader>
-            <Table.ColumnHeader>{translate("versions.columns.operation")}</Table.ColumnHeader>
-            <Table.ColumnHeader>{translate("versions.columns.category")}</Table.ColumnHeader>
-            <Table.ColumnHeader>{translate("versions.columns.impact")}</Table.ColumnHeader>
-            <Table.ColumnHeader>{translate("versions.columns.occurrences")}</Table.ColumnHeader>
-            {valuesShown ? (
-              <>
-                <Table.ColumnHeader>{translate("versions.columns.before")}</Table.ColumnHeader>
-                <Table.ColumnHeader>{translate("versions.columns.after")}</Table.ColumnHeader>
-              </>
-            ) : undefined}
-          </Table.Row>
-        </Table.Header>
-        <Table.Body>
-          {diff.changes.map((change) => (
-            <Table.Row key={`${change.path}-${change.operation}`}>
-              <Table.Cell>
-                <Code fontSize="sm">{change.path}</Code>
-              </Table.Cell>
-              <Table.Cell>{change.operation}</Table.Cell>
-              <Table.Cell>{change.category}</Table.Cell>
-              <Table.Cell>
-                <Badge colorPalette={IMPACT_COLOURS[change.impact] ?? "gray"}>{change.impact}</Badge>
-              </Table.Cell>
-              <Table.Cell>{change.occurrence_count}</Table.Cell>
+      {diff.changes.length === 0 ? (
+        <Text color="fg.muted">{translate("versions.noChanges")}</Text>
+      ) : (
+        <Table.Root striped>
+          <Table.Header>
+            <Table.Row>
+              <Table.ColumnHeader>{translate("versions.columns.path")}</Table.ColumnHeader>
+              <Table.ColumnHeader>{translate("versions.columns.operation")}</Table.ColumnHeader>
+              <Table.ColumnHeader>{translate("versions.columns.category")}</Table.ColumnHeader>
+              <Table.ColumnHeader>{translate("versions.columns.impact")}</Table.ColumnHeader>
+              <Table.ColumnHeader>{translate("versions.columns.occurrences")}</Table.ColumnHeader>
               {valuesShown ? (
                 <>
-                  <Table.Cell>
-                    <Code fontSize="sm">{renderValue(change.before_value)}</Code>
-                  </Table.Cell>
-                  <Table.Cell>
-                    <Code fontSize="sm">{renderValue(change.after_value)}</Code>
-                  </Table.Cell>
+                  <Table.ColumnHeader>{translate("versions.columns.before")}</Table.ColumnHeader>
+                  <Table.ColumnHeader>{translate("versions.columns.after")}</Table.ColumnHeader>
                 </>
               ) : undefined}
             </Table.Row>
-          ))}
-        </Table.Body>
-      </Table.Root>
+          </Table.Header>
+          <Table.Body>
+            {diff.changes.map((change) => (
+              <Table.Row key={`${change.path}-${change.operation}`}>
+                <Table.Cell>
+                  <Code fontSize="sm">{change.path}</Code>
+                </Table.Cell>
+                <Table.Cell>
+                  {translate(`versions.operations.${change.operation}`, { defaultValue: change.operation })}
+                </Table.Cell>
+                <Table.Cell>
+                  {translate(`versions.categories.${change.category}`, { defaultValue: change.category })}
+                </Table.Cell>
+                <Table.Cell>
+                  <Badge colorPalette={IMPACT_COLORS[change.impact] ?? "gray"}>
+                    {translate(`versions.impacts.${change.impact}`, { defaultValue: change.impact })}
+                  </Badge>
+                </Table.Cell>
+                <Table.Cell>{change.occurrence_count}</Table.Cell>
+                {valuesShown ? (
+                  <>
+                    <Table.Cell>
+                      <Code fontSize="sm">{renderValue(change.before_value)}</Code>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Code fontSize="sm">{renderValue(change.after_value)}</Code>
+                    </Table.Cell>
+                  </>
+                ) : undefined}
+              </Table.Row>
+            ))}
+          </Table.Body>
+        </Table.Root>
+      )}
 
       <Text color="fg.muted" fontSize="sm" mt={3}>
         {translate("versions.observedStateBoundary")}

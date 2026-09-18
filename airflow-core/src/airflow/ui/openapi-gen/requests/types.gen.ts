@@ -1306,10 +1306,22 @@ export type DagVersionDiffChangeResponse = {
      * How many underlying changes this record stands for. Always 1 when values are disclosed, since each change is then its own record; a redacted record merges every change sharing its path and operation.
      */
     occurrence_count: number;
+    /**
+     * SHA-256 over the canonical JSON of `before_value`. Present only when values are disclosed, and null when the change has no before side.
+     */
     before_digest?: string | null;
+    /**
+     * SHA-256 over the canonical JSON of `after_value`. Present only when values are disclosed, and null when the change has no after side.
+     */
     after_digest?: string | null;
-    before_value?: unknown | null;
-    after_value?: unknown | null;
+    /**
+     * The value this path held in the base version. Present only when values are disclosed, and omitted entirely when the change has no before side — which is how an absent side is told apart from a stored null.
+     */
+    before_value?: unknown;
+    /**
+     * The value this path holds in the target version. Present only when values are disclosed, and omitted entirely when the change has no after side — which is how an absent side is told apart from a stored null.
+     */
+    after_value?: unknown;
 };
 
 /**
@@ -1331,13 +1343,17 @@ export type DagVersionDiffOperation = 'added' | 'removed' | 'changed';
  * Observed-state difference between two stored Dag versions.
  */
 export type DagVersionDiffResponse = {
+    /**
+     * Wire format of this payload. Incremented when its shape changes.
+     */
     diff_schema_version: number;
     base_version_number: number;
     target_version_number: number;
-    serialized_dag_schema_versions: {
-        [key: string]: (number | null);
-    };
+    serialized_dag_schema_versions: DagVersionDiffSchemaVersions;
     mode: DagVersionDiffMode;
+    /**
+     * Why no comparison could be made. Populated only when `mode` is `unavailable`.
+     */
     unavailable_reason?: string | null;
     values_status: DagVersionDiffValuesStatus;
     /**
@@ -1352,7 +1368,15 @@ export type DagVersionDiffResponse = {
 };
 
 /**
- * Whether the caller was authorized to see values. Mirrors ``ValuesStatus``.
+ * Which serializer schema each compared version was stored under.
+ */
+export type DagVersionDiffSchemaVersions = {
+    base: number | null;
+    target: number | null;
+};
+
+/**
+ * Whether values were disclosed. Mirrors ``ValuesStatus``.
  */
 export type DagVersionDiffValuesStatus = 'available' | 'unavailable';
 
