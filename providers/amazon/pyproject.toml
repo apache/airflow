@@ -152,6 +152,11 @@ dependencies = [
 "common.messaging" = [
     "apache-airflow-providers-common-messaging>=2.0.0"
 ]
+# DuckDB support is opt-in: the duckdb wheel is around 20MB and irrelevant to most users of this
+# provider, so it must never become a hard dependency here.
+"duckdb" = [
+    "apache-airflow-providers-duckdb>=0.1.0"
+]
 "sqlalchemy" = [
     "sqlalchemy>=1.4.54",
 ]
@@ -166,6 +171,7 @@ dev = [
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-messaging",
     "apache-airflow-providers-common-sql",
+    "apache-airflow-providers-duckdb",
     "apache-airflow-providers-exasol",
     "apache-airflow-providers-ftp",
     "apache-airflow-providers-google",
@@ -191,7 +197,8 @@ dev = [
     "opensearch-py>=2.2.0",
     "responses>=0.25.0",
     "apache-airflow-providers-common-sql[pandas,polars]",
-    "apache-airflow-providers-amazon[sqlalchemy]"
+    "apache-airflow-providers-amazon[sqlalchemy]",
+    "apache-airflow-providers-duckdb"
 ]
 
 # To build docs:

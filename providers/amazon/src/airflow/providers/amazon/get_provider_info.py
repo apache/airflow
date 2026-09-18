@@ -38,6 +38,12 @@ def get_provider_info():
                 "tags": ["aws"],
             },
             {
+                "integration-name": "DuckDB on AWS",
+                "external-doc-url": "https://duckdb.org/docs/stable/extensions/httpfs/s3api",
+                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/duckdb.rst"],
+                "tags": ["aws"],
+            },
+            {
                 "integration-name": "Amazon Bedrock",
                 "external-doc-url": "https://aws.amazon.com/bedrock/",
                 "logo": "/docs/integration-logos/Amazon-Bedrock_light-bg@4x.png",
@@ -399,6 +405,10 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.amazon.aws.operators.athena"],
             },
             {
+                "integration-name": "DuckDB on AWS",
+                "python-modules": ["airflow.providers.amazon.aws.operators.duckdb"],
+            },
+            {
                 "integration-name": "Amazon Web Services",
                 "python-modules": ["airflow.providers.amazon.aws.operators.base_aws"],
             },
@@ -721,6 +731,10 @@ def get_provider_info():
                     "airflow.providers.amazon.aws.hooks.athena",
                     "airflow.providers.amazon.aws.hooks.athena_sql",
                 ],
+            },
+            {
+                "integration-name": "DuckDB on AWS",
+                "python-modules": ["airflow.providers.amazon.aws.hooks.duckdb"],
             },
             {
                 "integration-name": "Amazon Bedrock",

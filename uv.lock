@@ -3129,6 +3129,9 @@ cncf-kubernetes = [
 common-messaging = [
     { name = "apache-airflow-providers-common-messaging" },
 ]
+duckdb = [
+    { name = "apache-airflow-providers-duckdb" },
+]
 exasol = [
     { name = "apache-airflow-providers-exasol" },
 ]
@@ -3191,6 +3194,7 @@ dev = [
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-messaging" },
     { name = "apache-airflow-providers-common-sql", extra = ["pandas", "polars"] },
+    { name = "apache-airflow-providers-duckdb" },
     { name = "apache-airflow-providers-exasol" },
     { name = "apache-airflow-providers-ftp" },
     { name = "apache-airflow-providers-google" },
@@ -3228,6 +3232,7 @@ requires-dist = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-messaging", marker = "extra == 'common-messaging'", editable = "providers/common/messaging" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
+    { name = "apache-airflow-providers-duckdb", marker = "extra == 'duckdb'", editable = "providers/duckdb" },
     { name = "apache-airflow-providers-exasol", marker = "extra == 'exasol'", editable = "providers/exasol" },
     { name = "apache-airflow-providers-fab", marker = "extra == 'fab'", editable = "providers/fab" },
     { name = "apache-airflow-providers-ftp", marker = "extra == 'ftp'", editable = "providers/ftp" },
@@ -3263,7 +3268,7 @@ requires-dist = [
     { name = "watchtower", specifier = ">=3.3.1,<4" },
     { name = "xmlsec", marker = "python_full_version < '3.13' and extra == 'python3-saml'", specifier = ">=1.3.14" },
 ]
-provides-extras = ["aiobotocore", "cncf-kubernetes", "s3fs", "msk", "python3-saml", "apache-hive", "exasol", "fab", "ftp", "google", "imap", "microsoft-azure", "mongo", "pandas", "openlineage", "salesforce", "ssh", "standard", "common-messaging", "sqlalchemy"]
+provides-extras = ["aiobotocore", "cncf-kubernetes", "s3fs", "msk", "python3-saml", "apache-hive", "exasol", "fab", "ftp", "google", "imap", "microsoft-azure", "mongo", "pandas", "openlineage", "salesforce", "ssh", "standard", "common-messaging", "duckdb", "sqlalchemy"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -3277,6 +3282,7 @@ dev = [
     { name = "apache-airflow-providers-common-messaging", editable = "providers/common/messaging" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-common-sql", extras = ["pandas", "polars"], editable = "providers/common/sql" },
+    { name = "apache-airflow-providers-duckdb", editable = "providers/duckdb" },
     { name = "apache-airflow-providers-exasol", editable = "providers/exasol" },
     { name = "apache-airflow-providers-ftp", editable = "providers/ftp" },
     { name = "apache-airflow-providers-google", editable = "providers/google" },
