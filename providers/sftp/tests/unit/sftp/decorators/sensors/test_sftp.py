@@ -26,7 +26,7 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import task
 else:
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
-from airflow.providers.common.compat.sdk import timezone
+from airflow.providers.common.compat.sdk import TaskDeferred, timezone
 
 pytestmark = pytest.mark.db_test
 
@@ -68,6 +68,24 @@ class TestSFTPDecoratorSensor:
             ret = f(*op_args, **op_kwargs)
 
         assert ret.operator.execute({}) == expected_xcom_return
+
+    def test_decorator_with_file_path_deferrable(self, dag_maker):
+        file_path = "/path/to/file/2021-09-09.txt"
+        decorated_func_return = "decorated_func_returns"
+        expected_xcom_return = {"files_found": [file_path], "decorator_return_value": decorated_func_return}
+
+        @task.sftp_sensor(path=file_path, deferrable=True)
+        def f():
+            return decorated_func_return
+
+        with dag_maker():
+            ret = f()
+
+        with pytest.raises(TaskDeferred):
+            ret.operator.execute({})
+
+        event = {"status": "success", "message": f"Sensed file: {file_path}", "files_found": [file_path]}
+        assert ret.operator.execute_complete({}, event=event) == expected_xcom_return
 
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
     def test_decorator_with_file_pattern(self, sftp_hook_mock, dag_maker):
