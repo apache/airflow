@@ -1076,10 +1076,10 @@ class DagFileProcessorManager(LoggingMixin):
             errors = session.scalars(
                 select(ParseImportError)
                 .where(ParseImportError.bundle_name == bundle_name)
-                .options(load_only(ParseImportError.source_reference))
+                .options(load_only(ParseImportError.filename))
             )
             for error in errors:
-                if error.source_reference not in observed_filelocs:
+                if error.filename not in observed_filelocs:
                     session.delete(error)
         except Exception:
             self.log.exception("Error removing old import errors")

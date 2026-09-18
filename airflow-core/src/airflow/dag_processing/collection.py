@@ -388,17 +388,15 @@ def _update_import_errors(
     from airflow.listeners.listener import get_listener_manager
 
     # Read before the delete below, so an error still present is updated rather than recreated.
-    # Scoped to the keys being written: the table is not indexed on (bundle_name, source_reference) so this
+    # Scoped to the keys being written: the table is not indexed on (bundle_name, filename) so this
     # still scans, but it no longer builds a row per import error the deployment is carrying.
     existing_import_error_files: set[tuple[str | None, str | None]] = set()
     if import_errors:
         existing_import_error_files = {
             (bundle, filename)
             for bundle, filename in session.execute(
-                select(ParseImportError.bundle_name, ParseImportError.source_reference).where(
-                    tuple_(ParseImportError.bundle_name, ParseImportError.source_reference).in_(
-                        list(import_errors)
-                    )
+                select(ParseImportError.bundle_name, ParseImportError.filename).where(
+                    tuple_(ParseImportError.bundle_name, ParseImportError.filename).in_(list(import_errors))
                 )
             )
         }
@@ -409,7 +407,7 @@ def _update_import_errors(
     if files_to_clear:
         session.execute(
             delete(ParseImportError).where(
-                tuple_(ParseImportError.bundle_name, ParseImportError.source_reference).in_(files_to_clear)
+                tuple_(ParseImportError.bundle_name, ParseImportError.filename).in_(files_to_clear)
             )
         )
 
@@ -421,10 +419,11 @@ def _update_import_errors(
             session.execute(
                 update(ParseImportError)
                 .where(
-                    ParseImportError.source_reference == relative_fileloc,
+                    ParseImportError.filename == relative_fileloc,
                     ParseImportError.bundle_name == bundle_name_,
                 )
                 .values(
+                    filename=relative_fileloc,
                     source_reference=relative_fileloc,
                     bundle_name=bundle_name_,
                     timestamp=utcnow(),
@@ -437,7 +436,7 @@ def _update_import_errors(
                 import_error = session.scalar(
                     select(ParseImportError).where(
                         ParseImportError.bundle_name == bundle_name_,
-                        ParseImportError.source_reference == relative_fileloc,
+                        ParseImportError.filename == relative_fileloc,
                     )
                 )
                 if import_error is not None:
@@ -448,6 +447,7 @@ def _update_import_errors(
                 log.exception("error calling listener")
         else:
             import_error = ParseImportError(
+                filename=relative_fileloc,
                 source_reference=relative_fileloc,
                 bundle_name=bundle_name_,
                 timestamp=utcnow(),
