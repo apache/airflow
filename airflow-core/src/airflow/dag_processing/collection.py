@@ -28,12 +28,14 @@ This should generally only be called by internal methods such as
 from __future__ import annotations
 
 import traceback
+from collections.abc import Mapping
+from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
 
 import structlog
 from sqlalchemy import delete, false, func, insert, select, tuple_, update
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import joinedload, load_only
+from sqlalchemy.orm import joinedload, load_only, selectinload
 
 from airflow._shared.timezones.timezone import utcnow
 from airflow.assets.manager import asset_manager
@@ -81,6 +83,23 @@ if TYPE_CHECKING:
     AssetT = TypeVar("AssetT", SerializedAsset, SerializedAssetAlias)
 
 log = structlog.get_logger(__name__)
+
+_DISABLE_DAG_PARSING_RETRIES = "_airflow_disable_dag_parsing_retries"
+
+
+@contextmanager
+def _disable_dag_parsing_retries(*, session: Session) -> Iterator[None]:
+    """Leave nested write retries to the transaction owner."""
+    missing = object()
+    previous = session.info.get(_DISABLE_DAG_PARSING_RETRIES, missing)
+    session.info[_DISABLE_DAG_PARSING_RETRIES] = True
+    try:
+        yield
+    finally:
+        if previous is missing:
+            session.info.pop(_DISABLE_DAG_PARSING_RETRIES, None)
+        else:
+            session.info[_DISABLE_DAG_PARSING_RETRIES] = previous
 
 
 def _create_orm_dags(
@@ -201,6 +220,14 @@ class _RunInfo(NamedTuple):
             session=session,
         )
         return cls(latest_run, active_run_counts.get(dag.dag_id, 0))
+
+
+def _resolve_parse_duration(
+    parse_duration: float | Mapping[str, float | None] | None, dag_id: str
+) -> float | None:
+    if isinstance(parse_duration, Mapping):
+        return parse_duration.get(dag_id)
+    return parse_duration
 
 
 def _update_dag_tags(tag_names: set[str], dm: DagModel, *, session: Session) -> None:
@@ -478,7 +505,7 @@ def update_dag_parsing_results_in_db(
     bundle_version: str | None,
     dags: Collection[LazyDeserializedDAG],
     import_errors: dict[tuple[str, str], str],
-    parse_duration: float | None,
+    parse_duration: float | Mapping[str, float | None] | None,
     warnings: set[DagWarning],
     session: Session,
     *,
@@ -491,25 +518,10 @@ def update_dag_parsing_results_in_db(
     files_parsed: set[tuple[str, str]] | None = None,
 ):
     """
-    Update everything to do with DAG parsing in the DB.
+    Persist Dag metadata, serialized Dags, permissions, errors, and warnings.
 
-    This function will create or update rows in the following tables:
-
-    - DagModel (`dag` table), DagTag, DagCode and DagVersion
-    - SerializedDagModel (`serialized_dag` table)
-    - ParseImportError (including with any errors as a result of serialization, not just parsing)
-    - DagWarning
-    - DAG Permissions
-
-    This function will not remove any rows for dags not passed in. It will remove parse errors and warnings
-    from dags/dag files that are passed in. In order words, if a DAG is passed in with a fileloc of `a.py`
-    then all warnings and errors related to this file will be removed.
-
-    ``import_errors`` will be updated in place with an new errors
-
-    :param files_parsed: Set of (bundle_name, relative_fileloc) tuples for all files that were parsed.
-        If None, will be inferred from dags and import_errors. Passing this explicitly ensures that
-        import errors are cleared for files that were parsed but no longer contain DAGs.
+    Add serialization errors to ``import_errors`` in place. ``files_parsed`` contains
+    (bundle_name, relative_fileloc) pairs, including empty files whose errors need clearing.
     """
     # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.bulk_sync_to_db' in case
     # of any Operational Errors
@@ -521,13 +533,15 @@ def update_dag_parsing_results_in_db(
     else:
         warnings = set(warnings) | duplicate_warnings
 
-    for attempt in run_with_db_retries(logger=log):
+    retry_on_db_error = session.info.get(_DISABLE_DAG_PARSING_RETRIES) is not True
+    max_retries = MAX_DB_RETRIES if retry_on_db_error else 1
+    for attempt in run_with_db_retries(logger=log, max_retries=max_retries):
         with attempt:
             serialize_errors = []
             log.debug(
                 "Running dagbag.bulk_write_to_db with retries. Try %d of %d",
                 attempt.retry_state.attempt_number,
-                MAX_DB_RETRIES,
+                max_retries,
             )
             log.debug("Calling the DAG.bulk_sync_to_db method")
             try:
@@ -554,7 +568,8 @@ def update_dag_parsing_results_in_db(
                         )
                     )
             except OperationalError:
-                session.rollback()
+                if retry_on_db_error:
+                    session.rollback()
                 raise
             # Only now we are "complete" do we update import_errors - don't want to record errors from
             # previous failed attempts
@@ -585,7 +600,7 @@ class DagModelOperation(NamedTuple):
     bundle_name: str
     bundle_version: str | None
 
-    def find_orm_dags(self, *, session: Session) -> dict[str, DagModel]:
+    def find_orm_dags(self, *, session: Session, load_inlet_references: bool = True) -> dict[str, DagModel]:
         """Find existing DagModel objects from DAG objects."""
         stmt: Select[Unpack[tuple[DagModel]]] = with_row_locks(
             (
@@ -596,14 +611,18 @@ class DagModelOperation(NamedTuple):
                 .options(joinedload(DagModel.schedule_asset_alias_references))
                 .options(joinedload(DagModel.task_outlet_asset_references))
                 .options(joinedload(DagModel.dag_owner_links))
+                # Consistent row-lock order avoids deadlocks between writers.
+                .order_by(DagModel.dag_id)
             ),
             of=DagModel,
             session=session,
         )
+        if load_inlet_references:
+            stmt = stmt.options(selectinload(DagModel.task_inlet_asset_references))
         return {dm.dag_id: dm for dm in session.scalars(stmt).unique()}
 
     def add_dags(self, *, session: Session) -> dict[str, DagModel]:
-        orm_dags = self.find_orm_dags(session=session)
+        orm_dags = self.find_orm_dags(load_inlet_references=False, session=session)
         orm_dags.update(
             (model.dag_id, model)
             for model in _create_orm_dags(
@@ -618,7 +637,7 @@ class DagModelOperation(NamedTuple):
     def update_dags(
         self,
         orm_dags: dict[str, DagModel],
-        parse_duration: float | None,
+        parse_duration: float | Mapping[str, float | None] | None,
         *,
         session: Session,
     ) -> None:
@@ -632,7 +651,7 @@ class DagModelOperation(NamedTuple):
             dm.is_stale = False
             dm.has_import_errors = False
             dm.last_parsed_time = utcnow()
-            dm.last_parse_duration = parse_duration
+            dm.last_parse_duration = _resolve_parse_duration(parse_duration, dag_id)
             if hasattr(dag, "_dag_display_property_value"):
                 dm._dag_display_property_value = dag._dag_display_property_value
             elif dag.dag_display_name != dag.dag_id:
@@ -875,13 +894,17 @@ class AssetModelOperation(NamedTuple):
             asset = self.assets[key]
             model.group = asset.group
             model.extra = asset.extra
-        orm_assets.update(
-            ((model.name, model.uri), model)
-            for model in asset_manager.create_assets(
-                [asset for name_uri, asset in self.assets.items() if name_uri not in orm_assets],
-                session=session,
-            )
+        # Consistent insertion order avoids deadlocks on the unique (name, uri) index.
+        to_create = sorted(
+            (asset for name_uri, asset in self.assets.items() if name_uri not in orm_assets),
+            key=lambda asset: (asset.name, asset.uri),
         )
+        created = {
+            (model.name, model.uri): model
+            for model in asset_manager.create_assets(to_create, session=session)
+        }
+        # Preserve collection order for activation when assets share a name.
+        orm_assets.update((key, created[key]) for key in self.assets if key in created)
         return orm_assets
 
     def sync_asset_aliases(self, *, session: Session) -> dict[str, AssetAliasModel]:
@@ -939,13 +962,11 @@ class AssetModelOperation(NamedTuple):
         *,
         session: Session,
     ) -> None:
-        # Optimization: No assets means there are no references to update.
-        if not assets:
-            return
         for dag_id, references in self.schedule_asset_references.items():
             # Optimization: no references at all; this is faster than repeated delete().
             if not references:
-                dags[dag_id].schedule_asset_references = []
+                if dags[dag_id].schedule_asset_references:
+                    dags[dag_id].schedule_asset_references = []
                 continue
             referenced_assets = {
                 assets[r.name, r.uri]: (
@@ -981,13 +1002,11 @@ class AssetModelOperation(NamedTuple):
         *,
         session: Session,
     ) -> None:
-        # Optimization: No aliases means there are no references to update.
-        if not aliases:
-            return
         for dag_id, references in self.schedule_asset_alias_references.items():
             # Optimization: no references at all; this is faster than repeated delete().
             if not references:
-                dags[dag_id].schedule_asset_alias_references = []
+                if dags[dag_id].schedule_asset_alias_references:
+                    dags[dag_id].schedule_asset_alias_references = []
                 continue
             referenced_alias_ids = {alias.id for alias in (aliases[r.name] for r in references)}
             orm_refs = {a.alias_id: a for a in dags[dag_id].schedule_asset_alias_references}
@@ -1046,13 +1065,11 @@ class AssetModelOperation(NamedTuple):
         *,
         session: Session,
     ) -> None:
-        # Optimization: No assets means there are no references to update.
-        if not assets:
-            return
         for dag_id, references in self.inlet_references.items():
             # Optimization: no references at all; this is faster than repeated delete().
             if not references:
-                dags[dag_id].task_inlet_asset_references = []
+                if dags[dag_id].task_inlet_asset_references:
+                    dags[dag_id].task_inlet_asset_references = []
                 continue
             referenced_inlets = {
                 (task_id, asset.id)
@@ -1070,7 +1087,8 @@ class AssetModelOperation(NamedTuple):
         for dag_id, references in self.outlet_references.items():
             # Optimization: no references at all; this is faster than repeated delete().
             if not references:
-                dags[dag_id].task_outlet_asset_references = []
+                if dags[dag_id].task_outlet_asset_references:
+                    dags[dag_id].task_outlet_asset_references = []
                 continue
             referenced_outlets = {
                 (task_id, assets[d.name, d.uri]): (
