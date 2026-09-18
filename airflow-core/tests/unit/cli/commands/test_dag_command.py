@@ -52,7 +52,7 @@ from airflow.timetables.base import Timetable
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.cli import get_db_dag
 from airflow.utils.session import create_session
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.state import DagRunState, DagSchedulingState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
@@ -592,6 +592,25 @@ class TestCliDags:
         clear_db_dags()
         self.setup_class()
 
+    @pytest.mark.parametrize(
+        ("command", "expected_state"),
+        [
+            (dag_command.dag_pause, DagSchedulingState.PAUSED),
+            (dag_command.dag_unpause, DagSchedulingState.ACTIVE),
+        ],
+    )
+    def test_pause_commands_clear_draining_state(self, command, expected_state):
+        with create_session() as session:
+            dag_model = session.get(DagModel, "example_bash_operator")
+            dag_model.set_scheduling_state(DagSchedulingState.DRAINING)
+
+        args = self.parser.parse_args(
+            ["dags", "pause" if command is dag_command.dag_pause else "unpause", "example_bash_operator"]
+        )
+        command(args)
+
+        assert DagModel.get_dagmodel("example_bash_operator").scheduling_state == expected_state
+
     @mock.patch("airflow.cli.commands.dag_command.ask_yesno")
     def test_pause_regex(self, mock_yesno):
         args = self.parser.parse_args(["dags", "pause", "^example_.*$", "--treat-dag-id-as-regex"])
@@ -942,9 +961,10 @@ class TestCliDags:
         )
 
     @mock.patch("airflow.cli.commands.dag_command.render_dag", return_value=MagicMock(source="SOURCE"))
-    @mock.patch("airflow.cli.commands.dag_command.get_bagged_dag")
+    @mock.patch("airflow.cli.commands.dag_command.get_bagged_dag", autospec=True)
     def test_dag_test_show_dag(self, mock_get_dag, mock_render_dag, stdout_capture):
         mock_get_dag.return_value.test.return_value.run_id = "__test_dag_test_show_dag_fake_dag_run_run_id__"
+        mock_get_dag.return_value.dag_id = "example_bash_operator"
 
         cli_args = self.parser.parse_args(
             ["dags", "test", "example_bash_operator", DEFAULT_DATE.isoformat(), "--show-dagrun"]
@@ -968,6 +988,24 @@ class TestCliDags:
         )
         mock_render_dag.assert_has_calls([mock.call(mock_get_dag.return_value, tis=[])])
         assert "SOURCE" in output
+
+    @mock.patch("airflow.cli.commands.dag_command.render_dag", autospec=True)
+    @mock.patch.object(DAG, "test", autospec=True)
+    def test_dag_test_show_dag_from_dag_cli(self, mock_test, mock_render_dag, dag_maker, stdout_capture):
+        """``DAG.cli()`` passes the Dag positionally and its parser drops ``dag_id``."""
+        with dag_maker("dag_cli_show_dagrun", schedule=None) as dag:
+            EmptyOperator(task_id="only_task")
+        mock_test.return_value = dag_maker.create_dagrun(run_id="dag_cli_run")
+
+        parser = cli_parser.get_parser(dag_parser=True)
+        with stdout_capture:
+            dag_command.dag_test(parser.parse_args(["dags", "test", "--show-dagrun"]), dag)
+
+        mock_render_dag.assert_called_once()
+        assert mock_render_dag.call_args.args[0] is dag
+        assert [(ti.dag_id, ti.task_id, ti.run_id) for ti in mock_render_dag.call_args.kwargs["tis"]] == [
+            ("dag_cli_show_dagrun", "only_task", "dag_cli_run")
+        ]
 
     @mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
     def test_dag_test_with_bundle_name(self, mock_dagbag, configure_dag_bundles):

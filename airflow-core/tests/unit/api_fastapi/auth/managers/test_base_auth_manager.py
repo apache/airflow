@@ -18,15 +18,17 @@ from __future__ import annotations
 
 import warnings
 from typing import TYPE_CHECKING, Any
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, create_autospec, patch
 
 import pytest
 from jwt import InvalidTokenError
+from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager, T
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
+    AssetDetails,
     ConnectionDetails,
     DagDetails,
     PoolDetails,
@@ -44,7 +46,6 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
     from airflow.api_fastapi.auth.managers.models.resource_details import (
         AssetAliasDetails,
-        AssetDetails,
         ConfigurationDetails,
         DagAccessEntity,
     )
@@ -797,6 +798,75 @@ class TestBaseAuthManager:
         session.execute.return_value.all.return_value = rows
         result = auth_manager.get_authorized_pools(user=user, session=session)
         assert result == expected
+
+    @pytest.mark.parametrize(
+        ("authorized_uri_prefix", "rows", "expected"),
+        [
+            pytest.param(None, [(1, "a", "s3://team-a/a"), (2, "b", "s3://team-b/b")], set(), id="no-access"),
+            pytest.param(
+                "s3://team-a/",
+                [(1, "a", "s3://team-a/a"), (2, "b", "s3://team-b/b"), (3, "c", "s3://team-a/c")],
+                {1, 3},
+                id="access-by-uri-prefix",
+            ),
+        ],
+    )
+    def test_get_authorized_assets(self, auth_manager, authorized_uri_prefix, rows: list, expected: set):
+        def side_effect_func(
+            *,
+            method: ResourceMethod,
+            user: BaseAuthManagerUserTest,
+            details: AssetDetails | None = None,
+        ):
+            if not details or not details.uri or authorized_uri_prefix is None:
+                return False
+            return details.uri.startswith(authorized_uri_prefix)
+
+        auth_manager.is_authorized_asset = create_autospec(
+            auth_manager.is_authorized_asset, side_effect=side_effect_func
+        )
+        user = Mock(spec=BaseAuthManagerUserTest)
+        session = Mock(spec=Session)
+        session.execute.return_value.all.return_value = rows
+        result = auth_manager.get_authorized_assets(user=user, session=session)
+        assert result == expected
+
+    def test_get_authorized_assets_passes_id_name_and_uri_to_filter(self, auth_manager):
+        auth_manager.filter_authorized_assets = create_autospec(
+            auth_manager.filter_authorized_assets, return_value={"2"}
+        )
+        user = Mock(spec=BaseAuthManagerUserTest)
+        session = Mock(spec=Session)
+        session.execute.return_value.all.return_value = [(1, "a", "s3://a"), (2, "b", "s3://b")]
+
+        result = auth_manager.get_authorized_assets(user=user, method="PUT", session=session)
+
+        auth_manager.filter_authorized_assets.assert_called_once_with(
+            assets=[
+                AssetDetails(id="1", name="a", uri="s3://a"),
+                AssetDetails(id="2", name="b", uri="s3://b"),
+            ],
+            user=user,
+            method="PUT",
+        )
+        assert result == {2}
+
+    def test_filter_authorized_assets(self, auth_manager):
+        assets = [
+            AssetDetails(id="1", name="a", uri="s3://a"),
+            AssetDetails(id="2", name="b", uri="s3://b"),
+            AssetDetails(name="no-id", uri="s3://no-id"),
+        ]
+        auth_manager.is_authorized_asset = create_autospec(
+            auth_manager.is_authorized_asset, side_effect=lambda *, method, user, details: details.id != "2"
+        )
+        user = Mock(spec=BaseAuthManagerUserTest)
+
+        result = auth_manager.filter_authorized_assets(assets=assets, user=user, method="DELETE")
+
+        assert result == {"1"}
+        auth_manager.is_authorized_asset.assert_any_call(method="DELETE", details=assets[0], user=user)
+        auth_manager.is_authorized_asset.assert_any_call(method="DELETE", details=assets[1], user=user)
 
     @pytest.mark.parametrize(
         ("user_id", "assigned_users", "expected"),

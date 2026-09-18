@@ -23,10 +23,11 @@
 //
 //     node my-bundle.mjs --comm=host:port --logs=host:port
 //
-// where `my-bundle.mjs` is a user-bundled Node script that imports
-// the SDK, creates `Dag` objects, attaches a handler per task with
-// `dag.task(...)`, collects them in a `DagRegistry`, then awaits
-// `serveDags(registry)`.
+// where `my-bundle.mjs` is a user-bundled Node script that imports the SDK,
+// registers what it provides on a `Bundle` (a `TaskHandler` per Python-owned
+// task, a `Dag` per natively declared one), then awaits `bundle.serve()`. Each
+// handler runs inside a task scope, which is what `getContext()` and
+// `getClient()` read.
 //
 // Lifecycle:
 //   1. Parse --comm / --logs from argv
@@ -52,67 +53,12 @@ import {
   type RuntimeTaskState,
   type StartupDetails,
 } from "./protocol.js";
-import { DagRegistry, isDagRegistry, listRegistryTasks } from "../sdk/registry.js";
-import { DUPLICATE_COPY_HINT } from "../sdk/brand.js";
-import type { TaskContext, TaskHandlerArgs } from "../sdk/task.js";
+import { listBundleTasks, type Bundle } from "../sdk/bundle.js";
+import { runInTaskScope, type TaskContext } from "../sdk/task.js";
 import type { JsonValue } from "../sdk/client-types.js";
 
 export const ABORT_GRACE_PERIOD_MS = 30_000;
 export const COORDINATOR_RESPONSE_TIMEOUT_MS = 30_000;
-
-// What must not happen twice is one process connecting two pairs of sockets, so
-// this is keyed globally rather than held in a module variable: two resolved
-// copies of the package would each get their own, and both would be first.
-const SERVED = Symbol.for("airflow.ts-sdk.served");
-
-function serveLatch(): Record<symbol, boolean | undefined> {
-  return globalThis as unknown as Record<symbol, boolean | undefined>;
-}
-
-/**
- * Serve a bundle's Dags to Airflow. The entry point of a TypeScript Dag bundle.
- *
- * Build the Dags, attach a handler per task with `dag.task(...)`, collect them
- * in a {@link DagRegistry}, then await this at module top level:
- *
- * ```ts
- * const dag = new Dag("my_dag");
- * dag.task("extract", extractFn);
- * await serveDags(new DagRegistry(dag));
- * ```
- *
- * The registry is the bundle's complete set of Dags: this process serves one
- * supervisor request, so a second call — which would connect a second pair of
- * sockets — is rejected. A call that fails is not a serve, and may be retried.
- * Resolves when Airflow's supervisor has been sent the terminal frame for the
- * work this process was started for; the same call also answers the build-time
- * `--airflow-metadata` query `airflow-ts-pack` makes.
- */
-export async function serveDags(registry: DagRegistry): Promise<void> {
-  // Checked here rather than at first use: a bad argument otherwise surfaces
-  // only after the sockets are up, as a missing method deep in the runtime.
-  if (!(registry instanceof DagRegistry)) {
-    throw new Error(
-      isDagRegistry(registry)
-        ? `The registry passed to serveDags(...) ${DUPLICATE_COPY_HINT}`
-        : "serveDags(...) takes a DagRegistry; build one with new DagRegistry(...dags)",
-    );
-  }
-  const latch = serveLatch();
-  if (latch[SERVED]) {
-    throw new Error("serveDags(...) was already called; serve every Dag from a single registry");
-  }
-  // Set before the first await, so two concurrent calls cannot both pass.
-  latch[SERVED] = true;
-  try {
-    await startCoordinator(registry);
-  } catch (err) {
-    // startCoordinator closes both sockets on its way out, so a failed serve
-    // holds nothing open and may be retried.
-    latch[SERVED] = undefined;
-    throw err;
-  }
-}
 
 /** Options for `startCoordinator()`. */
 export interface StartCoordinatorOptions {
@@ -164,20 +110,20 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
   return { commAddr, logsAddr };
 }
 
-/** Start the coordinator runtime, dispatching to `registry`. Resolves when the
+/** Start the coordinator runtime, dispatching to `bundle`. Resolves when the
  *  subprocess has delivered its terminal frame and closed both sockets.
  *
- *  Internal: `serveDags()` is the entry point Dag authors call, so this is
+ *  Internal: `bundle.serve()` is the entry point Dag authors call, so this is
  *  deliberately absent from the package `"exports"` map. Tests drive it
  *  directly to supply explicit socket addresses. */
 export async function startCoordinator(
-  registry: DagRegistry,
+  bundle: Bundle,
   opts: StartCoordinatorOptions = {},
 ): Promise<void> {
   const argv = opts.argv ?? process.argv;
   if (argv.includes(AIRFLOW_METADATA_FLAG)) {
     process.stdout.write(
-      `${AIRFLOW_METADATA_SENTINEL}${JSON.stringify(buildBundleManifest(registry))}\n`,
+      `${AIRFLOW_METADATA_SENTINEL}${JSON.stringify(buildBundleManifest(bundle))}\n`,
     );
     return;
   }
@@ -200,7 +146,7 @@ export async function startCoordinator(
     const runtimeLogs = logs.child("runtime");
     runtimeLogs.debug("Connecting log socket", { logs_addr: parsed.logsAddr });
     await logs.connect(parsed.logsAddr);
-    const tasks = listRegistryTasks(registry);
+    const tasks = listBundleTasks(bundle);
     runtimeLogs.info("Coordinator runtime started", {
       registered_tasks: tasks,
       count: tasks.length,
@@ -222,7 +168,7 @@ export async function startCoordinator(
         file: body.file,
         bundle_path: body.bundle_path,
       });
-      const response = handleParse(body, registry, runtimeLogs);
+      const response = handleParse(body, bundle, runtimeLogs);
       await sendSupervisorResponse(firstFrame.id, response, comm, runtimeLogs);
     } else if (body.type === "StartupDetails") {
       runtimeLogs.info("Received task startup details", {
@@ -235,7 +181,7 @@ export async function startCoordinator(
       });
       const response = await handleTask(
         body,
-        registry,
+        bundle,
         comm,
         runtimeLogs,
         logs.child("client"),
@@ -316,13 +262,13 @@ export function createRuntimeAbort(
 
 function handleParse(
   request: { file: string; bundle_path: string },
-  registry: DagRegistry,
+  bundle: Bundle,
   logs: LogChannel,
 ): RuntimeDagFileParsingResult {
   // TypeScript-native Dag parsing is not yet supported.
   // Respond with an empty result so the Python-stub-Dag workflow works.
   logs.info("Parse-mode response (TS Dag parsing not yet supported)", {
-    registered_tasks: listRegistryTasks(registry),
+    registered_tasks: listBundleTasks(bundle),
   });
   const response: RuntimeDagFileParsingResult = {
     type: "DagFileParsingResult",
@@ -334,20 +280,20 @@ function handleParse(
 
 async function handleTask(
   details: StartupDetails,
-  registry: DagRegistry,
+  bundle: Bundle,
   comm: CommChannel,
   logs: LogChannel,
   clientLogs: LogChannel,
   signal: AbortSignal,
 ): Promise<RuntimeSucceedTask | RuntimeRetryTask | RuntimeTaskState> {
   const ti = details.ti;
-  const handler = registry.getTaskHandler(ti.dag_id, ti.task_id);
+  const handler = bundle.getTaskHandler(ti.dag_id, ti.task_id);
 
   if (!handler) {
     logs.warning("No handler registered for task", {
       dag_id: ti.dag_id,
       task_id: ti.task_id,
-      available: listRegistryTasks(registry),
+      available: listBundleTasks(bundle),
     });
     // A missing handler means this bundle cannot run the task, so retrying the
     // same bundle/configuration mismatch would not help.
@@ -361,18 +307,20 @@ async function handleTask(
 
   const ctx = buildContext(details, signal);
   const client = createCoordinatorClient(comm, ctx, clientLogs);
-  const args: TaskHandlerArgs = { ctx, client };
   // Startup-details fields already logged above (`Received task
   // startup details`); this line just marks the handler-call boundary.
   logs.debug("Dispatching to handler", { task_id: ctx.taskId });
 
   try {
-    const result = await handler(args);
+    // The scope is installed around the call, not awaited inside it: the store
+    // follows the handler across every `await` it makes, so `getContext()` and
+    // `getClient()` work at any depth without the handler being handed either.
+    const result = await runInTaskScope({ ctx, client }, () => handler());
     if (result !== undefined) {
       await client.setXCom({ key: "return_value", value: result as JsonValue });
     }
     // SucceedTask MUST include task_outlets and outlet_events as
-    // empty lists — the Execution API's TISuccessStatePayload
+    // empty lists, since the Execution API's TISuccessStatePayload
     // tagged-union validator rejects null for these fields.
     const response: RuntimeSucceedTask = {
       type: "SucceedTask",

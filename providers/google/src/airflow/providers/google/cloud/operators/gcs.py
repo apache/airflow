@@ -355,6 +355,9 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         from airflow.providers.google.cloud.openlineage.utils import extract_ds_name_from_gcs_path
         from airflow.providers.openlineage.extractors import OperatorLineage
 
+        if not self.bucket_name:
+            return OperatorLineage()
+
         objects = []
         if self.objects is not None:
             objects = self.objects
@@ -378,6 +381,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
                 },
             )
             for object_name in objects
+            if object_name
         ]
 
         return OperatorLineage(inputs=input_datasets)

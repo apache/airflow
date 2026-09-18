@@ -261,6 +261,7 @@ class TestGCSDeleteObjectsOperator:
             (None, "pre", ["/"]),
             (None, "dir/pre*", ["dir"]),
             (None, "*", ["/"]),
+            (["folder/a.txt", None, "", "b.json"], None, ["folder/a.txt", "b.json"]),
         ),
         ids=(
             "objects",
@@ -273,6 +274,7 @@ class TestGCSDeleteObjectsOperator:
             "prefix with no ending slash",
             "directory with prefix with wildcard",
             "just wildcard",
+            "objects with None and empty entries",
         ),
     )
     def test_get_openlineage_facets_on_start(self, objects, prefix, inputs):
@@ -304,6 +306,12 @@ class TestGCSDeleteObjectsOperator:
         assert all(element in expected_inputs for element in lineage.inputs)
         print("EXPECTED:", expected_inputs)
         print("ACTUAL:", lineage.inputs)
+
+    def test_get_openlineage_facets_on_start_no_bucket_name(self):
+        operator = GCSDeleteObjectsOperator(task_id=TASK_ID, bucket_name=None, objects=["a.txt"])
+        lineage = operator.get_openlineage_facets_on_start()
+        assert lineage.inputs == []
+        assert lineage.outputs == []
 
 
 class TestGoogleCloudStorageListOperator:

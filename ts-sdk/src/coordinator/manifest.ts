@@ -18,7 +18,7 @@
  */
 
 import { SUPERVISOR_API_VERSION } from "./protocol.js";
-import { listRegistryDags, type DagRegistry } from "../sdk/registry.js";
+import { listBundleDags, type Bundle } from "../sdk/bundle.js";
 
 export const AIRFLOW_METADATA_FLAG = "--airflow-metadata";
 
@@ -35,9 +35,9 @@ export interface BundleManifest {
   dags: Record<string, { tasks: string[] }>;
 }
 
-export function buildBundleManifest(registry: DagRegistry): BundleManifest {
+export function buildBundleManifest(bundle: Bundle): BundleManifest {
   const dags: BundleManifest["dags"] = {};
-  for (const { dagId, tasks } of listRegistryDags(registry)) {
+  for (const { dagId, tasks } of listBundleDags(bundle)) {
     if (typeof dagId !== "string") {
       throw new Error("Dag ID must be a string");
     }
