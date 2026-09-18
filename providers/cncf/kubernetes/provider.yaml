@@ -448,6 +448,16 @@ config:
         type: string
         example: "my_company.kubernetes.build_client"
         default: ~
+      async_client_factory:
+        description: |
+          Import path of a zero-argument callable returning the ``kubernetes_asyncio.client.CoreV1Api``
+          used for concurrent pod creation. Required when ``client_factory`` is set and
+          ``async_pod_creation`` is enabled, so that both clients carry the same credentials;
+          the executor refuses to build a default async client next to a factory-built sync one.
+        version_added: 10.23.0
+        type: string
+        example: "my_company.kubernetes.build_async_client"
+        default: ~
       kube_client_request_args:
         description: |
           Keyword parameters to pass while calling a kubernetes client core_v1_api methods

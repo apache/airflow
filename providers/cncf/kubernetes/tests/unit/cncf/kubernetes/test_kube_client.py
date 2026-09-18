@@ -138,3 +138,31 @@ class TestGetAsyncKubeClient:
 
         assert isinstance(api.api_client, _TimeoutAsyncK8sApiClient)
         mock_load_incluster.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_async_factory_replaces_default_client_construction(self):
+        with conf_vars({("kubernetes_executor", "async_client_factory"): f"{__name__}.build_fake_client"}):
+            client = await get_async_kube_client(use_client_factory=True)
+
+        assert client == FACTORY_MARKER
+
+    @pytest.mark.asyncio
+    @mock.patch("kubernetes_asyncio.config.load_incluster_config")
+    async def test_async_factory_is_ignored_unless_caller_opts_in(self, mock_load_incluster):
+        with conf_vars(
+            {
+                ("kubernetes_executor", "async_client_factory"): f"{__name__}.build_fake_client",
+                ("kubernetes_executor", "verify_ssl"): "True",
+                ("kubernetes_executor", "ssl_ca_cert"): "",
+            }
+        ):
+            api = await get_async_kube_client(in_cluster=True)
+
+        assert api != FACTORY_MARKER
+        mock_load_incluster.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_sync_factory_without_async_factory_raises(self):
+        with conf_vars({("kubernetes_executor", "client_factory"): f"{__name__}.build_fake_client"}):
+            with pytest.raises(ValueError, match="async_client_factory"):
+                await get_async_kube_client(use_client_factory=True)

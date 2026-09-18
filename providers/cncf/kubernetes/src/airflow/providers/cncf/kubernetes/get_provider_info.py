@@ -279,6 +279,13 @@ def get_provider_info():
                         "example": "my_company.kubernetes.build_client",
                         "default": None,
                     },
+                    "async_client_factory": {
+                        "description": "Import path of a zero-argument callable returning the ``kubernetes_asyncio.client.CoreV1Api``\nused for concurrent pod creation. Required when ``client_factory`` is set and\n``async_pod_creation`` is enabled, so that both clients carry the same credentials;\nthe executor refuses to build a default async client next to a factory-built sync one.\n",
+                        "version_added": "10.23.0",
+                        "type": "string",
+                        "example": "my_company.kubernetes.build_async_client",
+                        "default": None,
+                    },
                     "kube_client_request_args": {
                         "description": "Keyword parameters to pass while calling a kubernetes client core_v1_api methods\nfrom Kubernetes Executor provided as a single line formatted JSON dictionary string.\nList of supported params are similar for all core_v1_apis, hence a single config\nvariable for all apis. See:\nhttps://raw.githubusercontent.com/kubernetes-client/python/41f11a09995efcd0142e25946adc7591431bfb2f/kubernetes/client/api/core_v1_api.py\n",
                         "version_added": None,

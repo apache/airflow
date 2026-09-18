@@ -234,6 +234,7 @@ async def get_async_kube_client(
     in_cluster: bool | None = None,
     cluster_context: str | None = None,
     config_file: str | None = None,
+    use_client_factory: bool = False,
 ) -> async_client.CoreV1Api:
     """
     Retrieve an asynchronous Kubernetes client.
@@ -246,8 +247,23 @@ async def get_async_kube_client(
     :param in_cluster: whether we are in cluster
     :param cluster_context: context of the cluster
     :param config_file: configuration file
+    :param use_client_factory: whether to honor the ``async_client_factory`` setting; only the
+        KubernetesExecutor passes this, so other callers are unaffected by the setting
     :return: asynchronous kubernetes client
     """
+    if use_client_factory:
+        if async_client_factory := conf.getimport(
+            "kubernetes_executor", "async_client_factory", fallback=None
+        ):
+            return async_client_factory()
+        if conf.get("kubernetes_executor", "client_factory", fallback=None):
+            # Building a default client here would silently issue concurrent pod creations with
+            # different credentials than the factory-built sync client, so fail loudly instead.
+            raise ValueError(
+                "client_factory is set but async_client_factory is not. Concurrent pod creation "
+                "uses a separate kubernetes_asyncio client that would not carry the factory's "
+                "credentials. Set async_client_factory, or disable async_pod_creation."
+            )
     if not has_kubernetes:
         raise _import_err
     if in_cluster is None:

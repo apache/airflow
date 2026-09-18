@@ -684,7 +684,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
     ) -> list[Exception | None]:
         """Issue create_namespaced_pod calls concurrently, bounded by a semaphore; one result per pod, in order."""
         if self._async_pod_client is None:
-            self._async_pod_client = await get_async_kube_client()
+            self._async_pod_client = await get_async_kube_client(use_client_factory=True)
         api = self._async_pod_client
         semaphore = asyncio.Semaphore(self.pod_creation_max_concurrency)
         request_kwargs: dict[str, Any] = self.kube_config.kube_client_request_args or {}
