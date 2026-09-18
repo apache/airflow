@@ -3086,31 +3086,37 @@ export const useVariableServiceBulkVariables = <TData = Common.VariableServiceBu
 * @param data The data for the request.
 * @param data.assetId
 * @param data.before
+* @param data.partitionKey Delete queued events of partitioned assets emitted for this partition key whose Dag run has not been created yet, instead of queued events of non-partitioned assets.
 * @returns void Successful Response
 * @throws ApiError
 */
 export const useAssetServiceDeleteAssetQueuedEvents = <TData = Common.AssetServiceDeleteAssetQueuedEventsMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
   assetId: number;
   before?: string;
+  partitionKey?: string;
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   assetId: number;
   before?: string;
-}, TContext>({ mutationFn: ({ assetId, before }) => AssetService.deleteAssetQueuedEvents({ assetId, before }) as unknown as Promise<TData>, ...options });
+  partitionKey?: string;
+}, TContext>({ mutationFn: ({ assetId, before, partitionKey }) => AssetService.deleteAssetQueuedEvents({ assetId, before, partitionKey }) as unknown as Promise<TData>, ...options });
 /**
 * Delete Dag Asset Queued Events
 * @param data The data for the request.
 * @param data.dagId
 * @param data.before
+* @param data.partitionKey Delete queued events of partitioned assets emitted for this partition key whose Dag run has not been created yet, instead of queued events of non-partitioned assets.
 * @returns void Successful Response
 * @throws ApiError
 */
 export const useAssetServiceDeleteDagAssetQueuedEvents = <TData = Common.AssetServiceDeleteDagAssetQueuedEventsMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
   before?: string;
   dagId: string;
+  partitionKey?: string;
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   before?: string;
   dagId: string;
-}, TContext>({ mutationFn: ({ before, dagId }) => AssetService.deleteDagAssetQueuedEvents({ before, dagId }) as unknown as Promise<TData>, ...options });
+  partitionKey?: string;
+}, TContext>({ mutationFn: ({ before, dagId, partitionKey }) => AssetService.deleteDagAssetQueuedEvents({ before, dagId, partitionKey }) as unknown as Promise<TData>, ...options });
 /**
 * Delete Dag Asset Queued Event
 * Delete a queued asset event for a Dag.
@@ -3118,6 +3124,7 @@ export const useAssetServiceDeleteDagAssetQueuedEvents = <TData = Common.AssetSe
 * @param data.dagId
 * @param data.assetId
 * @param data.before
+* @param data.partitionKey Delete queued events of partitioned assets emitted for this partition key whose Dag run has not been created yet, instead of queued events of non-partitioned assets.
 * @returns void Successful Response
 * @throws ApiError
 */
@@ -3125,11 +3132,13 @@ export const useAssetServiceDeleteDagAssetQueuedEvent = <TData = Common.AssetSer
   assetId: number;
   before?: string;
   dagId: string;
+  partitionKey?: string;
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   assetId: number;
   before?: string;
   dagId: string;
-}, TContext>({ mutationFn: ({ assetId, before, dagId }) => AssetService.deleteDagAssetQueuedEvent({ assetId, before, dagId }) as unknown as Promise<TData>, ...options });
+  partitionKey?: string;
+}, TContext>({ mutationFn: ({ assetId, before, dagId, partitionKey }) => AssetService.deleteDagAssetQueuedEvent({ assetId, before, dagId, partitionKey }) as unknown as Promise<TData>, ...options });
 /**
 * Delete Connection
 * Delete a connection entry.
