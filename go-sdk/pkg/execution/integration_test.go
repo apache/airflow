@@ -607,15 +607,18 @@ func TestRunTaskInjectsAirflowContext(t *testing.T) {
 // Serve traps SIGINT/SIGTERM into the context it hands RunTask, so a
 // supervisor shutdown reaches the handler on actx.Done().
 func TestRunTaskAirflowContextHonorsShutdown(t *testing.T) {
+	var sawDone bool
+	var sawErr error
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		r.AddDag("test_dag").AddTaskWithName("ctxcheck",
 			func(actx airflow.Context) error {
 				select {
 				case <-actx.Done():
-					return actx.Err()
+					sawDone = true
 				default:
-					return errors.New("actx.Done() did not fire on a cancelled task context")
 				}
+				sawErr = actx.Err()
+				return sawErr
 			})
 	})
 
@@ -628,6 +631,9 @@ func TestRunTaskAirflowContextHonorsShutdown(t *testing.T) {
 	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
 
 	result := RunTask(ctx, bundle, details, comm, logger)
+
+	assert.True(t, sawDone, "actx.Done() must fire on a cancelled task context")
+	assert.ErrorIs(t, sawErr, context.Canceled)
 	assertTaskState(t, result, genmodels.TaskStateStateFailed)
 }
 
