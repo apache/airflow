@@ -16,10 +16,15 @@
 # under the License.
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import pytest
+from extract_parameters import read_guide_docs as read_guide_docs_from_worktree
+from extract_versions import read_guide_docs as read_guide_docs_from_tag
 from registry_tools.docs_guides import (
     attach_guide_urls,
     collect_guide_anchors,
+    is_guide_page,
     slugify_section_anchor,
 )
 
@@ -183,3 +188,57 @@ def test_attach_guide_urls_does_not_double_up_the_base_separator():
     attach_guide_urls(modules, {"HookToolset": "toolsets.html#hooktoolset"}, "https://example.test/docs/")
 
     assert modules[0]["guide_url"] == "https://example.test/docs/toolsets.html#hooktoolset"
+
+
+@pytest.mark.parametrize(
+    ("relative_path", "expected"),
+    [
+        # A `_`-prefixed path segment marks autoapi/partial content, at any
+        # depth. Mutation canary: removing the `_` check turns these four
+        # from False back to True.
+        ("_api/index.rst", False),
+        ("_api/hook/index.rst", False),
+        ("operators/_partials/foo.rst", False),
+        ("_partials/foo.rst", False),
+        # Real, built release-note pages, not how-to guides. Mutation canary:
+        # removing the changelog/commits check turns these two from False
+        # back to True.
+        ("changelog.rst", False),
+        ("commits.rst", False),
+        ("toolsets.rst", True),
+        ("operators/agent.rst", True),
+    ],
+)
+def test_is_guide_page(relative_path, expected):
+    assert is_guide_page(relative_path) == expected
+
+
+def test_readers_agree_on_which_pages_are_guides(tmp_path):
+    """Both `read_guide_docs` implementations delegate to `is_guide_page`, so a
+    working-tree read and a git-tag read of the same paths must end up with the
+    same set of pages -- regardless of which source produced them."""
+    relative_paths = ["_api/index.rst", "changelog.rst", "commits.rst", "toolsets.rst"]
+    for relative in relative_paths:
+        target = tmp_path / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("Prose.\n")
+
+    from_worktree = read_guide_docs_from_worktree(tmp_path)
+
+    docs_prefix = "providers/test/docs/"
+    with (
+        patch(
+            "extract_versions.git_ls_tree",
+            autospec=True,
+            return_value=[docs_prefix + relative for relative in relative_paths],
+        ),
+        patch("extract_versions.git_show", autospec=True, return_value="Prose.\n"),
+    ):
+        from_tag = read_guide_docs_from_tag("providers-test/1.0.0", "new", "test")
+
+    # Mutation canary: reverting the `is_guide_page` call in only one of the
+    # two readers (e.g. extract_parameters.read_guide_docs but not
+    # extract_versions.read_guide_docs) fails this assertion even though each
+    # reader's own test (test_extract_parameters / test_extract_versions) may
+    # still pass on its own.
+    assert set(from_worktree) == set(from_tag) == {"toolsets.rst"}
