@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import jmespath
 import pytest
-from chart_utils.helm_template_generator import render_chart as _render_chart
+from chart_utils.helm_template_generator import render_chart
 
 
 def _deep_merge(base: dict, override: dict) -> dict:
@@ -32,11 +32,11 @@ def _deep_merge(base: dict, override: dict) -> dict:
     return merged
 
 
-def render_chart(values=None, **kwargs):
+def render_chart_with_user_job(values=None, **kwargs):
     """Render with the create-user job switched on and credentials supplied.
 
     The chart does not create a user by default and refuses to run the job without a
-    username and password, so tests covering the job have to opt in the same way a
+    username and password, so a test that wants the job has to opt in the same way a
     deployment would. Values passed by a test win over these.
     """
     opt_in = {
@@ -45,20 +45,24 @@ def render_chart(values=None, **kwargs):
             "defaultUser": {"username": "admin", "password": "admin"},
         }
     }
-    return _render_chart(values=_deep_merge(opt_in, values or {}), **kwargs)
+    return render_chart(values=_deep_merge(opt_in, values or {}), **kwargs)
 
 
 class TestCreateUserJob:
     """Tests create user job."""
 
-    def test_should_run_by_default(self):
+    def test_should_not_create_job_by_default(self):
         docs = render_chart(show_only=["templates/jobs/create-user-job.yaml"])
+        assert docs == []
+
+    def test_should_run_when_enabled_with_credentials(self):
+        docs = render_chart_with_user_job(show_only=["templates/jobs/create-user-job.yaml"])
         assert docs[0]["kind"] == "Job"
         assert jmespath.search("spec.template.spec.containers[0].name", docs[0]) == "create-user"
         assert jmespath.search("spec.template.spec.securityContext.runAsUser", docs[0]) == 50000
 
     def test_should_support_annotations(self):
-        docs = render_chart(
+        docs = render_chart_with_user_job(
             values={"createUserJob": {"annotations": {"foo": "bar"}, "jobAnnotations": {"fiz": "fuz"}}},
             show_only=["templates/jobs/create-user-job.yaml"],
         )
@@ -70,7 +74,7 @@ class TestCreateUserJob:
         assert job_annotations["fiz"] == "fuz"
 
     def test_should_add_component_specific_labels(self):
-        docs = render_chart(
+        docs = render_chart_with_user_job(
             values={
                 "createUserJob": {
                     "labels": {"test_label": "test_label_value"},
@@ -82,7 +86,7 @@ class TestCreateUserJob:
         assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
 
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
-        docs = render_chart(
+        docs = render_chart_with_user_job(
             values={
                 "createUserJob": {
                     "affinity": {
@@ -135,7 +139,7 @@ class TestCreateUserJob:
         )
 
     def test_scheduler_name(self):
-        docs = render_chart(
+        docs = render_chart_with_user_job(
             values={"schedulerName": "airflow-scheduler"},
             show_only=["templates/jobs/create-user-job.yaml"],
         )
@@ -159,7 +163,7 @@ class TestCreateUserJob:
                 "memory": "512Mi",
             },
         }
-        docs = render_chart(
+        docs = render_chart_with_user_job(
             values={
                 "createUserJob": {
                     "resources": resources,
@@ -171,7 +175,7 @@ class TestCreateUserJob:
         assert resources == jmespath.search("spec.template.spec.containers[0].resources", docs[0])
 
     def test_should_disable_default_helm_hooks(self):
-        docs = render_chart(
+        docs = render_chart_with_user_job(
             values={"createUserJob": {"useHelmHooks": False}},
             show_only=["templates/jobs/create-user-job.yaml"],
         )
@@ -179,7 +183,7 @@ class TestCreateUserJob:
         assert annotations is None
 
     def test_should_set_correct_helm_hooks_weight(self):
-        docs = render_chart(
+        docs = render_chart_with_user_job(
             show_only=[
                 "templates/jobs/create-user-job.yaml",
             ],
@@ -188,7 +192,7 @@ class TestCreateUserJob:
         assert annotations["helm.sh/hook-weight"] == "2"
 
     def test_should_add_extra_containers(self):
-        docs = render_chart(
+        docs = render_chart_with_user_job(
             values={
                 "createUserJob": {
                     "extraContainers": [
@@ -205,7 +209,7 @@ class TestCreateUserJob:
         }
 
     def test_should_add_extra_init_containers(self):
-        docs = render_chart(
+        docs = render_chart_with_user_job(
             values={
                 "createUserJob": {
                     "extraInitContainers": [
@@ -222,7 +226,7 @@ class TestCreateUserJob:
         }
 
     def test_should_template_extra_containers(self):
-        docs = render_chart(
+        docs = render_chart_with_user_job(
             values={
                 "createUserJob": {
                     "extraContainers": [{"name": "{{ .Release.Name }}-test-container"}],
@@ -236,7 +240,7 @@ class TestCreateUserJob:
         }
 
     def test_should_add_extra_volumes(self):
-        docs = render_chart(
+        docs = render_chart_with_user_job(
             values={
                 "createUserJob": {
                     "extraVolumes": [{"name": "myvolume-{{ .Chart.Name }}", "emptyDir": {}}],
@@ -251,7 +255,7 @@ class TestCreateUserJob:
         }
 
     def test_should_add_extra_volume_mounts(self):
-        docs = render_chart(
+        docs = render_chart_with_user_job(
             values={
                 "createUserJob": {
                     "extraVolumeMounts": [{"name": "foobar-{{ .Chart.Name }}", "mountPath": "foo/bar"}],
@@ -266,7 +270,7 @@ class TestCreateUserJob:
         }
 
     def test_should_add_global_volume_and_global_volume_mount(self):
-        docs = render_chart(
+        docs = render_chart_with_user_job(
             values={
                 "volumes": [{"name": "myvolume", "emptyDir": {}}],
                 "volumeMounts": [{"name": "foobar", "mountPath": "foo/bar"}],
@@ -284,7 +288,7 @@ class TestCreateUserJob:
         }
 
     def test_should_add_extraEnvs(self):
-        docs = render_chart(
+        docs = render_chart_with_user_job(
             values={
                 "createUserJob": {
                     "env": [
@@ -316,7 +320,7 @@ class TestCreateUserJob:
         } in jmespath.search("spec.template.spec.containers[0].env", docs[0])
 
     def test_should_enable_custom_env(self):
-        docs = render_chart(
+        docs = render_chart_with_user_job(
             values={
                 "env": [
                     {"name": "foo", "value": "bar"},
@@ -331,7 +335,7 @@ class TestCreateUserJob:
         assert {"name": "extraFoo", "value": "extraBar"} in envs
 
     def test_should_disable_custom_env(self):
-        docs = render_chart(
+        docs = render_chart_with_user_job(
             values={
                 "env": [
                     {"name": "foo", "value": "bar"},
@@ -346,7 +350,7 @@ class TestCreateUserJob:
         assert {"name": "extraFoo", "value": "extraBar"} not in envs
 
     def test_job_ttl_after_finished(self):
-        docs = render_chart(
+        docs = render_chart_with_user_job(
             values={"createUserJob": {"ttlSecondsAfterFinished": 1}},
             show_only=["templates/jobs/create-user-job.yaml"],
         )
@@ -354,7 +358,7 @@ class TestCreateUserJob:
         assert ttl == 1
 
     def test_job_ttl_after_finished_zero(self):
-        docs = render_chart(
+        docs = render_chart_with_user_job(
             values={"createUserJob": {"ttlSecondsAfterFinished": 0}},
             show_only=["templates/jobs/create-user-job.yaml"],
         )
@@ -362,7 +366,7 @@ class TestCreateUserJob:
         assert ttl == 0
 
     def test_job_ttl_after_finished_nil(self):
-        docs = render_chart(
+        docs = render_chart_with_user_job(
             values={"createUserJob": {"ttlSecondsAfterFinished": None}},
             show_only=["templates/jobs/create-user-job.yaml"],
         )
@@ -370,7 +374,7 @@ class TestCreateUserJob:
         assert "ttlSecondsAfterFinished" not in spec
 
     def test_default_command_and_args_airflow_version(self):
-        docs = render_chart(show_only=["templates/jobs/create-user-job.yaml"])
+        docs = render_chart_with_user_job(show_only=["templates/jobs/create-user-job.yaml"])
 
         assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
         assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == [
@@ -395,7 +399,7 @@ class TestCreateUserJob:
     @pytest.mark.parametrize("command", [None, ["custom", "command"]])
     @pytest.mark.parametrize("args", [None, ["custom", "args"]])
     def test_command_and_args_overrides(self, command, args):
-        docs = render_chart(
+        docs = render_chart_with_user_job(
             values={"createUserJob": {"command": command, "args": args}},
             show_only=["templates/jobs/create-user-job.yaml"],
         )
@@ -404,7 +408,7 @@ class TestCreateUserJob:
         assert args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
     def test_command_and_args_overrides_are_templated(self):
-        docs = render_chart(
+        docs = render_chart_with_user_job(
             values={
                 "createUserJob": {"command": ["{{ .Release.Name }}"], "args": ["{{ .Release.Service }}"]}
             },
@@ -415,7 +419,7 @@ class TestCreateUserJob:
         assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == ["Helm"]
 
     def test_default_user_overrides(self):
-        docs = render_chart(
+        docs = render_chart_with_user_job(
             values={
                 "createUserJob": {
                     "defaultUser": {
@@ -452,14 +456,14 @@ class TestCreateUserJob:
         ]
 
     def test_no_airflow_local_settings(self):
-        docs = render_chart(
+        docs = render_chart_with_user_job(
             values={"airflowLocalSettings": None}, show_only=["templates/jobs/create-user-job.yaml"]
         )
         volume_mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
         assert "airflow_local_settings.py" not in str(volume_mounts)
 
     def test_airflow_local_settings(self):
-        docs = render_chart(
+        docs = render_chart_with_user_job(
             values={"airflowLocalSettings": "# Well hello!"},
             show_only=["templates/jobs/create-user-job.yaml"],
         )
@@ -478,7 +482,7 @@ class TestCreateUserJob:
         ],
     )
     def test_restart_policy(self, restart_policy):
-        docs = render_chart(
+        docs = render_chart_with_user_job(
             values={"createUserJob": {"restartPolicy": restart_policy}},
             show_only=["templates/jobs/create-user-job.yaml"],
         )
@@ -494,7 +498,7 @@ class TestCreateUserJob:
 
     def test_should_create_job_when_createuserjob_enabled(self):
         """Test that job is created when both createUserJob.enabled and defaultUser.enabled are true."""
-        docs = render_chart(
+        docs = render_chart_with_user_job(
             values={"createUserJob": {"enabled": True}},
             show_only=["templates/jobs/create-user-job.yaml"],
         )
@@ -506,7 +510,7 @@ class TestCreateUserJobServiceAccount:
     """Tests create user job service account."""
 
     def test_should_add_component_specific_labels(self):
-        docs = render_chart(
+        docs = render_chart_with_user_job(
             values={
                 "createUserJob": {
                     "labels": {"test_label": "test_label_value"},
@@ -519,7 +523,7 @@ class TestCreateUserJobServiceAccount:
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
 
     def test_default_automount_service_account_token(self):
-        docs = render_chart(
+        docs = render_chart_with_user_job(
             values={
                 "createUserJob": {
                     "serviceAccount": {"create": True},
@@ -530,7 +534,7 @@ class TestCreateUserJobServiceAccount:
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
     def test_overridden_automount_service_account_token(self):
-        docs = render_chart(
+        docs = render_chart_with_user_job(
             values={
                 "createUserJob": {
                     "serviceAccount": {"create": True, "automountServiceAccountToken": False},
