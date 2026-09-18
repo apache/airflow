@@ -67,9 +67,11 @@ Embedding Model
     via the ``embed_model_id`` and ``embed_conn_id`` parameters.
 
     When the LLM and embedding model use different providers, configure a separate
-    ``embed_conn_id``. Equivalent OpenAI and Azure chat/response prefixes can share
-    their provider's connection. Local ``sentence-transformers:`` embeddings can also
-    share the LLM connection because they do not use provider credentials.
+    ``embed_conn_id`` if the embedding provider needs credentials or an endpoint from
+    an Airflow connection. The providers can share a connection when each resolves its
+    credentials from the environment. Equivalent OpenAI and Azure chat/response prefixes
+    can share their provider's connection. Local ``sentence-transformers:`` embeddings
+    can also share the LLM connection because they do not use provider credentials.
 
 API Key (Password field)
     The API key for your model provider. Required for API-key-based providers
@@ -230,7 +232,10 @@ so a bare name reaching this step always raises.
 The embedding model is resolved separately:
 
 1. ``embed_model_id`` parameter on the hook
-2. ``embed_model`` in the connection's extra JSON
+2. ``embed_model`` in the embedding connection's extra JSON
 
-Embedding credentials and endpoints are read from ``embed_conn_id`` when set;
-otherwise they are read from ``llm_conn_id``.
+The embedding connection is ``embed_conn_id`` when set; otherwise it is
+``llm_conn_id``. The hook reads the ``embed_model`` fallback, credentials, and
+endpoint from that connection. When using a separate ``embed_conn_id``, set
+``embed_model`` on that connection or pass ``embed_model_id`` directly to the
+hook.
