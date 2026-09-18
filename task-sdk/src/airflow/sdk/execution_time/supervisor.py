@@ -1697,7 +1697,10 @@ class ActivitySubprocess(WatchedSubprocess):
         The task process raises ``AirflowTaskTimeout`` itself when the timeout elapses, which is the only
         place ``on_kill``, the retry policy, callbacks and listeners can run. That needs a process that can
         still run Python signal handlers; one that has not reported a terminal state within the grace period
-        is stuck (native code, a lock inherited across fork, SIGSEGV) and is sent SIGTERM, then SIGKILL.
+        is stuck (native code, SIGSEGV) and is sent SIGTERM, then SIGKILL.
+
+        The deadline is armed by ``SetExecutionTimeout``, which the task process sends right before
+        ``execute()``. Anything before that (bundle load, Dag parsing) is not covered here.
         """
         due_in = self._execution_timeout_due_in()
         if due_in is None or due_in > 0:
