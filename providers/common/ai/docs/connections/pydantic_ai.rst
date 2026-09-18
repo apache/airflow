@@ -62,11 +62,13 @@ Embedding Model
     via the ``embed_model_id`` and ``embed_conn_id`` parameters.
 
     When the LLM and embedding model use different providers, configure a separate
-    ``embed_conn_id`` if the embedding provider needs credentials or an endpoint from
-    an Airflow connection. The providers can share a connection when each resolves its
-    credentials from the environment. Equivalent OpenAI and Azure chat/response prefixes
-    can share their provider's connection. Local ``sentence-transformers:`` embeddings
-    can also share the LLM connection because they do not use provider credentials.
+    ``embed_conn_id`` if the shared connection produces explicit configuration for the
+    embedding provider. The providers can share a connection when no embedding provider
+    configuration can be built from it; pydantic-ai then resolves the embedding provider
+    independently, for example from environment variables, even if the LLM uses configuration
+    from the connection. Equivalent OpenAI and Azure chat/response prefixes can share their
+    provider's connection. Local ``sentence-transformers:`` embeddings can also share the
+    LLM connection because they do not use provider credentials.
 
 API Key (Password field)
     The API key for your model provider. Required for API-key-based providers
