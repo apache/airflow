@@ -145,19 +145,16 @@ subqueries and joins.
   statement, for instance — fall back to a full fetch. The payload handed to the
   model is still bounded; the transfer is not. See :ref:`bounded-query-results`.
 - Its parser-level closure is opt-in, not the default. ``allowed_tables``
-  defaults to ``None`` and the table walk returns immediately while it is unset,
-  so out of the box the agent reaches every table the connection can see.
-  ``DESCRIBE`` and ``SHOW`` both pass, on dialects that parse them, while
-  ``allowed_tables`` stays unset. Set ``allowed_tables`` and the walk turns
-  fail-closed for ``SHOW``, dynamic SQL, the ``TABLE <name>`` shorthand and any
-  function sqlglot does not recognize — but not for ``DESCRIBE``: it instead
-  becomes an ordinary table reference, allowed only when the table it names is
-  on the list. A legitimate bespoke function then needs naming in
-  ``allowed_functions``. See :ref:`allowed-tables-enforcement` for more
-  constructs it also rejects — that list illustrates the pattern, it is not
-  exhaustive. Statements
-  that modify data, ``COPY`` among them, are rejected either way while
-  ``allow_writes`` is ``False``.
+  defaults to ``None`` and the table walk returns immediately while it is
+  unset, so out of the box the agent reaches every table the connection can
+  see. ``DESCRIBE`` and ``SHOW`` both pass, on dialects that parse them,
+  while ``allowed_tables`` stays unset. Set ``allowed_tables`` and the walk
+  turns fail-closed for ``SHOW`` — but not for ``DESCRIBE``: it instead
+  becomes an ordinary table reference, allowed only when the table it names
+  is on the list. See :ref:`allowed-tables-enforcement` for what else the
+  walk rejects once ``allowed_tables`` is active. Statements that modify
+  data, ``COPY`` among them, are rejected either way while ``allow_writes``
+  is ``False``.
 - It does not classify failures. A connection error or a typo in a column
   name reaching ``list_tables``, ``get_schema`` or ``query`` becomes one
   ``ModelRetry``, so the two are treated the same way until the retry budget
