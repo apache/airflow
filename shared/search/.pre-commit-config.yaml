@@ -14,26 +14,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-from airflow.providers.opensearch._shared.search.response import (
-    AttributeDict,
-    AttributeList,
-    Hit,
-    HitMeta,
-    SearchResponse,
-    resolve_nested,
-)
-
-__all__ = [
-    "AttributeDict",
-    "AttributeList",
-    "Hit",
-    "HitMeta",
-    "OpensearchResponse",
-    "resolve_nested",
-]
-
-
-class OpensearchResponse(SearchResponse):
-    """Search response wrapper for OpenSearch, preserving the existing import path."""
+---
+default_stages: [pre-commit, pre-push]
+minimum_prek_version: '0.3.4'
+default_language_version:
+  python: python3
+repos:
+  - repo: local
+    hooks:
+      - id: mypy-shared-search
+        name: Run mypy for shared-search
+        language: python
+        entry: ../../scripts/ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py shared/search
+        pass_filenames: false
+        files: ^.*\.py$
+        require_serial: true

@@ -444,6 +444,20 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
     of affected providers (but not recursively - only direct dependencies are added)
   * if there are any changes to "common" provider code not belonging to any provider (usually system tests
     or tests), then tests for all Providers are run
+  * if a shared library under `shared/<dist>/` changes, every provider that declares the matching
+    `apache-airflow-shared-<dist>` in its `[tool.airflow] shared_distributions` is selected. Shared
+    sources are symlinked into their consumers, so git reports these edits under `shared/` and never
+    under `providers/` — without this reverse lookup the providers that actually ship the code would
+    get no unit or integration tests at all. The mapping is derived from the provider `pyproject.toml`
+    files, so a provider adopting a shared library is covered with no change to selective checks.
+* `Remote logging E2E tests` are selected per backend, exposed as the
+  `run-remote-logging-s3-e2e-tests` / `run-remote-logging-elasticsearch-e2e-tests` /
+  `run-remote-logging-opensearch-e2e-tests` outputs. Core logging changes (`airflow-core` logging
+  modules, `shared/logging/`, the e2e harness) enable all three; a backend's own provider enables
+  only its own suite. Code shared by several backends must be listed under each backend that uses
+  it, not under the core group — `shared/search/` is vendored into both the `elasticsearch` and
+  `opensearch` providers, so it enables those two suites and not S3. Like the other deployed e2e
+  suites, enabling them forces `PROD Image building`.
 * `Java SDK E2E tests` (the `java_sdk` mode of the deployed-stack tests, exposed as the
   `run-java-sdk-e2e-tests` output) run when the Java SDK sources (`java-sdk/`, excluding `.md`), the
   Java test-fixture bundle (`airflow-e2e-tests/java-test-bundle/`), the Java e2e suite or its Docker
