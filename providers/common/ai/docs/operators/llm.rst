@@ -280,9 +280,10 @@ By default any user with the permission can answer the review.  Pass
 ``approval_assigned_users=[{"id": "<auth-manager-user-id>", "name": "<user-name>"}]``
 to restrict it to named reviewers, the way
 :class:`~airflow.providers.standard.operators.hitl.HITLOperator` does with
-``assigned_users``.  ``id`` is the user id reported by the auth manager; under
-the FAB auth manager that is the numeric user row id as a string, not the
-username.  This needs Airflow 3.1+.  On Airflow 3.1.0 through 3.1.5 both
+``assigned_users``.  ``id`` is the user id reported by the auth manager: with
+the default ``SimpleAuthManager`` it is the username from
+``simple_auth_manager_users``; under the FAB auth manager it is the numeric
+user row id as a string, not the username.  This needs Airflow 3.1+.  On Airflow 3.1.0 through 3.1.5 both
 ``id`` and ``name`` must match what the auth manager reports, so a wrong
 ``name`` blocks the assigned reviewer as well as everyone else; from 3.1.6 only
 ``id`` is compared.  The list is stored when the review is first created:
