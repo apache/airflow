@@ -41,6 +41,7 @@ from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.console import Output, console_print
 from airflow_breeze.utils.docker_command_utils import execute_command_in_shell
 from airflow_breeze.utils.github import download_constraints_file
+from airflow_breeze.utils.packages import LONG_PROVIDERS_PREFIX
 from airflow_breeze.utils.parallel import get_temp_file_name
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH, FILES_PATH
 from airflow_breeze.utils.shared_options import get_verbose
@@ -175,6 +176,14 @@ def get_days_stale(latest_release_date: str) -> str:
 
 def get_max_package_length(packages: list[tuple[str, str]]) -> int:
     return max(len(pkg) for pkg, _ in packages)
+
+
+def is_provider_distribution(pkg: str) -> bool:
+    # Providers are uv workspace members, so a resolution never installs them from PyPI and the pin
+    # cannot take effect — the explanation always ends as "still resolved to an unknown version".
+    # Their constraint trailing PyPI is the normal state between a release wave and the next
+    # constraints refresh, so explaining it costs one resolution per provider for a fixed answer.
+    return pkg.startswith(LONG_PROVIDERS_PREFIX)
 
 
 def should_show_package(releases, latest_version, constraints_date, mode, is_latest_version):
@@ -539,6 +548,7 @@ def process_packages(
     status_counts: dict[str, int] = {"ok": 0, "new": 0, "warning": 0, "critical": 0}
     # Collected while the table is printed and explained together afterwards, in one container.
     candidates: list[UpgradeCandidate] = []
+    unexplained_providers: list[str] = []
 
     pypi_data = iter_pypi_data([pkg for pkg, _ in packages])
     for (pkg, pinned_version), data in zip(packages, pypi_data):
@@ -574,7 +584,10 @@ def process_packages(
                 skipped_count += 1
 
             if explain_why and not is_latest_version:
-                candidates.append(UpgradeCandidate(pkg, pinned_version, latest_version))
+                if is_provider_distribution(pkg):
+                    unexplained_providers.append(pkg)
+                else:
+                    candidates.append(UpgradeCandidate(pkg, pinned_version, latest_version))
         except HTTPError as e:
             console_print(f"[bold red]Error fetching {pkg} from PyPI: HTTP {e.code}[/]")
             continue
@@ -584,6 +597,13 @@ def process_packages(
         except (OSError, json.JSONDecodeError) as e:
             console_print(f"[bold red]Error fetching {pkg} from PyPI: {e}[/]")
             continue
+    if unexplained_providers:
+        console_print(
+            f"\n[bright_blue]Not explaining {len(unexplained_providers)} provider "
+            f"{'distribution' if len(unexplained_providers) == 1 else 'distributions'} — they are "
+            f"resolved from the workspace, so the constraint follows the next constraints refresh, "
+            f"not a resolution.[/]"
+        )
     explanations = (
         explain_upgrades(
             candidates=candidates,

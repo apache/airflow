@@ -346,6 +346,29 @@ def test_nothing_runs_without_explain_why(container, pypi):
     assert container.scripts == []
 
 
+def test_a_provider_is_reported_outdated_but_not_explained(container, pypi, capsys):
+    outdated_count, _, explanations, _ = _run_process_packages([("apache-airflow-providers-amazon", "1.0.0")])
+
+    assert container.scripts == []
+    assert explanations == []
+    # The row still counts as outdated; only the resolution behind its explanation is skipped.
+    assert outdated_count == 1
+    plain = re.sub(r"\s+", " ", re.sub(r"\x1b\[[0-9;]*m", "", capsys.readouterr().out))
+    assert "Not explaining 1 provider distribution" in plain
+
+
+def test_a_provider_does_not_shift_the_sections_of_the_packages_explained(container, pypi):
+    """Sections are named by position among the candidates, so a skipped provider must not take one."""
+    container.freeze["0-pkg-a"] = {**container.freeze[BASELINE_SECTION], "pkg-a": "2.0.0"}
+
+    _, _, explanations, _ = _run_process_packages(
+        [("apache-airflow-providers-amazon", "1.0.0"), ("pkg-a", "1.0.0")]
+    )
+
+    assert len(explanations) == 1
+    assert "Package pkg-a can be upgraded from 1.0.0 to 2.0.0" in explanations[0]
+
+
 def test_the_baseline_is_resolved_once_and_is_the_only_refresh(container, pypi):
     """The baseline refresh re-reads every index page; repeating it per package is wasted."""
     _run_process_packages([("pkg-a", "1.0.0"), ("pkg-b", "1.0.0")])
