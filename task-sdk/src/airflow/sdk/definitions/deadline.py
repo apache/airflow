@@ -269,21 +269,21 @@ class DeadlineReference:
     )()
 
     @classmethod
-    def register_custom_reference(
+    def _add_custom_reference_to_namespace(
         cls,
         reference_class: type[BaseDeadlineReference],
         deadline_reference_type: DeadlineReferenceTypes | None = None,
     ) -> type[BaseDeadlineReference]:
         """
-        Register a custom deadline reference class for use in Dag files.
+        Add a custom deadline reference class to the DeadlineReference namespace for use in Dag files.
 
         This makes the reference available to Dag authors as ``DeadlineReference.<ClassName>`` and
         records when it should be evaluated.
 
         .. warning::
 
-            Registering the reference is **not** the same as registering the plugin, despite the
-            name of this method.  This only affects the process that runs the Dag file; it does not
+            Adding the reference to this namespace is **not** the same as registering the plugin.
+            This only affects the process that runs the Dag file; it does not
             make the class resolvable when the scheduler deserializes the Dag.  The class must
             *also* be listed in the ``deadline_references`` attribute of an ``AirflowPlugin``, or
             deserialization raises ``DeadlineReferenceNotRegistered``.  See
@@ -331,6 +331,30 @@ class DeadlineReference:
         cls.TYPES.DAGRUN = cls.TYPES.DAGRUN_CREATED + cls.TYPES.DAGRUN_QUEUED
 
         return reference_class
+
+    @classmethod
+    def register_custom_reference(
+        cls,
+        reference_class: type[BaseDeadlineReference],
+        deadline_reference_type: DeadlineReferenceTypes | None = None,
+    ) -> type[BaseDeadlineReference]:
+        """
+        Add a custom deadline reference to the DeadlineReference namespace.
+
+        .. deprecated:: 3.4.0
+            Use the ``@deadline_reference`` decorator instead.  Despite its name this method never
+            registered anything with the scheduler; see
+            :meth:`_add_custom_reference_to_namespace`.
+        """
+        warnings.warn(
+            "DeadlineReference.register_custom_reference is deprecated and will be removed in "
+            "Airflow 4.  It does not register anything with the scheduler; use the "
+            "@deadline_reference decorator, and list the class in an AirflowPlugin's "
+            "deadline_references to make it resolvable.",
+            RemovedInAirflow4Warning,
+            stacklevel=2,
+        )
+        return cls._add_custom_reference_to_namespace(reference_class, deadline_reference_type)
 
 
 @overload
@@ -391,12 +415,12 @@ def deadline_reference(deadline_reference_type=None):
     """
     # Used bare, without parentheses: the decorated class is passed in directly.
     if isinstance(deadline_reference_type, type):
-        return DeadlineReference.register_custom_reference(deadline_reference_type)
+        return DeadlineReference._add_custom_reference_to_namespace(deadline_reference_type)
 
     def decorator(
         reference_class: type[BaseDeadlineReference],
     ) -> type[BaseDeadlineReference]:
-        DeadlineReference.register_custom_reference(reference_class, deadline_reference_type)
+        DeadlineReference._add_custom_reference_to_namespace(reference_class, deadline_reference_type)
         return reference_class
 
     return decorator

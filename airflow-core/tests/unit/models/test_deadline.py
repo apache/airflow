@@ -809,12 +809,12 @@ class TestCustomDeadlineReference:
             pytest.param(DeadlineReference.TYPES.DAGRUN_QUEUED, id="dagrun_queued"),
         ],
     )
-    def test_register_custom_reference(self, timing, reference):
+    def test_add_custom_reference_to_namespace(self, timing, reference):
         if timing is None:
-            result = DeadlineReference.register_custom_reference(reference)
+            result = DeadlineReference._add_custom_reference_to_namespace(reference)
             expected_timing = DeadlineReference.TYPES.DAGRUN_CREATED
         else:
-            result = DeadlineReference.register_custom_reference(reference, timing)
+            result = DeadlineReference._add_custom_reference_to_namespace(reference, timing)
             expected_timing = timing
 
         assert result is reference
@@ -826,11 +826,11 @@ class TestCustomDeadlineReference:
             DeadlineReference.TYPES.DAGRUN_QUEUED, DeadlineReference.TYPES.DAGRUN_CREATED
         )
 
-    def test_register_custom_reference_invalid_inheritance(self):
+    def test_add_custom_reference_invalid_inheritance(self):
         with pytest.raises(ValueError, match="must inherit from BaseDeadlineReference"):
-            DeadlineReference.register_custom_reference(self.MyInvalidCustomRef)
+            DeadlineReference._add_custom_reference_to_namespace(self.MyInvalidCustomRef)
 
-    def test_register_custom_reference_invalid_timing(self):
+    def test_add_custom_reference_invalid_timing(self):
         invalid_timing = ("not", "a", "valid", "timing")
 
         with pytest.raises(
@@ -840,13 +840,13 @@ class TestCustomDeadlineReference:
                 f"must be a valid DeadlineReference.TYPES option."
             ),
         ):
-            DeadlineReference.register_custom_reference(self.MyCustomRef, invalid_timing)
+            DeadlineReference._add_custom_reference_to_namespace(self.MyCustomRef, invalid_timing)
 
     def test_custom_reference_discoverable_on_deadline_reference(self):
         # Custom references are only registered on DeadlineReference, not on ReferenceModels.
         # During deserialization, custom refs are discovered via __class_path in the
         # serialized data (using import_string), not through ReferenceModels lookup.
-        DeadlineReference.register_custom_reference(self.MyCustomRef)
+        DeadlineReference._add_custom_reference_to_namespace(self.MyCustomRef)
 
         assert hasattr(DeadlineReference, self.MyCustomRef.__name__)
         found_instance = getattr(DeadlineReference, self.MyCustomRef.__name__)
@@ -953,8 +953,8 @@ class TestDeadlineReferenceDecorator:
                 def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
                     return timezone.datetime(DEFAULT_DATE)
 
-    @mock.patch.object(DeadlineReference, "register_custom_reference")
-    def test_deadline_reference_decorator_calls_register_method(self, mock_register):
+    @mock.patch.object(DeadlineReference, "_add_custom_reference_to_namespace")
+    def test_deadline_reference_decorator_calls_the_namespace_method(self, mock_add):
         timing = DeadlineReference.TYPES.DAGRUN_QUEUED
 
         @deadline_reference(timing)
@@ -962,7 +962,7 @@ class TestDeadlineReferenceDecorator:
             def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
                 return timezone.datetime(DEFAULT_DATE)
 
-        mock_register.assert_called_once_with(DecoratedCustomRef, timing)
+        mock_add.assert_called_once_with(DecoratedCustomRef, timing)
 
     def test_deadline_reference_decorator_without_parentheses(self):
         @deadline_reference
