@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
@@ -383,6 +384,19 @@ class TestBigQueryStreamingBufferEmptySensor:
         assert sensor.poke(mock.MagicMock()) is False  # buffer reappears, counter resets
         assert sensor.poke(mock.MagicMock()) is False  # empty again, count restarts at 1
         assert sensor.poke(mock.MagicMock()) is True  # 2nd consecutive empty
+
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.time.sleep")
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
+    def test_execute_confirms_empty_before_rescheduling(self, mock_hook, mock_sleep):
+        sensor = _make_streaming_sensor(mode="reschedule", poke_interval=10)
+        get_table = mock_hook.return_value.get_client.return_value.get_table
+        get_table.return_value = SimpleNamespace(streaming_buffer=None)
+        context = {"ti": mock.MagicMock(spec=["get_first_reschedule_date"])}
+        context["ti"].get_first_reschedule_date.return_value = None
+
+        assert sensor.execute(context) is None
+        assert get_table.call_count == 2
+        mock_sleep.assert_called_once_with(10)
 
     def test_init_rejects_non_positive_empty_confirmations(self):
         with pytest.raises(ValueError, match="empty_confirmations must be at least 1"):

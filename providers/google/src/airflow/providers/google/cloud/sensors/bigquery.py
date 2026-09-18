@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import time
 import warnings
 from collections.abc import Sequence
 from datetime import timedelta
@@ -431,22 +432,28 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
         )
 
         hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
-        try:
-            table = hook.get_client(project_id=self.project_id).get_table(table_ref)
-        except NotFound as err:
-            raise ValueError(f"Table {table_uri} not found") from err
+        client = hook.get_client(project_id=self.project_id)
+        while True:
+            try:
+                table = client.get_table(table_ref)
+            except NotFound as err:
+                raise ValueError(f"Table {table_uri} not found") from err
 
-        if table.streaming_buffer is not None:
-            self._consecutive_empty = 0
-            return False
+            if table.streaming_buffer is not None:
+                self._consecutive_empty = 0
+                return False
 
-        self._consecutive_empty += 1
-        self.log.info(
-            "Streaming buffer reported empty (%s/%s confirmations) for table: %s",
-            self._consecutive_empty,
-            self.empty_confirmations,
-            table_uri,
-        )
-        if self._consecutive_empty >= self.empty_confirmations:
-            return True
-        return False
+            self._consecutive_empty += 1
+            self.log.info(
+                "Streaming buffer reported empty (%s/%s confirmations) for table: %s",
+                self._consecutive_empty,
+                self.empty_confirmations,
+                table_uri,
+            )
+            if self._consecutive_empty >= self.empty_confirmations:
+                return True
+            if not self.reschedule:
+                return False
+
+            # Rescheduling rebuilds the operator, so finish the confirmation sequence in this process.
+            time.sleep(self.poke_interval)
