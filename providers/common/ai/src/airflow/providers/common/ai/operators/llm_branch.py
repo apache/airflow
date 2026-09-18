@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.utils.logging import log_run_summary
+from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.standard.exceptions import HITLRejectException
 from airflow.providers.standard.operators.branch import BranchMixIn
 
@@ -58,9 +59,13 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
     :param agent_params: Additional keyword arguments passed to the pydantic-ai
         ``Agent`` constructor (e.g. ``retries``, ``model_settings``, ``tools``).
 
+    ``usage_limits`` is inherited from
+    :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
+
     Human-in-the-Loop approval parameters are inherited from
     :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
-    (``require_approval``, ``approval_timeout``, ``allow_modifications``).
+    (``require_approval``, ``approval_timeout``, ``on_approval_timeout``,
+    ``allow_modifications``, ``approval_notifiers``, ``approval_assigned_users``).
     The task pauses after the LLM chooses the branch(es) and only skips the
     unselected downstream tasks once a reviewer approves. Rejecting the
     review skips the direct downstream tasks except teardowns, matching
@@ -109,12 +114,15 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
         )
         output_type = list[downstream_tasks_enum] if self.allow_multiple_branches else downstream_tasks_enum
 
+        # Coerced first so a bad rendered value fails before the expensive setup below.
+        usage_limits = coerce_usage_limits(self.usage_limits)
+
         agent = self.llm_hook.create_agent(
             output_type=output_type,
             instructions=self.system_prompt,
             **self.agent_params,
         )
-        result = agent.run_sync(self.prompt, usage_limits=self.usage_limits)
+        result = agent.run_sync(self.prompt, usage_limits=usage_limits)
         log_run_summary(self.log, result)
         output = result.output
 
@@ -156,7 +164,7 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
         except HITLRejectException:
             if self.fail_on_reject:
                 raise
-            self.log.info("Rejected by %s. Skipping downstream tasks...", event.get("responded_by_user"))
+            self.log.info("Rejected by %s. Skipping downstream tasks...", self._describe_responder(event))
             task = context["task"]
             tasks = (
                 task.get_flat_relatives(upstream=False)

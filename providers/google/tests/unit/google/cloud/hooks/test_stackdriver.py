@@ -102,6 +102,30 @@ class TestStackdriverHookMethods:
             metadata=(),
         )
 
+    @pytest.mark.parametrize(
+        ("format_", "expected_formatter"),
+        [
+            (None, lambda policy: policy),
+            ("dict", AlertPolicy.to_dict),
+            ("json", AlertPolicy.to_json),
+        ],
+    )
+    @mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
+        return_value=(CREDENTIALS, PROJECT_ID),
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.stackdriver.StackdriverHook._get_policy_client")
+    def test_stackdriver_list_alert_policies_formats_result(
+        self, mock_policy_client, mock_get_creds_and_project_id, format_, expected_formatter
+    ):
+        policy = AlertPolicy(**TEST_ALERT_POLICY_1)
+        mock_policy_client.return_value.list_alert_policies.return_value = [policy]
+        hook = stackdriver.StackdriverHook()
+
+        result = hook.list_alert_policies(project_id=PROJECT_ID, format_=format_)
+
+        assert result == [expected_formatter(policy)]
+
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(CREDENTIALS, PROJECT_ID),

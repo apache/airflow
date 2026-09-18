@@ -21,14 +21,6 @@
 Kubernetes Executor
 ===================
 
-.. note::
-
-    As of Airflow 2.7.0, you need to install the ``cncf.kubernetes`` provider package to use
-    this executor. This can done by installing ``apache-airflow-providers-cncf-kubernetes>=7.4.0``
-    or by installing Airflow with the ``cncf.kubernetes`` extras:
-    ``pip install 'apache-airflow[cncf.kubernetes]'``.
-
-
 The Kubernetes executor runs each task instance in its own pod on a Kubernetes cluster.
 
 KubernetesExecutor runs as a process in the Airflow Scheduler. The scheduler itself does
