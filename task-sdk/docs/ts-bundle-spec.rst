@@ -18,18 +18,27 @@
 TypeScript Bundle Format
 ========================
 
-This document specifies the ``bundle.mjs`` format produced by ``airflow-ts-pack`` and consumed by :class:`~airflow.sdk.coordinators.node.NodeCoordinator`.
+This document specifies the bundle format produced by ``airflow-ts-pack`` and consumed by
+:class:`~airflow.sdk.coordinators.node.NodeCoordinator`.
+
+Artifact Name
+-------------
+
+A bundle's name must end in ``.min.mjs``. Nothing else about it is significant: the coordinator searches each
+configured root recursively and routes on embedded metadata, so one root may hold several differently named bundles.
+``airflow-ts-pack`` writes ``bundle.min.mjs`` by default and accepts ``--outfile`` for any other name ending in
+that suffix.
 
 Container
 ---------
 
-The bundle remains an ECMAScript module that runs directly with ``node bundle.mjs``. It has three regions:
+The bundle remains an ECMAScript module that runs directly with ``node bundle.min.mjs``. It has three regions:
 
 .. code-block:: text
 
     //# airflowBundle=<compact JSON layout>\n
     //# airflowMetadata=<compact JSON>\n
-    <bundled ECMAScript code>
+    <minified, bundled ECMAScript code>
 
 The layout comes first so readers can locate and verify the other regions. The
 current format has no embedded source region.
@@ -54,32 +63,25 @@ The ``airflowBundle`` payload is a compact UTF-8 JSON object:
       }
     }
 
-Offsets are bytes from the beginning of ``bundle.mjs``. They use exactly 16
-lowercase hexadecimal digits and describe half-open ranges: ``start`` is
-included and ``end`` is excluded.
+Offsets are bytes from the beginning of the bundle file. They use exactly 16 lowercase hexadecimal digits and
+describe half-open ranges: ``start`` is included and ``end`` is excluded.
 
-The layout stays on one line and contains only controlled ASCII field names,
-fixed-width hexadecimal offsets, and SHA-256 digests. It therefore needs no
-additional encoding layer.
+The layout stays on one line and contains only controlled ASCII field names, fixed-width hexadecimal offsets, and
+SHA-256 digests. It therefore needs no additional encoding layer.
 
-The first-line layout is a stable bootstrap descriptor, not a separately
-versioned payload. The ``airflow_bundle_metadata_version`` stored in the
-metadata region versions the entire TypeScript bundle contract, including this
-physical framing and the decoded metadata schema. A reader parses the bounded,
-named ranges before it can locate and verify that version.
+The first-line layout is a stable bootstrap descriptor, not a separately versioned payload. The
+``airflow_bundle_metadata_version`` stored in the metadata region versions the entire TypeScript bundle contract,
+including this physical framing and the decoded metadata schema. A reader parses the bounded, named ranges before it
+can locate and verify that version.
 
-The metadata range points to the UTF-8 JSON payload only, excluding the
-JavaScript comment marker and newline. Its digest therefore covers the exact
-JSON bytes stored in that range. The code range covers every byte after the
-metadata line through the end of the file. Its digest covers those raw
-JavaScript bytes.
+The metadata range points to the UTF-8 JSON payload only, excluding the JavaScript comment marker and newline. Its
+digest therefore covers the exact JSON bytes stored in that range. The code range covers every byte after the
+metadata line through the end of the file, and its digest covers those raw JavaScript bytes.
 
-The file begins with the layout line. The metadata marker immediately follows
-that line, and exactly one newline separates the metadata payload from the code
-range. These prescribed framing bytes are outside the hashed metadata and code
-ranges; no additional bytes are permitted before, between, or after them.
-Post-pack formatters, compressors, source-map injectors, and other tools that
-rewrite ``bundle.mjs`` invalidate the offsets or digests.
+The file begins with the layout line. The metadata marker immediately follows that line, and exactly one newline
+separates the metadata payload from the code range. These prescribed framing bytes are outside the hashed metadata
+and code ranges, and no additional bytes are permitted before, between, or after them. Post-pack formatters,
+compressors, source-map injectors, and other tools that rewrite the bundle invalidate the offsets or digests.
 
 Metadata
 --------
@@ -103,43 +105,43 @@ The ``airflowMetadata`` payload is compact UTF-8 JSON with this logical shape:
       }
     }
 
-The packer serializes this object without insignificant whitespace and escapes
-the ECMAScript line and paragraph separators (U+2028 and U+2029), keeping it in
-one newline-terminated JavaScript comment without a second encoding layer. The
-SHA-256 digest detects changes to the exact serialized bytes.
+The packer serializes this object without insignificant whitespace and escapes the ECMAScript line and paragraph
+separators (U+2028 and U+2029), keeping it in one newline-terminated JavaScript comment without a second encoding
+layer. The SHA-256 digest detects changes to the exact serialized bytes.
 
-The coordinator uses the ``dags`` keys to choose a bundle for a task instance.
-The ``source`` value is a logical authoring name only; it is not embedded source
-content and is not used to execute the bundle.
+The coordinator uses the ``dags`` keys to choose a bundle for a task instance. The ``source`` value is a logical
+authoring name only, not embedded source content, and it is not used to execute the bundle.
 
 Reader and Selection Algorithm
 ------------------------------
 
-For each directory in ``bundles_root``, in configured order, the coordinator:
+For each candidate in ``bundles_root``, the coordinator:
 
-1. Looks for ``bundle.mjs`` and opens it once.
+1. Opens it once. Candidates are the files whose name ends in ``.min.mjs``, found by walking each root recursively,
+   roots in configured order and each directory's entries in sorted order, so selection does not depend on the order
+   a filesystem returns entries in. Directories are deduplicated by ``(st_dev, st_ino)``, so a symlink loop
+   terminates the walk instead of exhausting the interpreter stack.
 2. Reads a bounded first line and decodes the named metadata and code ranges.
-3. Reads the bounded metadata line and checks that the declared metadata and
-   code ranges exactly match their physical locations and the file size.
+3. Reads the bounded metadata line and checks that the declared metadata and code ranges exactly match their
+   physical locations and the file size.
 4. Computes SHA-256 for both ranges before parsing or using metadata.
-5. Confirms with ``fstat`` that the open file did not change during
-   verification.
-6. Parses metadata and requires a supported TypeScript bundle contract major
-   version from ``airflow_bundle_metadata_version``.
-7. Skips the verified bundle if its ``dags`` mapping does not contain the
-   requested ``dag_id``.
+5. Confirms with ``fstat`` that the open file did not change during verification.
+6. Parses metadata and requires a supported bundle contract major version from
+   ``airflow_bundle_metadata_version``.
+7. Skips the verified bundle if its ``dags`` mapping does not contain the requested ``dag_id``.
 8. Resolves the supervisor schema version and selects the first usable match.
 
-A missing, unrelated, unreadable, malformed, corrupt, or incompatible earlier
-candidate does not prevent selection of a later usable match. When more than one
-usable bundle declares the same Dag, the first configured match wins. If none
-matches, the error identifies the requested Dag, searched roots, and rejected
-candidates.
+A missing, unrelated, unreadable, malformed, corrupt, or incompatible earlier candidate does not prevent selection
+of a later usable match. When more than one usable bundle declares the same Dag, the first configured match wins. If
+none matches, the error identifies the requested Dag, searched roots, and rejected candidates.
 
-The coordinator does not cache Dag-to-path routing. It checks root ordering and
-the current deployed files for each task selection. It may reuse section digests
-from a bounded process-local cache when the open file identity, timestamps,
-size, layout ranges, and declared digests have not changed.
+Every ``.min.mjs`` file under a root is therefore opened, and one that is not a usable bundle is named among those
+rejected candidates. ``bundles_root`` names directories of deployed Airflow bundles, so unrelated minified modules do
+not belong there.
+
+The coordinator does not cache Dag-to-path routing. It checks root ordering and the current deployed files for each
+task selection. It may reuse section digests from a bounded process-local cache when the open file identity,
+timestamps, size, layout ranges, and declared digests have not changed.
 
 Integrity, Authenticity, and Provenance
 ---------------------------------------
@@ -174,5 +176,5 @@ even when they cannot reach the metadata version. A future container that
 cannot preserve the readable first-line descriptor must use a new marker rather
 than reinterpret the current one.
 
-The TypeScript packing workflow was unreleased when this format was added. The
-coordinator therefore does not accept the earlier metadata-first prototype.
+The TypeScript packing workflow was unreleased when this format was added. The coordinator therefore does not accept
+the earlier metadata-first prototype.

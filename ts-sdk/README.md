@@ -98,9 +98,8 @@ coordinators = {
 queue_to_coordinator = {"typescript": "ts"}
 ```
 
-Each configured bundle directory must contain a `bundle.mjs` built with
-`airflow-ts-pack` (see [Packing bundles](#packing-bundles)), which embeds the
-Airflow metadata in the bundle itself.
+Each configured bundle directory is searched recursively for `*.min.mjs` bundles built with `airflow-ts-pack`
+(see [Packing bundles](#packing-bundles)), which embeds the Airflow metadata in the bundle itself.
 
 TypeScript entrypoint:
 
@@ -185,20 +184,20 @@ npm install --save-dev esbuild
 airflow-ts-pack src/main.ts --outdir dist
 ```
 
-It bundles the entrypoint into `dist/bundle.mjs` with esbuild, runs the
-bundle with `--airflow-metadata` so the bundle reports its own registered
-Dag/task pairs and supervisor schema version, and embeds that manifest in the
-bundle as a compact JSON `//# airflowMetadata=...` comment after a leading
-compact JSON `//# airflowBundle=...` layout descriptor. The descriptor records
-fixed-width byte ranges and SHA-256 digests for the metadata and bundled code,
-allowing a coordinator reader to detect corruption before using either region.
-These in-bundle digests do not authenticate who produced the bundle because
-someone who can replace the content can also replace its digests. The result is
-one deployable file with no hand-written metadata sidecar.
+It bundles the entrypoint into a minified `dist/bundle.min.mjs` with esbuild, then runs that bundle with
+`--airflow-metadata` so it reports its own registered Dag/task pairs and supervisor schema version. The manifest is
+embedded as a compact JSON `//# airflowMetadata=...` comment after a leading compact JSON `//# airflowBundle=...`
+layout descriptor. The CLI records the integrity metadata for both regions in that descriptor, so a coordinator that
+is handed a bundle whose content was replaced fails loudly instead of running it. The result is one deployable file
+with no hand-written metadata sidecar.
+
+Pass `--outfile <path>` instead of `--outdir` to name the artifact yourself, so one bundle directory can hold several
+bundles. The name must still end in `.min.mjs`, which is how `NodeCoordinator` finds bundles.
 
 Options:
 
 - `--outdir <dir>`: output directory (default `dist`)
+- `--outfile <path>`: exact output path, whose name must end in `.min.mjs`
 - `--source <name>`: display name of the primary source file shown in the Airflow UI (default: entry basename)
 
 ## TaskClient
