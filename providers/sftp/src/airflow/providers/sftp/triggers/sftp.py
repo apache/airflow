@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from collections.abc import AsyncIterator
 from datetime import datetime
 from typing import Any
@@ -81,6 +82,8 @@ class SFTPTrigger(BaseTrigger):
         - If file pattern was not provided, it looks directly into the specific path which was provided.
         - If newer then datetime was provided it looks for the file path last modified time and
           check whether the last modified time is greater, if true return file if false it polls again.
+        - The success event lists the matched paths under ``files_found`` so the sensor can pass
+          them to ``python_callable``.
         """
         hook = self._get_async_hook()
 
@@ -93,7 +96,7 @@ class SFTPTrigger(BaseTrigger):
                     files_returned_by_hook = await hook.get_files_and_attrs_by_pattern(
                         path=self.path, fnmatch_pattern=self.file_pattern
                     )
-                    files_sensed = []
+                    files_sensed: list[str] = []
                     for file in files_returned_by_hook:
                         if _newer_than:
                             if file.attrs.mtime is None:
@@ -105,14 +108,15 @@ class SFTPTrigger(BaseTrigger):
                                 datetime.strptime(mod_time, "%Y%m%d%H%M%S")
                             )
                             if _newer_than <= mod_time_utc:
-                                files_sensed.append(file.filename)
+                                files_sensed.append(str(file.filename))
                         else:
-                            files_sensed.append(file.filename)
+                            files_sensed.append(str(file.filename))
                     if files_sensed:
                         yield TriggerEvent(
                             {
                                 "status": "success",
                                 "message": f"Sensed {len(files_sensed)} files: {files_sensed}",
+                                "files_found": [os.path.join(self.path, file) for file in files_sensed],
                             }
                         )
                         return
@@ -121,10 +125,22 @@ class SFTPTrigger(BaseTrigger):
                     if _newer_than:
                         mod_time_utc = timezone.convert_to_utc(datetime.strptime(mod_time, "%Y%m%d%H%M%S"))
                         if _newer_than <= mod_time_utc:
-                            yield TriggerEvent({"status": "success", "message": f"Sensed file: {self.path}"})
+                            yield TriggerEvent(
+                                {
+                                    "status": "success",
+                                    "message": f"Sensed file: {self.path}",
+                                    "files_found": [self.path],
+                                }
+                            )
                             return
                     else:
-                        yield TriggerEvent({"status": "success", "message": f"Sensed file: {self.path}"})
+                        yield TriggerEvent(
+                            {
+                                "status": "success",
+                                "message": f"Sensed file: {self.path}",
+                                "files_found": [self.path],
+                            }
+                        )
                         return
                 await asyncio.sleep(self.poke_interval)
             except AirflowException:

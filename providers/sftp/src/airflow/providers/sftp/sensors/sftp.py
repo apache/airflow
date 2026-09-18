@@ -52,11 +52,13 @@ class SFTPSensor(BaseSensorOperator):
         will receive the found files list in ``op_kwargs['files_found']`` if ``op_kwargs`` is provided
         and not empty. The return value of the callable will be stored in XCom along with the
         files_found list.
-    :param op_args: A list of positional arguments that will get unpacked when calling your callable
-        (templated). Only used when ``python_callable`` is provided.
-    :param op_kwargs: A dictionary of keyword arguments that will get unpacked in your callable
-        (templated). If provided and not empty, the ``files_found`` list will be automatically added
-        to this dictionary. Only used when ``python_callable`` is provided.
+    :param op_args: A list of positional arguments that will get unpacked when calling your callable.
+        Only used when ``python_callable`` is provided. Templated only when the sensor is created
+        through ``@task.sftp_sensor``.
+    :param op_kwargs: A dictionary of keyword arguments that will get unpacked in your callable.
+        If provided and not empty, the ``files_found`` list will be automatically added
+        to this dictionary. Only used when ``python_callable`` is provided. Templated only when
+        the sensor is created through ``@task.sftp_sensor``.
     :param deferrable: If waiting for completion, whether to defer the task until done, default is ``False``.
     """
 
@@ -147,6 +149,15 @@ class SFTPSensor(BaseSensorOperator):
 
         return files_found
 
+    def _run_python_callable(self, files_found: list[str]) -> dict[str, Any]:
+        """Call ``python_callable`` with the found files and return the XCom value."""
+        if TYPE_CHECKING:
+            assert self.python_callable is not None
+        if self.op_kwargs:
+            self.op_kwargs["files_found"] = files_found
+        callable_return = self.python_callable(*self.op_args, **self.op_kwargs)
+        return {"files_found": files_found, "decorator_return_value": callable_return}
+
     def poke(self, context: Context) -> PokeReturnValue | bool:
         self.hook = SFTPHook(self.sftp_conn_id, use_managed_conn=self.use_managed_conn)
 
@@ -161,15 +172,9 @@ class SFTPSensor(BaseSensorOperator):
         if not len(files_found):
             return False
 
-        if self.python_callable is not None:
-            if self.op_kwargs:
-                self.op_kwargs["files_found"] = files_found
-            callable_return = self.python_callable(*self.op_args, **self.op_kwargs)
-            return PokeReturnValue(
-                is_done=True,
-                xcom_value={"files_found": files_found, "decorator_return_value": callable_return},
-            )
-        return True
+        if self.python_callable is None:
+            return True
+        return PokeReturnValue(is_done=True, xcom_value=self._run_python_callable(files_found))
 
     def execute(self, context: Context) -> Any:
         # Unlike other async sensors, we do not follow the pattern of calling the synchronous self.poke()
@@ -199,12 +204,12 @@ class SFTPSensor(BaseSensorOperator):
         else:
             return super().execute(context=context)
 
-    def execute_complete(self, context: dict[str, Any], event: Any = None) -> None:
+    def execute_complete(self, context: dict[str, Any], event: Any = None) -> dict[str, Any] | None:
         """
-        Execute callback when the trigger fires; returns immediately.
+        Execute callback when the trigger fires.
 
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+        Run ``python_callable`` on the files reported by the trigger, the same way ``poke`` does,
+        so both modes push the same XCom value.
         """
         if event is not None:
             if "status" in event and event["status"] == "error":
@@ -213,6 +218,8 @@ class SFTPSensor(BaseSensorOperator):
             if "status" in event and event["status"] == "success":
                 self.log.info("%s completed successfully.", self.task_id)
                 self.log.info(event["message"])
-                return None
+                if self.python_callable is None:
+                    return None
+                return self._run_python_callable(event["files_found"])
 
         raise AirflowException("No event received in trigger callback")

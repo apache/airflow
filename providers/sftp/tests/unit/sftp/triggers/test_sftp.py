@@ -89,11 +89,16 @@ class TestSFTPTrigger:
         )
 
         if newer_than:
-            expected_event = {"status": "success", "message": "Sensed 1 files: ['some_file']"}
+            expected_event = {
+                "status": "success",
+                "message": "Sensed 1 files: ['some_file']",
+                "files_found": ["test/path/some_file"],
+            }
         else:
             expected_event = {
                 "status": "success",
                 "message": "Sensed 2 files: ['some_file', 'some_other_file']",
+                "files_found": ["test/path/some_file", "test/path/some_other_file"],
             }
 
         generator = trigger.run()
@@ -113,7 +118,11 @@ class TestSFTPTrigger:
 
         trigger = SFTPTrigger(path="test/path/test.txt", sftp_conn_id="sftp_default", file_pattern="")
 
-        expected_event = {"status": "success", "message": "Sensed file: test/path/test.txt"}
+        expected_event = {
+            "status": "success",
+            "message": "Sensed file: test/path/test.txt",
+            "files_found": ["test/path/test.txt"],
+        }
 
         generator = trigger.run()
         actual_event = await generator.asend(None)
@@ -133,7 +142,11 @@ class TestSFTPTrigger:
             path="test/path/test.txt", sftp_conn_id="sftp_default", file_pattern="", newer_than=yesterday
         )
 
-        expected_event = {"status": "success", "message": "Sensed file: test/path/test.txt"}
+        expected_event = {
+            "status": "success",
+            "message": "Sensed file: test/path/test.txt",
+            "files_found": ["test/path/test.txt"],
+        }
 
         generator = trigger.run()
         actual_event = await generator.asend(None)
