@@ -23,7 +23,7 @@ import re
 import sys
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch, sentinel
+from unittest.mock import MagicMock, call, patch, sentinel
 
 import pytest
 from pydantic_ai import Agent, Embedder

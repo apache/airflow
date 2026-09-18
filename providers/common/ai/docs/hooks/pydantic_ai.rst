@@ -62,13 +62,14 @@ Embedding Models
 ----------------
 
 Set ``embed_model_id`` on the hook or ``embed_model`` in the connection's extra JSON,
-then call ``get_embedder()``. Use ``embed_conn_id`` when the embedding provider uses
-different credentials or an endpoint from the LLM provider; it defaults to
-``llm_conn_id``. Different LLM and embedding providers require separate connections
-when the embedding provider uses connection-level credentials or an endpoint, so those
-values cannot be reused for the wrong provider. They can share a connection when each
-provider resolves its credentials from the environment. Equivalent OpenAI and Azure
-chat/response prefixes can share their provider's embedding connection. Local
+then call ``get_embedder()``. ``embed_conn_id`` defaults to ``llm_conn_id``. Different
+LLM and embedding providers require separate connections when the shared connection
+produces explicit configuration for the embedding provider, so those values cannot be
+reused for the wrong provider. They can share a connection when no embedding provider
+configuration can be built from it; pydantic-ai then resolves the embedding provider
+independently, for example from environment variables, even if the LLM uses configuration
+from the connection. Equivalent OpenAI and Azure chat/response prefixes can share their
+provider's embedding connection. Local
 ``sentence-transformers:`` embeddings can also share the LLM connection because they
 do not use provider credentials. The resolved ``Embedder`` is cached on the hook instance.
 
