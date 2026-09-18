@@ -1,4 +1,4 @@
- .. Licensed to the Apache Software Foundation (ASF) under one
+.. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -103,3 +103,28 @@ Amazon Kinesis data stream.
 
 For how to use the trigger, refer to the documentation of the
 :ref:`Messaging Trigger <howto/trigger:MessageQueueTrigger>`
+
+Amazon Managed Streaming for Apache Kafka
+=========================================
+
+`Amazon MSK <https://aws.amazon.com/msk/>`_ is a managed Apache Kafka service. The Amazon
+provider's :class:`~airflow.providers.amazon.aws.hooks.msk.MskHook` provides a boto3 client for
+managing MSK clusters and can generate IAM authentication tokens for Kafka clients. The
+Apache Kafka provider handles producing and consuming topic messages.
+
+Trigger a Dag from an MSK topic
+-------------------------------
+
+Use :class:`~airflow.providers.apache.kafka.triggers.msg_queue.KafkaMessageQueueTrigger` with
+``AssetWatcher`` to trigger a Dag when a message arrives. Set the trigger's ``kafka_config_id``
+to a Kafka connection configured for the MSK brokers. There is no separate Amazon MSK message
+queue trigger; the standard Kafka trigger works with MSK because MSK uses the Kafka protocol.
+See the :doc:`Kafka message queue trigger guide <apache-airflow-providers-apache-kafka:message-queues/index>`
+for an ``AssetWatcher`` example.
+
+Configure the Kafka connection
+------------------------------
+
+The :doc:`Apache Kafka connection guide <apache-airflow-providers-apache-kafka:connections/kafka>`
+explains both automatic MSK IAM authentication and explicit ``oauth_cb`` configuration using an
+AWS connection. The Amazon provider supplies the ``oauth_cb`` token callback; the Kafka provider
