@@ -453,6 +453,8 @@ class PydanticAIHook(BaseHook):
 
         forwarded_model_id = self._get_configured_model_name()
 
+        self.log.info("Resolving LLM fallback chain: %s", " -> ".join([self.llm_conn_id, *fallback_conn_ids]))
+
         models: list[Model] = []
         seen: set[str] = set()
         for conn_id in fallback_conn_ids:
@@ -492,7 +494,6 @@ class PydanticAIHook(BaseHook):
                 )
             )
 
-        self.log.info("Resolved LLM fallback chain: %s", " -> ".join([self.llm_conn_id, *fallback_conn_ids]))
         return models
 
     def _get_conn_if_model_configured(self) -> Model | None:

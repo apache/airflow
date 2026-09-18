@@ -996,6 +996,40 @@ class TestPydanticAIHookFallback:
         assert success is False
         assert "typo_conn" in message
 
+    def test_chain_log_fires_before_a_mid_resolution_failure(self, registry, infer_model_stub, caplog):
+        """The chain-resolution log has to appear even when a later hop fails to resolve.
+
+        Logging it only after the whole chain resolves would make it absent in exactly the
+        case where it earns its keep: a typo'd fallback conn_id raises before that point, and
+        on the connection-driven path the docs recommend, the Dag never mentions the bad
+        conn_id at all, so the task log is the only place it could show up.
+        """
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        hook = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["typo_conn"])
+
+        with caplog.at_level(logging.INFO):
+            with pytest.raises(AirflowNotFoundException, match="typo_conn"):
+                hook.get_conn()
+
+        assert any("primary -> typo_conn" in r.message for r in caplog.records)
+
+    @pytest.mark.parametrize(
+        "fallback_conn_ids",
+        [
+            pytest.param(None, id="no-chain"),
+            pytest.param(["", "  "], id="blank-only-chain"),
+        ],
+    )
+    def test_no_fallback_chain_does_not_log(self, registry, infer_model_stub, caplog, fallback_conn_ids):
+        """An empty chain -- whether unset or collapsed from blank-only entries -- logs nothing."""
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        hook = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=fallback_conn_ids)
+
+        with caplog.at_level(logging.INFO):
+            hook.get_conn()
+
+        assert not any("fallback chain" in r.message.lower() for r in caplog.records)
+
     def test_exhausted_chain_from_a_connection_raises_fallback_exception_group(self, registry):
         """
         A fully exhausted chain built by ``get_conn()`` surfaces pydantic-ai's own aggregate
