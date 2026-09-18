@@ -817,9 +817,18 @@ class DagVersionDiffOperation(str, Enum):
     CHANGED = "changed"
 
 
+class DagVersionDiffSchemaVersions(BaseModel):
+    """
+    Which serializer schema each compared version was stored under.
+    """
+
+    base: Annotated[int | None, Field(title="Base")]
+    target: Annotated[int | None, Field(title="Target")]
+
+
 class DagVersionDiffValuesStatus(str, Enum):
     """
-    Whether the caller was authorized to see values. Mirrors ``ValuesStatus``.
+    Whether values were disclosed. Mirrors ``ValuesStatus``.
     """
 
     AVAILABLE = "available"
@@ -2229,10 +2238,34 @@ class DagVersionDiffChangeResponse(BaseModel):
             title="Occurrence Count",
         ),
     ]
-    before_digest: Annotated[str | None, Field(title="Before Digest")] = None
-    after_digest: Annotated[str | None, Field(title="After Digest")] = None
-    before_value: Annotated[Any, Field(title="Before Value")] = None
-    after_value: Annotated[Any, Field(title="After Value")] = None
+    before_digest: Annotated[
+        str | None,
+        Field(
+            description="SHA-256 over the canonical JSON of `before_value`. Present only when values are disclosed, and null when the change has no before side.",
+            title="Before Digest",
+        ),
+    ] = None
+    after_digest: Annotated[
+        str | None,
+        Field(
+            description="SHA-256 over the canonical JSON of `after_value`. Present only when values are disclosed, and null when the change has no after side.",
+            title="After Digest",
+        ),
+    ] = None
+    before_value: Annotated[
+        Any | None,
+        Field(
+            description="The value this path held in the base version. Present only when values are disclosed, and omitted entirely when the change has no before side — which is how an absent side is told apart from a stored null.",
+            title="Before Value",
+        ),
+    ] = None
+    after_value: Annotated[
+        Any | None,
+        Field(
+            description="The value this path holds in the target version. Present only when values are disclosed, and omitted entirely when the change has no after side — which is how an absent side is told apart from a stored null.",
+            title="After Value",
+        ),
+    ] = None
 
 
 class DagVersionDiffResponse(BaseModel):
@@ -2240,14 +2273,24 @@ class DagVersionDiffResponse(BaseModel):
     Observed-state difference between two stored Dag versions.
     """
 
-    diff_schema_version: Annotated[int, Field(title="Diff Schema Version")]
+    diff_schema_version: Annotated[
+        int,
+        Field(
+            description="Wire format of this payload. Incremented when its shape changes.",
+            title="Diff Schema Version",
+        ),
+    ]
     base_version_number: Annotated[int, Field(title="Base Version Number")]
     target_version_number: Annotated[int, Field(title="Target Version Number")]
-    serialized_dag_schema_versions: Annotated[
-        dict[Literal["base", "target"], int | None], Field(title="Serialized Dag Schema Versions")
-    ]
+    serialized_dag_schema_versions: DagVersionDiffSchemaVersions
     mode: DagVersionDiffMode
-    unavailable_reason: Annotated[str | None, Field(title="Unavailable Reason")] = None
+    unavailable_reason: Annotated[
+        str | None,
+        Field(
+            description="Why no comparison could be made. Populated only when `mode` is `unavailable`.",
+            title="Unavailable Reason",
+        ),
+    ] = None
     values_status: DagVersionDiffValuesStatus
     truncated: Annotated[
         bool,

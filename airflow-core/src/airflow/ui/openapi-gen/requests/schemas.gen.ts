@@ -5106,7 +5106,8 @@ export const $DagVersionDiffChangeResponse = {
                     type: 'null'
                 }
             ],
-            title: 'Before Digest'
+            title: 'Before Digest',
+            description: 'SHA-256 over the canonical JSON of `before_value`. Present only when values are disclosed, and null when the change has no before side.'
         },
         after_digest: {
             anyOf: [
@@ -5117,25 +5118,16 @@ export const $DagVersionDiffChangeResponse = {
                     type: 'null'
                 }
             ],
-            title: 'After Digest'
+            title: 'After Digest',
+            description: 'SHA-256 over the canonical JSON of `after_value`. Present only when values are disclosed, and null when the change has no after side.'
         },
         before_value: {
-            anyOf: [
-                {},
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Before Value'
+            title: 'Before Value',
+            description: 'The value this path held in the base version. Present only when values are disclosed, and omitted entirely when the change has no before side — which is how an absent side is told apart from a stored null.'
         },
         after_value: {
-            anyOf: [
-                {},
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'After Value'
+            title: 'After Value',
+            description: 'The value this path holds in the target version. Present only when values are disclosed, and omitted entirely when the change has no after side — which is how an absent side is told apart from a stored null.'
         }
     },
     type: 'object',
@@ -5169,7 +5161,8 @@ export const $DagVersionDiffResponse = {
     properties: {
         diff_schema_version: {
             type: 'integer',
-            title: 'Diff Schema Version'
+            title: 'Diff Schema Version',
+            description: 'Wire format of this payload. Incremented when its shape changes.'
         },
         base_version_number: {
             type: 'integer',
@@ -5180,21 +5173,7 @@ export const $DagVersionDiffResponse = {
             title: 'Target Version Number'
         },
         serialized_dag_schema_versions: {
-            additionalProperties: {
-                anyOf: [
-                    {
-                        type: 'integer'
-                    },
-                    {
-                        type: 'null'
-                    }
-                ]
-            },
-            propertyNames: {
-                enum: ['base', 'target']
-            },
-            type: 'object',
-            title: 'Serialized Dag Schema Versions'
+            '$ref': '#/components/schemas/DagVersionDiffSchemaVersions'
         },
         mode: {
             '$ref': '#/components/schemas/DagVersionDiffMode'
@@ -5208,7 +5187,8 @@ export const $DagVersionDiffResponse = {
                     type: 'null'
                 }
             ],
-            title: 'Unavailable Reason'
+            title: 'Unavailable Reason',
+            description: 'Why no comparison could be made. Populated only when `mode` is `unavailable`.'
         },
         values_status: {
             '$ref': '#/components/schemas/DagVersionDiffValuesStatus'
@@ -5237,11 +5217,42 @@ export const $DagVersionDiffResponse = {
     description: 'Observed-state difference between two stored Dag versions.'
 } as const;
 
+export const $DagVersionDiffSchemaVersions = {
+    properties: {
+        base: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Base'
+        },
+        target: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Target'
+        }
+    },
+    type: 'object',
+    required: ['base', 'target'],
+    title: 'DagVersionDiffSchemaVersions',
+    description: 'Which serializer schema each compared version was stored under.'
+} as const;
+
 export const $DagVersionDiffValuesStatus = {
     type: 'string',
     enum: ['available', 'unavailable'],
     title: 'DagVersionDiffValuesStatus',
-    description: 'Whether the caller was authorized to see values. Mirrors ``ValuesStatus``.'
+    description: 'Whether values were disclosed. Mirrors ``ValuesStatus``.'
 } as const;
 
 export const $DagVersionResponse = {
