@@ -490,6 +490,8 @@ deserializer
 deserializes
 deserializing
 dest
+destructures
+destructuring
 dev
 devel
 DevOps
@@ -1040,6 +1042,7 @@ logstash
 longblob
 lookups
 loopback
+lowercased
 lshift
 lte
 lxml

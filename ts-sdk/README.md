@@ -98,9 +98,8 @@ coordinators = {
 queue_to_coordinator = {"typescript": "ts"}
 ```
 
-Each configured bundle directory must contain a `bundle.mjs` built with
-`airflow-ts-pack` (see [Packing bundles](#packing-bundles)), which embeds the
-Airflow metadata in the bundle itself.
+Each configured bundle directory is searched recursively for `*.min.mjs` bundles built with `airflow-ts-pack`
+(see [Packing bundles](#packing-bundles)), which embeds the Airflow metadata in the bundle itself.
 
 TypeScript entrypoint:
 
@@ -163,6 +162,85 @@ await new Bundle(
 
 Register `TaskHandler` and `Dag` values with the `register` method, or pass them to the `Bundle` constructor.
 
+## TaskFlow arguments
+
+A Python Dag that calls a stub task TaskFlow-style passes those arguments straight to the handler,
+which destructures them by name:
+
+```python
+# the Python Dag
+@task.stub(queue="typescript")
+def transform(region_code: str, threshold: float, dry_run: bool = False): ...
+
+
+transform("uk", 0.75)
+```
+
+```ts
+interface TransformArgs {
+  regionCode: string;
+  threshold: number;
+  dryRun: boolean;
+}
+
+export async function transform({ regionCode, threshold, dryRun }: TransformArgs) {
+  // ...
+}
+```
+
+Names bind by **folding on both sides**, lowercased with underscores removed, so `region_code` reaches
+`regionCode` and `s3_uri` reaches `s3Uri` with nothing declared on either side.
+An argument the call leaves at its default arrives with the default's value.
+
+A name nothing folds to is **logged, not thrown**, naming what the handler asked for and what the call
+delivered. Two Python names that fold to the same token fail the task.
+
+`Object.keys` and rest destructuring (`{ ...rest }`) yield Python's names, and `in` folds like a read.
+
+### Upstream outputs
+
+An argument the Python call fills from another task arrives as that task's value, not as a reference to it.
+Feeding the `transform` above from an upstream task adds one argument on each side:
+
+```python
+# the Python Dag
+@task
+def extract() -> int: ...
+
+
+@task.stub(queue="typescript")
+def transform(rows: int, region_code: str, threshold: float, dry_run: bool = False): ...
+
+
+transform(extract(), "uk", 0.75)
+```
+
+```ts
+interface TransformArgs {
+  rows: number;
+  regionCode: string;
+  threshold: number;
+  dryRun: boolean;
+}
+
+export async function transform({ rows, regionCode, threshold, dryRun }: TransformArgs) {
+  // `rows` is the number extract() returned.
+}
+```
+
+An upstream that pushed no output fails the task, naming both the argument and the task it came from.
+An upstream that pushed `null` binds `null`.
+
+Being upstream is not the same as being passed. An XCom dependency declared with `>>` defines task order only,
+so a value the call did not pass is read explicitly:
+
+```ts
+const rows = await getClient().getXCom<number>({ key: "return_value", taskId: "extract" });
+```
+
+A Python `int` beyond the ±9007199254740991 a JavaScript number holds exactly is refused rather than bound,
+so carry such a value across the boundary as a string.
+
 `Dag` is another interface, for a Dag declared natively in TypeScript, and is still a work in progress.
 
 Airflow launches the bundled entrypoint with `--comm=host:port` and
@@ -185,20 +263,20 @@ npm install --save-dev esbuild
 airflow-ts-pack src/main.ts --outdir dist
 ```
 
-It bundles the entrypoint into `dist/bundle.mjs` with esbuild, runs the
-bundle with `--airflow-metadata` so the bundle reports its own registered
-Dag/task pairs and supervisor schema version, and embeds that manifest in the
-bundle as a compact JSON `//# airflowMetadata=...` comment after a leading
-compact JSON `//# airflowBundle=...` layout descriptor. The descriptor records
-fixed-width byte ranges and SHA-256 digests for the metadata and bundled code,
-allowing a coordinator reader to detect corruption before using either region.
-These in-bundle digests do not authenticate who produced the bundle because
-someone who can replace the content can also replace its digests. The result is
-one deployable file with no hand-written metadata sidecar.
+It bundles the entrypoint into a minified `dist/bundle.min.mjs` with esbuild, then runs that bundle with
+`--airflow-metadata` so it reports its own registered Dag/task pairs and supervisor schema version. The manifest is
+embedded as a compact JSON `//# airflowMetadata=...` comment after a leading compact JSON `//# airflowBundle=...`
+layout descriptor. The CLI records the integrity metadata for both regions in that descriptor, so a coordinator that
+is handed a bundle whose content was replaced fails loudly instead of running it. The result is one deployable file
+with no hand-written metadata sidecar.
+
+Pass `--outfile <path>` instead of `--outdir` to name the artifact yourself, so one bundle directory can hold several
+bundles. The name must still end in `.min.mjs`, which is how `NodeCoordinator` finds bundles.
 
 Options:
 
 - `--outdir <dir>`: output directory (default `dist`)
+- `--outfile <path>`: exact output path, whose name must end in `.min.mjs`
 - `--source <name>`: display name of the primary source file shown in the Airflow UI (default: entry basename)
 
 ## TaskClient
@@ -245,6 +323,7 @@ Do not edit the table by hand. Update the manifest and run the `update-ts-sdk-re
 | state: `removed` | MAY | ✓ | 3.4 |  |
 | **Runtime capabilities** |  |  |  |  |
 | capability: `mixed-lang-stub-target` | MUST | ✓ | 3.4 | @task.stub |
+| capability: `taskflow-binding` | MUST | ✗ | – | bind @task.stub literal/XCom args to the native handler |
 | capability: `task-logging` | MUST | ✓ | 3.4 | structured records over the log socket |
 | capability: `xcom-read-write` | MUST | ✓ | 3.4 | getXCom / setXCom |
 | capability: `connection-read` | MUST | ✓ | 3.4 | getConnection |

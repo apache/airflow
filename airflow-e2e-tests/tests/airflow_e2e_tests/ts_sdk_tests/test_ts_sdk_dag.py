@@ -21,17 +21,15 @@ Run with::
     E2E_TEST_MODE=ts_sdk uv run --project airflow-e2e-tests pytest \\
         tests/airflow_e2e_tests/ts_sdk_tests/ -xvs
 
-Two Dags mix Python tasks with ``@task.stub`` TypeScript tasks whose handlers live in the single
-``airflow-ts-pack`` bundle built by ``conftest._setup_ts_sdk_integration``.
-Each is triggered once via a module-scoped fixture.
+Two Dags mix Python tasks with ``@task.stub`` TypeScript tasks, both served by the single
+``airflow-ts-pack`` bundle, and each is triggered once via a module-scoped fixture.
 
-``typescript_example`` confirms that ``NodeCoordinator`` launches the bundle on the volume-provided
-Node runtime, that Variable/Connection reads and Python <-> TypeScript XCom round-trips work through
-the Task Execution API, and that coordinator-channel logs reach the task-log store.
+``typescript_example`` covers the runtime: Variable and Connection reads, Python <-> TypeScript XCom
+round-trips, and task logs reaching the log store.
 
-``typescript_taskflow_example`` confirms that one bundle provides for two ``dag_id``s: its
-``build_message`` shares a ``task_id`` with a task in ``typescript_example``, so a bundle that keyed
-dispatch on the task ID alone would run the wrong handler for one of them.
+``typescript_taskflow_example`` covers TaskFlow arguments, including an upstream output pulled before
+the handler runs, and shares a ``build_message`` task ID with ``typescript_example`` so that dispatch
+keying on the task ID alone would run the wrong handler.
 """
 
 from __future__ import annotations
@@ -162,13 +160,34 @@ def test_second_dag_from_the_same_bundle_succeeded(completed_taskflow_run: _Comp
         )
 
 
-def test_summarize_xcom(completed_taskflow_run: _CompletedRun):
-    """``summarize`` reads ``make_totals``'s output and averages it."""
+def test_summarize_binds_its_call_arguments(completed_taskflow_run: _CompletedRun):
+    """Every argument ``summarize(make_totals(), "uk", "GBP", 280.0)`` passes.
+
+    ``region_code`` and ``dry_run`` are snake_case in the ``@task.stub``
+    signature and camelCase in the handler, with nothing declared on either
+    side: folding is what carries them across. ``dry_run`` is left out of the
+    call, so it arrives from the stub's default. ``totals`` takes
+    ``make_totals``'s output, so the runtime resolves that task's
+    ``return_value`` XCom before the handler is called. ``averageOrder`` below
+    is computed from it, and the handler never reads an XCom itself.
+
+    A handler that received none of them would see ``undefined`` for each and
+    return nulls and ``NaN`` here rather than failing, which is why the whole
+    returned object is asserted.
+    """
     assert completed_taskflow_run.xcom("make_totals") == {"orders": 12, "revenue": 3402.0}
     value = completed_taskflow_run.xcom("summarize")
-    assert value == {"orders": 12, "averageOrder": 283.5, "currency": "GBP"}, (
-        f"unexpected 'summarize' return_value: {value!r}"
-    )
+    assert value == {
+        "regionCode": "uk",
+        "orders": 12,
+        "averageOrder": 283.5,
+        "currency": "GBP",
+        "passed": True,
+        "dryRun": False,
+    }, f"unexpected 'summarize' return_value: {value!r}"
+    # Written only when `dryRun` is false, so this also proves the defaulted
+    # boolean arrived as `false` rather than as `undefined`.
+    assert completed_taskflow_run.xcom("summarize", key="summary_line") == "uk: 12 orders"
 
 
 def test_same_task_id_under_two_dags_runs_its_own_handler(
@@ -188,5 +207,5 @@ def test_same_task_id_under_two_dags_runs_its_own_handler(
     )
     assert taskflow_value == {
         "dagId": _TASKFLOW_DAG_ID,
-        "message": "12 orders averaging 283.5 GBP",
+        "message": "uk: 12 orders averaging 283.5 GBP",
     }, f"unexpected 'typescript_taskflow_example.build_message' return_value: {taskflow_value!r}"

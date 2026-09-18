@@ -49,8 +49,8 @@ Prerequisites
 -------------
 
 * Node.js 22 or later must be available on the Airflow worker nodes.
-* The packed bundle (a single ``bundle.mjs`` file, see :ref:`typescript-sdk/build`) must be accessible from
-  the worker, under a directory the coordinator scans.
+* The packed bundle (a single ``bundle.min.mjs`` file, see :ref:`typescript-sdk/build`) must be accessible
+  from the worker, under a directory the coordinator scans.
 * The ``apache-airflow-task-sdk`` package (installed with Airflow) provides the coordinator; no additional
   Python packages are needed.
 * In the TypeScript project, install the ``apache-airflow-ts-sdk`` npm package to author task handlers:
@@ -131,11 +131,56 @@ through ``bundle.getTaskHandler(dagId, taskId)`` without a coordinator runtime.
 in progress. ``new Dag`` and ``dag.task`` take a trailing options object (``spec`` on both, plus
 ``inputs`` on a task) that is not used yet; do not set them.
 
+TaskFlow arguments
+~~~~~~~~~~~~~~~~~~
+
+A Python Dag that calls a stub task TaskFlow-style passes those arguments straight to the handler, which
+destructures them by name:
+
+.. code-block:: python
+
+    @task.stub(queue="typescript")
+    def transform(region_code: str, threshold: float, dry_run: bool = False): ...
+
+
+    transform("uk", 0.75)
+
+.. code-block:: typescript
+
+    interface TransformArgs {
+      regionCode: string;
+      threshold: number;
+      dryRun: boolean;
+    }
+
+    export async function transform({ regionCode, threshold, dryRun }: TransformArgs) {
+      // ...
+    }
+
+Names bind by **folding on both sides**, lowercased with underscores removed, so ``region_code`` reaches
+``regionCode`` and ``s3_uri`` reaches ``s3Uri`` with nothing declared on either side.
+The Go SDK folds identically, so one Python signature binds the same way in either SDK.
+An argument the call leaves at its default arrives carrying the default's value.
+
+A name nothing folds to is **logged, not thrown**, naming what the handler asked for and what the call
+delivered. Two Python names that fold to the same token fail the task.
+
+``Object.keys`` and rest destructuring (``{ ...rest }``) yield Python's names, and ``in`` folds like a read.
+
+An argument the call fills from another task, as in ``transform(extract(), "uk")``,
+arrives as that task's value rather than a reference to it.
+An upstream that pushed no output fails the task, naming both the argument and the task it came from;
+one that pushed ``null`` binds ``null``.
+
+A Python ``int`` beyond the ±9007199254740991 a JavaScript number holds exactly is refused rather than
+bound, so carry such a value across the language boundary as a string.
+
 .. note::
 
-  As with the other language SDKs, XCom *dependencies* are declared in the Python stub Dag (they define task
-  order). The value must still be read explicitly in TypeScript via ``getClient().getXCom``, and produced
-  either by the task's return value or by ``getClient().setXCom``.
+  Being upstream is not the same as being passed. As with the other language SDKs, an XCom *dependency*
+  declared with ``>>`` in the Python stub Dag defines task order only. Read a value the call did not pass
+  explicitly via ``getClient().getXCom``, and produce one either by the task's return value or by
+  ``getClient().setXCom``.
 
 Coordinator configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -163,8 +208,8 @@ task instance.
 
 .. note::
 
-  The coordinator runs inside the Airflow worker, so the ``[sdk]`` config (and the packed ``bundle.mjs``
-  files in ``bundles_root``) only need to be present wherever tasks actually execute. With
+  The coordinator runs inside the Airflow worker, so the ``[sdk]`` config (and the packed ``*.min.mjs``
+  bundles in ``bundles_root``) only need to be present wherever tasks actually execute. With
   ``CeleryExecutor``, setting them on the Celery workers is sufficient. With ``LocalExecutor``, tasks run
   inside the scheduler process, so they must be present where the scheduler can read them. The API server
   and Dag processor do not need them.
@@ -271,10 +316,15 @@ Building and packaging
 ----------------------
 
 ``airflow-ts-pack`` (shipped with the SDK) bundles the entry module and all of its imports with esbuild into
-a single self-contained ESM file, ``bundle.mjs``, and embeds the manifest (the ``dag_id`` and ``task_id``
-map plus the supervisor schema version) after a leading compact JSON ``//# airflowBundle=...`` layout header.
-The layout records the byte ranges and SHA-256 digests of the manifest and executable code, so one file to
-deploy, with no separate manifest or ``node_modules``.
+a single self-contained, minified ESM file, ``bundle.min.mjs``, and embeds the manifest (the ``dag_id`` and
+``task_id`` map plus the supervisor schema version) after a leading compact JSON ``//# airflowBundle=...``
+layout header. The layout records the byte ranges and SHA-256 digests of the manifest and executable code,
+so there is one file to deploy, with no separate manifest or ``node_modules``.
+
+The code is minified because an integrity digest is only worth taking over an artifact nobody is expected to
+read or edit in place. The ``/*! */`` license banners of bundled dependencies are kept. Nothing is identified by
+a function name, so minified names are safe: a Dag and a task are named by the string ids their registration
+states, and a handler is dispatched by reference.
 
 ``esbuild`` is an optional peer dependency: packing is build-time only, so the runtime install of
 ``apache-airflow-ts-sdk`` skips it, and it must be installed separately before running ``airflow-ts-pack``.
@@ -284,16 +334,21 @@ deploy, with no separate manifest or ``node_modules``.
     npm install --save-dev esbuild
     npx airflow-ts-pack src/main.ts --outdir dist
 
-Use ``--outdir <dir>`` to choose the output directory (default ``dist``) and ``--source <name>`` to set the
-source name displayed in the Airflow UI (default: the entry file's basename).
+Use ``--outdir <dir>`` to choose the output directory (default ``dist``), ``--outfile <path>`` to name the
+artifact exactly, which helps when one ``bundles_root`` holds several bundles, and ``--source <name>`` to set
+the source name displayed in the Airflow UI (default: the entry file's basename). ``--outdir`` and
+``--outfile`` are mutually exclusive, and an ``--outfile`` name must end in ``.min.mjs`` so the coordinator
+can find it.
 
 Deploying
 ~~~~~~~~~
 
-Copy or mount ``bundle.mjs`` into a directory listed in the coordinator's ``bundles_root``.
-:class:`~airflow.sdk.coordinators.node.NodeCoordinator` searches the configured directories in order and
-launches the first integrity-verified bundle whose metadata declares the task instance's Dag. If multiple
-bundles declare the same Dag, the first configured match wins.
+Copy or mount the bundle into a directory listed in the coordinator's ``bundles_root``.
+:class:`~airflow.sdk.coordinators.node.NodeCoordinator` searches the configured directories in order,
+recursively, and launches the first integrity-verified ``*.min.mjs`` bundle whose metadata declares the task
+instance's Dag. The artifact's name does not matter beyond that suffix, so one root can hold several bundles
+and a Dag is routed to whichever declares it. If multiple bundles declare the same Dag, the first configured
+root wins, and within a root the first in sorted path order.
 
 .. _typescript-sdk/coordinator-config:
 
@@ -312,8 +367,8 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - Description
    * - ``bundles_root``
      - *(required)*
-     - One or more directories searched, in order, for an integrity-verified ``bundle.mjs`` that declares
-       the requested Dag. Accepts a string, a path, or a list of strings/paths.
+     - One or more directories searched recursively, in order, for an integrity-verified ``*.min.mjs``
+       bundle that declares the requested Dag. Accepts a string, a path, or a list of strings/paths.
    * - ``node_executable``
      - ``"node"``
      - Path to the ``node`` binary. Defaults to ``node`` on ``$PATH``.

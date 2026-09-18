@@ -1017,6 +1017,26 @@ opportunities rather than vulnerabilities, and contributions binding reissue to 
 through the normal process. Deployments requiring a hard bound on credential lifetime should rely on
 network isolation of workers rather than on token expiry.
 
+Core API session authorization is resolved at token issue
+..........................................................
+
+A Core API JWT carries the caller's identity, and authorization is resolved when the token is issued.
+The refresh path re-resolves the *principal* from the presented token and validates it again, but it does
+not re-resolve that principal's current permissions: ``BaseAuthManager.refresh_user()`` does nothing by
+default, and auth managers are not required to override it. Refresh runs on every request and is
+deliberately kept lightweight.
+
+The practical consequence is that a change to a user's roles or permissions does not take effect on a
+session that is already running. It takes effect when that session's token expires - by default 86400
+seconds for the Core API JWT, and configurable. A Deployment Manager who narrows a user's access and
+expects it to apply immediately should not rely on the role change alone.
+
+Revocation is the mechanism that does take effect immediately. Every request, including a refresh,
+resolves the user through ``get_user_from_token()``, which rejects a token whose ``jti`` has been
+revoked. Logging the user out, or otherwise revoking the token, withdraws the session at once; editing
+the role does not. Reports that a narrowed role remains effective until token expiry are treated as
+this documented behaviour rather than as vulnerabilities.
+
 Connection configuration capabilities
 ......................................
 

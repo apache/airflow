@@ -1023,13 +1023,12 @@ export const $BaseInfoResponse = {
         status: {
             anyOf: [
                 {
-                    type: 'string'
+                    '$ref': '#/components/schemas/HealthStatus'
                 },
                 {
                     type: 'null'
                 }
-            ],
-            title: 'Status'
+            ]
         }
     },
     type: 'object',
@@ -4523,13 +4522,12 @@ export const $DagProcessorInfoResponse = {
         status: {
             anyOf: [
                 {
-                    type: 'string'
+                    '$ref': '#/components/schemas/HealthStatus'
                 },
                 {
                     type: 'null'
                 }
-            ],
-            title: 'Status'
+            ]
         },
         latest_dag_processor_heartbeat: {
             anyOf: [
@@ -4545,13 +4543,12 @@ export const $DagProcessorInfoResponse = {
         detailed_status: {
             anyOf: [
                 {
-                    type: 'string'
+                    '$ref': '#/components/schemas/DetailedHealthStatus'
                 },
                 {
                     type: 'null'
                 }
-            ],
-            title: 'Detailed Status'
+            ]
         },
         instances: {
             anyOf: [
@@ -4576,17 +4573,6 @@ export const $DagProcessorInfoResponse = {
 
 export const $DagProcessorInstanceInfoResponse = {
     properties: {
-        status: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Status'
-        },
         hostname: {
             anyOf: [
                 {
@@ -4625,7 +4611,7 @@ export const $DagProcessorInstanceInfoResponse = {
         }
     },
     type: 'object',
-    required: ['status', 'hostname', 'latest_dag_processor_heartbeat', 'bundle_names'],
+    required: ['hostname', 'latest_dag_processor_heartbeat', 'bundle_names'],
     title: 'DagProcessorInstanceInfoResponse',
     description: 'Dag processor instance info serializer for responses.'
 } as const;
@@ -4955,6 +4941,13 @@ export const $DagWarningType = {
 
 This is the set of allowable values for the \`\`warning_type\`\` field
 in the DagWarning model.`
+} as const;
+
+export const $DetailedHealthStatus = {
+    type: 'string',
+    enum: ['healthy', 'degraded', 'down'],
+    title: 'DetailedHealthStatus',
+    description: "How much of a component's work has a live instance covering it."
 } as const;
 
 export const $DryRunBackfillCollectionResponse = {
@@ -5728,6 +5721,13 @@ export const $HealthInfoResponse = {
     required: ['metadatabase', 'scheduler', 'triggerer'],
     title: 'HealthInfoResponse',
     description: 'Health serializer for responses.'
+} as const;
+
+export const $HealthStatus = {
+    type: 'string',
+    enum: ['healthy', 'unhealthy'],
+    title: 'HealthStatus',
+    description: 'Aggregate health of a component: whether it has at least one live instance.'
 } as const;
 
 export const $ImportErrorCollectionResponse = {
@@ -6830,13 +6830,12 @@ export const $SchedulerInfoResponse = {
         status: {
             anyOf: [
                 {
-                    type: 'string'
+                    '$ref': '#/components/schemas/HealthStatus'
                 },
                 {
                     type: 'null'
                 }
-            ],
-            title: 'Status'
+            ]
         },
         latest_scheduler_heartbeat: {
             anyOf: [
@@ -6852,13 +6851,12 @@ export const $SchedulerInfoResponse = {
         detailed_status: {
             anyOf: [
                 {
-                    type: 'string'
+                    '$ref': '#/components/schemas/DetailedHealthStatus'
                 },
                 {
                     type: 'null'
                 }
-            ],
-            title: 'Detailed Status'
+            ]
         },
         instances: {
             anyOf: [
@@ -6883,17 +6881,6 @@ export const $SchedulerInfoResponse = {
 
 export const $SchedulerInstanceInfoResponse = {
     properties: {
-        status: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Status'
-        },
         hostname: {
             anyOf: [
                 {
@@ -6918,7 +6905,7 @@ export const $SchedulerInstanceInfoResponse = {
         }
     },
     type: 'object',
-    required: ['status', 'hostname', 'latest_scheduler_heartbeat'],
+    required: ['hostname', 'latest_scheduler_heartbeat'],
     title: 'SchedulerInstanceInfoResponse',
     description: 'Scheduler instance info serializer for responses.'
 } as const;
@@ -8679,13 +8666,12 @@ export const $TriggererInfoResponse = {
         status: {
             anyOf: [
                 {
-                    type: 'string'
+                    '$ref': '#/components/schemas/HealthStatus'
                 },
                 {
                     type: 'null'
                 }
-            ],
-            title: 'Status'
+            ]
         },
         latest_triggerer_heartbeat: {
             anyOf: [
@@ -8701,13 +8687,12 @@ export const $TriggererInfoResponse = {
         detailed_status: {
             anyOf: [
                 {
-                    type: 'string'
+                    '$ref': '#/components/schemas/DetailedHealthStatus'
                 },
                 {
                     type: 'null'
                 }
-            ],
-            title: 'Detailed Status'
+            ]
         },
         instances: {
             anyOf: [
@@ -8732,17 +8717,6 @@ export const $TriggererInfoResponse = {
 
 export const $TriggererInstanceInfoResponse = {
     properties: {
-        status: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Status'
-        },
         hostname: {
             anyOf: [
                 {
@@ -8778,7 +8752,7 @@ export const $TriggererInstanceInfoResponse = {
         }
     },
     type: 'object',
-    required: ['status', 'hostname', 'latest_triggerer_heartbeat', 'team_name'],
+    required: ['hostname', 'latest_triggerer_heartbeat', 'team_name'],
     title: 'TriggererInstanceInfoResponse',
     description: 'Triggerer instance info serializer for responses.'
 } as const;

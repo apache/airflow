@@ -32,7 +32,10 @@ let entriesOf: (bundle: Bundle) => ReadonlyMap<string, BundleEntry>;
  * {@link TaskHandler} for a task that a Python Dag declares, or a {@link Dag}
  * declared in TypeScript.
  */
-export type Registerable = Dag | TaskHandler;
+// `never` for the handler's argument type: a TaskHandler is contravariant in it
+// (the handler takes it), so this is the one instantiation every typed handler
+// is assignable to, `TaskHandler<TransformArgs>` included.
+export type Registerable = Dag | TaskHandler<never, unknown>;
 
 // What a bundle holds per dag_id. The two arms are exclusive by construction:
 // a Dag is the native case and owns its own tasks, while task handlers supply
