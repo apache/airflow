@@ -33,12 +33,18 @@ longer match.
 
 Fields that pydantic-ai regenerates on every attempt (message-level
 ``timestamp``/``run_id``/``conversation_id`` and part-level ``timestamp``)
-are excluded from the fingerprint.  Requests that cannot be serialized to
-JSON fingerprint as ``None``: the step is neither replayed nor cached, and
-re-runs live instead of replaying without verification.  This is seldom
-confined to one step -- the usual causes (a non-JSON value in model settings,
-or in the message history) are carried into every later request, so durable
-execution stops contributing anything for the rest of the run.
+are excluded from the fingerprint.  Payloads are normalized through pydantic
+before hashing, so values that are not JSON types but serialize to the same
+bytes on every attempt -- a ``datetime`` or ``Decimal`` tool argument, a
+dataclass in ``tool_choice`` -- still produce a usable fingerprint.
+
+A request that pydantic cannot serialize either fingerprints as ``None``: that
+step is neither replayed nor cached, and re-runs live instead of replaying
+without verification.  On the model path this is seldom confined to one step,
+because model settings and the message history are carried into every later
+request, so durable execution stops contributing anything for the rest of the
+run.  A tool call is fingerprinted from its name, arguments and call id alone,
+so it can only lose its own step.
 """
 
 from __future__ import annotations
@@ -51,6 +57,7 @@ import structlog
 from pydantic import TypeAdapter
 from pydantic_ai.messages import ModelMessagesTypeAdapter
 from pydantic_ai.models import ModelRequestParameters
+from pydantic_core import to_jsonable_python
 
 if TYPE_CHECKING:
     from pydantic_ai.messages import ModelMessage
@@ -64,14 +71,16 @@ _MODEL_REQUEST_PARAMETERS_ADAPTER = TypeAdapter(ModelRequestParameters)
 _VOLATILE_MESSAGE_KEYS = ("timestamp", "run_id", "conversation_id")
 
 # Settings that control transport, not response content. Excluded from the
-# fingerprint: changing them should not invalidate a cached response, and some
-# (``timeout`` can be an ``httpx.Timeout``) are not JSON-serializable.
+# fingerprint: changing them should not invalidate a cached response, and
+# ``timeout`` can be an ``httpx.Timeout``, which neither ``json`` nor pydantic
+# can serialize.
 #
-# This frozenset is load-bearing. Model settings ride along with every request,
-# so a single non-JSON member fingerprints every model step as ``None`` -- which
-# now costs durable execution entirely for the run (nothing is cached, nothing
-# is replayed), not merely the verification of a replay. Any non-JSON setting
-# must be listed here or normalized before it reaches the fingerprint.
+# This frozenset is load-bearing. Model settings accompany every request, so one
+# member that pydantic cannot serialize fingerprints every model step as ``None``
+# -- which costs durable execution entirely for the run (nothing is cached,
+# nothing is replayed), not merely the verification of a replay. Merely non-JSON
+# values are fine, since ``_digest`` normalizes those through pydantic; a setting
+# pydantic cannot serialize either has to be listed here instead.
 _TRANSPORT_ONLY_SETTINGS = frozenset({"timeout"})
 
 
@@ -105,10 +114,18 @@ def _strip_volatile(messages_dump: list[dict[str, Any]]) -> list[dict[str, Any]]
 
 
 def _digest(payload: Any) -> str:
-    # No ``default=`` fallback: a non-JSON-serializable value must raise so the
-    # callers degrade to an unverifiable (None) fingerprint instead of hashing
-    # process-local reprs like ``<object at 0x...>`` that never match on retry.
-    canonical = json.dumps(payload, sort_keys=True)
+    # Normalize through pydantic first. Values that are not JSON types but do have
+    # a deterministic pydantic serialization must not cost us a fingerprint: a
+    # ``datetime`` or ``Decimal`` tool argument (pydantic has already coerced tool
+    # arguments by the time they arrive) and a dataclass in ``tool_choice`` are
+    # ordinary, and hash identically on every attempt. Plain JSON values pass
+    # through unchanged, so fingerprints written by earlier versions still match.
+    #
+    # Still no ``default=`` fallback: a value pydantic cannot serialize either
+    # raises ``PydanticSerializationError`` (a ``ValueError``), so callers degrade
+    # to an unverifiable ``None`` fingerprint rather than hashing process-local
+    # reprs like ``<object at 0x...>`` that never match on retry.
+    canonical = json.dumps(to_jsonable_python(payload), sort_keys=True)
     return hashlib.sha256(canonical.encode()).hexdigest()
 
 
@@ -125,9 +142,9 @@ def fingerprint_model_request(
     output mode and schema, native tools, ...) so any change to what is sent
     to the model invalidates the cached response.
 
-    Returns ``None`` when the request cannot be serialized, which prevents the
-    step from being replayed or cached. Because model settings and message
-    history are carried into every later request, a non-serializable value in
+    Returns ``None`` when the request cannot be serialized even through pydantic,
+    which prevents the step from being replayed or cached. Because model settings
+    and message history are carried into every later request, such a value in
     either usually degrades every subsequent model step of the run the same way.
     """
     try:
@@ -158,6 +175,11 @@ def fingerprint_tool_call(name: str, tool_args: dict[str, Any], tool_call_id: st
     ``tool_call_id`` round-trips through the model-response cache, so it is
     stable under faithful replay but regenerated whenever a live model call
     replaces a cached response -- chaining invalidation to downstream tool steps.
+
+    Only the name, arguments and call id are hashed, so neither model settings
+    nor the message history can affect a tool fingerprint. Arguments arrive
+    already coerced by pydantic, which is why ``_digest`` normalizes through
+    pydantic rather than requiring plain JSON types.
     """
     try:
         return _digest({"name": name, "args": tool_args, "tool_call_id": tool_call_id})
