@@ -514,7 +514,7 @@ other reference:
         ...
 
 The ``DeadlineReference.<ClassName>`` shorthand hands you an instance constructed with no arguments,
-so a parameterised reference gets one carrying its defaults.  You may optionally import the class and
+so a parameterized reference gets one carrying its defaults.  You may optionally import the class and
 instantiate it yourself, for example if you want to pass values:
 
 .. code-block:: python

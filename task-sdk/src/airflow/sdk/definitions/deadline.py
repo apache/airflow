@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any, overload
 
 import attrs
 
-from airflow._shared.module_loading import qualname
+from airflow.sdk._shared.module_loading import qualname
 from airflow.sdk.definitions.callback import AsyncCallback, Callback, SyncCallback
 from airflow.sdk.definitions.variable import Variable
 from airflow.sdk.exceptions import AirflowRuntimeError, RemovedInAirflow4Warning
