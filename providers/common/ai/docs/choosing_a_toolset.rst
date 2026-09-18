@@ -447,8 +447,8 @@ Read the first bullet before planning around this route.
   an answer comes out. Whatever governs what the remote agent may touch lives on
   the vendor's side, which is the trade you are making.
 - It does not define where the credential comes from. The base class leaves
-  authentication to the subclass, so this route does not guarantee an Airflow
-  connection is involved.
+  that decision to the subclass; :ref:`managed-agent-toolsets` frames the
+  intended shape as routing authentication through the provider's own hook.
 - Durable replay is off by default. ``replayable`` is ``False`` because a managed
   agent may act on systems Airflow cannot observe, so replaying from the cache
   could skip a side effect. Read-only agents can opt in.
