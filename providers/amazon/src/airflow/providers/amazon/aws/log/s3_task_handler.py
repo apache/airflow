@@ -84,11 +84,8 @@ class S3RemoteLogIO(LoggingMixin):  # noqa: D101
             local_loc = self.base_log_folder.joinpath(path)
             remote_loc = os.path.join(self.remote_base, path)
 
-        # The log path is supplied by the caller and is not guaranteed to stay within
-        # ``base_log_folder``: ``joinpath`` and ``PurePath.relative_to`` are purely lexical and
-        # do not normalise ``..``. Without this check a traversing path would have its contents
-        # uploaded to the remote log store and, with ``delete_local_copy``, its parent directory
-        # removed. Mirrors the containment check in ``CloudWatchRemoteLogIO.upload``.
+        # ``joinpath``/``relative_to`` are lexical and do not normalise ``..``, so a caller-supplied
+        # path can escape ``base_log_folder``. Mirrors the check in ``CloudWatchRemoteLogIO.upload``.
         base = self.base_log_folder.resolve()
         try:
             local_loc.resolve().relative_to(base)
