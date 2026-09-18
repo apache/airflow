@@ -17,14 +17,21 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.models import Connection
 from airflow.providers.google.cloud.hooks.cloud_monitoring import CloudMonitoringHook
 from airflow.providers.google.cloud.hooks.stackdriver import StackdriverHook
 
 
-def test_deprecated_hook_warns_and_subclasses_new_hook():
+@mock.patch(
+    "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_connection",
+    return_value=Connection(conn_id="google_cloud_default"),
+)
+def test_deprecated_hook_warns_and_subclasses_new_hook(mock_get_connection):
     with pytest.warns(AirflowProviderDeprecationWarning, match="CloudMonitoring"):
         hook = StackdriverHook()
     assert isinstance(hook, CloudMonitoringHook)
