@@ -210,6 +210,19 @@ class PydanticAIHook(BaseHook):
             self._conn_extra_dejson = self._conn.extra_dejson
         return self._conn, self._conn_extra_dejson
 
+    def _seed_connection(self, conn: Connection) -> None:
+        """
+        Prime this hook's connection cache with an already-fetched ``Connection``.
+
+        Used by :meth:`_resolve_fallback_models`, which must call ``conn.get_hook()`` to
+        dispatch a fallback's hook class from its ``conn_type`` and so already holds the
+        ``Connection`` that call built the hook from. Without this, :meth:`_get_conn_and_extra`
+        would fetch that same connection a second time the first time it runs, doubling the
+        Execution API round trips a fallback chain costs.
+        """
+        self._conn = conn
+        self._conn_extra_dejson = conn.extra_dejson
+
     def get_conn(self) -> Model:
         """
         Return a configured pydantic-ai ``Model``.
@@ -471,15 +484,21 @@ class PydanticAIHook(BaseHook):
                 )
             seen.add(conn_id)
 
-            # ``BaseHook.get_hook`` dispatches on the connection's ``conn_type`` and does not
-            # constrain the result to this class, so the type has to be checked here.
-            hook = PydanticAIHook.get_hook(conn_id)
+            # ``PydanticAIHook.get_hook(conn_id)`` would fetch this connection twice: once
+            # inside itself and once more the first time the new hook's own
+            # ``_get_conn_and_extra`` runs (see ``_seed_connection``). Fetch it once here and
+            # dispatch the hook class from it directly instead -- this is exactly what
+            # ``BaseHook.get_hook`` does internally, so the result still isn't constrained to
+            # this class and the type has to be checked here.
+            conn = PydanticAIHook.get_connection(conn_id)
+            hook = conn.get_hook()
             if not isinstance(hook, PydanticAIHook):
                 raise ValueError(
                     f"Fallback connection '{conn_id}' resolves to {type(hook).__name__}, which is "
                     "not a PydanticAIHook. Only pydanticai connection types can be used as "
                     f"fallbacks for '{self.llm_conn_id}'."
                 )
+            hook._seed_connection(conn)
             if hook._get_fallback_conn_ids():
                 raise ValueError(
                     f"Fallback connection '{conn_id}' declares its own "

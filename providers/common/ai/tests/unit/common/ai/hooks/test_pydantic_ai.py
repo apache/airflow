@@ -252,8 +252,9 @@ class _ConnRegistry:
     """
     In-memory stand-in for connection and hook lookup.
 
-    ``_resolve_fallback_models`` goes through ``BaseHook.get_hook``, which needs both the
-    metadata DB and provider discovery; this resolves both from a dict instead.
+    ``_resolve_fallback_models`` calls ``PydanticAIHook.get_connection`` and then
+    ``Connection.get_hook`` on the result, both of which need the metadata DB and
+    provider discovery; this resolves both from a dict instead.
     """
 
     def __init__(self) -> None:
@@ -283,11 +284,15 @@ class _ConnRegistry:
         except KeyError:
             raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined") from None
 
-    def get_hook(self, conn_id: str, hook_params: dict | None = None):
-        if conn_id not in self.conns:
-            raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
-        hook_class = self.hook_classes[conn_id]
-        return hook_class(llm_conn_id=conn_id, **(hook_params or {}))
+    def get_hook(self, conn: Connection, *, hook_params: dict | None = None):
+        """Side effect for the patched ``Connection.get_hook`` -- ``conn`` is bound as ``self``
+        (via ``autospec=True`` on the patch), so the connection to dispatch from is this
+        argument's ``conn_id``, not a value the caller passes in.
+        """
+        if conn.conn_id not in self.conns:
+            raise AirflowNotFoundException(f"The conn_id `{conn.conn_id}` isn't defined")
+        hook_class = self.hook_classes[conn.conn_id]
+        return hook_class(llm_conn_id=conn.conn_id, **(hook_params or {}))
 
 
 @pytest.fixture
@@ -296,7 +301,11 @@ def registry():
     reg = _ConnRegistry()
     with (
         patch.object(PydanticAIHook, "get_connection", side_effect=reg.get_connection),
-        patch.object(PydanticAIHook, "get_hook", side_effect=reg.get_hook),
+        # autospec=True is required here: it's what makes the mock bind `self` (the
+        # Connection instance `.get_hook()` was called on) as the side effect's first
+        # argument -- without it, `conn.get_hook()` calls the mock with zero arguments and
+        # `reg.get_hook` would have no way to know which connection dispatched it.
+        patch.object(Connection, "get_hook", side_effect=reg.get_hook, autospec=True),
     ):
         yield reg
 
@@ -823,7 +832,7 @@ class TestPydanticAIHookFallback:
         assert "claude-opus-4-5" in str(exc_info.value)
 
     def test_non_pydanticai_fallback_raises(self, registry, infer_model_stub):
-        """``BaseHook.get_hook`` dispatches on conn_type alone and can return anything."""
+        """``Connection.get_hook`` dispatches on conn_type alone and can return anything."""
         registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
         registry.add("wrong_type", conn_type="langchain")
         registry.hook_classes["wrong_type"] = MagicMock  # type: ignore[assignment]
@@ -1052,6 +1061,49 @@ class TestPydanticAIHookFallback:
 
         with pytest.raises(FallbackExceptionGroup):
             Agent(model, instructions="classify").run_sync("hello")
+
+
+class TestPydanticAIHookFallbackConnectionFetchCount:
+    """
+    ``TestPydanticAIHookFallback`` above patches ``Connection.get_hook`` directly (see
+    ``_ConnRegistry.get_hook``), so it never runs the real dispatch that
+    ``_resolve_fallback_models`` goes through -- that is exactly the code path a double
+    connection-fetch per fallback hop would hide in. This mocks only ``get_connection`` and
+    lets ``Connection.get_hook`` run for real, to pin how many times each connection in a
+    fallback chain is actually fetched.
+    """
+
+    def test_fallback_chain_fetches_each_connection_once(self, infer_model_stub):
+        conns = {
+            "primary": Connection(
+                conn_id="primary",
+                conn_type="pydanticai",
+                extra=json.dumps({"model": "openai:gpt-4", "fallback_conn_ids": ["fb1", "fb2"]}),
+            ),
+            "fb1": Connection(
+                conn_id="fb1", conn_type="pydanticai", extra=json.dumps({"model": "anthropic:claude-1"})
+            ),
+            "fb2": Connection(
+                conn_id="fb2", conn_type="pydanticai", extra=json.dumps({"model": "anthropic:claude-2"})
+            ),
+        }
+
+        def _get_connection(conn_id: str) -> Connection:
+            try:
+                return conns[conn_id]
+            except KeyError:
+                raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined") from None
+
+        with patch.object(
+            PydanticAIHook, "get_connection", side_effect=_get_connection
+        ) as mock_get_connection:
+            PydanticAIHook(llm_conn_id="primary").get_conn()
+
+        # 3-connection chain (primary + 2 fallbacks): 1 fetch each = 3 total. Before the
+        # `_seed_connection` fix, each fallback paid 2 fetches (one inside
+        # `PydanticAIHook.get_hook`, discarded, plus one more the first time the new hook's
+        # own `_get_conn_and_extra` ran) = 1 + 2*2 = 5.
+        assert mock_get_connection.call_count == 3
 
 
 class TestPydanticAIHookCreateAgent:
