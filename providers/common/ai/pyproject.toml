@@ -82,6 +82,16 @@ dependencies = [
 "bedrock" = ["pydantic-ai-slim[bedrock]>=2.23.0"]
 "google" = ["pydantic-ai-slim[google]>=2.23.0"]
 "openai" = ["pydantic-ai-slim[openai]>=2.23.0"]
+# TypeSafe Jev: answers typed questions (pick one of N, a bounded score, a yes/no
+# probability) and cannot emit text, so it fits a branch or a classification but not a
+# summary. It arrives through pydantic-ai's own ``typesafe:`` provider, so the hook needs
+# no changes -- setting ``model_id`` or the connection's Model field is the integration.
+# The adapter itself ships inside pydantic-ai-slim from 2.45.0 (pydantic/pydantic-ai#8450);
+# this extra only adds the pre-1.0 typesafe-sdk it talks to, which is why it is opt-in. It
+# deliberately does not raise the pydantic-ai-slim floor: from 2.31 the ``openai`` extra
+# needs openai>=3.8 while llama-index-llms-openai and the Google provider's litellm need
+# openai<3, so a higher floor makes the workspace unsatisfiable. The guide says 2.45+.
+"typesafe" = ["typesafe-sdk>=0.6.0"]
 "mcp" = ["pydantic-ai-slim[mcp]>=2.23.0"]
 # Code mode: collapse tool calls into a single `run_code` tool that the model
 # drives by writing Python, executed in the Monty sandbox (pydantic-monty).
