@@ -550,7 +550,7 @@ class DagFileProcessorManager(LoggingMixin):
         if stuck_legacy_rows:
             # Surface how many legacy rows the startup repair could not route;
             # each one keeps raising "Requested bundle is not configured." until
-            # a matching bundle is added to dag_bundle_config_list.
+            # the configured Dag bundle provider returns a matching bundle.
             self.log.info(
                 "Skipped stale check for %d legacy Dag(s) with NULL relative_fileloc.",
                 stuck_legacy_rows,
