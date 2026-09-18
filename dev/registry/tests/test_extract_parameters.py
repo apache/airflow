@@ -246,6 +246,11 @@ class ManuallyDurableSubclass(ManuallyDurableOperator):
         return "something else entirely"
 
 
+class TrailingNoExecuteMixin:
+    """Sits last in a combined MRO and owns no `execute`, so resolving a hop to it finds no
+    owner from that point on."""
+
+
 class ManuallyDurableSubclassNoOverride(ManuallyDurableOperator):
     """Adds no execute() override at all. Mirrors GKEStartPodOperator, which relies
     entirely on KubernetesPodOperator.execute(). Must still qualify."""
@@ -377,9 +382,9 @@ class TestIsDurableCapable:
 
         assert is_durable_capable(CommentedNonDelegatingSubclass, FakeResumableJobMixin) is False
 
-    def test_decoy_execute_call_does_not_shadow_real_delegation(self):
-        """An earlier unrelated `X.execute(...)` call (e.g. a DB cursor) must not dead-end
-        the walk before it reaches the real delegation later in the body."""
+    def test_non_class_execute_call_does_not_shadow_real_delegation(self):
+        """A local name that is not a class in the MRO (e.g. a DB cursor) is skipped rather
+        than dead-ending the walk before the real delegation below it."""
 
         class DecoyExecuteThenRealDelegation(ManuallyDurableOperator):
             def execute(self, context):
@@ -388,6 +393,18 @@ class TestIsDurableCapable:
                 return ManuallyDurableOperator.execute(self, context)
 
         assert is_durable_capable(DecoyExecuteThenRealDelegation, FakeResumableJobMixin) is True
+
+    def test_every_explicit_match_is_tried_not_just_the_first_resolvable_one(self):
+        """The decoy here does resolve to a class in the MRO, but one that owns no `execute`
+        and has nothing after it that does, so the hop yields no owner. The walk has to keep
+        going to the real delegation rather than stopping at the first resolved match."""
+
+        class DecoyResolvesButOwnsNoExecute(ManuallyDurableOperator, TrailingNoExecuteMixin):
+            def execute(self, context):
+                TrailingNoExecuteMixin.execute(self, context)
+                return ManuallyDurableOperator.execute(self, context)
+
+        assert is_durable_capable(DecoyResolvesButOwnsNoExecute, FakeResumableJobMixin) is True
 
     def test_explicit_call_to_class_with_no_own_execute_resolves_to_actual_owner(self):
         """Mirrors `GKEStartPodOperator.execute(self, context)`: the named class inherits
@@ -581,6 +598,34 @@ class HITLShapedOperator:
         return None
 
 
+def _wrap_in_foreign_module(func):
+    """Wrap `func` the way BaseOperatorMeta._apply_defaults wraps operator `execute`.
+
+    functools.wraps copies `__module__` from the wrapped function but leaves `__globals__`
+    pointing at the wrapper's own module, which is why the version flag is invisible until
+    the wrapper is unwrapped. Building the wrapper in a separate module namespace is what
+    reproduces that here, since a wrapper defined in this file would share these globals.
+    """
+    foreign = types.ModuleType("foreign_wrapper_module")
+    foreign.__dict__["_inner"] = func
+    exec(
+        "import functools\n"
+        "@functools.wraps(_inner)\n"
+        "def wrapper(self, context):\n"
+        "    return _inner(self, context)\n",
+        foreign.__dict__,
+    )
+    return foreign.__dict__["wrapper"]
+
+
+class DeferralCommentOnlyOperator:
+    """A comment naming self.defer() is not a deferral, the same way it is not delegation."""
+
+    def execute(self, context):
+        # falls through to the sync path rather than calling self.defer()
+        return None
+
+
 class TestSupportsDeferrable:
     def test_reads_deferrable_directly_qualifies(self):
         assert supports_deferrable(DeferrableOperator) is True
@@ -644,6 +689,22 @@ class TestSupportsDeferrable:
                 return None
 
         assert supports_deferrable(OlderCoreShapedOperator) is True
+
+    def test_wrapped_execute_still_resolves_the_version_guard(self):
+        """Pins the `inspect.unwrap` in `_get_reachable_method_source`. Without it the flag
+        resolves against the wrapper's module, the dead branch survives, and the four
+        standard HITL operators go back to reporting deferrable."""
+
+        class WrappedHITLShapedOperator:
+            execute = _wrap_in_foreign_module(HITLShapedOperator.execute)
+
+            def defer(self, *args, **kwargs):
+                return None
+
+        assert supports_deferrable(WrappedHITLShapedOperator) is False
+
+    def test_comment_mentioning_defer_is_not_mistaken_for_deferral(self):
+        assert supports_deferrable(DeferralCommentOnlyOperator) is False
 
 
 # ---------------------------------------------------------------------------
@@ -772,6 +833,29 @@ def _make_module(name: str, members: dict) -> types.ModuleType:
     return mod
 
 
+class FakeDecoratedOperator(ManuallyDurableOperator):
+    """Stands in for _AgentDecoratedOperator: private, so its only catalog surface is the
+    decorator entry, and durable-capable via explicit-parent delegation."""
+
+    __module__ = "airflow.providers.amazon.aws.decorators.fake"
+
+    def execute(self, context):
+        return ManuallyDurableOperator.execute(self, context)
+
+
+def _fake_task_decorator_factory(**kwargs):
+    return None
+
+
+def fake_decorator_task(python_callable=None, **kwargs):
+    """Fake task decorator."""
+    return _fake_task_decorator_factory(
+        python_callable=python_callable,
+        decorated_operator_class=FakeDecoratedOperator,
+        **kwargs,
+    )
+
+
 FAKE_PROVIDER_YAML = {
     "package-name": "apache-airflow-providers-amazon",
     "name": "Amazon",
@@ -818,7 +902,12 @@ FAKE_PROVIDER_YAML = {
         },
         "not-a-dict-entry",
     ],
-    "task-decorators": [],
+    "task-decorators": [
+        {
+            "class-name": "airflow.providers.amazon.aws.decorators.fake.fake_decorator_task",
+            "name": "fake_decorator",
+        },
+    ],
 }
 
 
@@ -887,6 +976,10 @@ class TestDiscoverClassesFromProvider:
             "airflow.providers.amazon.aws.dialects.redshift": _make_module(
                 "airflow.providers.amazon.aws.dialects.redshift",
                 {"FakeDialect": FakeDialect},
+            ),
+            "airflow.providers.amazon.aws.decorators.fake": _make_module(
+                "airflow.providers.amazon.aws.decorators.fake",
+                {"fake_decorator_task": fake_decorator_task},
             ),
         }
         if module_name in modules:
@@ -1011,6 +1104,24 @@ class TestDiscoverClassesFromProvider:
         for entry in result:
             missing = required_fields - entry.keys()
             assert not missing, f"Missing fields {missing} in {entry['name']}"
+
+    def test_decorator_entry_reports_the_capability_of_the_operator_it_builds(
+        self, provider_yaml_path, base_classes
+    ):
+        """A `@task.*` entry registers the factory function, so its capability has to come
+        from the `decorated_operator_class=` the factory passes on."""
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
+            patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
+        ):
+            result = discover_classes_from_provider(
+                provider_yaml_path, base_classes, resumable_mixin=FakeResumableJobMixin
+            )
+
+        decorators = [r for r in result if r["type"] == "decorator"]
+        assert len(decorators) == 1
+        assert decorators[0]["name"] == "@task.fake_decorator"
+        assert decorators[0]["supports_durable_execution"] is True
 
     def test_id_format(self, provider_yaml_path, base_classes):
         """ID follows the pattern {provider_id}-{module_name}-{class_name}."""

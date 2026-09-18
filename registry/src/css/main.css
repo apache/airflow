@@ -3296,6 +3296,9 @@ main {
 
 .module-search-wrapper {
   max-width: 16rem;
+  /* Floor the input so it doesn't absorb the squeeze once the nowrap capability
+     toggles beside it stop shrinking, which collapsed it below its placeholder. */
+  min-width: 12rem;
 }
 
 .capability-filter-toggles {
