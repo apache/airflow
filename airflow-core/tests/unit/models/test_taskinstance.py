@@ -43,6 +43,7 @@ from sqlalchemy.orm.attributes import set_committed_value
 from airflow import settings
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.observability.traces import new_dagrun_trace_carrier, new_task_run_carrier
+from airflow._shared.state import TaskFailureKind
 from airflow._shared.timezones import timezone
 from airflow.exceptions import (
     AirflowException,
@@ -2355,7 +2356,9 @@ class TestTaskInstance:
         assert ti_list[3].get_previous_ti(state=State.SUCCESS).run_id != ti_list[2].run_id
 
     @provide_session
-    def test_handle_failure_calls_listener(self, dag_maker, *, session: Session):
+    def test_handle_failure_calls_listener(
+        self, dag_maker, monkeypatch: pytest.MonkeyPatch, *, session: Session
+    ) -> None:
         class CustomOp(BaseOperator):
             def execute(self, context): ...
 
@@ -2365,7 +2368,11 @@ class TestTaskInstance:
         from airflow.listeners.listener import get_listener_manager
 
         listener_callback_on_error = mock.MagicMock()
-        get_listener_manager().pm.hook.on_task_instance_failed = listener_callback_on_error
+        monkeypatch.setattr(
+            target=get_listener_manager().pm.hook,
+            name="on_task_instance_failed",
+            value=listener_callback_on_error,
+        )
 
         with dag_maker(dag_id="test_handle_failure", start_date=start_date, schedule=None) as dag:
             task1 = CustomOp(
@@ -2432,7 +2439,12 @@ class TestTaskInstance:
         ti.task = None
         ti.state = State.QUEUED
         session.flush()
-        expected_stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id, "run_type": dr.run_type}
+        expected_stats_tags = {
+            "dag_id": ti.dag_id,
+            "task_id": ti.task_id,
+            "run_type": dr.run_type,
+            "failure_kind": "unclassified",
+        }
 
         assert ti.task is None, "Check critical pre-condition"
 
@@ -2448,6 +2460,38 @@ class TestTaskInstance:
         mock_backend.incr.assert_any_call("operator_failures_EmptyOperator", tags=expected_stats_tags)
         mock_backend.incr.assert_any_call(
             "operator_failures", tags={**expected_stats_tags, "operator_name": "EmptyOperator"}
+        )
+
+    @pytest.mark.parametrize("failure_kind", [None, *TaskFailureKind])
+    @patch("airflow._shared.observability.metrics.stats._get_backend")
+    def test_handle_failure_tags_classified_cause(self, mock_get_backend, failure_kind, dag_maker):
+        backend = mock.MagicMock(spec=StatsLogger)
+        mock_get_backend.return_value = backend
+        session = settings.Session()
+        with dag_maker():
+            task = EmptyOperator(task_id="mytask", retries=0)
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task.task_id, session=session)
+        ti.task = task
+        ti.state = State.RUNNING
+        session.flush()
+        expected_tags = {
+            "dag_id": ti.dag_id,
+            "task_id": ti.task_id,
+            "run_type": dr.run_type,
+            "failure_kind": failure_kind.value if failure_kind is not None else "unclassified",
+        }
+
+        ti.handle_failure(
+            error="task failed",
+            failure_kind=failure_kind,
+            session=session,
+        )
+
+        backend.incr.assert_any_call("ti_failures", tags=expected_tags)
+        backend.incr.assert_any_call(
+            "operator_failures",
+            tags={**expected_tags, "operator_name": "EmptyOperator"},
         )
 
     def test_handle_failure_task_undefined(self, create_task_instance):

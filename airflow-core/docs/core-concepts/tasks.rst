@@ -166,6 +166,27 @@ If you want to control your task's state from within custom Task/Operator code, 
 
 These can be useful if your code has extra knowledge about its environment and wants to fail/skip faster - e.g., skipping when it knows there's no data available, or fast-failing when it detects its API key is invalid (as that will not be fixed by a retry).
 
+Failure causes
+--------------
+
+Airflow reports a failure category when the worker or executor can establish the cause:
+``infra``, ``application``, ``timeout``, or ``manual``. Otherwise the category remains unset.
+Infrastructure listeners and scheduler logs can also receive a short producer-owned reason,
+such as Kubernetes ``PreemptionByScheduler``.
+
+Worker loss, ``SIGKILL``, ``OOMKilled``, and pod deletion do not identify an infrastructure
+failure on their own. Kubernetes ``Evicted`` alone is also ambiguous because workload
+storage-limit violations use the same reason. A documented disruption condition can supply
+the missing evidence. An executor can retain a diagnostic reason while leaving the category unset.
+
+Tagged metrics backends add a bounded ``failure_kind`` label to ``ti_failures`` and
+``operator_failures``. An unset cause becomes ``unclassified`` in metrics only; listener
+arguments retain ``None``. Classic StatsD retains aggregate counts but drops these tags.
+
+Classification does not grant attempts, change retry or clear behavior, or add fields to the
+Dag callback context. See :doc:`/administration-and-deployment/listeners` for consuming
+the cause through infrastructure listener hooks.
+
 .. _concepts:retry-policies:
 
 Retry Policies

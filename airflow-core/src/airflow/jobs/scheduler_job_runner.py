@@ -144,9 +144,10 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.selectable import Subquery
 
     from airflow._shared.logging.types import Logger
+    from airflow._shared.state import TaskFailureKind
     from airflow.executors.base_executor import BaseExecutor
     from airflow.executors.executor_utils import ExecutorName
-    from airflow.executors.workloads.types import SchedulerWorkload
+    from airflow.executors.workloads.types import SchedulerWorkload, WorkloadKey
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.utils.sqlalchemy import CommitProhibitorGuard
 
@@ -1408,6 +1409,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         ti_primary_key_to_try_number_map: dict[tuple[str, str, str, int], int] = {}
         event_buffer = executor.get_event_buffer()
+        failure_info_by_key: dict[WorkloadKey, tuple[TaskFailureKind | None, str | None] | None] = {
+            key: executor.get_task_failure_info(key) for key in event_buffer
+        }
         num_events = len(event_buffer)
         tis_with_right_state: list[TaskInstanceKey] = []
         callback_keys_with_events: list[CallbackKey] = []
@@ -1511,6 +1515,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     job_id,
                 )
             state, info = event_buffer.pop(buffer_key)
+            failure_info: tuple[TaskFailureKind | None, str | None] = failure_info_by_key.pop(
+                buffer_key, None
+            ) or (None, None)
+            failure_kind: TaskFailureKind | None = failure_info[0]
+            reason: str | None = failure_info[1]
 
             if state in (TaskInstanceState.QUEUED, TaskInstanceState.RUNNING):
                 ti.external_executor_id = info
@@ -1547,6 +1556,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.scheduled_dttm,
                 ti.queued_by_job_id,
                 ti.pid,
+                failure_kind=failure_kind.value if failure_kind is not None else None,
+                failure_reason=reason,
             )
 
             # There are multiple scenarios why the same TI with the same try_number looks queued or
@@ -1706,7 +1717,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     executor.send_callback(email_request)
 
                 # Update task state - emails are handled by DAG processor now
-                ti.handle_failure(error=msg, session=session)
+                ti.handle_failure(
+                    error=msg,
+                    session=session,
+                    failure_kind=failure_kind,
+                    reason=reason,
+                )
 
         cls._emit_executor_events_batch_metrics(num_events)
         return len(event_buffer)

@@ -53,6 +53,7 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types impor
     KubernetesJob,
     KubernetesResults,
 )
+from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import classify_pod_failure
 from airflow.providers.cncf.kubernetes.kube_config import KubeConfig
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     TRANSIENT_CONNECTION_ERRORS,
@@ -80,6 +81,7 @@ if TYPE_CHECKING:
     from airflow._shared.logging.remote import RawLogStream, StreamingLogResponse
     from airflow.cli.cli_config import GroupCommand
     from airflow.executors import workloads
+    from airflow.executors.base_executor import TaskFailureKind
     from airflow.executors.workloads import ExecuteTask
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -786,6 +788,8 @@ class KubernetesExecutor(BaseExecutor):
         failure_details = results.failure_details
 
         termination_reason: str | None = None
+        failure_kind: TaskFailureKind | None = None
+        reason: str | None = None
 
         if state == TaskInstanceState.FAILED:
             # Use pre-collected failure details from the watcher to avoid additional API calls
@@ -820,6 +824,12 @@ class KubernetesExecutor(BaseExecutor):
                     container_message,
                     exit_code,
                 )
+
+                failure_info: tuple[TaskFailureKind | None, str | None] | None = classify_pod_failure(
+                    failure_details
+                )
+                if failure_info is not None:
+                    failure_kind, reason = failure_info
             else:
                 task_key_str = f"{key.dag_id}.{key.task_id}.{key.try_number}"
                 self.log.warning(
@@ -901,9 +911,7 @@ class KubernetesExecutor(BaseExecutor):
 
         self.pod_launch_attempts.pop(key, None)
 
-        try:
-            self.running.remove(key)
-        except KeyError:
+        if key not in self.running:
             self.log.debug("TI key not in running, not adding to event_buffer: %s", key)
             return
 
@@ -911,7 +919,19 @@ class KubernetesExecutor(BaseExecutor):
         if state is None:
             state = self._get_task_instance_state(key, session=session)
 
-        self.event_buffer[key] = state, termination_reason
+        if state == TaskInstanceState.FAILED:
+            if failure_kind is None and reason is None:
+                self.fail(key=key, info=termination_reason)
+            else:
+                self.fail(
+                    key=key,
+                    info=termination_reason,
+                    failure_kind=failure_kind,
+                    reason=reason,
+                )
+        else:
+            self.running.remove(key)
+            self.event_buffer[key] = state, termination_reason
 
     def _get_task_instance_state(self, key: TaskInstanceKey, *, session: Session) -> TaskInstanceState | None:
         """Look up the current task instance state from the metadata database."""

@@ -47,6 +47,7 @@ from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.sdk._shared.observability.metrics import stats
 from airflow.sdk._shared.observability.metrics.stats import build_dag_metric_tags
 from airflow.sdk._shared.observability.traces import get_task_span_detail_level
+from airflow.sdk._shared.state import TaskFailureKind
 from airflow.sdk._shared.template_rendering import truncate_rendered_value
 from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
@@ -1661,7 +1662,7 @@ def _run_task_and_map_outcome(
     except (AirflowFailException, AirflowSensorTimeout) as e:
         # If AirflowFailException is raised, task should not retry.
         # If a sensor in reschedule mode reaches timeout, task should not retry.
-        log.exception("Task failed with exception")
+        log.exception("Task failed with exception", failure_kind=_get_task_failure_kind(e))
         log.info("::group::Post Execute")
         ti.end_date = datetime.now(tz=timezone.utc)
         msg = TaskState(
@@ -1673,7 +1674,7 @@ def _run_task_and_map_outcome(
         error = e
     except (AirflowTaskTimeout, AirflowException, AirflowRuntimeError) as e:
         # We should allow retries if the task has defined it.
-        log.exception("Task failed with exception")
+        log.exception("Task failed with exception", failure_kind=_get_task_failure_kind(e))
         log.info("::group::Post Execute")
         msg, state = _handle_current_task_failed(ti, e, log, context)
         error = e
@@ -1681,7 +1682,7 @@ def _run_task_and_map_outcome(
         # External state updates are already handled with `ti_heartbeat` and will be
         # updated already be another UI API. So, these exceptions should ideally never be thrown.
         # If these are thrown, we should mark the TI state as failed.
-        log.exception("Task failed with exception")
+        log.exception("Task failed with exception", failure_kind=_get_task_failure_kind(e))
         log.info("::group::Post Execute")
         ti.end_date = datetime.now(tz=timezone.utc)
         msg = TaskState(
@@ -1693,12 +1694,12 @@ def _run_task_and_map_outcome(
         error = e
     except SystemExit as e:
         # SystemExit needs to be retried if they are eligible.
-        log.error("Task exited", exit_code=e.code)
+        log.error("Task exited", exit_code=e.code, failure_kind=_get_task_failure_kind(e))
         log.info("::group::Post Execute")
         msg, state = _handle_current_task_failed(ti, e, log, context)
         error = e
     except BaseException as e:
-        log.exception("Task failed with exception")
+        log.exception("Task failed with exception", failure_kind=_get_task_failure_kind(e))
         log.info("::group::Post Execute")
         msg, state = _handle_current_task_failed(ti, e, log, context)
         error = e
@@ -1853,7 +1854,7 @@ def _handle_handler_failure(
     through the retry-count check, so an exception that means "do not retry" still means
     that when it surfaces from a handler.
     """
-    log.exception("Task failed with exception")
+    log.exception("Task failed with exception", failure_kind=_get_task_failure_kind(exception))
     if isinstance(exception, (AirflowFailException, AirflowSensorTimeout, AirflowTaskTerminated)):
         return _terminal_failure(ti), TaskInstanceState.FAILED, exception
     try:
@@ -1877,6 +1878,12 @@ def _terminal_failure(ti: RuntimeTaskInstance) -> TaskState:
     )
 
 
+def _get_task_failure_kind(error: BaseException | None) -> TaskFailureKind | None:
+    if error is None or isinstance(error, AirflowTaskTerminated):
+        return None
+    return TaskFailureKind.TIMEOUT if isinstance(error, AirflowTaskTimeout) else TaskFailureKind.APPLICATION
+
+
 def _handle_current_task_failed(
     ti: RuntimeTaskInstance,
     exception: BaseException,
@@ -1894,6 +1901,7 @@ def _handle_current_task_failed(
     """
     from airflow.sdk.definitions.retry_policy import RetryAction
 
+    failure_kind: TaskFailureKind | None = _get_task_failure_kind(exception)
     decision = _evaluate_retry_policy(ti, exception, log, context)
     if decision is not None and decision.action == RetryAction.FAIL:
         ti.end_date = datetime.now(tz=timezone.utc)
@@ -1907,15 +1915,19 @@ def _handle_current_task_failed(
         )
     if decision is not None and decision.action == RetryAction.RETRY:
         return _finalize_task_failure(
-            ti, retry_delay_override=decision.retry_delay, retry_reason=decision.reason
+            ti=ti,
+            retry_delay_override=decision.retry_delay,
+            retry_reason=decision.reason,
+            failure_kind=failure_kind,
         )
-    return _finalize_task_failure(ti)
+    return _finalize_task_failure(ti=ti, failure_kind=failure_kind)
 
 
 def _finalize_task_failure(
     ti: RuntimeTaskInstance,
     retry_delay_override: timedelta | None = None,
     retry_reason: str | None = None,
+    failure_kind: TaskFailureKind | None = None,
 ) -> tuple[RetryTask, TaskInstanceState] | tuple[TaskState, TaskInstanceState]:
     """
     Record failure metrics and build the standard retry-or-fail outcome.
@@ -1933,7 +1945,10 @@ def _finalize_task_failure(
     # `_handle_handler_failure`.
     if not ti._failure_metrics_emitted:
         operator = ti.task.__class__.__name__
-        stats_tags = ti.stats_tags
+        stats_tags: dict[str, str] = {
+            **ti.stats_tags,
+            "failure_kind": failure_kind.value if failure_kind is not None else "unclassified",
+        }
 
         stats.incr("operator_failures", tags={**stats_tags, "operator_name": operator})
         stats.incr("ti_failures", tags=stats_tags)
@@ -2331,7 +2346,7 @@ def finalize(
     context: Context,
     log: Logger,
     error: BaseException | None = None,
-):
+) -> None:
     # Record task duration metrics for all terminal states
     if ti.start_date and ti.end_date:
         duration_ms = (ti.end_date - ti.start_date).total_seconds() * 1000
@@ -2361,6 +2376,7 @@ def finalize(
                 log.exception("Failed to set rendered fields during finalization", ti=ti, task=ti.task)
 
     log.debug("Running finalizers", ti=ti)
+    failure_kind: TaskFailureKind | None = _get_task_failure_kind(error)
     if state == TaskInstanceState.SUCCESS:
         _run_task_state_change_callbacks(task, "on_success_callback", context, log)
         try:
@@ -2381,7 +2397,11 @@ def finalize(
         _run_task_state_change_callbacks(task, "on_retry_callback", context, log)
         try:
             get_listener_manager().hook.on_task_instance_failed(
-                previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
+                previous_state=TaskInstanceState.RUNNING,
+                task_instance=ti,
+                error=error,
+                failure_kind=failure_kind,
+                reason=None,
             )
         except Exception:
             log.exception("error calling listener")
@@ -2391,7 +2411,11 @@ def finalize(
         _run_task_state_change_callbacks(task, "on_failure_callback", context, log)
         try:
             get_listener_manager().hook.on_task_instance_failed(
-                previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
+                previous_state=TaskInstanceState.RUNNING,
+                task_instance=ti,
+                error=error,
+                failure_kind=failure_kind,
+                reason=None,
             )
         except Exception:
             log.exception("error calling listener")
