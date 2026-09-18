@@ -30,6 +30,9 @@ Using the Operator
 The OpenAIEmbeddingOperator requires the ``input_text`` as an input to embedding API. Use the ``conn_id`` parameter to specify the OpenAI connection to use to
 connect to your account.
 
+A single string or token array returns one embedding vector. A list of strings or token arrays returns
+one vector per input item in the same order.
+
 An example of using the operator:
 
 .. exampleinclude:: /../../openai/tests/system/openai/example_openai.py
@@ -44,14 +47,58 @@ OpenAIResponseOperator
 
 Use the :class:`~airflow.providers.openai.operators.openai.OpenAIResponseOperator` to generate a
 model response with the OpenAI Responses API, OpenAI's recommended interface for text generation and
-tool use. The operator returns the response's aggregated output text.
+tool use. The operator returns the response's aggregated output text. When ``do_xcom_push`` is
+enabled (the default), ``execute`` also pushes two XCom keys: ``response_id`` (the response's ID,
+usable as a downstream task's ``previous_response_id`` for chaining) and ``usage`` (the response's
+token usage, or ``None`` when the API omits it). ``usage`` is the nested dict returned by
+``ResponseUsage.model_dump()``: top-level ``input_tokens``, ``output_tokens`` and ``total_tokens``
+counts, plus the nested ``input_tokens_details`` and ``output_tokens_details`` dicts.
+``input_tokens_details.cached_tokens`` is part of the ``input_tokens`` total, not
+additional to it, so pricing a run correctly means reading the breakdown rather than
+treating ``input_tokens`` as a single uniformly priced count -- see OpenAI's `prompt
+caching guide <https://platform.openai.com/docs/guides/prompt-caching>`_ for how
+cached tokens are priced. Beyond that, ``usage`` reports token counts only -- OpenAI's
+response carries no cost field, so turning any of these counts into a price means
+multiplying by your own per-token rate. When ``usage`` is not ``None`` it also carries a
+``try_number`` key recording which attempt produced it -- XCom is cleared at the start of
+every attempt, so on a retried task instance the ``usage`` XCom only ever reflects the
+most recent attempt, and ``try_number`` makes that scope explicit instead of letting it
+silently under-report total spend across retries. Setting ``do_xcom_push=False`` skips both pushes.
+It also disables the operator's own ``return_value`` XCom (standard ``BaseOperator``
+behavior), so a downstream task reading ``openai_response.output`` -- which implicitly
+reads the ``return_value`` key -- loses that value too.
 
 Using the Operator
 ^^^^^^^^^^^^^^^^^^^
 
 The OpenAIResponseOperator requires the ``input_text`` prompt. Use the ``conn_id`` parameter to
 specify the OpenAI connection to use, and ``response_kwargs`` to pass through options such as
-``tools``, ``conversation`` or ``previous_response_id``.
+``tools``, ``conversation`` or ``previous_response_id``. ``response_kwargs`` is templated, so
+``previous_response_id`` can reference a Dag's upstream ``response_id`` XCom directly. Since
+``response_kwargs`` is templated, a literal ``{{ ... }}`` value you want sent to the API as-is
+(for example inside a prompt's ``instructions``) must be wrapped in a ``{% raw %}`` block, for
+example ``{% raw %}{{ not_a_variable }}{% endraw %}``.
+
+Use ``max_output_tokens`` and ``max_tool_calls`` to cap generation per run -- both are templated,
+so a ceiling can vary by environment or Dag run without hardcoding it. ``max_output_tokens`` caps
+the number of tokens generated; ``max_tool_calls`` caps the number of built-in tool calls the model
+may make. Both limits are enforced by the OpenAI API itself; OpenAI exposes no monetary cost limit
+on the Responses API, so this operator has no cost cap. For a monetary limit, use
+:doc:`apache-airflow-providers-common-ai:index` instead. Hitting ``max_output_tokens`` does not
+fail the request: the response comes back with ``status="incomplete"``, so ``return_value`` will
+not raise -- but it is not guaranteed to be truncated text either. A reasoning model can spend
+the entire ceiling on reasoning tokens and return an empty ``output_text``, in which case
+``return_value`` is an empty string. Hitting ``max_tool_calls`` is different: the OpenAI API
+silently drops any tool calls beyond the ceiling without changing ``status`` or setting
+``incomplete_details`` -- there is no log warning and no signal in ``return_value``, so a run
+truncated by ``max_tool_calls`` looks identical to a clean run.
+
+A rendered ``max_output_tokens`` or ``max_tool_calls`` that is blank or whitespace-only -- for
+example ``max_output_tokens="{{ params.tokens | default('', true) }}"`` when ``params.tokens`` is
+unset -- is treated as "no ceiling for this run" rather than raising. This only applies when the same run does
+not also set the corresponding key in ``response_kwargs``: the mutually-exclusive-with-``response_kwargs``
+check happens when the operator is constructed and fires regardless of what the template later
+renders to.
 
 .. exampleinclude:: /../../openai/tests/system/openai/example_openai.py
     :language: python
@@ -79,10 +126,10 @@ know about yet. Options worth knowing about:
   raises ``AttributeError``. Stream responses from a ``@task`` using
   :class:`~airflow.providers.openai.hooks.openai.OpenAIHook` instead.
 - ``store``: whether the response is retained on OpenAI's side, for example so it can later be used
-  as a ``previous_response_id``. Through ``OpenAIResponseOperator``, ``execute`` only passes
-  ``response.id`` to the task log and returns ``response.output_text``, so nothing downstream of
-  this operator's task can retrieve a stored response's id — this only matters when the response
-  is created via ``OpenAIHook`` directly.
+  as a ``previous_response_id``. When ``do_xcom_push`` is enabled, ``execute`` pushes ``response.id``
+  to the ``response_id`` XCom regardless of ``store``, so a downstream task can retrieve it. If
+  ``store=False``, the pushed id has no practical use: nothing was retained on OpenAI's side, so
+  ``previous_response_id`` cannot reference it.
 - ``previous_response_id``: the id of a prior response to continue a multi-turn conversation from.
   Cannot be used together with ``conversation`` — pass one or the other, not both.
 - ``reasoning``: configuration for reasoning models, for example ``{"effort": ...}``. The example
@@ -103,8 +150,15 @@ know about yet. Options worth knowing about:
   by ``execute``. Use ``OpenAIHook`` directly to access it.
 - ``metadata``: a mapping of key-value pairs attached to the response for your own bookkeeping.
 - ``max_output_tokens``: an upper bound on the number of tokens the model can generate, including
-  reasoning tokens as well as visible output tokens.
-- ``max_tool_calls``: an upper bound on the number of built-in tool calls the model can make.
+  reasoning tokens as well as visible output tokens. Setting this key here (instead of the
+  operator's own ``max_output_tokens`` parameter -- see above) applies the same validation and
+  type-coercion rules; setting the same ceiling in both places raises when the operator is
+  constructed. The one behavioral difference: a blank value here is popped from the payload sent
+  to ``create_response`` (rather than never being added, as with the operator argument), and a
+  present key whose value is a literal ``None`` always raises, since presence of the key -- not
+  the value -- is what "supplied" means for this path.
+- ``max_tool_calls``: an upper bound on the number of built-in tool calls the model can make. Same
+  validation, coercion, and blank/``None`` handling as ``max_output_tokens`` above.
 
 .. note::
 

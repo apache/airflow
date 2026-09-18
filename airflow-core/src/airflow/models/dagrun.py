@@ -756,7 +756,6 @@ class DagRun(Base, LoggingMixin):
 
         :meta private:
         """
-        from airflow.models.backfill import BackfillDagRun
         from airflow.models.dag import DagModel
 
         query = (
@@ -764,13 +763,11 @@ class DagRun(Base, LoggingMixin):
             .with_hint(cls, "USE INDEX (idx_dag_run_running_dags)", dialect_name="mysql")
             .where(cls.state == DagRunState.RUNNING)
             .join(DagModel, DagModel.dag_id == cls.dag_id)
-            .join(BackfillDagRun, BackfillDagRun.dag_run_id == DagRun.id, isouter=True)
             .where(
                 DagModel.is_paused == false(),
                 DagModel.is_stale == false(),
             )
             .order_by(
-                nulls_first(cast("ColumnElement[Any]", BackfillDagRun.sort_ordinal), session=session),
                 nulls_first(cast("ColumnElement[Any]", cls.last_scheduling_decision), session=session),
                 cls.run_after,
             )
@@ -1799,9 +1796,6 @@ class DagRun(Base, LoggingMixin):
             else:
                 true_delay = first_start_date - self.run_after
                 if true_delay.total_seconds() > 0:
-                    stats.timing(
-                        f"dagrun.{dag.dag_id}.first_task_scheduling_delay", true_delay, tags=self.stats_tags
-                    )
                     stats.timing("dagrun.first_task_scheduling_delay", true_delay, tags=self.stats_tags)
                 if self.queued_at is not None:
                     start_delay = first_start_date - self.queued_at

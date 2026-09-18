@@ -75,6 +75,7 @@ from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.backfill import Backfill
 from airflow.models.dag import DagModel, DagRun, DagTag
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TI
@@ -362,6 +363,35 @@ class PermittedBackfillFilter(PermittedDagFilter):
         return select.where(Backfill.dag_id.in_(self.value or set()))
 
 
+class PermittedDagBundleFilter(PermittedDagFilter):
+    """A parameter that filters Dag bundles to the ones holding a Dag the user may read."""
+
+    def __init__(self, value: set[str] | None = None, *, permitted_dagless_bundles: set[str] | None = None):
+        super().__init__(value)
+        self.permitted_dagless_bundles = permitted_dagless_bundles or set()
+
+    def to_orm(self, statement: Select) -> Select:
+        # A bundle carries no per-Dag key to authorize on, so it is scoped by the Dags inside it.
+        # Filtering in the query keeps unauthorized rows out of the count and pagination as well.
+        # A bundle whose Dags have since been removed stays visible while a stale ``DagModel`` row
+        # names it.
+        holds_a_readable_dag = DagBundleModel.name.in_(
+            select(DagModel.bundle_name).where(DagModel.dag_id.in_(self.value or set()))
+        )
+        if not self.permitted_dagless_bundles:
+            return statement.where(holds_a_readable_dag)
+        # A bundle with no registered Dag at all -- a first deploy whose only file fails to import,
+        # say -- has no Dag to authorize against, so scoping by Dags alone would hide the bundle
+        # precisely when its import-error count is the thing worth reading. Those bundles are
+        # authorized one at a time against their own team in
+        # ``readable_dag_bundles_filter_factory`` and arrive here as an explicit allow-list, so a
+        # team-aware policy decides each one rather than a single unscoped check standing in for
+        # all of them.
+        return statement.where(
+            or_(holds_a_readable_dag, DagBundleModel.name.in_(self.permitted_dagless_bundles))
+        )
+
+
 def permitted_dag_filter_factory(
     method: ResourceMethod, filter_class=PermittedDagFilter
 ) -> Callable[[BaseUser, BaseAuthManager], PermittedDagFilter]:
@@ -395,6 +425,60 @@ ReadableDagWarningsFilterDep = Annotated[
 ]
 ReadableTIFilterDep = Annotated[
     PermittedTIFilter, Depends(permitted_dag_filter_factory("GET", PermittedTIFilter))
+]
+
+
+def readable_dag_bundles_filter_factory() -> Callable[
+    [BaseUser, BaseAuthManager, Session], PermittedDagBundleFilter
+]:
+    """
+    Create a callable for Depends in FastAPI that returns the Dag bundle filter for the user.
+
+    Dag bundles need their own factory rather than ``permitted_dag_filter_factory``: besides the
+    readable Dag ids, the filter needs the set of bundles holding no registered Dag that this
+    caller may see, which is a separate authorization decision taken per bundle.
+    """
+
+    def depends_readable_dag_bundles_filter(
+        user: GetUserDep,
+        auth_manager: AuthManagerDep,
+        session: SessionDep,
+    ) -> PermittedDagBundleFilter:
+        # A bundle with no registered Dag has nothing to authorize against, so it is gated on the
+        # admin-by-default ``IMPORT_ERRORS_ALL`` -- the same view ``GET /importErrors`` uses for a
+        # file that never registered a Dag. Resolved here, one bundle at a time against its own
+        # team, so the result can go into the query: authorizing after the fact would leave
+        # unauthorized bundles in ``total_entries`` and in the page.
+        dagless_bundles = session.scalars(
+            select(DagBundleModel.name).where(
+                DagBundleModel.name.notin_(
+                    # ``dag.bundle_name`` is non-nullable, but the guard keeps a stray NULL from
+                    # emptying the whole ``NOT IN``.
+                    select(DagModel.bundle_name).where(DagModel.bundle_name.is_not(None))
+                )
+            )
+        ).all()
+        team_name_by_bundle = (
+            DagBundleModel.get_team_names(dagless_bundles, session=session) if dagless_bundles else {}
+        )
+        return PermittedDagBundleFilter(
+            auth_manager.get_authorized_dag_ids(user=user, method="GET"),
+            permitted_dagless_bundles={
+                bundle_name
+                for bundle_name in dagless_bundles
+                if auth_manager.authorize_view(
+                    access_view=AccessView.IMPORT_ERRORS_ALL,
+                    user=user,
+                    team_name=team_name_by_bundle.get(bundle_name),
+                )
+            },
+        )
+
+    return depends_readable_dag_bundles_filter
+
+
+ReadableDagBundlesFilterDep = Annotated[
+    PermittedDagBundleFilter, Depends(readable_dag_bundles_filter_factory())
 ]
 
 
@@ -501,8 +585,10 @@ def requires_access_backfill(
         # Left: the routes naming their Dag in the body (create, dry run) or in the query string
         # (list, read by ``requires_access_dag``), and ids the handler's own parser will reject.
         dag_id = None
-        # Not a json body, ignore
-        with suppress(JSONDecodeError):
+        # An unreadable body names no Dag, the same state as no body, so it falls through to the
+        # authorization below. Broad because ``json.loads`` also raises UnicodeDecodeError, bare
+        # ValueError and RecursionError, none of them JSONDecodeError.
+        with suppress(Exception):
             body = await request.json()
             if isinstance(body, dict):
                 dag_id = body.get("dag_id")

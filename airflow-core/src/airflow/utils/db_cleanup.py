@@ -82,6 +82,28 @@ def _format_table_name(schema: str | None, table: str) -> str:
     return table
 
 
+@dataclasses.dataclass(frozen=True)
+class _IndirectDagScope:
+    """
+    Describe how to scope a table to a Dag when it carries no ``dag_id`` of its own.
+
+    ``--dag-ids`` / ``--exclude-dag-ids`` normally filter on a column of the table being
+    cleaned. A table that reaches its Dag only through a foreign key needs the filter
+    expressed as a subquery against the referenced table instead.
+
+    :param fk_column: the foreign key on the table being cleaned; must be listed in
+        ``extra_columns`` so it is present on the constructed table
+    :param referenced_table: the table ``fk_column`` points at
+    :param referenced_pk_column: the primary key of ``referenced_table`` that ``fk_column`` matches
+    :param referenced_dag_id_column: the Dag id column on ``referenced_table``
+    """
+
+    fk_column: str
+    referenced_table: str
+    referenced_pk_column: str = "id"
+    referenced_dag_id_column: str = "dag_id"
+
+
 @dataclasses.dataclass
 class _TableConfig:
     """
@@ -97,6 +119,9 @@ class _TableConfig:
     :param keep_last_group_by: if keeping the last record, can keep the last record for each group
     :param dependent_tables: list of tables which have FK relationship with this table
     :param extra_filters: SQLAlchemy expressions ANDed with the recency filter; referenced columns must be in ``extra_columns``.
+    :param dag_id_scope: how to apply ``--dag-ids`` / ``--exclude-dag-ids`` to a table that has no
+        Dag id column of its own and reaches its Dag through a foreign key. Mutually exclusive with
+        ``dag_id_column_name``.
     :param skip_if_referenced: list of ``(referencing_table, fk_column)`` pairs whose FK points at this
         table's ``referenced_pk_column``. A row that is still referenced by any of these is excluded from
         deletion. This avoids issuing deletes that would violate an ``ON DELETE RESTRICT`` foreign key
@@ -109,6 +134,7 @@ class _TableConfig:
     recency_column_name: str
     extra_columns: list[str] | None = None
     dag_id_column_name: str | None = None
+    dag_id_scope: _IndirectDagScope | None = None
     keep_last: bool = False
     keep_last_filters: Any | None = None
     keep_last_group_by: Any | None = None
@@ -145,6 +171,20 @@ class _TableConfig:
                 schema=self.schema_name,
             )
 
+        if self.dag_id_scope is not None:
+            if self.dag_id_column_name is not None:
+                raise ValueError(
+                    f"_TableConfig for table {self.table_name!r} sets both dag_id_column_name and "
+                    f"dag_id_scope; a table is scoped to a Dag either by its own column or through a "
+                    f"foreign key, not both."
+                )
+            if self.dag_id_scope.fk_column not in self.orm_model.c.keys():
+                raise ValueError(
+                    f"_TableConfig for table {self.table_name!r} sets dag_id_scope but its "
+                    f"fk_column {self.dag_id_scope.fk_column!r} is not one of its columns; "
+                    f"add {self.dag_id_scope.fk_column!r} to extra_columns."
+                )
+
         # skip_if_referenced filters on referenced_pk_column, which must be a column of orm_model
         # (added via extra_columns). Fail fast with a clear message instead of a cryptic KeyError
         # raised later when _build_query evaluates base_table.c[referenced_pk_column].
@@ -163,7 +203,12 @@ class _TableConfig:
         return {
             "table": self.table_name,
             "recency_column": str(self.recency_column),
-            "dag_id_column": str(self.dag_id_column),
+            "dag_id_column": (
+                f"{self.dag_id_scope.fk_column} -> "
+                f"{self.dag_id_scope.referenced_table}.{self.dag_id_scope.referenced_dag_id_column}"
+                if self.dag_id_scope is not None
+                else str(self.dag_id_column)
+            ),
             "keep_last": self.keep_last,
             "keep_last_filters": [str(x) for x in self.keep_last_filters] if self.keep_last_filters else None,
             "keep_last_group_by": str(self.keep_last_group_by),
@@ -188,7 +233,11 @@ config_list: list[_TableConfig] = [
         keep_last_group_by=["dag_id"],
         dependent_tables=["task_instance", "task_state_store", "deadline"],
     ),
-    _TableConfig(table_name="asset_event", recency_column_name="timestamp", dag_id_column_name="dag_id"),
+    # asset_event has never had a dag_id; the producing Dag is source_dag_id, and it is NULL for
+    # events that no task produced (an API-created event, or a watcher).
+    _TableConfig(
+        table_name="asset_event", recency_column_name="timestamp", dag_id_column_name="source_dag_id"
+    ),
     # Carries no foreign key, so rows are left behind when the partition Dag run they describe
     # is cascade-deleted with its dag_run. Only such orphans may be purged: rows whose partition
     # Dag run still exists are the evidence the scheduler evaluates to decide when that pending
@@ -219,7 +268,14 @@ config_list: list[_TableConfig] = [
         recency_column_name="expires_at",
         dag_id_column_name="dag_id",
     ),
-    _TableConfig(table_name="task_reschedule", recency_column_name="start_date", dag_id_column_name="dag_id"),
+    # task_reschedule.dag_id was dropped in 3.0.0; a reschedule now reaches its Dag through its
+    # task instance. ti_id is NOT NULL, so no row is unattributed.
+    _TableConfig(
+        table_name="task_reschedule",
+        recency_column_name="start_date",
+        extra_columns=["ti_id"],
+        dag_id_scope=_IndirectDagScope(fk_column="ti_id", referenced_table="task_instance"),
+    ),
     _TableConfig(table_name="xcom", recency_column_name="timestamp", dag_id_column_name="dag_id"),
     _TableConfig(table_name="_xcom_archive", recency_column_name="timestamp", dag_id_column_name="dag_id"),
     _TableConfig(
@@ -268,7 +324,16 @@ config_list: list[_TableConfig] = [
         # and are cleaned. dag_run.created_dag_version_id is ON DELETE SET NULL, so it does not block.
         skip_if_referenced=[("task_instance", "dag_version_id")],
     ),
-    _TableConfig(table_name="deadline", recency_column_name="deadline_time", dag_id_column_name="dag_id"),
+    # deadline.dag_id was dropped in 3.1.0; a deadline now reaches its Dag through its dag run.
+    # The scope has to follow, because this table is cleaned as a dependent of dag_run precisely so
+    # its rows are archived before the ON DELETE CASCADE removes them -- leaving it unscoped would
+    # purge deadlines for Dags whose runs --dag-ids / --exclude-dag-ids is preserving.
+    _TableConfig(
+        table_name="deadline",
+        recency_column_name="deadline_time",
+        extra_columns=["dagrun_id"],
+        dag_id_scope=_IndirectDagScope(fk_column="dagrun_id", referenced_table="dag_run"),
+    ),
     _TableConfig(table_name="revoked_token", recency_column_name="exp"),
     _TableConfig(
         table_name="connection_test_request",
@@ -479,6 +544,7 @@ def _build_query(
     clean_before_timestamp: DateTime,
     session: Session,
     dag_id_column=None,
+    dag_id_scope: _IndirectDagScope | None = None,
     dag_ids: list[str] | None = None,
     exclude_dag_ids: list[str] | None = None,
     extra_filters: list[Any] | None = None,
@@ -517,7 +583,30 @@ def _build_query(
         if dag_ids:
             conditions.append(base_table_dag_id_col.in_(dag_ids))
         if exclude_dag_ids:
-            conditions.append(base_table_dag_id_col.not_in(exclude_dag_ids))
+            # A NULL dag id belongs to no Dag, so it is not one of the excluded Dags' rows and stays
+            # eligible. NOT IN alone would yield NULL for it and silently retain it forever -- which
+            # is every `job` row, since core never sets Job.dag_id.
+            conditions.append(
+                or_(base_table_dag_id_col.is_(None), base_table_dag_id_col.not_in(exclude_dag_ids))
+            )
+    elif (dag_ids or exclude_dag_ids) and dag_id_scope is not None:
+        fk_col = base_table.c[dag_id_scope.fk_column]
+        referenced = table(
+            dag_id_scope.referenced_table,
+            column(dag_id_scope.referenced_pk_column),
+            column(dag_id_scope.referenced_dag_id_column),
+        )
+
+        def _rows_for(target_dag_ids: list[str]):
+            return select(referenced.c[dag_id_scope.referenced_pk_column]).where(
+                referenced.c[dag_id_scope.referenced_dag_id_column].in_(target_dag_ids)
+            )
+
+        if dag_ids:
+            conditions.append(fk_col.in_(_rows_for(dag_ids)))
+        if exclude_dag_ids:
+            # NULL-safe for the same reason as the direct-column branch above.
+            conditions.append(or_(fk_col.is_(None), fk_col.not_in(_rows_for(exclude_dag_ids))))
 
     if keep_last:
         max_date_col_name = "max_date_per_group"
@@ -549,6 +638,7 @@ def _cleanup_table(
     keep_last_group_by,
     clean_before_timestamp: DateTime,
     dag_id_column=None,
+    dag_id_scope: _IndirectDagScope | None = None,
     dag_ids=None,
     exclude_dag_ids=None,
     dry_run: bool = True,
@@ -568,6 +658,7 @@ def _cleanup_table(
         orm_model=orm_model,
         recency_column=recency_column,
         dag_id_column=dag_id_column,
+        dag_id_scope=dag_id_scope,
         dag_ids=dag_ids,
         exclude_dag_ids=exclude_dag_ids,
         keep_last=keep_last,
