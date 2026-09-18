@@ -17,7 +17,12 @@
  * under the License.
  */
 
-// The task-handler call surface — types every user task handler sees.
+// The task-handler call surface: what a task handler sees while it runs.
+//
+// Everything the SDK supplies comes from a getter rather than a parameter, so
+// nothing it injects shares a namespace with an author's arguments.
+
+import { AsyncLocalStorage } from "node:async_hooks";
 
 import type { TaskClient } from "./client.js";
 
@@ -43,19 +48,93 @@ export interface TaskContext {
   readonly signal: AbortSignal;
 }
 
-/** Arguments passed to every task handler. */
-export interface TaskHandlerArgs {
-  /** Runtime metadata for the current task invocation. */
+/** What the runtime puts in scope for the duration of one handler call. */
+export interface TaskScope {
   readonly ctx: TaskContext;
-  /** Client for reading and writing Airflow task-time data. */
   readonly client: TaskClient;
+}
+
+// Keyed on a global symbol, as the serve latch is: two resolved copies of the
+// package would otherwise hold one storage each, and a handler reaching for
+// `getClient()` through the copy that is not running the task would find
+// nothing in scope.
+const SCOPE_STORAGE = Symbol.for("airflow.ts-sdk.task-scope");
+
+function scopeStorage(): AsyncLocalStorage<TaskScope> {
+  const holder = globalThis as unknown as Record<symbol, AsyncLocalStorage<TaskScope> | undefined>;
+  return (holder[SCOPE_STORAGE] ??= new AsyncLocalStorage<TaskScope>());
+}
+
+/**
+ * Internal: call `fn` with `scope` in place, as the runtime does per task.
+ *
+ * `AsyncLocalStorage` carries the store across every `await` and into every
+ * promise created inside `fn`, so a handler's helpers see it without being
+ * passed anything. Not re-exported from the package root: a handler reads the
+ * scope, it does not install one.
+ */
+export function runInTaskScope<T>(scope: TaskScope, fn: () => T): T {
+  return scopeStorage().run(scope, fn);
+}
+
+type ScopeAccessor = "getContext" | "getClient";
+
+function currentScope(accessor: ScopeAccessor): TaskScope {
+  const scope = scopeStorage().getStore();
+  if (!scope) {
+    throw new Error(
+      `${accessor}() is only available inside a task handler. ` +
+        "The scope is in place only for the duration of the handler call, so " +
+        "this ran either at module top level or in work that outlived it.",
+    );
+  }
+  return scope;
+}
+
+/**
+ * Runtime metadata for the task currently running.
+ *
+ * ```ts
+ * async function transform() {
+ *   throw new Error(`task ${getContext().taskId} has nothing to transform`);
+ * }
+ * ```
+ *
+ * @throws when called outside a task handler.
+ */
+export function getContext(): TaskContext {
+  return currentScope("getContext").ctx;
+}
+
+/**
+ * Client for reading and writing Airflow task-time data for the task currently
+ * running.
+ *
+ * ```ts
+ * async function transform() {
+ *   const client = getClient();
+ *   return await client.getXCom<number>({ key: "return_value", taskId: "extract" });
+ * }
+ * ```
+ *
+ * Work that outlives the handler is the one gap. Async context propagates into
+ * a promise created inside the handler, so one it never awaits still resolves,
+ * but it runs after the task's terminal state has been reported and writes to
+ * a finished task. Await everything a handler starts.
+ *
+ * @throws when called outside a task handler.
+ */
+export function getClient(): TaskClient {
+  return currentScope("getClient").client;
 }
 
 /**
  * Function signature for a TypeScript task handler.
  *
- * Non-`undefined` return values are automatically pushed to XCom under
- * the `"return_value"` key, matching Python `@task` behavior. Return
- * `undefined` or omit a return value to skip the automatic XCom push.
+ * A handler takes no SDK-supplied parameter: {@link getContext} and
+ * {@link getClient} supply the runtime's side of the call.
+ *
+ * Non-`undefined` return values are automatically pushed to XCom under the
+ * `"return_value"` key, matching Python `@task` behavior.
  */
-export type TaskHandler<TReturn = unknown> = (args: TaskHandlerArgs) => TReturn | Promise<TReturn>;
+export type TaskFunction<TReturn = unknown> = () => TReturn | Promise<TReturn>;

@@ -117,6 +117,9 @@ apache-airflow = "airflow.__main__:main"
 "apache.arrow" = [
     "apache-airflow-providers-apache-arrow>=0.1.0"
 ]
+"apache.beam" = [
+    "apache-airflow-providers-apache-beam>=5.8.1"
+]
 "apache.cassandra" = [
     "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\""
 ]
@@ -221,6 +224,9 @@ apache-airflow = "airflow.__main__:main"
 ]
 "docker" = [
     "apache-airflow-providers-docker>=3.14.1"
+]
+"duckdb" = [
+    "apache-airflow-providers-duckdb>=0.1.0"
 ]
 "edge3" = [
     "apache-airflow-providers-edge3>=1.0.0"
@@ -417,6 +423,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-amazon>=9.0.0",
     "apache-airflow-providers-anthropic>=0.1.0",
     "apache-airflow-providers-apache-arrow>=0.1.0",
+    "apache-airflow-providers-apache-beam>=5.8.1",
     "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\"",
     "apache-airflow-providers-apache-drill>=2.8.1",
     "apache-airflow-providers-apache-druid>=3.12.0",
@@ -452,6 +459,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-dingding>=3.7.0",
     "apache-airflow-providers-discord>=3.9.0",
     "apache-airflow-providers-docker>=3.14.1",
+    "apache-airflow-providers-duckdb>=0.1.0",
     "apache-airflow-providers-edge3>=1.0.0",
     "apache-airflow-providers-elasticsearch>=6.6.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-exasol>=4.6.1",
@@ -566,7 +574,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.12.5",
+    "uv>=0.12.13",
 ]
 
 [project.urls]
@@ -1112,6 +1120,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/anthropic/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/arrow/src",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/arrow/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/apache/beam/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/apache/beam/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/cassandra/src",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/cassandra/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/drill/src",
@@ -1184,6 +1194,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/discord/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/docker/src",
     "$MYPY_CONFIG_FILE_DIR/providers/docker/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/duckdb/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/duckdb/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/edge3/src",
     "$MYPY_CONFIG_FILE_DIR/providers/edge3/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/elasticsearch/src",
@@ -1455,6 +1467,7 @@ apache-airflow-providers-alibaba = false
 apache-airflow-providers-amazon = false
 apache-airflow-providers-anthropic = false
 apache-airflow-providers-apache-arrow = false
+apache-airflow-providers-apache-beam = false
 apache-airflow-providers-apache-cassandra = false
 apache-airflow-providers-apache-drill = false
 apache-airflow-providers-apache-druid = false
@@ -1491,6 +1504,7 @@ apache-airflow-providers-dbt-cloud = false
 apache-airflow-providers-dingding = false
 apache-airflow-providers-discord = false
 apache-airflow-providers-docker = false
+apache-airflow-providers-duckdb = false
 apache-airflow-providers-edge3 = false
 apache-airflow-providers-elasticsearch = false
 apache-airflow-providers-exasol = false
@@ -1615,6 +1629,7 @@ apache-airflow-providers-alibaba = false
 apache-airflow-providers-amazon = false
 apache-airflow-providers-anthropic = false
 apache-airflow-providers-apache-arrow = false
+apache-airflow-providers-apache-beam = false
 apache-airflow-providers-apache-cassandra = false
 apache-airflow-providers-apache-drill = false
 apache-airflow-providers-apache-druid = false
@@ -1651,6 +1666,7 @@ apache-airflow-providers-dbt-cloud = false
 apache-airflow-providers-dingding = false
 apache-airflow-providers-discord = false
 apache-airflow-providers-docker = false
+apache-airflow-providers-duckdb = false
 apache-airflow-providers-edge3 = false
 apache-airflow-providers-elasticsearch = false
 apache-airflow-providers-exasol = false
@@ -1782,6 +1798,7 @@ apache-airflow-providers-alibaba = { workspace = true }
 apache-airflow-providers-amazon = { workspace = true }
 apache-airflow-providers-anthropic = { workspace = true }
 apache-airflow-providers-apache-arrow = { workspace = true }
+apache-airflow-providers-apache-beam = { workspace = true }
 apache-airflow-providers-apache-cassandra = { workspace = true }
 apache-airflow-providers-apache-drill = { workspace = true }
 apache-airflow-providers-apache-druid = { workspace = true }
@@ -1818,6 +1835,7 @@ apache-airflow-providers-dbt-cloud = { workspace = true }
 apache-airflow-providers-dingding = { workspace = true }
 apache-airflow-providers-discord = { workspace = true }
 apache-airflow-providers-docker = { workspace = true }
+apache-airflow-providers-duckdb = { workspace = true }
 apache-airflow-providers-edge3 = { workspace = true }
 apache-airflow-providers-elasticsearch = { workspace = true }
 apache-airflow-providers-exasol = { workspace = true }
@@ -1925,6 +1943,7 @@ members = [
     "providers/amazon",
     "providers/anthropic",
     "providers/apache/arrow",
+    "providers/apache/beam",
     "providers/apache/cassandra",
     "providers/apache/drill",
     "providers/apache/druid",
@@ -1961,6 +1980,7 @@ members = [
     "providers/dingding",
     "providers/discord",
     "providers/docker",
+    "providers/duckdb",
     "providers/edge3",
     "providers/elasticsearch",
     "providers/exasol",

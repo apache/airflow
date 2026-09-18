@@ -38,6 +38,7 @@ import { Code } from "src/pages/Dag/Code";
 import { Details as DagDetails } from "src/pages/Dag/Details";
 import { Overview } from "src/pages/Dag/Overview";
 import { Tasks } from "src/pages/Dag/Tasks";
+import { DagBundles } from "src/pages/DagBundles";
 import { DagRuns } from "src/pages/DagRuns";
 import { DagsList } from "src/pages/DagsList";
 import { Dashboard } from "src/pages/Dashboard";
@@ -159,6 +160,10 @@ export const routerConfig = [
         path: "assets/:assetId",
       },
       {
+        element: <DagBundles />,
+        path: "dag_bundles",
+      },
+      {
         element: <Deadlines />,
         path: "deadlines",
       },
@@ -188,7 +193,7 @@ export const routerConfig = [
       },
       {
         element: <Security />,
-        path: "security/:page",
+        path: "security/:page/*",
       },
       {
         element: <Connections />,

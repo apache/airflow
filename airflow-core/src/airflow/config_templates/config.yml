@@ -223,6 +223,14 @@ core:
         * ``False``: Execute via forking of the parent process
         * ``True``: Spawning a new python process, slower than fork, but means plugin changes picked
           up by tasks straight away
+
+        On Airflow 3 this applies to the task process only. When ``True`` the supervisor starts
+        the task in a fresh interpreter with ``exec`` right after forking it, so the task cannot
+        inherit a lock a supervisor thread held at fork time (which can otherwise hang it at its
+        first TLS call). The Dag processor, the triggerer and task callbacks are not affected and
+        keep bare fork. Each task pays an interpreter start plus re-import. The task process reads
+        the global value; Edge workers, which resolve it per team, already start a fresh interpreter
+        for the supervisor when it is ``True`` and start a second one for the task.
       default: "False"
       example: ~
       version_added: 2.0.0
@@ -1901,6 +1909,16 @@ api:
       type: string
       example: "required"
       default: "none"
+    ssl_ciphers:
+      description: |
+        OpenSSL cipher list used by the api server when SSL is enabled.
+        See https://docs.openssl.org/master/man1/openssl-ciphers/#cipher-list-format
+        for the format. When left empty, the default cipher list of Python's ``ssl``
+        module is used.
+      version_added: 3.4.0
+      type: string
+      example: "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384"
+      default: ""
     maximum_page_limit:
       description: |
         Used to set the maximum page limit for API requests. If limit passed as param
@@ -1945,6 +1963,17 @@ api:
         (for example ``https://airflow.mycompany.com``).
       type: string
       version_added: 2.2.0
+      example: ~
+      default: ""
+    access_control_allow_origin_regex:
+      description: |
+        A regex matched against the request ``Origin`` to decide whether the response can be shared,
+        as an alternative to listing exact origins in ``access_control_allow_origins``. Useful when
+        the allowed origins are dynamic (for example per-branch preview deployments). The matched
+        origin is echoed back rather than ``*``, so it stays compatible with the credentialed CORS
+        Airflow's API requires. Example: ``https://.*\\.mycompany\\.com``.
+      type: string
+      version_added: 3.4.0
       example: ~
       default: ""
     grid_view_sorting_order:
@@ -2704,6 +2733,19 @@ scheduler:
       type: float
       example: ~
       default: "30.0"
+    dagrun_metrics_per_dag_id:
+      description: |
+        If true, the ``scheduler.dagruns.running`` and ``scheduler.dagruns.queued`` metrics are
+        emitted once per ``dag_id`` (tagged by ``dag_id``) instead of as a single aggregate value
+        across all Dags. This gives per-Dag visibility into running/queued backlog, at the cost of
+        emitting one metric series per Dag with an active DagRun on every
+        ``[scheduler] dagrun_metrics_interval``. On deployments with a large number of Dags, enabling
+        this can significantly increase the number of metric series sent to StatsD/OpenTelemetry, so
+        it is disabled by default.
+      version_added: 3.4.0
+      type: boolean
+      example: ~
+      default: "False"
     scheduler_health_check_threshold:
       description: |
         If the last scheduler heartbeat happened more than ``[scheduler] scheduler_health_check_threshold``

@@ -127,7 +127,7 @@ class BaseStoreBackend(ABC):
 
     **The ``session`` parameter on ``get``, ``set``, ``delete``, and ``clear``:**
 
-    The default ``MetastoreStateBackend`` passes a SQLAlchemy ``Session`` through
+    The default ``MetastoreBackend`` passes a SQLAlchemy ``Session`` through
     these methods. Custom backends that do not use SQLAlchemy should accept ``session`` as a
     keyword argument and ignore it.
     """

@@ -35,6 +35,7 @@ except ImportError as e:
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.utils.logging import log_run_summary
+from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
@@ -81,9 +82,13 @@ class LLMSQLQueryOperator(LLMOperator):
     :param dialect: SQL dialect for parsing (``postgres``, ``mysql``, etc.).
         Auto-detected from the database hook if not set.
 
+    ``usage_limits`` is inherited from
+    :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
+
     Human-in-the-Loop approval parameters are inherited from
     :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
-    (``require_approval``, ``approval_timeout``, ``allow_modifications``).
+    (``require_approval``, ``approval_timeout``, ``on_approval_timeout``,
+    ``allow_modifications``, ``approval_notifiers``, ``approval_assigned_users``).
     When ``allow_modifications=True`` and the reviewer edits the SQL, the
     modified query is re-validated against the same safety rules before being
     returned.
@@ -137,6 +142,9 @@ class LLMSQLQueryOperator(LLMOperator):
         if self.require_approval:
             self.validate_approval_prompt()  # type: ignore[misc]
 
+        # Coerced first so a bad rendered value fails before the expensive setup below.
+        usage_limits = coerce_usage_limits(self.usage_limits)
+
         schema_info = self._get_schema_context()
 
         full_system_prompt = self._build_system_prompt(schema_info)
@@ -144,7 +152,7 @@ class LLMSQLQueryOperator(LLMOperator):
         agent = self.llm_hook.create_agent(
             output_type=str, instructions=full_system_prompt, **self.agent_params
         )
-        result = agent.run_sync(self.prompt, usage_limits=self.usage_limits)
+        result = agent.run_sync(self.prompt, usage_limits=usage_limits)
         log_run_summary(self.log, result)
         sql = self._strip_llm_output(result.output, dialect=self._resolved_dialect)
 
