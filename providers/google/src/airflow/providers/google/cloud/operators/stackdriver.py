@@ -19,6 +19,12 @@
 
 from __future__ import annotations
 
+from google.api_core.gapic_v1.method import DEFAULT as DEFAULT, _MethodDefault as _MethodDefault
+from google.cloud.monitoring_v3 import (
+    AlertPolicy as AlertPolicy,
+    NotificationChannel as NotificationChannel,
+)
+
 from airflow.exceptions import AirflowProviderDeprecationWarning
 
 # Re-exported for backwards compatibility: these names were importable from this
@@ -27,6 +33,9 @@ from airflow.providers.google.cloud.hooks.stackdriver import StackdriverHook as 
 from airflow.providers.google.cloud.links.stackdriver import (
     StackdriverNotificationsLink as StackdriverNotificationsLink,
     StackdriverPoliciesLink as StackdriverPoliciesLink,
+)
+from airflow.providers.google.cloud.operators.cloud_base import (
+    GoogleCloudBaseOperator as GoogleCloudBaseOperator,
 )
 from airflow.providers.google.cloud.operators.cloud_monitoring import (
     CloudMonitoringDeleteAlertOperator,
@@ -41,6 +50,9 @@ from airflow.providers.google.cloud.operators.cloud_monitoring import (
     CloudMonitoringUpsertNotificationChannelOperator,
 )
 from airflow.providers.google.common.deprecated import deprecated
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID as PROVIDE_PROJECT_ID,
+)
 
 
 @deprecated(

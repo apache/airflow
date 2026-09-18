@@ -37,19 +37,6 @@ def test_deprecated_link_warns_and_subclasses_new_link(old_class, new_class):
 
 
 @pytest.mark.parametrize(
-    ("old_class", "new_class"),
-    [
-        (stackdriver.StackdriverNotificationsLink, cloud_monitoring.CloudMonitoringNotificationsLink),
-        (stackdriver.StackdriverPoliciesLink, cloud_monitoring.CloudMonitoringPoliciesLink),
-    ],
-)
-def test_deprecated_link_keeps_serialized_identity(old_class, new_class):
-    """Serialized Dags store extra links by ``name``/``xcom_key``, so both must survive the rename."""
-    assert old_class.name == new_class.name
-    assert old_class.key == new_class.key
-
-
-@pytest.mark.parametrize(
     ("old_constant", "new_constant"),
     [
         (stackdriver.STACKDRIVER_BASE_LINK, cloud_monitoring.CLOUD_MONITORING_BASE_LINK),

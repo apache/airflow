@@ -19,12 +19,24 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.google.cloud.hooks.cloud_monitoring import CloudMonitoringHook
-from airflow.providers.google.cloud.hooks.stackdriver import StackdriverHook
+from airflow.providers.google.cloud.links.cloud_monitoring import (
+    CloudMonitoringNotificationsLink,
+    CloudMonitoringPoliciesLink,
+)
 
 
-def test_deprecated_hook_warns_and_subclasses_new_hook():
-    with pytest.warns(AirflowProviderDeprecationWarning, match="CloudMonitoring"):
-        hook = StackdriverHook()
-    assert isinstance(hook, CloudMonitoringHook)
+@pytest.mark.parametrize(
+    ("link_class", "expected_name", "expected_key"),
+    [
+        (
+            CloudMonitoringNotificationsLink,
+            "Cloud Monitoring Notifications",
+            "stackdriver_notifications",
+        ),
+        (CloudMonitoringPoliciesLink, "Cloud Monitoring Policies", "stackdriver_policies"),
+    ],
+)
+def test_link_keeps_serialized_identity(link_class, expected_name, expected_key):
+    """Serialized Dags and stored XComs key extra links on these, so the rename must not change them."""
+    assert link_class.name == expected_name
+    assert link_class.key == expected_key
