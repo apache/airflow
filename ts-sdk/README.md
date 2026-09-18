@@ -197,12 +197,49 @@ delivered. Two Python names that fold to the same token fail the task.
 
 `Object.keys` and rest destructuring (`{ ...rest }`) yield Python's names, and `in` folds like a read.
 
-An upstream's return value is not a bound argument unless the Python call passes it.
-Read one the task was not passed explicitly:
+### Upstream outputs
+
+An argument the Python call fills from another task arrives as that task's value, not as a reference to it.
+Feeding the `transform` above from an upstream task adds one argument on each side:
+
+```python
+# the Python Dag
+@task
+def extract() -> int: ...
+
+
+@task.stub(queue="typescript")
+def transform(rows: int, region_code: str, threshold: float, dry_run: bool = False): ...
+
+
+transform(extract(), "uk", 0.75)
+```
+
+```ts
+interface TransformArgs {
+  rows: number;
+  regionCode: string;
+  threshold: number;
+  dryRun: boolean;
+}
+
+export async function transform({ rows, regionCode, threshold, dryRun }: TransformArgs) {
+  // `rows` is the number extract() returned.
+}
+```
+
+An upstream that pushed no output fails the task, naming both the argument and the task it came from.
+An upstream that pushed `null` binds `null`.
+
+Being upstream is not the same as being passed. An XCom dependency declared with `>>` defines task order only,
+so a value the call did not pass is read explicitly:
 
 ```ts
 const rows = await getClient().getXCom<number>({ key: "return_value", taskId: "extract" });
 ```
+
+A Python `int` beyond the ±9007199254740991 a JavaScript number holds exactly is refused rather than bound,
+so carry such a value across the boundary as a string.
 
 `Dag` is another interface, for a Dag declared natively in TypeScript, and is still a work in progress.
 

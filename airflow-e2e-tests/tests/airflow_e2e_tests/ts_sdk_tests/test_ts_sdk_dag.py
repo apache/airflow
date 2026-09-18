@@ -27,8 +27,9 @@ Two Dags mix Python tasks with ``@task.stub`` TypeScript tasks, both served by t
 ``typescript_example`` covers the runtime: Variable and Connection reads, Python <-> TypeScript XCom
 round-trips, and task logs reaching the log store.
 
-``typescript_taskflow_example`` covers TaskFlow arguments, and shares a ``build_message`` task ID with
-``typescript_example`` so that dispatch keying on the task ID alone would run the wrong handler.
+``typescript_taskflow_example`` covers TaskFlow arguments, including an upstream output pulled before
+the handler runs, and shares a ``build_message`` task ID with ``typescript_example`` so that dispatch
+keying on the task ID alone would run the wrong handler.
 """
 
 from __future__ import annotations
@@ -160,12 +161,15 @@ def test_second_dag_from_the_same_bundle_succeeded(completed_taskflow_run: _Comp
 
 
 def test_summarize_binds_its_call_arguments(completed_taskflow_run: _CompletedRun):
-    """Every argument the Dag's ``summarize("uk", "GBP", 280.0)`` call passes.
+    """Every argument ``summarize(make_totals(), "uk", "GBP", 280.0)`` passes.
 
     ``region_code`` and ``dry_run`` are snake_case in the ``@task.stub``
     signature and camelCase in the handler, with nothing declared on either
     side: folding is what carries them across. ``dry_run`` is left out of the
-    call, so it arrives from the stub's default.
+    call, so it arrives from the stub's default. ``totals`` takes
+    ``make_totals``'s output, so the runtime resolves that task's
+    ``return_value`` XCom before the handler is called. ``averageOrder`` below
+    is computed from it, and the handler never reads an XCom itself.
 
     A handler that received none of them would see ``undefined`` for each and
     return nulls and ``NaN`` here rather than failing, which is why the whole
