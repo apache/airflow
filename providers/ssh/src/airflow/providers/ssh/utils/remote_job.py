@@ -285,6 +285,7 @@ def build_windows_wrapper_command(
     # Write command to disk to avoid double base64 encoding.
     # Add-Content writes each pipeline object to disk immediately (no block buffering),
     # giving real-time log updates.
+    # Launch as Win32_Process so that it doesn't die when SSH exits.
     child_script = f"""$ErrorActionPreference = "Continue"
 $b = $PSScriptRoot
 $env:LOG_FILE = "$b{sep}stdout.log"
@@ -304,7 +305,6 @@ $sf = "$d{sep}job.ps1"
 {child_script}'@ | Set-Content -Path $sf -Encoding UTF8
 '' | Set-Content -Path "$d{sep}stdout.log"
 
-    # Launch as Win32_Process so that it doesn't die when SSH exits.
 $cmd = "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$sf`""
 $p = ([wmiclass]'Win32_Process').Create($cmd, $null, $null)
 Set-Content -NoNewline -Path "$d{sep}pid" -Value $p.ProcessId
