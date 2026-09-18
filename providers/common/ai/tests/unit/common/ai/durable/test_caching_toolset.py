@@ -174,6 +174,21 @@ class TestCachingToolsetReplayVerification:
         mock_storage.save_tool_result.assert_not_called()
         assert counter.cached_tool == 1
 
+    @pytest.mark.asyncio
+    async def test_unverifiable_call_leaves_a_verifiable_entry_intact(
+        self, mock_toolset, mock_storage, counter
+    ):
+        """A usable entry must survive a call that cannot be fingerprinted."""
+        good_fingerprint = fingerprint_tool_call("search", {"q": "foo"}, "call_1")
+        mock_storage.load_tool_result.return_value = (True, "from a verifiable attempt", good_fingerprint)
+        caching = CachingToolset(wrapped=mock_toolset, storage=mock_storage, counter=counter)
+
+        result = await caching.call_tool("search", {"value": object()}, ctx_for("call_1"), MagicMock())
+
+        assert result == "fresh result"
+        assert counter.replayed_tool == 0
+        mock_storage.save_tool_result.assert_not_called()
+
 
 class TestSharedCounter:
     @pytest.mark.asyncio
