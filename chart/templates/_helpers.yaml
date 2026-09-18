@@ -65,7 +65,7 @@ If release name contains chart name it will be used as a full name.
     value: {{ .Values.airflowHome }}
   {{- if .Values.mountConfigAsDir }}
   - name: AIRFLOW_CONFIG
-    value: {{ printf "%s/config/airflow.cfg" .Values.airflowHome | quote }}
+    value: {{ printf "%s/airflow.cfg" (include "airflow_config_dir" .) | quote }}
   {{- end }}
   {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CORE__FERNET_KEY }}
   - name: AIRFLOW__CORE__FERNET_KEY
@@ -650,13 +650,13 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{- end }}
 
 {{- define "airflow_config_dir" -}}
-  {{- printf "%s/config" .Values.airflowHome | quote }}
+  {{- printf "%s/config" .Values.airflowHome }}
 {{- end }}
 
 {{- define "airflow_config_mount" -}}
 {{- if .Values.mountConfigAsDir }}
 - name: config
-  mountPath: {{ template "airflow_config_dir" . }}
+  mountPath: {{ include "airflow_config_dir" . | quote }}
   readOnly: true
 {{- else }}
 - name: config
