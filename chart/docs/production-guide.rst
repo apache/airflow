@@ -230,18 +230,13 @@ In the ``values.yaml`` below secret-related parameters should be adjusted like:
 Creating the first user
 -----------------------
 
-The chart does not create an Airflow user for you.
+By default, the chart does not create an Airflow user. ``createUserJob`` is disabled and
+the chart ships no default username or password; enabling the job without supplying both
+fails the render with a message saying so, rather than creating an account whose
+credentials are the same on every installation.
 
-Earlier versions ran a create-user job by default that provisioned an ``admin`` account
-with the password ``admin``. Those credentials were the same on every installation, so
-anything able to reach the API server -- by default any workload in the cluster, since
-``networkPolicies.enabled`` is ``false`` -- could sign in with the Admin role.
-
-``createUserJob`` is therefore disabled by default and the chart ships no default
-username or password. Enabling the job without supplying both fails the render with a
-message saying so, rather than creating an account with well-known credentials.
-
-Create the user yourself after installing:
+If you do not use any external user provider with Airflow for user authentication, you may
+use the FAB provider and create the user on your own by running the command:
 
 .. code-block:: bash
 
@@ -258,9 +253,8 @@ Or enable the job with credentials of your own:
         username: <username>
         password: <password>
 
-Values files are frequently committed to source control, so where your deployment
-tooling supports it, supply the password from a Kubernetes Secret rather than writing it
-into ``values.yaml``.
+.. note::
+   For security reasons, avoid providing the ``password`` field directly in the ``values.yaml`` chart file.
 
 API Secret Key
 --------------
