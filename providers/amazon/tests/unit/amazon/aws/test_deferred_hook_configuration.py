@@ -21,6 +21,7 @@ import ast
 import importlib
 import inspect
 import pkgutil
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -61,76 +62,86 @@ PENDING_MIGRATION = frozenset(
 )
 
 
-def trigger_constructions(expr: ast.expr) -> list[ast.Call]:
-    """Resolve a ``trigger=`` expression to the constructions it can evaluate to."""
+def read_trigger_name(call: ast.Call) -> str | None:
+    """The trigger class a construction names, or ``None`` when the callee cannot be read."""
+    if isinstance(call.func, ast.Name):
+        return call.func.id
+    if isinstance(call.func, ast.Attribute):
+        return call.func.attr
+    return None
+
+
+def trigger_constructions(expr: ast.expr) -> list[ast.Call] | None:
+    """
+    Resolve a ``trigger=`` expression to the constructions it can evaluate to.
+
+    ``None`` means the expression cannot be read statically. Returning that rather than an empty
+    list is what keeps a site from disappearing: a bare reference, a subscript, or a conditional
+    with one unreadable branch all have to be acknowledged in ``UNREADABLE_DEFER_SITES`` instead of
+    quietly contributing nothing to the sweep.
+    """
     if isinstance(expr, ast.Call):
-        return [expr]
+        # A construction whose callee cannot be named is no more readable than a bare reference:
+        # the allowlists key on the class name, so an unnamed one could never match them.
+        return [expr] if read_trigger_name(expr) is not None else None
     if isinstance(expr, ast.IfExp):
-        return trigger_constructions(expr.body) + trigger_constructions(expr.orelse)
-    return []
+        branches = (trigger_constructions(expr.body), trigger_constructions(expr.orelse))
+        if any(branch is None for branch in branches):
+            return None
+        return [call for branch in branches for call in branch]
+    return None
+
+
+def walk_defer_sites() -> Iterator[tuple[Path, ast.expr]]:
+    """Yield the ``trigger=`` expression of every ``self.defer(...)`` in the provider."""
+    # Every file, not just operators/ and sensors/: ``defer`` is a BaseOperator method, so a site
+    # can appear anywhere, and a directory filter would drop a nested subpackage without saying so.
+    for path in sorted(AWS_ROOT.rglob("*.py")):
+        for node in ast.walk(ast.parse(path.read_text())):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            if not (
+                isinstance(func, ast.Attribute)
+                and func.attr == "defer"
+                and isinstance(func.value, ast.Name)
+                and func.value.id == "self"
+            ):
+                continue
+            trigger = next((kw.value for kw in node.keywords if kw.arg == "trigger"), None)
+            if trigger is not None:
+                yield path, trigger
 
 
 def find_defer_sites() -> list[tuple[str, int, str, list[str]]]:
     """Collect every ``self.defer(trigger=SomeTrigger(...))`` in the provider."""
     sites = []
-    for path in sorted(AWS_ROOT.rglob("*.py")):
-        if path.parent.name not in ("operators", "sensors"):
-            continue
-        for node in ast.walk(ast.parse(path.read_text())):
-            if not isinstance(node, ast.Call):
+    for path, trigger in walk_defer_sites():
+        # The trigger may be built inline, or picked between in a conditional expression, so take
+        # every construction the expression can yield rather than assuming a single call.
+        for call in trigger_constructions(trigger) or ():
+            name = read_trigger_name(call)
+            if name in UNCONFIGURABLE_TRIGGERS:
                 continue
-            func = node.func
-            if not (
-                isinstance(func, ast.Attribute)
-                and func.attr == "defer"
-                and isinstance(func.value, ast.Name)
-                and func.value.id == "self"
-            ):
-                continue
-            trigger = next((kw.value for kw in node.keywords if kw.arg == "trigger"), None)
-            if trigger is None:
-                continue
-            # The trigger may be built inline, or picked between in a conditional expression, so
-            # take every construction the expression can yield rather than assuming a single call.
-            for call in trigger_constructions(trigger):
-                name = (
-                    call.func.attr if isinstance(call.func, ast.Attribute) else getattr(call.func, "id", "")
+            passed = {kw.arg for kw in call.keywords if kw.arg}
+            sites.append(
+                (
+                    path.relative_to(AWS_ROOT).as_posix(),
+                    call.lineno,
+                    name,
+                    [p for p in HOOK_CONFIGURATION if p not in passed],
                 )
-                if name in UNCONFIGURABLE_TRIGGERS:
-                    continue
-                passed = {kw.arg for kw in call.keywords if kw.arg}
-                sites.append(
-                    (
-                        path.relative_to(AWS_ROOT).as_posix(),
-                        call.lineno,
-                        name,
-                        [p for p in HOOK_CONFIGURATION if p not in passed],
-                    )
-                )
+            )
     return sites
 
 
 def find_unreadable_defer_sites() -> set[tuple[str, str]]:
-    """Defer sites whose trigger is a bare reference, so its class cannot be read statically."""
-    unreadable = set()
-    for path in sorted(AWS_ROOT.rglob("*.py")):
-        if path.parent.name not in ("operators", "sensors"):
-            continue
-        for node in ast.walk(ast.parse(path.read_text())):
-            if not isinstance(node, ast.Call):
-                continue
-            func = node.func
-            if not (
-                isinstance(func, ast.Attribute)
-                and func.attr == "defer"
-                and isinstance(func.value, ast.Name)
-                and func.value.id == "self"
-            ):
-                continue
-            trigger = next((kw.value for kw in node.keywords if kw.arg == "trigger"), None)
-            if isinstance(trigger, ast.Name):
-                unreadable.add((path.relative_to(AWS_ROOT).as_posix(), trigger.id))
-    return unreadable
+    """Defer sites whose trigger expression cannot be resolved to the constructions it yields."""
+    return {
+        (path.relative_to(AWS_ROOT).as_posix(), ast.unparse(trigger))
+        for path, trigger in walk_defer_sites()
+        if trigger_constructions(trigger) is None
+    }
 
 
 DEFER_SITES = find_defer_sites()
@@ -143,6 +154,26 @@ def test_defer_sites_are_discovered():
 def test_no_defer_site_escapes_the_check():
     """A defer site whose trigger cannot be read statically must be acknowledged, not skipped."""
     assert find_unreadable_defer_sites() == UNREADABLE_DEFER_SITES
+
+
+@pytest.mark.parametrize(
+    ("expression", "expected"),
+    [
+        pytest.param("SomeTrigger(x=1)", 1, id="call"),
+        pytest.param("A() if flag else B()", 2, id="conditional-both-readable"),
+        pytest.param("trigger", None, id="bare-name"),
+        pytest.param("self._trigger", None, id="attribute"),
+        pytest.param("triggers[kind]", None, id="subscript"),
+        pytest.param("A() if flag else self._trigger", None, id="conditional-one-unreadable"),
+        pytest.param("TRIGGERS[kind](x=1)", None, id="unnameable-callee"),
+        pytest.param("module.SomeTrigger(x=1)", 1, id="module-qualified-callee"),
+    ],
+)
+def test_unreadable_trigger_expressions_resolve_to_none(expression, expected):
+    """Anything the sweep cannot resolve must report None so the site is forced onto the allowlist."""
+    constructions = trigger_constructions(ast.parse(expression, mode="eval").body)
+
+    assert (constructions if constructions is None else len(constructions)) == expected
 
 
 @pytest.mark.parametrize(
