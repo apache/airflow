@@ -33,11 +33,37 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
+from pathlib import PurePosixPath
 from typing import Any
 
 # reST underlines an (optionally overlined) section title with a run of one
 # punctuation character, at least as long as the title itself.
 _ADORNMENT_CHARS = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
+
+_SKIPPED_PAGE_NAMES = frozenset({"changelog.rst", "commits.rst"})
+
+
+def is_guide_page(relative_path: str) -> bool:
+    """Whether a path relative to a provider's docs directory is a how-to guide page.
+
+    Callers hand every ``.rst`` they can see to this before it ever reaches
+    ``collect_guide_anchors``. Two kinds of real, built pages must not go
+    further:
+
+    - Anything under a ``_``-prefixed path segment, at any depth
+      (``_api/hook/index.rst``, ``operators/_partials/foo.rst``, top-level
+      ``_partials/foo.rst``): Sphinx/autoapi output and partials are directive
+      markup, not the hand-written, reST-underlined titles this module's
+      leading-inline-literal convention parses.
+    - ``changelog.rst`` and ``commits.rst``: real release-note pages, not
+      how-to guides, that can carry inline-literal-formatted headings by
+      coincidence.
+    """
+    path = PurePosixPath(relative_path)
+    if any(part.startswith("_") for part in path.parts):
+        return False
+    return path.name not in _SKIPPED_PAGE_NAMES
+
 
 # A single inline-literal name: a class (``HookToolset``) or a task-flow
 # decorator (``@task.llm_file_analysis``) -- narrow enough that it still can't
