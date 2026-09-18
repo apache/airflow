@@ -61,8 +61,8 @@ Start with what you have
      - ``HookToolset``
    * - A question that is a query, against a DBAPI database
      - ``SQLToolset``
-   * - Files on an object store — Parquet, CSV, Avro, Iceberg — rather than rows
-       in a database
+   * - Files on an object store — Parquet, CSV, Avro — or a catalog-managed
+       table format such as Iceberg, rather than rows in a database
      - ``DataFusionToolset``
    * - A vendor that already ships a server built for agents, whose tools you
        would otherwise re-wrap by hand
@@ -186,10 +186,13 @@ tools; see :ref:`toolset-call-barriers`.
 ---------------------
 
 **Choose it when** the data is files on an object store rather than rows in a
-database — Parquet, CSV, Avro or Iceberg — and you want the agent to ask SQL
-questions of them without loading them anywhere first. Each
-``DataSourceConfig`` registers one table, and several can be registered so the
-agent can join across them.
+database — Parquet, CSV or Avro — or a table in a catalog such as Iceberg, and
+you want the agent to ask SQL questions of them without loading them anywhere
+first. Each ``DataSourceConfig`` registers one table, and several can be
+registered so the agent can join across them. The two shapes take different
+fields: an object-store format needs a ``uri``, while a catalog format like
+Iceberg is looked up by ``db_name`` instead, and ``DataSourceConfig`` raises
+``ValueError`` at construction if a catalog format is missing one.
 
 **What it cannot do**
 
@@ -232,6 +235,25 @@ Which of the two fits depends on the question. "Read me this object" is a hook
 method. "What were last quarter's returns by region" is a query, and expressing
 it through ``list_keys`` and ``read_key`` means the model does the aggregation in
 its context window instead of the engine doing it.
+
+An Iceberg table is registered differently. There is no ``uri`` to read files
+from; the catalog resolves the table by name, so the config carries a
+``db_name`` instead, following the same ``DataSourceConfig`` shape that
+``example_analytics.py`` in the ``common.sql`` provider uses:
+
+.. code-block:: python
+
+    toolset = DataFusionToolset(
+        datasource_configs=[
+            DataSourceConfig(
+                conn_id="iceberg_default",
+                table_name="users_data",
+                db_name="demo",
+                format="iceberg",
+            ),
+        ],
+        max_rows=100,
+    )
 
 **Credentials and where it runs.** Each ``DataSourceConfig`` carries its own
 ``conn_id``, so object-store access is an Airflow connection. DataFusion is an
@@ -347,6 +369,17 @@ and any script execution happen on the worker.
 a tool you picked in advance — exploratory analysis, installing a package for one
 task, producing a file. Every other route on this page answers "call this thing";
 this one answers "here is somewhere to work".
+
+Before following this row, check whether the actual need is narrower than that:
+``code_mode=True`` is a flag on ``AgentOperator``, not a toolset on this table
+— it changes how the model invokes the tools it already has, letting it write
+code to call several of them instead of emitting one call per step. It does not
+give the agent somewhere to run arbitrary code of its own, and it avoids the
+``sbx`` backend's production-readiness, network-isolation, and reclamation
+caveats below — but not the reachability one: the glue code still runs in the
+worker process, so a credential-bearing toolset on the same agent stays within
+reach whether or not code mode is on. See :ref:`code-mode` and
+:ref:`sandbox-boundaries`.
 
 **What it cannot do**
 
