@@ -664,6 +664,7 @@ class CommandFactory:
         arg_action: argparse.BooleanOptionalAction | None,
         arg_dest: str | None = None,
         arg_default: Any | None = None,
+        arg_required: bool = False,
     ) -> Arg:
         return Arg(
             flags=arg_flags,
@@ -672,6 +673,7 @@ class CommandFactory:
             help=arg_help,
             default=arg_default,
             action=arg_action,
+            required=arg_required,
         )
 
     @staticmethod
@@ -709,6 +711,10 @@ class CommandFactory:
     ) -> list[Arg]:
         """Create Arg for non-primitive type Pydantic."""
         parameter_type_map = getattr(generated_datamodels, parameter_type)
+        # Fields supplied by CLI defaults do not need an explicit argument.
+        cli_defaults = self._apply_datamodel_defaults(
+            parameter_type_map, dict.fromkeys(parameter_type_map.model_fields)
+        )
         commands = []
         # Rebuilt per visit: datamodels are shared across operations, so appending would duplicate fields.
         self.datamodels_extended_map[parameter_type] = []
@@ -730,6 +736,7 @@ class CommandFactory:
                     arg_type=self._python_type_from_string(annotation),
                     arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
                     arg_help=f"{field} for {parameter_key} operation",
+                    arg_required=field_type.is_required() and cli_defaults[field] is None,
                     arg_default=self._get_bool_arg_default(parameter_type, field_type.default)
                     if annotation is bool
                     else None,
