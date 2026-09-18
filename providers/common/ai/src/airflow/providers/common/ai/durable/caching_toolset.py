@@ -70,7 +70,7 @@ class CachingToolset(WrapperToolset[Any]):
         # even when multiple tool calls run concurrently via asyncio.gather.
         step = self.counter.next_step()
         key = f"{DURABLE_KEY_PREFIX}tool_step_{step}"
-        fingerprint = fingerprint_tool_call(name, tool_args, ctx.tool_call_id)
+        fingerprint = fingerprint_tool_call(name, tool_args, ctx.tool_call_id, step=step)
 
         found, cached, cached_fingerprint = self.storage.load_tool_result(key)
         if found:
@@ -96,8 +96,8 @@ class CachingToolset(WrapperToolset[Any]):
         # also returns without writing when the result itself is not serializable.
         self.counter.cached_tool += 1
         if fingerprint is None:
-            # Storing this would write an entry the guard above can never accept,
-            # once per step, each write rewriting the whole cache blob.
+            # An entry stored without a fingerprint can never satisfy the guard
+            # above, so writing one only adds a dead entry per step.
             log.debug(
                 "Durable: not caching tool result that cannot be verified on replay",
                 step=step,

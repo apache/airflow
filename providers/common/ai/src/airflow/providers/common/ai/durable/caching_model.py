@@ -93,6 +93,7 @@ class CachingModel(WrapperModel):
             messages,
             prepared_settings,
             prepared_parameters,
+            step=step,
         )
 
         cached, cached_fingerprint = self.storage.load_model_response(key)
@@ -118,8 +119,8 @@ class CachingModel(WrapperModel):
         # as steps executed fresh, and the call was paid for either way.
         self.counter.cached_model += 1
         if fingerprint is None:
-            # Storing this would write an entry the guard above can never accept,
-            # once per step, each write rewriting the whole cache blob.
+            # An entry stored without a fingerprint can never satisfy the guard
+            # above, so writing one only adds a dead entry per step.
             log.debug("Durable: not caching model response that cannot be verified on replay", step=step)
             return response
         self.storage.save_model_response(key, response, fingerprint=fingerprint)
