@@ -1017,11 +1017,11 @@ opportunities rather than vulnerabilities, and contributions binding reissue to 
 through the normal process. Deployments requiring a hard bound on credential lifetime should rely on
 network isolation of workers rather than on token expiry.
 
-Core API session authorisation is resolved at token issue
+Core API session authorization is resolved at token issue
 ..........................................................
 
-A Core API JWT carries the caller's identity, and authorisation is resolved when the token is issued.
-The refresh path re-resolves the *principal* from the presented token and revalidates it, but it does
+A Core API JWT carries the caller's identity, and authorization is resolved when the token is issued.
+The refresh path re-resolves the *principal* from the presented token and validates it again, but it does
 not re-resolve that principal's current permissions: ``BaseAuthManager.refresh_user()`` does nothing by
 default, and auth managers are not required to override it. Refresh runs on every request and is
 deliberately kept lightweight.
