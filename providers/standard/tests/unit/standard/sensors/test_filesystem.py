@@ -21,6 +21,7 @@ import os
 import shutil
 import tempfile
 from datetime import timedelta
+from unittest.mock import patch
 
 import pytest
 
@@ -258,3 +259,25 @@ class TestFileSensor:
         assert second.start_trigger_args.trigger_kwargs["filepath"] == second.path
         assert first.start_trigger_args.timeout == timedelta(seconds=60)
         assert second.start_trigger_args.timeout == timedelta(seconds=999)
+
+    def test_non_deferrable_sensor_does_not_defer_after_the_sync_path(self):
+        """
+        A sensor the caller did not make deferrable must never defer.
+
+        The sync path pokes until the file appears and then returns. Poking a second time
+        afterwards means a file consumed in between defers the task, and on a deployment with no
+        triggerer it then sits in ``deferred`` until execution_timeout.
+        """
+        task = FileSensor(
+            task_id="test_no_defer",
+            filepath="temp_dir",
+            fs_conn_id="fs_default",
+            dag=self.dag,
+            timeout=0,
+        )
+
+        # The file is there for the sync path's poke and gone by any second one.
+        with patch.object(FileSensor, "poke", side_effect=[True, False]) as mock_poke:
+            task.execute({})
+
+        assert mock_poke.call_count == 1, "the sensor poked again after the sync path completed"

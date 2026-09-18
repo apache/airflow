@@ -126,7 +126,7 @@ class StackdriverHook(GoogleBaseHook):
         if format_ == "dict":
             return [AlertPolicy.to_dict(policy) for policy in policies_]
         if format_ == "json":
-            return [AlertPolicy.to_jsoon(policy) for policy in policies_]
+            return [AlertPolicy.to_json(policy) for policy in policies_]
         return policies_
 
     @GoogleBaseHook.fallback_to_default_project_id
