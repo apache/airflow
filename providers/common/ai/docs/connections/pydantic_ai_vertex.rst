@@ -116,6 +116,12 @@ Service Account Info
 Custom Endpoint URL
     Override the Google API base URL (optional).
 
+Fallback Connections
+    Other connection IDs to fail over to, in order, while this provider is
+    unavailable. Stored in ``extra["fallback_conn_ids"]``. Entries may name any
+    ``pydanticai`` connection type, so one chain can span vendors. See
+    :doc:`/provider_fallback`.
+
 Credentials
 -----------
 
@@ -132,12 +138,6 @@ ignored):
   ``service_account_info``.
 - ``api_key`` — for Vertex AI Express Mode, only used when none of the above
   are set.
-
-Fallback Connections
-    Other connection IDs to fail over to, in order, while this provider is
-    unavailable. Stored in ``extra["fallback_conn_ids"]``. Entries may name any
-    ``pydanticai`` connection type, so one chain can span vendors. See
-    :doc:`/provider_fallback`.
 
 Examples
 --------

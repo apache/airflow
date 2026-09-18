@@ -101,6 +101,12 @@ Read Timeout (s)
 Connect Timeout (s)
     boto3 connect timeout in seconds (float, optional).
 
+Fallback Connections
+    Other connection IDs to fail over to, in order, while this provider is
+    unavailable. Stored in ``extra["fallback_conn_ids"]``. Entries may name any
+    ``pydanticai`` connection type, so one chain can span vendors. See
+    :doc:`/provider_fallback`.
+
 Credentials
 -----------
 
@@ -114,12 +120,6 @@ more than one credential source is set at once, the bearer token
   ``aws_session_token``) — used only when no bearer token is set.
 - The environment-variable / instance-role credential chain
   (``AWS_PROFILE``, IAM role, …) when none of the fields above are set.
-
-Fallback Connections
-    Other connection IDs to fail over to, in order, while this provider is
-    unavailable. Stored in ``extra["fallback_conn_ids"]``. Entries may name any
-    ``pydanticai`` connection type, so one chain can span vendors. See
-    :doc:`/provider_fallback`.
 
 Examples
 --------
