@@ -272,15 +272,11 @@ class PydanticAIHook(BaseHook):
         """
         Prefix a bare model name with this connection's platform.
 
-        A name is treated as already pinning a platform only when the segment before
-        its first ``:`` is itself a provider pydantic-ai recognizes (e.g.
-        ``"openai:gpt-4"``) -- see :func:`_has_recognized_provider_prefix`. Everything
-        else is a bare name, even one that happens to contain a ``:`` of its own (e.g.
-        Bedrock's version-suffixed ``"us.anthropic.claude-opus-4-6-v1:0"``), and is
-        prefixed with :attr:`model_provider`; the generic ``pydanticai`` connection type
-        has no platform of its own (``model_provider`` is ``None``), so a bare name there
-        raises instead of reaching pydantic-ai's own, less actionable ``Unknown model``
-        error.
+        Whether *model_name* is bare or already pins a platform is decided by
+        :func:`_has_recognized_provider_prefix`; see the class docstring's ``model_id``
+        entry for the resolution rules -- including why the generic connection type
+        raises here instead of reaching pydantic-ai's own, less actionable
+        ``Unknown model`` error.
 
         :param forwarded_from_conn_id: The primary connection's ID, set only when
             *model_name* was forwarded down a fallback chain rather than configured
@@ -293,8 +289,8 @@ class PydanticAIHook(BaseHook):
         if _has_recognized_provider_prefix(model_name):
             return model_name
         if self.model_provider is not None:
-            if ":" in model_name and _looks_like_unrecognized_provider_prefix(model_name.partition(":")[0]):
-                prefix = model_name.partition(":")[0]
+            prefix, sep, _ = model_name.partition(":")
+            if sep and _looks_like_unrecognized_provider_prefix(prefix):
                 self.log.warning(
                     "Model name '%s' on connection '%s' contains ':' but its prefix '%s' is not a "
                     "provider pydantic-ai recognizes; treating the whole string as a bare %s model id "
@@ -351,21 +347,17 @@ class PydanticAIHook(BaseHook):
         Resolve the ``Model`` for this hook's own connection, ignoring any fallback chain.
 
         :param forwarded_model_id: The primary connection's configured model name,
-            forwarded down a fallback chain by :meth:`_resolve_fallback_models`.
-            Used only when this
-            connection configures no ``model_id``/``model`` of its own, and only when it
-            is a bare name: a name that already pins a platform (see
-            :func:`_has_recognized_provider_prefix`) names a model of the *primary's*
-            provider, not this connection's, so it is not forwarded -- this connection
-            still raises "no model specified" in that case. A bare name that itself
-            contains a ``:`` (a vendor's own native id, e.g. Bedrock's
-            ``us.anthropic.claude-opus-4-6-v1:0``) is only forwarded when
-            *forwarded_model_provider* matches this connection's own :attr:`model_provider`
-            -- that spelling is only meaningful on the platform that produced it.
+            forwarded down a fallback chain by :meth:`_resolve_fallback_models` --
+            see that method's docstring for when a name is eligible to forward. A
+            name with an embedded ``:`` of its own (a vendor's own native id, e.g.
+            Bedrock's version-suffixed ``us.anthropic.claude-opus-4-6-v1:0``) is only
+            forwarded when *forwarded_model_provider* matches this connection's own
+            :attr:`model_provider` -- that spelling is only meaningful on the
+            platform that produced it.
         :param forwarded_from_conn_id: The primary connection's ID, for error messages
             attributing an unresolvable forwarded name to where it actually came from.
-        :param forwarded_model_provider: The primary connection's :attr:`model_provider`,
-            used to gate cross-platform forwarding of names with an embedded ``:``.
+        :param forwarded_model_provider: The primary connection's :attr:`model_provider`;
+            see *forwarded_model_id* above for how it gates forwarding.
         """
         conn, extra = self._get_conn_and_extra()
 
@@ -456,9 +448,7 @@ class PydanticAIHook(BaseHook):
         primary's provider, not this fallback's, so it is not applied; that
         fallback still raises "no model specified" unless its own ``extra`` sets
         a ``model``. Whether a name already pins a platform is decided by
-        :func:`_has_recognized_provider_prefix`, not by whether it merely contains a
-        ``:`` -- some vendors' native model ids contain one of their own (e.g. Bedrock's
-        version-suffixed ``us.anthropic.claude-opus-4-6-v1:0``).
+        :func:`_has_recognized_provider_prefix`, not by whether it merely contains a ``:``.
         """
         fallback_conn_ids = self._get_fallback_conn_ids()
         if not fallback_conn_ids:
