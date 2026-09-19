@@ -4787,3 +4787,39 @@ class TestEmitTaskSpan:
         }
         _emit_task_span(ti, TaskInstanceState.SUCCESS)
         assert len(self.exporter.get_finished_spans()) == expected_spans
+
+
+def test_ti_run_resolves_consumed_event_relationships_once(client, session, create_task_instance):
+    """ti_run must not lazy-load asset and source_aliases once per consumed asset event."""
+    from tests_common.test_utils.asserts import CountQueries
+
+    def _measure(k):
+        ti = create_task_instance(
+            dag_id=f"consumed_events_dag_{k}", task_id="t", state=State.QUEUED, session=session
+        )
+        for i in range(k):
+            asset = AssetModel(
+                name=f"consumed_{k}_{i}", uri=f"s3://consumed/{k}/{i}", group="asset", extra={}
+            )
+            session.add_all([asset, AssetActive.for_asset(asset)])
+            session.flush()
+            event = AssetEvent(asset_id=asset.id, source_dag_id="src", source_run_id="r1")
+            event.source_aliases.append(AssetAliasModel(name=f"consumed_alias_{k}_{i}"))
+            ti.dag_run.consumed_asset_events.append(event)
+        session.commit()
+        with CountQueries() as result:
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "h",
+                    "unixname": "u",
+                    "pid": 1,
+                    "start_date": "2024-09-30T12:00:00Z",
+                },
+            )
+        assert response.status_code == 200, response.text
+        assert len(response.json()["dag_run"]["consumed_asset_events"]) == k
+        return sum(result.values())
+
+    assert _measure(5) == _measure(1)
