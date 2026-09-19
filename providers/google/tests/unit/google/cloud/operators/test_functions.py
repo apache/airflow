@@ -24,7 +24,7 @@ import httplib2
 import pytest
 from googleapiclient.errors import HttpError
 
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.operators.functions import (
     CloudFunctionDeleteFunctionOperator,
     CloudFunctionDeployFunctionOperator,
@@ -736,3 +736,75 @@ class TestGcfFunctionInvokeOperator:
             key="execution_id",
             value=exec_id,
         )
+
+    @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionInvokeFunctionTrigger")
+    def test_execute_deferrable(self, mock_trigger_class):
+        function_id = "test_function"
+        payload = {"key": "value"}
+
+        op = CloudFunctionInvokeFunctionOperator(
+            task_id="test",
+            function_id=function_id,
+            input_data=payload,
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT_ID,
+            deferrable=True,
+        )
+        mock_context = {"ti": mock.MagicMock()}
+        if not AIRFLOW_V_3_0_PLUS:
+            mock_context["task"] = op
+
+        with pytest.raises(TaskDeferred) as ctx:
+            op.execute(mock_context)
+
+        mock_trigger_class.assert_called_once_with(
+            function_id=function_id,
+            input_data=payload,
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT_ID,
+            gcp_conn_id="google_cloud_default",
+            api_version="v1",
+            impersonation_chain=None,
+        )
+        assert ctx.value.trigger is not None
+
+    def test_execute_complete_success(self):
+        op = CloudFunctionInvokeFunctionOperator(
+            task_id="test",
+            function_id="test_function",
+            input_data={"key": "value"},
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT_ID,
+        )
+        mock_ti = mock.MagicMock()
+        mock_context = {"ti": mock_ti}
+        if not AIRFLOW_V_3_0_PLUS:
+            mock_context["task"] = op
+        event = {
+            "status": "success",
+            "result": {"executionId": "exec-123", "result": "ok"},
+            "execution_id": "exec-123",
+        }
+
+        result = op.execute_complete(mock_context, event)
+
+        assert result == {"executionId": "exec-123", "result": "ok"}
+        mock_ti.xcom_push.assert_any_call(key="execution_id", value="exec-123")
+        mock_ti.xcom_push.assert_any_call(
+            key="cloud_functions_details",
+            value={"location": GCP_LOCATION, "project_id": GCP_PROJECT_ID, "function_name": "test_function"},
+        )
+
+    def test_execute_complete_error(self):
+        op = CloudFunctionInvokeFunctionOperator(
+            task_id="test",
+            function_id="test_function",
+            input_data={"key": "value"},
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT_ID,
+        )
+        mock_context = {"ti": mock.MagicMock()}
+        event = {"status": "error", "message": "Function failed"}
+
+        with pytest.raises(AirflowException, match="Function failed"):
+            op.execute_complete(mock_context, event)

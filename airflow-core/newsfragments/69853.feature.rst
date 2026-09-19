@@ -1,0 +1,1 @@
+Add deferrable support for CloudFunctionInvokeFunctionOperator to invoke Google Cloud Functions asynchronously without blocking workers.
