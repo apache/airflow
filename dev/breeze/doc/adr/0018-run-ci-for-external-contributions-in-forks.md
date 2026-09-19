@@ -89,15 +89,23 @@ record captures the decisions that shape it and the alternatives rejected.
    ``ready for maintainer review``, keep one edited state comment, post a fresh comment for
    the two moments that need attention (workflows enabled, closed), publish the fork CI state
    as a commit status on the head SHA (red / yellow / green, linking to the run in the
-   fork), and close after seven days without fork CI activity. Commit statuses were chosen
-   over check runs because a check run created with the workflow token links to the creating
-   workflow instead of the fork run. ``pull_request_target`` was rejected: it would react to
+   fork), close after seven days without fork CI activity, and close an external pull
+   request that tampered with the gate. Tampering is detected from what GitHub recorded, not
+   from the pull request's tree: project CI ran for the head SHA (a non-skipped job other
+   than ``gate`` in ``Tests (AMD)``, or a workflow not on the base branch) *and* the pull
+   request changes files under ``.github/workflows/``. Both are required so that legitimate
+   project CI runs (backlog reset, a removed ``use project ci``) and legitimate workflow
+   edits that keep the gate intact are never closed. Commit statuses were chosen over check
+   runs because a check run created with the workflow token links to the creating workflow
+   instead of the fork run. ``pull_request_target`` was rejected: it would react to
    untrusted events with write permissions for a gain of a few minutes of latency.
 
 5. **Unknown failures are surfaced, expected states are not.** The reconciler catches errors
    per pull request, continues, and posts everything it could not classify to the
    ``internal-airflow-ci-cd`` Slack channel through the same action and payload convention
-   as the CI duration monitor.
+   as the CI duration monitor. Two expected outcomes are posted as well, in their own
+   section: a pull request closed for gate tampering and a pull request carrying both
+   override labels.
 
 6. **``breeze ci audit`` is the contributor's pre-flight.** It checks ``gh``, the
    ``upstream``/``origin`` remote convention, fork existence, who the user is to the project,
@@ -129,9 +137,12 @@ record captures the decisions that shape it and the alternatives rejected.
   ``build-info``. Pushes to ad-hoc branches in ``apache/airflow`` create a gate-only run.
 - The ``pr-management-triage`` skill must treat gated pull requests as out of scope for
   drafting, the review label and inactivity closing; the reconciler owns those.
-- A pull request can edit ``ci-amd.yml`` to remove the gate. This is visible in review and
-  bounded to one pull request's CI; it is accepted rather than solved with
-  ``pull_request_target``.
+- A pull request can edit ``ci-amd.yml`` to remove the gate, or add a workflow with a
+  ``pull_request`` trigger, and get one project CI run. That is accepted at the workflow
+  level rather than solved with ``pull_request_target``; the reconciler closes the pull
+  request within one cadence, and a closed pull request triggers no further runs, so the
+  cost is one run per attempt. A maintainer who wants the workflow change reopens with
+  ``use project ci``.
 - Drafting and the setup comment arrive within a reconciler cadence, not instantly.
 - ``COMMITTERS`` in ``global_constants.py`` is not the source of trust for gating; GitHub's
   author association is. That list continues to drive runner selection only.
