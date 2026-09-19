@@ -222,6 +222,7 @@ class TestKubernetesHook:
             ("default_kube_config", {}),
             ("disable_verify_ssl", {"disable_verify_ssl": True}),
             ("disable_verify_ssl_empty", {"disable_verify_ssl": ""}),
+            ("ssl_ca_cert", {"ssl_ca_cert": "/path/to/ca.crt"}),
             ("disable_tcp_keepalive", {"disable_tcp_keepalive": True}),
             ("disable_tcp_keepalive_empty", {"disable_tcp_keepalive": ""}),
             ("sidecar_container_image", {"xcom_sidecar_container_image": "private.repo.com/alpine:3.16"}),
@@ -412,6 +413,16 @@ class TestKubernetesHook:
         api_conn = kubernetes_hook.get_conn()
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
         assert api_conn.configuration.verify_ssl is False
+
+    def test_ssl_ca_cert_applies_to_client_configuration(self):
+        """Verifies that ssl_ca_cert is propagated to the returned ApiClient configuration."""
+        kubernetes_hook = KubernetesHook(conn_id="ssl_ca_cert")
+
+        api_conn = kubernetes_hook.get_conn()
+
+        assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
+        assert api_conn.configuration.ssl_ca_cert == "/path/to/ca.crt"
+
 
     @pytest.mark.parametrize(
         ("disable_tcp_keepalive", "conn_id", "expected"),
