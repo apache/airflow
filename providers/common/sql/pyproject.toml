@@ -60,7 +60,7 @@ requires-python = ">=3.10"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.11.0",
-    "apache-airflow-providers-common-compat>=1.14.1",
+    "apache-airflow-providers-common-compat>=1.14.1", # use next version
     "sqlparse>=0.5.1",
     "more-itertools>=9.0.0",
     # The methodtools dependency is necessary since the introduction of dialects:
@@ -86,6 +86,9 @@ dependencies = [
 ]
 "sqlalchemy" = [
     "sqlalchemy>=1.4.54",
+]
+"sqlglot" = [
+    "sqlglot>=30.0.0",
 ]
 "amazon" = [
     "apache-airflow-providers-amazon"
@@ -118,6 +121,7 @@ dev = [
     "apache-airflow-providers-odbc",
     "apache-airflow-providers-sqlite",
     "apache-airflow-providers-common-sql[sqlalchemy]",
+    "apache-airflow-providers-common-sql[sqlglot]",
     "datafusion>=50.0.0,<52.0.0",
     "pyiceberg-core>=0.8.0",
 ]
