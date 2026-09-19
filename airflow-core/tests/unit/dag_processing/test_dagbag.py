@@ -1375,7 +1375,48 @@ class TestCaptureWithReraise:
 
 
 class TestBundlePathSysPath:
-    """Tests for bundle_path sys.path handling in BundleDagBag."""
+    """Tests for bundle path handling in BundleDagBag."""
+
+    def test_imports_from_bundle_import_root(self, tmp_path, monkeypatch):
+        """The import root can be broader than the directory scanned for Dags."""
+        repository_root = tmp_path / "repository"
+        bundle_path = repository_root / "dags"
+        package_path = repository_root / "company_shared"
+        bundle_path.mkdir(parents=True)
+        package_path.mkdir()
+        (package_path / "__init__.py").write_text("")
+        (package_path / "engine.py").write_text('MESSAGE = "imported from repository root"')
+        dag_file = bundle_path / "test_dag.py"
+        dag_file.write_text(
+            textwrap.dedent(
+                """\
+                from airflow.sdk import DAG
+                from company_shared.engine import MESSAGE
+
+                with DAG("test_import_root", description=MESSAGE):
+                    pass
+                """
+            )
+        )
+        monkeypatch.setattr(sys, "path", sys.path.copy())
+
+        try:
+            with patch("airflow.dag_processing.dagbag.importlib.invalidate_caches") as invalidate_caches:
+                dagbag = BundleDagBag(
+                    dag_folder=str(dag_file),
+                    bundle_path=bundle_path,
+                    bundle_import_root=repository_root,
+                    bundle_name="test-bundle",
+                )
+
+            assert not dagbag.import_errors
+            assert dagbag.get_dag("test_import_root").description == "imported from repository root"
+            assert sys.path.count(str(bundle_path)) == 1
+            assert sys.path.count(str(repository_root)) == 1
+            invalidate_caches.assert_called_once_with()
+        finally:
+            sys.modules.pop("company_shared.engine", None)
+            sys.modules.pop("company_shared", None)
 
     def test_bundle_path_added_to_syspath(self, tmp_path):
         """Test that BundleDagBag adds bundle_path to sys.path when provided."""

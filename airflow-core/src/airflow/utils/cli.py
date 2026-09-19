@@ -299,6 +299,7 @@ def get_bagged_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | N
             dagbag = BundleDagBag(
                 dag_folder=dagfile_path or bundle.path,
                 bundle_path=bundle.path,
+                bundle_import_root=bundle.import_root,
                 bundle_name=bundle.name,
             )
         if dag := dagbag.dags.get(dag_id):
@@ -311,6 +312,7 @@ def get_bagged_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | N
             dagbag = BundleDagBag(
                 dag_folder=dagfile_path or bundle.path,
                 bundle_path=bundle.path,
+                bundle_import_root=bundle.import_root,
                 bundle_name=bundle.name,
             )
             sync_bag_to_db(dagbag, bundle.name, bundle.version)
@@ -348,7 +350,12 @@ def get_dags(bundle_names: list | None, dag_id: str, use_regex: bool = False, fr
         return [get_bagged_dag(bundle_names=bundle_names, dag_id=dag_id)]
 
     def _find_dag(bundle):
-        dagbag = BundleDagBag(dag_folder=bundle.path, bundle_path=bundle.path, bundle_name=bundle.name)
+        dagbag = BundleDagBag(
+            dag_folder=bundle.path,
+            bundle_path=bundle.path,
+            bundle_import_root=bundle.import_root,
+            bundle_name=bundle.name,
+        )
         matched_dags = [dag for dag in dagbag.dags.values() if re.search(dag_id, dag.dag_id)]
         return matched_dags
 

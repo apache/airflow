@@ -123,6 +123,9 @@ class DagFileParseRequest(BaseModel):
     bundle_path: Path
     """Passing bundle path around lets us figure out relative file path."""
 
+    bundle_import_root: Path | None = None
+    """Path added to ``sys.path`` while parsing this bundle."""
+
     bundle_name: str
     """Bundle name for team-specific executor validation."""
 
@@ -253,6 +256,7 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
     bag = BundleDagBag(
         dag_folder=msg.file,
         bundle_path=msg.bundle_path,
+        bundle_import_root=msg.bundle_import_root,
         bundle_name=msg.bundle_name,
         load_op_links=False,
     )
@@ -603,6 +607,7 @@ class DagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
         *,
         path: str | os.PathLike[str],
         bundle_path: Path,
+        bundle_import_root: Path | None = None,
         bundle_name: str,
         dag_file_rel_path: str,
         callbacks: list[CallbackRequest],
@@ -633,7 +638,13 @@ class DagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
             **kwargs,
         )
         proc.had_callbacks = bool(callbacks)  # Track if this process had callbacks
-        proc._on_child_started(callbacks, path, bundle_path, bundle_name)
+        proc._on_child_started(
+            callbacks,
+            path,
+            bundle_path,
+            bundle_name,
+            bundle_import_root=bundle_import_root,
+        )
         return proc
 
     def _on_child_started(
@@ -642,10 +653,12 @@ class DagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
         path: str | os.PathLike[str],
         bundle_path: Path,
         bundle_name: str,
+        bundle_import_root: Path | None = None,
     ) -> None:
         msg = DagFileParseRequest(
             file=os.fspath(path),
             bundle_path=bundle_path,
+            bundle_import_root=bundle_import_root,
             bundle_name=bundle_name,
             callback_requests=callbacks,
         )
