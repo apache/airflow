@@ -19,8 +19,10 @@ from __future__ import annotations
 import uuid
 from unittest import mock
 
+import pytest
 from kubernetes.client import ApiClient, models as k8s
 
+from airflow.exceptions import AirflowConfigException
 from airflow.providers.cncf.kubernetes.k8s_model import append_to_pod
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.cncf.kubernetes.secret import Secret
@@ -123,3 +125,75 @@ class TestSecret:
                 ],
             },
         }
+
+
+class TestSecretConstructor:
+    def test_invalid_deploy_type_is_rejected(self):
+        with pytest.raises(AirflowConfigException, match="deploy_type must be env or volume"):
+            Secret("configmap", "TARGET", "secret_a")
+
+    def test_key_without_deploy_target_is_rejected(self):
+        with pytest.raises(AirflowConfigException, match="`deploy_target` should not be None"):
+            Secret("env", None, "secret_a", key="username")
+
+    def test_env_deploy_target_is_uppercased(self):
+        assert Secret("env", "db_password", "secret_a", "key").deploy_target == "DB_PASSWORD"
+
+    def test_volume_deploy_target_keeps_case(self):
+        assert Secret("volume", "/etc/Foo", "secret_a").deploy_target == "/etc/Foo"
+
+
+class TestSecretAttachToPod:
+    @pytest.fixture
+    def pod(self) -> k8s.V1Pod:
+        return k8s.V1Pod(spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base")]))
+
+    def test_env_secret_without_key_attaches_env_from(self, pod):
+        result = Secret("env", None, "secret_a").attach_to_pod(pod)
+
+        assert result.spec.containers[0].env_from == [
+            k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name="secret_a"))
+        ]
+        assert result.spec.containers[0].env is None
+
+    def test_env_secret_with_key_attaches_env_var(self, pod):
+        result = Secret("env", "TARGET", "secret_a", "source").attach_to_pod(pod)
+
+        assert result.spec.containers[0].env == [
+            k8s.V1EnvVar(
+                name="TARGET",
+                value_from=k8s.V1EnvVarSource(
+                    secret_key_ref=k8s.V1SecretKeySelector(name="secret_a", key="source")
+                ),
+            )
+        ]
+        assert result.spec.containers[0].env_from is None
+
+    def test_attach_to_pod_does_not_mutate_original_pod(self, pod):
+        Secret("volume", "/etc/foo", "secret_a").attach_to_pod(pod)
+
+        assert pod.spec.volumes is None
+        assert pod.spec.containers[0].volume_mounts is None
+
+
+class TestSecretEquality:
+    def test_equal_secrets(self):
+        assert Secret("env", "TARGET", "secret_a", "key") == Secret("env", "TARGET", "secret_a", "key")
+        assert hash(Secret("env", "TARGET", "secret_a", "key")) == hash(
+            Secret("env", "TARGET", "secret_a", "key")
+        )
+
+    @pytest.mark.parametrize(
+        "other",
+        [
+            Secret("volume", "/etc/foo", "secret_a"),
+            Secret("env", "OTHER", "secret_a", "key"),
+            Secret("env", "TARGET", "secret_b", "key"),
+            Secret("env", "TARGET", "secret_a", "other-key"),
+        ],
+    )
+    def test_different_secrets(self, other):
+        assert Secret("env", "TARGET", "secret_a", "key") != other
+
+    def test_repr(self):
+        assert repr(Secret("env", "TARGET", "secret_a", "key")) == "Secret(env, TARGET, secret_a, key)"
