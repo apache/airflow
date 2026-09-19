@@ -89,6 +89,43 @@ def test_all_apps(mock_create_task_exec_api, mock_init_plugins, mock_init_views,
     mock_create_task_exec_api.assert_called_once_with()
 
 
+@pytest.mark.non_db_test_override
+@pytest.mark.parametrize(
+    ("apps", "expected"),
+    [
+        pytest.param("core,execution", {"core", "execution"}, id="no whitespace"),
+        pytest.param("core, execution", {"core", "execution"}, id="space after comma"),
+        pytest.param(" all ", {"all"}, id="surrounding whitespace"),
+        pytest.param("core,,execution", {"core", "execution"}, id="empty entry"),
+        pytest.param("core,core", {"core"}, id="repeated entry"),
+        pytest.param("", {"all"}, id="empty selection"),
+        pytest.param(" , ", {"all"}, id="whitespace-only selection"),
+    ],
+)
+def test_parse_apps_selection(apps, expected):
+    assert app_module.parse_apps_selection(apps) == expected
+
+
+@pytest.mark.non_db_test_override
+def test_parse_apps_selection_rejects_unknown_names():
+    with pytest.raises(ValueError, match=r"Unknown API server app\(s\): cores, ui"):
+        app_module.parse_apps_selection("cores,core,ui")
+
+
+@mock.patch("airflow.api_fastapi.app.init_views")
+@mock.patch("airflow.api_fastapi.app.init_plugins")
+@mock.patch("airflow.api_fastapi.app.create_task_execution_api_app")
+def test_apps_selection_tolerates_whitespace(
+    mock_create_task_exec_api, mock_init_plugins, mock_init_views, client
+):
+    """A space after the comma used to drop the app outright, leaving workers with no /execution."""
+    client(apps="core, execution")
+
+    mock_init_views.assert_called_once()
+    mock_init_plugins.assert_called_once()
+    mock_create_task_exec_api.assert_called_once()
+
+
 @pytest.mark.parametrize("apps", ["all", "core", "execution"])
 def test_access_log_middleware_installed_outermost_for_every_apps_selection(apps, client):
     """Both server backends disable their own access logger, so a selection that skips this
