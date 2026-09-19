@@ -185,9 +185,11 @@ tools; see :ref:`toolset-call-barriers`.
 **Choose it when** the data is files on an object store rather than rows in a
 database — Parquet, CSV or Avro — or a table in a catalog such as Iceberg, and
 you want the agent to ask SQL questions of them without loading them anywhere
-first. Each ``DataSourceConfig`` registers one table, and several can be
-registered so the agent can join across them. The two shapes take different
-fields: an object-store format needs a ``uri``, while a catalog format like
+first. (This route needs the ``datafusion`` extra of
+``apache-airflow-providers-common-sql``.) Each ``DataSourceConfig`` registers
+one table, and several can be registered so the agent can join across them.
+The two shapes take different fields: an object-store format needs a
+``uri``, while a catalog format like
 Iceberg is looked up by ``db_name`` instead, and ``DataSourceConfig`` raises
 ``ValueError`` at construction if a catalog format is missing one.
 
@@ -233,10 +235,12 @@ method. "What were last quarter's returns by region" is a query, and expressing
 it through ``list_keys`` and ``read_key`` means the model does the aggregation in
 its context window instead of the engine doing it.
 
-An Iceberg table is registered differently. There is no ``uri`` to read files
-from; the catalog resolves the table by name, so the config carries a
-``db_name`` instead, following the same ``DataSourceConfig`` shape that
-``example_analytics.py`` in the ``common.sql`` provider uses:
+An Iceberg table is registered differently. (Iceberg support needs the
+``apache.iceberg`` extra of ``apache-airflow-providers-common-sql``; without
+it, registration raises ``AirflowOptionalProviderFeatureException``.) There is
+no ``uri`` to read files from; the catalog resolves the table by name, so the
+config carries a ``db_name`` instead, following the same ``DataSourceConfig``
+shape that ``example_analytics.py`` in the ``common.sql`` provider uses:
 
 .. code-block:: python
 
