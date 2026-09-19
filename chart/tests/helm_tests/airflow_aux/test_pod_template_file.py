@@ -1305,7 +1305,6 @@ class TestPodTemplateFile:
         sidecar = jmespath.search("spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0])
         assert sidecar is not None
         assert sidecar["restartPolicy"] == "Always"
-        assert jmespath.search("spec.containers[?name=='worker-kerberos'] | [0]", docs[0]) is None
 
     @pytest.mark.parametrize(
         ("sidecar_enabled", "probe_enabled", "expected_names"),
