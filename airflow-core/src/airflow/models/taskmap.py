@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any
 
 from opentelemetry import trace
 from sqlalchemy import CheckConstraint, ForeignKeyConstraint, Integer, String, func, or_, select
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, lazyload, mapped_column
 
 from airflow._shared.observability.traces import new_task_run_carrier
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
@@ -168,7 +168,11 @@ class TaskMap(TaskInstanceDependencies):
 
         state: str | None = None
         unmapped_ti: TaskInstance | None = session.scalars(
-            select(TaskInstance).where(
+            # One row, but the joined eager load would still bring the run conf along with it;
+            # dag_run is read below and loads on its own.
+            select(TaskInstance)
+            .options(lazyload(TaskInstance.dag_run))
+            .where(
                 TaskInstance.dag_id == task.dag_id,
                 TaskInstance.task_id == task.task_id,
                 TaskInstance.run_id == run_id,
@@ -280,11 +284,16 @@ class TaskMap(TaskInstanceDependencies):
 
         # Any (old) task instances with inapplicable indexes (>= the total
         # number we need) are set to "REMOVED".
-        query = select(TaskInstance).where(
-            TaskInstance.dag_id == task.dag_id,
-            TaskInstance.task_id == task.task_id,
-            TaskInstance.run_id == run_id,
-            TaskInstance.map_index >= total_expanded_ti_count,
+        # Only the state is written here, so skip the dag_run join.
+        query = (
+            select(TaskInstance)
+            .options(lazyload(TaskInstance.dag_run))
+            .where(
+                TaskInstance.dag_id == task.dag_id,
+                TaskInstance.task_id == task.task_id,
+                TaskInstance.run_id == run_id,
+                TaskInstance.map_index >= total_expanded_ti_count,
+            )
         )
         to_update = session.scalars(with_row_locks(query, of=TaskInstance, session=session, skip_locked=True))
         for ti in to_update:

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import datetime
+import re
 from collections import defaultdict
 from collections.abc import Mapping
 from contextlib import contextmanager
@@ -88,6 +89,7 @@ from airflow.utils.state import DagRunState, DagSchedulingState, State, TaskInst
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
+from tests_common.test_utils.asserts import capture_orm_selects
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
@@ -102,6 +104,9 @@ if TYPE_CHECKING:
     from airflow.serialization.definitions.dag import SerializedDAG
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
+
+# A joined eager load of TaskInstance.dag_run aliases the table, hence the optional suffix.
+SELECTS_RUN_CONF = re.compile(r"\bdag_run(?:_\d+)?\.conf\b")
 
 TI = TaskInstance
 DEFAULT_DATE = pendulum.instance(_DEFAULT_DATE)
@@ -794,6 +799,26 @@ class TestDagRun:
 
         ti = dag_run.get_task_instance("test_short_circuit_false")
         assert ti is None
+
+    def test_get_task_instances_does_not_fetch_run_conf(self, dag_maker, session):
+        """The run conf must not be repeated on every task-instance row of the eager join."""
+        conf = {"payload": "x" * 512}
+        with dag_maker(dag_id="test_get_task_instances_run_conf", session=session):
+            EmptyOperator(task_id="t1")
+            EmptyOperator(task_id="t2")
+        dag_run = dag_maker.create_dagrun(conf=conf)
+
+        with capture_orm_selects("task_instance") as statements:
+            tis = DagRun.fetch_task_instances(dag_id=dag_run.dag_id, run_id=dag_run.run_id, session=session)
+
+        assert len(tis) == 2
+        assert statements
+        assert all(re.search(r"\bdag_run(?:_\d+)?\.run_type\b", stmt) for stmt in statements), statements
+        assert not any(SELECTS_RUN_CONF.search(stmt) for stmt in statements), statements
+
+        session.expunge_all()
+        ti = DagRun.fetch_task_instances(dag_id=dag_run.dag_id, run_id=dag_run.run_id, session=session)[0]
+        assert ti.dag_run.conf == conf
 
     def test_get_latest_runs(self, dag_maker, session):
         with dag_maker(
@@ -2116,6 +2141,81 @@ def test_mapped_literal_length_increase_adds_additional_ti(dag_maker, session):
         (3, State.NONE),
         (4, State.NONE),
     ]
+
+
+def test_scheduling_decisions_never_fetch_run_conf(dag_maker, session):
+    """No task-instance query in the scheduling loop may repeat the run conf on every row."""
+
+    @task
+    def upstream():
+        return [1, 2, 3, 4]
+
+    @task
+    def downstream(arg): ...
+
+    with dag_maker(dag_id="test_scheduling_decisions_run_conf", session=session):
+        downstream.expand(arg=upstream())
+
+    dr = dag_maker.create_dagrun(conf={"payload": "x" * 512})
+    ti_upstream = dr.get_task_instance("upstream", session=session)
+
+    statements: list[str] = []
+    # While the upstream runs the mapped dependency is evaluated per task instance and the
+    # schedulable states are re-read; once it succeeds the mapped task expands.
+    for upstream_state in (State.RUNNING, State.SUCCESS):
+        ti_upstream.state = upstream_state
+        session.flush()
+        with capture_orm_selects("task_instance") as captured:
+            dr.task_instance_scheduling_decisions(session=session)
+        statements.extend(captured)
+
+    assert statements
+    assert not any(SELECTS_RUN_CONF.search(stmt) for stmt in statements), [
+        stmt for stmt in statements if SELECTS_RUN_CONF.search(stmt)
+    ]
+
+
+def test_scheduling_decisions_do_not_lazy_load_dag_run(dag_maker, session):
+    """Skipping the dag_run join must not cost one DagRun query per task instance."""
+
+    def _schedule_and_count(dag_id: str, fan_out: int) -> tuple[int, int]:
+        @task
+        def upstream():
+            return list(range(fan_out))
+
+        @task
+        def downstream(arg): ...
+
+        with dag_maker(dag_id=dag_id, max_active_tasks=64, session=session):
+            downstream.expand(arg=upstream())
+
+        dr = dag_maker.create_dagrun(conf={"payload": "x" * 512})
+        dr.get_task_instance("upstream", session=session).state = State.SUCCESS
+        session.add(
+            TaskMap(
+                dag_id=dr.dag_id,
+                task_id="upstream",
+                run_id=dr.run_id,
+                map_index=-1,
+                length=fan_out,
+                keys=None,
+            )
+        )
+        session.flush()
+
+        with capture_orm_selects("dag_run") as statements:
+            dr.task_instance_scheduling_decisions(session=session)  # expands the mapped task
+            dr.task_instance_scheduling_decisions(session=session)  # evaluates the expanded instances
+        return len(statements), len(dr.get_task_instances(session=session))
+
+    small_queries, small_tis = _schedule_and_count("test_lazy_dag_run_small", 2)
+    large_queries, large_tis = _schedule_and_count("test_lazy_dag_run_large", 8)
+
+    assert (small_tis, large_tis) == (3, 9)
+    assert small_queries == large_queries, (
+        f"DagRun queries scaled with the task-instance count ({small_queries} -> {large_queries}); "
+        "a lazy load of TaskInstance.dag_run is firing per task instance"
+    )
 
 
 def test_mapped_literal_length_reduction_adds_removed_state(dag_maker, session):
