@@ -29,7 +29,7 @@ internally converted to always use a timetable.
 If a cron expression or ``timedelta`` is sufficient for your use case, you don't need
 to worry about writing a custom timetable because Airflow has default timetables that handle those cases.
 But for more complicated scheduling requirements,
-you can create your own timetable class and pass that to the Dags ``schedule`` argument.
+you can create your own timetable class and pass that to the Dag's ``schedule`` argument.
 
 Some examples of when custom timetable implementations are useful:
 
@@ -48,7 +48,7 @@ Some examples of when custom timetable implementations are useful:
 
 .. _`Traditional Chinese Calendar`: https://en.wikipedia.org/wiki/Chinese_calendar
 
-Airflow allows you to write custom timetables in plugins and used by
+Airflow allows you to write custom timetables in plugins and use them in
 Dags. You can find an example demonstrating a custom timetable in the
 :doc:`/howto/timetable` how-to guide.
 
@@ -197,7 +197,7 @@ DeltaDataIntervalTimetable
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 A timetable that schedules data intervals with a time delta. You can select it by providing a
-:class:`datetime.timedelta` or ``dateutil.relativedelta.relativedelta`` to the ``schedule`` parameter of a Dag.
+:class:`DeltaDataIntervalTimetable` to the ``schedule`` parameter of a Dag.
 
 This timetable focuses on the data interval value and does not necessarily align execution dates with
 arbitrary bounds, such as the start of day or of hour.
@@ -206,7 +206,12 @@ arbitrary bounds, such as the start of day or of hour.
 
 .. code-block:: python
 
-    @dag(schedule=datetime.timedelta(minutes=30))
+    from datetime import timedelta
+
+    from airflow.sdk import dag, DeltaDataIntervalTimetable
+
+
+    @dag(schedule=DeltaDataIntervalTimetable(timedelta(minutes=30)))
     def example_dag():
         pass
 
@@ -216,17 +221,18 @@ CronDataIntervalTimetable
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 A timetable that accepts a cron expression, creates data intervals according to the interval between each cron
-trigger points, and triggers a Dag run at the end of each data interval.
+trigger points, and triggers a Dag run at the end of each data interval. You can select it by providing a
+:class:`CronDataIntervalTimetable` to the ``schedule`` parameter of a Dag.
 
 .. seealso:: `Differences between "trigger" and "data interval" timetables`_
 .. seealso:: `Differences between the cron and delta data interval timetables`_
 
-Select this timetable by providing a valid cron expression as a string to the ``schedule``
-parameter of a Dag, as described in the :doc:`../core-concepts/dags` documentation.
-
 .. code-block:: python
 
-    @dag(schedule="0 1 * * 3")  # At 01:00 on Wednesday.
+    from airflow.sdk import dag, CronDataIntervalTimetable
+
+
+    @dag(schedule=CronDataIntervalTimetable("0 1 * * 3"))  # At 01:00 on Wednesday.
     def example_dag():
         pass
 
@@ -264,8 +270,9 @@ first, event for the data interval. Otherwise, manual runs begin with a ``data_i
 
 .. _asset-timetable-section:
 
-Asset event based scheduling with time based scheduling
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssetOrTimeSchedule
+^^^^^^^^^^^^^^^^^^^
+
 Combining conditional asset expressions with time-based schedules enhances scheduling flexibility.
 
 The ``AssetOrTimeSchedule`` is a specialized timetable that allows for the scheduling of Dags based on both time-based schedules and asset events. It also facilitates the creation of both scheduled runs, as per traditional timetables, and asset-triggered runs, which operate independently.
@@ -283,13 +290,11 @@ Here's an example of a Dag using ``AssetOrTimeSchedule``:
     @dag(
         schedule=AssetOrTimeSchedule(
             timetable=CronTriggerTimetable("0 1 * * 3", timezone="UTC"), assets=(dag1_asset & dag2_asset)
-        )
-        # Additional arguments here, replace this comment with actual arguments
+        ),
+        ...,
     )
     def example_dag():
-        # Dag tasks go here
         pass
-
 
 
 Timetables comparisons
@@ -404,7 +409,7 @@ data interval that they cover, depending on 3 arguments: ``schedule``, ``start_d
      - ``True``
      - * 00:00 - 00:30
        * 00:30 - 01:00
-     - Same behavior than using the timedelta object.
+     - Same behavior as using the timedelta object.
 
    * - ``*/30 * * * *``
      - ``year-02-01``
@@ -429,7 +434,7 @@ data interval that they cover, depending on 3 arguments: ``schedule``, ``start_d
      - ``True``
      - * 00:00 - 00:30
        * 00:30 - 01:00
-     - Same behavior than using the cron expression.
+     - Same behavior as using the cron expression.
 
    * - ``datetime.timedelta(minutes=30)``
      - ``year-02-01``

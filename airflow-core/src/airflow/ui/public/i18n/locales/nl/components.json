@@ -10,9 +10,12 @@
     "maxRuns": "Maximaal aantal actieve Runs",
     "missingAndErroredRuns": "Missende en mislukte Runs",
     "missingRuns": "Missende Runs",
+    "overrideExistingParams": "Overschrijf parameters op bestaande runs",
     "permissionDenied": "Dry Run mislukt: Gebruiker heeft geen toestemming om backfills te maken.",
     "reprocessBehavior": "Reprocess gedrag",
     "run": "Run Backfill",
+    "scheduleNotBackfillable": "Het schema van deze Dag ondersteunt geen backfills",
+    "schedulerPriorityHint": "Backfill Dag runs worden geordend na niet-backfill Dag runs in elke scheduler cyclus. Backfill runs kunnen langer in de wachtrij blijven als er andere niet-backfill runs aanwezig zijn.",
     "selectDescription": "Draai deze Dag voor een geselecteerd datumbereik",
     "selectLabel": "Backfill",
     "title": "Run Backfill",
@@ -57,11 +60,11 @@
     }
   },
   "durationChart": {
-    "duration": "Duur (seconds)",
+    "duration": "Duur (seconden)",
     "lastDagRun_one": "Laatste Dag Run",
     "lastDagRun_other": "Laatste {{count}} Dag Runs",
-    "lastTaskInstance_one": "Laatste Task Instance",
-    "lastTaskInstance_other": "Laatste {{count}} Task Instances",
+    "lastTaskInstance_one": "Laatste taakinstantie",
+    "lastTaskInstance_other": "Laatste {{count}} taakinstanties",
     "queuedDuration": "Duur in de wachtrij",
     "runAfter": "Run na",
     "runDuration": "Run duur"
@@ -71,13 +74,15 @@
     "files_other": "{{count}} bestanden"
   },
   "flexibleForm": {
+    "durationPlaceholder": "Voer duur in ISO 8601 formaat in",
     "placeholder": "Selecteer waarde",
     "placeholderArray": "Voer elke string in op een nieuwe regel",
     "placeholderExamples": "Start met typen om opties te zien",
-    "placeholderMulti": "Selecteer een of meerder waarden",
+    "placeholderMulti": "Selecteer een of meerdere waarden",
     "validationErrorArrayNotArray": "Waarde moet een array zijn.",
     "validationErrorArrayNotNumbers": "Alle elementen in de array moeten nummers zijn.",
     "validationErrorArrayNotObject": "Alle elementen in de array moeten objecten zijn.",
+    "validationErrorDuration": "Ongeldig ISO 8601 duur-formaat",
     "validationErrorRequired": "Dit veld is verplicht"
   },
   "graph": {
@@ -89,9 +94,10 @@
     "downloadImageError": "Mislukt om de afbeelding van de grafiek te downloaden.",
     "downloadImageErrorTitle": "Download mislukt",
     "otherDagRuns": "+Andere Dag Runs",
-    "taskCount_one": "{{count}} Task",
-    "taskCount_other": "{{count}} Tasks",
-    "taskGroup": "Task Group"
+    "taskCount_one": "{{count}} taak",
+    "taskCount_other": "{{count}} taken",
+    "taskGroup": "Taakgroep",
+    "zoomToTask": "Zoom naar geselecteerde taak"
   },
   "limitedList": "+{{count}} meer",
   "limitedList.allItems": "Alle {{count}} items:",
@@ -110,8 +116,8 @@
   "sortedAscending": "oplopend gesorteerd",
   "sortedDescending": "aflopend gesorteerd",
   "sortedUnsorted": "ongesorteerd",
-  "taskTries": "Task pogingen",
-  "taskTryPlaceholder": "Task poging",
+  "taskTries": "Taakpogingen",
+  "taskTryPlaceholder": "Taakpoging",
   "team": {
     "selector": {
       "helperText": "Optioneel. Beperk het gebruik tot een specifiek team.",

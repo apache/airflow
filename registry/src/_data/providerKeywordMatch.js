@@ -1,0 +1,74 @@
+/*!
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+// Shared by providerCategoryMap.js and exploreCategoryProviders.js so the
+// two directions of the same provider <-> explore-category matching (used
+// respectively by the category dropdown on /providers/ and the Explore landing
+// page's per-category provider listing) can't drift apart.
+
+const { collectExternalServices } = require("./providerExternalServices");
+
+// Kept in sync by hand with normalize() in src/js/search.js and
+// src/js/provider-filters.js (both browser IIFEs; this file runs at build
+// time under CommonJS). Collapse runs of "-_\s" to a space rather than
+// strip: stripping "Microsoft Power BI" would turn it into
+// "microsoftpowerbi", which contains "ftp" and would falsely match
+// the orchestration category.
+function normalize(text) {
+  return text.toLowerCase().replace(/[-_\s]+/g, ' ');
+}
+
+// A value "matches" a keyword if the value contains the keyword,
+// case-insensitively, after collapsing runs of "-_\s" to a single
+// space (so 'pydantic-ai' matches "Pydantic AI").
+function fuzzyIncludes(value, keyword) {
+  if (!value) {
+    return false;
+  }
+  return normalize(value).includes(normalize(keyword));
+}
+
+// Every string a provider is searchable by: its id/slug and its declared
+// integration names (provider.categories[].name) are always included.
+// Its declared `external_services` are included only when the caller opts
+// in via `{ includeExternalServices: true }` — see exploreCategories.js
+// for which category does and why.
+function collectSearchableValues(provider, { includeExternalServices = false } = {}) {
+  const values = [provider.id];
+  for (const category of provider.categories || []) {
+    if (category.name) {
+      values.push(category.name);
+    }
+  }
+  if (includeExternalServices) {
+    values.push(...collectExternalServices(provider));
+  }
+  return values;
+}
+
+function providerMatchesKeyword(provider, keyword, options = {}) {
+  return collectSearchableValues(provider, options).some((value) => fuzzyIncludes(value, keyword));
+}
+
+function categoryMatchesProvider(category, provider) {
+  const options = { includeExternalServices: category.includeExternalServices === true };
+  return category.keywords.some((keyword) => providerMatchesKeyword(provider, keyword, options));
+}
+
+module.exports = { categoryMatchesProvider };

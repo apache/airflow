@@ -221,11 +221,39 @@ Purge history from metadata database
 
 The ``db clean`` command works by deleting from each table the records older than the provided ``--clean-before-timestamp``.
 
-You can optionally provide a list of tables to perform deletes on. If no list of tables is supplied, all tables will be included.
+You can use the ``--dry-run`` option to print the tables that would be cleaned, the configuration used for each, and the row counts, without deleting anything.
 
-You can filter cleanup to specific DAGs using ``--dag-ids`` (comma-separated list), or exclude specific DAGs using ``--exclude-dag-ids`` (comma-separated list). These options allow you to target or avoid cleanup for particular DAGs.
+You can optionally provide a list of tables to perform deletes on with ``--tables``. If no list of tables is supplied, all tables will be included.
 
-You can use the ``--dry-run`` option to print the row counts in the primary tables to be cleaned.
+.. note::
+
+  ``--tables`` sets where cleanup starts, not the full list of tables it touches. Each table has a
+  configured list of dependent tables, and those are cleaned first, so that their rows are archived
+  too. Asking for ``--tables trigger`` therefore also cleans ``task_instance``,
+  ``task_instance_history`` and ``xcom``, all of which the ``--dry-run`` output lists.
+
+  That list is maintained per table rather than derived from the schema, so it does not cover every
+  foreign key. A table left off it can still lose rows to a cascading delete when its parent is
+  cleaned, and those rows are neither listed in the dry run nor archived. See
+  `Beware cascading deletes`_ below.
+
+.. note::
+
+  Cleaning the ``asset_event`` table also drops any queued-but-not-yet-consumed asset events. This mainly
+  affects Dags waiting on a multi-asset condition, where a pending event can be purged before the condition
+  is met, meaning the Dag will not be triggered by it.
+
+You can filter cleanup to specific DAGs using ``--dag-ids`` (comma-separated list), or exclude specific DAGs using ``--exclude-dag-ids`` (comma-separated list).
+
+.. warning::
+
+  Both options only reach tables whose cleanup configuration declares a DAG column. Every other table is
+  cleaned whatever you pass, so ``--exclude-dag-ids`` does not preserve everything connected to the DAGs
+  you name -- ``trigger``, ``callback`` and ``import_error`` declare none, for instance, so the filters
+  never narrow them.
+
+  The ``--dry-run`` output shows a ``dag_id_column`` for each table it would clean. Where that column is
+  ``None``, the DAG filters do not apply to that table.
 
 By default, ``db clean`` will archive purged rows in tables of the form ``_airflow_deleted__<table>__<timestamp>``.  If you don't want the data preserved in this way, you may supply argument ``--skip-archive``.
 
@@ -333,6 +361,22 @@ For a mapping between Airflow version and Alembic revision see :doc:`/migrations
 
     It's highly recommended that you reserialize your Dags with ``dags reserialize`` after you finish downgrading your Airflow environment (meaning, after you've downgraded the Airflow version installed in your Python environment, not immediately after you've downgraded the database).
     This is to ensure that the serialized Dags are compatible with the downgraded version of Airflow.
+
+.. _cli-reserialize-dags:
+
+Reserializing Dags
+------------------
+
+The ``dags reserialize`` command parses the Dag files visible to it and updates their
+serialized representation in the metadata database. It is a maintenance command, useful
+for example to refresh serialized Dags after upgrading or downgrading Airflow.
+
+.. note::
+
+    ``airflow dags reserialize`` serializes the Dag files visible to the process
+    running it. It does not deploy or synchronize Dag source files, and does not
+    replace normal Dag Processor bundle refreshes. In a distributed deployment,
+    run it from an environment that sees the same Dag bundle contents as the Dag Processor.
 
 .. _cli-export-connections:
 

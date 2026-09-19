@@ -24,8 +24,8 @@ import pytest
 from qdrant_client.models import Distance, VectorParams
 
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.qdrant.operators.qdrant import QdrantIngestOperator
-from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2024, 1, 1)
 

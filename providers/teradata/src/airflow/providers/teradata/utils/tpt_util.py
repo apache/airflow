@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 import os
+import shlex
 import shutil
 import stat
 import subprocess
@@ -123,14 +124,15 @@ def remote_secure_delete(
                     )
                 elif shred_available:
                     # UNIX/Linux with shred
-                    execute_remote_command(ssh_client, f"shred --remove {file_path}")
+                    execute_remote_command(ssh_client, f"shred --remove {shlex.quote(file_path)}")
                 else:
                     # UNIX/Linux without shred - overwrite then delete
                     execute_remote_command(
                         ssh_client,
-                        f"if [ -f {file_path} ]; then "
-                        f"dd if=/dev/zero of={file_path} bs=4096 count=$(($(stat -c '%s' {file_path})/4096+1)) 2>/dev/null; "
-                        f"rm -f {file_path}; fi",
+                        f"if [ -f {shlex.quote(file_path)} ]; then "
+                        f"dd if=/dev/zero of={shlex.quote(file_path)} bs=4096 "
+                        f"count=$(($(stat -c '%s' {shlex.quote(file_path)})/4096+1)) 2>/dev/null; "
+                        f"rm -f {shlex.quote(file_path)}; fi",
                     )
             except Exception as e:
                 logger.warning("Failed to process remote file %s: %s", file_path, str(e))
@@ -246,7 +248,7 @@ def _set_windows_file_permissions(
 
 def _set_unix_file_permissions(ssh_client: SSHClient, remote_file_path: str, logger: logging.Logger) -> None:
     """Set read-only permissions on Unix/Linux remote file."""
-    command = f"chmod 400 {remote_file_path}"
+    command = f"chmod 400 {shlex.quote(remote_file_path)}"
 
     exit_status, stdout_data, stderr_data = execute_remote_command(ssh_client, command)
 
@@ -355,7 +357,7 @@ def verify_tpt_utility_on_remote_host(
         if remote_os == "windows":
             command = f"where {utility}"
         else:
-            command = f"which {utility}"
+            command = f"which {shlex.quote(utility)}"
 
         exit_status, output, error = execute_remote_command(ssh_client, command)
 
@@ -622,7 +624,7 @@ def decrypt_remote_file(
         password_escaped = password.replace("'", "'\\''")  # Escape single quotes
         decrypt_cmd = (
             f"openssl enc -d -aes-256-cbc -salt -pbkdf2 -pass pass:'{password_escaped}' "
-            f"-in {remote_enc_file} -out {remote_dec_file}"
+            f"-in {shlex.quote(remote_enc_file)} -out {shlex.quote(remote_dec_file)}"
         )
 
     exit_status, stdout_data, stderr_data = execute_remote_command(ssh_client, decrypt_cmd)

@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import contextlib
+import json
 import os
 import signal
 import subprocess
@@ -36,6 +37,7 @@ from airflow_breeze.commands.common_image_options import (
     option_additional_python_deps,
     option_airflow_constraints_reference_build,
     option_build_progress,
+    option_cache_from_image,
     option_debian_version,
     option_dev_apt_command,
     option_dev_apt_deps,
@@ -52,6 +54,7 @@ from airflow_breeze.commands.common_image_options import (
     option_push,
     option_python_image,
     option_skip_image_file_deletion,
+    option_tag_as,
     option_verify,
     option_wait_for_image,
 )
@@ -80,7 +83,7 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_airflow_constraints_location,
     option_airflow_constraints_mode_ci,
 )
-from airflow_breeze.global_constants import UV_VERSION
+from airflow_breeze.global_constants import CI_IMAGE_SOURCES_HASH_LABEL, UV_VERSION
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.click_utils import BreezeGroup
@@ -98,7 +101,7 @@ from airflow_breeze.utils.docker_command_utils import (
 from airflow_breeze.utils.github import download_artifact_from_pr, download_artifact_from_run_id
 from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel
 from airflow_breeze.utils.mark_image_as_refreshed import mark_image_as_rebuilt
-from airflow_breeze.utils.md5_build_check import md5sum_check_if_build_is_needed
+from airflow_breeze.utils.md5_build_check import calculate_ci_sources_hash, md5sum_check_if_build_is_needed
 from airflow_breeze.utils.parallel import (
     DockerBuildxProgressMatcher,
     ShowLastLineProgressMatcher,
@@ -140,7 +143,7 @@ def check_if_image_building_is_needed(ci_image_params: BuildCiParams, output: Ou
     if result.returncode != 0:
         return True
     if not ci_image_params.force_build and not ci_image_params.upgrade_to_newer_dependencies:
-        if not should_we_run_the_build(build_ci_params=ci_image_params):
+        if not confirm_build_if_sources_changed(build_ci_params=ci_image_params):
             return False
     return True
 
@@ -247,6 +250,7 @@ option_ci_image_file_to_load = click.option(
 @option_answer
 @option_build_progress
 @option_builder
+@option_cache_from_image
 @option_commit_sha
 @option_debian_version
 @option_debug_resources
@@ -286,6 +290,7 @@ def build(
     airflow_constraints_reference: str,
     build_progress: str,
     builder: str,
+    cache_from_image: str | None,
     commit_sha: str | None,
     debian_version: str,
     debug_resources: bool,
@@ -338,6 +343,7 @@ def build(
         airflow_constraints_reference=airflow_constraints_reference,
         build_progress=build_progress,
         builder=builder,
+        cache_from_image=cache_from_image,
         commit_sha=commit_sha,
         debian_version=debian_version,
         dev_apt_command=dev_apt_command,
@@ -558,6 +564,7 @@ def save(
 @option_platform_single
 @option_python
 @option_skip_image_file_deletion
+@option_tag_as
 @option_verbose
 def load(
     from_run: str | None,
@@ -569,6 +576,7 @@ def load(
     platform: str,
     python: str,
     skip_image_file_deletion: bool,
+    tag_as: str | None,
 ):
     """Load CI image from a file."""
     perform_environment_checks()
@@ -618,6 +626,15 @@ def load(
     if result.returncode != 0:
         console_print(f"[error]Error when loading image: {result.stdout}[/]")
         sys.exit(result.returncode)
+    if tag_as:
+        console_print(f"[info]Tagging {build_ci_params.airflow_image_name} as {tag_as}[/]")
+        result = run_command(
+            ["docker", "tag", build_ci_params.airflow_image_name, tag_as],
+            check=False,
+        )
+        if result.returncode != 0:
+            console_print(f"[error]Error when tagging image: {result.stdout}[/]")
+            sys.exit(result.returncode)
     if not skip_image_file_deletion:
         console_print(f"[info]Deleting image file {image_file_to_load}[/]")
         image_file_to_load.unlink()
@@ -712,11 +729,48 @@ def verify(
         sys.exit(return_code)
 
 
-def should_we_run_the_build(build_ci_params: BuildCiParams) -> bool:
+def get_ci_image_sources_hash_label(airflow_image_name: str) -> str | None:
     """
-    Check if we should run the build based on what files have been modified since last build and answer from
-    the user.
+    Reads the sources-hash label from the CI image - None if the image or the label is missing.
 
+    :param airflow_image_name: name of the image to inspect
+    """
+    inspect_result = run_command(
+        ["docker", "inspect", airflow_image_name, "-f", "{{json .Config.Labels}}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if inspect_result.returncode != 0 or not inspect_result.stdout:
+        return None
+    try:
+        labels = json.loads(inspect_result.stdout.strip())
+    except json.JSONDecodeError:
+        return None
+    if not labels:
+        return None
+    return labels.get(CI_IMAGE_SOURCES_HASH_LABEL)
+
+
+def is_ci_image_built_from_current_sources(ci_image_params: BuildCiParams) -> bool:
+    """
+    Check if the CI image present in the Docker daemon was built from sources identical to the
+    current checkout - possibly by another checkout (e.g. a git worktree) sharing the same daemon.
+
+    :param ci_image_params: parameters of the image to check
+    """
+    image_sources_hash = get_ci_image_sources_hash_label(ci_image_params.airflow_image_name)
+    if not image_sources_hash:
+        return False
+    return image_sources_hash == calculate_ci_sources_hash()
+
+
+def confirm_build_if_sources_changed(build_ci_params: BuildCiParams) -> bool:
+    """
+    Confirm whether to build based on important source changes and the user's answer.
+
+    * If the image already matches current sources (e.g. it was built in another git worktree
+      sharing the same Docker daemon), the local build cache is refreshed and no build is needed
     * If build is needed, the user is asked for confirmation
     * If the branch is not rebased it warns the user to rebase (to make sure latest remote cache is useful)
     * Builds Image/Skips/Quits depending on the answer
@@ -726,6 +780,13 @@ def should_we_run_the_build(build_ci_params: BuildCiParams) -> bool:
     # We import those locally so that click autocomplete works
     from inputimeout import TimeoutOccurred
 
+    if is_ci_image_built_from_current_sources(build_ci_params):
+        console_print(
+            f"[info]Docker image {build_ci_params.airflow_image_name} was built from the same "
+            "important sources - no rebuild is needed.[/]"
+        )
+        mark_image_as_rebuilt(ci_image_params=build_ci_params)
+        return False
     if not md5sum_check_if_build_is_needed(
         build_ci_params=build_ci_params,
         md5sum_cache_dir=build_ci_params.md5sum_cache_dir,
@@ -864,9 +925,9 @@ def run_build_ci_image(
     return build_command_result.returncode, f"Image build: {param_description}"
 
 
-def rebuild_or_pull_ci_image_if_needed(command_params: ShellParams | BuildCiParams) -> None:
+def build_ci_image_if_needed(command_params: ShellParams | BuildCiParams) -> None:
     """
-    Rebuilds CI image if needed and user confirms it.
+    Build the CI image if needed and the user confirms it.
 
     :param command_params: parameters of the command to execute
     """
@@ -891,6 +952,13 @@ def rebuild_or_pull_ci_image_if_needed(command_params: ShellParams | BuildCiPara
     if build_ci_image_check_cache.exists():
         if get_verbose():
             console_print(f"[info]{command_params.image_type} image already built locally.[/]")
+    elif not ci_image_params.force_build and is_ci_image_built_from_current_sources(ci_image_params):
+        console_print(
+            f"[info]{command_params.image_type} image for Python {command_params.python} was built "
+            "from the same important sources in another checkout (e.g. a git worktree). Reusing it.[/]"
+        )
+        mark_image_as_rebuilt(ci_image_params=ci_image_params)
+        return
     else:
         console_print(
             f"[warning]{command_params.image_type} image for Python {command_params.python} "

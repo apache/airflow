@@ -59,7 +59,7 @@ class WeaviateIngestOperator(BaseOperator):
         self,
         conn_id: str,
         collection_name: str,
-        input_data: list[dict[str, Any]] | pd.DataFrame | None = None,
+        input_data: list[dict[str, Any]] | pd.DataFrame,
         vector_col: str = "Vector",
         uuid_column: str = "id",
         tenant: str | None = None,
@@ -75,15 +75,14 @@ class WeaviateIngestOperator(BaseOperator):
         self.input_data = input_data
         self.hook_params = hook_params or {}
 
-        if self.input_data is None:
-            raise TypeError("input_data is required")
-
     @cached_property
     def hook(self) -> WeaviateHook:
         """Return an instance of the WeaviateHook."""
         return WeaviateHook(conn_id=self.conn_id, **self.hook_params)
 
     def execute(self, context: Context) -> None:
+        if self.input_data is None:
+            raise TypeError("input_data is required")
         self.log.debug("Input data: %s", self.input_data)
         self.hook.batch_data(
             collection_name=self.collection_name,

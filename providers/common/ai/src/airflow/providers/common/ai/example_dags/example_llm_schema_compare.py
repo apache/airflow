@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from airflow.providers.common.ai.operators.llm_schema_compare import LLMSchemaCompareOperator
 from airflow.providers.common.compat.sdk import dag, task
 from airflow.providers.common.sql.config import DataSourceConfig
@@ -70,14 +72,17 @@ def example_llm_schema_compare_with_object_storage():
         uri="s3://data-lake/customers/",
         format="parquet",
     )
+    # snowflake_default resolves to a DbApiHook, so no uri/format is needed;
+    # a plain database table can be listed alongside object-storage sources.
+    snowflake_source = DataSourceConfig(conn_id="snowflake_default", table_name="customers")
 
     LLMSchemaCompareOperator(
         task_id="compare_s3_vs_db",
-        prompt="Compare S3 Parquet schema against the Postgres table and flag breaking changes",
+        prompt="Compare S3 Parquet schema against the Postgres and Snowflake tables and flag breaking changes",
         llm_conn_id="pydanticai_default",
         db_conn_ids=["postgres_default"],
         table_names=["customers"],
-        data_sources=[s3_source],
+        data_sources=[s3_source, snowflake_source],
     )
 
 
@@ -103,6 +108,25 @@ def example_llm_schema_compare_decorator():
 # [END howto_decorator_llm_schema_compare]
 
 example_llm_schema_compare_decorator()
+
+
+# [START howto_operator_llm_schema_compare_approval]
+@dag(tags=["example"])
+def example_llm_schema_compare_approval():
+    LLMSchemaCompareOperator(
+        task_id="detect_schema_drift_with_approval",
+        prompt="Identify schema mismatches that would break data loading between systems",
+        llm_conn_id="pydanticai_default",
+        db_conn_ids=["postgres_source", "snowflake_target"],
+        table_names=["customers"],
+        require_approval=True,
+        approval_timeout=timedelta(hours=1),
+    )
+
+
+# [END howto_operator_llm_schema_compare_approval]
+
+example_llm_schema_compare_approval()
 
 
 # [START howto_operator_llm_schema_compare_conditional]

@@ -55,6 +55,7 @@ class BaseNodeResponse(BaseModel):
         "trigger",
     ]
     team: str | None = None
+    asset_condition_type: Literal["or-gate", "and-gate"] | None = None
 
 
 E = TypeVar("E", bound=BaseEdgeResponse)

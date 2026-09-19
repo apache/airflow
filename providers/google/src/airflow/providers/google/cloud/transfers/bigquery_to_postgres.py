@@ -22,13 +22,10 @@ from __future__ import annotations
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from psycopg2.extensions import register_adapter
-from psycopg2.extras import Json
-
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.transfers.bigquery_to_sql import BigQueryToSqlBaseOperator
 from airflow.providers.google.cloud.utils.bigquery_get_data import bigquery_get_data
-from airflow.providers.postgres.hooks.postgres import PostgresHook
+from airflow.providers.postgres.hooks.postgres import USE_PSYCOPG3, PostgresHook
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
@@ -81,8 +78,12 @@ class BigQueryToPostgresOperator(BigQueryToSqlBaseOperator):
 
     @cached_property
     def postgres_hook(self) -> PostgresHook:
-        register_adapter(list, Json)
-        register_adapter(dict, Json)
+        if not USE_PSYCOPG3:
+            from psycopg2.extensions import register_adapter
+            from psycopg2.extras import Json
+
+            register_adapter(list, Json)
+            register_adapter(dict, Json)
         return PostgresHook(database=self.database, postgres_conn_id=self.postgres_conn_id)
 
     def get_sql_hook(self) -> PostgresHook:

@@ -20,22 +20,103 @@
 Changelog
 ---------
 
-.. Behavior note
+.. note::
+    ``OpenAIResponseOperator.response_kwargs`` is now a template field. If an
+    existing Dag passes a ``response_kwargs`` dict containing a literal
+    ``{{ ... }}`` string, Jinja will now render it, and the outcome depends on
+    whether the referenced variable is defined: an undefined variable makes
+    the task **fail** at render time (Airflow's default ``template_undefined``
+    is ``StrictUndefined``), while a defined variable is substituted
+    **silently**, sending a different prompt or tool schema to the paid API
+    than before, with no error to signal the change.
 
-The ``[datalib]`` extra of the ``openai`` SDK is no longer part of this
-provider's base install. That extra existed to support the SDK's legacy
-``openai tools fine_tunes.prepare_data`` CLI (removed in openai 1.x) and
-transitively pulled in ``numpy``, ``pandas``, and ``pandas-stubs`` for every
-provider user. None of these packages are imported by the provider's
-source, tests, or example DAGs, so the extra was pure transitive bloat.
+    To keep a ``{{ ... }}`` value literal, wrap it in a ``{% raw %}`` block,
+    for example ``{% raw %}{{ not_a_variable }}{% endraw %}``.
 
-Users whose DAG code relied on ``numpy`` or ``pandas`` being installed as a
-side-effect of installing this provider should declare those packages
-explicitly, or install the SDK extra directly:
+    Rendered ``response_kwargs`` — including the full ``instructions`` text and
+    any tool schema — are written to ``rendered_task_instance_fields`` in the
+    metadata DB on every run, regardless of the operator's ``do_xcom_push``
+    setting.
 
-.. code-block:: bash
+1.8.2
+.....
 
-    pip install 'openai[datalib]'
+.. note::
+    ``OpenAITriggerBatchOperator`` now fails the task when a deferred batch ends in a
+    non-success state. Previously only ``status="error"`` raised, so a batch that was
+    **cancelled** while the task was deferred completed **successfully** with no results,
+    and an unrecognized or missing trigger event either succeeded silently or crashed with
+    ``TypeError: 'NoneType' object is not subscriptable``.
+
+    This aligns the deferrable path with the non-deferrable one, which has raised for
+    ``CANCELLED``/``CANCELLING`` since ``OpenAIHook.wait_for_batch`` was fixed.
+
+    Dags whose batches are cancelled will now fail where they previously reported success.
+    That is the intended correction — the earlier green runs produced no batch output — but
+    if you were relying on cancellation being treated as success, handle it explicitly, for
+    example with a trigger rule or by catching ``OpenAIBatchJobException`` downstream.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use monotonic clock for OpenAIBatchTrigger polling timeout (#69534)``
+* ``Validate trigger events in Openai deferrable tasks (#69506)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix broken OpenAI batch trigger test blocking main (#70938)``
+
+
+1.8.1
+.....
+
+.. note::
+    The ``[datalib]`` extra of the ``openai`` SDK is no longer part of this
+    provider's base install. That extra existed to support the SDK's legacy
+    ``openai tools fine_tunes.prepare_data`` CLI (removed in openai 1.x) and
+    transitively pulled in ``numpy``, ``pandas``, and ``pandas-stubs`` for every
+    provider user. None of these packages are imported by the provider's
+    source, tests, or example Dags, so the extra was pure transitive bloat.
+
+    Users whose Dag code relied on ``numpy`` or ``pandas`` being installed as a
+    side-effect of installing this provider should declare those packages
+    explicitly, or install the SDK extra directly:
+
+    .. code-block:: bash
+
+        pip install 'openai[datalib]'
+
+Misc
+~~~~
+
+* ``Remove unused [datalib] extra from OpenAI provider base install (#69408)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix broken class references and truncated wording in OpenAI provider docs (#69710)``
+* ``Add feature-comparison table and toolset links to common.ai provider docs (#69649)``
+* ``Add quickstart to OpenAI provider (#69590)``
+* ``Document when to use common.ai vs vendor-specific AI providers (#69551)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
+.. Bug fix
+
+``OpenAIBatchTrigger`` now measures its polling timeout with
+:func:`time.monotonic` instead of :func:`time.time`, so a batch task's
+timeout is no longer affected by wall-clock adjustments (NTP corrections,
+DST, VM pause/resume) that happen while the trigger is deferred.
+
+To make that possible the trigger's preferred constructor argument changed
+from ``end_time`` (an absolute wall-clock deadline) to ``timeout`` (a
+duration in seconds). ``OpenAITriggerBatchOperator`` has been updated to
+pass ``timeout``. ``OpenAIBatchTrigger`` still accepts the legacy
+``end_time`` argument so that triggers serialized by the previous version
+of the operator continue to run after an upgrade; direct users of the
+trigger should switch to ``timeout``.
 
 1.8.0
 .....

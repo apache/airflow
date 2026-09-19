@@ -35,6 +35,15 @@ if TYPE_CHECKING:
     from airflow.triggers.base import TriggerEvent
 
 
+def _make_async_hook(client):
+    ctx = mock.MagicMock()
+    ctx.__aenter__ = AsyncMock(return_value=client)
+    ctx.__aexit__ = AsyncMock(return_value=False)
+    instance = mock.MagicMock()
+    instance.get_async_conn = AsyncMock(return_value=ctx)
+    return instance
+
+
 class TestTaskDoneTrigger:
     def test_deprecated_region_alias(self):
         with pytest.warns(AirflowProviderDeprecationWarning, match="region"):
@@ -73,28 +82,35 @@ class TestTaskDoneTrigger:
             "waiter_max_attempts": 10,
             "aws_conn_id": "my_conn",
             "region_name": "eu-west-1",
+            "log_region_name": None,
             "log_group": "lg",
             "log_stream": "ls",
             "verify": False,
             "botocore_config": {"read_timeout": 7},
         }
 
+    def test_serialize_keeps_log_region_name_as_passed(self):
+        trigger = TaskDoneTrigger(
+            cluster="cluster",
+            task_arn="task_arn",
+            waiter_delay=5,
+            waiter_max_attempts=10,
+            aws_conn_id="my_conn",
+            region_name="ap-northeast-1",
+            log_region_name="us-east-1",
+        )
+        _, kwargs = trigger.serialize()
+        assert kwargs["log_region_name"] == "us-east-1"
+        assert kwargs["region_name"] == "ap-northeast-1"
+
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.amazon.aws.triggers.ecs.AwsLogsHook")
     @mock.patch("airflow.providers.amazon.aws.triggers.ecs.EcsHook")
     async def test_run_builds_hooks_with_generic_params(self, ecs_hook_cls, logs_hook_cls):
-        def make_hook(client):
-            ctx = mock.MagicMock()
-            ctx.__aenter__ = AsyncMock(return_value=client)
-            ctx.__aexit__ = AsyncMock(return_value=False)
-            instance = mock.MagicMock()
-            instance.get_async_conn = AsyncMock(return_value=ctx)
-            return instance
-
         ecs_client = mock.MagicMock()
         ecs_client.get_waiter().wait = AsyncMock()
-        ecs_hook_cls.return_value = make_hook(ecs_client)
-        logs_hook_cls.return_value = make_hook(mock.MagicMock())
+        ecs_hook_cls.return_value = _make_async_hook(ecs_client)
+        logs_hook_cls.return_value = _make_async_hook(mock.MagicMock())
 
         trigger = TaskDoneTrigger(
             cluster="cluster",
@@ -116,6 +132,38 @@ class TestTaskDoneTrigger:
         }
         ecs_hook_cls.assert_called_once_with(**expected)
         logs_hook_cls.assert_called_once_with(**expected)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("log_region_name", "expected_logs_hook_region"),
+        [
+            pytest.param(None, "ap-northeast-1", id="falls-back-to-cluster-region"),
+            pytest.param("us-east-1", "us-east-1", id="uses-explicit-log-region"),
+        ],
+    )
+    @mock.patch("airflow.providers.amazon.aws.triggers.ecs.AwsLogsHook")
+    @mock.patch("airflow.providers.amazon.aws.triggers.ecs.EcsHook")
+    async def test_run_reads_logs_from_log_region(
+        self, ecs_hook_cls, logs_hook_cls, log_region_name, expected_logs_hook_region
+    ):
+        ecs_client = mock.MagicMock()
+        ecs_client.get_waiter().wait = AsyncMock()
+        ecs_hook_cls.return_value = _make_async_hook(ecs_client)
+        logs_hook_cls.return_value = _make_async_hook(mock.MagicMock())
+
+        trigger = TaskDoneTrigger(
+            cluster="cluster",
+            task_arn="task_arn",
+            waiter_delay=0,
+            waiter_max_attempts=10,
+            aws_conn_id="my_conn",
+            region_name="ap-northeast-1",
+            log_region_name=log_region_name,
+        )
+        await trigger.run().asend(None)
+
+        assert ecs_hook_cls.call_args.kwargs["region_name"] == "ap-northeast-1"
+        assert logs_hook_cls.call_args.kwargs["region_name"] == expected_logs_hook_region
 
     @pytest.mark.asyncio
     @mock.patch.object(EcsHook, "get_async_conn")

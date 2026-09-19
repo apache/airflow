@@ -24,6 +24,20 @@
     "success": "{{taskId}} प्रतिक्रिया सफल",
     "title": "मानव टास्क इंस्टेंस - {{taskId}}"
   },
+  "review": {
+    "detail": {
+      "selectRequiredAction": "विवरण देखने के लिए एक आवश्यक क्रिया चुनें"
+    },
+    "list": {
+      "completedRequiredActions": "पूर्ण की गई आवश्यक क्रियाएं ({{count}})",
+      "loadError": "आवश्यक क्रियाएं लोड करने में असमर्थ",
+      "loadingActions": "आवश्यक क्रियाएं लोड हो रही हैं...",
+      "pendingRequiredActions": "लंबित आवश्यक क्रियाएं ({{count}})"
+    },
+    "openReviewDrawer": "समीक्षा ड्रॉअर खोलें",
+    "pageLimitHint": "यहाँ केवल पहली कुछ क्रियाएं दिखाई गई हैं। सभी देखने के लिए \"$t(review.viewAll)\" का उपयोग करें।",
+    "viewAll": "सभी आवश्यक क्रियाएं देखें"
+  },
   "state": {
     "approvalReceived": "स्वीकृति प्राप्त",
     "approvalRequired": "स्वीकृति आवश्यक",

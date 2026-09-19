@@ -18,6 +18,7 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { ConnectionNotFoundError } from "../../src/sdk/client.js";
 import { createCoordinatorClient } from "../../src/coordinator/client.js";
 import type { CommChannel } from "../../src/coordinator/comm-channel.js";
 import type { TaskContext } from "../../src/sdk/task.js";
@@ -86,6 +87,33 @@ describe("getXCom not-found contract", () => {
   it("returns null for the exact XCOM_NOT_FOUND code", async () => {
     const c = client([{ body: { type: "ErrorResponse", error: "XCOM_NOT_FOUND" } }]);
     expect(await c.getXCom({ key: "k" })).toBeNull();
+  });
+});
+
+describe("getXComEntry", () => {
+  // `getXCom` answers null for an absent row and a stored null alike, which is
+  // the friendlier shape for handler code but cannot drive a decision between
+  // the two. Argument binding needs both: an upstream that pushed no output
+  // fails the task, while one that pushed null binds null.
+  it("reports an absent row as not found", async () => {
+    const c = client([{ body: { type: "ErrorResponse", error: "XCOM_NOT_FOUND" } }]);
+    expect(await c.getXComEntry({ key: "k" })).toEqual({ found: false, value: null });
+  });
+
+  it("reports a stored null as found", async () => {
+    const c = client([{ body: { type: "XComResult", key: "k", value: null } }]);
+    expect(await c.getXComEntry({ key: "k" })).toEqual({ found: true, value: null });
+  });
+
+  it("reports a stored value as found", async () => {
+    const c = client([{ body: { type: "XComResult", key: "k", value: { orders: 12 } } }]);
+    expect(await c.getXComEntry({ key: "k" })).toEqual({ found: true, value: { orders: 12 } });
+  });
+
+  it("is what getXCom reads, so both see one round-trip", async () => {
+    const c = client([{ body: { type: "XComResult", key: "k", value: false } }]);
+    // `false` also pins that getXCom's `?? null` does not flatten a falsy value.
+    expect(await c.getXCom({ key: "k" })).toBe(false);
   });
 });
 
@@ -159,7 +187,7 @@ describe("client is bound to TaskContext", () => {
           : { body: null };
       },
     } as unknown as CommChannel;
-    // ctx with a real map index — to prove -1 from opts wins over a
+    // ctx with a real map index, to prove -1 from opts wins over a
     // mapped ctx value (caller is explicitly asking "the non-mapped row").
     const mappedCtx: TaskContext = { ...FAKE_CTX, mapIndex: 3 };
     const c = createCoordinatorClient(recordingComm, mappedCtx);
@@ -240,5 +268,30 @@ describe("getConnection", () => {
   it("returns null for missing connections", async () => {
     const c = client([{ body: { type: "ErrorResponse", error: "CONNECTION_NOT_FOUND" } }]);
     expect(await c.getConnection("missing")).toBeNull();
+  });
+});
+
+describe("getConnectionOrThrow", () => {
+  it("returns the connection when present", async () => {
+    const c = client([
+      { body: { type: "ConnectionResult", conn_id: "warehouse", conn_type: "postgres" } },
+    ]);
+
+    await expect(c.getConnectionOrThrow("warehouse")).resolves.toMatchObject({
+      id: "warehouse",
+      type: "postgres",
+    });
+  });
+
+  it("throws ConnectionNotFoundError on a missing connection", async () => {
+    const c = client([{ body: { type: "ErrorResponse", error: "CONNECTION_NOT_FOUND" } }]);
+    const result = c.getConnectionOrThrow("missing");
+    await expect(result).rejects.toThrow(ConnectionNotFoundError);
+    await expect(result).rejects.toThrow(/Connection not found: missing/);
+  });
+
+  it("propagates non-not-found errors instead of ConnectionNotFoundError", async () => {
+    const c = client([{ body: { type: "ErrorResponse", error: "API_SERVER_ERROR" } }]);
+    await expect(c.getConnectionOrThrow("warehouse")).rejects.toThrow(/API_SERVER_ERROR/);
   });
 });

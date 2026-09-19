@@ -24,27 +24,51 @@
 Highlighted configurations
 ===========================
 
-The ``[kafka_listener]`` section configures the ``KafkaListenerPlugin``,
+The ``[kafka_event_producer]`` section configures the ``KafkaEventProducerPlugin``,
 which publishes Airflow DagRun and TaskInstance state-change events to a
 Kafka topic. DagRun and TaskInstance events are separated and enabled by
 distinct flags. Both event-type flags default to ``False``.
 
-.. _configuration_kafka_listener_activation:kafka:
+.. _configuration_kafka_event_producer_use_cases:kafka:
 
-Activating the listener
------------------------
+Common use-cases
+----------------
+
+  * Consume the Kafka events by an external observability or analytics tool and gather info about the state
+    of multiple Airflow instances without polling their metadata DBs.
+  * Based on the state of a DagRun, trigger a downstream external system/pipeline (notifications, alerting,
+    cross-team handoffs) without direct interaction with Airflow.
+  * Coordinate Dags across **separate, independent Airflow deployments** over a shared Kafka
+    service. Each deployment publishes its own events to the topic and can consume the events another
+    deployment published, so a Dag in one deployment can react to a Dag run or task finishing in another.
+
+    * For example, ``deployment_A`` has a deferred task that resumes when a task in ``deployment_B``
+      finishes, with ``deployment_B`` publishing its events to the shared topic and ``deployment_A``
+      consuming them.
+
+.. warning::
+
+    This is coordination between **distinct Airflow deployments**, each with its own metadata
+    database. It should not be confused with Airflow's multi-team feature, which has not been tested
+    with this plugin. Multi-team is a separate, experimental feature still in preview — see
+    :doc:`apache-airflow:core-concepts/multi-team` for what it provides and its current status.
+
+.. _configuration_kafka_event_producer_activation:kafka:
+
+Activating the plugin
+---------------------
 
 To enable event publishing you need to
 
   * enable at least one event-type flag
-  * point the listener at an Airflow Kafka connection via ``kafka_config_id``
+  * point the plugin at an Airflow Kafka connection via ``kafka_config_id``
     (defaults to ``kafka_default``) that carries the broker address and any
     other confluent-kafka client options on its extras
   * have a pre-existing kafka topic
 
 .. code-block:: ini
 
-    [kafka_listener]
+    [kafka_event_producer]
     dag_run_events_enabled = True
     task_instance_events_enabled = True
     kafka_config_id = kafka_events
@@ -52,8 +76,11 @@ To enable event publishing you need to
 
 The connection's ``extra`` JSON accepts the full confluent-kafka client
 configuration — including SASL/TLS options and callbacks (e.g. ``error_cb``,
-``oauth_cb``) given as dotted-path strings, which are resolved to callables
-before the producer is built.
+``oauth_cb``) given as dotted-path strings. A string-valued callback is only
+resolved when its full importable path is listed in the
+:ref:`config:apache_kafka__callback_allowlist` option; the example below requires
+``callback_allowlist = my_company.auth.oauth_cb``. This is enforced for security
+reasons, to prevent malicious callbacks from being executed.
 
 .. code-block:: json
 
@@ -68,20 +95,20 @@ Environment-variable equivalents:
 
 .. code-block:: ini
 
-    AIRFLOW__KAFKA_LISTENER__DAG_RUN_EVENTS_ENABLED=True
-    AIRFLOW__KAFKA_LISTENER__TASK_INSTANCE_EVENTS_ENABLED=True
-    AIRFLOW__KAFKA_LISTENER__KAFKA_CONFIG_ID=kafka_events
-    AIRFLOW__KAFKA_LISTENER__TOPIC=airflow.events
+    AIRFLOW__KAFKA_EVENT_PRODUCER__DAG_RUN_EVENTS_ENABLED=True
+    AIRFLOW__KAFKA_EVENT_PRODUCER__TASK_INSTANCE_EVENTS_ENABLED=True
+    AIRFLOW__KAFKA_EVENT_PRODUCER__KAFKA_CONFIG_ID=kafka_events
+    AIRFLOW__KAFKA_EVENT_PRODUCER__TOPIC=airflow.events
 
 The two event flags are independent, users can opt-in to get only DagRun
 event messages or only TaskInstance event messages or both.
 
 The topic must already exist on the broker, it's not auto-created. On a missing
-topic, broker connection failure, or any other producer init error, the listener
+topic, broker connection failure, or any other producer init error, the plugin
 doesn't fail, instead it logs a warning and retries the init after ``topic_check_retry_interval``
-seconds (default ``60``). Once the topic is created on the broker the listener will pick it up.
+seconds (default ``60``). Once the topic is created on the broker the plugin will pick it up.
 
-.. _configuration_kafka_listener_filtering:kafka:
+.. _configuration_kafka_event_producer_filtering:kafka:
 
 Filtering events
 ----------------
@@ -92,7 +119,7 @@ comma-separated list of ``fnmatch`` glob patterns; an empty list means
 
 .. code-block:: ini
 
-    [kafka_listener]
+    [kafka_event_producer]
     dag_run_dag_id_allowlist = sales_*,marketing_*
     dag_run_dag_id_denylist = sales_internal_*
 

@@ -100,8 +100,6 @@ class SSHOperator(BaseOperator):
         super().__init__(**kwargs)
         if ssh_hook and isinstance(ssh_hook, SSHHook):
             self.ssh_hook = ssh_hook
-            if remote_host is not None:
-                self.ssh_hook.remote_host = remote_host
         self.ssh_conn_id = ssh_conn_id
         self.remote_host = remote_host
         self.command = command
@@ -123,7 +121,7 @@ class SSHOperator(BaseOperator):
         """Create SSHHook to run commands on remote host."""
         if self.ssh_conn_id:
             self.log.info("ssh_hook is not provided or invalid. Trying ssh_conn_id to create SSHHook.")
-            if self.remote_host is not None:
+            if self.remote_host:
                 self.log.info(
                     "remote_host is provided explicitly. "
                     "It will replace the remote_host which was defined "
@@ -167,6 +165,9 @@ class SSHOperator(BaseOperator):
         result: bytes | str
         if self.command is None:
             raise AirflowException("SSH operator error: SSH command not specified. Aborting.")
+
+        if self.remote_host:
+            self.ssh_hook.remote_host = self.remote_host
 
         # Forcing get_pty to True if the command begins with "sudo".
         self.get_pty = self.command.startswith("sudo") or self.get_pty

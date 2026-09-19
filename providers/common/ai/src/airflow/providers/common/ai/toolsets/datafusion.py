@@ -35,7 +35,13 @@ except ImportError as e:
 from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
-from pydantic_core import SchemaValidator, core_schema
+
+from airflow.providers.common.ai.utils.query_results import (
+    DEFAULT_MAX_RESULT_BYTES,
+    QUERY_TOOL_DESCRIPTION as _QUERY_DESCRIPTION,
+    build_query_result,
+)
+from airflow.providers.common.ai.utils.tool_definition import build_args_validator
 
 if TYPE_CHECKING:
     from pydantic_ai._run_context import RunContext
@@ -43,8 +49,6 @@ if TYPE_CHECKING:
     from airflow.providers.common.sql.config import DataSourceConfig
 
 log = logging.getLogger(__name__)
-
-_PASSTHROUGH_VALIDATOR = SchemaValidator(core_schema.any_schema())
 
 # JSON Schemas for the three DataFusion tools.
 _LIST_TABLES_SCHEMA: dict[str, Any] = {
@@ -98,6 +102,15 @@ class DataFusionToolset(AbstractToolset[Any]):
         are permitted.
     :param max_rows: Maximum number of rows returned from the ``query`` tool.
         Default ``50``.
+    :param max_result_bytes: Budget for the serialized ``query`` result, in bytes.
+        Default 64 KiB. ``max_rows`` bounds rows, which says nothing about size: one
+        row of a 3000-column table is larger than a thousand rows of a narrow one, and
+        a tool result stays in the model's message history for the rest of the run, so
+        its cost is re-paid on every subsequent request. Rows are returned as a
+        contiguous prefix, stopping at the first that does not fit the remaining budget
+        rather than skipping it and packing later ones, so one wide row early in the
+        result ends it. The result reports which limit it hit so the agent can narrow
+        its projection rather than page through the table.
     """
 
     def __init__(
@@ -106,12 +119,14 @@ class DataFusionToolset(AbstractToolset[Any]):
         *,
         allow_writes: bool = False,
         max_rows: int = 50,
+        max_result_bytes: int = DEFAULT_MAX_RESULT_BYTES,
     ) -> None:
         if not datasource_configs:
             raise ValueError("datasource_configs must contain at least one DataSourceConfig")
         self._datasource_configs = datasource_configs
         self._allow_writes = allow_writes
         self._max_rows = max_rows
+        self._max_result_bytes = max_result_bytes
         self._engine: DataFusionEngine | None = None
 
     @property
@@ -134,7 +149,7 @@ class DataFusionToolset(AbstractToolset[Any]):
         for name, description, schema in (
             ("list_tables", "List available table names.", _LIST_TABLES_SCHEMA),
             ("get_schema", "Get column names and types for a table.", _GET_SCHEMA_SCHEMA),
-            ("query", "Execute a SQL query and return rows as JSON.", _QUERY_SCHEMA),
+            ("query", _QUERY_DESCRIPTION, _QUERY_SCHEMA),
         ):
             tool_def = ToolDefinition(
                 name=name,
@@ -146,7 +161,7 @@ class DataFusionToolset(AbstractToolset[Any]):
                 toolset=self,
                 tool_def=tool_def,
                 max_retries=1,
-                args_validator=_PASSTHROUGH_VALIDATOR,
+                args_validator=build_args_validator(schema),
             )
         return tools
 
@@ -200,19 +215,23 @@ class DataFusionToolset(AbstractToolset[Any]):
             col_names = list(pydict.keys())
             num_rows = len(next(iter(pydict.values()), []))
 
-            result: list[dict[str, Any]] = [
-                {col: pydict[col][i] for col in col_names} for i in range(min(num_rows, self._max_rows))
-            ]
-
-            truncated = num_rows > self._max_rows
-            output: dict[str, Any] = {"rows": result, "count": num_rows}
-            if truncated:
-                output["truncated"] = True
-                output["max_rows"] = self._max_rows
-            return json.dumps(output, default=str)
+            # DataFusion has already materialised the full result, so unlike SQLToolset
+            # there is nothing left to avoid fetching -- only the payload is bounded.
+            rows = [[pydict[col][i] for col in col_names] for i in range(min(num_rows, self._max_rows))]
+            return build_query_result(
+                col_names,
+                rows,
+                max_rows=self._max_rows,
+                max_result_bytes=self._max_result_bytes,
+                more_rows_available=num_rows > self._max_rows,
+                total_rows=num_rows,
+            )
         except SQLSafetyError as ex:
             log.warning("query failed SQL safety validation: %s", ex)
-            raise
+            raise ModelRetry(
+                f"error: {ex!s}. Only read-only SELECT-family queries are allowed unless "
+                "allow_writes is enabled; check the SQL syntax and statement type, then try again."
+            ) from ex
         except QueryExecutionException as ex:
             if self._is_retryable_query_error(ex):
                 raise ModelRetry(

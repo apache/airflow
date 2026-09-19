@@ -42,7 +42,7 @@ The Apache Airflow releases are one of the two types:
 
 ## Apache Airflow Package
 
-This package contains sources that allow the user building fully-functional Apache Airflow 2.0 package.
+This package contains sources that allow the user to build the Apache Airflow package.
 They contain sources for:
 
  * "apache-airflow" python package that installs "airflow" Python package and includes
@@ -53,8 +53,8 @@ They contain sources for:
  * Provider distributions - containing Airflow's providers - separate package per each service Airflow integrates
    with.
 
-We also plan to release the official Helm Chart sources that will allow the user to install Apache Airflow
-via helm 3.0 chart in a distributed fashion.
+The official Helm Chart sources are also part of this source release, allowing users to install Apache Airflow
+via a Helm chart in a distributed fashion.
 
 The Source releases are the only "official" Apache Software Foundation releases, and they are distributed
 via [Official Apache Download sources](https://downloads.apache.org/)
@@ -86,17 +86,17 @@ pip install apache-airflow-providers-<PROVIDER>[<EXTRAS>]
 
 Where `<PROVIDER>` is the provider id and `<EXTRAS>` are optional extra packages to install.
 You can find the provider distributions dependencies and extras in the README.md files in each provider
-package (in `airflow/providers/<PROVIDER>` folder) as well as in the PyPI installation page.
+package (in `providers/<PROVIDER>` folder of this repository) as well as in the PyPI installation page.
 
 The sources released in SVN allow to build all the provider distributions by the user, following the
-instructions and scripts provided. Those are also "official_source releases" as described in the
+instructions and scripts provided. Those are also "official source releases" as described in the
 [ASF Release Policy](http://www.apache.org/legal/release-policy.html) and they are available
 via [Official Apache Download for providers](https://downloads.apache.org/airflow/providers/).
 
 The full provider's list can be found here:
 [Provider distributions reference](https://s.apache.org/airflow-docs)
 
-There are also convenience packages released as "apache-airflow-providers"separately in PyPI.
+There are also convenience packages released as "apache-airflow-providers" separately in PyPI.
 [PyPI query for providers](https://pypi.org/search/?q=apache-airflow-providers)
 
 And available in PyPI:

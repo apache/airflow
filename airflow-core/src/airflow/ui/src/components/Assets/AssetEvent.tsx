@@ -22,8 +22,10 @@ import { FiDatabase } from "react-icons/fi";
 import { Link } from "react-router-dom";
 
 import type { AssetEventResponse } from "openapi/requests/types.gen";
+
+import { Tooltip } from "src/system-components";
+
 import Time from "src/components/Time";
-import { Tooltip } from "src/components/ui";
 
 import RenderedJsonField from "../RenderedJsonField";
 import { TriggeredRuns } from "./TriggeredRuns";
@@ -95,13 +97,16 @@ export const AssetEvent = ({
       <HStack>
         <TriggeredRuns dagRuns={event.created_dagruns} />
       </HStack>
-      {event.partition_key === undefined ? undefined : (
-        <HStack>
-          <Text>
-            {rootTranslate("dagRun.partitionKey")}: {event.partition_key}
-          </Text>
-        </HStack>
-      )}
+      {
+        // eslint-disable-next-line no-eq-null, eqeqeq
+        event.partition_key == null ? undefined : (
+          <HStack>
+            <Text>
+              {rootTranslate("dagRun.partitionKey")}: {event.partition_key}
+            </Text>
+          </HStack>
+        )
+      }
       {Object.keys(extra).length >= 1 ? <RenderedJsonField collapsed content={extra} /> : undefined}
     </Box>
   );

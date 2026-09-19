@@ -41,7 +41,7 @@ from airflow.providers.http.hooks.http import HttpHook
 if TYPE_CHECKING:
     from requests.models import PreparedRequest, Response
 
-    from airflow.models import Connection
+    from airflow.providers.common.compat.sdk import Connection
 
 DBT_CAUSE_MAX_LENGTH = 255
 
@@ -254,12 +254,13 @@ class DbtCloudHook(HttpHook):
 
     async def get_headers_tenants_from_connection(self) -> tuple[dict[str, Any], str]:
         """Get Headers, tenants from the connection details."""
+        conn = await self._resolve_connection_async()
         headers: dict[str, Any] = {}
-        tenant = self._get_tenant_domain(self.connection)
+        tenant = self._get_tenant_domain(conn)
         package_name, provider_version = _get_provider_info()
         headers["User-Agent"] = f"{package_name}-v{provider_version}"
         headers["Content-Type"] = "application/json"
-        headers["Authorization"] = f"Token {self.connection.password}"
+        headers["Authorization"] = f"Token {conn.password}"
         return headers, tenant
 
     def _log_request_error(self, attempt_num: int, error: str) -> None:
@@ -307,7 +308,8 @@ class DbtCloudHook(HttpHook):
         endpoint = f"{account_id}/runs/{run_id}/"
         headers, tenant = await self.get_headers_tenants_from_connection()
         url, params = self.get_request_url_params(tenant, endpoint, include_related)
-        proxies = self._get_proxies(self.connection) or {}
+        conn = await self._resolve_connection_async()
+        proxies = self._get_proxies(conn) or {}
         proxy = proxies.get("https") if proxies and url.startswith("https") else proxies.get("http")
         extra_request_args = {}
 
@@ -341,13 +343,40 @@ class DbtCloudHook(HttpHook):
         job_run_status: int = response["data"]["status"]
         return job_run_status
 
+    @staticmethod
+    def _require_password(conn: Connection) -> Connection:
+        if not conn.password:
+            raise AirflowException("An API token is required to connect to dbt Cloud.")
+        return conn
+
     @cached_property
     def connection(self) -> Connection:
-        _connection = self.get_connection(self.dbt_cloud_conn_id)
-        if not _connection.password:
-            raise AirflowException("An API token is required to connect to dbt Cloud.")
+        """
+        Resolve and cache the dbt Cloud connection (sync).
 
-        return _connection  # type: ignore[return-value]
+        Do not read this property from async code running inside the triggerer's
+        event loop — it calls the synchronous ``get_connection()``, whose secret-masking
+        step raises ``RuntimeError`` when invoked from a thread that's already running an
+        event loop. Use ``_resolve_connection_async()`` instead; it shares this property's
+        cache slot so the connection is still only looked up once per hook instance
+        regardless of which path is used first.
+        """
+        return self._require_password(self.get_connection(self.dbt_cloud_conn_id))
+
+    async def _resolve_connection_async(self) -> Connection:
+        """
+        Resolve and cache the dbt Cloud connection (async).
+
+        Shares the ``connection`` cached_property's cache slot so a connection
+        fetched from either the sync or async path is not looked up twice on
+        the same hook instance, and so the async path never touches the sync
+        ``get_connection()``/``mask_secret()`` path from inside a running
+        event loop (which raises in the triggerer).
+        """
+        if "connection" not in self.__dict__:
+            conn = await get_async_connection(self.dbt_cloud_conn_id)
+            self.__dict__["connection"] = self._require_password(conn)
+        return self.__dict__["connection"]
 
     def get_conn(self, *args, **kwargs) -> Session:
         tenant = self._get_tenant_domain(self.connection)
@@ -753,7 +782,7 @@ class DbtCloudHook(HttpHook):
         Retrieve metadata for a specific run of a dbt Cloud job.
 
         :param account_id: Optional. The ID of a dbt Cloud account.
-        :param paylod: Optional. Query Parameters
+        :param payload: Optional. Query Parameters
         :return: The request response.
         """
         return self._run_and_get_response(
@@ -796,6 +825,61 @@ class DbtCloudHook(HttpHook):
 
         return job_run_status
 
+    @staticmethod
+    def _format_run_step_failure(step: dict[str, Any]) -> str:
+        details = [f"step {step.get('index')}: {step.get('name', '<unknown>')}"]
+        if status_humanized := step.get("status_humanized"):
+            details.append(f"status={status_humanized}")
+        elif status := step.get("status"):
+            details.append(f"status_code={status}")
+        for field in ("status_message", "log", "logs", "debug_logs"):
+            if value := step.get(field):
+                details.append(f"{field}={value}")
+        return " | ".join(details)
+
+    def log_job_run_failure_details(
+        self,
+        run_id: int,
+        account_id: int | None = None,
+        job_run: dict[str, Any] | None = None,
+    ) -> None:
+        """
+        Log dbt Cloud run failure context in Airflow task logs.
+
+        Fetches run metadata (including run steps) when ``job_run`` is not provided.
+        """
+        if job_run is None:
+            job_run = self.get_job_run(
+                run_id=run_id,
+                account_id=account_id,
+                include_related=["run_steps"],
+            ).json()["data"]
+
+        run_status = job_run.get("status")
+        if run_status is not None:
+            try:
+                status_name = DbtCloudJobRunStatus(run_status).name
+            except ValueError:
+                status_name = str(run_status)
+            self.log.error("dbt Cloud job run %s ended with status %s.", run_id, status_name)
+
+        for field in ("status_message", "status_humanized", "status_msg"):
+            if message := job_run.get(field):
+                self.log.error("dbt Cloud job run %s: %s", run_id, message)
+                break
+
+        run_steps = job_run.get("run_steps") or []
+        error_steps = [step for step in run_steps if step.get("status") == DbtCloudJobRunStatus.ERROR.value]
+
+        if error_steps:
+            for step in error_steps:
+                self.log.error("dbt Cloud failed step — %s", self._format_run_step_failure(step))
+        elif run_steps:
+            self.log.error(
+                "dbt Cloud last run step — %s",
+                self._format_run_step_failure(run_steps[-1]),
+            )
+
     def wait_for_job_run_status(
         self,
         run_id: int,
@@ -834,6 +918,7 @@ class DbtCloudHook(HttpHook):
 
             # Reached terminal failure before expected state.
             if DbtCloudJobRunStatus.is_terminal(job_run_status):
+                self.log_job_run_failure_details(run_id=run_id, account_id=account_id)
                 raise DbtCloudJobRunException(
                     f"Job run {run_id} reached terminal status "
                     f"{DbtCloudJobRunStatus(job_run_status).name} "

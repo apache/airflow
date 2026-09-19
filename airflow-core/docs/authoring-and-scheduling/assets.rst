@@ -31,7 +31,7 @@ What is an "Asset"?
 
 An Airflow asset is a logical grouping of data. Upstream producer tasks can update assets, and asset updates contribute to scheduling downstream consumer Dags.
 
-`Uniform Resource Identifier (URI) <https://en.wikipedia.org/wiki/Uniform_Resource_Identifier>`_ define assets:
+`Uniform Resource Identifiers (URI) <https://en.wikipedia.org/wiki/Uniform_Resource_Identifier>`_ define assets:
 
 .. code-block:: python
 
@@ -56,7 +56,7 @@ Technically, the URI must conform to the valid character set in RFC 3986, which 
 
 The URI is also case sensitive, so ``s3://example/asset`` and ``s3://Example/asset`` are considered different. Note that the *host* part of the URI is also case sensitive, which differs from RFC 3986.
 
-For pre-defined schemes (e.g., ``file``, ``postgres``, and ``s3``), you must provide a meaning URI. If you can't provide one, use another scheme altogether that don't have the semantic restrictions. Airflow will never require a semantic for user-defined URI schemes  (with a prefix x-), so that can be a good alternative. If you have a URI that can only be obtained later (e.g., during task execution), consider using ``AssetAlias`` instead and update the URI later.
+For pre-defined schemes (e.g., ``file``, ``postgres``, and ``s3``), you must provide a meaningful URI. If you can't provide one, use another scheme altogether that doesn't have the semantic restrictions. Airflow will never require a semantic for user-defined URI schemes  (with a prefix x-), so that can be a good alternative. If you have a URI that can only be obtained later (e.g., during task execution), consider using ``AssetAlias`` instead and update the URI later.
 
 .. code-block:: python
 
@@ -65,7 +65,7 @@ For pre-defined schemes (e.g., ``file``, ``postgres``, and ``s3``), you must pro
 
 Do not use the ``airflow`` scheme, which is reserved for Airflow's internals.
 
-Airflow always prefers using lower cases in schemes, and case sensitivity is needed in the host part of the URI to correctly distinguish between resources.
+Airflow always prefers using lowercase in schemes, and case sensitivity is needed in the host part of the URI to correctly distinguish between resources.
 
 .. code-block:: python
 
@@ -103,9 +103,9 @@ If needed, you can include an additional dictionary in an asset using the ``extr
     )
 
 This allows you to provide custom metadata about the asset, such as ownership information or the purpose of the file. The ``extra`` field does **NOT** affect the identity of an asset.
-Thus, maintaining the uniqueness of the ``extra`` value is the user responsibility. It suggested to have only one single set of ``extra`` value per asset.
+Thus, maintaining the uniqueness of the ``extra`` value is the user's responsibility. It is suggested to have only one single set of ``extra`` value per asset.
 
-For example, in the following snippet, only one of the ``extra`` dictionaries will ultimately be stored, but it does guaranteed which one will be stored.
+For example, in the following snippet, only one of the ``extra`` dictionaries will ultimately be stored, but it is not guaranteed which one will be stored.
 
 .. code-block:: python
 
@@ -234,7 +234,7 @@ Fetching information from previously emitted asset events
 
 .. versionadded:: 2.10.0
 
-Events of an asset defined in a task's ``outlets``, as described in the previous section, can be read by a task that declares the same asset in its ``inlets``. A asset event entry contains ``extra`` (see previous section for details), ``timestamp`` indicating when the event was emitted from a task, and ``source_task_instance`` linking the event back to its source.
+Events of an asset defined in a task's ``outlets``, as described in the previous section, can be read by a task that declares the same asset in its ``inlets``. An asset event entry contains ``extra`` (see previous section for details), ``timestamp`` indicating when the event was emitted from a task, and ``source_task_instance`` linking the event back to its source.
 
 Inlet asset events can be read with the ``inlet_events`` accessor in the execution context. Continuing from the ``write_to_s3`` asset in the previous section:
 
@@ -247,7 +247,19 @@ Inlet asset events can be read with the ``inlet_events`` accessor in the executi
 
 Each value in the ``inlet_events`` mapping is a sequence-like object that orders past events of a given asset by ``timestamp``, earliest to latest. It supports most of Python's list interface, so you can use ``[-1]`` to access the last event, ``[-2:]`` for the last two, etc. The accessor is lazy and only hits the database when you access items inside it.
 
-The accessor also supports chaining methods to filter events before fetching them. For example, to retrieve only events where specific ``extra`` keys match given values:
+The accessor also supports chaining methods to filter events before fetching them. For example, to retrieve only events matching a specific partition key regular expression:
+
+.. code-block:: python
+
+    @task(inlets=[regional_sales])
+    def process_us_sales(*, inlet_events):
+        us_events = inlet_events[regional_sales].partition_key_regexp_pattern(r"^us\|")
+        for event in us_events:
+            print(event.extra, event.partition_key)
+
+For an exact partition key match, use ``.partition_key(value)`` instead. Regexp filtering is opt-in: it is enabled only by setting :ref:`[api] regexp_query_timeout <config:api__regexp_query_timeout>` to a positive number of seconds, which also bounds the query runtime; see the config for the security trade-off.
+
+You can also filter events by their ``extra`` key-value pairs:
 
 .. code-block:: python
 
@@ -270,7 +282,7 @@ Each ``extra`` value uses ``key=value`` format. Multiple entries are combined wi
 Dependency between ``@asset``, ``@task``, and classic operators
 ---------------------------------------------------------------
 
-Since an ``@asset`` is simply a wrapper around a Dag with a task and an asset, it is quite easy to read and ``@asset`` in a ``@task`` or a classic operator. For example, the above ``post_process_s3_file`` can also be written as a task (inside a Dag, omitted here for brevity):
+Since an ``@asset`` is simply a wrapper around a Dag with a task and an asset, it is quite easy to read from an ``@asset`` in a ``@task`` or a classic operator. For example, the above ``post_process_s3_file`` can also be written as a task (inside a Dag, omitted here for brevity):
 
 .. code-block:: python
 
@@ -348,12 +360,18 @@ The shorthand for this is ``@asset.multi``:
 
 Dynamic data events emitting and asset creation through AssetAlias
 -----------------------------------------------------------------------
-An asset alias can be used to emit asset events of assets with association to the aliases. Downstreams can depend on resolved asset. This feature allows you to define complex dependencies for Dag executions based on asset updates.
+Use ``AssetAlias`` when a task must declare an asset dependency before the Asset's fixed attributes
+(like URI or name) are available. The alias is listed in ``outlets`` as a stable name, and the task
+resolves it at runtime by adding one or more concrete ``Asset`` objects through ``outlet_events`` or
+yielded ``Metadata``. Downstream Dags can depend on the alias, and Airflow triggers them when events
+are emitted for the resolved assets.
 
 How to use AssetAlias
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-``AssetAlias`` has one single argument ``name`` that uniquely identifies the asset. The task must first declare the alias as an outlet, and use ``outlet_events`` or yield ``Metadata`` to add events to it.
+``AssetAlias`` has one single argument ``name`` that uniquely identifies the alias. The task must
+first declare the alias as an outlet, and then use ``outlet_events`` or yield ``Metadata`` during
+execution to associate the alias with the concrete assets it produced.
 
 The following example creates an asset event against the S3 URI ``f"s3://bucket/my-task"``  with optional extra information ``extra``. If the asset does not exist, Airflow will dynamically create it and log a warning message.
 
@@ -520,7 +538,7 @@ Asset partitions
 
 .. versionadded:: 3.2.0
 
-Asset events can include a ``partition_key`` to make it _partitioned__. This lets you model
+Asset events can include a ``partition_key`` to make it *partitioned*. This lets you model
 the same asset at partition granularity (for example, ``2026-03-10T09:00:00`` for an
 hourly partition).
 
@@ -673,7 +691,7 @@ the downstream Dag will not be triggered for that partition.
 
 The same applies when a mapper cannot transform a key. For example, if an
 upstream event has ``partition_key="random-text"`` and the downstream mapping
-uses ``DailyMapper`` (which expects a timestamp-like key), no downstream
+uses ``StartOfDayMapper`` (which expects a timestamp-like key), no downstream
 partition match can be produced, so the downstream Dag is not triggered for
 that key.
 
@@ -974,6 +992,45 @@ When a runtime run emits exactly one partition key, the producing
 ``dag_run.partition_key`` is back-filled to that key. Downstream Dags consume
 these events the same way as timetable-produced partitions, through
 ``PartitionedAssetTimetable``.
+
+You can also query asset events filtered by partition key using the REST API.
+Two parameters are available:
+
+- ``partition_key`` for **exact match** — uses the B-tree index for fast lookups:
+
+.. code-block:: bash
+
+    curl -G "http://<airflow-host>/api/v2/assets/events" \
+      --data-urlencode "partition_key=us|2026-03-10"
+
+- ``partition_key_regexp_pattern`` for **regular-expression filtering**:
+
+.. code-block:: bash
+
+    curl -G "http://<airflow-host>/api/v2/assets/events" \
+      --data-urlencode "partition_key_regexp_pattern=^us"
+
+Both parameters can be combined; the conditions are applied with AND logic.
+
+.. note::
+
+    ``partition_key_regexp_pattern`` is evaluated by the database's own regular-expression engine,
+    which is a Regular expression Denial of Service (ReDoS) surface. For that reason it is **disabled
+    by default**: it is enabled only by setting :ref:`[api] regexp_query_timeout <config:api__regexp_query_timeout>`
+    to a positive number of seconds (fractional values allowed), which simultaneously bounds the query
+    runtime (enforced as a ``statement_timeout`` on PostgreSQL and as ``max_execution_time`` on MySQL).
+    Prefer the exact-match ``partition_key`` (which uses the B-tree index and is always enabled)
+    whenever a full key is known.
+
+The same filters are available in the ``InletEventsAccessor``:
+
+.. code-block:: python
+
+    # Exact match
+    events = inlet_events[Asset("my_asset")].partition_key("us|2026-03-10").limit(1)
+
+    # Regular-expression pattern
+    events = inlet_events[Asset("my_asset")].partition_key_regexp_pattern(r"^us\|2026-03-").limit(10)
 
 Fan-out mappers
 ~~~~~~~~~~~~~~~

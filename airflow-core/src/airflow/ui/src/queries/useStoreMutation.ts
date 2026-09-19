@@ -19,7 +19,8 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
-import { toaster } from "src/components/ui";
+import { toaster } from "src/system-components";
+
 import { createErrorToaster } from "src/utils";
 
 type StoreMutationOperation = "create" | "delete" | "update";
@@ -39,7 +40,7 @@ export const useStoreMutation = ({
   resourceName,
 }: UseStoreMutationOptions) => {
   const queryClient = useQueryClient();
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   const onError = (error: unknown) => {
     createErrorToaster(

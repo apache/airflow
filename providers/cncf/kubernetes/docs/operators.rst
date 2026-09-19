@@ -187,6 +187,56 @@ for debugging), set ``on_kill_action="keep_pod"``:
 The ``termination_grace_period`` parameter is also respected during cleanup, giving the
 pod time to shut down gracefully before being forcefully terminated.
 
+Durable execution
+^^^^^^^^^^^^^^^^^
+
+If the worker running ``KubernetesPodOperator`` dies while the pod is still running (e.g. the
+worker is preempted or crashes) and the task is retried, the operator can reattach to the pod
+that is already running instead of creating a duplicate. This is controlled by the ``durable``
+parameter, which defaults to ``True``.
+
+On Airflow 3.3+, ``durable=True`` persists the running pod's identity (name, namespace) to
+:doc:`task state store <apache-airflow:core-concepts/task-state-store>` before the operator starts
+waiting on it. On retry, the operator reads this identity back and reconnects directly to that
+specific pod -- the reconnect step uses this persisted identity instead of a label search.
+
+If no identity has been persisted yet to the task state store - either because this is the first attempt, or because the
+worker crashed in the narrow window after the pod was created but before its identity could be
+persisted, the operator falls back to the same label search ``reattach_on_restart`` has always
+used, so a running pod from a prior attempt is still found and reattached to rather than
+duplicated. Once an identity is persisted, subsequent retries skip the label search entirely.
+
+To always create a fresh pod on retry rather than reattaching, set ``durable=False``:
+
+.. code-block:: python
+
+    k = KubernetesPodOperator(
+        task_id="task",
+        image="my-image:latest",
+        durable=False,
+    )
+
+Durable execution requires Airflow 3.3 or newer, since it relies on the task state store. Below
+3.3, ``durable`` has no effect at all: setting it explicitly only emits a warning, and its value is
+ignored either way. The deprecated ``reattach_on_restart`` parameter (default ``True``) is the
+only lever there, and it falls back to the same label-search reattach behavior this operator has
+always used -- unchanged from before this feature existed.
+
+The pod identity persisted in task state store isn't deleted automatically, that only happens
+when someone runs ``airflow state-store clean``. If a task's ``retry_delay`` is longer than
+``[state_store] default_retention_days`` (30 days by default) and cleanup runs in between, the
+pod identity won't be there for the next retry, and the operator falls back to the label-search
+bootstrap path instead of reconnecting directly. This isn't necessarily a duplicate, the label
+search can often still find the same pod, but it loses the unambiguous reconnect and reopens
+exposure to ``FoundMoreThanOnePodFailure`` if a genuine duplicate pod exists by then. Avoid
+running cleanup on a schedule shorter than your longest ``retry_delay``.
+
+``durable`` supersedes the deprecated ``reattach_on_restart`` parameter on Airflow 3.3+, where
+passing ``reattach_on_restart`` still works and maps its value onto ``durable``. Below 3.3,
+``reattach_on_restart`` remains the only working option, since ``durable`` is a no-op there.
+Either way, passing it emits an ``AirflowProviderDeprecationWarning``, since the parameter will be
+removed once this provider's minimum supported Airflow version reaches 3.3.
+
 How does XCom work?
 ^^^^^^^^^^^^^^^^^^^
 The :class:`~airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator` handles
@@ -196,6 +246,12 @@ alongside the Pod. The Pod must write the XCom value into this location at the `
 
 .. note::
   An invalid json content will fail, example ``echo 'hello' > /airflow/xcom/return.json`` fail and  ``echo '\"hello\"' > /airflow/xcom/return.json`` work
+
+.. note::
+  In clusters that enforce Pod Security Standards or admission policies (e.g. OPA/Gatekeeper), the injected
+  XCom sidecar container may be rejected unless it declares a security context. Set a cluster-wide default via
+  the ``xcom_sidecar_container_security_context`` field on the Kubernetes connection, or override it per task
+  with the ``xcom_sidecar_container_security_context`` argument of ``KubernetesPodOperator``.
 
 
 See the following example on how this occurs:
@@ -359,6 +415,38 @@ For further information, look at:
 
 * `Kubernetes Documentation <https://kubernetes.io/docs/home/>`__
 * `Pull an Image from a Private Registry <https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/>`__
+
+.. _howto/operator:KubernetesPodExecOperator:
+
+KubernetesPodExecOperator
+=========================
+
+The :class:`~airflow.providers.cncf.kubernetes.operators.pod_exec.KubernetesPodExecOperator`
+executes a command in a running container of an existing Kubernetes Pod. It does not create,
+restart, or delete the target Pod.
+
+.. exampleinclude:: /../tests/system/cncf/kubernetes/example_kubernetes_pod_exec.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_k8s_pod_exec]
+    :end-before: [END howto_operator_k8s_pod_exec]
+
+Commands are executed directly rather than through a shell. Include a shell explicitly when using
+pipes, redirects, variable expansion, or other shell features.
+Standard output and standard error are streamed to the task log. Set ``do_xcom_push=True`` to also
+return standard output through XCom. Captured output is limited to 49,344 UTF-8 bytes by default;
+use ``max_xcom_output_size`` to configure a different finite limit. The task fails instead of
+returning truncated output when the limit is exceeded.
+
+The target Pod and container must already be running. When ``container_name`` is omitted, the
+operator uses the ``kubectl.kubernetes.io/default-container`` annotation when present, or the
+first container otherwise. API-visible static Pods are supported through their mirror Pod name;
+components that are not exposed by the Kubernetes API cannot be targeted. The Kubernetes connection
+requires ``get`` access to ``pods`` and ``pods/exec``; see :doc:`kubernetes_rbac`.
+
+If the task or its worker stops while the command is running, Airflow closes the exec connection
+but does not modify the target Pod. Kubernetes cannot always determine whether a command completed
+before a connection failure, so configure task retries only when the command is safe to repeat.
 
 SparkKubernetesOperator
 ==========================

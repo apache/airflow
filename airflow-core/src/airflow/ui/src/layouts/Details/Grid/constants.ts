@@ -41,6 +41,10 @@ export const BUNDLE_VERSION_INDICATOR_LEFT = -2; // Position from left for bundl
 export const BUNDLE_VERSION_ICON_SIZE = 15; // Size of the git commit icon
 export const DAG_VERSION_INDICATOR_HEIGHT = 104; // Height of the vertical line indicator
 export const VERSION_INDICATOR_Z_INDEX = 1; // Z-index for version indicators
+export const SELECTED_TASK_OUTLINE_COLOR = {
+  dark: "brand.contrast",
+  light: "brand.solid",
+} as const;
 
 // Render a gradient to indicate a saved note on a Dag run or task instance
 export const NOTE_GRADIENT =

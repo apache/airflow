@@ -22,13 +22,12 @@ import time
 from contextlib import suppress
 from importlib import import_module
 from io import StringIO
-from pathlib import Path
 from unittest.mock import MagicMock, call, mock_open, patch
 from uuid import uuid4
 
 import pendulum
 import pytest
-from sqlalchemy import Column, Integer, MetaData, Table, func, inspect, literal, select, text
+from sqlalchemy import Column, Integer, MetaData, Table, func, insert, inspect, literal, select, text
 from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.orm import Session
@@ -39,9 +38,11 @@ from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.deadline import Deadline
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.db_cleanup import (
     ARCHIVE_TABLE_PREFIX,
@@ -51,7 +52,9 @@ from airflow.utils.db_cleanup import (
     _confirm_drop_archives,
     _do_delete,
     _dump_table_to_file,
+    _effective_table_names,
     _get_archived_table_names,
+    _IndirectDagScope,
     _TableConfig,
     config_dict,
     drop_archived_tables,
@@ -63,8 +66,10 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import (
     clear_db_assets,
+    clear_db_callbacks,
     clear_db_dag_bundles,
     clear_db_dags,
+    clear_db_deadline,
     clear_db_runs,
     drop_tables_with_prefix,
 )
@@ -448,6 +453,88 @@ class TestDBCleanup:
             )
 
     @pytest.mark.parametrize(
+        ("dag_ids", "exclude_dag_ids", "expected_remaining"),
+        [
+            pytest.param(["dag1"], None, {"dag2", None}, id="include_scopes_through_dag_run"),
+            pytest.param(None, ["dag1"], {"dag1"}, id="exclude_keeps_only_that_dags_deadlines"),
+            pytest.param(["dag1", "dag2"], ["dag2"], {"dag2", None}, id="include_and_exclude"),
+            pytest.param(None, None, set(), id="unfiltered_purges_everything"),
+        ],
+    )
+    def test_deadline_cleanup_is_scoped_through_its_dag_run(
+        self, dag_ids, exclude_dag_ids, expected_remaining
+    ):
+        """
+        ``deadline`` has carried no ``dag_id`` since 3.1.0, so it is scoped via ``dagrun_id``.
+
+        A deadline with no dag run belongs to no Dag: ``--dag-ids`` must not claim it, and
+        ``--exclude-dag-ids`` must not shield it.
+        """
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+
+        with create_session() as session:
+            bundle_name = "testing"
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+
+            runs_by_dag = {}
+            for dag_id in ["dag1", "dag2"]:
+                dag = DAG(dag_id=dag_id)
+                session.add(DagModel(dag_id=dag_id, bundle_name=bundle_name))
+                SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+                dag_run = DagRun(
+                    dag_id,
+                    run_id=f"{dag_id}_run",
+                    run_type=DagRunType.MANUAL,
+                    start_date=base_date,
+                )
+                session.add(dag_run)
+                session.flush()
+                runs_by_dag[dag_id] = dag_run.id
+
+            for run_id in runs_by_dag.values():
+                session.add(
+                    Deadline(
+                        deadline_time=base_date,
+                        callback=AsyncCallback("tests.unit.models.test_deadline.callback_for_deadline"),
+                        dagrun_id=run_id,
+                        deadline_alert_id=None,
+                    )
+                )
+            # A deadline attached to no dag run at all.
+            session.add(
+                Deadline(
+                    deadline_time=base_date,
+                    callback=AsyncCallback("tests.unit.models.test_deadline.callback_for_deadline"),
+                    dagrun_id=None,
+                    deadline_alert_id=None,
+                )
+            )
+            session.commit()
+
+            run_cleanup(
+                clean_before_timestamp=base_date.add(days=10),
+                table_names=["deadline"],
+                dag_ids=dag_ids,
+                exclude_dag_ids=exclude_dag_ids,
+                dry_run=False,
+                confirm=False,
+                session=session,
+            )
+
+            run_id_to_dag = {run_id: dag_id for dag_id, run_id in runs_by_dag.items()}
+            remaining = {
+                run_id_to_dag.get(deadline.dagrun_id) for deadline in session.scalars(select(Deadline)).all()
+            }
+            assert remaining == expected_remaining
+
+        # The deadline with no dag run has nothing to cascade from, and callback rows are only
+        # reachable deadline -> callback, so neither is removed by the dag/run clears in
+        # clean_database. Left behind they leak into whatever runs next against this database.
+        clear_db_deadline()
+        clear_db_callbacks()
+
+    @pytest.mark.parametrize(
         ("skip_archive", "expected_archives"),
         [pytest.param(True, 0, id="skip_archive"), pytest.param(False, 1, id="do_archive")],
     )
@@ -560,6 +647,28 @@ class TestDBCleanup:
                 dag_id_column_name="dag_id",
                 skip_if_referenced=[("task_instance", "dag_version_id")],
                 # "id" intentionally omitted from extra_columns
+            )
+
+    def test_table_config_rejects_both_dag_id_column_and_scope(self):
+        """A table reaches its Dag one way or the other, so naming both ways must fail fast."""
+        with pytest.raises(ValueError, match="both dag_id_column_name and"):
+            _TableConfig(
+                table_name="deadline",
+                recency_column_name="deadline_time",
+                dag_id_column_name="dag_id",
+                dag_id_scope=_IndirectDagScope(fk_column="dagrun_id", referenced_table="dag_run"),
+                # present, so this fails on the conflict rather than on a missing fk_column
+                extra_columns=["dagrun_id"],
+            )
+
+    def test_table_config_dag_id_scope_requires_fk_column(self):
+        """A dag_id_scope whose fk_column is not selected must fail fast at construction."""
+        with pytest.raises(ValueError, match="fk_column"):
+            _TableConfig(
+                table_name="deadline",
+                recency_column_name="deadline_time",
+                dag_id_scope=_IndirectDagScope(fk_column="dagrun_id", referenced_table="dag_run"),
+                # "dagrun_id" intentionally omitted from extra_columns
             )
 
     def test_do_delete_rolls_back_before_drop_on_failure(self):
@@ -825,11 +934,12 @@ class TestDBCleanup:
         """
         import pkgutil
 
-        proj_root = Path(__file__).parents[2].resolve()
-        mods = list(
-            f"airflow.models.{name}"
-            for _, name, _ in pkgutil.iter_modules([str(proj_root / "airflow/models")])
-        )
+        import airflow.models
+
+        # Walk the package's own __path__ rather than rebuilding it from this file's
+        # location: a path guessed relative to the test resolves to nothing once the
+        # sources move, leaving the assertions below with an empty set to check.
+        mods = [f"airflow.models.{name}" for _, name, _ in pkgutil.iter_modules(airflow.models.__path__)]
 
         all_models = {}
         for mod_name in mods:
@@ -869,22 +979,59 @@ class TestDBCleanup:
             "dag_priority_parsing_request",  # Records are purged once per DAG Processing loop, not a
             # significant source of data.
             "dag_bundle",  # leave alone - not appropriate for cleanup
+            "team",  # leave alone - team configuration, not run data
+            # leave alone - per-asset key/value state, upserted in place (PK is asset_id+key),
+            # so it is bounded and current, not accumulating history; removed with its asset
+            "asset_state_store",
+            # Purged indirectly: each of these hangs off a cleaned table by an
+            # ON DELETE CASCADE foreign key, so the rows go when the parent does.
+            # cascade from dag_run once the partition run has fired; while it is still
+            # pending its created_dag_run_id is NULL, so those rows are not cleaned
+            "asset_partition_dag_run",
+            "asset_watcher",  # cascade from trigger
+            "dag_favorite",  # cascade from dag
+            "deadline_alert",  # cascade from serialized_dag, which cascades from dag_version
+            "hitl_detail",  # cascade from task_instance
+            "hitl_detail_history",  # cascade from task_instance_history
+            "task_inlet_asset_reference",  # cascade from dag
         }
 
         from airflow.utils.db_cleanup import config_dict
 
         print(f"all_models={set(all_models)}")
         print(f"excl+conf={exclusion_list.union(config_dict)}")
+        # Without this the two assertions below hold trivially for an empty set,
+        # which is how a table can go unnoticed by this check for several releases.
+        assert all_models, "discovered no models, so this check would pass vacuously"
         assert set(all_models) - exclusion_list.union(config_dict) == set()
         assert exclusion_list.isdisjoint(config_dict)
 
-    def test_no_failure_warnings(self):
+    @pytest.mark.parametrize(
+        ("dag_ids", "exclude_dag_ids"),
+        [
+            pytest.param(None, None, id="unfiltered"),
+            pytest.param(["some_dag"], None, id="include"),
+            pytest.param(None, ["some_dag"], id="exclude"),
+            pytest.param(["some_dag"], ["other_dag"], id="include_and_exclude"),
+        ],
+    )
+    def test_no_failure_warnings(self, dag_ids, exclude_dag_ids):
         """
         Ensure every table we have configured (and that is present in the db) can be cleaned successfully.
         For example, this checks that the recency column is actually a column.
+
+        The Dag-scoped parametrizations matter as much as the unfiltered one: the Dag filter is the
+        only thing that dereferences ``dag_id_column_name`` / ``dag_id_scope``, so a config naming a
+        column a migration has dropped compiles fine without them. Three tables drifted that way
+        across 3.0.0 and 3.1.0 before this was covered.
         """
         with patch("airflow.utils.db_cleanup.logger") as mock_logger:
-            run_cleanup(clean_before_timestamp=timezone.utcnow(), dry_run=True)
+            run_cleanup(
+                clean_before_timestamp=timezone.utcnow(),
+                dag_ids=dag_ids,
+                exclude_dag_ids=exclude_dag_ids,
+                dry_run=True,
+            )
             for call in mock_logger.warning.call_args_list:
                 assert "Encountered error when attempting to clean table" not in str(call)
 
@@ -1343,6 +1490,285 @@ class TestConnectionTestRequestCleanup:
             assert seeded[state] not in survivors, f"{state} row should be cleaned up"
 
 
+class TestCallbackCleanupConfig:
+    """The callback table is registered under the name it actually has in the schema."""
+
+    def test_callback_is_configured_under_its_current_name(self):
+        # The table was renamed from callback_request to callback; a config entry naming a
+        # table that does not exist is skipped with a warning, so the rows are never purged.
+        assert "callback" in config_dict
+        assert "callback_request" not in config_dict
+
+    def test_removed_tables_are_not_configured(self):
+        assert "sla_miss" not in config_dict
+
+    def test_cleaning_callback_pulls_in_its_dependent_deadline_rows(self):
+        # deadline.callback_id cascades from callback, so deadline has to be cleaned
+        # (and archived) first, or those rows would vanish unrecorded.
+        selected, _ = _effective_table_names(table_names=["callback"])
+        assert selected == ["deadline", "callback"]
+
+
+@pytest.mark.db_test
+class TestCallbackCleanup:
+    """Cleanup must purge finished callbacks without disturbing ones that can still run."""
+
+    def setup_method(self):
+        from tests_common.test_utils.db import clear_db_callbacks, clear_db_deadline
+
+        clear_db_deadline()
+        clear_db_callbacks()
+        with create_session() as session:
+            for name in _get_archived_table_names(["callback", "deadline"], session):
+                session.execute(text(f"DROP TABLE {name}"))
+            session.commit()
+
+    def teardown_method(self):
+        from tests_common.test_utils.db import clear_db_callbacks, clear_db_deadline
+
+        clear_db_deadline()
+        clear_db_callbacks()
+        with create_session() as session:
+            for name in _get_archived_table_names(["callback", "deadline"], session):
+                session.execute(text(f"DROP TABLE {name}"))
+            session.commit()
+
+    @staticmethod
+    def _add_callback(session, state, created_at):
+        from airflow.executors.workloads.callback import CallbackFetchMethod
+        from airflow.models.callback import Callback
+
+        callback = Callback(priority_weight=1)
+        callback.fetch_method = CallbackFetchMethod.IMPORT_PATH
+        callback.state = state
+        callback.created_at = created_at
+        session.add(callback)
+        session.flush()
+        return callback.id
+
+    @staticmethod
+    def _count_callbacks(session, callback_id):
+        from airflow.models.callback import Callback
+
+        return session.scalar(select(func.count()).select_from(Callback).where(Callback.id == callback_id))
+
+    @staticmethod
+    def _clean_callbacks(cutoff):
+        with create_session() as session:
+            _cleanup_table(
+                **config_dict["callback"].__dict__,
+                clean_before_timestamp=cutoff,
+                dry_run=False,
+                verbose=False,
+                confirm=False,
+                skip_archive=True,
+                session=session,
+            )
+
+    @pytest.mark.parametrize(
+        ("state", "should_survive"),
+        [
+            ("success", False),
+            ("failed", False),
+            (None, False),
+            ("scheduled", False),
+            ("pending", True),
+            ("queued", True),
+            ("running", True),
+        ],
+        ids=[
+            "success",
+            "failed",
+            "dag-processor-null-state",
+            "scheduled-orphan",
+            "pending",
+            "queued",
+            "running",
+        ],
+    )
+    def test_only_finished_callbacks_are_purged(self, state, should_survive):
+        old = pendulum.now(tz="UTC").subtract(days=30)
+        cutoff = pendulum.now(tz="UTC").subtract(days=1)
+
+        with create_session() as session:
+            callback_id = self._add_callback(session, state, old)
+            session.commit()
+
+        self._clean_callbacks(cutoff)
+
+        with create_session() as session:
+            survived = self._count_callbacks(session, callback_id)
+
+        assert bool(survived) is should_survive
+
+    def test_unfired_deadline_callback_and_its_deadline_survive(self, dag_maker):
+        from airflow.utils.state import CallbackState
+
+        old = pendulum.now(tz="UTC").subtract(days=30)
+        cutoff = pendulum.now(tz="UTC").subtract(days=1)
+        with dag_maker("test_db_clean_unfired_deadline"):
+            pass
+        dag_run = dag_maker.create_dagrun()
+
+        with create_session() as session:
+            deadline = Deadline(
+                deadline_time=pendulum.now(tz="UTC").add(days=10),
+                callback=AsyncCallback("tests.unit.models.test_deadline.callback_for_deadline"),
+                dagrun_id=dag_run.id,
+                deadline_alert_id=None,
+            )
+            session.add(deadline)
+            session.flush()
+            deadline.callback.created_at = old
+            assert deadline.callback.state == CallbackState.SCHEDULED
+            deadline_id, callback_id = deadline.id, deadline.callback.id
+
+        self._clean_callbacks(cutoff)
+
+        with create_session() as session:
+            assert self._count_callbacks(session, callback_id) == 1
+            assert (
+                session.scalar(select(func.count()).select_from(Deadline).where(Deadline.id == deadline_id))
+                == 1
+            )
+
+    def test_recent_finished_callback_is_kept(self):
+        recent = pendulum.now(tz="UTC")
+        cutoff = pendulum.now(tz="UTC").subtract(days=1)
+
+        with create_session() as session:
+            callback_id = self._add_callback(session, "success", recent)
+            session.commit()
+
+        self._clean_callbacks(cutoff)
+
+        with create_session() as session:
+            assert self._count_callbacks(session, callback_id) == 1
+
+    def test_finished_callbacks_are_archived_not_just_deleted(self):
+        """Archiving is the default path, so the purged rows must be recoverable."""
+        from airflow.models.callback import Callback
+
+        old = pendulum.now(tz="UTC").subtract(days=30)
+        cutoff = pendulum.now(tz="UTC").subtract(days=1)
+
+        with create_session() as session:
+            self._add_callback(session, "success", old)
+            session.commit()
+
+        with create_session() as session:
+            _cleanup_table(
+                **config_dict["callback"].__dict__,
+                clean_before_timestamp=cutoff,
+                dry_run=False,
+                verbose=False,
+                confirm=False,
+                skip_archive=False,
+                session=session,
+            )
+
+        with create_session() as session:
+            archives = _get_archived_table_names(["callback"], session)
+            assert archives, "no archive table was created"
+            archived = sum(
+                session.execute(text(f"SELECT count(*) FROM {name}")).scalar() for name in archives
+            )
+            assert archived == 1
+            assert session.scalar(select(func.count()).select_from(Callback)) == 0
+
+    def test_deadline_of_a_runnable_callback_is_not_cascade_deleted(self):
+        """deadline.callback_id is ON DELETE CASCADE, so purging a live callback would drop its deadline."""
+        old = pendulum.now(tz="UTC").subtract(days=30)
+        cutoff = pendulum.now(tz="UTC").subtract(days=1)
+        future = pendulum.now(tz="UTC").add(days=365)
+
+        with create_session() as session:
+            callback_id = self._add_callback(session, "scheduled", old)
+            session.execute(
+                insert(Deadline.__table__).values(
+                    id=uuid4(),
+                    deadline_time=future,
+                    callback_id=callback_id,
+                    created_at=old,
+                    last_updated_at=old,
+                    missed=False,
+                )
+            )
+            session.commit()
+
+        self._clean_callbacks(cutoff)
+
+        with create_session() as session:
+            assert session.scalar(select(func.count()).select_from(Deadline)) == 1
+
+
+@pytest.mark.db_test
+class TestPartitionedAssetKeyLogCleanup:
+    """Only orphaned key-log rows may go: live ones drive pending partition-run evaluation."""
+
+    def setup_method(self):
+        with create_session() as session:
+            session.execute(text("DELETE FROM partitioned_asset_key_log"))
+            session.execute(text("DELETE FROM asset_partition_dag_run"))
+            session.commit()
+
+    teardown_method = setup_method
+
+    @staticmethod
+    def _add_key_log(session, apdr_id, created_at):
+        from airflow.models.asset import PartitionedAssetKeyLog
+
+        row = PartitionedAssetKeyLog(
+            asset_id=1,
+            asset_event_id=1,
+            asset_partition_dag_run_id=apdr_id,
+            source_partition_key="2024-01-01",
+            target_dag_id="cleanup_probe_dag",
+            target_partition_key="2024-01-01",
+        )
+        row.created_at = created_at
+        session.add(row)
+        session.flush()
+        return row.id
+
+    def test_only_orphaned_key_log_rows_are_purged(self):
+        from airflow.models.asset import AssetPartitionDagRun, PartitionedAssetKeyLog
+
+        old = pendulum.now(tz="UTC").subtract(days=30)
+        cutoff = pendulum.now(tz="UTC").subtract(days=1)
+
+        with create_session() as session:
+            apdr = AssetPartitionDagRun(target_dag_id="cleanup_probe_dag", partition_key="2024-01-01")
+            session.add(apdr)
+            session.flush()
+            ids = {
+                "old orphan": self._add_key_log(session, apdr_id=apdr.id + 1000, created_at=old),
+                "old but live": self._add_key_log(session, apdr_id=apdr.id, created_at=old),
+                "recent orphan": self._add_key_log(
+                    session, apdr_id=apdr.id + 1000, created_at=pendulum.now(tz="UTC")
+                ),
+            }
+            session.commit()
+
+        with create_session() as session:
+            _cleanup_table(
+                **config_dict["partitioned_asset_key_log"].__dict__,
+                clean_before_timestamp=cutoff,
+                dry_run=False,
+                verbose=False,
+                confirm=False,
+                skip_archive=True,
+                session=session,
+            )
+
+        with create_session() as session:
+            surviving = set(session.scalars(select(PartitionedAssetKeyLog.id)).all())
+
+        assert ids["old orphan"] not in surviving
+        assert ids["old but live"] in surviving, "evidence for a pending partition run must not be deleted"
+        assert ids["recent orphan"] in surviving, "age filter still applies to orphans"
+
+
 def _delete_test_timestamp():
     return pendulum.DateTime(2024, 1, 2, 3, 4, 5, tzinfo=pendulum.timezone("UTC"))
 
@@ -1427,3 +1853,113 @@ def _dag_version_config_without_row_exclusion():
         if key in config:
             config[key] = None
     return config
+
+
+class TestSchemaQualifiedTableConfig:
+    """
+    ``_TableConfig`` / ``reflect_tables`` support for schema-qualified table names.
+
+    A table config may be schema-qualified with ``schema.table`` dot notation so that
+    ``airflow db clean`` can reach a table living in a schema other than the metadata
+    connection's default (for example a result backend provisioned into its own schema),
+    instead of silently skipping it.
+    """
+
+    def test_table_config_parses_schema_qualified_table_name(self):
+        config = _TableConfig(table_name="my_schema.some_table", recency_column_name="date_done")
+        assert config.schema_name == "my_schema"
+        assert config.bare_table_name == "some_table"
+        assert config.table_name == "my_schema.some_table"
+        assert config.orm_model.schema == "my_schema"
+        assert config.orm_model.name == "some_table"
+
+    def test_table_config_without_schema_prefix(self):
+        config = _TableConfig(table_name="some_table", recency_column_name="date_done")
+        assert config.schema_name is None
+        assert config.bare_table_name == "some_table"
+        assert config.table_name == "some_table"
+        assert config.orm_model.schema is None
+
+
+@pytest.mark.backend("postgres")
+class TestSchemaQualifiedTableCleanupIntegration:
+    """
+    End-to-end db clean + archive + export/drop against a schema-qualified table config --
+    the scenario a table provisioned into a non-default schema (e.g. a schema-split result
+    backend) hits.
+    """
+
+    SCHEMA = "test_schema_qualified_cleanup"
+    TABLE = "schema_qualified_cleanup_test"
+
+    def setup_method(self):
+        with create_session() as session:
+            session.execute(text(f"DROP SCHEMA IF EXISTS {self.SCHEMA} CASCADE"))
+            session.execute(text(f"CREATE SCHEMA {self.SCHEMA}"))
+            session.execute(
+                text(
+                    f"CREATE TABLE {self.SCHEMA}.{self.TABLE} "
+                    "(id serial primary key, task_id varchar(155), date_done timestamp)"
+                )
+            )
+            session.commit()
+
+    def teardown_method(self):
+        with create_session() as session:
+            session.execute(text(f"DROP SCHEMA IF EXISTS {self.SCHEMA} CASCADE"))
+            session.commit()
+
+    def test_clean_archive_export_and_drop_schema_qualified_table(self, tmp_path):
+        old_date = pendulum.now("UTC").subtract(days=400)
+        new_date = pendulum.now("UTC")
+        with create_session() as session:
+            session.execute(
+                text(
+                    f"INSERT INTO {self.SCHEMA}.{self.TABLE} (task_id, date_done) "
+                    "VALUES ('old-task', :old_date), ('new-task', :new_date)"
+                ),
+                {"old_date": old_date, "new_date": new_date},
+            )
+            session.commit()
+
+        qualified_name = f"{self.SCHEMA}.{self.TABLE}"
+        # Register a schema-qualified table config for the duration of the test rather than
+        # relying on any provider-specific configuration -- this exercises the generic
+        # schema-qualified support directly.
+        test_config = _TableConfig(table_name=qualified_name, recency_column_name="date_done")
+        with patch.dict(config_dict, {qualified_name: test_config}):
+            assert qualified_name in config_dict
+
+            with create_session() as session:
+                run_cleanup(
+                    clean_before_timestamp=pendulum.now("UTC").subtract(days=300),
+                    table_names=[qualified_name],
+                    dry_run=False,
+                    confirm=False,
+                    session=session,
+                )
+
+                remaining = session.execute(text(f"SELECT task_id FROM {qualified_name}")).scalars().all()
+                assert remaining == ["new-task"]
+
+                archived = _get_archived_table_names([qualified_name], session)
+                assert len(archived) == 1
+                assert archived[0].startswith(f"{self.SCHEMA}.")
+
+                archived_rows = session.execute(text(f"SELECT task_id FROM {archived[0]}")).scalars().all()
+                assert archived_rows == ["old-task"]
+
+                export_archived_records(
+                    export_format="csv",
+                    output_path=str(tmp_path),
+                    table_names=[qualified_name],
+                    drop_archives=True,
+                    needs_confirm=False,
+                    session=session,
+                )
+                # export_archived_records takes a caller-owned session and does not commit it;
+                # commit here so the reflection-based existence check below, which may use a
+                # separate connection, observes the DROP TABLE.
+                session.commit()
+
+                assert _get_archived_table_names([qualified_name], session) == []

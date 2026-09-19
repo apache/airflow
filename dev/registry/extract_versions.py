@@ -59,7 +59,13 @@ except ImportError:
     sys.exit(1)
 
 from extract_metadata import fetch_provider_inventory, read_connection_urls, resolve_connection_docs_url
-from registry_tools.types import MODULE_LEVEL_SECTIONS, TYPE_SUFFIXES
+from registry_tools.types import (
+    CLASS_LEVEL_CATEGORY_OVERRIDES,
+    CLASS_LEVEL_SECTIONS,
+    DICT_SHAPED_CLASS_LEVEL_SECTIONS,
+    MODULE_LEVEL_SECTIONS,
+    TYPE_SUFFIXES,
+)
 
 SCRIPT_DIR = Path(__file__).parent
 AIRFLOW_ROOT = Path(__file__).parent.parent.parent
@@ -75,6 +81,23 @@ PROVIDERS_JSON_CANDIDATES = [
     SCRIPT_DIR / "providers.json",
     REGISTRY_DIR / "src" / "_data" / "providers.json",
 ]
+
+# Description suffix for class-level (FQCN) sections, keyed by module type id.
+# Kept local to this file (unlike category, which is shared via
+# CLASS_LEVEL_CATEGORY_OVERRIDES) because extract_parameters.py has a real
+# docstring to use instead and doesn't need a description suffix at all.
+FQCN_DESC_SUFFIXES: dict[str, str] = {
+    "notifier": "notifier",
+    "secret": "secrets backend",
+    "logging": "log handler",
+    "executor": "executor",
+    "extra_link": "extra link",
+    "queue": "queue",
+    "auth_manager": "auth manager",
+    "db_manager": "db manager",
+    "plugin": "plugin",
+    "dialect": "dialect",
+}
 
 
 def build_provider_id_to_path_map() -> dict[str, str]:
@@ -300,16 +323,46 @@ def extract_modules_from_yaml(
         if mp:
             process_module(mp, "transfer", source, get_category(source))
 
-    # Class-level sections (full class paths, no source file parsing needed)
-    FQCN_SECTIONS: dict[str, tuple[str, str, str]] = {
-        # yaml_key: (module_type, category, description_suffix)
-        "notifications": ("notifier", "notifications", "notifier"),
-        "secrets-backends": ("secret", "secrets", "secrets backend"),
-        "logging": ("logging", "logging", "log handler"),
-        "executors": ("executor", "executors", "executor"),
-    }
-    for yaml_key, (mod_type, category, desc_suffix) in FQCN_SECTIONS.items():
+    # Class-level sections (full class paths, no source file parsing needed).
+    # Iterating CLASS_LEVEL_SECTIONS keeps this in sync with the single
+    # source of truth in types.py; a section added there without a matching
+    # FQCN_DESC_SUFFIXES entry raises KeyError instead of silently skipping.
+    for yaml_key, mod_type in CLASS_LEVEL_SECTIONS.items():
+        category = CLASS_LEVEL_CATEGORY_OVERRIDES.get(yaml_key, yaml_key)
+        desc_suffix = FQCN_DESC_SUFFIXES[mod_type]
         for class_path in provider_yaml.get(yaml_key, []):
+            if not class_path:
+                continue
+            parts = class_path.rsplit(".", 1)
+            if len(parts) != 2:
+                continue
+            mod_path, class_name = parts
+            api_ref = mod_path.replace(".", "/")
+            modules.append(
+                {
+                    "name": class_name,
+                    "type": mod_type,
+                    "import_path": class_path,
+                    "short_description": f"{class_name} {desc_suffix}",
+                    "docs_url": f"{base_docs_url}/_api/{api_ref}/index.html#{class_path}",
+                    "source_url": f"{base_source_url}/{api_ref}.py",
+                    "category": category,
+                }
+            )
+
+    # Dict-shaped class-level sections (each entry is a dict carrying the
+    # class path under a section-specific field name, see types.py).
+    for yaml_key, (
+        mod_type,
+        class_path_field,
+        _integration_field,
+    ) in DICT_SHAPED_CLASS_LEVEL_SECTIONS.items():
+        category = CLASS_LEVEL_CATEGORY_OVERRIDES.get(yaml_key, yaml_key)
+        desc_suffix = FQCN_DESC_SUFFIXES[mod_type]
+        for entry in provider_yaml.get(yaml_key, []):
+            if not isinstance(entry, dict):
+                continue
+            class_path = entry.get(class_path_field, "")
             if not class_path:
                 continue
             parts = class_path.rsplit(".", 1)
@@ -396,6 +449,7 @@ def extract_version_data(
                 "conn_type": conn_type,
                 "hook_class": ct.get("hook-class-name", ""),
                 "docs_url": resolve_connection_docs_url(conn_type, conn_url_map, base_docs_url),
+                "external_services": ct.get("external-services", []),
             }
         )
 

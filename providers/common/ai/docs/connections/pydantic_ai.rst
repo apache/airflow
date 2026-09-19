@@ -38,8 +38,18 @@ Model
     dedicated input in the connection form (via ``conn-fields``) and stores its
     value in ``extra["model"]``.
 
-    Examples: ``openai:gpt-5.3``, ``anthropic:claude-sonnet-4-20250514``,
+    The ``provider:`` prefix is required here: this generic connection type has
+    no platform of its own (unlike the vendor connection types below), so a
+    bare name (e.g. ``gpt-5.6-sol`` without ``openai:``) raises ``ValueError``
+    naming this connection rather than being resolved automatically.
+
+    Examples: ``openai:gpt-5.6-sol``, ``anthropic:claude-sonnet-5``,
     ``bedrock:us.anthropic.claude-opus-4-6-v1:0``, ``google:gemini-2.0-flash``
+
+    See `Anthropic's models overview <https://platform.claude.com/docs/en/about-claude/models/overview#latest-models-comparison>`__
+    for the current list of Claude model IDs across the Claude API, Amazon Bedrock, and Google Cloud.
+    See `OpenAI's models reference <https://developers.openai.com/api/docs/models/all>`__
+    for the current list of OpenAI model IDs.
 
     The model can also be overridden at the hook/operator level via the
     ``model_id`` parameter.
@@ -55,7 +65,9 @@ Host (optional)
 
     - Ollama: ``http://localhost:11434/v1``
     - vLLM: ``http://localhost:8000/v1``
-    - Azure OpenAI: ``https://<resource>.openai.azure.com/openai/deployments/<deployment>``
+    - Azure OpenAI with an ``openai:`` model:
+      ``https://<resource>.openai.azure.com/openai/v1``. For an ``azure:`` model,
+      use the dedicated :doc:`pydantic_ai_azure` connection instead.
     - Any OpenAI-compatible API: the base URL of that service
 
 Extra (JSON, optional)
@@ -64,10 +76,16 @@ Extra (JSON, optional)
 
     .. code-block:: json
 
-        {"model": "openai:gpt-5.3"}
+        {"model": "openai:gpt-5.6-sol"}
 
     When using the UI, the "Model" field above writes to this same location
     automatically.
+
+Fallback Connections
+    Other connection IDs to fail over to, in order, while this provider is
+    unavailable. Stored in ``extra["fallback_conn_ids"]``. Entries may name any
+    ``pydanticai`` connection type, so one chain can span vendors. See
+    :doc:`/provider_fallback`.
 
 Examples
 --------
@@ -79,7 +97,7 @@ Examples
     {
         "conn_type": "pydanticai",
         "password": "sk-...",
-        "extra": "{\"model\": \"openai:gpt-5.3\"}"
+        "extra": "{\"model\": \"openai:gpt-5.6-sol\"}"
     }
 
 **Anthropic**
@@ -113,9 +131,15 @@ Leave password empty and configure ``AWS_PROFILE`` or IAM role in the environmen
         "extra": "{\"model\": \"bedrock:us.anthropic.claude-opus-4-6-v1:0\"}"
     }
 
-**Google Vertex AI**
+This still works — the ``bedrock:`` model prefix and the environment-variable
+credential chain are unchanged. For AWS-specific fields with dedicated UI
+inputs (region, IAM keys, profile, bearer token, timeouts) instead of raw
+``extra`` JSON, use the :doc:`pydantic_ai_bedrock` connection type.
 
-Leave password empty and configure ``GOOGLE_APPLICATION_CREDENTIALS`` in the environment:
+**Google Vertex AI / Gemini API**
+
+Leave password empty and configure ``GOOGLE_API_KEY`` (or ``GEMINI_API_KEY``)
+in the environment:
 
 .. code-block:: json
 
@@ -124,6 +148,15 @@ Leave password empty and configure ``GOOGLE_APPLICATION_CREDENTIALS`` in the env
         "extra": "{\"model\": \"google:gemini-2.0-flash\"}"
     }
 
+This connects to the Gemini API (Google AI Studio), not Vertex AI — pydantic-ai's
+plain ``google:`` provider only reads an API key
+(``GOOGLE_API_KEY``/``GEMINI_API_KEY``); it does not fall back to
+``GOOGLE_APPLICATION_CREDENTIALS`` or any other Application Default
+Credentials source. For project/location-scoped Vertex AI access — service
+account or Application Default Credentials — use the
+:doc:`pydantic_ai_vertex` connection type with a ``google-cloud:`` model
+prefix instead.
+
 Model Resolution Order
 ----------------------
 
@@ -131,3 +164,12 @@ The hook reads the model from these sources in priority order:
 
 1. ``model_id`` parameter on the hook/operator
 2. ``model`` in the connection's extra JSON (set by the "Model" conn-field in the UI)
+3. When this connection is used as a fallback and neither of the above is set, the
+   *bare* ``model_id`` forwarded from the primary connection (see :doc:`/provider_fallback`) --
+   a forwarded name that already pins a platform is not applied here, since it names a
+   model of the primary's own platform.
+
+Whichever name is chosen, a name that already pins a recognized platform (its segment
+before the first ``:`` is itself a pydantic-ai provider) is used verbatim; a bare name is
+qualified with this connection's platform, and this generic connection type has none,
+so a bare name reaching this step always raises.

@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { PropsWithChildren } from "react";
+
 import "@testing-library/jest-dom/vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import i18n from "i18next";
 import type { DagTagResponse, DAGWithLatestDagRunsResponse } from "openapi-gen/requests/types.gen";
-import type { PropsWithChildren } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, it, vi, expect, beforeAll } from "vitest";
 
@@ -53,14 +54,85 @@ const GMTWrapper = ({ children }: PropsWithChildren) => (
   </BaseWrapper>
 );
 
+const takeNoObserverRecords = () => [];
+
+type MockDagCardObserver = {
+  callback: IntersectionObserverCallback;
+} & IntersectionObserver;
+
+const dagCardObservers: Array<MockDagCardObserver> = [];
+
+const MockDagCardIntersectionObserver = function MockDagCardIntersectionObserver(
+  nextCallback: IntersectionObserverCallback,
+  options?: IntersectionObserverInit,
+): IntersectionObserver {
+  const observer = {
+    callback: nextCallback,
+    disconnect: vi.fn(),
+    observe: vi.fn(),
+    root: options?.root ?? null,
+    rootMargin: options?.rootMargin ?? "0px",
+    scrollMargin: options?.scrollMargin ?? "0px",
+    takeRecords: vi.fn(takeNoObserverRecords),
+    thresholds: [0],
+    unobserve: vi.fn(),
+  } satisfies MockDagCardObserver;
+
+  dagCardObservers.push(observer);
+
+  return observer;
+};
+
+type CardContentMode = "fallback" | "hydrated" | "pending";
+
 // Render with the run-state-counts row in its loading state so it renders
 // skeletons rather than StateBadges. Without this, every card would emit
 // 4 extra "state-badge" testids and break getByTestId assertions in tests
 // that target the latest-run badge.
-const renderCard = (dag: DAGWithLatestDagRunsResponse) =>
-  render(<DagCard dag={dag} runStateCounts={undefined} runStateCountsLoading stateCountLimit={undefined} />, {
-    wrapper: GMTWrapper,
-  });
+const renderCard = (dag: DAGWithLatestDagRunsResponse, contentMode: CardContentMode = "hydrated") => {
+  dagCardObservers.length = 0;
+
+  if (contentMode === "fallback") {
+    vi.stubGlobal("IntersectionObserver", undefined);
+  } else {
+    vi.stubGlobal("IntersectionObserver", MockDagCardIntersectionObserver);
+  }
+
+  const result = render(
+    <DagCard dag={dag} runStateCounts={undefined} runStateCountsLoading stateCountLimit={undefined} />,
+    {
+      wrapper: GMTWrapper,
+    },
+  );
+
+  if (contentMode === "hydrated") {
+    const [observer] = dagCardObservers;
+    const card = screen.getByTestId("dag-card");
+
+    if (observer === undefined) {
+      throw new Error("Expected the Dag card to register an IntersectionObserver");
+    }
+
+    act(() => {
+      observer.callback(
+        [
+          {
+            boundingClientRect: card.getBoundingClientRect(),
+            intersectionRatio: 1,
+            intersectionRect: card.getBoundingClientRect(),
+            isIntersecting: true,
+            rootBounds: null,
+            target: card,
+            time: 0,
+          },
+        ],
+        observer,
+      );
+    });
+  }
+
+  return result;
+};
 
 const mockDag = {
   allowed_run_types: null,
@@ -74,6 +146,7 @@ const mockDag = {
   fileloc: "/files/dags/nested_task_groups.py",
   has_import_errors: false,
   has_task_concurrency_limits: false,
+  has_unfinished_runs: false,
   is_backfillable: true,
   is_favorite: false,
   is_paused: false,
@@ -141,9 +214,69 @@ beforeAll(async () => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("DagCard", () => {
+  it("renders its shell before mounting near-viewport controls", () => {
+    dagCardObservers.length = 0;
+    vi.stubGlobal("IntersectionObserver", MockDagCardIntersectionObserver);
+    renderCard(mockDag, "pending");
+
+    const card = screen.getByTestId("dag-card");
+
+    expect(screen.getByTestId("dag-id")).toBeInTheDocument();
+    expect(screen.getByTestId("schedule")).toHaveTextContent(mockDag.timetable_summary);
+    expect(screen.queryByTestId("toggle-pause")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("recent-run")).not.toBeInTheDocument();
+
+    const [observer] = dagCardObservers;
+
+    if (observer === undefined) {
+      throw new Error("Expected the Dag card to register an IntersectionObserver");
+    }
+
+    act(() => {
+      observer.callback(
+        [
+          {
+            boundingClientRect: card.getBoundingClientRect(),
+            intersectionRatio: 1,
+            intersectionRect: card.getBoundingClientRect(),
+            isIntersecting: true,
+            rootBounds: null,
+            target: card,
+            time: 0,
+          },
+        ],
+        observer,
+      );
+    });
+
+    expect(screen.getByTestId("toggle-pause")).toBeInTheDocument();
+    expect(screen.getAllByTestId("recent-run")).toHaveLength(mockDag.latest_dag_runs.length);
+  });
+
+  it("mounts deferred controls when keyboard focus enters the card", () => {
+    dagCardObservers.length = 0;
+    vi.stubGlobal("IntersectionObserver", MockDagCardIntersectionObserver);
+    renderCard(mockDag, "pending");
+
+    expect(screen.queryByTestId("toggle-pause")).not.toBeInTheDocument();
+
+    fireEvent.focus(screen.getByTestId("dag-id"));
+
+    expect(screen.getByTestId("toggle-pause")).toBeInTheDocument();
+  });
+
+  it("offers draining when the API reports an unfinished run outside the recent-run payload", async () => {
+    renderCard({ ...mockDag, has_unfinished_runs: true });
+
+    fireEvent.click(screen.getByTestId("toggle-pause"));
+
+    expect(await screen.findByTestId("drain-dag")).toBeInTheDocument();
+  });
+
   it("DagCard should render without tags", () => {
     renderCard(mockDag);
     expect(screen.getByText(mockDag.dag_display_name)).toBeInTheDocument();
@@ -254,6 +387,15 @@ describe("DagCard", () => {
 
     expect(nextRunElement).toBeInTheDocument();
     expect(nextRunElement).not.toHaveTextContent("2024-08-22 19:00:00");
+  });
+
+  it("DagCard should render the draining badge instead of the next run timestamp for a draining Dag", () => {
+    renderCard({ ...mockDag, scheduling_state: "draining" });
+    const nextRunElement = screen.getByTestId("next-run");
+
+    expect(nextRunElement).toBeInTheDocument();
+    expect(nextRunElement).not.toHaveTextContent("2024-08-22 19:00:00");
+    expect(screen.getByTestId("draining-badge")).toBeInTheDocument();
   });
 
   it("DagCard should render StateBadge as success", () => {

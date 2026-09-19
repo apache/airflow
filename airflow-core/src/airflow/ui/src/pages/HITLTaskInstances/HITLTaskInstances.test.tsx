@@ -22,6 +22,7 @@ import type * as ReactRouterDom from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as OpenapiQueries from "openapi/queries";
+
 import type * as SrcUtils from "src/utils";
 import { Wrapper } from "src/utils/Wrapper";
 
@@ -40,6 +41,7 @@ vi.mock("react-i18next", async (importOriginal) => {
   return {
     ...actual,
     useTranslation: () => ({
+      i18n: { language: "en" },
       // eslint-disable-next-line id-length
       t: (key: string) => key,
     }),

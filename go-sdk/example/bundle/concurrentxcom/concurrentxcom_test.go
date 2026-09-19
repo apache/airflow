@@ -25,7 +25,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/apache/airflow/go-sdk/pkg/api"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
@@ -42,7 +41,7 @@ func newMockXComClient() *mockXComClient {
 
 func (m *mockXComClient) PushXCom(
 	ctx context.Context,
-	ti api.TaskInstance,
+	ti sdk.TaskInstance,
 	key string,
 	value any,
 ) error {
@@ -73,6 +72,14 @@ func (m *mockXComClient) GetVariable(ctx context.Context, key string) (string, e
 }
 
 func (m *mockXComClient) UnmarshalJSONVariable(ctx context.Context, key string, pointer any) error {
+	panic("unimplemented")
+}
+
+func (m *mockXComClient) SetVariable(ctx context.Context, key, value, description string) error {
+	panic("unimplemented")
+}
+
+func (m *mockXComClient) DeleteVariable(ctx context.Context, key string) error {
 	panic("unimplemented")
 }
 

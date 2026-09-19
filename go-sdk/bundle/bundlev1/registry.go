@@ -23,21 +23,9 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-
-	"github.com/apache/airflow/go-sdk/pkg/worker"
 )
 
 type (
-	// Task is one registered task: something the runtime can Execute. Bundle
-	// authors do not implement this directly; Dag.AddTask wraps a plain Go
-	// function into a Task for you.
-	Task = worker.Task
-
-	// Bundle is the execution-time view of a registry: it looks up a task by
-	// dag_id and task_id. Registry embeds it so the object built during
-	// RegisterDags can also serve tasks when they run.
-	Bundle = worker.Bundle
-
 	// Dag is the handle returned by Registry.AddDag. Use it to attach the Go
 	// functions that implement the dag's tasks.
 	Dag interface {
@@ -46,6 +34,8 @@ type (
 		//
 		// fn is an ordinary Go function whose parameters are injected by type
 		// and may appear in any order. Recognised parameters are:
+		//   - airflow.Context: everything below on one value, plus the
+		//     identity of the task instance and its Dag run
 		//   - context.Context: cancelled when the task is asked to stop
 		//   - *slog.Logger: writes to the task's Airflow log
 		//   - sdk.Client (or a narrower sdk.VariableClient / sdk.ConnectionClient /

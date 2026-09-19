@@ -71,6 +71,17 @@ Xcom sidecar image
   Define the ``image`` used by the ``PodDefaults.SIDECAR_CONTAINER`` (defaults to ``"alpine"``) to allow private
   repositories, as well as custom image overrides.
 
+Xcom sidecar resources (JSON format)
+  Define the resource ``requests``/``limits`` for the XCom sidecar container as a JSON object, e.g.
+  ``{"requests": {"cpu": "1m", "memory": "10Mi"}}``.
+
+Xcom sidecar security context (JSON format)
+  Define the ``securityContext`` for the XCom sidecar container as a JSON object, e.g.
+  ``{"allowPrivilegeEscalation": false, "readOnlyRootFilesystem": true, "seccompProfile": {"type": "RuntimeDefault"}}``.
+  Useful when clusters enforce Pod Security Standards or admission policies (e.g. OPA/Gatekeeper) on the
+  injected sidecar. ``KubernetesPodOperator`` Dag authors can override this per task via the
+  ``xcom_sidecar_container_security_context`` argument.
+
 Example storing connection in env var using URI format:
 
 .. code-block:: bash

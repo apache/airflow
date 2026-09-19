@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-smtp``
 
-Release: ``3.0.2``
+Release: ``3.0.4``
 
 
 `Simple Mail Transfer Protocol (SMTP) <https://tools.ietf.org/html/rfc5321>`__
@@ -36,7 +36,7 @@ This is a provider package for ``smtp`` provider. All classes for this provider 
 are in ``airflow.providers.smtp`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-smtp/3.0.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-smtp/3.0.4/>`_.
 
 Installation
 ------------
@@ -54,9 +54,9 @@ Requirements
 PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.10.1``
+``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``aiosmtplib``                              ``>=0.1.6``
 ==========================================  ==================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-smtp/3.0.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-smtp/3.0.4/changelog.html>`_.

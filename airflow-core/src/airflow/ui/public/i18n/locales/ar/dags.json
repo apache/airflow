@@ -10,17 +10,21 @@
   "filters": {
     "allRunTypes": "جميع أنواع التشغيلات",
     "allStates": "جميع الحالات",
+    "anyRunState": "أي تشغيل",
     "favorite": {
       "all": "الكل",
       "favorite": "تفضيل",
       "unfavorite": "إلغاء التفضيل"
     },
+    "lastRunState": "آخر تشغيل",
+    "noTimetableTypesFound": "لم يتم العثور على أنواع جداول زمنية",
     "paused": {
       "active": "مفعّل",
       "all": "الكل",
       "paused": "متوقف"
     },
-    "runIdPatternFilter": "بحث تشغيلات الDag"
+    "runIdPatternFilter": "بحث تشغيلات الDag",
+    "timetableType": "نوع الجدول الزمني"
   },
   "ownerLink": "رابط المالك لـ{{owner}}",
   "runAndTaskActions": {
@@ -76,6 +80,11 @@
       "upstream": "المهام السابقة"
     }
   },
+  "runStateCounts": {
+    "label": "حالات التشغيل",
+    "loading": "جارٍ تحميل أعداد حالات التشغيل",
+    "tooltip": "{{state}}: {{formattedCount}} — انقر لتصفية التشغيلات"
+  },
   "search": {
     "advanced": "بحث متقدم",
     "clear": " مسح",
@@ -88,9 +97,9 @@
       "asc": "الترتيب حسب اسم العرض (A-Z)",
       "desc": "الترتيب حسب اسم العرض (Z-A)"
     },
-    "lastRunStartDate": {
-      "asc": "الترتيب حسب تاريخ بداية آخر تشغيل (الأقدم-الأحدث)",
-      "desc": "الترتيب حسب تاريخ بداية آخر تشغيل (الأحدث-الأقدم)"
+    "lastRunAfter": {
+      "asc": "الترتيب حسب تشغيل بعد لآخر تشغيل (الأقدم-الأحدث)",
+      "desc": "الترتيب حسب تشغيل بعد لآخر تشغيل (الأحدث-الأقدم)"
     },
     "lastRunState": {
       "asc": "الترتيب حسب حالة آخر تشغيل (أ-ي)",

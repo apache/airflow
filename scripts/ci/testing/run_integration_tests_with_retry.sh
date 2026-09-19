@@ -27,6 +27,7 @@ fi
 
 TEST_GROUP=${1}
 INTEGRATION=${2}
+RETRY_DELAY_SECONDS=${RETRY_DELAY_SECONDS:-60}
 
 breeze down
 set +e
@@ -39,6 +40,10 @@ if [[ ${RESULT} != "0" ]]; then
     echo
     echo "This could be due to a flaky test, re-running once to re-check it After restarting docker."
     echo
+    # Both attempts used to land within a minute of each other, so any registry or network
+    # outage lasting longer than that failed the job even though it was not our failure.
+    echo "Waiting ${RETRY_DELAY_SECONDS} seconds before retrying."
+    sleep "${RETRY_DELAY_SECONDS}"
     sudo service docker restart
     breeze down
     set +e

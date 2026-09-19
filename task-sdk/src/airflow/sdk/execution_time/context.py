@@ -297,7 +297,16 @@ async def _async_get_connection(conn_id: str) -> Connection:
                 conn = await sync_to_async(secrets_backend.get_connection)(conn_id)  # type: ignore[assignment]
 
             if conn:
-                SecretCache.save_connection_uri(conn_id, conn.get_uri())
+                # Use aget_uri if the returned connection object supports it (the SDK's own
+                # Connection class does); otherwise fall back to the sync get_uri, since backends
+                # can hand back other connection-shaped objects (e.g. MetastoreBackend returns
+                # airflow.models.Connection, which has no aget_uri).
+                aget_uri = getattr(conn, "aget_uri", None)
+                if aget_uri is not None:
+                    uri = await aget_uri()
+                else:
+                    uri = await sync_to_async(conn.get_uri)()
+                SecretCache.save_connection_uri(conn_id, uri)
                 await _amask_connection_secrets(conn)
                 return conn
         except AirflowSecretsBackendAccessDenied:
@@ -317,6 +326,23 @@ async def _async_get_connection(conn_id: str) -> Connection:
     raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
 
 
+def _mask_and_deserialize_variable(raw: str, key: str, deserialize_json: bool) -> Any:
+    mask_secret(raw, key)
+    if not deserialize_json:
+        return raw
+    val = json.loads(raw)
+    if isinstance(val, str):
+        mask_secret(val, key)
+    elif isinstance(val, dict):
+        # Masked by the dict's own inner key names, which is what ``add_mask`` uses.
+        mask_secret(val)
+    elif isinstance(val, list):
+        # Pass the Variable's key so list elements inherit the Variable's sensitivity
+        # instead of being added to the global mask patterns.
+        mask_secret(val, key)
+    return val
+
+
 def _get_variable(key: str, deserialize_json: bool) -> Any:
     from airflow.sdk.execution_time.cache import SecretCache
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
@@ -325,13 +351,7 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
     try:
         var_val = SecretCache.get_variable(key)
         if var_val is not None:
-            if deserialize_json:
-                import json
-
-                var_val = json.loads(var_val)
-            if isinstance(var_val, str):
-                mask_secret(var_val, key)
-            return var_val
+            return _mask_and_deserialize_variable(var_val, key, deserialize_json)
     except SecretCache.NotPresentException:
         pass  # Continue to check backends
 
@@ -344,13 +364,7 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
             if var_val is not None:
                 # Save raw value before deserialization to maintain cache consistency
                 SecretCache.save_variable(key, var_val)
-                if deserialize_json:
-                    import json
-
-                    var_val = json.loads(var_val)
-                if isinstance(var_val, str):
-                    mask_secret(var_val, key)
-                return var_val
+                return _mask_and_deserialize_variable(var_val, key, deserialize_json)
         except AirflowSecretsBackendAccessDenied:
             # Authoritative deny — must NOT fall through to a less-restrictive backend.
             raise
@@ -746,12 +760,25 @@ class AssetStateStoreAccessor:
         """Return the stored value, or ``default`` if the key does not exist."""
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
+        resp = SUPERVISOR_COMMS.send(self._build_get_message(key))
+        return self._extract_get_response(resp, key, default)
+
+    async def aget(self, key: str, default: JsonValue = None) -> JsonValue:
+        """Async version of `get` that awaits instead of blocking the event loop."""
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        resp = await SUPERVISOR_COMMS.asend(self._build_get_message(key))
+        return self._extract_get_response(resp, key, default)
+
+    def _build_get_message(self, key: str) -> ToSupervisor:
         msg: ToSupervisor
         if self._name:
             msg = GetAssetStateStoreByName(name=self._name, key=key)
         elif self._uri:
             msg = GetAssetStateStoreByUri(uri=self._uri, key=key)
-        resp = SUPERVISOR_COMMS.send(msg)
+        return msg
+
+    def _extract_get_response(self, resp: Any, key: str, default: JsonValue) -> JsonValue:
         if isinstance(resp, ErrorResponse) and resp.error != ErrorType.ASSET_STORE_NOT_FOUND:
             raise AirflowRuntimeError(resp)
         if isinstance(resp, AssetStateStoreResult):
@@ -775,6 +802,15 @@ class AssetStateStoreAccessor:
         """Write or overwrite the value for the given key. ``value`` must not be ``None``."""
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
+        SUPERVISOR_COMMS.send(self._build_set_message(key, value))
+
+    async def aset(self, key: str, value: JsonValue) -> None:
+        """Async version of `set` that awaits instead of blocking the event loop."""
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        await SUPERVISOR_COMMS.asend(self._build_set_message(key, value))
+
+    def _build_set_message(self, key: str, value: JsonValue) -> ToSupervisor:
         if value is None:
             raise ValueError("Cannot set value as None")
 
@@ -803,39 +839,62 @@ class AssetStateStoreAccessor:
             msg = SetAssetStateStoreByName(name=self._name, key=key, value=stored)
         elif self._uri:
             msg = SetAssetStateStoreByUri(uri=self._uri, key=key, value=stored)
-        SUPERVISOR_COMMS.send(msg)
+        return msg
 
     def delete(self, key: str) -> None:
         """Delete a single key. No-op if the key does not exist."""
-        from airflow.sdk._shared.state import AssetScope
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
+        # DB ref first: if backend cleanup fails after this, the ref is gone and
+        # deterministic keys are recoverable on next set().
+        SUPERVISOR_COMMS.send(self._build_delete_message(key))
+        backend = _get_worker_state_store_backend()
+        if backend is not None:
+            backend.delete(AssetScope(name=self._name, uri=self._uri), key)
+
+    async def adelete(self, key: str) -> None:
+        """Async version of `delete` that awaits instead of blocking the event loop."""
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        await SUPERVISOR_COMMS.asend(self._build_delete_message(key))
+        backend = _get_worker_state_store_backend()
+        if backend is not None:
+            await backend.adelete(AssetScope(name=self._name, uri=self._uri), key)
+
+    def _build_delete_message(self, key: str) -> ToSupervisor:
         msg: ToSupervisor
         if self._name:
             msg = DeleteAssetStateStoreByName(name=self._name, key=key)
         elif self._uri:
             msg = DeleteAssetStateStoreByUri(uri=self._uri, key=key)
-        # DB ref first: if backend cleanup fails after this, the ref is gone and
-        # deterministic keys are recoverable on next set().
-        SUPERVISOR_COMMS.send(msg)
-        backend = _get_worker_state_store_backend()
-        if backend is not None:
-            backend.delete(AssetScope(name=self._name, uri=self._uri), key)
+        return msg
 
     def clear(self) -> None:
         """Delete all state keys for this asset."""
-        from airflow.sdk._shared.state import AssetScope
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
+        # DB ref first, same ordering rationale as delete().
+        SUPERVISOR_COMMS.send(self._build_clear_message())
+        backend = _get_worker_state_store_backend()
+        if backend is not None:
+            backend.clear(AssetScope(name=self._name, uri=self._uri))
+
+    async def aclear(self) -> None:
+        """Async version of `clear` that awaits instead of blocking the event loop."""
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        await SUPERVISOR_COMMS.asend(self._build_clear_message())
+        backend = _get_worker_state_store_backend()
+        if backend is not None:
+            await backend.aclear(AssetScope(name=self._name, uri=self._uri))
+
+    def _build_clear_message(self) -> ToSupervisor:
         msg: ToSupervisor
         if self._name:
             msg = ClearAssetStateStoreByName(name=self._name)
         elif self._uri:
             msg = ClearAssetStateStoreByUri(uri=self._uri)
-        SUPERVISOR_COMMS.send(msg)
-        backend = _get_worker_state_store_backend()
-        if backend is not None:
-            backend.clear(AssetScope(name=self._name, uri=self._uri))
+        return msg
 
 
 class AssetStateStoreAccessors:
@@ -846,7 +905,8 @@ class AssetStateStoreAccessors:
     accessor as: ``context['asset_state_store'][MY_ASSET].get('watermark')``.
 
     For tasks with exactly one concrete inlet or outlet, the accessor methods (``get``,
-    ``set``, ``delete``, ``clear``) can be called directly without subscripting.
+    ``set``, ``delete``, ``clear``, and their async counterparts ``aget``, ``aset``,
+    ``adelete``, ``aclear``) can be called directly without subscripting.
     """
 
     def __init__(self, inlets: list, outlets: list | None = None) -> None:
@@ -898,17 +958,33 @@ class AssetStateStoreAccessors:
         """Return the stored value for the single-inlet or single-outlet task, or ``default`` if not found."""
         return self._single_accessor().get(key, default)
 
+    async def aget(self, key: str, default: JsonValue = None) -> JsonValue:
+        """Async version of `get` that awaits instead of blocking the event loop."""
+        return await self._single_accessor().aget(key, default)
+
     def set(self, key: str, value: JsonValue) -> None:
         """Write or overwrite the value for the single-inlet task."""
         self._single_accessor().set(key, value)
+
+    async def aset(self, key: str, value: JsonValue) -> None:
+        """Async version of `set` that awaits instead of blocking the event loop."""
+        await self._single_accessor().aset(key, value)
 
     def delete(self, key: str) -> None:
         """Delete a single key for the single-inlet task."""
         self._single_accessor().delete(key)
 
+    async def adelete(self, key: str) -> None:
+        """Async version of `delete` that awaits instead of blocking the event loop."""
+        await self._single_accessor().adelete(key)
+
     def clear(self) -> None:
         """Delete all state keys for the single-inlet task."""
         self._single_accessor().clear()
+
+    async def aclear(self) -> None:
+        """Async version of `clear` that awaits instead of blocking the event loop."""
+        await self._single_accessor().aclear()
 
     def __repr__(self) -> str:
         parts = [f"name={k!r}" for k in self._by_name] + [f"uri={k!r}" for k in self._by_uri]
@@ -1114,6 +1190,8 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
     _before: str | datetime | None
     _ascending: bool
     _limit: int | None
+    _partition_key: str | None
+    _partition_key_regexp_pattern: str | None
     _extra: dict[str, str]
     _asset_name: str | None
     _asset_uri: str | None
@@ -1129,6 +1207,8 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
         self._before = None
         self._ascending = True
         self._limit = None
+        self._partition_key = None
+        self._partition_key_regexp_pattern = None
         self._extra: dict[str, str] = {}
 
     def after(self, after: str) -> Self:
@@ -1151,6 +1231,18 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
         self._reset_cache()
         return self
 
+    def partition_key(self, key: str) -> Self:
+        """Filter by exact partition key match."""
+        self._partition_key = key
+        self._reset_cache()
+        return self
+
+    def partition_key_regexp_pattern(self, pattern: str) -> Self:
+        """Filter by partition key regexp pattern."""
+        self._partition_key_regexp_pattern = pattern
+        self._reset_cache()
+        return self
+
     def extra(self, key: str, value: str) -> Self:
         self._extra[key] = value
         self._reset_cache()
@@ -1165,6 +1257,8 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
             "before": self._before,
             "ascending": self._ascending,
             "limit": self._limit,
+            "partition_key": self._partition_key,
+            "partition_key_regexp_pattern": self._partition_key_regexp_pattern,
             "extra": self._extra or None,
         }
 

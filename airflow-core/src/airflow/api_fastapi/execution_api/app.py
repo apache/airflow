@@ -144,19 +144,21 @@ class JWTReissueMiddleware(BaseHTTPMiddleware):
         token = request.scope.get(_REQUEST_SCOPE_TOKEN_KEY)
         if token:
             try:
-                claims = token.claims.model_dump()
+                async with svcs.Container(request.app.state.svcs_registry) as services:
+                    validator: JWTValidator = await services.aget(JWTValidator)
+                    claims = await validator.avalidated_claims(token, {})
 
-                # Workload tokens are long-lived and meant to survive queue
-                # wait times so avoid refreshing them.
-                if claims.get("scope") == "workload":
-                    return response
+                    # Workload and callback tokens are long-lived and meant to survive
+                    # queue wait times so avoid refreshing them. If avalidated_claims
+                    # raises for such a token, the outer except handles it.
+                    if claims.get("scope") in ("workload", "callback"):
+                        return response
 
-                now = int(time.time())
-                token_lifetime = int(claims.get("exp", 0)) - int(claims.get("iat", 0))
-                refresh_when_less_than = max(int(token_lifetime * 0.20), 30)
-                valid_left = int(claims.get("exp", 0)) - now
-                if valid_left <= refresh_when_less_than:
-                    async with svcs.Container(request.app.state.svcs_registry) as services:
+                    now = int(time.time())
+                    token_lifetime = int(claims.get("exp", 0)) - int(claims.get("iat", 0))
+                    refresh_when_less_than = max(int(token_lifetime * 0.20), 30)
+                    valid_left = int(claims.get("exp", 0)) - now
+                    if valid_left <= refresh_when_less_than:
                         generator: JWTGenerator = await services.aget(JWTGenerator)
                         refreshed_token = generator.generate(claims)
             except Exception as err:
@@ -285,6 +287,7 @@ def _inject_trace_context_dep(routes, mode: str) -> None:
 
 def create_task_execution_api_app(lifespan: svcs.fastapi.lifespan = lifespan) -> FastAPI:
     """Create FastAPI app for task execution API."""
+    from airflow.api_fastapi.common.exceptions import init_error_handlers
     from airflow.api_fastapi.execution_api.routes import execution_api_router
     from airflow.api_fastapi.execution_api.versions import bundle
     from airflow.configuration import conf
@@ -312,6 +315,7 @@ def create_task_execution_api_app(lifespan: svcs.fastapi.lifespan = lifespan) ->
     _inject_trace_context_dep(execution_api_router.routes, mode)
 
     app.generate_and_include_versioned_routers(execution_api_router)
+    init_error_handlers(app)
 
     # As we are mounted as a sub app, we don't get any logs for unhandled exceptions without this!
     @app.exception_handler(Exception)

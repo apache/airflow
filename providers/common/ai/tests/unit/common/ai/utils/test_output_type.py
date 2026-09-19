@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
 from pydantic import BaseModel
 
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
@@ -35,9 +36,21 @@ class TestRehydratePydanticOutput:
         result = rehydrate_pydantic_output(A, '{"x": 7}', serialize_output=True)
         assert result == {"x": 7}
 
-    def test_returns_raw_for_non_basemodel(self):
+    def test_returns_raw_for_str_output_type(self):
         result = rehydrate_pydantic_output(str, "anything", serialize_output=False)
         assert result == "anything"
+
+    @pytest.mark.parametrize(
+        ("output_type", "raw", "expected"),
+        [(int, "5", 5), (bool, "true", True), (list[str], '["a", "b"]', ["a", "b"])],
+        ids=["int", "bool", "list"],
+    )
+    def test_validates_other_types_with_type_adapter(self, output_type, raw, expected):
+        assert rehydrate_pydantic_output(output_type, raw, serialize_output=False) == expected
+
+    def test_returns_raw_when_type_adapter_rejects(self):
+        result = rehydrate_pydantic_output(int, "not-a-number", serialize_output=False)
+        assert result == "not-a-number"
 
     def test_returns_raw_on_invalid_json(self):
         result = rehydrate_pydantic_output(A, "not-json", serialize_output=False)
