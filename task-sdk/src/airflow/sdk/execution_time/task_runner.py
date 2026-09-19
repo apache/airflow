@@ -293,6 +293,16 @@ class RuntimeTaskInstance(TaskInstance):
 
     __rich_repr__.angular = True  # type: ignore[attr-defined]
 
+    def __str__(self) -> str:
+        # ``{{ ti }}`` renders this, so mirror the scheduler-side ``TaskInstance.__repr__`` rather than
+        # Pydantic's field dump, which leaks UUIDs into emails; ``repr()`` deliberately keeps that dump.
+        prefix = f"<TaskInstance: {self.dag_id}.{self.task_id} {self.run_id} "
+        # Unlike the scheduler-side column, map_index is nullable here, and None means unmapped too.
+        if self.map_index is not None and self.map_index != -1:
+            prefix += f"map_index={self.map_index} "
+        state = self.state.value if self.state else None
+        return prefix + f"[{state}] ti_id={self.id}>"
+
     @detail_span("get_template_context")
     def get_template_context(self) -> Context:
         # TODO: Move this to `airflow.sdk.execution_time.context`
@@ -887,7 +897,8 @@ class RuntimeTaskInstance(TaskInstance):
 
     @property
     def mark_success_url(self) -> str:
-        """URL to mark TI success."""
+        """Alias of ``log_url``."""
+        # Airflow 3 has no mark-success endpoint to link to.
         return self.log_url
 
 
@@ -2124,7 +2135,7 @@ def _send_error_email_notification(
         subject = Path(subject_template_file).read_text()
     else:
         # Fallback to default
-        subject = "Airflow alert: {{ti}}"
+        subject = "[Airflow] {{ti.dag_id}}.{{ti.task_id}} {{task_state}} - Run {{ti.run_id}}"
 
     html_content_template_file = conf.get("email", "html_content_template", fallback=None)
 
@@ -2136,11 +2147,16 @@ def _send_error_email_notification(
         # For reporting purposes, we report based on 1-indexed,
         # not 0-indexed lists (i.e. Try 1 instead of Try 0 for the first attempt).
         html_content = (
-            "Try {{try_number}} out of {{max_tries + 1}}<br>"
+            "Dag: {{ti.dag_id}}<br>"
+            "Task: {{ti.task_id}}<br>"
+            "Run: {{ti.run_id}}<br>"
+            "State: {{task_state}}<br>"
+            "Try: {{try_number}} out of {{max_tries + 1}}<br>"
+            "{% if ti.start_date is defined and ti.start_date %}Started: {{ti.start_date}}<br>{% endif %}"
+            "{% if ti.end_date is defined and ti.end_date %}Ended: {{ti.end_date}}<br>{% endif %}"
             "Exception:<br>{{exception_html}}<br>"
             'Log: <a href="{{ti.log_url}}">Link</a><br>'
             "Host: {{ti.hostname}}<br>"
-            'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
         )
 
     # Add exception_html to context for template rendering
@@ -2152,6 +2168,8 @@ def _send_error_email_notification(
         "exception_html": exception_html,
         "try_number": ti.try_number,
         "max_tries": ti.max_tries,
+        # Pass the value, not the enum: str() on it renders as "TaskInstanceState.FAILED".
+        "task_state": ti.state.value if ti.state else "unknown",
     }
     email_context = {**context, **additional_context}
     to_emails = task.email

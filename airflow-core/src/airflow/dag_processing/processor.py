@@ -543,6 +543,10 @@ def _execute_email_callbacks(dagbag: DagBag, request: EmailRequest, log: Filteri
         task=task,
         _ti_context_from_server=ctx_from_server,
         max_tries=ctx_from_server.max_tries,
+        # The callback request carries no state; the email type is the reason it fired.
+        state=(
+            TaskInstanceState.FAILED if request.email_type == "failure" else TaskInstanceState.UP_FOR_RETRY
+        ),
     )
 
     log.info(
