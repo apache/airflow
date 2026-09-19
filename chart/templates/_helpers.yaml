@@ -1127,10 +1127,15 @@ Usage:
 {{- end }}
 
 {{/*
-Merge a worker set into the default Celery worker values, replacing selected maps in full.
+Custom merge function which enables full map overwrite and `or` logic for boolean overwrite.
+It takes 4 arguments where:
+  1. Input map (source for merge)
+  2. Input map with values which will overwrite values from first map
+  3. Root section name (used for `or` boolean logic)
+  4. List of section names for which logic for boolean parameters should be `or` instead of overwrite
 
 Usage:
-  {{ include "workersMergeValues" (list .Values.workers.celery $workerSet) }}
+  {{ include "workersMergeValues" (list .Values.workers .Values.workers.celery "" (list "kerberosInitContainer"))  }}
 */}}
 {{- define "workersMergeValues" -}}
   {{- $inputMap := index . 0 -}}
