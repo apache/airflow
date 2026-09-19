@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import dataclasses
 import datetime
 import warnings
 from typing import TYPE_CHECKING, Any
@@ -51,7 +50,6 @@ class TimeSensor(BaseSensorOperator):
         next_kwargs=None,
         timeout=None,
     )
-    start_from_trigger = False
 
     def __init__(
         self,
@@ -65,30 +63,38 @@ class TimeSensor(BaseSensorOperator):
     ) -> None:
         super().__init__(**kwargs)
 
-        # Create a "date-aware" timestamp that will be used as the "target_datetime". This is a requirement
-        # of the DateTimeTrigger
-
-        # Get date considering dag.timezone
-        aware_time = timezone.coerce_datetime(
-            datetime.datetime.combine(
-                datetime.datetime.now(self.dag.timezone), target_time, self.dag.timezone
-            )
-        )
-
-        # Now that the dag's timezone has made the datetime timezone aware, we need to convert to UTC
-        self.target_datetime = timezone.convert_to_utc(aware_time)
+        self.target_time = target_time
         self.deferrable = deferrable
         self.start_from_trigger = start_from_trigger
         self.end_from_trigger = end_from_trigger
 
-        if self.start_from_trigger:
-            # Replaced rather than mutated: ``start_trigger_args`` is a class attribute, so
-            # assigning through it would overwrite the arguments of every other task built
-            # from this operator.
-            self.start_trigger_args = dataclasses.replace(
-                self.start_trigger_args,
-                trigger_kwargs=dict(moment=self.target_datetime, end_from_trigger=self.end_from_trigger),
+    @property
+    def start_from_trigger(self) -> bool:
+        """Always False: TimeSensor cannot start from trigger. Kept for backward compatibility."""
+        return False
+
+    @start_from_trigger.setter
+    def start_from_trigger(self, value: bool) -> None:
+        if value:
+            warnings.warn(
+                "start_from_trigger is deprecated for TimeSensor and is now ignored. The target "
+                "moment is computed fresh from the current wall-clock time on every Dag parse, so "
+                "baking it into the serialized trigger arguments made the serialized Dag hash change "
+                "on every parse. Use deferrable=True instead, which computes the target moment at "
+                "task execution time and does not have this problem.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
+
+    @property
+    def target_datetime(self) -> datetime.datetime:
+        """Compute the target moment on demand, in the dag's timezone."""
+        aware_time = timezone.coerce_datetime(
+            datetime.datetime.combine(
+                datetime.datetime.now(self.dag.timezone), self.target_time, self.dag.timezone
+            )
+        )
+        return timezone.convert_to_utc(aware_time)
 
     def execute(self, context: Context) -> None:
         if self.deferrable:
@@ -106,10 +112,9 @@ class TimeSensor(BaseSensorOperator):
         return None
 
     def poke(self, context: Context) -> bool:
-        self.log.info("Checking if the time (%s) has come", self.target_datetime)
-
-        # self.target_date has been converted to UTC, so we do not need to convert timezone
-        return timezone.utcnow() > self.target_datetime
+        target_datetime = self.target_datetime
+        self.log.info("Checking if the time (%s) has come", target_datetime)
+        return timezone.utcnow() > target_datetime
 
 
 class TimeSensorAsync(TimeSensor):
