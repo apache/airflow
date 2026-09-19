@@ -45,3 +45,47 @@ Example of using the S3DagBundle:
         }
       }
     ]'
+
+Staging from a single archive object
+------------------------------------
+
+By default the bundle is staged by downloading every object under ``prefix`` one at a time. Each object
+costs a full request round-trip, so bundles made of many small files can take a long time to stage — a cost
+paid by every component that stages the bundle, which with ephemeral workers (e.g. KubernetesExecutor task
+pods) means on every task start.
+
+Setting the optional ``archive_key`` stages the bundle from a single ``.tar.gz`` object instead: one
+``HEAD`` request to detect changes (unchanged archives are not re-downloaded), one ``GET`` to fetch it, then
+a local unpack and an atomic swap into place. If the archive cannot be fetched or unpacked, staging
+falls back to the per-object sync of ``prefix``. That fallback needs the Dag files to actually be
+present under ``prefix``: if the bucket holds only the archive, the failure is raised instead and the
+bundle already staged locally is left in place rather than being emptied by the sync.
+
+.. code-block:: bash
+
+    export AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='[
+      {
+        "name": "my-s3-dags",
+        "classpath": "airflow.providers.amazon.aws.bundles.s3.S3DagBundle",
+        "kwargs": {
+          "aws_conn_id": "aws_default",
+          "bucket_name": "my-airflow-bucket",
+          "prefix": "dags/",
+          "archive_key": "bundle-archives/dags.tar.gz",
+          "refresh_interval": 60
+        }
+      }
+    ]'
+
+Publishing the archive is the responsibility of your deployment process. The archive members must be laid out exactly as
+the objects under ``prefix``, so both staging strategies produce the same local tree — for example, in the
+same CI job that syncs the Dags:
+
+.. code-block:: bash
+
+    tar -C ./dags -czf dags.tar.gz .
+    aws s3 cp dags.tar.gz s3://my-airflow-bucket/bundle-archives/dags.tar.gz
+
+.. note::
+    Keep the archive outside the ``prefix`` location, otherwise an ``aws s3 sync --delete`` of the Dag
+    files may remove it.
