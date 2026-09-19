@@ -5097,6 +5097,25 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         assert mock_set_ti_state.call_count == set_ti_state_call_count
 
     @pytest.mark.parametrize(
+        "url",
+        [
+            "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
+            "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/dry_run",
+            "/dags/example_task_group/dagRuns/TEST_DAG_RUN_ID/taskGroupInstances/section_1",
+        ],
+    )
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_group_state")
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_instance_state")
+    def test_unknown_update_mask_field_returns_400(
+        self, mock_set_ti_state, mock_set_tg_state, test_client, url
+    ):
+        response = test_client.patch(url, params={"update_mask": "new_stat"}, json={"new_state": "success"})
+        assert response.status_code == 400
+        assert "Unknown field(s) in update_mask: 'new_stat'" in response.json()["detail"]
+        mock_set_ti_state.assert_not_called()
+        mock_set_tg_state.assert_not_called()
+
+    @pytest.mark.parametrize(
         ("new_note_value", "ti_note_data"),
         [
             (

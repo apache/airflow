@@ -57,9 +57,15 @@ class BulkService(Generic[T], ABC):
                 self.handle_bulk_create(action, results[action.action.value])
             elif action.action == BulkAction.UPDATE:
                 if action.entities:
-                    action.update_mask = validate_update_mask(
-                        cast("type[BaseModel]", type(action.entities[0])), action.update_mask
-                    )
+                    try:
+                        action.update_mask = validate_update_mask(
+                            cast("type[BaseModel]", type(action.entities[0])), action.update_mask
+                        )
+                    except HTTPException as e:
+                        results[action.action.value].errors.append(
+                            {"error": f"{e.detail}", "status_code": e.status_code}
+                        )
+                        continue
                 self.handle_bulk_update(action, results[action.action.value])
             elif action.action == BulkAction.DELETE:
                 self.handle_bulk_delete(action, results[action.action.value])
