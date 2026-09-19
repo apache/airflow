@@ -27,6 +27,7 @@ import type { Direction } from "src/components/Graph/DirectionDropdown";
 
 import type { DefaultTaskInstanceTab } from "src/constants/tab";
 import {
+  useClearKeepTaskStateDefault,
   useClearPreventRunningTaskDefault,
   useClearRunDefaultOptions,
   useClearTaskInstanceDefaultOptions,
@@ -173,6 +174,7 @@ export const Settings = () => {
   const [clearRunOptions, setClearRunOptions] = useClearRunDefaultOptions();
   const [clearTaskOptions, setClearTaskOptions] = useClearTaskInstanceDefaultOptions();
   const [preventRunningTask, setPreventRunningTask] = useClearPreventRunningTaskDefault();
+  const [keepTaskState, setKeepTaskState] = useClearKeepTaskStateDefault();
   const [markTaskOptions, setMarkTaskOptions] = useMarkTaskInstanceDefaultOptions();
   const [defaultTaskInstanceTab, setDefaultTaskInstanceTab] = useDefaultTaskInstanceTab();
   const [defaultLandingPage, setDefaultLandingPage] = useDefaultLandingPage();
@@ -270,6 +272,17 @@ export const Settings = () => {
             }
             helper={translate("settings.clearing.preventRunningTask.helper")}
             label={translate("settings.clearing.preventRunningTask.label")}
+          />
+          <SettingRow
+            control={
+              <Switch
+                checked={keepTaskState}
+                data-testid="clear-keep-task-state"
+                onCheckedChange={(event) => setKeepTaskState(event.checked)}
+              />
+            }
+            helper={translate("settings.clearing.keepTaskState.helper")}
+            label={translate("settings.clearing.keepTaskState.label")}
           />
         </Section>
         <Section title={translate("settings.marking.title")}>
