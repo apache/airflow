@@ -1,0 +1,1 @@
+Fix the scheduler stopping on a transient database error in its Human-in-the-loop timeout sweep. That sweep, and the orphaned-task sweep, now roll the session back before retrying, so a deadlock costs a scheduler tick rather than the scheduler.
