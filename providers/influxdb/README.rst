@@ -54,7 +54,7 @@ Requirements
 PIP package                                 Version required
 ==========================================  =================================================================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.8.0``
+``apache-airflow-providers-common-compat``  ``>=1.17.0``
 ``pandas``                                  ``>=2.1.2; python_version < "3.13"``
 ``pandas``                                  ``>=2.2.3; python_version >= "3.13" and python_version < "3.14"``
 ``pandas``                                  ``>=2.3.3; python_version >= "3.14"``
