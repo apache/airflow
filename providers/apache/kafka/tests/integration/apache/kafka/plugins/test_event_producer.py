@@ -85,7 +85,8 @@ class TestEventProducer:
 
         os.environ["AIRFLOW__KAFKA_EVENT_PRODUCER__DAG_RUN_EVENTS_ENABLED"] = "True"
         os.environ["AIRFLOW__KAFKA_EVENT_PRODUCER__TASK_INSTANCE_EVENTS_ENABLED"] = "True"
-        os.environ["AIRFLOW__KAFKA_EVENT_PRODUCER__TOPIC"] = cls.TOPIC
+        os.environ["AIRFLOW__KAFKA_EVENT_PRODUCER__DAGRUN_TOPIC"] = cls.TOPIC
+        os.environ["AIRFLOW__KAFKA_EVENT_PRODUCER__TASK_INSTANCE_TOPIC"] = cls.TOPIC
         os.environ["AIRFLOW__KAFKA_EVENT_PRODUCER__SOURCE"] = "dev-breeze"
 
         # Shared Kafka connection: used by the event producer plugin, the topic

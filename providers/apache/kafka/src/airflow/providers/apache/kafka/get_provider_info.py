@@ -150,6 +150,22 @@ def get_provider_info():
                         "type": "string",
                         "example": None,
                         "default": "airflow.events",
+                        "version_deprecated": "2.1.0",
+                        "deprecation_reason": "Topics for DagRun and TaskInstance were separated into different config settings.\n",
+                    },
+                    "dagrun_topic": {
+                        "description": "Topic the plugin publishes DagRun events to. The topic must already\nexist on the broker; the plugin will not auto-create it.\n",
+                        "version_added": "2.1.0",
+                        "type": "string",
+                        "example": None,
+                        "default": "airflow.events",
+                    },
+                    "task_instance_topic": {
+                        "description": "Topic the plugin publishes TaskInstance events to. The topic must already\nexist on the broker; the plugin will not auto-create it.\n",
+                        "version_added": "2.1.0",
+                        "type": "string",
+                        "example": None,
+                        "default": "airflow.events",
                     },
                     "source": {
                         "description": "Identifier added to every emitted message under the ``source``\nfield so consumers can distinguish Airflow installations that\nshare the same topic. When unset, falls back to the hostname\nof the Airflow component that emits the event (scheduler,\nworker, etc.).\n",
