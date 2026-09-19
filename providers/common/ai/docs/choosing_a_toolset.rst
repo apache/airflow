@@ -269,12 +269,19 @@ yourself.
 
 **What it cannot do**
 
-- It has no tool-level allow-list at all.
+- Its allow-list is client-side and opt-in, not server-side and required.
   :class:`~airflow.providers.common.ai.toolsets.mcp.MCPToolset` forwards
-  ``get_tools`` and ``call_tool`` straight to the underlying server, so whatever
-  the server exposes, the agent gets. ``tool_prefix`` renames; it does not
-  filter. The defense-layer table is explicit that a server can expose shell,
-  filesystem or network access.
+  ``get_tools`` and ``call_tool`` straight to the underlying server, so
+  whatever the server exposes, the agent gets by default. Because
+  ``MCPToolset`` is itself built on the same ``AbstractToolset`` base every
+  toolset in this provider extends, a Dag author can call ``.filtered()`` to
+  subset the advertised tool list using a filter function that inspects each
+  tool's definition. That filtering happens on the client: it narrows what
+  the agent is offered, it does not revoke or authorize anything on the
+  server, and unlike ``allowed_methods`` on ``HookToolset``, which is required
+  and rejects an empty list, nothing here requires you to set a filter. The
+  defense-layer table is explicit that a server can expose shell, filesystem
+  or network access.
 - It cannot guarantee the credential came from a connection. ``mcp_conn_id`` is
   the default path, but ``token_provider`` and ``env_provider`` are your own
   callables and are free to read an environment variable, a file, or an entirely
