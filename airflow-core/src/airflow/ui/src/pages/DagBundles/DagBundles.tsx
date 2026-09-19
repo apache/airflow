@@ -20,28 +20,24 @@ import { Badge, Box, Link, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
+import { Link as RouterLink } from "react-router-dom";
 
 import { useDagBundleServiceGetDagBundles } from "openapi/queries";
 import type { DagBundleResponse } from "openapi/requests/types.gen";
 
 import { Tooltip } from "src/system-components";
 
+import { DagBundleVersion } from "src/components/DagBundleVersion";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { ImportErrorCount } from "src/components/ImportErrorCount";
 import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 
 import { useConfig } from "src/queries/useConfig";
+import { useDagBundleRefetchInterval } from "src/queries/useDagBundleRefetchInterval";
 import { type DurationFormat, useDocumentTitle, useDurationFormat } from "src/utils";
-import { useAutoRefresh } from "src/utils/query";
-
-// A bundle row changes at most once per the bundle's `refresh_interval` (default 300s), so
-// `[api] auto_refresh_interval` (default 3s, tuned for Grid/Graph run state) is far too fast here.
-// Floor it rather than ignore it, so turning auto-refresh off still turns this page off.
-const MIN_REFETCH_INTERVAL_MS = 10_000;
-
-const SHORT_VERSION_LENGTH = 7;
 
 type BundleRow = { row: { original: DagBundleResponse } };
 
@@ -52,6 +48,11 @@ const createColumns = (
 ): Array<ColumnDef<DagBundleResponse>> => [
   {
     accessorKey: "name",
+    cell: ({ row: { original } }: BundleRow) => (
+      <Link asChild color="fg.info" fontWeight="bold">
+        <RouterLink to={`/dag_bundles/${encodeURIComponent(original.name)}`}>{original.name}</RouterLink>
+      </Link>
+    ),
     header: translate("browse:dagBundles.columns.name"),
   },
   ...(multiTeam
@@ -66,41 +67,13 @@ const createColumns = (
     : []),
   {
     accessorKey: "version",
-    cell: ({ row: { original } }: BundleRow) => {
-      if (original.version === null) {
-        // A versioning-capable bundle also reports null until its first successful refresh, so an
-        // absent last_refreshed is what separates "not refreshed yet" from "not versioned".
-        return (
-          <Text color="fg.muted">
-            {original.last_refreshed === null
-              ? translate("browse:dagBundles.notRefreshedYet")
-              : translate("browse:dagBundles.notVersioned")}
-          </Text>
-        );
-      }
-
-      // A git bundle stores the full 40-char hexsha, so show the prefix an author recognises and
-      // keep the whole value on hover.
-      const short = original.version.slice(0, SHORT_VERSION_LENGTH);
-
-      return (
-        <Tooltip content={original.version}>
-          {original.bundle_url === null ? (
-            <Text fontFamily="mono">{short}</Text>
-          ) : (
-            <Link
-              color="fg.info"
-              fontFamily="mono"
-              href={original.bundle_url}
-              rel="noreferrer"
-              target="_blank"
-            >
-              {short}
-            </Link>
-          )}
-        </Tooltip>
-      );
-    },
+    cell: ({ row: { original } }: BundleRow) => (
+      <DagBundleVersion
+        bundleUrl={original.bundle_url}
+        lastRefreshed={original.last_refreshed}
+        version={original.version}
+      />
+    ),
     header: translate("browse:dagBundles.columns.version"),
   },
   {
@@ -117,20 +90,7 @@ const createColumns = (
   },
   {
     accessorKey: "import_error_count",
-    cell: ({ row: { original } }: BundleRow) => {
-      // null means the user may not read import errors, which is not the same as "none".
-      if (original.import_error_count === null) {
-        return <Text color="fg.muted">-</Text>;
-      }
-
-      return original.import_error_count === 0 ? (
-        <Text color="fg.muted">0</Text>
-      ) : (
-        <Badge colorPalette="failed" variant="solid">
-          {original.import_error_count}
-        </Badge>
-      );
-    },
+    cell: ({ row: { original } }: BundleRow) => <ImportErrorCount count={original.import_error_count} />,
     enableSorting: false,
     header: translate("browse:dagBundles.columns.importErrors"),
   },
@@ -160,13 +120,7 @@ export const DagBundles = () => {
   const [sort] = sorting;
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : undefined;
 
-  // `useAutoRefresh` with no dagId reduces to `[api] auto_refresh_interval`, where 0 is how an
-  // operator turns auto-refresh off -- so it has to short-circuit before the floor below.
-  const configuredInterval = useAutoRefresh({});
-  const refetchInterval =
-    configuredInterval === false || configuredInterval === 0
-      ? false
-      : Math.max(configuredInterval, MIN_REFETCH_INTERVAL_MS);
+  const refetchInterval = useDagBundleRefetchInterval();
 
   const { data, error, isFetching, isLoading } = useDagBundleServiceGetDagBundles(
     {
@@ -191,7 +145,7 @@ export const DagBundles = () => {
         initialState={tableURLState}
         isFetching={isFetching}
         isLoading={isLoading}
-        modelName="browse:dagBundles.bundle"
+        modelName="common:dagBundle"
         onStateChange={setTableURLState}
         total={data?.total_entries}
       />
