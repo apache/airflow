@@ -21,8 +21,9 @@ from unittest.mock import patch
 
 import pytest
 from pydantic import ValidationError
-from sqlalchemy import select
+from sqlalchemy import Select, delete, event, select
 
+from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.datamodels.task_state_store import (
     TaskStateStoreBody,
@@ -31,6 +32,7 @@ from airflow.api_fastapi.core_api.datamodels.task_state_store import (
 from airflow.models.dagrun import DagRun
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
@@ -215,6 +217,35 @@ class TestSetTaskState(TestTaskStateEndpoint):
         bad_url = f"/dags/{DAG_ID}/dagRuns/nonexistent_run/taskInstances/{TASK_ID}/state-store/job_id"
         response = test_client.put(bad_url, json={"value": "v"})
         assert response.status_code == 404
+
+    @pytest.mark.parametrize("method", ["put", "patch"])
+    def test_write_dagrun_deleted_after_scope_lookup_returns_404(self, test_client, method):
+        if method == "patch":
+            assert test_client.put(f"{BASE_URL}/job_id", json={"value": "old"}).status_code == 204
+        dag_run_id = self.dag_run.id
+        deleted = False
+
+        def delete_run_before_lookup(conn, statement, multiparams, params, execution_options):
+            nonlocal deleted
+            if (
+                deleted
+                or not isinstance(statement, Select)
+                or statement.column_descriptions[0]["expr"] is not DagRun.id
+            ):
+                return
+            deleted = True
+            with create_session(scoped=False) as cleanup_session:
+                cleanup_session.execute(delete(DagRun).where(DagRun.id == dag_run_id))
+
+        event.listen(settings.engine, "before_execute", delete_run_before_lookup)
+        try:
+            response = getattr(test_client, method)(f"{BASE_URL}/job_id", json={"value": "v"})
+        finally:
+            event.remove(settings.engine, "before_execute", delete_run_before_lookup)
+
+        assert deleted
+        assert response.status_code == 404
+        assert response.json()["detail"] == f"No DagRun found for dag_id={DAG_ID!r} run_id={RUN_ID!r}"
 
     def test_set_nonexistent_task_id_returns_404(self, test_client):
         """set() returns 404 when task_id doesn not match any TaskInstance in the run."""
