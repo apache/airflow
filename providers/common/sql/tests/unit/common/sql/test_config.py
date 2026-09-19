@@ -34,6 +34,7 @@ class TestDataSourceConfig:
         [
             ("s3://bucket/path", StorageType.S3),
             ("gs://bucket/path", StorageType.GCS),
+            ("az://container/path", StorageType.AZURE),
             ("file:///path/to/file", StorageType.LOCAL),
         ],
     )
