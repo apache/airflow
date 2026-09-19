@@ -18,7 +18,7 @@
  */
 import type { ReactNode } from "react";
 
-import { Button, Icon, Table } from "@chakra-ui/react";
+import { Button, Icon, Table, Text } from "@chakra-ui/react";
 import { flexRender, type Table as TanStackTable } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
 import { TiArrowSortedDown, TiArrowSortedUp, TiArrowUnsorted } from "react-icons/ti";
@@ -32,6 +32,7 @@ export const TableList = <TData,>({ noRowsMessage, table }: TableListProps<TData
   "use no memo"; // remove if https://github.com/TanStack/table/issues/5567 is resolved
   const { t: translate } = useTranslation("components");
   const { rows } = table.getRowModel();
+  const isMultiSorted = table.getState().sorting.length > 1;
 
   return (
     <Table.Root data-testid="table-list" size="sm" striped>
@@ -76,6 +77,11 @@ export const TableList = <TData,>({ noRowsMessage, table }: TableListProps<TData
                       >
                         {text}
                         {rightIcon}
+                        {isMultiSorted && sort !== false ? (
+                          <Text as="span" data-testid={`sort-index-${column.id}`} fontSize="xs">
+                            {column.getSortIndex() + 1}
+                          </Text>
+                        ) : undefined}
                       </Button>
                     )}
                   </Table.ColumnHeader>
