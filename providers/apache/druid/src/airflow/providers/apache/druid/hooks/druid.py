@@ -61,9 +61,14 @@ class DruidHook(BaseHook):
                        connection information for path to a CA bundle to use. Defaults to True
     """
 
+    conn_name_attr = "druid_ingest_conn_id"
+    default_conn_name = "druid_ingest_default"
+    conn_type = "druid_ingest"
+    hook_name = "Druid Ingest"
+
     def __init__(
         self,
-        druid_ingest_conn_id: str = "druid_ingest_default",
+        druid_ingest_conn_id: str = default_conn_name,
         timeout: int = 1,
         max_ingestion_time: int | None = None,
         verify_ssl: bool = True,
@@ -87,10 +92,13 @@ class DruidHook(BaseHook):
     @property
     def get_connection_type(self) -> str:
         if self.conn.schema:
-            conn_type = self.conn.schema
-        else:
-            conn_type = self.conn.conn_type or "http"
-        return conn_type
+            return self.conn.schema
+        # This value becomes the URL scheme, so a connection whose type is "druid_ingest"
+        # would build druid_ingest:// and fail. Use http for it. Any other conn_type passes
+        # through, since that is how a connection selects https.
+        if self.conn.conn_type and self.conn.conn_type != self.conn_type:
+            return self.conn.conn_type
+        return "http"
 
     def get_conn_url(self, ingestion_type: IngestionType = IngestionType.BATCH) -> str:
         """Get Druid connection url."""

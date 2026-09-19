@@ -325,6 +325,36 @@ class TestDruidHook:
         hook = DruidHook(timeout=1, max_ingestion_time=5)
         assert hook.get_status_url(IngestionType.MSQ) == "https://test_host:1/druid/indexer/v1/task"
 
+    def test_connection_class_attributes(self):
+        assert DruidHook.conn_type == "druid_ingest"
+        assert DruidHook.conn_name_attr == "druid_ingest_conn_id"
+        assert DruidHook.default_conn_name == "druid_ingest_default"
+        assert DruidHook.hook_name == "Druid Ingest"
+        assert DruidHook().druid_ingest_conn_id == DruidHook.default_conn_name
+
+    @pytest.mark.parametrize(
+        ("conn_type", "schema", "expected"),
+        [
+            pytest.param("druid_ingest", None, "http", id="own-conn-type-is-not-a-scheme"),
+            pytest.param("druid_ingest", "https", "https", id="schema-still-wins"),
+            pytest.param("https", None, "https", id="other-conn-type-kept-as-scheme"),
+            pytest.param("druid", None, "druid", id="broker-conn-type-left-untouched"),
+            pytest.param(None, None, "http", id="no-conn-type-falls-back-to-http"),
+        ],
+    )
+    @patch("airflow.providers.apache.druid.hooks.druid.DruidHook.get_connection")
+    def test_get_connection_type(self, mock_get_connection, conn_type, schema, expected):
+        get_conn_value = MagicMock()
+        get_conn_value.host = "test_host"
+        get_conn_value.port = "1"
+        get_conn_value.conn_type = conn_type
+        get_conn_value.schema = schema
+        get_conn_value.extra_dejson = {"endpoint": "ingest"}
+        mock_get_connection.return_value = get_conn_value
+        hook = DruidHook()
+        assert hook.get_connection_type == expected
+        assert hook.get_conn_url() == f"{expected}://test_host:1/ingest"
+
     @patch("airflow.providers.apache.druid.hooks.druid.DruidHook.get_connection")
     def test_get_auth(self, mock_get_connection):
         get_conn_value = MagicMock()

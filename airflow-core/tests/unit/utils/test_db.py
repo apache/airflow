@@ -232,6 +232,10 @@ class TestDb:
         assert conn_ids
         assert conn_ids == sorted(conn_ids)
 
+    def test_default_druid_ingest_connection_uses_the_ingest_conn_type(self):
+        conn = next(c for c in get_default_connections() if c.conn_id == "druid_ingest_default")
+        assert conn.conn_type == "druid_ingest"
+
     @pytest.mark.usefixtures("initialized_db")
     def test_check_migrations(self):
         # Should run without error. Can't easily test the behaviour, but we can check it works
