@@ -774,6 +774,7 @@ gsuite
 gte
 Gunicorn
 gunicorn
+gVisor
 gz
 Gzip
 gzipped
@@ -1334,6 +1335,7 @@ pretify
 prev
 Proc
 proc
+procfs
 productionalize
 ProductSearchClient
 profiler
@@ -1580,6 +1582,7 @@ SlackHook
 SlackResponse
 slas
 smtp
+SNI
 SnowflakeHook
 Snowpark
 snowpark
