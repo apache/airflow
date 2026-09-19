@@ -220,7 +220,14 @@ class StackdriverRemoteLogIO(LoggingMixin):
                 if map_index := event.get("map_index"):
                     labels["map_index"] = str(map_index)
 
-            _transport.send(record, str(msg.get("event", "")), resource=self.resource, labels=labels)
+            try:
+                _transport.send(record, str(msg.get("event", "")), resource=self.resource, labels=labels)
+            except Exception:
+                # Cloud Logging unavailable / IAM glitch / gRPC error. This processor runs for
+                # every supervised component (scheduler, dag-processor, triggerer, workers), so
+                # letting this propagate would crash the whole process on a logging
+                # misconfiguration. Log delivery is best-effort; degrade gracefully instead.
+                _logger.warning("Failed to send log entry to Cloud Logging", exc_info=True)
             return event
 
         return (proc,)
