@@ -241,7 +241,9 @@ class ClearTaskInstancesBody(StrictBaseModel):
             "concurrency limits, paused Dags and Dag-run state still apply. Cannot be combined with "
             "include_upstream or include_downstream. Usually combine with only_failed=false, because "
             "an instance blocked on its dependencies is not in the failed state. The flag stays on "
-            "the task instances until they are cleared again."
+            "the task instances until they are cleared again. Each listed task instance is forced "
+            "independently, so the caller owns the ordering between them; include_past and "
+            "include_future apply the flag in every selected run."
         ),
     )
     note: Annotated[str, StringConstraints(max_length=1000)] | None = None

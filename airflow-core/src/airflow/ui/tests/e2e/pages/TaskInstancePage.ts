@@ -27,6 +27,7 @@ export class TaskInstancePage extends BasePage {
   public readonly downstreamOption: Locator;
   public readonly forceRunCheckbox: Locator;
   public readonly forceRunWarning: Locator;
+  public readonly onlyFailedOption: Locator;
   public readonly stateBadge: Locator;
   public readonly triggerButton: Locator;
   public readonly upstreamOption: Locator;
@@ -45,6 +46,7 @@ export class TaskInstancePage extends BasePage {
     });
     this.upstreamOption = page.getByRole("button", { exact: true, name: "Upstream" });
     this.downstreamOption = page.getByRole("button", { exact: true, name: "Downstream" });
+    this.onlyFailedOption = page.getByRole("button", { exact: true, name: "Clear only failed tasks" });
     this.confirmClearButton = page.getByRole("button", { name: "Confirm" });
   }
 
@@ -60,6 +62,7 @@ export class TaskInstancePage extends BasePage {
     await expect(this.forceRunWarning).toBeVisible();
     await expect(this.upstreamOption).toBeDisabled();
     await expect(this.downstreamOption).toBeDisabled();
+    await expect(this.onlyFailedOption).toBeDisabled();
     await this.confirmClearButton.click();
     await this.waitForAllDialogsClosed();
   }

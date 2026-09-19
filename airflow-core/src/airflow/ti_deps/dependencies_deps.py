@@ -87,8 +87,9 @@ def get_upstream_state_deps() -> tuple[type[BaseTIDep], ...]:
     Deps that make a task instance wait on the state of *other* task instances.
 
     A force run (``TaskInstance.ignore_upstream_deps``) skips exactly these; timing deps such
-    as ``NotInRetryPeriodDep`` and ``ReadyToRescheduleDep`` are never skipped. Imported lazily
-    to avoid a circular import: these dep classes import back from ``airflow.models.taskinstance``.
+    as ``NotInRetryPeriodDep`` and ``ReadyToRescheduleDep`` are never skipped.
+    ``NotPreviouslySkippedDep``, ``PrevDagrunDep`` and ``TriggerRuleDep`` are imported lazily
+    because they import back from ``airflow.models.taskinstance``.
     """
     from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
     from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep

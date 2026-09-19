@@ -3691,7 +3691,9 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             ignore_upstream_deps=False,
         )
 
-    @mock.patch("airflow.api_fastapi.core_api.routes.public.task_instances.clear_task_instances")
+    @mock.patch(
+        "airflow.api_fastapi.core_api.routes.public.task_instances.clear_task_instances", autospec=True
+    )
     def test_clear_taskinstance_passes_ignore_upstream_deps(self, mock_clearti, test_client, session):
         self.create_task_instances(session)
         dag_id = "example_python_operator"

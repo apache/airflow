@@ -124,7 +124,8 @@ describe("ClearTaskInstanceDialog", () => {
     mockUseClearTaskInstancesDryRun.mockReturnValue(dryRunResult);
   });
 
-  // Chakra v3 checkboxes cannot be toggled with fireEvent and user-event is not a dependency, so only the unticked path is covered here; the ticked path is covered by the e2e spec.
+  // Chakra v3 checkboxes cannot be toggled with fireEvent and user-event is not a dependency, so only
+  // the unticked path is covered here; the ticked path is covered by the e2e spec.
   it("renders the force run checkbox unticked by default", () => {
     render(
       <Wrapper>

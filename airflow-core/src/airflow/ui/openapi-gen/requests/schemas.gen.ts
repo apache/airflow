@@ -2273,7 +2273,7 @@ export const $ClearTaskInstancesBody = {
         ignore_upstream_deps: {
             type: 'boolean',
             title: 'Ignore Upstream Deps',
-            description: 'Force run: re-run the cleared task instances even if their dependencies on other task instances are not met (trigger rule, branch/ShortCircuit skips, depends_on_past, wait_for_downstream, mapped upstream). Retry delay, sensor reschedule interval, pools, concurrency limits, paused Dags and Dag-run state still apply. Cannot be combined with include_upstream or include_downstream. Usually combine with only_failed=false, because an instance blocked on its dependencies is not in the failed state. The flag stays on the task instances until they are cleared again.',
+            description: 'Force run: re-run the cleared task instances even if their dependencies on other task instances are not met (trigger rule, branch/ShortCircuit skips, depends_on_past, wait_for_downstream, mapped upstream). Retry delay, sensor reschedule interval, pools, concurrency limits, paused Dags and Dag-run state still apply. Cannot be combined with include_upstream or include_downstream. Usually combine with only_failed=false, because an instance blocked on its dependencies is not in the failed state. The flag stays on the task instances until they are cleared again. Each listed task instance is forced independently, so the caller owns the ordering between them; include_past and include_future apply the flag in every selected run.',
             default: false
         },
         note: {
