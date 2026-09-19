@@ -71,6 +71,9 @@ export async function transform({ regionCode, threshold }: TransformArgs) {
 }
 ```
 
+`withArgNames` states a binding folding cannot reach, for a name the Python side never used.
+It should be rare, since folding covers ordinary spelling differences.
+
 `Dag` is another interface, for a Dag declared in TypeScript rather than in Python, and is still a work in progress.
 
 ## Coordinators

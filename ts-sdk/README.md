@@ -241,6 +241,30 @@ const rows = await getClient().getXCom<number>({ key: "return_value", taskId: "e
 A Python `int` beyond the ±9007199254740991 a JavaScript number holds exactly is refused rather than bound,
 so carry such a value across the boundary as a string.
 
+### Explicit renames
+
+`withArgNames` states a binding folding cannot reach, for a name the Python side never used:
+a clearer word than the Dag chose, or a TypeScript reserved word like `enum`. Mapping first, handler second:
+
+```ts
+interface ReportArgs {
+  summary: Summary;
+  label: string; // Python calls this `run_label`
+}
+
+const report = withArgNames({ label: "run_label" }, async ({ summary, label }: ReportArgs) => {
+  // `label` is the call's `run_label`; `summary` folded as usual.
+});
+
+bundle.register(new TaskHandler("etl", "report", report));
+```
+
+An entry beats folding, and everything the map does not mention still folds,
+so `withArgNames` should be rare in a real Dag.
+The map's keys are checked against the handler's own parameter type,
+so `{ labl: "run_label" }` is a compile error naming the right key.
+Its values are Python names, which `tsc` cannot see and does not check.
+
 `Dag` is another interface, for a Dag declared natively in TypeScript, and is still a work in progress.
 
 Airflow launches the bundled entrypoint with `--comm=host:port` and
@@ -266,9 +290,11 @@ airflow-ts-pack src/main.ts --outdir dist
 It bundles the entrypoint into a minified `dist/bundle.min.mjs` with esbuild, then runs that bundle with
 `--airflow-metadata` so it reports its own registered Dag/task pairs and supervisor schema version. The manifest is
 embedded as a compact JSON `//# airflowMetadata=...` comment after a leading compact JSON `//# airflowBundle=...`
-layout descriptor. The CLI records the integrity metadata for both regions in that descriptor, so a coordinator that
-is handed a bundle whose content was replaced fails loudly instead of running it. The result is one deployable file
-with no hand-written metadata sidecar.
+layout descriptor, and the entry module is embedded verbatim in a `/*# airflowSource ... #*/` block comment so
+Airflow can show the source a bundle was authored from, which its minified code no longer is. The CLI records the
+integrity metadata for all three regions in that descriptor, so a coordinator that is handed a bundle whose content
+was replaced fails loudly instead of running it. The result is one deployable file with no hand-written metadata
+sidecar.
 
 Pass `--outfile <path>` instead of `--outdir` to name the artifact yourself, so one bundle directory can hold several
 bundles. The name must still end in `.min.mjs`, which is how `NodeCoordinator` finds bundles.
