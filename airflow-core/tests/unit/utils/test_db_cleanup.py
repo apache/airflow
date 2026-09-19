@@ -27,7 +27,18 @@ from uuid import uuid4
 
 import pendulum
 import pytest
-from sqlalchemy import Column, Integer, MetaData, Table, func, insert, inspect, literal, select, text
+from sqlalchemy import (
+    Column,
+    Integer,
+    MetaData,
+    Table,
+    func,
+    insert,
+    inspect,
+    literal,
+    select,
+    text,
+)
 from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.orm import Session
@@ -453,6 +464,27 @@ class TestDBCleanup:
             )
 
     @pytest.mark.parametrize(
+        ("dag_ids", "exclude_dag_ids"),
+        [
+            pytest.param(["dag1"], None, id="include"),
+            pytest.param(None, ["dag1"], id="exclude"),
+        ],
+    )
+    def test_cleanup_dag_filtering_on_tables_without_their_own_dag_id(self, dag_ids, exclude_dag_ids):
+        """asset_event, task_reschedule and deadline have no dag_id column of their own."""
+        with create_session() as session:
+            run_cleanup(
+                clean_before_timestamp=pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC")),
+                table_names=["asset_event", "task_reschedule", "deadline"],
+                dag_ids=dag_ids,
+                exclude_dag_ids=exclude_dag_ids,
+                dry_run=False,
+                confirm=False,
+                error_on_cleanup_failure=True,
+                session=session,
+            )
+
+    @pytest.mark.parametrize(
         ("dag_ids", "exclude_dag_ids", "expected_remaining"),
         [
             pytest.param(["dag1"], None, {"dag2", None}, id="include_scopes_through_dag_run"),
@@ -638,6 +670,99 @@ class TestDBCleanup:
         assert latest_id in remaining  # kept by keep_last
         assert orphan_id not in remaining  # old and unreferenced -> pruned
 
+    def test_do_delete_skip_if_referenced_guards_against_race(self):
+        """_do_delete must not issue a DELETE that violates an ON DELETE RESTRICT FK.
+
+        Reproduces the real race: the dag_version row passes the SELECT filter and is
+        archived, and only then does a task_instance referencing it appear.  The
+        skip_if_referenced guard on the DELETE must skip the row instead of failing with
+        IntegrityError, and the loop must still drain because the next SELECT pass
+        re-evaluates the same NOT EXISTS guard and excludes it.
+        """
+        from airflow.utils.db import reflect_tables
+
+        base_date = pendulum.DateTime(2020, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        bundle_name = f"race-test-{uuid4()}"
+        dag_id = f"race_dag_{uuid4()}"
+
+        with create_session() as session:
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+            session.add(DagModel(dag_id=dag_id, bundle_name=bundle_name))
+            session.flush()
+
+            raced_old = DagVersion(
+                dag_id=dag_id,
+                version_number=1,
+                bundle_name=bundle_name,
+                created_at=base_date,
+                last_updated=base_date,
+            )
+            # dag_version is keep_last per dag_id, so a lone version is always the
+            # keep_last survivor and is never eligible for deletion.  A second, newer
+            # version takes that role and leaves raced_old as the deletion candidate.
+            latest = DagVersion(
+                dag_id=dag_id,
+                version_number=2,
+                bundle_name=bundle_name,
+                created_at=base_date.add(minutes=1),
+                last_updated=base_date.add(minutes=1),
+            )
+            session.add_all([raced_old, latest])
+            session.flush()
+            raced_old_id, latest_id = raced_old.id, latest.id
+
+            # Query built while nothing references raced_old, so the first SELECT pass
+            # returns it and _do_delete archives it.
+            cfg = config_dict["dag_version"]
+            query = _build_query(
+                **cfg.__dict__,
+                clean_before_timestamp=base_date.add(days=10),
+                session=session,
+            )
+
+            dag_run = DagRun(dag_id, run_id="race-run", run_type=DagRunType.MANUAL, start_date=base_date)
+            ti = create_task_instance(
+                PythonOperator(task_id="dummy-task", python_callable=print),
+                run_id=dag_run.run_id,
+                dag_version_id=raced_old_id,
+            )
+            ti.dag_id = dag_id
+            ti.start_date = base_date
+
+            raced = False
+
+            def reflect_and_race(tables, session, **kwargs):
+                # _do_delete reflects both source and target right after committing the
+                # archive CTAS and right before building the DELETE — this is the only
+                # seam between the two that fits the race window.  MySQL reflects the
+                # target alone earlier in the same pass, so keying on the two-table call
+                # covers both branches.  If this call site moves, the test stops
+                # reproducing the race and the ``raced`` assertion below will catch it.
+                nonlocal raced
+                if not raced and len(tables) == 2:
+                    raced = True
+                    session.add_all([dag_run, ti])
+                    session.commit()
+                return reflect_tables(tables, session, **kwargs)
+
+            with patch("airflow.utils.db_cleanup.reflect_tables", side_effect=reflect_and_race):
+                _do_delete(
+                    query=query,
+                    orm_model=cfg.orm_model,
+                    skip_archive=True,
+                    session=session,
+                    batch_size=None,
+                    skip_if_referenced=cfg.skip_if_referenced,
+                    referenced_pk_column=cfg.referenced_pk_column,
+                )
+
+            remaining = set(session.scalars(select(DagVersion.id).where(DagVersion.dag_id == dag_id)).all())
+
+        assert raced, "the TI was never inserted mid-pass; the race was not reproduced"
+        assert raced_old_id in remaining, "dag_version referenced by a task_instance must not be deleted"
+        assert latest_id in remaining, "the keep_last survivor must not be deleted"
+
     def test_table_config_skip_if_referenced_requires_pk_column(self):
         """A misconfigured skip_if_referenced (pk not in columns) must fail fast at construction."""
         with pytest.raises(ValueError, match="referenced_pk_column"):
@@ -747,7 +872,7 @@ class TestDBCleanup:
         session.get_bind.return_value.dialect.name = "mysql"
         session.connection.return_value = object()
         session.scalars.return_value.one.side_effect = [1, 0]
-        session.execute.side_effect = [None, None, None]
+        session.execute.side_effect = [None, None, MagicMock(rowcount=1)]
 
         metadata, source_table, target_table, query = _build_do_delete_test_objects()
 
@@ -810,7 +935,7 @@ class TestDBCleanup:
         session.get_bind.return_value.dialect.name = "mysql"
         session.connection.return_value = object()
         session.scalars.return_value.one.side_effect = [1, 0]
-        session.execute.side_effect = [None, None, None]
+        session.execute.side_effect = [None, None, MagicMock(rowcount=1)]
 
         metadata, source_table, target_table, query = _build_do_delete_test_objects()
         drop_failure = OperationalError("DROP TABLE", {}, Exception("disk full"))
@@ -1005,6 +1130,23 @@ class TestDBCleanup:
         assert all_models, "discovered no models, so this check would pass vacuously"
         assert set(all_models) - exclusion_list.union(config_dict) == set()
         assert exclusion_list.isdisjoint(config_dict)
+
+    def test_dag_id_column_name_matches_schema(self):
+        """
+        Regression guard: every dag_id_column_name in config_dict must be an actual column in its
+        database table, so that --dag-ids filtering never raises UndefinedColumn.
+        """
+        with create_session() as session:
+            insp = inspect(session.bind)
+            existing_tables = set(insp.get_table_names())
+            for table_name, cfg in config_dict.items():
+                if cfg.dag_id_column_name is None or table_name not in existing_tables:
+                    continue
+                db_columns = {col["name"] for col in insp.get_columns(table_name)}
+                assert cfg.dag_id_column_name in db_columns, (
+                    f"config_dict[{table_name!r}].dag_id_column_name={cfg.dag_id_column_name!r} "
+                    f"is not a column of table {table_name!r} in the database"
+                )
 
     @pytest.mark.parametrize(
         ("dag_ids", "exclude_dag_ids"),
