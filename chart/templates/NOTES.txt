@@ -709,36 +709,38 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if .Values.workers.kerberosInitContainer.enabled }}
+{{- $legacyKerberosInitContainer := .Values.workers.kerberosInitContainer }}
+{{- if or $legacyKerberosInitContainer.enabled $legacyKerberosInitContainer.resources $legacyKerberosInitContainer.securityContexts.container $legacyKerberosInitContainer.containerLifecycleHooks }}
 
  DEPRECATION WARNING:
-    `workers.kerberosInitContainer.enabled` has been renamed to `workers.celery.kerberosInitContainer.enabled`/`workers.kubernetes.kerberosInitContainer.enabled`.
-    Please change your values as support for the old name will be dropped in a future release.
+    `workers.kerberosInitContainer` will be removed in Chart 2.0.
+    Configure `workers.celery.kerberosSidecar` and/or `workers.kubernetes.kerberosSidecar`
+    instead. Enable the corresponding `startupProbe` to wait for the initial Kerberos ticket.
 
 {{- end }}
 
-{{- if .Values.workers.kerberosInitContainer.resources }}
+{{- range $workerType := list "celery" "kubernetes" }}
+{{- $kerberosInitContainer := index (index $.Values.workers $workerType) "kerberosInitContainer" }}
+{{- $kerberosInitContainerEnabledSet := not (kindIs "invalid" $kerberosInitContainer.enabled) }}
+{{- if or $kerberosInitContainerEnabledSet $kerberosInitContainer.resources $kerberosInitContainer.securityContexts.container $kerberosInitContainer.containerLifecycleHooks }}
 
  DEPRECATION WARNING:
-    `workers.kerberosInitContainer.resources` has been renamed to `workers.celery.kerberosInitContainer.resources`/`workers.kubernetes.kerberosInitContainer.resources`.
-    Please change your values as support for the old name will be dropped in a future release.
+    `workers.{{ $workerType }}.kerberosInitContainer` will be removed in Chart 2.0.
+    Configure `workers.{{ $workerType }}.kerberosSidecar` instead and enable its `startupProbe`
+    to wait for the initial Kerberos ticket.
 
 {{- end }}
-
-{{- if .Values.workers.kerberosInitContainer.securityContexts.container }}
-
- DEPRECATION WARNING:
-    `workers.kerberosInitContainer.securityContexts.container` has been renamed to `workers.celery.kerberosInitContainer.securityContexts.container`/`workers.kubernetes.kerberosInitContainer.securityContexts.container`.
-    Please change your values as support for the old name will be dropped in a future release.
-
 {{- end }}
 
-{{- if .Values.workers.kerberosInitContainer.containerLifecycleHooks }}
+{{- range $workerSet := .Values.workers.celery.sets }}
+{{- if hasKey $workerSet "kerberosInitContainer" }}
 
  DEPRECATION WARNING:
-    `workers.kerberosInitContainer.containerLifecycleHooks` has been renamed to `workers.celery.kerberosInitContainer.containerLifecycleHooks`/`workers.kubernetes.kerberosInitContainer.containerLifecycleHooks`.
-    Please change your values as support for the old name will be dropped in a future release.
+    `kerberosInitContainer` in Celery worker set {{ $workerSet.name | quote }} will be removed in Chart 2.0.
+    Configure `kerberosSidecar` for that worker set instead and enable its `startupProbe`
+    to wait for the initial Kerberos ticket.
 
+{{- end }}
 {{- end }}
 
 {{- if not (empty .Values.workers.resources) }}
