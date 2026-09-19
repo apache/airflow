@@ -22,6 +22,10 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
+from pydantic import TypeAdapter
+from pydantic_ai import Agent
+from pydantic_ai.messages import ModelResponse, ToolCallPart
+from pydantic_ai.models.function import FunctionModel
 
 from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin
 from airflow.providers.common.ai.operators.llm import LLMOperator
@@ -46,7 +50,7 @@ class TestLLMBranchOperator:
         assert LLMBranchOperator.inherits_from_skipmixin is True
 
     def test_template_fields(self):
-        assert set(LLMBranchOperator.template_fields) == set(LLMOperator.template_fields)
+        assert set(LLMBranchOperator.template_fields) == {*LLMOperator.template_fields, "branch_descriptions"}
 
     def test_output_type_ignored(self):
         """Passing output_type= doesn't break anything; it's silently dropped."""
@@ -236,6 +240,180 @@ class TestLLMBranchOperator:
 
         output_type = mock_hook_cls.get_hook.return_value.create_agent.call_args.kwargs["output_type"]
         assert [m.value for m in output_type] == ["task_a", "task_b", "task_c"]
+
+    @patch.object(LLMBranchOperator, "do_branch")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_branch_descriptions_land_in_the_output_schema(
+        self, mock_hook_cls, mock_do_branch, make_mock_run_result
+    ):
+        """Each described option carries its description in the schema; an undescribed one carries none.
+
+        This is the shape both a text model's tool schema and pydantic-ai's TypeSafe adapter read
+        a per-option description from: ``anyOf`` of ``{const, description}``, not a bare ``enum``.
+        """
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMBranchOperator(
+            task_id="route",
+            prompt="Pick",
+            llm_conn_id="my_llm",
+            branch_descriptions={
+                "handle_auth": "Sign-in, passwords, 2FA. Owns missing reset emails.",
+                "handle_billing": "Invoices, charges, refunds.",
+            },
+        )
+        op.downstream_task_ids = {"handle_general", "handle_billing", "handle_auth"}
+        output_type = None
+
+        def capture(**kwargs):
+            nonlocal output_type
+            output_type = kwargs["output_type"]
+            mock_agent.run_sync.return_value = make_mock_run_result(output_type.handle_auth)
+            return mock_agent
+
+        mock_hook_cls.get_hook.return_value.create_agent.side_effect = capture
+
+        op.execute(MagicMock())
+
+        schema = TypeAdapter(output_type).json_schema()
+        assert "enum" not in schema
+        assert schema["anyOf"] == [
+            {
+                "const": "handle_auth",
+                "type": "string",
+                "description": "Sign-in, passwords, 2FA. Owns missing reset emails.",
+            },
+            {"const": "handle_billing", "type": "string", "description": "Invoices, charges, refunds."},
+            {"const": "handle_general", "type": "string"},
+        ]
+        # Validation is still the enum: the output handling downstream is unchanged.
+        assert [m.value for m in output_type] == ["handle_auth", "handle_billing", "handle_general"]
+        mock_do_branch.assert_called_once_with(mock_do_branch.call_args.args[0], "handle_auth")
+
+    @patch.object(LLMBranchOperator, "do_branch")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_branch_descriptions_reach_the_model(self, mock_hook_cls, mock_do_branch):
+        """Through a real pydantic-ai Agent, the descriptions are in the request the model receives.
+
+        ``FunctionModel`` sits where every provider adapter sits and is handed the same
+        ``output_tools`` schema, so this is the request as a model sees it, not the operator's
+        view of it.
+        """
+        seen: dict = {}
+
+        def model_fn(messages, info):
+            tool = info.output_tools[0]
+            seen["schema"] = tool.parameters_json_schema
+            return ModelResponse(parts=[ToolCallPart(tool.name, {"response": "handle_billing"})])
+
+        def create_agent(*, output_type, instructions, **_):
+            return Agent(FunctionModel(model_fn), output_type=output_type, instructions=instructions)
+
+        mock_hook_cls.get_hook.return_value.create_agent.side_effect = create_agent
+
+        op = LLMBranchOperator(
+            task_id="route",
+            prompt="I was charged twice.",
+            llm_conn_id="my_llm",
+            system_prompt="Route the ticket.",
+            branch_descriptions={"handle_billing": "Invoices, charges, refunds."},
+        )
+        op.downstream_task_ids = {"handle_auth", "handle_billing"}
+
+        op.execute(MagicMock())
+
+        options = seen["schema"]["$defs"]["DownstreamTasks"]["anyOf"]
+        assert {o["const"]: o.get("description") for o in options} == {
+            "handle_auth": None,
+            "handle_billing": "Invoices, charges, refunds.",
+        }
+        mock_do_branch.assert_called_once_with(mock_do_branch.call_args.args[0], "handle_billing")
+
+    @patch.object(LLMBranchOperator, "do_branch")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_branch_descriptions_with_multiple_branches(self, mock_hook_cls, mock_do_branch):
+        """With allow_multiple_branches the descriptions sit on the list's items."""
+        seen: dict = {}
+
+        def model_fn(messages, info):
+            tool = info.output_tools[0]
+            seen["schema"] = tool.parameters_json_schema
+            return ModelResponse(
+                parts=[ToolCallPart(tool.name, {"response": ["handle_shipping", "handle_packaging"]})]
+            )
+
+        def create_agent(*, output_type, instructions, **_):
+            return Agent(FunctionModel(model_fn), output_type=output_type, instructions=instructions)
+
+        mock_hook_cls.get_hook.return_value.create_agent.side_effect = create_agent
+
+        op = LLMBranchOperator(
+            task_id="classify",
+            prompt="Shipping was slow and the box was damaged.",
+            llm_conn_id="my_llm",
+            allow_multiple_branches=True,
+            branch_descriptions={"handle_shipping": "Late or lost deliveries."},
+        )
+        op.downstream_task_ids = {"handle_shipping", "handle_packaging"}
+
+        op.execute(MagicMock())
+
+        items = seen["schema"]["properties"]["response"]["items"]
+        assert items == {"$ref": "#/$defs/DownstreamTasks"}
+        options = seen["schema"]["$defs"]["DownstreamTasks"]["anyOf"]
+        assert [o["const"] for o in options] == ["handle_packaging", "handle_shipping"]
+        assert options[1]["description"] == "Late or lost deliveries."
+        mock_do_branch.assert_called_once_with(
+            mock_do_branch.call_args.args[0], ["handle_shipping", "handle_packaging"]
+        )
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_branch_descriptions_unknown_key_fails_before_the_model_call(self, mock_hook_cls):
+        """A key that is not a downstream task is a ValueError naming it and the valid choices."""
+        op = LLMBranchOperator(
+            task_id="route",
+            prompt="Pick",
+            llm_conn_id="my_llm",
+            branch_descriptions={"handle_genral": "typo", "handle_auth": "ok"},
+        )
+        op.downstream_task_ids = {"handle_auth", "handle_general"}
+
+        with pytest.raises(
+            ValueError, match=r"'route' names \['handle_genral'\].*\['handle_auth', 'handle_general'\]"
+        ):
+            op.execute(MagicMock())
+
+        mock_hook_cls.get_hook.return_value.create_agent.assert_not_called()
+
+    @patch.object(LLMBranchOperator, "do_branch")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_no_branch_descriptions_keeps_the_plain_enum_schema(
+        self, mock_hook_cls, mock_do_branch, make_mock_run_result
+    ):
+        """Without descriptions the schema is the bare enum it always was."""
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        op = LLMBranchOperator(task_id="route", prompt="Pick", llm_conn_id="my_llm")
+        op.downstream_task_ids = {"task_b", "task_a"}
+        output_type = None
+
+        def capture(**kwargs):
+            nonlocal output_type
+            output_type = kwargs["output_type"]
+            mock_agent.run_sync.return_value = make_mock_run_result(output_type.task_a)
+            return mock_agent
+
+        mock_hook_cls.get_hook.return_value.create_agent.side_effect = capture
+
+        op.execute(MagicMock())
+
+        schema = TypeAdapter(output_type).json_schema()
+        assert schema["enum"] == ["task_a", "task_b"]
+        assert "anyOf" not in schema
+
+    def test_branch_descriptions_is_a_template_field(self):
+        assert "branch_descriptions" in LLMBranchOperator.template_fields
 
     def test_execute_raises_on_no_downstream_tasks(self):
         """ValueError when the operator has no downstream tasks."""
