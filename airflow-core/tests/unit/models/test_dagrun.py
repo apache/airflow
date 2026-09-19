@@ -62,6 +62,7 @@ from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.models.variable import Variable
+from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator, ShortCircuitOperator
@@ -81,6 +82,7 @@ from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.settings import get_policy_plugin_manager
 from airflow.task.trigger_rule import TriggerRule
+from airflow.ti_deps.deps.not_previously_skipped_dep import XCOM_SKIPMIXIN_FOLLOWED, XCOM_SKIPMIXIN_KEY
 from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.session import create_session
 from airflow.utils.sqlalchemy import prohibit_commit
@@ -320,12 +322,6 @@ class TestDagRun:
     def test_get_ready_tis_force_run_after_short_circuit(self, dag_maker, session):
         """Force run (``ignore_upstream_deps``) bypasses the branch/ShortCircuit skip propagation
         that ``NotPreviouslySkippedDep`` would otherwise re-apply on clear."""
-        from airflow.models.xcom import XComModel
-        from airflow.ti_deps.deps.not_previously_skipped_dep import (
-            XCOM_SKIPMIXIN_FOLLOWED,
-            XCOM_SKIPMIXIN_KEY,
-        )
-
         with dag_maker(
             dag_id="test_get_ready_tis_force_run_after_short_circuit",
             schedule=datetime.timedelta(days=1),

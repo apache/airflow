@@ -102,9 +102,13 @@ from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.serialized_objects import OperatorSerialization, create_scheduler_operator
 from airflow.ti_deps.dep_context import DepContext
-from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
+from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS, get_upstream_state_deps
 from airflow.ti_deps.dependencies_states import RUNNABLE_STATES
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
+from airflow.ti_deps.deps.mapped_task_upstream_dep import MappedTaskUpstreamDep
+from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
+from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
+from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
 from airflow.timetables.simple import PartitionedAtRuntime
@@ -1456,12 +1460,6 @@ class TestTaskInstance:
         Timing deps stay in force: bypassing them would hot-loop a reschedule-mode sensor and
         let a forced retry ignore its ``retry_delay`` for as long as the flag is set.
         """
-        from airflow.ti_deps.dependencies_deps import get_upstream_state_deps
-        from airflow.ti_deps.deps.mapped_task_upstream_dep import MappedTaskUpstreamDep
-        from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
-        from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
-        from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
-
         assert set(get_upstream_state_deps()) == {
             MappedTaskUpstreamDep,
             NotPreviouslySkippedDep,

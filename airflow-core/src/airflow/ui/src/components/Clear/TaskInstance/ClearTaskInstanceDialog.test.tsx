@@ -18,6 +18,7 @@
  */
 import "@testing-library/jest-dom";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -124,8 +125,6 @@ describe("ClearTaskInstanceDialog", () => {
     mockUseClearTaskInstancesDryRun.mockReturnValue(dryRunResult);
   });
 
-  // Chakra v3 checkboxes cannot be toggled with fireEvent and user-event is not a dependency, so only
-  // the unticked path is covered here; the ticked path is covered by the e2e spec.
   it("renders the force run checkbox unticked by default", () => {
     render(
       <Wrapper>
@@ -157,5 +156,49 @@ describe("ClearTaskInstanceDialog", () => {
     const [call] = mockMutate.mock.calls[0] as [{ requestBody: Record<string, unknown> }];
 
     expect(call.requestBody).not.toHaveProperty("ignore_upstream_deps");
+  });
+
+  it("sends ignore_upstream_deps and only_failed=false when force run is ticked", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <Wrapper>
+        <ClearTaskInstanceDialog onClose={vi.fn()} open taskInstance={taskInstance} />
+      </Wrapper>,
+    );
+
+    await user.click(
+      screen.getByRole("checkbox", { name: i18n.t("dags:runAndTaskActions.options.forceRun") }),
+    );
+
+    expect(
+      screen.getByRole("checkbox", { name: i18n.t("dags:runAndTaskActions.options.forceRun") }),
+    ).toBeChecked();
+    expect(screen.getByText(i18n.t("dags:runAndTaskActions.forceRunWarning"))).toBeInTheDocument();
+
+    expect(
+      screen.getByRole("button", { name: i18n.t("dags:runAndTaskActions.options.upstream") }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: i18n.t("dags:runAndTaskActions.options.downstream") }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: i18n.t("dags:runAndTaskActions.options.onlyFailed") }),
+    ).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: i18n.t("modal.confirm", { ns: "common" }) }));
+
+    await waitFor(() => {
+      expect(mockMutate).toHaveBeenCalled();
+    });
+
+    const [call] = mockMutate.mock.calls[0] as [{ requestBody: Record<string, unknown> }];
+
+    expect(call.requestBody).toMatchObject({
+      ignore_upstream_deps: true,
+      include_downstream: false,
+      include_upstream: false,
+      only_failed: false,
+    });
   });
 });
