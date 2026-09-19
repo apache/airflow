@@ -18,6 +18,8 @@
  */
 import { expect, type Locator, type Page } from "@playwright/test";
 
+import type { ClearTaskInstancesBody } from "openapi/requests/types.gen";
+
 import { BasePage } from "./BasePage";
 
 export class TaskInstancePage extends BasePage {
@@ -57,13 +59,25 @@ export class TaskInstancePage extends BasePage {
   public async forceRun(): Promise<void> {
     await this.clearTaskInstanceButton.click();
     await expect(this.forceRunCheckbox).toBeVisible();
-    // Use force:true because Chakra's visually-hidden checkbox input intercepts pointer events
+    // force: the visually-hidden input is clipped, so Playwright's hit-target check lands on the label
     await this.forceRunCheckbox.click({ force: true });
     await expect(this.forceRunWarning).toBeVisible();
     await expect(this.upstreamOption).toBeDisabled();
     await expect(this.downstreamOption).toBeDisabled();
     await expect(this.onlyFailedOption).toBeDisabled();
+
+    // Confirming re-opens the dialog for a dry-run preview, which also POSTs to
+    // /clearTaskInstances (dry_run: true) before the real clear fires — exclude it so we don't
+    // resolve on that earlier response instead of the actual clear.
+    const clearResponse = this.page.waitForResponse(
+      (response) =>
+        response.url().includes("/clearTaskInstances") &&
+        response.request().method() === "POST" &&
+        (response.request().postDataJSON() as ClearTaskInstancesBody | null)?.dry_run !== true,
+    );
+
     await this.confirmClearButton.click();
+    await clearResponse;
     await this.waitForAllDialogsClosed();
   }
 

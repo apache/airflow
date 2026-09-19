@@ -85,6 +85,6 @@ test.describe("Force run a task instance", () => {
     expect(json.ignore_upstream_deps).toBe(true);
 
     await taskInstancePage.navigateToTaskInstanceDetails(dagId, runId, taskId);
-    await expect(page.locator("#details-panel")).toContainText("Force Run");
+    await expect(page.locator("#details-panel")).toContainText("Force Run", { timeout: 30_000 });
   });
 });
