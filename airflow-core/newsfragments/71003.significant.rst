@@ -3,6 +3,8 @@ PATCH endpoints reject unknown ``update_mask`` fields
 An ``update_mask`` entry that names no field of the request body used to be dropped silently, so a
 typo turned the whole request into a no-op that still answered ``200`` with the untouched record.
 Such a mask is now rejected with ``400``, naming the offending entry and the accepted field names.
+Bulk ``PATCH`` endpoints still answer ``200`` and report the rejection in that ``update`` action's
+``errors``, the same way they report other per-action failures.
 
 Affected endpoints:
 

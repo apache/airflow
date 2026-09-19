@@ -29,8 +29,8 @@ def validate_update_mask(patch_body_type: type[BaseModel], update_mask: list[str
 
     Every caller narrows the patch down with ``set(update_mask)``, which drops an entry matching
     nothing -- so a typo used to make the whole request a no-op that still answered ``200``.
-    Aliases count as known names because that is what a caller sends in the body and reads back in
-    the response; which of the two a given endpoint acts on is left untouched here. Surrounding
+    Validation aliases count as known names because that is what a caller sends in the body; a
+    serialization-only alias is excluded since the body cannot carry it. Surrounding
     whitespace is stripped so a stray space selects the field instead of silently selecting nothing.
 
     Routes take the mask from the query string through :func:`update_mask_param_factory`; this is
@@ -46,10 +46,7 @@ def validate_update_mask(patch_body_type: type[BaseModel], update_mask: list[str
 
     fields = patch_body_type.model_fields
     known = set(fields) | {
-        alias
-        for field in fields.values()
-        for alias in (field.alias, field.serialization_alias, field.validation_alias)
-        if isinstance(alias, str)
+        field.validation_alias for field in fields.values() if isinstance(field.validation_alias, str)
     }
 
     stripped = [entry.strip() for entry in update_mask]
