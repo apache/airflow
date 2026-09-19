@@ -67,35 +67,17 @@ if TYPE_CHECKING:
 
 
 class TestClient:
-    @pytest.mark.parametrize(
-        ("path", "json_response"),
-        [
-            (
-                "/task-instances/1/run",
-                {
-                    "dag_run": {
-                        "dag_id": "test_dag",
-                        "run_id": "test_run",
-                        "logical_date": "2021-01-01T00:00:00Z",
-                        "start_date": "2021-01-01T00:00:00Z",
-                        "run_type": "manual",
-                        "run_after": "2021-01-01T00:00:00Z",
-                        "consumed_asset_events": [],
-                    },
-                    "max_tries": 0,
-                    "should_retry": False,
-                },
-            ),
-        ],
-    )
-    def test_dry_run(self, path, json_response):
+    def test_dry_run(self):
         client = make_client_w_dry_run()
         assert client.base_url == "dry-run://server"
 
-        resp = client.get(path)
+        # Going through start() is the point: nothing else validates the dry-run fake against
+        # TIRunContext, which is how it silently rotted as the schema gained required fields.
+        context = client.task_instances.start(uuid7(), 1234, datetime(2024, 10, 31, tzinfo=timezone.utc))
 
-        assert resp.status_code == 200
-        assert resp.json() == json_response
+        assert context.dag_run.state == DagRunState.RUNNING
+        assert context.dag_run.data_interval_start == datetime(2020, 12, 31, 23, tzinfo=timezone.utc)
+        assert context.dag_run.data_interval_end == datetime(2021, 1, 1, tzinfo=timezone.utc)
 
     @mock.patch("airflow.sdk.api.client.API_SSL_CERT_PATH", "/capath/does/not/exist/")
     def test_add_capath(self):

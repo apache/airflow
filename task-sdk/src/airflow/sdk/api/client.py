@@ -21,7 +21,7 @@ import logging
 import ssl
 import sys
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from functools import cache
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, TypeVar
@@ -56,6 +56,7 @@ from airflow.sdk.api.datamodels._generated import (
     ConnectionTestState,
     DagResponse,
     DagRun,
+    DagRunState,
     DagRunStateResponse,
     DagRunType,
     HITLDetailRequest,
@@ -108,7 +109,6 @@ from airflow.sdk.execution_time.comms import (
 )
 
 if TYPE_CHECKING:
-    from datetime import datetime
     from typing import ParamSpec
 
     P = ParamSpec("P")
@@ -1118,6 +1118,31 @@ class BearerAuth(httpx.Auth):
         yield request
 
 
+_DRY_RUN_LOGICAL_DATE = datetime(2021, 1, 1, tzinfo=timezone.utc)
+
+# Built from the models rather than hand-written JSON: a new required field on DagRun or
+# TIRunContext then fails mypy here, instead of only surfacing as a ValidationError the next
+# time someone runs with dry_run=True.
+_DRY_RUN_TI_CONTEXT = TIRunContext(
+    dag_run=DagRun(
+        dag_id="test_dag",
+        run_id="test_run",
+        logical_date=_DRY_RUN_LOGICAL_DATE,
+        data_interval_start=_DRY_RUN_LOGICAL_DATE - timedelta(hours=1),
+        data_interval_end=_DRY_RUN_LOGICAL_DATE,
+        run_after=_DRY_RUN_LOGICAL_DATE,
+        start_date=_DRY_RUN_LOGICAL_DATE,
+        end_date=None,
+        run_type=DagRunType.MANUAL,
+        state=DagRunState.RUNNING,
+        consumed_asset_events=[],
+        partition_key=None,
+    ),
+    max_tries=0,
+    should_retry=False,
+)
+
+
 # This exists as an aid for debugging or local running via the `dry_run` argument to Client. It doesn't make
 # sense for returning connections etc.
 def noop_handler(request: httpx.Request) -> httpx.Response:
@@ -1125,23 +1150,7 @@ def noop_handler(request: httpx.Request) -> httpx.Response:
     log.debug("Dry-run request", method=request.method, path=path)
 
     if path.startswith("/task-instances/") and path.endswith("/run"):
-        # Return a fake context
-        return httpx.Response(
-            200,
-            json={
-                "dag_run": {
-                    "dag_id": "test_dag",
-                    "run_id": "test_run",
-                    "logical_date": "2021-01-01T00:00:00Z",
-                    "start_date": "2021-01-01T00:00:00Z",
-                    "run_type": DagRunType.MANUAL,
-                    "run_after": "2021-01-01T00:00:00Z",
-                    "consumed_asset_events": [],
-                },
-                "max_tries": 0,
-                "should_retry": False,
-            },
-        )
+        return httpx.Response(200, json=_DRY_RUN_TI_CONTEXT.model_dump(mode="json"))
     return httpx.Response(200, json={"text": "Hello, world!"})
 
 
