@@ -29,6 +29,11 @@ trigger an existing ConnectionId sync job in Airbyte.
   You must be aware of the source (database, API, etc) you are updating/sync and
   the method applied to perform the operation in Airbyte.
 
+On Airflow 3.3 and later, synchronous non-deferrable tasks persist the Airbyte job id before
+polling. If the worker exits, a retry reconnects to an active job, returns the stored job id
+after a successful job, or starts a new job after the earlier job fails or is cancelled. Set
+``durable=False`` to disable this behavior. Earlier Airflow versions always start a new job on retry.
+
 
 Using the Operator
 ^^^^^^^^^^^^^^^^^^
