@@ -1,0 +1,1 @@
+Add ``[logging] task_logs_to_stdout`` core config option to forward task subprocess stdout/stderr to the worker's own stdout, so a container-level log collector (e.g. Kubernetes/Loki) captures task logs in addition to the task-log handler and the UI.

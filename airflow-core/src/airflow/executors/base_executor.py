@@ -682,7 +682,7 @@ class BaseExecutor(LoggingMixin):
         *,
         server: str | None = None,
         dry_run: bool = False,
-        subprocess_logs_to_stdout: bool = False,
+        subprocess_logs_to_stdout: bool | None = None,
         proctitle: str | None = None,
     ) -> int:
         """
@@ -695,10 +695,15 @@ class BaseExecutor(LoggingMixin):
         :param server: Base URL of the API server (used by task workloads).
         :param dry_run: If True, execute without actual task execution (simulate run).
         :param subprocess_logs_to_stdout: Should task logs also be sent to stdout via the main logger.
+            When not passed (``None``), falls back to the core ``[logging] task_logs_to_stdout``
+            setting, so executors that do not need a worker-level override can rely on this default.
         :param proctitle: Process title to set for this workload. If not provided, defaults to
             ``"airflow supervisor: <workload.display_name>"``.
         :return: Exit code of the process.
         """
+        if subprocess_logs_to_stdout is None:
+            subprocess_logs_to_stdout = conf.getboolean("logging", "task_logs_to_stdout", fallback=False)
+
         try:
             if sys.platform != "darwin":
                 from setproctitle import setproctitle
