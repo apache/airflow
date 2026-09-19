@@ -938,6 +938,12 @@ class TestRedactedIO:
         stdout = capsys.readouterr().out
         assert stdout == "***"
 
+    def test_writelines(self, capsys):
+        RedactedIO().writelines([f"{PASSWORD}\n", f"and {PASSWORD}\n"])
+        stdout = capsys.readouterr().out
+        assert stdout == "***\nand ***\n"
+        assert PASSWORD not in stdout
+
     def test_input_builtin(self, monkeypatch):
         """
         Test that when redirect is inplace the `input()` builtin works.
