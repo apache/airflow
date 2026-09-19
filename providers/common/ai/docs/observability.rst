@@ -24,8 +24,11 @@ for each agent run, model call, and tool call, following the
 When enabled, this provider turns that instrumentation on for every agent it
 builds and routes the spans through the OpenTelemetry exporter Airflow already
 uses, so they appear in whatever backend your deployment runs (Jaeger, Tempo,
-Grafana, Phoenix, Langfuse, an OTLP collector, ...), correlated to the task that
-produced them.
+Grafana, `Arize AX <https://arize.com/docs/ax/integrations/orchestration/airflow/airflow-provider>`__,
+`Phoenix <https://arize.com/docs/phoenix/tracing/tutorial/your-first-traces>`__,
+Langfuse, an OTLP collector, ...), correlated to the task that produced them.
+AX supports managed cloud and enterprise self-hosted deployments; Phoenix is
+the open-source, self-hosted option.
 
 This covers all of the LLM operators (:class:`~airflow.providers.common.ai.operators.agent.AgentOperator`,
 ``@task.agent`` / ``@task.llm`` and the SQL / branch / file-analysis / schema-compare
