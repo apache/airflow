@@ -21,6 +21,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+from airflow.providers.amazon.aws.exceptions import WaiterMaxAttemptsError
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
@@ -111,11 +112,15 @@ class AthenaSparkOperator(AwsBaseOperator[AthenaHook]):
 
         self.log.info("Calculation submitted. CalculationExecutionId: %s", calculation_execution_id)
 
-        final_state = self.hook.poll_spark_calculation_status(
-            calculation_execution_id,
-            waiter_delay=self.waiter_delay,
-            waiter_max_attempts=self.waiter_max_attempts,
-        )
+        try:
+            final_state = self.hook.poll_spark_calculation_status(
+                calculation_execution_id,
+                waiter_delay=self.waiter_delay,
+                waiter_max_attempts=self.waiter_max_attempts,
+            )
+        except WaiterMaxAttemptsError:
+            self._stop_calculation(calculation_execution_id)
+            raise
 
         if final_state is None:
             self._stop_calculation(calculation_execution_id)

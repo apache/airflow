@@ -21,6 +21,10 @@ from unittest import mock
 import pytest
 from moto import mock_aws
 
+from airflow.providers.amazon.aws.exceptions import (
+    WaiterMaxAttemptsError,
+    WaiterTerminalFailure,
+)
 from airflow.providers.amazon.aws.hooks.athena import (
     MULTI_LINE_QUERY_LOG_PREFIX,
     AthenaHook,
@@ -332,12 +336,10 @@ class TestAthenaHook:
             (
                 {
                     "description": MOCK_DATA["description"],
-                    "calculation_configuration": {"CodeBlock": MOCK_DATA["code_block"]},
                     "client_request_token": MOCK_DATA["client_request_token"],
                 },
                 {
                     "Description": MOCK_DATA["description"],
-                    "CalculationConfiguration": {"CodeBlock": MOCK_DATA["code_block"]},
                     "ClientRequestToken": MOCK_DATA["client_request_token"],
                 },
             ),
@@ -480,31 +482,55 @@ class TestAthenaHook:
         mock_check_status.assert_called_once_with(MOCK_DATA["calculation_execution_id"])
         assert result == "COMPLETED"
 
+    @mock.patch("airflow.providers.amazon.aws.hooks.athena.wait")
+    @mock.patch.object(AthenaHook, "get_waiter")
+    @mock.patch.object(AthenaHook, "check_spark_calculation_status")
+    @pytest.mark.parametrize("state", ["FAILED", "CANCELED"])
+    def test_hook_poll_spark_calculation_status_returns_terminal_failure_state(
+        self,
+        mock_check_status,
+        mock_get_waiter,
+        mock_wait,
+        state,
+    ):
+        mock_wait.side_effect = WaiterTerminalFailure(
+            "Athena Spark calculation failed",
+            last_response={"Status": {"State": state}},
+        )
+
+        result = self.athena.poll_spark_calculation_status(
+            calculation_execution_id=MOCK_DATA["calculation_execution_id"],
+            waiter_delay=5,
+            waiter_max_attempts=10,
+        )
+
+        mock_get_waiter.assert_called_once_with("calculation_complete")
+        mock_wait.assert_called_once()
+        mock_check_status.assert_not_called()
+        assert result == state
+
     @mock.patch(
         "airflow.providers.amazon.aws.hooks.athena.wait",
-        side_effect=RuntimeError("Waiter failed"),
+        side_effect=WaiterMaxAttemptsError("Waiter error: max attempts reached"),
     )
     @mock.patch.object(AthenaHook, "get_waiter")
-    @mock.patch.object(
-        AthenaHook,
-        "check_spark_calculation_status",
-        return_value="RUNNING",
-    )
-    def test_hook_poll_spark_calculation_status_returns_latest_state_after_waiter_error(
+    @mock.patch.object(AthenaHook, "check_spark_calculation_status")
+    def test_hook_poll_spark_calculation_status_raises_after_max_attempts(
         self,
         mock_check_status,
         mock_get_waiter,
         mock_wait,
     ):
-        result = self.athena.poll_spark_calculation_status(
-            calculation_execution_id=MOCK_DATA["calculation_execution_id"],
-            waiter_delay=0,
-            waiter_max_attempts=1,
-        )
+        with pytest.raises(WaiterMaxAttemptsError, match="max attempts reached"):
+            self.athena.poll_spark_calculation_status(
+                calculation_execution_id=MOCK_DATA["calculation_execution_id"],
+                waiter_delay=0,
+                waiter_max_attempts=1,
+            )
 
+        mock_get_waiter.assert_called_once_with("calculation_complete")
         mock_wait.assert_called_once()
-        mock_check_status.assert_called_once_with(MOCK_DATA["calculation_execution_id"])
-        assert result == "RUNNING"
+        mock_check_status.assert_not_called()
 
     @mock.patch.object(AthenaHook, "get_conn")
     def test_hook_stop_spark_calculation(self, mock_conn):

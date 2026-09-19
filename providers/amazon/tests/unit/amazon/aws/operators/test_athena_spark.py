@@ -23,6 +23,7 @@ import pytest
 from moto import mock_aws
 
 from airflow.models import DAG
+from airflow.providers.amazon.aws.exceptions import WaiterMaxAttemptsError
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.providers.amazon.aws.operators.athena_spark import AthenaSparkOperator
 
@@ -221,7 +222,11 @@ class TestAthenaSparkOperator:
         assert mock_get_spark_calculation_state_change_reason.call_count == 1
 
     @mock.patch.object(AthenaHook, "stop_spark_calculation")
-    @mock.patch.object(AthenaHook, "poll_spark_calculation_status", return_value="RUNNING")
+    @mock.patch.object(
+        AthenaHook,
+        "poll_spark_calculation_status",
+        side_effect=WaiterMaxAttemptsError("Waiter error: max attempts reached"),
+    )
     @mock.patch.object(AthenaHook, "start_spark_calculation", return_value=ATHENA_CALCULATION_ID)
     @mock.patch.object(AthenaHook, "get_conn")
     def test_execute_timeout(
@@ -231,7 +236,7 @@ class TestAthenaSparkOperator:
         mock_poll_spark_calculation_status,
         mock_stop_spark_calculation,
     ):
-        with pytest.raises(RuntimeError):
+        with pytest.raises(WaiterMaxAttemptsError, match="max attempts reached"):
             self.athena.execute({})
 
         mock_start_spark_calculation.assert_called_once_with(

@@ -28,6 +28,7 @@ from __future__ import annotations
 from collections.abc import Collection
 from typing import TYPE_CHECKING, Any
 
+from airflow.providers.amazon.aws.exceptions import WaiterTerminalFailure
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 from airflow.providers.common.compat.sdk import AirflowException
@@ -361,7 +362,6 @@ class AthenaHook(AwsBaseHook):
         session_id: str,
         code_block: str,
         description: str | None = None,
-        calculation_configuration: dict[str, Any] | None = None,
         client_request_token: str | None = None,
     ) -> str:
         """
@@ -373,7 +373,6 @@ class AthenaHook(AwsBaseHook):
         :param session_id: The Athena session ID.
         :param code_block: Spark code to execute, typically notebook-like code.
         :param description: Optional description of the calculation. Defaults to None.
-        :param calculation_configuration: Contains configuration information for the calculation. Defaults to None.
         :param client_request_token: Optional idempotency token. Defaults to None.
         :return: CalculationExecutionId
         """
@@ -383,9 +382,6 @@ class AthenaHook(AwsBaseHook):
         }
         if description:
             params["Description"] = description
-
-        if calculation_configuration:
-            params["CalculationConfiguration"] = calculation_configuration
 
         if client_request_token:
             params["ClientRequestToken"] = client_request_token
@@ -502,13 +498,9 @@ class AthenaHook(AwsBaseHook):
                 ),
                 status_args=["Status.State"],
             )
-        except Exception as error:
-            # Return the latest state so the operator can distinguish failure from timeout.
-            self.log.warning(
-                "Exception while polling calculation status. Calculation execution ID: %s, exception: %s",
-                calculation_execution_id,
-                error,
-            )
+
+        except WaiterTerminalFailure as error:
+            return self._get_spark_calculation_status(error.last_response).get("State")
 
         return self.check_spark_calculation_status(calculation_execution_id)
 
