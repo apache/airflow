@@ -129,6 +129,7 @@ class PubSubCreateTopicOperator(GoogleCloudBaseOperator):
         "project_id",
         "topic",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     ui_color = "#0273d4"
     operator_extra_links = (PubSubTopicLink(),)
@@ -315,6 +316,7 @@ class PubSubCreateSubscriptionOperator(GoogleCloudBaseOperator):
         "subscription",
         "subscription_project_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     ui_color = "#0273d4"
     operator_extra_links = (PubSubSubscriptionLink(),)
@@ -482,6 +484,7 @@ class PubSubDeleteTopicOperator(GoogleCloudBaseOperator):
         "project_id",
         "topic",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     ui_color = "#cb4335"
 
@@ -583,6 +586,7 @@ class PubSubDeleteSubscriptionOperator(GoogleCloudBaseOperator):
         "project_id",
         "subscription",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     ui_color = "#cb4335"
 
@@ -704,6 +708,7 @@ class PubSubPublishMessageOperator(GoogleCloudBaseOperator):
         "enable_message_ordering",
         "enable_open_telemetry_tracing",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     ui_color = "#0273d4"
 
@@ -805,6 +810,7 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
         "project_id",
         "subscription",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     def __init__(
