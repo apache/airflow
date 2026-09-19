@@ -43,6 +43,11 @@ TEST_DEADLINE_CALLBACK = AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_
 
 
 class TestDeadlineAlert:
+    class SubclassedCallback(SyncCallback):
+        """Stand-in for a Dag author's own Callback subclass, which DeadlineAlert must reject."""
+
+        ...
+
     @pytest.mark.parametrize(
         ("test_alert", "should_equal"),
         [
@@ -142,29 +147,100 @@ class TestDeadlineAlert:
         assert len(alert_set) == 1
 
     @pytest.mark.parametrize(
-        ("callback_class"),
+        ("test_callback", "expected_name", "expected_pass"),
         [
-            pytest.param(AsyncCallback, id="async_callback"),
-            pytest.param(SyncCallback, id="sync_callback"),
+            pytest.param(
+                SyncCallback(TEST_CALLBACK_PATH),
+                "SyncCallback",
+                True,
+                id="sync_callback_passes",
+            ),
+            pytest.param(
+                AsyncCallback(TEST_CALLBACK_PATH),
+                "AsyncCallback",
+                True,
+                id="async_callback_passes",
+            ),
+            pytest.param(
+                type(TEST_CALLBACK_PATH),
+                "type",
+                False,
+                id="non_callback_callable_fails",
+            ),
+            pytest.param(
+                SubclassedCallback(TEST_CALLBACK_PATH),
+                "SubclassedCallback",
+                False,
+                id="subclassed_callback_fails",
+            ),
+            pytest.param(
+                "not_a_callback",
+                "str",
+                False,
+                id="non_callback_fails",
+            ),
+            pytest.param(
+                None,
+                "NoneType",
+                False,
+                id="can_not_be_none",
+            ),
         ],
     )
-    def test_deadline_alert_accepts_all_callbacks(self, callback_class):
-        alert = DeadlineAlert(
-            reference=DeadlineReference.DAGRUN_QUEUED_AT,
-            interval=timedelta(hours=1),
-            callback=callback_class(TEST_CALLBACK_PATH),
-        )
-        assert alert.callback is not None
-        assert isinstance(alert.callback, callback_class)
-
-    def test_deadline_alert_rejects_invalid_callback(self):
-        """Test that DeadlineAlert rejects non-callback types."""
-        with pytest.raises(ValueError, match="Callbacks of type str are not currently supported"):
-            DeadlineAlert(
+    def test_deadline_init_callback_type_checks(self, test_callback, expected_name, expected_pass):
+        if expected_pass:
+            alert = DeadlineAlert(
                 reference=DeadlineReference.DAGRUN_QUEUED_AT,
                 interval=timedelta(hours=1),
-                callback="not_a_callback",  # type: ignore
+                callback=test_callback,
             )
+
+            assert alert.callback is test_callback
+            assert type(alert.callback).__name__ == expected_name
+        else:
+            with pytest.raises(
+                ValueError,
+                match=f"Callbacks must be `AsyncCallback` or `SyncCallback`, received {expected_name}",
+            ):
+                DeadlineAlert(
+                    reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                    interval=timedelta(hours=1),
+                    callback=test_callback,
+                )
+
+    @pytest.mark.parametrize(
+        ("test_interval", "expected_pass"),
+        [
+            pytest.param(timedelta(1), True, id="positive_timedelta_passes"),
+            pytest.param(timedelta(-1), True, id="negative_timedelta_passes"),
+            pytest.param(timedelta(0), True, id="zero_timedelta_passes"),
+            pytest.param(VariableInterval("var"), True, id="VariableInterval_passes"),
+            pytest.param(1, False, id="int_fails"),
+            pytest.param(0.1, False, id="float_fails"),
+            pytest.param(True, False, id="bool_fails"),
+            pytest.param("str", False, id="string_fails"),
+            pytest.param(None, False, id="can_not_be_none"),
+        ],
+    )
+    def test_deadline_init_interval_type_checks(self, test_interval, expected_pass):
+        if expected_pass:
+            alert = DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=test_interval,
+                callback=TEST_DEADLINE_CALLBACK,
+            )
+
+            assert alert.interval == test_interval
+            assert type(alert.interval) is type(test_interval)
+        else:
+            with pytest.raises(
+                ValueError, match="Interval must be a `timedelta` or a `VariableInterval`, received"
+            ):
+                DeadlineAlert(
+                    reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                    interval=test_interval,
+                    callback=TEST_DEADLINE_CALLBACK,
+                )
 
 
 class TestVariableInterval:
