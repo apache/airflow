@@ -196,6 +196,7 @@ class TestLLMSQLQueryOperator:
             "prompt",
             "llm_conn_id",
             "model_id",
+            "fallback_conn_ids",
             "system_prompt",
             "agent_params",
             "usage_limits",
@@ -204,6 +205,25 @@ class TestLLMSQLQueryOperator:
             "schema_context",
         }
         assert set(LLMSQLQueryOperator.template_fields) == expected
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_forwards_fallback_conn_ids_to_hook(self, mock_hook_cls, make_mock_run_result):
+        """``fallback_conn_ids`` is accepted without a per-subclass code change and reaches the hook."""
+        mock_agent = _make_mock_agent("SELECT id FROM users", make_mock_run_result)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMSQLQueryOperator(
+            task_id="test",
+            prompt="Get users",
+            llm_conn_id="my_llm",
+            schema_context="Table: users\nColumns: id INT",
+            fallback_conn_ids=["conn_a", "conn_b"],
+        )
+        op.execute(context=MagicMock())
+
+        mock_hook_cls.get_hook.assert_called_once_with(
+            "my_llm", hook_params={"model_id": None, "fallback_conn_ids": ["conn_a", "conn_b"]}
+        )
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_with_schema_context(self, mock_hook_cls, make_mock_run_result):
