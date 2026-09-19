@@ -103,13 +103,15 @@ In this format, the connection can be defined as a URI (string) or JSON object.
           x: y
 
 You can also define connections using a ``.env`` file. Then the key is the connection ID, and
-the value should describe the connection using the URI. Connection ID should not be repeated, it will
+the value should describe the connection using either the URI or a JSON object -- the same two forms
+accepted by the ``AIRFLOW_CONN_*`` environment variables. Connection ID should not be repeated, it will
 raise an exception. The following is a sample file.
 
   .. code-block:: text
 
     mysql_conn_id=mysql://log:password@13.1.21.1:3306/mysqldbrd
     google_custom_key=google-cloud-platform://?key_path=%2Fkeys%2Fkey.json
+    json_conn_id={"conn_type": "mysql", "login": "log", "password": "password", "host": "13.1.21.1", "port": 3306, "schema": "mysqldbrd"}
 
 Storing and Retrieving Variables
 """"""""""""""""""""""""""""""""
