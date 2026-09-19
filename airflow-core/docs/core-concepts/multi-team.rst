@@ -240,7 +240,8 @@ Variables can be associated with teams when created. Tasks belonging to a team c
 
 When a task requests a variable, the system checks for a team-specific variable first.
 
-Team-scoped variables can be created and managed through the Airflow UI or via environment variables.
+Team-scoped variables can be created and managed through the Airflow UI, via environment variables or via the
+:ref:`local filesystem secrets backend <local_filesystem_secrets>`.
 
 **Via environment variables**, you can set team-scoped variables using the format:
 
@@ -254,12 +255,24 @@ Team-scoped variables can be created and managed through the Airflow UI or via e
 
 The format is: ``AIRFLOW_VAR__{TEAM}___{KEY}`` (note: double underscore before team, triple underscore between team and key)
 
+**Via the local filesystem secrets backend**, prefix the key with the team name in the variables file:
+
+.. code-block:: json
+
+    {
+        "my_variable": "global_value",
+        "team_a___my_variable": "team_a_value"
+    }
+
+The format is: ``{TEAM}___{KEY}`` (triple underscore between team and key)
+
 Team-scoped Connections
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 Connections follow the same pattern as variables. Tasks can access connections owned by their team or global connections.
 
-Team-scoped connections can be created and managed through the Airflow UI or via environment variables.
+Team-scoped connections can be created and managed through the Airflow UI, via environment variables or via the
+:ref:`local filesystem secrets backend <local_filesystem_secrets>`.
 
 **Via environment variables**:
 
@@ -272,6 +285,17 @@ Team-scoped connections can be created and managed through the Airflow UI or via
     export AIRFLOW_CONN__TEAM_A___MY_DATABASE="postgresql://..."
 
 The format is: ``AIRFLOW_CONN__{TEAM}___{CONN_ID}`` (note: double underscore before team, triple underscore between team and connection ID)
+
+**Via the local filesystem secrets backend**, prefix the key with the team name in the connections file:
+
+.. code-block:: json
+
+    {
+        "my_database": "postgresql://...",
+        "team_a___my_database": "postgresql://..."
+    }
+
+The format is: ``{TEAM}___{CONN_ID}`` (triple underscore between team and connection ID)
 
 Team-scoped Pools
 ^^^^^^^^^^^^^^^^^

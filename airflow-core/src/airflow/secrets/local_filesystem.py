@@ -27,6 +27,7 @@ from json import JSONDecodeError
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
     AirflowFileParseException,
@@ -41,6 +42,10 @@ from airflow.utils.file import COMMENT_PATTERN
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = logging.getLogger(__name__)
+
+# Separates the team name from the secret id in a team scoped file key, <team>___<id>. The
+# environment variables backend uses the same separator.
+TEAM_SEP = "___"
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
@@ -314,6 +319,9 @@ class LocalFilesystemBackend(BaseSecretsBackend, LoggingMixin):
 
     ``JSON``, `YAML` and ``.env`` files are supported.
 
+    In multi-team mode, a ``<team>___<id>`` key holds the connection or variable for that team only.
+    Tasks of that team receive it instead of the team agnostic ``<id>`` key.
+
     :param variables_file_path: File location with variables data.
     :param connections_file_path: File location with connection data.
     :param configs_file_path: File location with configuration data.
@@ -355,13 +363,39 @@ class LocalFilesystemBackend(BaseSecretsBackend, LoggingMixin):
             return {}
         return load_configs_dict(self.configs_file)
 
+    @staticmethod
+    def _names_a_team_namespace(secret_id: str) -> bool:
+        """
+        Whether ``secret_id`` spells out a team scoped file key.
+
+        The backend refuses such an id in every scope, as the environment variables backend does.
+        A team agnostic lookup for it would land on a team's key, and a scoped lookup would build
+        a key that another team's name could produce as well.
+
+        The check only runs in multi-team mode. Without it ``team_name`` is always ``None``, so
+        there is no team scoped key to collide with.
+        """
+        if not conf.getboolean("core", "multi_team", fallback=False):
+            return False
+        return TEAM_SEP in secret_id
+
     def get_connection(self, conn_id: str, team_name: str | None = None) -> Connection | None:
-        if conn_id in self._local_connections:
-            return self._local_connections[conn_id]
-        return None
+        if self._names_a_team_namespace(conn_id):
+            return None
+
+        connections = self._local_connections
+        if team_name and (team_conn := connections.get(f"{team_name}{TEAM_SEP}{conn_id}")) is not None:
+            return team_conn
+        return connections.get(conn_id)
 
     def get_variable(self, key: str, team_name: str | None = None) -> str | None:
-        return self._local_variables.get(key)
+        if self._names_a_team_namespace(key):
+            return None
+
+        variables = self._local_variables
+        if team_name and (team_var := variables.get(f"{team_name}{TEAM_SEP}{key}")) is not None:
+            return team_var
+        return variables.get(key)
 
     def get_config(self, key: str) -> str | None:
         return self._local_configs.get(key)
