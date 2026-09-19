@@ -764,7 +764,6 @@ class DagRun(Base, LoggingMixin):
             .where(cls.state == DagRunState.RUNNING)
             .join(DagModel, DagModel.dag_id == cls.dag_id)
             .where(
-                DagModel.is_paused == false(),
                 DagModel.is_stale == false(),
             )
             .order_by(
