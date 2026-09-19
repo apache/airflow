@@ -1,0 +1,1 @@
+Show a link to the task instance Audit Log when task logs are unavailable.

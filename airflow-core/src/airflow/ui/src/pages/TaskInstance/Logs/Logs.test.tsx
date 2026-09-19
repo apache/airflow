@@ -17,14 +17,18 @@
  * under the License.
  */
 import "@testing-library/jest-dom";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeAll, describe, expect, it } from "vitest";
 
+import i18n from "src/i18n/config";
 import { AppWrapper } from "src/utils/AppWrapper";
+
+import dagLocale from "../../../../public/i18n/locales/en/dag.json";
 
 const ITEM_HEIGHT = 20;
 
 beforeAll(() => {
+  i18n.addResourceBundle("en", "dag", dagLocale, true, true);
   Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
     value: ITEM_HEIGHT,
   });
@@ -49,6 +53,38 @@ const waitForLogs = async () => {
 
   fireEvent.scroll(screen.getByTestId("virtualized-list"), { target: { scrollTop: ITEM_HEIGHT * 2 } });
 };
+
+describe("Missing task logs", () => {
+  it.each(["empty_logs", "no_logs"])(
+    "links to the task instance audit log when %s are returned",
+    async (taskId) => {
+      render(
+        <AppWrapper initialEntries={[`/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/${taskId}`]} />,
+      );
+
+      const noLogsAlert = await screen.findByTestId("no-task-logs");
+      const auditLogLink = within(noLogsAlert).getByRole("link", { name: "Audit Log" });
+
+      expect(noLogsAlert).toHaveTextContent(
+        /No task logs are available\.\s*Check the Audit Log for details\./u,
+      );
+      expect(auditLogLink).toHaveAttribute(
+        "href",
+        `/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/${taskId}/events`,
+      );
+    },
+  );
+
+  it("does not show audit log guidance when task logs are available", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/generate"]} />,
+    );
+
+    await waitForLogs();
+
+    expect(screen.queryByTestId("no-task-logs")).not.toBeInTheDocument();
+  });
+});
 
 describe("Task log source", () => {
   it("Toggles logger and location on click", async () => {
