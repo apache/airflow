@@ -941,10 +941,35 @@ class DagRunOperations:
 
         return OKResponse(ok=True)
 
-    def clear(self, dag_id: str, run_id: str) -> OKResponse:
+    def clear(self, dag_id: str, run_id: str) -> OKResponse | ErrorResponse:
         """Clear a Dag run via the API server."""
-        self.client.post(f"dag-runs/{dag_id}/{run_id}/clear")
-        # TODO: Error handling
+        try:
+            self.client.post(f"dag-runs/{dag_id}/{run_id}/clear")
+        except ServerResponseError as e:
+            detail = {
+                "dag_id": dag_id,
+                "run_id": run_id,
+                "status_code": e.response.status_code,
+                "server_detail": e.detail,
+            }
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
+                error = ErrorType.DAGRUN_CLEAR_FAILED
+                if isinstance(e.detail, dict):
+                    message = str(e.detail.get("message", ""))
+                    if message.startswith("Dag run "):
+                        error = ErrorType.DAGRUN_NOT_FOUND
+                    elif message.startswith("Dag with dag_id"):
+                        error = ErrorType.DAG_NOT_FOUND
+                log.info("Dag Run clear target not found.", detail=e.detail, dag_id=dag_id, run_id=run_id)
+                return ErrorResponse(error=error, detail=detail)
+            if e.response.status_code in (
+                HTTPStatus.BAD_REQUEST,
+                HTTPStatus.UNPROCESSABLE_ENTITY,
+            ):
+                log.info("Dag Run clear failed.", detail=e.detail, dag_id=dag_id, run_id=run_id)
+                return ErrorResponse(error=ErrorType.DAGRUN_CLEAR_FAILED, detail=detail)
+            raise
+
         return OKResponse(ok=True)
 
     def get_detail(self, dag_id: str, run_id: str) -> DagRun:
