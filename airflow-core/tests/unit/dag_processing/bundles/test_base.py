@@ -69,8 +69,15 @@ class BasicBundle(BaseDagBundle):
     def get_current_version(self):
         pass
 
+    @property
     def path(self):
-        pass
+        return Path("/bundle")
+
+
+def test_import_root_defaults_to_bundle_path():
+    bundle = BasicBundle(name="test")
+
+    assert bundle.import_root == bundle.path
 
 
 def test_dag_bundle_root_storage_path():

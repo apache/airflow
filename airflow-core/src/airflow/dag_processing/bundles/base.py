@@ -362,6 +362,19 @@ class BaseDagBundle(ABC):
         After `initialize` has been called, all dag files in the bundle should be accessible from this path.
         """
 
+    @property
+    def import_root(self) -> Path:
+        """
+        Path added to ``sys.path`` when Airflow loads code from this bundle.
+
+        By default, the import root is the same as :attr:`path`. Bundles may
+        override this property when Dag discovery should be limited to a
+        subdirectory while imports need to resolve from a broader directory in
+        the same initialized bundle version. The returned path must belong to
+        the same initialized bundle checkout as :attr:`path`.
+        """
+        return self.path
+
     @abstractmethod
     def get_current_version(self) -> str | BundleVersion | None:
         """

@@ -352,6 +352,10 @@ class GitDagBundle(BaseDagBundle):
             return self.repo_path / self.subdir
         return self.repo_path
 
+    @property
+    def import_root(self) -> Path:
+        return self.repo_path
+
     @staticmethod
     def _has_version(repo: Repo, version: str) -> bool:
         try:

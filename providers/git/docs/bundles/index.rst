@@ -67,6 +67,11 @@ reloads the configuration. If ``[dag_processor] disable_bundle_versioning`` (or 
 ``disable_bundle_versioning`` Dag parameter) is set, workers also resolve code from their own
 ``tracking_ref`` rather than a recorded bundle version, so they need the updated configuration too.
 
+When ``subdir`` is set, Airflow discovers Dags only in that directory while keeping the repository
+root available for Python imports. For example, a Dag under ``dags/`` can import a shared package
+stored under ``shared/`` in the same repository. Both the ``subdir`` and repository root remain on
+``sys.path`` for compatibility with imports relative to the Dag directory.
+
 .. note::
 
     Rolling back a SHA-pinned ``tracking_ref`` after a restart is reliable, since the commit's

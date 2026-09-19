@@ -935,6 +935,7 @@ class TestGitDagBundle:
 
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert str(bundle.path).endswith(subdir)
+        assert bundle.import_root == bundle.repo_path
         assert {"some_new_file.py"} == files_in_repo
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")

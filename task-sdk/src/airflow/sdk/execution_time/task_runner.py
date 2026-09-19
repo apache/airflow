@@ -1036,6 +1036,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         safe_mode=False,
         load_op_links=False,
         bundle_path=bundle_instance.path,
+        bundle_import_root=bundle_instance.import_root,
         bundle_name=bundle_info.name,
     )
     dag_file_parse_ms = int((time.monotonic() - dag_file_parse_start) * 1000)
