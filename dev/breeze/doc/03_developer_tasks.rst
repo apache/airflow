@@ -316,6 +316,49 @@ If the provider name is ``apache-airflow-providers-cncf-kubernetes``, it will be
 Note: For building docs for apache-airflow-providers index, use ``apache-airflow-providers``
 as the short hand operator.
 
+Finding out what CI will run for your change
+--------------------------------------------
+
+``breeze verify`` reads the files changed against the target branch (the merge-base of
+``--base-ref`` and ``HEAD``, plus untracked files), runs the same selective-checks logic CI uses
+and lists the commands to run locally for the change. Nothing is executed. The only non-zero exit
+is a usage error such as a base ref git cannot resolve.
+
+.. code-block:: bash
+
+     breeze verify
+     breeze verify --json
+     breeze verify --full
+     breeze verify --base-ref upstream/main
+
+Each row says what kind of check it is, whether it runs on the host or needs Docker and the
+CI image (``breeze``), and the exact command. Jobs CI runs on every PR regardless of the change
+(breeze's own unit tests, the shared distributions) only show up with ``--full``. The translation
+check is never listed: CI runs it with ``|| true``, so it cannot fail a PR.
+Use ``--json`` for machine-readable output with the same fields.
+
+When a change touches CI tooling or dependency files, selective checks make CI run the full suite.
+The default list leaves that expansion out and only shows what the changed files match themselves,
+with a note that CI will run more. ``--full`` lists everything CI runs for the default matrix cell
+(default Python, sqlite).
+
+Even ``--full`` is not the full CI matrix. Other Python versions, Postgres and MySQL,
+lowest-dependency runs, Kubernetes, Helm, e2e suites, the provider compatibility matrix and ARM
+runners only run in CI. Three more caveats. Selective checks compare ``pyproject.toml`` contents
+between ``HEAD`` and ``HEAD^`` only, so dependency changes that are uncommitted or in earlier
+commits of your branch are not detected as such (test selection is unaffected, only the
+dependency-bump checks are). Untracked files count for test selection but ``prek`` only sees
+tracked files, so ``git add`` new files before running the prek row. Packaging steps CI runs
+around some tests (building and twine-checking the Task SDK and airflow-ctl wheels, regenerating
+the Python API client from its own repository) are not listed.
+
+These are all available flags of ``verify`` command:
+
+.. image:: ./images/output_verify.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_verify.svg
+  :width: 100%
+  :alt: Breeze verify
+
 Running static checks
 ---------------------
 

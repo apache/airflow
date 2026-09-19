@@ -24,10 +24,12 @@ import pytest
 
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.reproduce_ci import (
+    SKIP_LOCAL_REPRODUCTION,
     ReproductionCommand,
     build_checkout_reproduction_commands,
     build_ci_image_reproduction_command,
     build_reproduction_command_from_context,
+    maybe_print_reproduction,
     print_local_reproduction,
     should_print_local_reproduction,
 )
@@ -430,3 +432,13 @@ class TestBuildReproductionCommandFromContext:
         ctx = _invoke_and_get_context(cmd, ["-b", "postgres"])
         result = build_reproduction_command_from_context(ctx)
         assert result.argv == ["my-cmd", "--backend", "postgres"]
+
+
+@mock.patch("airflow_breeze.utils.reproduce_ci.print_local_reproduction", autospec=True)
+def test_commands_can_opt_out_of_reproduction_banner(mock_print, monkeypatch):
+    monkeypatch.setenv("CI", "true")
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    ctx = click.Context(click.Command("verify"))
+    ctx.meta[SKIP_LOCAL_REPRODUCTION] = True
+    maybe_print_reproduction(ctx)
+    mock_print.assert_not_called()

@@ -1,0 +1,242 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from __future__ import annotations
+
+import inspect
+import json
+import shlex
+from functools import cached_property
+from unittest.mock import Mock
+
+import pytest
+
+from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION, GithubEvents
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
+from airflow_breeze.utils.selective_checks import SelectiveChecks
+from airflow_breeze.utils.verification_plan import (
+    FLAG_COMMANDS,
+    NOT_RUNNABLE_LOCALLY,
+    LeanSelectiveChecks,
+    build_local_verification_plan,
+    build_unit_test_items,
+)
+
+NEUTRAL_COMMIT = "938f0c1f3cc4cbe867123ee8aa9f290f9f18100a"
+# Exported by SelectiveChecks but no workflow job is gated on them (build-info pass-through only).
+NOT_A_CI_JOB = {
+    "run_amazon_tests",
+    "run_api_tests",
+    "run_ol_tests",
+    "run_python_scans",
+    "run_javascript_scans",
+}
+
+
+def _selective_checks(files: tuple[str, ...], default_branch: str = "main") -> SelectiveChecks:
+    return SelectiveChecks(
+        files=files,
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        pr_labels=tuple(),
+        default_branch=default_branch,
+    )
+
+
+def _mock_selective_checks(**flags: object) -> Mock:
+    sc = Mock(spec=SelectiveChecks)
+    for flag in (*FLAG_COMMANDS, "run_unit_tests", "docs_build", "basic_checks_only"):
+        setattr(sc, flag, False)
+    sc.skip_providers_tests = True
+    sc.skip_prek_hooks = "identity"
+    sc.default_python_version = DEFAULT_PYTHON_MAJOR_MINOR_VERSION
+    for flag, value in flags.items():
+        setattr(sc, flag, value)
+    return sc
+
+
+@pytest.mark.parametrize("flag", sorted(FLAG_COMMANDS))
+def test_each_flag_maps_to_its_commands(flag: str):
+    result = build_local_verification_plan(
+        _mock_selective_checks(**{flag: True}), (), "main", full_tests_needed=False
+    )
+    commands = [item["command"] for item in result["items"]]
+    assert commands == [
+        "SKIP=identity prek run --all-files",
+        *(command for _, command, _ in FLAG_COMMANDS[flag]),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("basic_checks_only", "expected"),
+    [
+        (False, ("prek", "SKIP=identity prek run --all-files", "breeze")),
+        (
+            True,
+            (
+                "prek",
+                "SKIP_BREEZE_PREK_HOOKS=true SKIP=identity prek run --from-ref main --to-ref HEAD",
+                "host",
+            ),
+        ),
+    ],
+)
+def test_prek_command_follows_basic_checks_only(basic_checks_only: bool, expected: tuple[str, str, str]):
+    result = build_local_verification_plan(
+        _mock_selective_checks(basic_checks_only=basic_checks_only), (), "main", full_tests_needed=False
+    )
+    prek = result["items"][0]
+    assert (prek["kind"], prek["command"], prek["runs_in"]) == expected
+
+
+def test_docs_only_change_mirrors_the_ci_cell():
+    files = ("airflow-core/docs/index.rst",)
+    sc = _selective_checks(files)
+    result = build_local_verification_plan(sc, files, "main", full_tests_needed=False)
+    assert [item["command"] for item in result["items"]] == [
+        f"SKIP={sc.skip_prek_hooks} prek run --all-files",
+        "breeze build-docs apache-airflow",
+    ]
+
+
+def test_core_change_splits_db_and_non_db_cells():
+    files = ("airflow-core/src/airflow/models/dag.py",)
+    sc = _selective_checks(files)
+    core_types = " ".join(c["test_types"] for c in json.loads(sc.core_test_types_list_as_strings_in_json))
+    result = build_local_verification_plan(sc, files, "main", full_tests_needed=False)
+    unit = [
+        item["command"] for item in result["items"] if item["command"].startswith("breeze testing core-tests")
+    ]
+    assert unit == [
+        f'breeze testing core-tests --run-in-parallel --run-db-tests-only --parallel-test-types "{core_types}"',
+        "breeze testing core-tests --use-xdist --skip-db-tests --no-db-cleanup --backend none "
+        f'--parallel-test-types "{core_types}"',
+    ]
+
+
+def test_every_selective_checks_run_flag_is_classified():
+    run_flags = {
+        name
+        for name, value in inspect.getmembers(SelectiveChecks)
+        if isinstance(value, cached_property)
+        and (name.startswith("run_") or name in ("docs_build", "has_migrations"))
+    }
+    classified = set(FLAG_COMMANDS) | NOT_RUNNABLE_LOCALLY | {"run_unit_tests", "docs_build"} | NOT_A_CI_JOB
+    assert run_flags - classified == set(), (
+        "new SelectiveChecks flag: add it to FLAG_COMMANDS, NOT_RUNNABLE_LOCALLY or NOT_A_CI_JOB"
+    )
+    assert classified - run_flags == set(), "classified flag no longer exists on SelectiveChecks"
+
+
+@pytest.mark.parametrize("group", ["core", "providers"])
+def test_unit_test_commands_use_the_same_flags_as_the_ci_script(group: str):
+    ci_script = AIRFLOW_ROOT_PATH / "scripts" / "ci" / "testing" / "run_unit_tests.sh"
+    ci_flag_sets = {
+        frozenset(shlex.split(line)[3:])
+        for line in ci_script.read_text().splitlines()
+        if line.strip().startswith(f"breeze testing {group}-tests")
+    }
+    for item in build_unit_test_items(group, json.dumps([{"description": "x", "test_types": "Always"}])):
+        tokens = shlex.split(item.command)[3:]
+        cut = tokens.index("--parallel-test-types")
+        assert frozenset(tokens[:cut] + tokens[cut + 2 :]) in ci_flag_sets, item.command
+
+
+def test_empty_diff_prints_only_prek():
+    sc = _selective_checks(())
+    plan = build_local_verification_plan(sc, (), "main", full_tests_needed=False)
+    commands = [item["command"] for item in plan["items"]]
+    assert (
+        commands[0]
+        == f"SKIP_BREEZE_PREK_HOOKS=true SKIP={sc.skip_prek_hooks} prek run --from-ref main --to-ref HEAD"
+    )
+    assert not any(command.startswith("breeze testing") for command in commands)
+
+
+def test_release_branch_drops_providers_tests():
+    files = ("airflow-core/src/airflow/models/dag.py",)
+    result = build_local_verification_plan(
+        _selective_checks(files, default_branch="v3-1-test"), files, "v3-1-test", full_tests_needed=False
+    )
+    commands = [item["command"] for item in result["items"]]
+    assert any(command.startswith("breeze testing core-tests") for command in commands)
+    assert not any(command.startswith("breeze testing providers-tests") for command in commands)
+
+
+def test_prek_command_quotes_base_ref():
+    result = build_local_verification_plan(
+        _mock_selective_checks(basic_checks_only=True), (), "branch; echo unexpected", full_tests_needed=False
+    )
+    assert result["items"][0]["command"].endswith(
+        "prek run --from-ref 'branch; echo unexpected' --to-ref HEAD"
+    )
+
+
+def test_lean_plan_skips_the_full_suite_expansion_for_ci_tooling_changes():
+    files = ("dev/breeze/src/airflow_breeze/breeze.py",)
+    ci = _selective_checks(files)
+    lean = LeanSelectiveChecks(
+        files=files, commit_ref=NEUTRAL_COMMIT, github_event=GithubEvents.PULL_REQUEST, default_branch="main"
+    )
+    assert ci.full_tests_needed is True
+    full_commands = [
+        i["command"]
+        for i in build_local_verification_plan(ci, files, "main", full_tests_needed=True)["items"]
+    ]
+    lean_commands = [
+        i["command"]
+        for i in build_local_verification_plan(lean, files, "main", full_tests_needed=True)["items"]
+    ]
+    assert any(c.startswith("breeze testing core-tests") for c in full_commands)
+    assert not any(c.startswith("breeze testing") for c in lean_commands)
+    assert "cd dev/breeze && uv run --locked pytest" in lean_commands
+
+
+def test_lean_and_full_plans_agree_when_the_change_does_not_expand():
+    files = ("airflow-core/src/airflow/models/dag.py",)
+    lean = LeanSelectiveChecks(
+        files=files, commit_ref=NEUTRAL_COMMIT, github_event=GithubEvents.PULL_REQUEST, default_branch="main"
+    )
+    assert (
+        build_local_verification_plan(lean, files, "main", full_tests_needed=False)["items"]
+        == (
+            build_local_verification_plan(_selective_checks(files), files, "main", full_tests_needed=False)[
+                "items"
+            ]
+        )
+    )
+
+
+def test_full_plan_adds_the_jobs_ci_runs_on_every_pr():
+    files = ("airflow-core/docs/index.rst",)
+    sc = _selective_checks(files)
+    lean = build_local_verification_plan(sc, files, "main", full_tests_needed=False)["items"]
+    full = build_local_verification_plan(sc, files, "main", full_tests_needed=False, full=True)["items"]
+    assert [i["command"] for i in full] == [
+        *(i["command"] for i in lean),
+        "cd dev/breeze && uv run --locked pytest",
+        "for d in "
+        + " ".join(sorted(json.loads(sc.shared_distributions_as_json)))
+        + "; do (cd shared/$d && uv run --group dev pytest) || exit 1; done",
+    ]
+
+
+def test_full_plan_does_not_duplicate_breeze_tests_for_a_breeze_change():
+    files = ("dev/breeze/src/airflow_breeze/breeze.py",)
+    full = build_local_verification_plan(
+        _selective_checks(files), files, "main", full_tests_needed=True, full=True
+    )
+    assert [i["command"] for i in full["items"]].count("cd dev/breeze && uv run --locked pytest") == 1
