@@ -398,7 +398,7 @@ class DataprocSubmitJobDirectTrigger(DataprocBaseTrigger):
             except AlreadyExists:
                 # Only a job this trigger named can be assumed to be its own earlier submission; a
                 # job id the caller chose is theirs to keep unique.
-                if self.job_id is None:
+                if assigned_job_id is None:
                     raise
                 self.log.info("Dataproc job %s was already submitted, resuming polling.", self.job_id)
             else:

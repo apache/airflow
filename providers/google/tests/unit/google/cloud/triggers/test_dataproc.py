@@ -1106,6 +1106,23 @@ class TestDataprocSubmitJobDirectTrigger:
 
     @pytest.mark.asyncio
     @mock.patch(
+        "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobDirectTrigger.get_async_hook"
+    )
+    async def test_run_reraises_already_exists_for_a_job_the_caller_named(
+        self, mock_get_async_hook, submit_job_direct_trigger
+    ):
+        attach_trigger_identity(submit_job_direct_trigger)
+        submit_job_direct_trigger.job = {**TEST_JOB, "reference": {"job_id": "caller-job-id"}}
+        mock_hook = mock_get_async_hook.return_value
+        mock_hook.submit_job.side_effect = AlreadyExists("job already exists")
+
+        with pytest.raises(AlreadyExists):
+            await submit_job_direct_trigger.run().asend(None)
+
+        mock_hook.get_job.assert_not_called()
+
+    @pytest.mark.asyncio
+    @mock.patch(
         "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobDirectTrigger.get_sync_hook"
     )
     async def test_on_kill_tolerates_a_job_dataproc_never_received(
