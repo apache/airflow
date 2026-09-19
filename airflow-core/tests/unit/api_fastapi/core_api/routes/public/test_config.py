@@ -503,7 +503,7 @@ PER_KEY_OPTION_WORKERS = "secrets_backend_kwarg__secret_id"
 PER_KEY_VALUE = "vault-role-id-or-secret-id-material"
 
 
-class TestPerKeyBackendKwargMasking(TestConfigEndpoint):
+class TestPerKeyBackendKwargMasking:
     """Synthetic per-key secrets-backend-kwarg options (e.g.
     ``AIRFLOW__SECRETS__BACKEND_KWARG__SECRET_ID``) materialised by
     ``conf.as_dict`` carry the same Vault / role_id / secret_id material as
@@ -512,29 +512,11 @@ class TestPerKeyBackendKwargMasking(TestConfigEndpoint):
 
     @pytest.fixture(autouse=True)
     def setup_per_key(self) -> Generator[None, None, None]:
-        per_key_dict = {
-            SECTION_CORE: {OPTION_KEY_PARALLELISM: OPTION_VALUE_PARALLELISM},
-            SECTION_SECRETS: {PER_KEY_OPTION_SECRETS: PER_KEY_VALUE},
-            SECTION_WORKERS: {PER_KEY_OPTION_WORKERS: PER_KEY_VALUE},
-        }
-
-        def _mock_conf_as_dict(display_sensitive: bool, **_):
-            return {section: options.copy() for section, options in per_key_dict.items()}
-
-        def _mock_has_option(section: str, option: str) -> bool:
-            return option in per_key_dict.get(section, {})
-
-        with (
-            conf_vars(AIRFLOW_CONFIG_ENABLE_EXPOSE_CONFIG),
-            patch(
-                "airflow.api_fastapi.core_api.routes.public.config.conf.as_dict",
-                new=_mock_conf_as_dict,
-            ),
-            patch(
-                "airflow.api_fastapi.core_api.routes.public.config.conf.has_option",
-                new=_mock_has_option,
-            ),
-        ):
+        overrides = dict(AIRFLOW_CONFIG_ENABLE_EXPOSE_CONFIG)
+        overrides[(SECTION_CORE, OPTION_KEY_PARALLELISM)] = OPTION_VALUE_PARALLELISM
+        overrides[(SECTION_SECRETS, PER_KEY_OPTION_SECRETS)] = PER_KEY_VALUE
+        overrides[(SECTION_WORKERS, PER_KEY_OPTION_WORKERS)] = PER_KEY_VALUE
+        with conf_vars(overrides):
             yield
 
     def test_get_config_masks_per_key_secrets_backend_kwargs(self, test_client):
@@ -623,3 +605,65 @@ class TestTeamScopedOptionMasking(TestConfigEndpoint):
         )
         assert response.status_code == 200
         assert response.json()["sections"][0]["options"][0]["value"] == OPTION_VALUE_TEAM_PARALLELISM
+
+
+SECTION_TEAM_SECRETS = f"{TEAM_NAME}={SECTION_SECRETS}"
+SECTION_TEAM_WORKERS = f"{TEAM_NAME}={SECTION_WORKERS}"
+
+
+class TestTeamScopedPerKeyBackendKwargMasking:
+    """A team scoped spelling of a per-key secrets-backend-kwarg option -- the
+    ``[<team>=secrets]`` config-file section, or an
+    ``AIRFLOW__<TEAM>___SECRETS__BACKEND_KWARG__*`` env var -- is reported by
+    ``conf.as_dict`` under a section named after the team (``team_a=secrets``)
+    rather than under the literal ``secrets`` / ``workers`` section. Both
+    spellings collapse to that same shape once ``conf.as_dict`` has parsed
+    them, so a single team scoped section covers both. The Config API must
+    resolve that section back to its base section and redact the option the
+    same way it redacts the non-team-scoped one. See
+    https://github.com/apache/airflow/issues/71037"""
+
+    @pytest.fixture(autouse=True)
+    def setup_team_scoped_per_key(self) -> Generator[None, None, None]:
+        overrides = dict(AIRFLOW_CONFIG_ENABLE_EXPOSE_CONFIG)
+        overrides[(SECTION_CORE, OPTION_KEY_PARALLELISM)] = OPTION_VALUE_PARALLELISM
+        overrides[(SECTION_TEAM_SECRETS, PER_KEY_OPTION_SECRETS)] = PER_KEY_VALUE
+        overrides[(SECTION_TEAM_WORKERS, PER_KEY_OPTION_WORKERS)] = PER_KEY_VALUE
+        # conf_vars only tears down options it changed, not synthetic team scoped sections it
+        # had to create (e.g. "team_a=secrets") -- remove those explicitly so they do not leak
+        # into other tests sharing the same conf singleton.
+        pre_existing_sections = {SECTION_TEAM_SECRETS: conf.has_section(SECTION_TEAM_SECRETS)}
+        pre_existing_sections[SECTION_TEAM_WORKERS] = conf.has_section(SECTION_TEAM_WORKERS)
+        try:
+            with conf_vars(overrides):
+                yield
+        finally:
+            for section, existed_before in pre_existing_sections.items():
+                if not existed_before and conf.has_section(section):
+                    conf.remove_section(section)
+
+    def test_get_config_masks_team_scoped_per_key_secrets_backend_kwargs(self, test_client):
+        """``GET /config`` must redact a team scoped per-key option under
+        both the ``secrets`` and ``workers`` team scoped sections when
+        ``display_sensitive=False`` (the API-server default)."""
+        response = test_client.get("/config", headers=HEADERS_JSON)
+        assert response.status_code == 200
+
+        sections = {
+            s["name"]: {o["key"]: o["value"] for o in s["options"]} for s in response.json()["sections"]
+        }
+        assert sections[SECTION_TEAM_SECRETS][PER_KEY_OPTION_SECRETS] == OPTION_VALUE_SENSITIVE_HIDDEN
+        assert sections[SECTION_TEAM_WORKERS][PER_KEY_OPTION_WORKERS] == OPTION_VALUE_SENSITIVE_HIDDEN
+        # Non-sensitive option in the same response must remain untouched.
+        assert sections[SECTION_CORE][OPTION_KEY_PARALLELISM] == OPTION_VALUE_PARALLELISM
+
+    def test_get_config_value_masks_team_scoped_per_key_secrets_backend_kwarg(self, test_client):
+        """``GET /config/section/{section}/option/{option}`` must redact a
+        team scoped per-key synthetic option the same way it redacts the
+        non-team-scoped one."""
+        response = test_client.get(
+            f"/config/section/{SECTION_TEAM_SECRETS}/option/{PER_KEY_OPTION_SECRETS}",
+            headers=HEADERS_JSON,
+        )
+        assert response.status_code == 200
+        assert response.json()["sections"][0]["options"][0]["value"] == OPTION_VALUE_SENSITIVE_HIDDEN
