@@ -452,7 +452,7 @@ can be used for CI images:
 | `ADDITIONAL_DEV_APT_ENV`          |                             | Additional env variables defined when installing dev deps                                                         |
 | `AIRFLOW_PIP_VERSION`             | `26.2.1`                    | `pip` version used.                                                                                               |
 | `AIRFLOW_UV_VERSION`              | `0.12.13`                    | `uv` version used.                                                                                                |
-| `AIRFLOW_PREK_VERSION`            | `0.5.2`                     | `prek` version used.                                                                                              |
+| `AIRFLOW_PREK_VERSION`            | `0.5.3`                     | `prek` version used.                                                                                              |
 | `AIRFLOW_USE_UV`                  | `true`                      | Whether to use UV for installation.                                                                               |
 | `PIP_PROGRESS_BAR`                | `on`                        | Progress bar for PIP installation                                                                                 |
 
