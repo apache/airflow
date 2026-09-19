@@ -32,6 +32,48 @@ For example, to set resources on workers for CeleryExecutor:
          limits:
            cpu: 1
 
+Different volumes for Celery worker sets
+----------------------------------------
+
+``workers.celery.sets`` creates independently rendered Celery worker workloads. Each set inherits settings from
+``workers.celery`` unless it provides an override. Set ``workers.celery.enableDefault`` to ``true`` to retain the
+default worker set in addition to the named sets, or to ``false`` to create only the explicitly listed sets. Give
+each set a unique ``name`` and choose its ``queue`` intentionally. To route a task to a specialized worker set, set
+the task's Celery ``queue`` to the value configured for that set.
+
+The following example keeps the default workers and creates a ``gpu`` worker set with its own volume:
+
+.. code-block:: yaml
+   :caption: values.yaml
+
+   executor: CeleryExecutor
+
+   workers:
+     celery:
+       enableDefault: true
+       queue: default
+       sets:
+         - name: gpu
+           queue: gpu
+           extraVolumes:
+             - name: gpu-data
+               persistentVolumeClaim:
+                 claimName: gpu-worker-data
+           extraVolumeMounts:
+             - name: gpu-data
+               mountPath: /opt/airflow/gpu-data
+
+The ``gpu-worker-data`` PersistentVolumeClaim is not created by this configuration. It must already exist in the
+Helm release namespace and use access modes compatible with the worker workload. Every ``extraVolumeMounts`` name
+must match a volume name in the same effective worker-set configuration.
+
+Non-empty list values supplied by a worker set, including ``extraVolumes`` and ``extraVolumeMounts``, replace the
+corresponding parent lists instead of being appended to them. Repeat any parent entries that a specialized set must
+retain.
+
+This configuration applies only to Celery workers. For ``KubernetesExecutor`` task pod customization, use the
+``pod_template_file`` options described in the following section.
+
 Custom ``pod_template_file``
 ----------------------------
 
