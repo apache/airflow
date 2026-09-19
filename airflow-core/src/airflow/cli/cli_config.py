@@ -751,7 +751,7 @@ ARG_API_SERVER_WORKERS = Arg(
 )
 ARG_API_SERVER_WORKER_TIMEOUT = Arg(
     ("-t", "--worker-timeout"),
-    default=120,
+    default=conf.get("api", "worker_timeout"),
     type=int,
     help="The timeout for waiting on API server workers",
 )
