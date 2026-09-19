@@ -133,8 +133,8 @@ def _run_api_server_with_uvicorn(
         "log_config": None,
     }
     if args.log_config and args.log_config != "-":
-        # The [api/log_config] is migrated from [api/access_logfile] and [api/access_logfile] defaults to "-" for stdout for Gunicorn.
-        # So we need to check if the log_config is set to "-" or not; if it is set to "-", we regard it as not set.
+        # "-" was the default of the removed [api] access_logfile, which users were once told to rename
+        # to log_config, so it still means "not set" rather than a logging configuration file.
         uvicorn_kwargs["log_config"] = args.log_config
 
     uvicorn.run(

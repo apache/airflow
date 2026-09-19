@@ -1286,6 +1286,10 @@ sql_alchemy_conn=sqlite://test
             with pytest.warns(DeprecationWarning, match="the old setting has been used"):
                 assert test_conf.get(new_section, new_key) == new_value
 
+    @conf_vars({("api", "access_logfile"): "/var/log/airflow/access.log", ("api", "log_config"): None})
+    def test_api_access_logfile_is_not_read_as_log_config(self):
+        assert conf.get("api", "log_config", fallback=None) is None
+
     @pytest.mark.parametrize(
         "conf_dict",
         [
