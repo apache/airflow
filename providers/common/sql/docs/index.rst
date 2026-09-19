@@ -122,13 +122,14 @@ You can install such cross-provider dependencies when installing from PyPI. For 
     pip install apache-airflow-providers-common-sql[amazon]
 
 
-====================================================================================================================  ==================
-Dependent package                                                                                                     Extra
-====================================================================================================================  ==================
-`apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                  ``amazon``
-`apache-airflow-providers-apache-iceberg <https://airflow.apache.org/docs/apache-airflow-providers-apache-iceberg>`_  ``apache.iceberg``
-`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_        ``openlineage``
-====================================================================================================================  ==================
+======================================================================================================================  ===================
+Dependent package                                                                                                       Extra
+======================================================================================================================  ===================
+`apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                    ``amazon``
+`apache-airflow-providers-apache-iceberg <https://airflow.apache.org/docs/apache-airflow-providers-apache-iceberg>`_    ``apache.iceberg``
+`apache-airflow-providers-microsoft-azure <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure>`_  ``microsoft.azure``
+`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_          ``openlineage``
+======================================================================================================================  ===================
 
 Optional dependencies
 ---------------------
@@ -141,18 +142,19 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-common-sql[pandas]
 
 
-==================  =======================================================================================================================================================================
-Extra               Dependencies
-==================  =======================================================================================================================================================================
-``pandas``          ``pandas[sql-other]>=2.1.2; python_version <"3.13"``, ``pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"``, ``pandas>=2.3.3; python_version >="3.14"``
-``openlineage``     ``apache-airflow-providers-openlineage``
-``polars``          ``polars>=1.26.0``
-``sqlalchemy``      ``sqlalchemy>=1.4.54``
-``amazon``          ``apache-airflow-providers-amazon``
-``datafusion``      ``datafusion>=50.0.0,<52.0.0``
-``pyiceberg-core``  ``pyiceberg-core>=0.8.0``
-``apache.iceberg``  ``apache-airflow-providers-apache-iceberg``
-==================  =======================================================================================================================================================================
+===================  =======================================================================================================================================================================
+Extra                Dependencies
+===================  =======================================================================================================================================================================
+``pandas``           ``pandas[sql-other]>=2.1.2; python_version <"3.13"``, ``pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"``, ``pandas>=2.3.3; python_version >="3.14"``
+``openlineage``      ``apache-airflow-providers-openlineage``
+``polars``           ``polars>=1.26.0``
+``sqlalchemy``       ``sqlalchemy>=1.4.54``
+``amazon``           ``apache-airflow-providers-amazon``
+``microsoft.azure``  ``apache-airflow-providers-microsoft-azure``
+``datafusion``       ``datafusion>=50.0.0,<52.0.0``
+``pyiceberg-core``   ``pyiceberg-core>=0.8.0``
+``apache.iceberg``   ``apache-airflow-providers-apache-iceberg``
+===================  =======================================================================================================================================================================
 
 Downloading official packages
 -----------------------------
