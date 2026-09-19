@@ -45,7 +45,9 @@ export type FilterConfig = {
   readonly matchModeKey?: string;
   readonly max?: number;
   readonly min?: number;
-  readonly options?: Array<{ label: ReactNode | string; value: string }>;
+  // ``pillLabel`` is the plain-text form of a rich ``label`` (e.g. a ``StateBadge``),
+  // shown by the fixed-height collapsed pill instead of the clipped rich node.
+  readonly options?: Array<{ label: ReactNode | string; pillLabel?: string; value: string }>;
   readonly placeholder?: string;
   readonly startKey?: string;
   // Set on text filters whose API endpoint exposes both ``*_pattern`` (substring)
