@@ -32,7 +32,14 @@ Those are the most common arguments that you use when you want to build a custom
 +==========================================+===========================================+=============================================+
 | ``AIRFLOW_VERSION``                      | :subst-code:`|airflow-version|`           | Version of Airflow.                         |
 +------------------------------------------+-------------------------------------------+---------------------------------------------+
-| ``AIRFLOW_PYTHON_VERSION``               | ``3.13.15``                               | Version of Python.                          |
+| ``AIRFLOW_PYTHON_VERSION``               | ``3.13.15``                               | Python version recorded in the image        |
+|                                          |                                           | labels. The Python itself comes from        |
+|                                          |                                           | ``BASE_IMAGE``, so change both together.    |
++------------------------------------------+-------------------------------------------+---------------------------------------------+
+| ``BASE_IMAGE``                           | (see below the table)                     | Airflow's public mirror of the Docker       |
+|                                          |                                           | Hardened Image that Python comes from.      |
+|                                          |                                           | Point it at a ``dhi.io`` ``-fips-`` variant |
+|                                          |                                           | to build a FIPS-compliant image.            |
 +------------------------------------------+-------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_EXTRAS``                       | (see below the table)                     | Default extras with which Airflow is        |
 |                                          |                                           | installed.                                  |
@@ -80,6 +87,11 @@ Those are the most common arguments that you use when you want to build a custom
 
     Before Airflow 2.2, the image also had ``AIRFLOW_GID`` parameter, but it did not provide any additional
     functionality - only added confusion - so it has been removed.
+
+The default ``BASE_IMAGE`` is Airflow's public mirror of the `Docker Hardened Image <https://dhi.io>`_ for
+Python, tagged with the same Python version as ``AIRFLOW_PYTHON_VERSION`` - for Airflow |airflow-version| that
+is ``ghcr.io/apache/airflow/base/python:3.13.15-debian12-dev``. Pulling the mirror needs no credentials;
+pulling ``dhi.io`` directly requires a ``docker login dhi.io``.
 
 List of default extras in the production Dockerfile:
 

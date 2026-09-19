@@ -217,6 +217,16 @@ function common::install_packaging_tools() {
     fi
 }
 
+function common::debian_codename() {
+    # shellcheck disable=SC1091
+    (. /etc/os-release; printf '%s\n' "${VERSION_CODENAME}")
+}
+
+function common::debian_release() {
+    # shellcheck disable=SC1091
+    (. /etc/os-release; printf '%s\n' "${VERSION_ID}")
+}
+
 function common::import_trusted_gpg() {
     common::get_colors
 
