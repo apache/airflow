@@ -61,12 +61,18 @@ Configuring the Connection
 --------------------------
 
 Model
-    Azure model identifier (e.g. ``azure:gpt-4o``). This field appears as a
-    dedicated input in the connection form (via ``conn-fields``) and stores its
-    value in ``extra["model"]``.
+    Azure model identifier (e.g. ``azure:gpt-4o``, or the bare ``gpt-4o``). This
+    field appears as a dedicated input in the connection form (via
+    ``conn-fields``) and stores its value in ``extra["model"]``.
 
-    The ``azure:`` prefix is required — it is what makes pydantic-ai instantiate
-    the Azure OpenAI provider instead of the plain OpenAI one.
+    A bare name is automatically resolved to ``azure:<name>`` -- Azure OpenAI is
+    this connection type's own platform, so nothing else needs naming it
+    explicitly. Writing the ``azure:`` prefix yourself has the same effect and is
+    still accepted. A name prefixed with a *different*, recognized platform (e.g.
+    ``openai:gpt-4o``) is used verbatim instead, pinning that platform and
+    bypassing Azure OpenAI entirely -- a name is only treated as already prefixed
+    when the segment before its first ``:`` is itself a real pydantic-ai
+    provider, not merely present.
 
 API Key (Password field)
     The Azure OpenAI API key.
@@ -81,6 +87,12 @@ API Version (Extra field)
     ``*.models.ai.azure.com``. When required, it falls back to the
     ``OPENAI_API_VERSION`` environment variable if omitted. Endpoints matching
     either OpenAI-compatible v1 form reject this field.
+
+Fallback Connections
+    Other connection IDs to fail over to, in order, while this provider is
+    unavailable. Stored in ``extra["fallback_conn_ids"]``. Entries may name any
+    ``pydanticai`` connection type, so one chain can span vendors. See
+    :doc:`/provider_fallback`.
 
 Examples
 --------

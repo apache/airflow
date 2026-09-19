@@ -163,7 +163,8 @@ Parameters
 
 This operator also inherits ``LLMOperator``'s HITL review parameters --
 ``require_approval``, ``approval_timeout``, ``on_approval_timeout``,
-``allow_modifications``, and ``approval_notifiers`` -- see :doc:`llm` for details.
+``allow_modifications``, ``approval_notifiers``, and ``approval_assigned_users`` --
+see :doc:`llm` for details.
 
 Supported Formats
 -----------------

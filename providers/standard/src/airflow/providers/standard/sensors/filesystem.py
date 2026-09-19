@@ -126,8 +126,12 @@ class FileSensor(BaseSensorOperator):
 
     def execute(self, context: Context) -> None:
         if not self.deferrable:
+            # The sync path blocks in BaseSensorOperator.execute until poke succeeds, so the
+            # deferrable branch must not run afterwards: a file consumed between the two pokes
+            # would otherwise defer a sensor the caller asked not to defer, and on a deployment
+            # with no triggerer the task then sits in ``deferred`` until execution_timeout.
             super().execute(context=context)
-        if not self.poke(context=context):
+        elif not self.poke(context=context):
             self.defer(
                 timeout=datetime.timedelta(seconds=self.timeout),
                 trigger=FileTrigger(

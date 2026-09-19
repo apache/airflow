@@ -141,6 +141,13 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
     :param llm_conn_id: Connection ID for the LLM provider.
     :param model_id: Model identifier (e.g. ``"openai:gpt-5"``).
         Overrides the model stored in the connection's extra field.
+    :param fallback_conn_ids: Connection IDs to fail over to, in order, when
+        the primary provider is unavailable. Overrides the ``fallback_conn_ids``
+        set in the connection's extra field. ``None`` (default) reads the
+        connection's own extra field; an explicit ``[]`` disables a chain
+        configured there. See
+        :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook`
+        for how blank entries in the list are dropped.
     :param system_prompt: System-level instructions for the agent.
     :param output_type: Expected output type. Default ``str``. Set to a Pydantic
         ``BaseModel`` subclass for structured output; the model instance is
@@ -255,6 +262,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         "prompt",
         "llm_conn_id",
         "model_id",
+        "fallback_conn_ids",
         "system_prompt",
         "agent_params",
         "message_history",
@@ -269,6 +277,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         prompt: str,
         llm_conn_id: str,
         model_id: str | None = None,
+        fallback_conn_ids: list[str] | None = None,
         system_prompt: str = "",
         output_type: type = str,
         toolsets: list[AbstractToolset] | None = None,
@@ -291,6 +300,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         self.prompt = prompt
         self.llm_conn_id = llm_conn_id
         self.model_id = model_id
+        self.fallback_conn_ids = fallback_conn_ids
         self.system_prompt = system_prompt
         self.output_type = output_type
         self.serialize_output = serialize_output
@@ -350,6 +360,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         """Return PydanticAIHook for the configured LLM connection."""
         hook_params = {
             "model_id": self.model_id,
+            "fallback_conn_ids": self.fallback_conn_ids,
         }
         return PydanticAIHook.get_hook(self.llm_conn_id, hook_params=hook_params)
 
