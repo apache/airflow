@@ -47,6 +47,11 @@ gid: 0
 securityContexts:
   pod: {}
   containers: {}
+  # If `true`, the chart will not set any default `securityContext` values when
+  # `securityContexts.pod` / `securityContexts.containers` (or the equivalent per-component
+  # overrides) are left empty (default `false` is deprecated and will change to `true`
+  # in a future release).
+  disableDefaults: false
 
 # Global container lifecycle hooks for Airflow containers
 containerLifecycleHooks: {}
@@ -59,14 +64,14 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default Airflow tag to deploy
-defaultAirflowTag: "3.3.1"
+defaultAirflowTag: "3.3.2"
 
 # Default Airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
 # Version 3.1.0 and above is supported.
-airflowVersion: "3.3.1"
+airflowVersion: "3.3.2"
 
 images:
   airflow:
@@ -98,7 +103,7 @@ images:
     pullPolicy: IfNotPresent
   statsd:
     repository: quay.io/prometheus/statsd-exporter
-    tag: v0.30.0
+    tag: v0.31.0
     pullPolicy: IfNotPresent
   redis:
     repository: redis
@@ -870,6 +875,9 @@ workers:
       # Container level lifecycle hooks
       containerLifecycleHooks: {}
 
+    # Should the kerberos-ccache mount be readonly for Celery Workers
+    readonlyKerberosCache: true
+
     # Resource configuration for Airflow Celery workers
     resources: {}
     #  limits:
@@ -1125,6 +1133,9 @@ workers:
 
       # Container level lifecycle hooks
       containerLifecycleHooks: {}
+
+    # Should the kerberos-ccache mount be readonly for Celery Workers
+    readonlyKerberosCache: true
 
     # Resource configuration for pods created with pod-template-file
     resources: {}

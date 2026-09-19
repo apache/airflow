@@ -34,8 +34,12 @@ Requirements
 
 This provider requires the following packages:
 
-- ``ibm-db>=3.0.0`` - IBM Db2 Python driver
+- ``ibm-db>=3.2.0`` - IBM Db2 Python driver
 - ``ibm-db-sa>=0.4.0`` - SQLAlchemy dialect for Db2
+
+IBM publishes no Db2 client for Linux ARM, so neither package is installed on
+``aarch64``. The provider itself is pure Python and still installs there, but opening a
+Db2 connection fails with ``ModuleNotFoundError``. macOS Apple Silicon is unaffected.
 
 Configuration
 -------------

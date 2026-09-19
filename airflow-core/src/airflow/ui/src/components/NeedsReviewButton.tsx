@@ -22,8 +22,10 @@ import { LuUserRoundPen } from "react-icons/lu";
 import { Link } from "react-router-dom";
 
 import { useTaskInstanceServiceGetHitlDetails } from "openapi/queries";
+
 import { HITLReviewModal } from "src/components/HITLReview/HITLReviewModal.tsx";
 import { useHITLReviewModalRouteSync } from "src/components/HITLReview/useHITLReviewModalRouteSync.ts";
+
 import { useAutoRefresh } from "src/utils/query";
 
 import { StatsCard } from "./StatsCard";
@@ -141,7 +143,7 @@ export const NeedsReviewButton = ({
     <NeedsReviewButtonCard
       hitlTIsCount={hitlTIsCount}
       isLoading={isLoading}
-      link="required_actions?response_received=false"
+      link="/required_actions?response_received=false"
     />
   );
 };

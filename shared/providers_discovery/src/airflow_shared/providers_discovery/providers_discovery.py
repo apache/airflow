@@ -313,6 +313,8 @@ def discover_all_providers_from_packages(
     :param provider_dict: Dictionary to populate with discovered providers
     :param provider_schema_validator: JSON schema validator for provider info
     """
+    import jsonschema
+
     for entry_point, dist in entry_points_with_dist("apache_airflow_provider"):
         if not dist.metadata:
             continue
@@ -322,8 +324,29 @@ def discover_all_providers_from_packages(
         log.debug("Loading %s from package %s", entry_point, package_name)
         version = dist.version
         provider_info = entry_point.load()()
-        provider_schema_validator.validate(provider_info)
-        provider_info_package_name = provider_info["package-name"]
+        try:
+            provider_schema_validator.validate(provider_info)
+        except jsonschema.ValidationError:
+            # One provider's malformed metadata must not stop the others from loading. This
+            # used to escape discovery entirely, so every provider after it was skipped and
+            # initialize_providers_list() raised on this and every later call.
+            # Only ValidationError is caught: a SchemaError or UnknownType means the schema
+            # itself is broken, which must stay loud rather than be reported once per provider.
+            log.warning(
+                "The provider %s does not conform to the provider_info schema and has been skipped.",
+                package_name,
+                exc_info=True,
+            )
+            continue
+        # 'package-name' is not in the runtime schema's required list, so validation passing
+        # does not guarantee it is present.
+        provider_info_package_name = provider_info.get("package-name")
+        if not provider_info_package_name:
+            log.warning(
+                "The provider %s does not declare 'package-name' in its provider info and has been skipped.",
+                package_name,
+            )
+            continue
         if package_name != provider_info_package_name:
             raise ValueError(
                 f"The package '{package_name}' from packaging information "

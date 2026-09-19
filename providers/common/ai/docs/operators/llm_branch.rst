@@ -92,16 +92,27 @@ against the downstream task IDs before branching:
     :start-after: [START howto_operator_llm_branch_approval]
     :end-before: [END howto_operator_llm_branch_approval]
 
-Rejecting the review, or letting ``approval_timeout`` expire, **fails** the
-task (``HITLRejectException`` / ``HITLTimeoutError``), so downstream tasks
-end up ``upstream_failed`` rather than skipped.
+Rejecting the review **skips the direct downstream tasks except teardowns**,
+matching
+:class:`~airflow.providers.standard.operators.hitl.ApprovalOperator`. The
+teardown carve-out applies only to rejection: approving branches as usual,
+so a teardown that is not among the chosen branch(es) is skipped like any
+other unselected downstream task. Set ``fail_on_reject=True`` to fail the
+task on rejection instead (generally discouraged), or
+``ignore_downstream_trigger_rules=True`` to skip every downstream task rather
+than only the direct ones, so a task whose trigger rule would still run it is
+skipped too. Letting ``approval_timeout`` expire fails the task
+(``HITLTimeoutError``) unless ``on_approval_timeout`` answers the review for
+you; a timeout-driven rejection then skips downstream like any other rejection.
 
 ``require_approval=True`` requires a string prompt: a decorated callable
 returning a ``Sequence[UserContent]`` raises ``TypeError`` before the LLM
 call.
 
-``approval_timeout`` and the rest of the approval behaviour are inherited
-from :ref:`LLMOperator <howto/operator:llm>`.
+Apart from ``fail_on_reject`` and ``ignore_downstream_trigger_rules``, which
+are specific to this operator, ``approval_timeout``, ``on_approval_timeout``,
+``approval_notifiers``, ``approval_assigned_users``, and the rest of the approval
+behaviour are inherited from :ref:`LLMOperator <howto/operator:llm>`.
 
 How It Works
 ------------
@@ -127,12 +138,28 @@ Parameters
   task ID. When ``True`` the LLM may return one or more task IDs.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai ``Agent``
   constructor (e.g. ``retries``, ``model_settings``). Supports Jinja templating.
+- ``usage_limits``: Optional pydantic-ai ``UsageLimits`` (or a templated ``dict`` of
+  the same fields) enforced on the run; the task fails when a budget is exceeded.
+  Default ``None``. See :ref:`Usage Limits <howto/operator:llm_usage_limits>`.
 - ``require_approval``: If ``True``, the task pauses after the LLM chooses the
   branch(es) and waits for human review before branching.  Default ``False``.
 - ``approval_timeout``: Maximum time to wait for a review (``timedelta``).  ``None``
   means wait indefinitely.  Default ``None``.
+- ``on_approval_timeout``: Outcome when ``approval_timeout`` expires without a
+  review: ``"fail"`` (default), ``"approve"``, or ``"reject"``.  Requires
+  ``require_approval=True`` and a positive ``approval_timeout``.
 - ``allow_modifications``: If ``True``, the reviewer can change the chosen
   branch(es) before approving.  Default ``False``.
+- ``approval_notifiers``: Notifier, or list of notifiers, called once the review
+  is open.  Default ``None``.
+- ``approval_assigned_users``: Users allowed to answer the review.  ``None``
+  (default) lets any user with the permission respond.  Needs Airflow 3.1+.
+- ``fail_on_reject``: If ``True``, a rejected review fails the task instead of
+  skipping the downstream tasks.  Generally discouraged.  Only takes effect
+  with ``require_approval=True``.  Default ``False``.
+- ``ignore_downstream_trigger_rules``: If ``True``, a rejected review skips every
+  downstream task rather than only the direct ones.  Only takes effect with
+  ``require_approval=True``.  Default ``False``.
 
 Logging
 -------

@@ -149,7 +149,16 @@ def patch_variable(
     update_mask: list[str] | None = Query(None),
 ) -> VariableResponse:
     """Update a variable by key."""
-    variable = update_orm_from_pydantic(variable_key, patch_body, update_mask, session)
+    if patch_body.key != variable_key:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "Invalid body, key from request body doesn't match uri parameter"
+        )
+    old_variable = session.scalar(select(Variable).filter_by(key=variable_key).limit(1))
+    if not old_variable:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"The Variable with key: `{variable_key}` was not found"
+        )
+    variable = update_orm_from_pydantic(old_variable, patch_body, update_mask)
     return variable
 
 
@@ -174,14 +183,7 @@ def post_variable(
 
     Variable.set(**post_body.model_dump(), session=session)
 
-    variable = session.scalar(select(Variable).where(Variable.key == post_body.key).limit(1))
-    if variable is None:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            f"Variable with key: `{post_body.key}` was not found",
-        )
-
-    return variable
+    return session.scalars(select(Variable).where(Variable.key == post_body.key)).one()
 
 
 @variables_router.patch(

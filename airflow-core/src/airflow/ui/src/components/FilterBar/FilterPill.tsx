@@ -16,13 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
 import type { RefObject, KeyboardEvent, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
+
+import { Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { MdClose } from "react-icons/md";
 
-import { IconButton } from "../ui";
+import { IconButton } from "src/system-components";
+
 import { getDefaultFilterIcon } from "./defaultIcons";
 import type { FilterState } from "./types";
 import { isEmptyFilterValue } from "./utils";

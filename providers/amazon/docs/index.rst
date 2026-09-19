@@ -89,7 +89,7 @@ apache-airflow-providers-amazon package
 Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 
-Release: 9.35.0
+Release: 9.36.0
 
 Provider package
 ----------------
@@ -178,6 +178,7 @@ Extra                 Dependencies
 ``aiobotocore``       ``aiobotocore>=3.0.0``
 ``cncf.kubernetes``   ``apache-airflow-providers-cncf-kubernetes>=7.2.0``
 ``s3fs``              ``s3fs>=2023.10.0``
+``msk``               ``aws-msk-iam-sasl-signer-python>=1.0.1``
 ``python3-saml``      ``python3-saml>=1.16.0; python_version < '3.13'``, ``xmlsec>=1.3.14; python_version < '3.13'``, ``lxml>=6.0.0; python_version < '3.13'``
 ``apache.hive``       ``apache-airflow-providers-apache-hive``
 ``exasol``            ``apache-airflow-providers-exasol``
@@ -202,5 +203,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-amazon 9.35.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.35.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.35.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.35.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-amazon 9.35.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.35.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.35.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.35.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-amazon 9.36.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.36.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.36.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.36.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-amazon 9.36.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.36.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.36.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.36.0-py3-none-any.whl.sha512>`__)

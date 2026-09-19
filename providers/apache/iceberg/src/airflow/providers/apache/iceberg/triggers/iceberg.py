@@ -22,15 +22,8 @@ from typing import TYPE_CHECKING, Any
 from pyiceberg.exceptions import NoSuchNamespaceError, NoSuchTableError
 
 from airflow.providers.apache.iceberg.hooks.iceberg import IcebergHook
-from airflow.providers.apache.iceberg.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.triggers.base import BaseEventTrigger, TriggerEvent
-else:
-    from airflow.triggers.base import (  # type: ignore[assignment]
-        BaseTrigger as BaseEventTrigger,
-        TriggerEvent,
-    )
+from airflow.providers.common.compat.triggers import BaseEventTrigger
+from airflow.triggers.base import TriggerEvent
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator

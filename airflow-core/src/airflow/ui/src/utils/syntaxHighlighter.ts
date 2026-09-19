@@ -17,6 +17,7 @@
  * under the License.
  */
 import type { CSSProperties } from "react";
+
 import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import bash from "react-syntax-highlighter/dist/esm/languages/prism/bash";
 import json from "react-syntax-highlighter/dist/esm/languages/prism/json";

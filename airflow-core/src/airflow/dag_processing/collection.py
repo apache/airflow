@@ -382,16 +382,24 @@ def _update_dag_warnings(
 
 def _update_import_errors(
     files_parsed: set[tuple[str, str]],
-    bundle_name: str,
     import_errors: dict[tuple[str, str], str],
     session: Session,
 ):
     from airflow.listeners.listener import get_listener_manager
 
-    # Check existing import errors BEFORE deleting, so we can determine if we should update or create
-    existing_import_error_files = set(
-        session.execute(select(ParseImportError.bundle_name, ParseImportError.filename))
-    )
+    # Read before the delete below, so an error still present is updated rather than recreated.
+    # Scoped to the keys being written: the table is not indexed on (bundle_name, filename) so this
+    # still scans, but it no longer builds a row per import error the deployment is carrying.
+    existing_import_error_files: set[tuple[str | None, str | None]] = set()
+    if import_errors:
+        existing_import_error_files = {
+            (bundle, filename)
+            for bundle, filename in session.execute(
+                select(ParseImportError.bundle_name, ParseImportError.filename).where(
+                    tuple_(ParseImportError.bundle_name, ParseImportError.filename).in_(list(import_errors))
+                )
+            )
+        }
 
     # Delete errors for files that were parsed but don't have errors in import_errors
     # (i.e., files that were successfully parsed without errors)
@@ -439,7 +447,7 @@ def _update_import_errors(
         else:
             import_error = ParseImportError(
                 filename=relative_fileloc,
-                bundle_name=bundle_name,
+                bundle_name=bundle_name_,
                 timestamp=utcnow(),
                 stacktrace=stacktrace,
             )
@@ -459,7 +467,6 @@ def _update_import_errors(
             )
             .values(
                 has_import_errors=True,
-                bundle_name=bundle_name,
                 is_stale=True,
             )
             .execution_options(synchronize_session="fetch")
@@ -556,7 +563,6 @@ def update_dag_parsing_results_in_db(
     try:
         _update_import_errors(
             files_parsed=files_parsed if files_parsed is not None else set(),
-            bundle_name=bundle_name,
             import_errors=import_errors,
             session=session,
         )

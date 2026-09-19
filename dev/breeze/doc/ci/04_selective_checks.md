@@ -233,8 +233,11 @@ Some integrations and providers only work on one CPU architecture, so the select
 by the platform the run's tests will execute on:
 
 * **Integrations** in `DISABLE_TESTABLE_INTEGRATIONS_FROM_ARM` are dropped on ARM.
-* **Providers** that declare `excluded-platforms` in their `provider.yaml` (e.g. `ibm.mq` excludes
-  `linux/arm64`) are removed from the providers test-type matrix on that platform.
+* **Providers** that declare `excluded-platforms` in their `provider.yaml` (e.g. `ibm.mq` and
+  `ibm.db2` exclude `linux/arm64`) are removed from the providers test-type matrix on that platform.
+  Only `linux/*` values can match a run; a provider may also list a non-CI platform such as
+  `darwin/arm64`, which never affects the matrix and exists solely to add an install-time
+  `platform_machine` marker.
 
 ## Individually simple rules
 
