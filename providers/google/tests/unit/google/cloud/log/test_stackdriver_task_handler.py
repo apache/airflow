@@ -137,14 +137,21 @@ class TestStackdriverRemoteLogIO:
         )
         mock_get_creds_and_project_id.return_value = ("creds", "project_id")
 
-        ti = mock.MagicMock()
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.sdk.types import RuntimeTaskInstanceProtocol
+
+            ti = mock.MagicMock(spec=RuntimeTaskInstanceProtocol)
+            ti.id = "test_ti_id"
+            ti.run_id = "run1"
+        else:
+            from airflow.models.taskinstance import TaskInstance
+
+            ti = mock.MagicMock(spec=TaskInstance)
+            ti.execution_date = timezone.datetime(2016, 1, 1)
+
         ti.task_id = "test_task"
         ti.dag_id = "test_dag"
         ti.try_number = 1
-        if AIRFLOW_V_3_0_PLUS:
-            ti.logical_date = timezone.datetime(2016, 1, 1)
-        else:
-            ti.execution_date = timezone.datetime(2016, 1, 1)
 
         messages, logs = self.io.read("dag_id=test_dag/run_id=run1/task_id=test_task/attempt=1.log", ti)
 
@@ -160,14 +167,21 @@ class TestStackdriverRemoteLogIO:
         )
         mock_get_creds_and_project_id.return_value = ("creds", "project_id")
 
-        ti = mock.MagicMock()
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.sdk.types import RuntimeTaskInstanceProtocol
+
+            ti = mock.MagicMock(spec=RuntimeTaskInstanceProtocol)
+            ti.id = "test_ti_id"
+            ti.run_id = "run1"
+        else:
+            from airflow.models.taskinstance import TaskInstance
+
+            ti = mock.MagicMock(spec=TaskInstance)
+            ti.execution_date = timezone.datetime(2016, 1, 1)
+
         ti.task_id = "test_task"
         ti.dag_id = "test_dag"
         ti.try_number = 1
-        if AIRFLOW_V_3_0_PLUS:
-            ti.logical_date = timezone.datetime(2016, 1, 1)
-        else:
-            ti.execution_date = timezone.datetime(2016, 1, 1)
 
         messages, logs = self.io.read("test/path", ti)
 
@@ -297,8 +311,61 @@ class TestStackdriverRemoteLogIO:
                 "map_index": "-1",
             }
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="airflow.sdk.log only exists in Airflow 3+")
+    @mock.patch(
+        "airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverRemoteLogIO.transport",
+        new_callable=PropertyMock,
+    )
+    def test_processors_includes_task_instance_id_from_event(self, mock_transport_prop):
+        mock_transport = mock.MagicMock()
+        mock_transport_prop.return_value = mock_transport
+
+        io = StackdriverRemoteLogIO(
+            base_log_folder=self.local_log_location,
+            gcp_log_name="airflow",
+        )
+        logger = mock.MagicMock()
+        with mock.patch(
+            "airflow.sdk.log.relative_path_from_logger",
+            return_value="some/path.py",
+        ):
+            proc = io.processors[0]
+            event = {
+                "event": "Test message",
+                "dag_id": "test_dag_id",
+                "task_id": "test_task_id",
+                "run_id": "test_run_id",
+                "try_number": 1,
+                "ti_id": "test_ti_id_123",
+            }
+
+            proc(logger, "info", event)
+
+            mock_transport.send.assert_called_once()
+            _, kwargs = mock_transport.send.call_args
+            labels = kwargs.get("labels", {})
+            assert labels.get(StackdriverTaskHandler.LABEL_TASK_INSTANCE_ID) == "test_ti_id_123"
+
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id")
     def test_prepare_log_filter(self, mock_get_creds_and_project_id):
+        mock_get_creds_and_project_id.return_value = ("creds", "project_id")
+
+        ti_labels = {
+            "task_id": "test_task",
+            "dag_id": "test_dag",
+            "try_number": "1",
+            "task_instance_id": "test_ti_id",
+        }
+        log_filter = self.io.prepare_log_filter(ti_labels)
+
+        assert 'resource.type="global"' in log_filter
+        assert 'logName="projects/project_id/logs/airflow"' in log_filter
+        expected_or = '(labels.task_instance_id="test_ti_id" OR (labels.task_id="test_task" AND labels.dag_id="test_dag"))'
+        assert expected_or in log_filter
+        assert 'labels.try_number="1"' in log_filter
+
+    @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id")
+    def test_prepare_log_filter_legacy(self, mock_get_creds_and_project_id):
         mock_get_creds_and_project_id.return_value = ("creds", "project_id")
 
         ti_labels = {
@@ -312,6 +379,7 @@ class TestStackdriverRemoteLogIO:
         assert 'logName="projects/project_id/logs/airflow"' in log_filter
         assert 'labels.task_id="test_task"' in log_filter
         assert 'labels.dag_id="test_dag"' in log_filter
+        assert " OR " not in log_filter
 
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id")
     def test_prepare_log_filter_with_custom_resource(self, mock_get_creds_and_project_id):
@@ -494,6 +562,7 @@ class TestStackdriverLoggingHandlerTask:
             "dag_id": self.DAG_ID,
             date_key: "2016-01-01T00:00:00+00:00",
             "try_number": "1",
+            **({"task_instance_id": str(self.ti.id)} if hasattr(self.ti, "id") else {}),
         }
         resource = Resource(type="global", labels={})
         self.transport_mock.return_value.send.assert_called_once_with(
@@ -519,6 +588,7 @@ class TestStackdriverLoggingHandlerTask:
             "dag_id": self.DAG_ID,
             date_key: "2016-01-01T00:00:00+00:00",
             "try_number": "1",
+            **({"task_instance_id": str(self.ti.id)} if hasattr(self.ti, "id") else {}),
             "product.googleapis.com/task_id": "test-value",
         }
         resource = Resource(type="global", labels={})
@@ -539,13 +609,23 @@ class TestStackdriverLoggingHandlerTask:
 
         date_label = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
 
-        filter_str = (
-            'resource.type="global"\n'
-            'logName="projects/project_id/logs/airflow"\n'
-            'labels.task_id="task_for_testing_stackdriver_task_handler"\n'
-            'labels.dag_id="dag_for_testing_stackdriver_file_task_handler"\n'
-            f'labels.{date_label}="2016-01-01T00:00:00+00:00"'
-        )
+        if hasattr(self.ti, "id"):
+            filter_str = (
+                'resource.type="global"\n'
+                'logName="projects/project_id/logs/airflow"\n'
+                f'(labels.task_instance_id="{str(self.ti.id)}" OR ('
+                'labels.task_id="task_for_testing_stackdriver_task_handler" AND '
+                'labels.dag_id="dag_for_testing_stackdriver_file_task_handler" AND '
+                f'labels.{date_label}="2016-01-01T00:00:00+00:00"))'
+            )
+        else:
+            filter_str = (
+                'resource.type="global"\n'
+                'logName="projects/project_id/logs/airflow"\n'
+                'labels.task_id="task_for_testing_stackdriver_task_handler"\n'
+                'labels.dag_id="dag_for_testing_stackdriver_file_task_handler"\n'
+                f'labels.{date_label}="2016-01-01T00:00:00+00:00"'
+            )
         mock_client.return_value.list_log_entries.assert_called_once_with(
             request=ListLogEntriesRequest(
                 resource_names=["projects/project_id"],
@@ -571,13 +651,23 @@ class TestStackdriverLoggingHandlerTask:
 
         logs, metadata = stackdriver_task_handler.read(self.ti)
         date_label = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
-        filter_str = (
-            'resource.type="global"\n'
-            'logName="projects/project_id/logs/airflow"\n'
-            'labels.task_id="K\\"OT"\n'
-            'labels.dag_id="dag_for_testing_stackdriver_file_task_handler"\n'
-            f'labels.{date_label}="2016-01-01T00:00:00+00:00"'
-        )
+        if hasattr(self.ti, "id"):
+            filter_str = (
+                'resource.type="global"\n'
+                'logName="projects/project_id/logs/airflow"\n'
+                f'(labels.task_instance_id="{str(self.ti.id)}" OR ('
+                'labels.task_id="K\\"OT" AND '
+                'labels.dag_id="dag_for_testing_stackdriver_file_task_handler" AND '
+                f'labels.{date_label}="2016-01-01T00:00:00+00:00"))'
+            )
+        else:
+            filter_str = (
+                'resource.type="global"\n'
+                'logName="projects/project_id/logs/airflow"\n'
+                'labels.task_id="K\\"OT"\n'
+                'labels.dag_id="dag_for_testing_stackdriver_file_task_handler"\n'
+                f'labels.{date_label}="2016-01-01T00:00:00+00:00"'
+            )
         mock_client.return_value.list_log_entries.assert_called_once_with(
             request=ListLogEntriesRequest(
                 resource_names=["projects/project_id"],
@@ -601,14 +691,25 @@ class TestStackdriverLoggingHandlerTask:
 
         logs, metadata = stackdriver_task_handler.read(self.ti, 3)
         date_label = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
-        filter_str = (
-            'resource.type="global"\n'
-            'logName="projects/project_id/logs/airflow"\n'
-            'labels.task_id="task_for_testing_stackdriver_task_handler"\n'
-            'labels.dag_id="dag_for_testing_stackdriver_file_task_handler"\n'
-            f'labels.{date_label}="2016-01-01T00:00:00+00:00"\n'
-            'labels.try_number="3"'
-        )
+        if hasattr(self.ti, "id"):
+            filter_str = (
+                'resource.type="global"\n'
+                'logName="projects/project_id/logs/airflow"\n'
+                f'(labels.task_instance_id="{str(self.ti.id)}" OR ('
+                'labels.task_id="task_for_testing_stackdriver_task_handler" AND '
+                'labels.dag_id="dag_for_testing_stackdriver_file_task_handler" AND '
+                f'labels.{date_label}="2016-01-01T00:00:00+00:00"))\n'
+                'labels.try_number="3"'
+            )
+        else:
+            filter_str = (
+                'resource.type="global"\n'
+                'logName="projects/project_id/logs/airflow"\n'
+                'labels.task_id="task_for_testing_stackdriver_task_handler"\n'
+                'labels.dag_id="dag_for_testing_stackdriver_file_task_handler"\n'
+                'labels.try_number="3"\n'
+                f'labels.{date_label}="2016-01-01T00:00:00+00:00"'
+            )
         mock_client.return_value.list_log_entries.assert_called_once_with(
             request=ListLogEntriesRequest(
                 resource_names=["projects/project_id"],
@@ -633,14 +734,25 @@ class TestStackdriverLoggingHandlerTask:
 
         logs, metadata1 = stackdriver_task_handler.read(self.ti, 3)
         date_label = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
-        filter_str = (
-            'resource.type="global"\n'
-            'logName="projects/project_id/logs/airflow"\n'
-            'labels.task_id="task_for_testing_stackdriver_task_handler"\n'
-            'labels.dag_id="dag_for_testing_stackdriver_file_task_handler"\n'
-            f'labels.{date_label}="2016-01-01T00:00:00+00:00"\n'
-            'labels.try_number="3"'
-        )
+        if hasattr(self.ti, "id"):
+            filter_str = (
+                'resource.type="global"\n'
+                'logName="projects/project_id/logs/airflow"\n'
+                f'(labels.task_instance_id="{str(self.ti.id)}" OR ('
+                'labels.task_id="task_for_testing_stackdriver_task_handler" AND '
+                'labels.dag_id="dag_for_testing_stackdriver_file_task_handler" AND '
+                f'labels.{date_label}="2016-01-01T00:00:00+00:00"))\n'
+                'labels.try_number="3"'
+            )
+        else:
+            filter_str = (
+                'resource.type="global"\n'
+                'logName="projects/project_id/logs/airflow"\n'
+                'labels.task_id="task_for_testing_stackdriver_task_handler"\n'
+                'labels.dag_id="dag_for_testing_stackdriver_file_task_handler"\n'
+                'labels.try_number="3"\n'
+                f'labels.{date_label}="2016-01-01T00:00:00+00:00"'
+            )
         mock_client.return_value.list_log_entries.assert_called_once_with(
             request=ListLogEntriesRequest(
                 resource_names=["projects/project_id"],
@@ -659,14 +771,7 @@ class TestStackdriverLoggingHandlerTask:
         mock_client.return_value.list_log_entries.assert_called_with(
             request=ListLogEntriesRequest(
                 resource_names=["projects/project_id"],
-                filter=(
-                    'resource.type="global"\n'
-                    'logName="projects/project_id/logs/airflow"\n'
-                    'labels.task_id="task_for_testing_stackdriver_task_handler"\n'
-                    'labels.dag_id="dag_for_testing_stackdriver_file_task_handler"\n'
-                    f'labels.{date_label}="2016-01-01T00:00:00+00:00"\n'
-                    'labels.try_number="3"'
-                ),
+                filter=filter_str,
                 order_by="timestamp asc",
                 page_size=1000,
                 page_token="TOKEN1",
@@ -710,16 +815,29 @@ class TestStackdriverLoggingHandlerTask:
 
         logs, metadata = stackdriver_task_handler.read(self.ti)
         date_label = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
-        filter_str = (
-            'resource.type="cloud_composer_environment"\n'
-            'logName="projects/project_id/logs/airflow"\n'
-            'resource.labels."environment.name"="test-instance"\n'
-            'resource.labels.location="europe-west-3"\n'
-            'resource.labels.project_id="project_id"\n'
-            'labels.task_id="task_for_testing_stackdriver_task_handler"\n'
-            'labels.dag_id="dag_for_testing_stackdriver_file_task_handler"\n'
-            f'labels.{date_label}="2016-01-01T00:00:00+00:00"'
-        )
+        if hasattr(self.ti, "id"):
+            filter_str = (
+                'resource.type="cloud_composer_environment"\n'
+                'logName="projects/project_id/logs/airflow"\n'
+                'resource.labels."environment.name"="test-instance"\n'
+                'resource.labels.location="europe-west-3"\n'
+                'resource.labels.project_id="project_id"\n'
+                f'(labels.task_instance_id="{str(self.ti.id)}" OR ('
+                'labels.task_id="task_for_testing_stackdriver_task_handler" AND '
+                'labels.dag_id="dag_for_testing_stackdriver_file_task_handler" AND '
+                f'labels.{date_label}="2016-01-01T00:00:00+00:00"))'
+            )
+        else:
+            filter_str = (
+                'resource.type="cloud_composer_environment"\n'
+                'logName="projects/project_id/logs/airflow"\n'
+                'resource.labels."environment.name"="test-instance"\n'
+                'resource.labels.location="europe-west-3"\n'
+                'resource.labels.project_id="project_id"\n'
+                'labels.task_id="task_for_testing_stackdriver_task_handler"\n'
+                'labels.dag_id="dag_for_testing_stackdriver_file_task_handler"\n'
+                f'labels.{date_label}="2016-01-01T00:00:00+00:00"'
+            )
         mock_client.return_value.list_log_entries.assert_called_once_with(
             request=ListLogEntriesRequest(
                 resource_names=["projects/project_id"],
@@ -772,14 +890,24 @@ class TestStackdriverLoggingHandlerTask:
 
         filter_params = parsed_qs["advancedFilter"][0].splitlines()
         date_label = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
-        expected_filter = [
-            'resource.type="global"',
-            'logName="projects/project_id/logs/airflow"',
-            f'labels.task_id="{self.ti.task_id}"',
-            f'labels.dag_id="{self.DAG_ID}"',
-            f'labels.{date_label}="{self.ti.logical_date.isoformat() if AIRFLOW_V_3_0_PLUS else self.ti.execution_date.isoformat()}"',
-            f'labels.try_number="{self.ti.try_number}"',
-        ]
+        if hasattr(self.ti, "id"):
+            expected_filter = [
+                'resource.type="global"',
+                'logName="projects/project_id/logs/airflow"',
+                f'(labels.task_instance_id="{str(self.ti.id)}" OR (labels.task_id="{self.ti.task_id}" AND '
+                f'labels.dag_id="{self.DAG_ID}" AND '
+                f'labels.{date_label}="{self.ti.logical_date.isoformat() if AIRFLOW_V_3_0_PLUS else self.ti.execution_date.isoformat()}"))',
+                f'labels.try_number="{self.ti.try_number}"',
+            ]
+        else:
+            expected_filter = [
+                'resource.type="global"',
+                'logName="projects/project_id/logs/airflow"',
+                f'labels.task_id="{self.ti.task_id}"',
+                f'labels.dag_id="{self.DAG_ID}"',
+                f'labels.{date_label}="{self.ti.logical_date.isoformat() if AIRFLOW_V_3_0_PLUS else self.ti.execution_date.isoformat()}"',
+                f'labels.try_number="{self.ti.try_number}"',
+            ]
         assert set(expected_filter) == set(filter_params)
 
 
@@ -805,12 +933,21 @@ class TestStackdriverTaskHandlerExceptionHandling:
         )
 
         handler = StackdriverTaskHandler()
-        ti = mock.MagicMock()
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.sdk.types import RuntimeTaskInstanceProtocol
+
+            ti = mock.MagicMock(spec=RuntimeTaskInstanceProtocol)
+            ti.id = "test_ti_id"
+            ti.run_id = "run1"
+        else:
+            from airflow.models.taskinstance import TaskInstance
+
+            ti = mock.MagicMock(spec=TaskInstance)
+            ti.execution_date = mock.MagicMock(isoformat=lambda: "2020-01-01T00:00:00+00:00")
+
         ti.task_id = "t"
         ti.dag_id = "d"
         ti.try_number = 1
-        ti.logical_date = mock.MagicMock(isoformat=lambda: "2020-01-01T00:00:00+00:00")
-        ti.execution_date = ti.logical_date
 
         with caplog.at_level(logging.ERROR):
             logs, metadata = handler.read(ti, try_number=1)
@@ -841,12 +978,21 @@ class TestStackdriverTaskHandlerExceptionHandling:
         )
 
         handler = StackdriverTaskHandler()
-        ti = mock.MagicMock()
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.sdk.types import RuntimeTaskInstanceProtocol
+
+            ti = mock.MagicMock(spec=RuntimeTaskInstanceProtocol)
+            ti.id = "test_ti_id"
+            ti.run_id = "run1"
+        else:
+            from airflow.models.taskinstance import TaskInstance
+
+            ti = mock.MagicMock(spec=TaskInstance)
+            ti.execution_date = mock.MagicMock(isoformat=lambda: "2020-01-01T00:00:00+00:00")
+
         ti.task_id = "t"
         ti.dag_id = "d"
         ti.try_number = 1
-        ti.logical_date = mock.MagicMock(isoformat=lambda: "2020-01-01T00:00:00+00:00")
-        ti.execution_date = ti.logical_date
 
         logs, _ = handler.read(ti, try_number=1)
 
