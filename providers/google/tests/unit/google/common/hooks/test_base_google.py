@@ -421,6 +421,37 @@ class TestGoogleBaseHook:
         )
         assert result == ("CREDENTIALS", "PROJECT_ID")
 
+    @pytest.mark.parametrize("field_name", ["idp_extra_parameters", "idp_extra_params"])
+    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id", return_value=("CREDENTIALS", "PROJECT_ID"))
+    def test_get_credentials_and_project_id_passes_idp_extra_params(
+        self, mock_get_creds_and_proj_id, field_name
+    ):
+        self.instance.extras = {
+            "idp_issuer_url": "https://idp.example.com/oauth2/token",
+            "client_id": "CLIENT_ID",
+            "client_secret": "CLIENT_SECRET",
+            field_name: json.dumps({"audience": "api://airflow", "scope": "openid"}),
+        }
+
+        result = self.instance.get_credentials_and_project_id()
+
+        assert result == ("CREDENTIALS", "PROJECT_ID")
+        assert mock_get_creds_and_proj_id.call_args.kwargs["idp_extra_params_dict"] == {
+            "audience": "api://airflow",
+            "scope": "openid",
+        }
+
+    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id", return_value=("CREDENTIALS", "PROJECT_ID"))
+    def test_get_credentials_and_project_id_rejects_invalid_idp_extra_params(
+        self, mock_get_creds_and_proj_id
+    ):
+        self.instance.extras = {"idp_extra_parameters": "{not json"}
+
+        with pytest.raises(AirflowException, match="Invalid JSON"):
+            self.instance.get_credentials_and_project_id()
+
+        mock_get_creds_and_proj_id.assert_not_called()
+
     @mock.patch("requests.post")
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
     def test_connection_success(self, mock_get_creds_and_proj_id, requests_post):
