@@ -56,6 +56,11 @@ logger = logging.getLogger(__name__)
 
 CALLBACK_METRICS_PREFIX = "deadline_alerts"
 
+# Must be in sync with the identically named constants in airflow.sdk.definitions.deadline
+EVALUATION_TIMING_FIELD = "evaluation_timing"
+DAGRUN_CREATED_TIMING = "DAGRUN_CREATED"
+DAGRUN_QUEUED_TIMING = "DAGRUN_QUEUED"
+
 
 class classproperty:
     """
@@ -325,6 +330,7 @@ class ReferenceModels:
 
         # Set of required kwargs - subclasses should override this.
         required_kwargs: set[str] = set()
+        evaluation_timing: str = DAGRUN_CREATED_TIMING
 
         @classproperty
         def reference_name(cls: Any) -> str:
@@ -411,6 +417,7 @@ class ReferenceModels:
         """A deadline that returns when a DagRun was queued."""
 
         required_kwargs = {"dag_id", "run_id"}
+        evaluation_timing: str = DAGRUN_QUEUED_TIMING
 
         @provide_session
         def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime | None:
