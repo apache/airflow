@@ -844,7 +844,7 @@ workers:
       # Container level lifecycle hooks
       containerLifecycleHooks: {}
 
-      # Wait for a valid Kerberos ticket before starting worker or task containers.
+      # Wait for a valid Kerberos ticket before starting the Airflow Celery worker.
       # Disabling this probe allows them to start before a ticket is available.
       # Custom images must provide `klist` to use this probe.
       startupProbe:
@@ -1082,7 +1082,7 @@ workers:
       # Container level lifecycle hooks
       containerLifecycleHooks: {}
 
-      # Wait for a valid Kerberos ticket before starting worker or task containers.
+      # Wait for a valid Kerberos ticket before starting pod-template-file base container.
       # Disabling this probe allows them to start before a ticket is available.
       # Custom images must provide `klist` to use this probe.
       startupProbe:

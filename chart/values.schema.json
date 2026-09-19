@@ -2123,7 +2123,7 @@
                                     "default": false
                                 },
                                 "startupProbe": {
-                                    "description": "Wait for a valid Kerberos ticket before starting worker or task containers (runs `klist -s`). Disabling this probe allows them to start before a ticket is available.",
+                                    "description": "Wait for a valid Kerberos ticket before starting the Airflow Celery worker (runs `klist -s`). Disabling this probe allows them to start before a ticket is available.",
                                     "type": "object",
                                     "additionalProperties": false,
                                     "properties": {
@@ -2832,7 +2832,7 @@
                                     "default": false
                                 },
                                 "startupProbe": {
-                                    "description": "Wait for a valid Kerberos ticket before starting worker or task containers (runs `klist -s`). Disabling this probe allows them to start before a ticket is available.",
+                                    "description": "Wait for a valid Kerberos ticket before starting pod-template-file base container (runs `klist -s`). Disabling this probe allows them to start before a ticket is available.",
                                     "type": "object",
                                     "additionalProperties": false,
                                     "properties": {
