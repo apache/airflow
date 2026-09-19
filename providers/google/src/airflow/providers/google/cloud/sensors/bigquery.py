@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import time
 import warnings
 from collections.abc import Sequence
 from datetime import timedelta
@@ -334,12 +335,11 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
     streaming buffer`` errors.
 
     .. warning::
-        The sensor reads ``table.streaming_buffer`` from BigQuery's table
-        metadata, which is eventually consistent. For a short window right
-        after a streaming insert the buffer metadata is still absent, so the
-        sensor may report the buffer empty before it actually is. Known
-        limitation tracked at
-        https://github.com/apache/airflow/issues/66963
+        BigQuery's ``table.streaming_buffer`` metadata is eventually consistent.
+        The sensor mitigates this by requiring multiple consecutive empty
+        observations before reporting the buffer empty (configurable via
+        ``empty_confirmations``), but this may delay success by up to one
+        ``poke_interval`` compared to earlier releases.
 
     :param project_id: Google Cloud project containing the table.
     :param dataset_id: Dataset of the table to monitor.
@@ -347,6 +347,9 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
     :param gcp_conn_id: Airflow connection ID for GCP.
     :param impersonation_chain: Optional service account to impersonate, or a
         chained list of accounts. See the Google provider docs for details.
+    :param empty_confirmations: Number of consecutive empty readings required
+        before considering the streaming buffer empty. Must be at least 1.
+        Defaults to 2.
     :param deferrable: Run in deferrable mode using
         :class:`BigQueryStreamingBufferEmptyTrigger`.
     """
@@ -368,6 +371,7 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
         table_id: str,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        empty_confirmations: int = 2,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
@@ -376,12 +380,17 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
 
         super().__init__(**kwargs)
 
+        if empty_confirmations < 1:
+            raise ValueError("empty_confirmations must be at least 1")
+
         self.project_id = project_id
         self.dataset_id = dataset_id
         self.table_id = table_id
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.empty_confirmations = empty_confirmations
         self.deferrable = deferrable
+        self._consecutive_empty = 0
 
     def execute(self, context: Context) -> None:
         if not self.deferrable:
@@ -398,6 +407,7 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
                 poll_interval=self.poke_interval,
                 gcp_conn_id=self.gcp_conn_id,
                 impersonation_chain=self.impersonation_chain,
+                empty_confirmations=self.empty_confirmations,
             ),
             method_name="execute_complete",
         )
@@ -422,8 +432,28 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
         )
 
         hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
-        try:
-            table = hook.get_client(project_id=self.project_id).get_table(table_ref)
-        except NotFound as err:
-            raise ValueError(f"Table {table_uri} not found") from err
-        return table.streaming_buffer is None
+        client = hook.get_client(project_id=self.project_id)
+        while True:
+            try:
+                table = client.get_table(table_ref)
+            except NotFound as err:
+                raise ValueError(f"Table {table_uri} not found") from err
+
+            if table.streaming_buffer is not None:
+                self._consecutive_empty = 0
+                return False
+
+            self._consecutive_empty += 1
+            self.log.info(
+                "Streaming buffer reported empty (%s/%s confirmations) for table: %s",
+                self._consecutive_empty,
+                self.empty_confirmations,
+                table_uri,
+            )
+            if self._consecutive_empty >= self.empty_confirmations:
+                return True
+            if not self.reschedule:
+                return False
+
+            # Rescheduling rebuilds the operator, so finish the confirmation sequence in this process.
+            time.sleep(self.poke_interval)
