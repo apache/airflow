@@ -32,6 +32,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/apache/airflow/go-sdk/airflow"
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 	"github.com/apache/airflow/go-sdk/sdk"
@@ -544,6 +545,96 @@ func TestRunTaskInjectsRuntimeContext(t *testing.T) {
 	assert.Equal(t, start, *dagRun.DataIntervalStart)
 	require.NotNil(t, dagRun.DataIntervalEnd)
 	assert.Equal(t, end, *dagRun.DataIntervalEnd)
+}
+
+// A handler taking an airflow.Context gets on that one value everything
+// the runtime used to hand over as separate parameters.
+func TestRunTaskInjectsAirflowContext(t *testing.T) {
+	logical := time.Date(2026, 6, 9, 12, 0, 0, 0, time.UTC)
+
+	var got airflow.Context
+	bundle := buildBundle(t, func(r bundlev1.Registry) {
+		r.AddDag("test_dag").AddTaskWithName("ctxgrab",
+			func(actx airflow.Context) error {
+				got = actx
+				return nil
+			})
+	})
+
+	details := &genmodels.StartupDetails{
+		TI: genmodels.TaskInstance{
+			ID:        "550e8400-e29b-41d4-a716-446655440000",
+			DagID:     "test_dag",
+			TaskID:    "ctxgrab",
+			RunID:     "run1",
+			TryNumber: 2,
+			MapIndex:  ptr(-1),
+		},
+		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
+		TIContext: genmodels.TIRunContext{
+			DagRun: genmodels.DagRun{LogicalDate: logical},
+		},
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+	result := RunTask(context.Background(), bundle, details, comm, logger)
+	assertSucceedTask(t, result)
+
+	assert.Same(t, logger, got.Logger(), "the task's logger must arrive on the Context")
+	assert.NotNil(t, got.Client(), "the coordinator-backed client must arrive on the Context")
+
+	ti := got.TaskInstance()
+	assert.Equal(t, "test_dag", ti.DagID)
+	assert.Equal(t, "run1", ti.RunID)
+	assert.Equal(t, "ctxgrab", ti.TaskID)
+	assert.Equal(t, 2, ti.TryNumber)
+	assert.Nil(t, ti.MapIndex, "an unmapped task (map_index -1) must surface as nil")
+
+	dagRun := got.DagRun()
+	assert.Equal(t, "test_dag", dagRun.DagID)
+	assert.Equal(t, "run1", dagRun.RunID)
+	require.NotNil(t, dagRun.LogicalDate)
+	assert.Equal(t, logical, *dagRun.LogicalDate)
+
+	// A helper taking a plain context.Context recovers the same surface.
+	recovered, ok := airflow.FromContext(context.Context(got))
+	require.True(t, ok)
+	assert.Equal(t, ti, recovered.TaskInstance())
+}
+
+// Serve traps SIGINT/SIGTERM into the context it hands RunTask, so a
+// supervisor shutdown reaches the handler on actx.Done().
+func TestRunTaskAirflowContextHonorsShutdown(t *testing.T) {
+	var sawDone bool
+	var sawErr error
+	bundle := buildBundle(t, func(r bundlev1.Registry) {
+		r.AddDag("test_dag").AddTaskWithName("ctxcheck",
+			func(actx airflow.Context) error {
+				select {
+				case <-actx.Done():
+					sawDone = true
+				default:
+				}
+				sawErr = actx.Err()
+				return sawErr
+			})
+	})
+
+	details := newStartupDetails("ctxcheck")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+	result := RunTask(ctx, bundle, details, comm, logger)
+
+	assert.True(t, sawDone, "actx.Done() must fire on a cancelled task context")
+	assert.ErrorIs(t, sawErr, context.Canceled)
+	assertTaskState(t, result, genmodels.TaskStateStateFailed)
 }
 
 func TestRunTaskRuntimeContextMappedIndex(t *testing.T) {
