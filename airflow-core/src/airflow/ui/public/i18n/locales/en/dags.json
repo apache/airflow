@@ -67,6 +67,7 @@
         "title": "{{type}} Deleted Successfully"
       }
     },
+    "forceRunWarning": "Runs this task even though its upstream tasks did not succeed: trigger rule, branch skips and depends_on_past are ignored. Pools and concurrency limits still apply.",
     "markAs": {
       "button": "Mark {{type}} as...",
       "buttonTooltip": {
@@ -78,6 +79,7 @@
     "options": {
       "downstream": "Downstream",
       "existingTasks": "Clear existing tasks",
+      "forceRun": "Force run (ignore upstream dependencies)",
       "future": "Future",
       "onlyFailed": "Clear only failed tasks",
       "past": "Past",

@@ -54,6 +54,7 @@ const taskInstance: TaskInstanceResponse = {
   executor_config: "{}",
   hostname: null,
   id: "test_task_instance",
+  ignore_upstream_deps: false,
   logical_date: "2025-01-01T00:00:00Z",
   map_index: 0,
   max_tries: 0,

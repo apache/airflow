@@ -713,6 +713,10 @@ export type ClearTaskInstancesBody = {
      */
     run_on_latest_version?: boolean | null;
     prevent_running_task?: boolean;
+    /**
+     * Force run: re-run the cleared task instances even if their dependencies on other task instances are not met (trigger rule, branch/ShortCircuit skips, depends_on_past, wait_for_downstream, mapped upstream). Retry delay, sensor reschedule interval, pools, concurrency limits, paused Dags and Dag-run state still apply. Cannot be combined with include_upstream or include_downstream. Usually combine with only_failed=false, because an instance blocked on its dependencies is not in the failed state. The flag stays on the task instances until they are cleared again.
+     */
+    ignore_upstream_deps?: boolean;
     note?: string | null;
 };
 
@@ -1921,6 +1925,7 @@ export type TaskInstanceHistoryResponse = {
     executor: string | null;
     executor_config: string;
     dag_version: DagVersionResponse | null;
+    ignore_upstream_deps: boolean;
 };
 
 /**
@@ -1964,6 +1969,7 @@ export type TaskInstanceResponse = {
     triggerer_job: JobResponse | null;
     dag_version: DagVersionResponse | null;
     team_name?: string | null;
+    ignore_upstream_deps: boolean;
 };
 
 /**

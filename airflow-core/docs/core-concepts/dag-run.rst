@@ -251,6 +251,39 @@ There are multiple options you can select to re-run -
 * **Recursive** - All the tasks in the child Dags and parent Dags
 * **Failed** - Only the failed tasks in the Dag's most recent run
 
+Force run: ignoring upstream dependencies
+'''''''''''''''''''''''''''''''''''''''''
+
+Clearing re-runs a task only once its dependencies are met again. To run a task that is blocked by
+other task instances — an upstream that failed or was skipped by a branch or ``ShortCircuitOperator``,
+``depends_on_past`` / ``wait_for_downstream`` — tick **Force run (ignore upstream dependencies)** in
+the clear dialog, or pass ``ignore_upstream_deps: true`` to the ``clearTaskInstances`` endpoint.
+
+Force run only bypasses the dependencies on *other task instances*. Before using it, be aware that:
+
+* It is not a queue jump. Pools, ``max_active_tasks``, ``max_active_tis_per_dag`` /
+  ``max_active_tis_per_dagrun``, ``max_active_runs`` and executor slots still apply. Use
+  ``priority_weight`` to run a task earlier.
+* ``retry_delay`` and sensor ``poke_interval`` still apply, and a paused Dag is not unpaused.
+* Upstream tasks that never ran pushed no XComs: ``xcom_pull()`` and TaskFlow return-value
+  arguments resolve to ``None``; an ``XComArg`` with a custom key raises ``XComNotFound`` and the
+  forced task fails immediately.
+* Only the selected task instance is forced. Downstream tasks that are already ``skipped`` or
+  ``upstream_failed`` stay that way unless you clear them too, and clearing them re-applies their
+  own trigger rules. Force run cannot be combined with the *Upstream* / *Downstream* options.
+* Bypassing ``depends_on_past`` removes the ordering guarantee it exists for; incremental or
+  non-idempotent tasks may double-count or leave gaps.
+* A mapped task can be forced only once it has been expanded. If the upstream that produces the
+  mapped values never ran, the task is marked ``upstream_failed`` instead; force that upstream first.
+* Force run is a clear: with ``reset_dag_runs=false`` on a finished Dag run the task is never
+  scheduled. Combine it with ``only_failed=false``; a task blocked on its dependencies is not in
+  the ``failed`` state and would not be selected.
+* The flag stays on the task instance until it is cleared again by any means, so retries of a
+  forced try are forced too. Each try records the flag in the task instance history, and the
+  request is written to the audit log.
+* It uses the same permission as clearing and marking task instances; anyone who can clear a task
+  can force it.
+
 You can also clear the task through CLI using the command:
 
 .. code-block:: bash
