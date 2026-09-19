@@ -33,6 +33,7 @@ class TestDataSourceConfig:
         ("uri", "expected_type"),
         [
             ("s3://bucket/path", StorageType.S3),
+            ("az://container/path", StorageType.AZURE),
             ("file:///path/to/file", StorageType.LOCAL),
         ],
     )

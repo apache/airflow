@@ -73,7 +73,12 @@ class TestDataFusionEngine:
 
     @pytest.mark.parametrize(
         ("storage_type", "format", "scheme"),
-        [("s3", "parquet", "s3"), ("s3", "csv", "s3"), ("s3", "avro", "s3")],
+        [
+            ("s3", "parquet", "s3"),
+            ("s3", "csv", "s3"),
+            ("s3", "avro", "s3"),
+            ("azure", "parquet", "az"),
+        ],
     )
     @patch("airflow.providers.common.sql.datafusion.engine.get_object_storage_provider", autospec=True)
     @patch.object(DataFusionEngine, "_get_connection_config")
@@ -280,6 +285,94 @@ class TestDataFusionEngine:
         assert result.conn_id == expected.conn_id
         assert result.credentials == expected.credentials
         assert result.extra_config == expected.extra_config
+
+    def test_get_credentials_azure_with_shared_key(self):
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.login = "myaccount"
+        mock_conn.password = "mykey"
+        mock_conn.extra_dejson = {}
+        engine = DataFusionEngine()
+
+        credentials, extra_config = engine._get_credentials(mock_conn)
+
+        assert credentials == {"account": "myaccount", "access_key": "mykey"}
+        assert extra_config == {}
+
+    def test_get_credentials_azure_with_shared_access_key_extra(self):
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.login = "myaccount"
+        mock_conn.password = None
+        mock_conn.extra_dejson = {"shared_access_key": "extra-key"}
+        engine = DataFusionEngine()
+
+        credentials, extra_config = engine._get_credentials(mock_conn)
+
+        assert credentials == {"account": "myaccount", "access_key": "extra-key"}
+        assert extra_config == {}
+
+    def test_get_credentials_azure_with_service_principal(self):
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.login = "client-id"
+        mock_conn.password = "client-secret"
+        mock_conn.extra_dejson = {"tenant_id": "tenant-id"}
+        engine = DataFusionEngine()
+
+        credentials, extra_config = engine._get_credentials(mock_conn)
+
+        assert credentials == {
+            "account": "client-id",
+            "client_id": "client-id",
+            "client_secret": "client-secret",
+            "tenant_id": "tenant-id",
+        }
+        assert extra_config == {}
+
+    def test_get_credentials_azure_tenant_id_without_login_falls_back(self):
+        """A partial service-principal config (tenant_id alone) must not be forwarded --
+        DataFusion's binding panics on a partial client_id/client_secret/tenant_id combination."""
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.login = None
+        mock_conn.password = None
+        mock_conn.extra_dejson = {"tenant_id": "tenant-id"}
+        engine = DataFusionEngine()
+
+        credentials, extra_config = engine._get_credentials(mock_conn)
+
+        assert "tenant_id" not in credentials
+        assert "client_id" not in credentials
+
+    def test_get_credentials_azure_with_sas_token(self):
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.login = "myaccount"
+        mock_conn.password = None
+        mock_conn.extra_dejson = {"sas_token": "?sv=2020-08-04&sp=rl&sig=abc"}
+        engine = DataFusionEngine()
+
+        credentials, extra_config = engine._get_credentials(mock_conn)
+
+        assert credentials == {
+            "account": "myaccount",
+            "sas_query_pairs": [("sv", "2020-08-04"), ("sp", "rl"), ("sig", "abc")],
+        }
+        assert extra_config == {}
+
+    def test_get_credentials_azure_without_credentials_uses_ambient_auth(self):
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.login = "myaccount"
+        mock_conn.password = None
+        mock_conn.extra_dejson = {}
+        engine = DataFusionEngine()
+
+        credentials, extra_config = engine._get_credentials(mock_conn)
+
+        assert credentials == {"account": "myaccount"}
+        assert extra_config == {}
 
     def test_get_credentials_unknown_type(self):
         mock_conn = MagicMock()
