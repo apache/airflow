@@ -209,6 +209,34 @@ class TestLLMBranchOperator:
         output_type = mock_hook_cls.get_hook.return_value.create_agent.call_args.kwargs["output_type"]
         assert {m.value for m in output_type} == {"billing", "auth", "general"}
 
+    @patch.object(LLMBranchOperator, "do_branch")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_enum_options_are_sorted_regardless_of_downstream_order(
+        self, mock_hook_cls, mock_do_branch, make_mock_run_result
+    ):
+        """The option order the model sees is sorted, not whatever order downstream_task_ids iterates in.
+
+        ``downstream_task_ids`` is a set, so its iteration order depends on string hashing and
+        differs between worker processes. Option order is part of the question for a classifier
+        model, so it has to be the same on every worker. A reverse-sorted list stands in for an
+        unlucky set order; without ``sorted()`` the enum comes out reversed and this fails.
+        """
+        downstream_enum = Enum(
+            "DownstreamTasks", {"task_a": "task_a", "task_b": "task_b", "task_c": "task_c"}
+        )
+
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = make_mock_run_result(downstream_enum.task_a)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMBranchOperator(task_id="test", prompt="Pick", llm_conn_id="my_llm")
+        op.downstream_task_ids = ["task_c", "task_b", "task_a"]
+
+        op.execute(MagicMock())
+
+        output_type = mock_hook_cls.get_hook.return_value.create_agent.call_args.kwargs["output_type"]
+        assert [m.value for m in output_type] == ["task_a", "task_b", "task_c"]
+
     def test_execute_raises_on_no_downstream_tasks(self):
         """ValueError when the operator has no downstream tasks."""
         op = LLMBranchOperator(
