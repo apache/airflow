@@ -465,16 +465,20 @@ up Breeze, while parameter/connection extraction is a separate step.
 ### How a module gets a "Guide" link
 
 A module card links to the how-to guide section that documents it, alongside the
-generated API reference. Nothing declares that link: `registry_tools/docs_guides.py`
-reads the provider's own `docs/*.rst` and matches a class to a section when the
-section's title *opens with the class name as an inline literal* — ``` ``HookToolset`` ```
-or ``` ``AgentOperator`` & ``@task.agent`` ```. The anchor is derived from the whole
-title the way docutils derives its HTML id.
+generated API reference. `provider.yaml`'s `how-to-guide` fields are CI-enforced
+by `check_doc_files`, but they name a whole page, never a section, and cover only
+operators, sensors and transfers — not the toolset, hook and decorator pages this
+needs. So `registry_tools/docs_guides.py` reads the provider's own `docs/*.rst`
+and matches a class to a section when the section's title *opens with the class
+name as an inline literal* — ``` ``HookToolset`` ``` or ``` ``AgentOperator`` &
+``@task.agent`` ```. The anchor is derived from the whole title the way docutils
+derives its HTML id.
 
 That convention is what the guides already do, and it is deliberately the only
-signal: a hand-maintained class-to-guide table would keep pointing at sections
-that have since been renamed or split, and a link that lands on the wrong section
-is worse than no link. A class documented only in prose gets no Guide link.
+signal this resolves a section from: a hand-maintained class-to-guide table
+would keep pointing at sections that have since been renamed or split, and a
+link that lands on the wrong section is worse than no link. A class documented
+only in prose gets no Guide link.
 
 Growing the set of modules that get a Guide link means changing that provider's
 section titles to lead with an inline literal, not touching this extractor.
