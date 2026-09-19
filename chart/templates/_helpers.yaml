@@ -70,20 +70,6 @@ If release name contains chart name it will be used as a full name.
         name: {{ template "fernet_key_secret" . }}
         key: fernet-key
   {{- end }}
-  {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__DATABASE__SQL_ALCHEMY_CONN }}
-  - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
-    valueFrom:
-      secretKeyRef:
-        name: {{ template "airflow_metadata_secret" . }}
-        key: {{ template "airflow_metadata_secret_key" . }}
-  {{- end }}
-  {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW_CONN_AIRFLOW_DB }}
-  - name: AIRFLOW_CONN_AIRFLOW_DB
-    valueFrom:
-      secretKeyRef:
-        name: {{ template "airflow_metadata_secret" . }}
-        key: {{ template "airflow_metadata_secret_key" . }}
-  {{- end }}
   {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__API__SECRET_KEY }}
   - name: AIRFLOW__API__SECRET_KEY
     valueFrom:
@@ -149,6 +135,26 @@ If release name contains chart name it will be used as a full name.
       secretKeyRef:
         name: {{ template "jwt_secret" . }}
         key: jwt-secret
+  {{- end }}
+{{- end }}
+
+{{/* Metadata database credentials, only needed by components that talk to the
+     metadata DB. Components that merely execute tasks do not: the task SDK reaches
+     the Execution API instead, so they have no reason to hold these. */}}
+{{- define "metadata_db_environment" }}
+  {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__DATABASE__SQL_ALCHEMY_CONN }}
+  - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+    valueFrom:
+      secretKeyRef:
+        name: {{ template "airflow_metadata_secret" . }}
+        key: {{ template "airflow_metadata_secret_key" . }}
+  {{- end }}
+  {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW_CONN_AIRFLOW_DB }}
+  - name: AIRFLOW_CONN_AIRFLOW_DB
+    valueFrom:
+      secretKeyRef:
+        name: {{ template "airflow_metadata_secret" . }}
+        key: {{ template "airflow_metadata_secret_key" . }}
   {{- end }}
 {{- end }}
 

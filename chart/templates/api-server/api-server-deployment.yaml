@@ -156,6 +156,7 @@ spec:
           env:
             {{- include "custom_airflow_environment" . | indent 10 }}
             {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- include "metadata_db_environment" . | indent 10 }}
             {{- if .Values.apiServer.waitForMigrations.env }}
               {{- tpl (toYaml .Values.apiServer.waitForMigrations.env) $ | nindent 12 }}
             {{- end }}
@@ -232,6 +233,7 @@ spec:
           env:
             {{- include "custom_airflow_environment" . | indent 10 }}
             {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- include "metadata_db_environment" . | indent 10 }}
             {{- include "jwt_secret_environment" . | indent 10 }}
             {{- include "container_extra_envs" (list . .Values.apiServer.env) | indent 10 }}
         {{- if .Values.apiServer.extraContainers }}
