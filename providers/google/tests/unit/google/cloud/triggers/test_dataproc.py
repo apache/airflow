@@ -986,7 +986,7 @@ class TestDataprocSubmitJobDirectTrigger:
         for attribute, value in identity.items():
             setattr(submit_job_direct_trigger, attribute, value)
 
-        assert submit_job_direct_trigger.build_assigned_job_id() is None
+        assert submit_job_direct_trigger._build_assigned_job_id() is None
 
     @pytest.mark.parametrize(
         "difference",
@@ -994,13 +994,13 @@ class TestDataprocSubmitJobDirectTrigger:
     )
     def test_build_assigned_job_id_identifies_one_deferral(self, submit_job_direct_trigger, difference):
         attach_trigger_identity(submit_job_direct_trigger)
-        job_id = submit_job_direct_trigger.build_assigned_job_id()
+        job_id = submit_job_direct_trigger._build_assigned_job_id()
 
         attach_trigger_identity(submit_job_direct_trigger)
-        assert submit_job_direct_trigger.build_assigned_job_id() == job_id
+        assert submit_job_direct_trigger._build_assigned_job_id() == job_id
 
         attach_trigger_identity(submit_job_direct_trigger, **difference)
-        assert submit_job_direct_trigger.build_assigned_job_id() != job_id
+        assert submit_job_direct_trigger._build_assigned_job_id() != job_id
 
     @pytest.mark.parametrize(
         "difference",
@@ -1017,13 +1017,13 @@ class TestDataprocSubmitJobDirectTrigger:
         self, submit_job_direct_trigger, difference
     ):
         attach_trigger_identity(submit_job_direct_trigger, ti_uuid=None)
-        job_id = submit_job_direct_trigger.build_assigned_job_id()
+        job_id = submit_job_direct_trigger._build_assigned_job_id()
 
         attach_trigger_identity(submit_job_direct_trigger, ti_uuid=None)
-        assert submit_job_direct_trigger.build_assigned_job_id() == job_id
+        assert submit_job_direct_trigger._build_assigned_job_id() == job_id
 
         attach_trigger_identity(submit_job_direct_trigger, ti_uuid=None, **difference)
-        assert submit_job_direct_trigger.build_assigned_job_id() != job_id
+        assert submit_job_direct_trigger._build_assigned_job_id() != job_id
 
     @pytest.mark.asyncio
     @mock.patch(
@@ -1033,7 +1033,7 @@ class TestDataprocSubmitJobDirectTrigger:
         self, mock_get_async_hook, submit_job_direct_trigger
     ):
         attach_trigger_identity(submit_job_direct_trigger)
-        expected_job_id = submit_job_direct_trigger.build_assigned_job_id()
+        expected_job_id = submit_job_direct_trigger._build_assigned_job_id()
         submitted = {}
 
         def submit_job(**kwargs):
@@ -1080,7 +1080,7 @@ class TestDataprocSubmitJobDirectTrigger:
 
         await trigger.run().asend(None)
 
-        assert mock_hook.submit_job.call_args.kwargs["request_id"] == trigger.build_assigned_job_id()
+        assert mock_hook.submit_job.call_args.kwargs["request_id"] == trigger._build_assigned_job_id()
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("request_id", [TEST_REQUEST_ID, None])
@@ -1092,7 +1092,7 @@ class TestDataprocSubmitJobDirectTrigger:
     ):
         attach_trigger_identity(submit_job_direct_trigger)
         submit_job_direct_trigger.request_id = request_id
-        expected_job_id = submit_job_direct_trigger.build_assigned_job_id()
+        expected_job_id = submit_job_direct_trigger._build_assigned_job_id()
         mock_hook = mock_get_async_hook.return_value
         mock_hook.submit_job.side_effect = AlreadyExists("job already exists")
         get_future = asyncio.Future()

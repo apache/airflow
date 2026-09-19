@@ -283,7 +283,7 @@ class DataprocSubmitJobDirectTrigger(DataprocBaseTrigger):
             },
         )
 
-    def build_assigned_job_id(self) -> str | None:
+    def _build_assigned_job_id(self) -> str | None:
         """Derive the job id to assign for this deferral, or None when the trigger should not name it."""
         ti = self.task_instance
         if ti is None or self.trigger_id is None or (self.job.get("reference") or {}).get("job_id"):
@@ -380,7 +380,7 @@ class DataprocSubmitJobDirectTrigger(DataprocBaseTrigger):
         try:
             hook = self.get_async_hook()
             job_to_submit = self.job
-            assigned_job_id = self.build_assigned_job_id()
+            assigned_job_id = self._build_assigned_job_id()
             if assigned_job_id is not None:
                 # Naming the job up front keeps its id known when the submit call is interrupted, and
                 # sends a re-submission by a restarted triggerer back to the job already running.
