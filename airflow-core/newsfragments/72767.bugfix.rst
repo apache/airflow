@@ -1,0 +1,1 @@
+Fixed a race where a deferred task was marked failed when the stale executor success from the pre-deferral worker exit arrived after the trigger had already resumed the attempt and it was running. The scheduler now ignores a same-try executor success for a running task instance that still carries ``next_method``, instead of treating it as an external state mismatch.
