@@ -3552,6 +3552,7 @@ main {
 /* Module Actions (View Docs, Source) */
 .provider-detail-page .module-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
   margin-top: var(--space-3);
