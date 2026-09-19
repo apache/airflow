@@ -145,6 +145,46 @@ class AwsLogsHook(AwsBaseHook):
 
             continuation_token.value = response["nextForwardToken"]
 
+    def describe_log_streams(
+        self,
+        log_group: str,
+        log_stream_name_prefix: str,
+    ) -> list[dict[str, Any]]:
+        """
+        Return every log stream in ``log_group`` whose name starts with ``log_stream_name_prefix``.
+
+        Used to discover log streams that are related to, but don't share the exact name of,
+        a "primary" stream -- for example a deferred task's triggerer logs, which are stored
+        under ``<task log stream>.trigger.<job id>.log`` rather than under the task's own
+        stream name.
+
+        .. seealso::
+            - :external+boto3:py:meth:`CloudWatchLogs.Client.describe_log_streams`
+
+        :param log_group: The name of the log group.
+        :param log_stream_name_prefix: Only log streams whose name starts with this prefix
+            are returned.
+        :return: All matching log streams (each a dict as returned by the AWS API, notably
+            including ``logStreamName``), or an empty list if the log group doesn't exist yet
+            (e.g. nothing has ever been logged there).
+        """
+        streams: list[dict[str, Any]] = []
+        paginator = self.conn.get_paginator("describe_log_streams")
+        try:
+            for response in paginator.paginate(
+                logGroupName=log_group,
+                logStreamNamePrefix=log_stream_name_prefix,
+            ):
+                streams.extend(response.get("logStreams", []))
+        except ClientError as error:
+            # No log group yet means nothing has been logged there -- there's simply
+            # nothing to find, not an error worth surfacing to the caller.
+            if error.response.get("Error", {}).get("Code") == "ResourceNotFoundException":
+                return []
+            raise
+        return streams
+
+
     async def describe_log_streams_async(
         self, log_group: str, stream_prefix: str, order_by: str, count: int
     ) -> dict[str, Any] | None:
