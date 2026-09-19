@@ -131,10 +131,17 @@ def git_show(tag: str, path: str) -> str | None:
 
 
 def git_ls_tree(tag: str, prefix: str) -> list[str]:
-    """List the file paths under a prefix at a specific git tag."""
+    """List the file paths under a prefix at a specific git tag.
+
+    Decodes via the process locale (`text=True`), unlike `git_cat_file_batch`'s
+    UTF-8 decode -- and `git_cat_file_batch` re-encodes these same strings
+    (passed straight through by `read_guide_docs`) into its stdin, so a
+    non-UTF-8 locale could break byte-for-byte round-trip. No such path exists
+    under `providers/` today.
+    """
     try:
         result = subprocess.run(
-            ["git", "ls-tree", "-r", "--name-only", tag, "--", prefix],
+            ["git", "-c", "core.quotePath=false", "ls-tree", "-r", "--name-only", tag, "--", prefix],
             capture_output=True,
             text=True,
             cwd=AIRFLOW_ROOT,
@@ -143,6 +150,48 @@ def git_ls_tree(tag: str, prefix: str) -> list[str]:
     except subprocess.CalledProcessError:
         return []
     return [line for line in result.stdout.splitlines() if line]
+
+
+def git_cat_file_batch(tag: str, paths: list[str]) -> dict[str, str]:
+    """Read multiple files at a specific git tag in one `git cat-file --batch` call.
+
+    Returns a mapping of path -> content for paths that exist at the tag; a path
+    git reports as missing is simply absent from the result, matching git_show's
+    "return None for a missing path" semantics.
+
+    Decode failures are left unguarded on purpose: .rst files are Sphinx
+    convention UTF-8, an explicit "utf-8" decode is more predictable than
+    following the process locale, and a UnicodeDecodeError should surface loudly
+    rather than being swallowed -- the same posture git_show takes toward
+    CalledProcessError (fails loud, doesn't paper over bad data).
+    """
+    if not paths:
+        return {}
+
+    stdin = ("\n".join(f"{tag}:{p}" for p in paths) + "\n").encode("utf-8")
+    result = subprocess.run(
+        ["git", "cat-file", "--batch"],
+        input=stdin,
+        capture_output=True,
+        cwd=AIRFLOW_ROOT,
+        check=True,
+    )
+
+    output = result.stdout
+    pos = 0
+    contents: dict[str, str] = {}
+    for path in paths:
+        newline_idx = output.index(b"\n", pos)
+        header = output[pos:newline_idx].decode("utf-8")
+        pos = newline_idx + 1
+        if header.endswith(" missing"):
+            continue
+        _sha1, _obj_type, size_str = header.split(" ")
+        size = int(size_str)
+        content_bytes = output[pos : pos + size]
+        pos += size + 1  # skip the protocol's trailing LF, which isn't counted in size
+        contents[path] = content_bytes.decode("utf-8")
+    return contents
 
 
 def git_tag_exists(tag: str) -> bool:
@@ -208,16 +257,19 @@ def read_guide_docs(tag: str, layout: str, dir_path: str) -> dict[str, str]:
         return {}
 
     docs_prefix = f"providers/{dir_path}/docs/"
-    docs: dict[str, str] = {}
+    survivors: list[tuple[str, str]] = []
     for path in git_ls_tree(tag, docs_prefix):
         if not path.endswith(".rst"):
             continue
         relative = path[len(docs_prefix) :]
         if not is_guide_page(relative):
             continue
-        if content := git_show(tag, path):
-            docs[relative] = content
-    return docs
+        survivors.append((relative, path))
+
+    batch_result = git_cat_file_batch(tag, [full_path for _relative, full_path in survivors])
+    return {
+        relative: batch_result[full_path] for relative, full_path in survivors if batch_result.get(full_path)
+    }
 
 
 def parse_pyproject_toml_content(content: str, layout: str) -> dict[str, Any]:

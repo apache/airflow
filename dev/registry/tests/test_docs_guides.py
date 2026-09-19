@@ -232,7 +232,11 @@ def test_readers_agree_on_which_pages_are_guides(tmp_path):
             autospec=True,
             return_value=[docs_prefix + relative for relative in relative_paths],
         ),
-        patch("extract_versions.git_show", autospec=True, return_value="Prose.\n"),
+        patch(
+            "extract_versions.git_cat_file_batch",
+            autospec=True,
+            side_effect=lambda tag, paths: {p: "Prose.\n" for p in paths},
+        ),
     ):
         from_tag = read_guide_docs_from_tag("providers-test/1.0.0", "new", "test")
 

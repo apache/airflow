@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import textwrap
-from unittest.mock import call, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 from extract_versions import (
@@ -28,6 +28,8 @@ from extract_versions import (
     SCRIPT_DIR,
     extract_modules_from_yaml,
     extract_version_data,
+    git_cat_file_batch,
+    git_ls_tree,
     read_guide_docs,
 )
 from registry_tools.types import CLASS_LEVEL_SECTIONS, DICT_SHAPED_CLASS_LEVEL_SECTIONS
@@ -233,13 +235,15 @@ class TestExtractModulesGuideUrls:
 
     def _extract(self, layout="new", docs_paths=("providers/test/docs/toolsets.rst",)):
         def fake_git_show(_tag, path):
-            if path.endswith("toolsets.rst"):
-                return self.GUIDE
             return self.SOURCE if path.endswith(".py") else None
+
+        def fake_git_cat_file_batch(_tag, paths):
+            return {p: self.GUIDE for p in paths}
 
         with (
             patch("extract_versions.git_ls_tree", autospec=True, return_value=list(docs_paths)),
             patch("extract_versions.git_show", autospec=True, side_effect=fake_git_show),
+            patch("extract_versions.git_cat_file_batch", autospec=True, side_effect=fake_git_cat_file_batch),
         ):
             return extract_modules_from_yaml(
                 self.PROVIDER_YAML, "providers-test/1.0.0", layout, "test", "test", "1.0.0"
@@ -278,14 +282,118 @@ class TestReadGuideDocs:
 
         with (
             patch("extract_versions.git_ls_tree", autospec=True, return_value=paths),
-            patch("extract_versions.git_show", autospec=True, return_value="Prose.\n") as mock_git_show,
+            patch(
+                "extract_versions.git_cat_file_batch",
+                autospec=True,
+                side_effect=lambda tag, paths: {p: "Prose.\n" for p in paths},
+            ) as mock_git_cat_file_batch,
         ):
             result = read_guide_docs("providers-test/1.0.0", "new", "test")
 
         # Mutation canary: if the `is_guide_page` filter in read_guide_docs is
         # removed, this dict grows two more keys and this assertion goes red.
         assert set(result) == {"toolsets.rst"}
-        # Mutation canary: without the filter, git_show is also called for the
-        # two skipped paths -- this assertion goes red too, proving the
-        # `continue` runs before git_show, not just before the dict write.
-        assert mock_git_show.call_args_list == [call("providers-test/1.0.0", docs_prefix + "toolsets.rst")]
+        # Mutation canary: without the filter, the two skipped paths would also
+        # be included in the batch call's path list -- this assertion goes red
+        # too, proving the filtering runs before the batch call, not just
+        # before the dict write.
+        assert mock_git_cat_file_batch.call_args_list == [
+            call("providers-test/1.0.0", [docs_prefix + "toolsets.rst"])
+        ]
+
+    def test_skips_a_page_whose_content_is_an_empty_string(self):
+        # Mutation canary: replacing `batch_result.get(full_path)` with
+        # `full_path in batch_result` in read_guide_docs's comprehension makes
+        # this page reappear as `{"empty.rst": ""}`, turning this assertion red.
+        docs_prefix = "providers/test/docs/"
+        paths = [docs_prefix + "empty.rst"]
+
+        with (
+            patch("extract_versions.git_ls_tree", autospec=True, return_value=paths),
+            patch(
+                "extract_versions.git_cat_file_batch",
+                autospec=True,
+                return_value={docs_prefix + "empty.rst": ""},
+            ),
+        ):
+            result = read_guide_docs("providers-test/1.0.0", "new", "test")
+
+        assert result == {}
+
+
+class TestGitLsTree:
+    def test_passes_quote_path_false_to_git(self):
+        mock_result = MagicMock()
+        mock_result.stdout = "providers/test/docs/toolsets.rst\n"
+        with patch("extract_versions.subprocess.run", return_value=mock_result) as mock_run:
+            git_ls_tree("providers-test/1.0.0", "providers/test/docs/")
+
+        assert mock_run.call_args.args[0] == [
+            "git",
+            "-c",
+            "core.quotePath=false",
+            "ls-tree",
+            "-r",
+            "--name-only",
+            "providers-test/1.0.0",
+            "--",
+            "providers/test/docs/",
+        ]
+
+
+def _batch_hit(sha1: str, obj_type: str, content: bytes) -> bytes:
+    return f"{sha1} {obj_type} {len(content)}\n".encode() + content + b"\n"
+
+
+def _batch_missing(spec: str) -> bytes:
+    return f"{spec} missing\n".encode()
+
+
+class TestGitCatFileBatch:
+    def test_empty_paths_returns_empty_dict_without_subprocess(self):
+        with patch("extract_versions.subprocess.run") as mock_run:
+            result = git_cat_file_batch("providers-test/1.0.0", [])
+
+        assert result == {}
+        mock_run.assert_not_called()
+
+    def test_two_hits_with_different_sizes_and_multibyte_content(self):
+        tag = "providers-test/1.0.0"
+        paths = ["providers/test/docs/a.rst", "providers/test/docs/b.rst"]
+        first_content = b"short\n"
+        second_content = "café prôse with more text\n".encode()
+        payload = _batch_hit("aaa1", "blob", first_content) + _batch_hit("bbb2", "blob", second_content)
+
+        mock_result = MagicMock()
+        mock_result.stdout = payload
+        with patch("extract_versions.subprocess.run", return_value=mock_result):
+            result = git_cat_file_batch(tag, paths)
+
+        assert result == {
+            paths[0]: "short\n",
+            paths[1]: "café prôse with more text\n",
+        }
+
+    def test_hit_followed_by_missing_path(self):
+        tag = "providers-test/1.0.0"
+        paths = ["providers/test/docs/a.rst", "providers/test/docs/missing.rst"]
+        payload = _batch_hit("aaa1", "blob", b"content\n") + _batch_missing(f"{tag}:{paths[1]}")
+
+        mock_result = MagicMock()
+        mock_result.stdout = payload
+        with patch("extract_versions.subprocess.run", return_value=mock_result):
+            result = git_cat_file_batch(tag, paths)
+
+        assert result == {paths[0]: "content\n"}
+
+    def test_all_missing_returns_empty_dict(self):
+        tag = "providers-test/1.0.0"
+        paths = ["providers/test/docs/a.rst", "providers/test/docs/b.rst"]
+        payload = _batch_missing(f"{tag}:{paths[0]}") + _batch_missing(f"{tag}:{paths[1]}")
+
+        mock_result = MagicMock()
+        mock_result.stdout = payload
+        with patch("extract_versions.subprocess.run", return_value=mock_result):
+            result = git_cat_file_batch(tag, paths)
+
+        assert result == {}
