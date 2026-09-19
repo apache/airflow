@@ -98,12 +98,9 @@ class SFTPTrigger(BaseTrigger):
                         if _newer_than:
                             if file.attrs.mtime is None:
                                 continue
-                            mod_time = datetime.fromtimestamp(float(file.attrs.mtime)).strftime(
-                                "%Y%m%d%H%M%S"
-                            )
-                            mod_time_utc = timezone.convert_to_utc(
-                                datetime.strptime(mod_time, "%Y%m%d%H%M%S")
-                            )
+                            mod_time_utc = datetime.fromtimestamp(
+                                float(file.attrs.mtime), tz=timezone.utc
+                            ).replace(microsecond=0)
                             if _newer_than <= mod_time_utc:
                                 files_sensed.append(file.filename)
                         else:
@@ -117,6 +114,8 @@ class SFTPTrigger(BaseTrigger):
                         )
                         return
                 else:
+                    # The string-based comparison still needs a timezone-safe hook interface:
+                    # https://github.com/apache/airflow/issues/73382
                     mod_time = await hook.get_mod_time(self.path)
                     if _newer_than:
                         mod_time_utc = timezone.convert_to_utc(datetime.strptime(mod_time, "%Y%m%d%H%M%S"))

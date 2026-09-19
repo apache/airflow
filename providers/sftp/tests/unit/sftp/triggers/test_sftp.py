@@ -19,6 +19,11 @@ from __future__ import annotations
 import asyncio
 import datetime
 import importlib
+import json
+import os
+import subprocess
+import sys
+import textwrap
 import time
 import warnings
 from unittest import mock
@@ -40,6 +45,88 @@ else:
 
 
 class TestSFTPTrigger:
+    @pytest.mark.parametrize(
+        ("process_timezone", "airflow_timezone", "mtime", "newer_than", "expected"),
+        [
+            ("UTC", "America/New_York", 1704110400, "2024-01-01T14:00:00+00:00", False),
+            ("America/New_York", "UTC", 1704110400, "2024-01-01T10:00:00+00:00", True),
+            ("UTC", "UTC", 1704110400, "2024-01-01T10:00:00+00:00", True),
+            ("UTC", "UTC", 1704110400, "2024-01-01T14:00:00+00:00", False),
+            ("UTC", "America/New_York", 1704110400, "2024-01-01T12:00:00+00:00", True),
+            ("America/New_York", "UTC", 1704110400, "2024-01-01T17:45:00+05:45", True),
+            ("UTC", "Asia/Kathmandu", 1704110400, "2024-01-01T10:00:00+00:00", True),
+            ("UTC", "America/New_York", 1704110400.75, "2024-01-01T12:00:00.500000+00:00", False),
+            ("UTC", "America/New_York", None, "2024-01-01T10:00:00+00:00", False),
+            ("UTC", "America/New_York", None, None, True),
+            ("America/New_York", "UTC", 1704110400, None, True),
+        ],
+    )
+    def test_file_pattern_newer_than_timezones(
+        self, process_timezone, airflow_timezone, mtime, newer_than, expected
+    ):
+        # Initialize Airflow normally and isolate the process-global timezone settings.
+        code = textwrap.dedent(
+            """
+            import asyncio
+            import datetime
+            import json
+            import sys
+            import time
+            from unittest import mock
+
+            time.tzset()
+
+            from asyncssh.sftp import SFTPAttrs, SFTPName
+            from airflow.providers.common.compat.sdk import timezone
+            from airflow.providers.sftp.triggers.sftp import SFTPTrigger
+
+            mtime, threshold = json.loads(sys.argv[1])
+            newer_than = datetime.datetime.fromisoformat(threshold) if threshold else None
+
+            @mock.patch("airflow.providers.sftp.triggers.sftp.asyncio.sleep", autospec=True,
+                        side_effect=asyncio.CancelledError)
+            @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync.get_files_and_attrs_by_pattern",
+                        autospec=True)
+            async def run(get_files, sleep):
+                get_files.return_value = [SFTPName("file.txt", attrs=SFTPAttrs(mtime=mtime))]
+                trigger = SFTPTrigger(path="/files", file_pattern="*.txt", newer_than=newer_than)
+                generator = trigger.run()
+                try:
+                    try:
+                        event = await anext(generator)
+                    except asyncio.CancelledError:
+                        event = None
+                    get_files.assert_awaited_once()
+                    if event is None:
+                        sleep.assert_awaited_once_with(trigger.poke_interval)
+                    return event.payload if event else None
+                finally:
+                    await generator.aclose()
+
+            print(json.dumps({
+                "event": asyncio.run(run()),
+                "process_hour": time.localtime(1704110400).tm_hour,
+                "default_timezone": str(timezone.datetime(2024, 1, 1).tzinfo),
+            }))
+            """
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", code, json.dumps([mtime, newer_than])],
+            env={**os.environ, "TZ": process_timezone, "AIRFLOW__CORE__DEFAULT_TIMEZONE": airflow_timezone},
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=60,
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+        observed = json.loads(result.stdout.splitlines()[-1])
+        assert observed["default_timezone"] == airflow_timezone
+        assert observed["process_hour"] == (7 if process_timezone == "America/New_York" else 12)
+        expected_event = (
+            {"status": "success", "message": "Sensed 1 files: ['file.txt']"} if expected else None
+        )
+        assert observed["event"] == expected_event, observed
+
     def test_no_timezone_deprecated_import_warning_on_module_reload(self):
         with warnings.catch_warnings(record=True) as captured_warnings:
             warnings.simplefilter("always")
