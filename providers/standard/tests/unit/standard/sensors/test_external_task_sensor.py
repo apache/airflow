@@ -1185,6 +1185,19 @@ exit 0
         assert op._handle_execution_date_fn(context) == DEFAULT_DATE
 
 
+def _api_server_error(status_code: int):
+    """Build the error a task gets back when an execution API call fails."""
+    from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+    from airflow.sdk.execution_time.comms import ErrorResponse
+
+    return AirflowRuntimeError(
+        ErrorResponse(
+            error=ErrorType.API_SERVER_ERROR,
+            detail={"status_code": status_code, "message": f"Server returned {status_code}"},
+        )
+    )
+
+
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Different test for AF 2")
 @pytest.mark.usefixtures("testing_dag_bundle")
 class TestExternalTaskSensorV3:
@@ -1444,6 +1457,105 @@ class TestExternalTaskSensorV3:
         assert exc.value.trigger.external_dag_id == "test_dag_parent"
         assert exc.value.trigger.external_task_ids == ["test_task"]
         assert exc.value.trigger.logical_dates == [DEFAULT_DATE]
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Dag lookup requires Airflow 3.2+")
+    @pytest.mark.execution_timeout(10)
+    def test_check_existence_dag_not_found(self, dag_maker):
+        """The sensor fails fast when the external Dag is not registered."""
+        with dag_maker("test_dag_child"):
+            op = ExternalTaskSensor(
+                task_id="test_external_task_sensor_check",
+                external_dag_id="non_existing_dag",
+                external_task_id=None,
+                check_existence=True,
+            )
+
+        self.context["ti"].get_dag.side_effect = _api_server_error(404)
+
+        with pytest.raises(ExternalDagNotFoundError, match="non_existing_dag"):
+            op.execute(context=self.context)
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Dag lookup requires Airflow 3.2+")
+    @pytest.mark.execution_timeout(10)
+    def test_check_existence_dag_not_found_deferrable(self, dag_maker):
+        """A deferrable sensor fails fast too, rather than deferring on a missing Dag."""
+        with dag_maker("test_dag_child"):
+            op = ExternalTaskSensor(
+                task_id="test_external_task_sensor_check",
+                external_dag_id="non_existing_dag",
+                external_task_id=None,
+                deferrable=True,
+                check_existence=True,
+            )
+
+        self.context["ti"].get_dag.side_effect = _api_server_error(404)
+
+        with pytest.raises(ExternalDagNotFoundError, match="non_existing_dag"):
+            op.execute(context=self.context)
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Dag lookup requires Airflow 3.2+")
+    @pytest.mark.execution_timeout(10)
+    def test_check_existence_checked_only_once(self, dag_maker, caplog):
+        """An existing Dag is looked up on the first poke only."""
+        with dag_maker("test_dag_child"):
+            op = ExternalTaskSensor(
+                task_id="test_external_task_sensor_check",
+                external_dag_id="test_dag_parent",
+                external_task_id="test_task",
+                check_existence=True,
+            )
+
+        assert op.poke(self.context) is False
+        assert op.poke(self.context) is False
+
+        self.context["ti"].get_dag.assert_called_once_with("test_dag_parent")
+        assert {
+            "event": "Task and task group existence cannot be checked on Airflow 3",
+            "dag_id": "test_dag_parent",
+            "log_level": "warning",
+        } in caplog
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Dag lookup requires Airflow 3.2+")
+    @pytest.mark.execution_timeout(10)
+    def test_check_existence_other_error_is_not_swallowed(self, dag_maker):
+        """Errors other than a missing Dag keep their own type."""
+        from airflow.sdk.exceptions import AirflowRuntimeError
+
+        with dag_maker("test_dag_child"):
+            op = ExternalTaskSensor(
+                task_id="test_external_task_sensor_check",
+                external_dag_id="test_dag_parent",
+                external_task_id=None,
+                check_existence=True,
+            )
+
+        self.context["ti"].get_dag.side_effect = _api_server_error(500)
+
+        with pytest.raises(AirflowRuntimeError):
+            op.poke(self.context)
+
+    @mock.patch("airflow.providers.standard.sensors.external_task.AIRFLOW_V_3_2_PLUS", False)
+    @pytest.mark.execution_timeout(10)
+    def test_check_existence_skipped_before_3_2(self, dag_maker, caplog):
+        """Before Airflow 3.2 there is no execution API to look up a Dag."""
+        with dag_maker("test_dag_child"):
+            op = ExternalTaskSensor(
+                task_id="test_external_task_sensor_check",
+                external_dag_id="test_dag_parent",
+                external_task_id=None,
+                check_existence=True,
+            )
+
+        with caplog.at_level(logging.WARNING):
+            assert op.poke(self.context) is False
+
+        self.context["ti"].get_dag.assert_not_called()
+        assert {
+            "event": "External Dag existence cannot be checked on this Airflow version",
+            "dag_id": "test_dag_parent",
+            "required_airflow_version": "3.2",
+            "log_level": "warning",
+        } in caplog
 
     def test_poke_interval_set_on_init(self):
         """Test that poke_interval is set on init and the deprecated poll_interval attribute mirrors it."""
