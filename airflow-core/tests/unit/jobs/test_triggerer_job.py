@@ -68,6 +68,7 @@ from airflow.jobs.triggerer_job_runner import (
 )
 from airflow.models import Connection, DagModel, DagRun, Trigger, Variable
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.xcom import XComModel
@@ -295,6 +296,22 @@ def test_start_opts_into_fork_exec(monkeypatch, mocker, platform_uses_exec):
 
     assert base_start.call_args.kwargs["use_exec"] is platform_uses_exec
     assert base_start.call_args.kwargs["target"] == TriggerRunnerSupervisor.run_in_process
+
+
+@pytest.mark.parametrize("option_value", ["True", "False"])
+def test_start_ignores_execute_tasks_new_python_interpreter(mocker, option_value):
+    """
+    ``[core] execute_tasks_new_python_interpreter`` is a task-process opt-in and must not reach the
+    runner child, which only follows the platform gate (pinned to bare fork by ``_force_bare_fork``).
+    """
+    base_start = mocker.patch(
+        "airflow.sdk.execution_time.supervisor.WatchedSubprocess.start", return_value=MagicMock()
+    )
+
+    with conf_vars({("core", "execute_tasks_new_python_interpreter"): option_value}):
+        TriggerRunnerSupervisor.start(job=Job(id=999), capacity=10)
+
+    assert base_start.call_args.kwargs["use_exec"] is False
 
 
 @pytest.fixture
@@ -653,7 +670,7 @@ def test_create_workload_uses_supervisor_id_without_job(jobless_supervisor, mock
     serialized_dag_model = mocker.Mock()
     task = mocker.Mock(start_from_trigger=False)
     serialized_dag_model.dag.get_task.return_value = task
-    dag_bag.get_serialized_dag_model.return_value = serialized_dag_model
+    dag_bag.get_serialized_dag_model_for_run.return_value = serialized_dag_model
 
     render_log_fname = mocker.Mock(return_value="/logs/ti")
 
@@ -666,6 +683,91 @@ def test_create_workload_uses_supervisor_id_without_job(jobless_supervisor, mock
 
     factory = jobless_supervisor.logger_cache[trigger.id]
     assert factory.log_path == f"/logs/ti.trigger.{jobless_supervisor.id}.log"
+
+
+@pytest.mark.parametrize(
+    "pinned", [True, False], ids=["pinned-uses-run-created-version", "unpinned-uses-latest-version"]
+)
+def test_create_workload_resolves_serialized_dag_from_run(jobless_supervisor, mocker, pinned):
+    """The trigger should load the run's Dag version: created version if pinned, latest otherwise."""
+    run_created_version = uuid.uuid4()
+    latest_version = uuid.uuid4()
+    bumped_ti_version = uuid.uuid4()
+
+    trigger = mocker.Mock()
+    trigger.id = 8
+    trigger.classpath = "some.path.Trigger"
+    trigger.encrypted_kwargs = ""
+    trigger.task_instance.dag_version_id = bumped_ti_version
+    trigger.task_instance.task_id = "t"
+    trigger.task_instance.trigger_timeout = None
+
+    dag_run = mocker.Mock(spec=DagRun)
+    dag_run.dag_id = "test_dag"
+    dag_run.bundle_version = "some-bundle-version" if pinned else None
+    dag_run.created_dag_version_id = run_created_version
+    dag_run.dag_run_data = mocker.Mock()
+    dag_run.dag_run_data.model_dump.return_value = {}
+    trigger.task_instance.get_dagrun.return_value = dag_run
+
+    mocker.patch.object(
+        DagVersion, "get_latest_version", return_value=mocker.Mock(spec=DagVersion, id=latest_version)
+    )
+    mocker.patch(
+        "airflow.jobs.triggerer_job_runner.TaskInstanceDTO.model_validate",
+        return_value=mocker.Mock(spec=TaskInstanceDTO),
+    )
+
+    dag_bag = DBDagBag()
+    serialized_dag_model = mocker.Mock()
+    task = mocker.Mock(start_from_trigger=True)
+    serialized_dag_model.dag.get_task.return_value = task
+    serialized_dag_model.data = {}
+    mocker.patch.object(dag_bag, "get_serialized_dag_model", return_value=serialized_dag_model)
+
+    session = mocker.Mock()
+    jobless_supervisor._create_workload(
+        trigger=trigger,
+        dag_bag=dag_bag,
+        render_log_fname=mocker.Mock(return_value="/logs/ti"),
+        session=session,
+    )
+
+    expected_version = run_created_version if pinned else latest_version
+    dag_bag.get_serialized_dag_model.assert_called_once_with(version_id=expected_version, session=session)
+
+
+def test_load_triggers_survives_task_missing_from_resolved_dag_version(supervisor_builder, session, caplog):
+    """
+    A deferred TI's task may be missing from the Dag version an unpinned run resolves to
+    (latest), e.g. after the task was renamed. TaskNotFound must not escape workload
+    building — it previously killed the whole triggerer, and assign_unassigned re-handing
+    the trigger to the restarted triggerer produced a crash loop. Instead the trigger
+    gets a plain workload (no dag_data) and a warning is logged.
+    """
+    trigger = TimeDeltaTrigger(datetime.timedelta(days=7))
+    _, run, trigger_orm, _ = create_trigger_in_db(session, trigger)
+    assert run.bundle_version is None  # unpinned run resolves to the latest version
+
+    # The Dag is edited: the deferred task is renamed away in the new latest version
+    dag_v2 = DAG(dag_id="test_dag", schedule="@daily", start_date=pendulum.datetime(2023, 1, 1))
+    BaseOperator(task_id="renamed_ti", dag=dag_v2)
+    SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag_v2), bundle_name="testing")
+    session.commit()
+
+    job = Job(heartrate=10)
+    job.job_type = "TriggererJob"
+    job.latest_heartbeat = timezone.utcnow()
+    session.add(job)
+    session.flush()
+    supervisor = supervisor_builder(job=job)
+    session.commit()
+
+    supervisor.load_triggers()
+
+    workload = next(w for w in supervisor.creating_triggers if w.id == trigger_orm.id)
+    assert workload.dag_data is None
+    assert "Task not found in resolved Dag version; building plain workload" in caplog
 
 
 def test_create_workload_sets_watched_assets_for_asset_only_trigger(jobless_supervisor, mocker):
@@ -3285,3 +3387,79 @@ def test_run_trigger_appends_none_seq_for_non_shared_trigger():
     trigger_id, _event, seq = events[0]
     assert trigger_id == 1
     assert seq is None
+
+
+@pytest.mark.asyncio
+async def test_trigger_event_payload_not_logged_at_info(cap_structlog):
+    """Ensure the full event payload is not logged at INFO level."""
+    runner = TriggerRunner()
+    runner.triggers = {
+        1: {
+            "task": MagicMock(spec=asyncio.Task),
+            "is_watcher": False,
+            "name": "test_dag/run_id/test_task/0/1",
+            "events": 0,
+        }
+    }
+
+    mock_trigger = MagicMock(spec=BaseTrigger)
+    mock_trigger.task_instance = MagicMock()
+    mock_trigger.task_instance.map_index = -1
+
+    payload = {"api_response": {"token": "s3cr3t-api-k3y", "user_id": 42}}
+
+    async def fake_run():
+        yield TriggerEvent(payload)
+
+    mock_trigger.run = fake_run
+
+    mock_trigger.cleanup = AsyncMock()
+
+    task = asyncio.create_task(runner.run_trigger(1, mock_trigger))
+    await task
+
+    assert any(log["event"] == "Trigger fired event" for log in cap_structlog), (
+        "Expected a 'Trigger fired event' log entry"
+    )
+    info_logs = [log for log in cap_structlog if log.get("log_level") == "info"]
+
+    for _key, value in payload.items():
+        assert not any(str(value) in str(log) for log in info_logs), (
+            "payload value must not appear in INFO-level logs"
+        )
+
+
+@pytest.mark.asyncio
+async def test_trigger_event_payload_available_at_debug(cap_structlog):
+    """Ensure the full event payload is available at DEBUG level for diagnostics."""
+
+    cap_structlog.set_level("debug")
+    runner = TriggerRunner()
+    runner.triggers = {
+        1: {
+            "task": MagicMock(spec=asyncio.Task),
+            "is_watcher": False,
+            "name": "test_dag/run_id/test_task/0/1",
+            "events": 0,
+        }
+    }
+
+    payload = {"api_response": {"token": "s3cr3t-api-k3y", "user_id": 42}}
+
+    async def fake_run():
+        yield TriggerEvent(payload)
+
+    mock_trigger = MagicMock(spec=BaseTrigger)
+    mock_trigger.task_instance = MagicMock()
+    mock_trigger.task_instance.map_index = -1
+    mock_trigger.run = fake_run
+    mock_trigger.cleanup = AsyncMock()
+
+    task = asyncio.create_task(runner.run_trigger(1, mock_trigger))
+    await task
+
+    debug_logs = [log for log in cap_structlog if log.get("log_level") == "debug"]
+    assert any(
+        log.get("event") == "Trigger fired event payload" and log.get("result") == TriggerEvent(payload)
+        for log in debug_logs
+    ), "Full event payload must be logged at DEBUG level"

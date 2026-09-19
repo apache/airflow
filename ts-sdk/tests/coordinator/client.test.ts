@@ -90,6 +90,33 @@ describe("getXCom not-found contract", () => {
   });
 });
 
+describe("getXComEntry", () => {
+  // `getXCom` answers null for an absent row and a stored null alike, which is
+  // the friendlier shape for handler code but cannot drive a decision between
+  // the two. Argument binding needs both: an upstream that pushed no output
+  // fails the task, while one that pushed null binds null.
+  it("reports an absent row as not found", async () => {
+    const c = client([{ body: { type: "ErrorResponse", error: "XCOM_NOT_FOUND" } }]);
+    expect(await c.getXComEntry({ key: "k" })).toEqual({ found: false, value: null });
+  });
+
+  it("reports a stored null as found", async () => {
+    const c = client([{ body: { type: "XComResult", key: "k", value: null } }]);
+    expect(await c.getXComEntry({ key: "k" })).toEqual({ found: true, value: null });
+  });
+
+  it("reports a stored value as found", async () => {
+    const c = client([{ body: { type: "XComResult", key: "k", value: { orders: 12 } } }]);
+    expect(await c.getXComEntry({ key: "k" })).toEqual({ found: true, value: { orders: 12 } });
+  });
+
+  it("is what getXCom reads, so both see one round-trip", async () => {
+    const c = client([{ body: { type: "XComResult", key: "k", value: false } }]);
+    // `false` also pins that getXCom's `?? null` does not flatten a falsy value.
+    expect(await c.getXCom({ key: "k" })).toBe(false);
+  });
+});
+
 describe("client is bound to TaskContext", () => {
   it("defaults dag/task/run + map_index from ctx; allows override", async () => {
     const sent: Record<string, unknown>[] = [];
@@ -160,7 +187,7 @@ describe("client is bound to TaskContext", () => {
           : { body: null };
       },
     } as unknown as CommChannel;
-    // ctx with a real map index — to prove -1 from opts wins over a
+    // ctx with a real map index, to prove -1 from opts wins over a
     // mapped ctx value (caller is explicitly asking "the non-mapped row").
     const mappedCtx: TaskContext = { ...FAKE_CTX, mapIndex: 3 };
     const c = createCoordinatorClient(recordingComm, mappedCtx);

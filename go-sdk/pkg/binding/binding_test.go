@@ -19,6 +19,7 @@ package binding
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"reflect"
 	"sync"
@@ -28,6 +29,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/apache/airflow/go-sdk/airflow"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
 	"github.com/apache/airflow/go-sdk/sdk"
@@ -125,6 +127,61 @@ func (s *BindingSuite) TestAnalyzeClassification() {
 		analyze(s, func(x any) error { return nil }).numData,
 		"an `any` parameter is a data parameter",
 	)
+	s.Equal(
+		1,
+		analyze(s, func(actx airflow.Context, country string) error { return nil }).numData,
+		"airflow.Context is injected, not a data parameter",
+	)
+}
+
+// airflow.Context satisfies context.Context, so classification has to match it
+// on identity ahead of the plain-context case.
+func (s *BindingSuite) TestAirflowContextInjection() {
+	plan := analyze(s, func(actx airflow.Context) error { return nil })
+	s.Zero(plan.numData)
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	client := &fakeXComClient{}
+	values, err := plan.Resolve(runtimeCtx(), logger, client, nil)
+	s.Require().NoError(err)
+	s.Require().Len(values, 1)
+
+	actx, ok := values[0].Interface().(airflow.Context)
+	s.Require().True(ok, "parameter 0 must be bound to an airflow.Context")
+	s.Same(logger, actx.Logger())
+	s.Same(client, actx.Client())
+	s.Equal("dag1", actx.TaskInstance().DagID)
+	s.Equal("transform", actx.TaskInstance().TaskID)
+	s.Equal("run1", actx.DagRun().RunID)
+
+	// A helper taking a plain context.Context gets the same surface back.
+	recovered, ok := airflow.FromContext(context.Context(actx))
+	s.Require().True(ok)
+	s.Equal(actx.TaskInstance(), recovered.TaskInstance())
+}
+
+// The Context is bound to the live task context, not a placeholder.
+func (s *BindingSuite) TestAirflowContextTracksTaskCancellation() {
+	plan := analyze(s, func(actx airflow.Context) error { return nil })
+
+	ctx, cancel := context.WithCancel(runtimeCtx())
+	values, err := plan.Resolve(ctx, slog.Default(), &fakeXComClient{}, nil)
+	s.Require().NoError(err)
+	actx, ok := values[0].Interface().(airflow.Context)
+	s.Require().True(ok)
+
+	s.Require().NoError(actx.Err())
+	cancel()
+	s.Require().ErrorIs(actx.Err(), context.Canceled)
+}
+
+// A user struct can implement context.Context too, and must not reach
+// the interface-only check behind the plain-context case.
+func (s *BindingSuite) TestStructImplementingContextIsNotInjectable() {
+	type wrappedContext struct{ context.Context }
+
+	_, err := Analyze(reflect.TypeOf(func(w wrappedContext) error { return nil }), "testFn")
+	s.Require().NoError(err, "a struct implementing context.Context must not break analysis")
 }
 
 func (s *BindingSuite) TestAnalyzeRejections() {

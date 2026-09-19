@@ -36,6 +36,8 @@ from airflowctl.api.datamodels.generated import (
     AssetCollectionResponse,
     AssetEventResponse,
     AssetResponse,
+    AssetStateStoreCollectionResponse,
+    AssetStateStoreResponse,
     BackfillCollectionResponse,
     BackfillPostBody,
     BackfillResponse,
@@ -321,7 +323,11 @@ class TestAssetsOperations:
         queued_events=[asset_queued_event_response],
         total_entries=1,
     )
-
+    asset_state_store_response = AssetStateStoreResponse(
+        key="my_key",
+        value={"my_val": 0},  # type: ignore[arg-type]
+        updated_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+    )
     dag_run_response = DAGRunResponse(
         dag_display_name=dag_id,
         dag_run_id=dag_id,
@@ -530,6 +536,73 @@ class TestAssetsOperations:
         response = client.assets.delete_queued_event(dag_id=self.dag_id, asset_id=self.asset_id)
         assert response == self.asset_id
 
+    def test_list_state_store(self):
+        collection_response = AssetStateStoreCollectionResponse(
+            asset_state_store=[self.asset_state_store_response],
+            total_entries=1,
+        )
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/assets/{self.asset_id}/state-store"
+            return httpx.Response(200, json=json.loads(collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.list_state_store(self.asset_id)
+        assert response == collection_response
+
+    def test_get_state_store(self):
+        key = self.asset_state_store_response.key
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/assets/{self.asset_id}/state-store/{key}"
+            return httpx.Response(200, json=json.loads(self.asset_state_store_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.get_state_store(self.asset_id, key)
+        assert response == self.asset_state_store_response
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            ('{"index": 0}', {"index": 0}),
+            ("hello", "hello"),
+        ],
+    )
+    def test_set_state_store(self, value, expected):
+        key = self.asset_state_store_response.key
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PUT"
+            assert request.url.path == f"/api/v2/assets/{self.asset_id}/state-store/{key}"
+            assert json.loads(request.content) == {"value": expected}
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.set_state_store(self.asset_id, key, value)
+        assert response == key
+
+    def test_delete_state_store(self):
+        key = self.asset_state_store_response.key
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert request.url.path == f"/api/v2/assets/{self.asset_id}/state-store/{key}"
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.delete_state_store(self.asset_id, key)
+        assert response == key
+
+    def test_clear_state_store(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert request.url.path == f"/api/v2/assets/{self.asset_id}/state-store"
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.clear_state_store(self.asset_id)
+        assert response == self.asset_id
+
 
 class TestBackfillOperations:
     backfill_id: NonNegativeInt = 1
@@ -607,6 +680,7 @@ class TestBackfillOperations:
 
     def test_pause(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PUT"
             assert request.url.path == f"/api/v2/backfills/{self.backfill_id}/pause"
             return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
 
@@ -616,6 +690,7 @@ class TestBackfillOperations:
 
     def test_unpause(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PUT"
             assert request.url.path == f"/api/v2/backfills/{self.backfill_id}/unpause"
             return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
 
@@ -625,6 +700,7 @@ class TestBackfillOperations:
 
     def test_cancel(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PUT"
             assert request.url.path == f"/api/v2/backfills/{self.backfill_id}/cancel"
             return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
 
@@ -895,16 +971,33 @@ class TestConnectionsOperations:
             assert request_body == {
                 "connection_id": self.connection_id,
                 "conn_type": self.conn_type,
-                "description": None,
-                "host": None,
-                "login": None,
                 "schema": self.schema_,
-                "port": None,
-                "password": None,
-                "extra": None,
-                "team_name": None,
             }
             assert "schema_" not in request_body
+            return httpx.Response(
+                200, json=json.loads(self.connection_response.model_dump_json(by_alias=True))
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.connections.update(connection=connection)
+        assert response == self.connection_response
+
+    def test_update_omits_unset_fields_from_request_body(self):
+        # The API treats every key present in a PATCH body as an intentional value, so sending
+        # unset fields as null clears the stored login, port, schema and description.
+        connection = ConnectionBody(
+            connection_id=self.connection_id,
+            conn_type=self.conn_type,
+            host="new-host",
+        )
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/connections/{self.connection_id}"
+            assert json.loads(request.content.decode()) == {
+                "connection_id": self.connection_id,
+                "conn_type": self.conn_type,
+                "host": "new-host",
+            }
             return httpx.Response(
                 200, json=json.loads(self.connection_response.model_dump_json(by_alias=True))
             )
@@ -928,6 +1021,10 @@ class TestConnectionsOperations:
         assert response == connection_test_response
 
     def test_test_uses_schema_alias_in_request_body(self):
+        # The exact body matters beyond the alias: the server fills unset fields from the stored
+        # connection, keyed off ``model_fields_set``. Sending them as null makes a stored host/port
+        # read as "changed" and the request is rejected with 400; a connection without a host gets
+        # tested with its credentials wiped.
         connection = ConnectionBody(
             connection_id=self.connection_id,
             conn_type=self.conn_type,
@@ -944,14 +1041,7 @@ class TestConnectionsOperations:
             assert request_body == {
                 "connection_id": self.connection_id,
                 "conn_type": self.conn_type,
-                "description": None,
-                "host": None,
-                "login": None,
                 "schema": self.schema_,
-                "port": None,
-                "password": None,
-                "extra": None,
-                "team_name": None,
             }
             assert "schema_" not in request_body
             return httpx.Response(200, json=json.loads(connection_test_response.model_dump_json()))
@@ -1727,6 +1817,19 @@ class TestPoolsOperations:
         response = client.pools.update(pool_body=self.pool_patch_body)
         assert response == self.pool_response
 
+    def test_update_omits_unset_fields_from_request_body(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/pools/{self.pool_name}"
+            assert json.loads(request.content.decode()) == {
+                "pool": self.pool_name,
+                "description": "description",
+            }
+            return httpx.Response(200, json=json.loads(self.pool_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.pools.update(pool_body=self.pool_patch_body)
+        assert response == self.pool_response
+
 
 class TestProvidersOperations:
     provider_response = ProviderResponse(
@@ -1994,6 +2097,18 @@ class TestVariablesOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.variables.update(variable=self.variable)
+        assert response == self.variable_response
+
+    def test_update_omits_unset_fields_from_request_body(self):
+        variable = VariableBody.model_validate({"key": self.key, "value": "new-value"})
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/variables/{self.key}"
+            assert json.loads(request.content.decode()) == {"key": self.key, "value": "new-value"}
+            return httpx.Response(200, json=json.loads(self.variable_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.variables.update(variable=variable)
         assert response == self.variable_response
 
 

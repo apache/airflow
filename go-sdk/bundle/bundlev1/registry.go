@@ -34,6 +34,8 @@ type (
 		//
 		// fn is an ordinary Go function whose parameters are injected by type
 		// and may appear in any order. Recognised parameters are:
+		//   - airflow.Context: everything below on one value, plus the
+		//     identity of the task instance and its Dag run
 		//   - context.Context: cancelled when the task is asked to stop
 		//   - *slog.Logger: writes to the task's Airflow log
 		//   - sdk.Client (or a narrower sdk.VariableClient / sdk.ConnectionClient /
