@@ -66,11 +66,13 @@ MTIME = 1704110400
 
 
 def make_conn():
+    attrs = asyncssh.SFTPAttrs()
+    attrs.mtime = MTIME
+    name = asyncssh.sftp.SFTPName("file.txt")
+    name.attrs = attrs
     client = mock.AsyncMock(spec=asyncssh.SFTPClient)
-    client.stat.return_value = asyncssh.SFTPAttrs(mtime=MTIME)
-    client.readdir.return_value = [
-        asyncssh.sftp.SFTPName("file.txt", attrs=asyncssh.SFTPAttrs(mtime=MTIME))
-    ]
+    client.stat.return_value = attrs
+    client.readdir.return_value = [name]
     sftp_cm = mock.MagicMock()
     sftp_cm.__aenter__ = mock.AsyncMock(return_value=client)
     ssh = mock.MagicMock(spec=asyncssh.SSHClientConnection)
