@@ -101,6 +101,16 @@ def test_module_contract_preserves_supports_durable_execution_true():
     assert validated["modules"][0]["supports_durable_execution"] is True
 
 
+def test_module_contract_accepts_legacy_modules_without_supports_deferrable():
+    validated = validate_modules_catalog({"modules": [_module_payload()]})
+    assert "supports_deferrable" not in validated["modules"][0]
+
+
+def test_module_contract_preserves_supports_deferrable_true():
+    validated = validate_modules_catalog({"modules": [_module_payload(supports_deferrable=True)]})
+    assert validated["modules"][0]["supports_deferrable"] is True
+
+
 def test_connection_type_contract_defaults_external_services_to_empty_list():
     """Legacy connection-types entries (provider.yaml without `external-services`)
     must still validate, with the field defaulting to an empty list."""
