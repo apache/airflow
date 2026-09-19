@@ -26,11 +26,28 @@ import type { DagRunTriggerParams } from "./types";
 type TriggerDAGAdvancedOptionsProps = {
   readonly control: Control<DagRunTriggerParams>;
   readonly isPartitioned: boolean;
+  readonly isPartitionedAtRuntime: boolean;
+  readonly suggestedPartitionKey?: string | null;
 };
 
-const TriggerDAGAdvancedOptions = ({ control, isPartitioned }: TriggerDAGAdvancedOptionsProps) => {
+const TriggerDAGAdvancedOptions = ({
+  control,
+  isPartitioned,
+  isPartitionedAtRuntime,
+  suggestedPartitionKey,
+}: TriggerDAGAdvancedOptionsProps) => {
   const { t: translate } = useTranslation(["common", "components"]);
   const { t: rootTranslate } = useTranslation();
+
+  // The suggestion is a guess from whichever source answered first — a pending
+  // partition, a time-based inference, or the last successful run — and the API
+  // does not say which. One warning that holds for all three is honest; picking
+  // wording from isPartitionedAtRuntime would mislabel an asset-driven Dag that
+  // fell through to its last successful run.
+  const partitionKeyHelpText =
+    suggestedPartitionKey === undefined || suggestedPartitionKey === null
+      ? translate("components:triggerDag.partitionKeyHelp")
+      : translate("components:triggerDag.partitionKeySuggestedHelp");
 
   return (
     <>
@@ -52,7 +69,7 @@ const TriggerDAGAdvancedOptions = ({ control, isPartitioned }: TriggerDAGAdvance
         )}
       />
 
-      {isPartitioned ? (
+      {isPartitioned || isPartitionedAtRuntime ? (
         <Controller
           control={control}
           name="partitionKey"
@@ -65,7 +82,7 @@ const TriggerDAGAdvancedOptions = ({ control, isPartitioned }: TriggerDAGAdvance
               </Stack>
               <Stack css={{ flexBasis: "70%" }}>
                 <Input {...field} size="sm" />
-                <Field.HelperText>{translate("components:triggerDag.partitionKeyHelp")}</Field.HelperText>
+                <Field.HelperText>{partitionKeyHelpText}</Field.HelperText>
               </Stack>
             </Field.Root>
           )}

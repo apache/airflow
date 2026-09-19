@@ -338,6 +338,28 @@ class Timetable(Protocol):
         """
         return None
 
+    def suggest_partition_key(self, now: DateTime) -> str | None:
+        """
+        Suggest a partition key for manually triggering this Dag at *now*.
+
+        This is a **suggestion, not a derivation**: it is used to pre-fill the
+        partition key field in the manual-trigger UI so the field is not left
+        empty, but the caller is not required to use the returned value and
+        validation still accepts ``None``. Returning ``None`` means this
+        timetable has no purely time-based suggestion to offer; the caller
+        should leave the field blank or fall back to another source.
+
+        This method must not access the database or open a session — it runs
+        on a deserialized timetable instance shared across the scheduler, Dag
+        processor, and API layers. Sources that require a database query
+        (e.g. the most recent successful run's partition key) belong in the
+        API layer, not here.
+
+        :param now: The current time, used to compute a candidate key.
+        :returns: A suggested partition key, or ``None`` if none can be derived.
+        """
+        return None
+
     @property
     def partition_mapper_info(self) -> list[PartitionMapperInfo]:
         """
