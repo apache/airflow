@@ -59,6 +59,7 @@ class TestAwsTaskLogFetcher:
                 ]
             ),
             iter([]),
+            iter([]),
         ),
     )
     def test_run(self, get_log_events_mock):
@@ -70,6 +71,26 @@ class TestAwsTaskLogFetcher:
                 mock.call(logging.INFO, "[2021-04-02 21:51:07,123] First"),
                 mock.call(logging.INFO, "[2021-04-02 21:52:47,456] Second"),
                 mock.call(logging.INFO, "[2021-04-02 21:54:27,789] Third"),
+            ]
+        )
+
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events",
+        side_effect=(
+            iter([{"timestamp": 1617400267123, "message": "First"}]),
+            iter([{"timestamp": 1617400467789, "message": "Written just before the task ended"}]),
+        ),
+    )
+    def test_run_forwards_the_events_written_before_it_was_stopped(self, get_log_events_mock):
+        """The callers stop the fetcher once the task ended, after the last events were written."""
+        with mock.patch.object(self.log_fetcher._event, "is_set", side_effect=(False, True)):
+            self.log_fetcher.run()
+
+        assert get_log_events_mock.call_count == 2
+        self.logger_mock.log.assert_has_calls(
+            [
+                mock.call(logging.INFO, "[2021-04-02 21:51:07,123] First"),
+                mock.call(logging.INFO, "[2021-04-02 21:54:27,789] Written just before the task ended"),
             ]
         )
 
@@ -162,6 +183,7 @@ class TestAwsTaskLogFetcher:
                     },
                 ]
             ),
+            iter([]),
         ),
     )
     def test_run_with_log_level_detection(self, get_log_events_mock):
