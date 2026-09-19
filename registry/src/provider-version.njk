@@ -420,6 +420,12 @@ eleventyComputed:
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
               </a>
               {% endif %}
+              {% if module.guide_url %}
+              <a href="{{ module.guide_url }}" target="_blank" rel="noopener" class="guide-link" title="How-to guide section for {{ module.name }}">
+                Guide
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+              </a>
+              {% endif %}
               {% if module.source_url %}
               <a href="{{ module.source_url }}" target="_blank" rel="noopener" class="source-link">
                 Source

@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import textwrap
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import pytest
 from extract_versions import (
@@ -28,6 +28,7 @@ from extract_versions import (
     SCRIPT_DIR,
     extract_modules_from_yaml,
     extract_version_data,
+    read_guide_docs,
 )
 from registry_tools.types import CLASS_LEVEL_SECTIONS, DICT_SHAPED_CLASS_LEVEL_SECTIONS
 
@@ -210,3 +211,81 @@ class TestExtractVersionDataConnectionTypes:
 
         assert result is not None
         assert result["connection_types"][0]["external_services"] == ["openai", "anthropic"]
+
+
+class TestExtractModulesGuideUrls:
+    """A class the provider's guides document in a section of its own must get a
+    ``guide_url`` for every version, not just the latest. A superseded version's
+    page is rendered only from the per-version file this module writes, so a link
+    resolved on the latest path alone disappears the moment a new version lands.
+    """
+
+    PROVIDER_YAML = {
+        "toolsets": [
+            {
+                "integration-name": "Test",
+                "python-modules": ["airflow.providers.test.toolsets.hook"],
+            }
+        ]
+    }
+    SOURCE = 'class HookToolset:\n    """A toolset."""\n'
+    GUIDE = "``HookToolset``\n---------------\n\nProse.\n"
+
+    def _extract(self, layout="new", docs_paths=("providers/test/docs/toolsets.rst",)):
+        def fake_git_show(_tag, path):
+            if path.endswith("toolsets.rst"):
+                return self.GUIDE
+            return self.SOURCE if path.endswith(".py") else None
+
+        with (
+            patch("extract_versions.git_ls_tree", autospec=True, return_value=list(docs_paths)),
+            patch("extract_versions.git_show", autospec=True, side_effect=fake_git_show),
+        ):
+            return extract_modules_from_yaml(
+                self.PROVIDER_YAML, "providers-test/1.0.0", layout, "test", "test", "1.0.0"
+            )
+
+    def test_documented_class_gets_a_versioned_guide_url(self):
+        modules = self._extract()
+
+        assert [m["name"] for m in modules] == ["HookToolset"]
+        assert modules[0]["guide_url"] == (
+            "https://airflow.apache.org/docs/apache-airflow-providers-test/1.0.0/toolsets.html#hooktoolset"
+        )
+
+    def test_undocumented_class_gets_no_guide_url(self):
+        modules = self._extract(docs_paths=())
+
+        assert [m["name"] for m in modules] == ["HookToolset"]
+        assert "guide_url" not in modules[0]
+
+    def test_old_layout_gets_no_guide_url(self):
+        # Pre-per-provider tags kept docs in a top-level tree, so there is no
+        # provider-relative page path to build a link from.
+        modules = self._extract(layout="old")
+
+        assert "guide_url" not in modules[0]
+
+
+class TestReadGuideDocs:
+    def test_skips_generated_and_release_note_pages_before_calling_git_show(self):
+        docs_prefix = "providers/test/docs/"
+        paths = [
+            docs_prefix + "_api/x/index.rst",
+            docs_prefix + "changelog.rst",
+            docs_prefix + "toolsets.rst",
+        ]
+
+        with (
+            patch("extract_versions.git_ls_tree", autospec=True, return_value=paths),
+            patch("extract_versions.git_show", autospec=True, return_value="Prose.\n") as mock_git_show,
+        ):
+            result = read_guide_docs("providers-test/1.0.0", "new", "test")
+
+        # Mutation canary: if the `is_guide_page` filter in read_guide_docs is
+        # removed, this dict grows two more keys and this assertion goes red.
+        assert set(result) == {"toolsets.rst"}
+        # Mutation canary: without the filter, git_show is also called for the
+        # two skipped paths -- this assertion goes red too, proving the
+        # `continue` runs before git_show, not just before the dict write.
+        assert mock_git_show.call_args_list == [call("providers-test/1.0.0", docs_prefix + "toolsets.rst")]
