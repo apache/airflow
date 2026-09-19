@@ -246,6 +246,7 @@ def _get_async_conn_uri_from_sync(sync_uri):
         "sqlite": "aiosqlite",
         "postgresql": "psycopg_async" if _USE_PSYCOPG3 else "asyncpg",
         "mysql": "aiomysql",
+        "cockroachdb": "asyncpg",
     }
 
     scheme, rest = sync_uri.split(":", maxsplit=1)
