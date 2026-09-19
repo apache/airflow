@@ -26,9 +26,15 @@ from airflow.providers.common.ai.sandbox.base import (
     SandboxSpec,
     SandboxTerminalError,
 )
+
+# Both backends import their vendor dependency lazily, on first use, so the
+# package is importable without the optional ``boat-sdk``; a missing SDK
+# surfaces as an actionable error from the backend instead.
+from airflow.providers.common.ai.sandbox.boat import BoatSandboxBackend
 from airflow.providers.common.ai.sandbox.sbx import SbxSandboxBackend
 
 __all__ = [
+    "BoatSandboxBackend",
     "SandboxBackend",
     "SandboxError",
     "SandboxExecResult",

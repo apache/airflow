@@ -70,6 +70,7 @@ def get_provider_info():
                 "external-doc-url": "https://docs.docker.com/ai/sandboxes/",
                 "tags": ["software"],
             },
+            {"integration-name": "Boat", "external-doc-url": "https://docs.boat.dev/", "tags": ["service"]},
         ],
         "hooks": [
             {

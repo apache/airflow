@@ -764,9 +764,10 @@ agent code is isolated by a hardware boundary rather than a shared kernel.
    cannot satisfy the last one at all.
 
    Treat it as the backend you develop and test a sandboxed agent against, then
-   run something else in production. A hosted backend plugs in through
-   :class:`~airflow.providers.common.ai.sandbox.SandboxBackend`, but none ships
-   with the provider yet.
+   run something else in production -- either
+   :class:`~airflow.providers.common.ai.sandbox.BoatSandboxBackend` below,
+   or your own hosted backend behind
+   :class:`~airflow.providers.common.ai.sandbox.SandboxBackend`.
 
    **Orphans are not reclaimed automatically.** There is no server-side TTL. If
    the worker is killed outright, the microVM and its workspace directory
@@ -806,6 +807,60 @@ Constructor parameters:
   ``"unknown"`` (default) makes ``create`` refuse any spec asking for a network
   guarantee this backend cannot make. Set ``"deny-all"`` after running
   ``sbx policy init deny-all``, or ``"allow-all"`` to state that egress is open.
+
+Boat backend
+^^^^^^^^^^^^
+
+:class:`~airflow.providers.common.ai.sandbox.BoatSandboxBackend` runs each
+sandbox in a `Boat <https://docs.boat.dev/quickstart>`__ sandbox. Boat, the
+service formerly called Ascii Box, is a hosted cloud-computer API. The Airflow
+worker needs only network access and an API key; it needs no local daemon,
+Docker socket, KVM, or nested virtualization.
+
+Install the optional SDK with the ``sandbox-boat`` extra::
+
+    pip install "apache-airflow-providers-common-ai[sandbox-boat]"
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.sandbox import BoatSandboxBackend, SandboxSpec
+    from airflow.providers.common.ai.toolsets import SandboxToolset
+
+    SandboxToolset(
+        BoatSandboxBackend(boat_conn_id="boat_default"),
+        spec=SandboxSpec(block_network=False),
+    )
+
+By default, credentials resolve lazily from a generic Airflow connection on
+first use, so the API key can remain in the configured secrets backend:
+
+- ``password``: Boat API key. Required.
+- ``host``: API base URL. Optional; defaults to ``https://boat.dev/api/v1``.
+- Extra ``timeout``: HTTP request timeout in seconds.
+- Extra ``no_env``: whether Boat should withhold account-stored secrets.
+  Defaults to ``true``.
+
+Constructor parameters:
+
+- ``boat_conn_id``: Connection ID. Default ``"boat_default"``. Passing ``None``
+  reads ``BOAT_API_KEY`` and optional ``BOAT_BASE_URL`` from the worker
+  environment instead.
+- ``machine_type``: ``"small"``, ``"default"``, or ``"large"``.
+- ``ttl_seconds``: server-side auto-stop TTL. Default ``3600`` seconds.
+- ``ready_timeout``: provisioning deadline. Default ``300`` seconds.
+- ``no_env``: explicit override for the connection's ``no_env`` setting.
+
+``SandboxSpec.env`` is passed when the sandbox is created. Boat cannot enforce a
+deny-all network policy or a per-domain egress allowlist, so the backend refuses
+``block_network=True`` and ``allow_egress_to`` rather than silently weakening
+the requested isolation. Use ``SandboxSpec(block_network=False)`` only when open
+egress is acceptable.
+
+Writes use Boat's native file API. Reads deliberately use the inherited bounded
+shell implementation so ``max_bytes`` is enforced inside the guest before file
+contents reach worker memory. Command timeouts are capped at 600 seconds; a
+sandbox whose command times out, or that never becomes ready, is torn down
+immediately, with the server-side TTL as the orphan-cleanup backstop.
 
 Bringing your own backend
 ^^^^^^^^^^^^^^^^^^^^^^^^^
