@@ -41,9 +41,6 @@ pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
 @pytest.fixture(autouse=True)
 def clean_db():
-    clear_db_runs()
-    clear_db_dags()
-    clear_db_serialized_dags()
     yield
     clear_db_runs()
     clear_db_dags()
