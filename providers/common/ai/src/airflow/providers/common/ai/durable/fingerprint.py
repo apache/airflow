@@ -33,10 +33,18 @@ longer match.
 
 Fields that pydantic-ai regenerates on every attempt (message-level
 ``timestamp``/``run_id``/``conversation_id`` and part-level ``timestamp``)
-are excluded from the fingerprint.  Requests that cannot be serialized to
-JSON fingerprint as ``None``, which degrades that step to unverified
-positional replay (the pre-fingerprint behavior) rather than disabling
-caching.
+are excluded from the fingerprint.  Payloads are normalized through pydantic
+before hashing, so values that are not JSON types but serialize to the same
+bytes on every attempt -- a ``datetime`` or ``Decimal`` tool argument, a
+dataclass in ``tool_choice`` -- still produce a usable fingerprint.
+
+A request that pydantic cannot serialize either fingerprints as ``None``: that
+step is neither replayed nor cached, and re-runs live instead of replaying
+without verification.  On the model path this is seldom confined to one step,
+because model settings and the message history are carried into every later
+request, so durable execution stops contributing anything for the rest of the
+run.  A tool call is fingerprinted from its name, arguments and call id alone,
+so it can only lose its own step.
 """
 
 from __future__ import annotations
@@ -49,6 +57,7 @@ import structlog
 from pydantic import TypeAdapter
 from pydantic_ai.messages import ModelMessagesTypeAdapter
 from pydantic_ai.models import ModelRequestParameters
+from pydantic_core import to_jsonable_python
 
 if TYPE_CHECKING:
     from pydantic_ai.messages import ModelMessage
@@ -62,10 +71,16 @@ _MODEL_REQUEST_PARAMETERS_ADAPTER = TypeAdapter(ModelRequestParameters)
 _VOLATILE_MESSAGE_KEYS = ("timestamp", "run_id", "conversation_id")
 
 # Settings that control transport, not response content. Excluded from the
-# fingerprint: changing them should not invalidate a cached response, and some
-# (``timeout`` can be an ``httpx.Timeout``) are not JSON-serializable, which
-# would otherwise force the whole fingerprint to ``None`` and silently disable
-# replay verification for every step.
+# fingerprint: changing them should not invalidate a cached response, and
+# ``timeout`` can be an ``httpx.Timeout``, which neither ``json`` nor pydantic
+# can serialize.
+#
+# This frozenset is load-bearing. Model settings accompany every request, so one
+# member that pydantic cannot serialize fingerprints every model step as ``None``
+# -- which costs durable execution entirely for the run (nothing is cached,
+# nothing is replayed), not merely the verification of a replay. Merely non-JSON
+# values are fine, since ``_digest`` normalizes those through pydantic; a setting
+# pydantic cannot serialize either has to be listed here instead.
 _TRANSPORT_ONLY_SETTINGS = frozenset({"timeout"})
 
 
@@ -99,10 +114,18 @@ def _strip_volatile(messages_dump: list[dict[str, Any]]) -> list[dict[str, Any]]
 
 
 def _digest(payload: Any) -> str:
-    # No ``default=`` fallback: a non-JSON-serializable value must raise so the
-    # callers degrade to an unverifiable (None) fingerprint instead of hashing
-    # process-local reprs like ``<object at 0x...>`` that never match on retry.
-    canonical = json.dumps(payload, sort_keys=True)
+    # Normalize through pydantic first. Values that are not JSON types but do have
+    # a deterministic pydantic serialization must not cost us a fingerprint: a
+    # ``datetime`` or ``Decimal`` tool argument (pydantic has already coerced tool
+    # arguments by the time they arrive) and a dataclass in ``tool_choice`` are
+    # ordinary, and hash identically on every attempt. Plain JSON values pass
+    # through unchanged, so fingerprints written by earlier versions still match.
+    #
+    # Still no ``default=`` fallback: a value pydantic cannot serialize either
+    # raises ``PydanticSerializationError`` (a ``ValueError``), so callers degrade
+    # to an unverifiable ``None`` fingerprint rather than hashing process-local
+    # reprs like ``<object at 0x...>`` that never match on retry.
+    canonical = json.dumps(to_jsonable_python(payload), sort_keys=True)
     return hashlib.sha256(canonical.encode()).hexdigest()
 
 
@@ -111,6 +134,8 @@ def fingerprint_model_request(
     messages: list[ModelMessage],
     model_settings: ModelSettings | None,
     model_request_parameters: ModelRequestParameters,
+    *,
+    step: int | None = None,
 ) -> str | None:
     """
     Fingerprint a model request: model identity, message history, settings, and request parameters.
@@ -119,9 +144,11 @@ def fingerprint_model_request(
     output mode and schema, native tools, ...) so any change to what is sent
     to the model invalidates the cached response.
 
-    Returns ``None`` when the request cannot be serialized; ``None`` compares
-    equal to ``None``, so requests that cannot be fingerprinted degrade to
-    unverified positional replay rather than disabling caching.
+    Returns ``None`` when the request cannot be serialized even through pydantic,
+    which prevents the step from being replayed or cached. Because model settings
+    and message history are carried into every later request, such a value in
+    either usually degrades every subsequent model step of the run the same way.
+    ``step`` is attached to that warning so the log names where it began.
     """
     try:
         dumped = ModelMessagesTypeAdapter.dump_python(messages, mode="json")
@@ -137,26 +164,40 @@ def fingerprint_model_request(
     except (TypeError, ValueError):
         # TypeError from json.dumps, ValueError covers PydanticSerializationError
         log.warning(
-            "Durable: could not fingerprint model request; cached responses for this "
-            "step replay without verification"
+            "Durable: could not fingerprint model request; this step will not be cached and will "
+            "execute live on retry. If the cause is in model settings or message history, every "
+            "later model step of this run is affected too",
+            step=step,
         )
         return None
 
 
-def fingerprint_tool_call(name: str, tool_args: dict[str, Any], tool_call_id: str | None) -> str | None:
+def fingerprint_tool_call(
+    name: str,
+    tool_args: dict[str, Any],
+    tool_call_id: str | None,
+    *,
+    step: int | None = None,
+) -> str | None:
     """
     Fingerprint a tool call: tool name, arguments, and the model-issued call id.
 
     ``tool_call_id`` round-trips through the model-response cache, so it is
     stable under faithful replay but regenerated whenever a live model call
     replaces a cached response -- chaining invalidation to downstream tool steps.
+
+    Only the name, arguments and call id are hashed, so neither model settings
+    nor the message history can affect a tool fingerprint. Arguments arrive
+    already coerced by pydantic, which is why ``_digest`` normalizes through
+    pydantic rather than requiring plain JSON types.
     """
     try:
         return _digest({"name": name, "args": tool_args, "tool_call_id": tool_call_id})
     except (TypeError, ValueError):
         log.warning(
-            "Durable: could not fingerprint tool call; cached results for this "
-            "step replay without verification",
+            "Durable: could not fingerprint tool call; this step will not be cached and will "
+            "execute live on retry",
             tool=name,
+            step=step,
         )
         return None

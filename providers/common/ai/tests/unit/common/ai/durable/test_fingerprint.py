@@ -17,6 +17,9 @@
 from __future__ import annotations
 
 import datetime
+import hashlib
+import json
+from decimal import Decimal
 
 import httpx
 from pydantic_ai.messages import (
@@ -27,9 +30,11 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 from pydantic_ai.models import ModelRequestParameters
+from pydantic_ai.settings import ToolOrOutput
 from pydantic_ai.tools import ToolDefinition
 
 from airflow.providers.common.ai.durable.fingerprint import (
+    _digest,
     fingerprint_model_request,
     fingerprint_tool_call,
 )
@@ -143,7 +148,7 @@ class TestModelRequestFingerprint:
         assert fp is None
 
     def test_unserializable_settings_returns_none(self):
-        """Non-JSON settings values degrade to unverified replay instead of hashing
+        """Non-JSON settings values force live execution instead of hashing
         process-local reprs that would never match on retry."""
         fp = fingerprint_model_request(
             "m", make_messages(), {"extra_body": object()}, ModelRequestParameters()
@@ -153,7 +158,8 @@ class TestModelRequestFingerprint:
 
     def test_httpx_timeout_does_not_disable_fingerprint(self):
         """``timeout`` may be an ``httpx.Timeout`` (a supported, non-JSON shape).
-        It must not force the fingerprint to None and silently disable verification."""
+        It must not force the fingerprint to None, which would stop every model step
+        of the run from being cached or replayed."""
         fp = fingerprint_model_request(
             "m", make_messages(), {"timeout": httpx.Timeout(30.0)}, ModelRequestParameters()
         )
@@ -210,3 +216,71 @@ class TestToolCallFingerprint:
         assert fingerprint_tool_call("t", {"a": 1, "b": 2}, "id1") == fingerprint_tool_call(
             "t", {"b": 2, "a": 1}, "id1"
         )
+
+
+class TestPydanticNativeValues:
+    """Values that are not JSON types but hash the same on every attempt must still fingerprint.
+
+    Tool arguments reach ``fingerprint_tool_call`` already coerced by pydantic, and
+    ``tool_choice`` accepts a dataclass while genuinely affecting the response, so it
+    cannot be stripped as transport-only. Since a step that cannot be fingerprinted is
+    no longer cached at all, refusing these values would stop an ordinary typed tool
+    from ever being cached.
+    """
+
+    def test_datetime_tool_argument_fingerprints(self):
+        when = datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc)
+
+        assert fingerprint_tool_call("t", {"when": when}, "id1") is not None
+
+    def test_decimal_tool_argument_fingerprints(self):
+        assert fingerprint_tool_call("t", {"amount": Decimal("10.5")}, "id1") is not None
+
+    def test_datetime_tool_argument_is_stable_and_distinguishing(self):
+        early = datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc)
+        late = datetime.datetime(2026, 6, 1, tzinfo=datetime.timezone.utc)
+
+        assert fingerprint_tool_call("t", {"when": early}, "id1") == fingerprint_tool_call(
+            "t", {"when": early}, "id1"
+        )
+        assert fingerprint_tool_call("t", {"when": early}, "id1") != fingerprint_tool_call(
+            "t", {"when": late}, "id1"
+        )
+
+    def test_tool_choice_dataclass_fingerprints(self):
+        fp = fingerprint_model_request(
+            "m",
+            make_messages(),
+            {"tool_choice": ToolOrOutput(function_tools=["my_tool"])},
+            ModelRequestParameters(),
+        )
+
+        assert fp is not None
+
+    def test_tool_choice_dataclass_still_affects_the_fingerprint(self):
+        one = fingerprint_model_request(
+            "m",
+            make_messages(),
+            {"tool_choice": ToolOrOutput(function_tools=["a"])},
+            ModelRequestParameters(),
+        )
+        other = fingerprint_model_request(
+            "m",
+            make_messages(),
+            {"tool_choice": ToolOrOutput(function_tools=["b"])},
+            ModelRequestParameters(),
+        )
+
+        assert one is not None
+        assert one != other
+
+    def test_value_pydantic_cannot_serialize_still_returns_none(self):
+        """Normalization must not turn a genuinely unserializable value into a hash."""
+        assert fingerprint_tool_call("t", {"v": object()}, "id1") is None
+
+    def test_plain_payload_digest_is_unchanged_by_normalization(self):
+        """Fingerprints recorded before normalization must still match, so cached entries survive."""
+        payload = {"model": "m", "args": {"b": [1, True, None, "x", 2.5]}, "settings": None}
+        pre_normalization = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
+
+        assert _digest(payload) == pre_normalization

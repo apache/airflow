@@ -49,7 +49,9 @@ class CachingModel(WrapperModel):
     returns the cached response without calling the underlying model.
     Otherwise, calls the model and caches the response. A fingerprint
     mismatch means the agent changed between attempts; the stale entry is
-    discarded and the step re-runs live.
+    discarded and the step re-runs live. A request that cannot be
+    fingerprinted is neither replayed nor cached: an entry stored without a
+    fingerprint could never be verified on a later attempt.
     """
 
     storage: DurableStorageProtocol = field(repr=False)
@@ -91,11 +93,12 @@ class CachingModel(WrapperModel):
             messages,
             prepared_settings,
             prepared_parameters,
+            step=step,
         )
 
         cached, cached_fingerprint = self.storage.load_model_response(key)
         if cached is not None:
-            if cached_fingerprint == fingerprint:
+            if fingerprint is not None and cached_fingerprint == fingerprint:
                 self.counter.replayed_model += 1
                 log.debug("Durable: replayed cached model response", step=step)
                 return cached
@@ -112,7 +115,14 @@ class CachingModel(WrapperModel):
             )
 
         response = await self.wrapped.request(messages, model_settings, model_request_parameters)
-        self.storage.save_model_response(key, response, fingerprint=fingerprint)
+        # Counts the live model call, not the write: the run summary reports this
+        # as steps executed fresh, and the call was paid for either way.
         self.counter.cached_model += 1
+        if fingerprint is None:
+            # An entry stored without a fingerprint can never satisfy the guard
+            # above, so writing one only adds a dead entry per step.
+            log.debug("Durable: not caching model response that cannot be verified on replay", step=step)
+            return response
+        self.storage.save_model_response(key, response, fingerprint=fingerprint)
         log.debug("Durable: cached model response", step=step)
         return response
