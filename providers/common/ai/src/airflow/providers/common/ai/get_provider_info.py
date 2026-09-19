@@ -70,11 +70,7 @@ def get_provider_info():
                 "external-doc-url": "https://docs.docker.com/ai/sandboxes/",
                 "tags": ["software"],
             },
-            {
-                "integration-name": "Ascii Box",
-                "external-doc-url": "https://docs.ascii.dev/box/quickstart",
-                "tags": ["service"],
-            },
+            {"integration-name": "Boat", "external-doc-url": "https://docs.boat.dev/", "tags": ["service"]},
         ],
         "hooks": [
             {

@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""End-to-end system test for SandboxToolset with Ascii Box."""
+"""End-to-end system test for SandboxToolset with Boat."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ from datetime import datetime, timezone
 from airflow.providers.common.compat.sdk import dag as airflow_dag, task
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = f"common_ai_sandbox_toolset_ascii_box_{ENV_ID}" if ENV_ID else "common_ai_sandbox_toolset_ascii_box"
+DAG_ID = f"common_ai_sandbox_toolset_boat_{ENV_ID}" if ENV_ID else "common_ai_sandbox_toolset_boat"
 
 MARKER = "boundary-ok"
 ENV_MARKER = "env-ok"
@@ -36,16 +36,16 @@ STATE_PATH = "/tmp/airflow_sandbox_e2e"
     schedule="@once",
     start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
     catchup=False,
-    tags=["common.ai", "sandbox", "ascii-box", "system_test"],
+    tags=["common.ai", "sandbox", "boat", "system_test"],
 )
-def example_sandbox_toolset_ascii_box():
+def example_sandbox_toolset_boat():
     @task
     def run_sandbox_agent() -> str:
         from pydantic_ai import Agent
         from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart, ToolCallPart
         from pydantic_ai.models.function import AgentInfo, FunctionModel
 
-        from airflow.providers.common.ai.sandbox import AsciiBoxSandboxBackend, SandboxSpec
+        from airflow.providers.common.ai.sandbox import BoatSandboxBackend, SandboxSpec
         from airflow.providers.common.ai.toolsets import SandboxToolset
 
         def model_function(messages: list[ModelMessage], _info: AgentInfo) -> ModelResponse:
@@ -77,7 +77,7 @@ def example_sandbox_toolset_ascii_box():
                             args={
                                 "command": (
                                     f"printf '%s|%s|%s\\n' \"$(cat {STATE_PATH})\" "
-                                    '"$AIRFLOW_ASCII_E2E_ENV" "$((6 * 7))"'
+                                    '"$AIRFLOW_BOAT_E2E_ENV" "$((6 * 7))"'
                                 )
                             },
                             tool_call_id="shell",
@@ -125,10 +125,10 @@ def example_sandbox_toolset_ascii_box():
             instructions="Use the sandbox tools as requested.",
             toolsets=[
                 SandboxToolset(
-                    AsciiBoxSandboxBackend(box_conn_id=None, ttl_seconds=900),
+                    BoatSandboxBackend(boat_conn_id=None, ttl_seconds=900),
                     spec=SandboxSpec(
                         block_network=False,
-                        env={"AIRFLOW_ASCII_E2E_ENV": ENV_MARKER},
+                        env={"AIRFLOW_BOAT_E2E_ENV": ENV_MARKER},
                     ),
                 )
             ],
@@ -141,7 +141,7 @@ def example_sandbox_toolset_ascii_box():
     run_sandbox_agent()
 
 
-dag = example_sandbox_toolset_ascii_box()
+dag = example_sandbox_toolset_boat()
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 

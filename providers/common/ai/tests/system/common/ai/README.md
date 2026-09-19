@@ -42,19 +42,19 @@ Airflow system-test environment whose task process has access to the host `sbx` 
 pytest --system providers/common/ai/tests/system/common/ai/example_sandbox_toolset_sbx.py
 ```
 
-## Ascii Box
+## Boat
 
-Install the Ascii Box extra and export a short-lived API key into the task process:
+Install the Boat extra and export a short-lived API key into the task process:
 
 ```console
-pip install "apache-airflow-providers-common-ai[sandbox-ascii-box]"
-export BOX_API_KEY="..."
-pytest --system providers/common/ai/tests/system/common/ai/example_sandbox_toolset_ascii_box.py
+pip install "apache-airflow-providers-common-ai[sandbox-boat]"
+export BOAT_API_KEY="..."
+pytest --system providers/common/ai/tests/system/common/ai/example_sandbox_toolset_boat.py
 ```
 
-With `box_conn_id=None`, the backend reads this key lazily in the worker process; it is not copied
-into `SandboxSpec.env` or exposed inside the Box. The test passes a separate non-secret marker
+With `boat_conn_id=None`, the backend reads this key lazily in the worker process; it is not copied
+into `SandboxSpec.env` or exposed inside the sandbox. The test passes a separate non-secret marker
 through `SandboxSpec.env` and verifies it from a sandbox command, exercises successful and
 non-zero command exits plus write/read/list operations, and requests open egress
-(`SandboxSpec(block_network=False)`) because Ascii Box cannot enforce a deny-all network policy.
+(`SandboxSpec(block_network=False)`) because Boat cannot enforce a deny-all network policy.
 A 15-minute server-side TTL is the cleanup backstop if worker-side teardown cannot run.

@@ -24,30 +24,31 @@ from unittest import mock
 
 import pytest
 
-pytest.importorskip("ascii_box_sdk")
+pytest.importorskip("boat_sdk")
 
-from ascii_box_sdk.exceptions import ApiException
+from boat_sdk.exceptions import ApiException
+from boat_sdk.models.command_response import CommandResponse
 
-from airflow.providers.common.ai.sandbox.ascii_box import AsciiBoxSandboxBackend
 from airflow.providers.common.ai.sandbox.base import (
     SandboxError,
     SandboxFileTooLargeError,
     SandboxSpec,
     SandboxTerminalError,
 )
+from airflow.providers.common.ai.sandbox.boat import BoatSandboxBackend
 
-_BASE_HOOK_PATH = "airflow.providers.common.ai.sandbox.ascii_box.BaseHook"
+_BASE_HOOK_PATH = "airflow.providers.common.ai.sandbox.boat.BaseHook"
 
 
 def _api_error(status: int, body: str | None = None) -> ApiException:
     return ApiException(status=status, body=body)
 
 
-def _connection(*, password: str | None = "box_secret", host: str | None = None, extra: dict | None = None):
+def _connection(*, password: str | None = "boat_secret", host: str | None = None, extra: dict | None = None):
     return SimpleNamespace(password=password, host=host, extra_dejson=extra or {})
 
 
-def _command_result(
+def _command_response(
     *,
     exit_code=0,
     stdout="",
@@ -56,25 +57,30 @@ def _command_result(
     stdout_truncated=False,
     stderr_truncated=False,
 ):
-    return SimpleNamespace(
-        exit_code=exit_code,
+    """The oneOf wrapper the SDK returns, carrying a real ``CommandResponse``."""
+    result = CommandResponse(
+        ok=True,
+        type="command.finished",
+        success=exit_code == 0,
+        exitCode=exit_code,
         stdout=stdout,
         stderr=stderr,
-        timed_out=timed_out,
-        stdout_truncated=stdout_truncated,
-        stderr_truncated=stderr_truncated,
+        stdoutTruncated=stdout_truncated,
+        stderrTruncated=stderr_truncated,
+        timedOut=timed_out,
     )
+    return SimpleNamespace(actual_instance=result)
 
 
-def _wrapped_command_result(**kwargs):
-    return SimpleNamespace(actual_instance=_command_result(**kwargs))
+def _created(sandbox_id: str):
+    return SimpleNamespace(sandbox=SimpleNamespace(id=sandbox_id))
 
 
-def _backend_with_api(**kwargs) -> tuple[AsciiBoxSandboxBackend, mock.MagicMock]:
-    backend = AsciiBoxSandboxBackend(**kwargs)
+def _backend_with_api(**kwargs) -> tuple[BoatSandboxBackend, mock.MagicMock]:
+    backend = BoatSandboxBackend(**kwargs)
     api = mock.MagicMock(spec=["create", "update", "get", "command", "read_file", "write_file", "api_client"])
     api.api_client = mock.MagicMock(spec=["param_serialize", "call_api"])
-    backend._box_api = api
+    backend._boat_api = api
     backend._request_timeout = 30.0
     backend._resolved_no_env = True
     return backend, api
@@ -84,14 +90,14 @@ def test_missing_sdk_error_is_actionable():
     real_import = builtins.__import__
 
     def blocked_import(name, *args, **kwargs):
-        if name.startswith("ascii_box_sdk"):
+        if name.startswith("boat_sdk"):
             raise ImportError("blocked for test")
         return real_import(name, *args, **kwargs)
 
-    backend = AsciiBoxSandboxBackend(box_conn_id=None)
-    with mock.patch.dict("os.environ", {"BOX_API_KEY": "box_key"}, clear=False):
+    backend = BoatSandboxBackend(boat_conn_id=None)
+    with mock.patch.dict("os.environ", {"BOAT_API_KEY": "boat_key"}, clear=False):
         with mock.patch("builtins.__import__", side_effect=blocked_import):
-            with pytest.raises(SandboxTerminalError, match="sandbox-ascii-box"):
+            with pytest.raises(SandboxTerminalError, match="sandbox-boat"):
                 backend._get_api()
 
 
@@ -108,72 +114,70 @@ def test_missing_sdk_error_is_actionable():
 )
 def test_constructor_rejects_invalid_values(kwargs, message):
     with pytest.raises(ValueError, match=message):
-        AsciiBoxSandboxBackend(**kwargs)
+        BoatSandboxBackend(**kwargs)
 
 
 class TestConnection:
-    @mock.patch("ascii_box_sdk.api.box_api.BoxApi", autospec=True)
-    @mock.patch("ascii_box_sdk.ApiClient", autospec=True)
-    @mock.patch("ascii_box_sdk.Configuration", autospec=True)
+    @mock.patch("boat_sdk.api.boat_api.BoatApi", autospec=True)
+    @mock.patch("boat_sdk.ApiClient", autospec=True)
+    @mock.patch("boat_sdk.Configuration", autospec=True)
     @mock.patch(_BASE_HOOK_PATH, autospec=True)
     def test_airflow_connection_fields_and_allowlisted_extras_are_forwarded(
-        self, hook, configuration, _client, _box_api
+        self, hook, configuration, _client, _boat_api
     ):
         hook.get_connection.return_value = _connection(
             password=" key ",
-            host="https://box.example/api/box/v1",
+            host="https://boat.example/api/v1",
             extra={"timeout": "12.5", "no_env": "false", "ignored": "value"},
         )
-        backend = AsciiBoxSandboxBackend(box_conn_id="my_box")
+        backend = BoatSandboxBackend(boat_conn_id="my_boat")
 
         backend._get_api()
 
-        hook.get_connection.assert_called_once_with("my_box")
-        configuration.assert_called_once_with(host="https://box.example/api/box/v1", access_token="key")
+        hook.get_connection.assert_called_once_with("my_boat")
+        configuration.assert_called_once_with(host="https://boat.example/api/v1", access_token="key")
         assert backend._resolved_no_env is False
         assert backend._request_timeout == 12.5
 
-    @mock.patch("ascii_box_sdk.api.box_api.BoxApi", autospec=True)
-    @mock.patch("ascii_box_sdk.ApiClient", autospec=True)
-    @mock.patch("ascii_box_sdk.Configuration", autospec=True)
+    @mock.patch("boat_sdk.api.boat_api.BoatApi", autospec=True)
+    @mock.patch("boat_sdk.ApiClient", autospec=True)
+    @mock.patch("boat_sdk.Configuration", autospec=True)
     @mock.patch(_BASE_HOOK_PATH, autospec=True)
-    def test_connection_is_resolved_once_and_cached(self, hook, _configuration, _client, _box_api):
+    def test_connection_is_resolved_once_and_cached(self, hook, _configuration, _client, _boat_api):
         hook.get_connection.return_value = _connection()
-        backend = AsciiBoxSandboxBackend()
+        backend = BoatSandboxBackend()
 
         backend._get_api()
         backend._get_api()
 
-        hook.get_connection.assert_called_once_with("ascii_box_default")
+        hook.get_connection.assert_called_once_with("boat_default")
 
-    @mock.patch("ascii_box_sdk.api.box_api.BoxApi", autospec=True)
-    @mock.patch("ascii_box_sdk.ApiClient", autospec=True)
-    @mock.patch("ascii_box_sdk.Configuration", autospec=True)
-    def test_none_connection_id_reads_environment(self, configuration, _client, _box_api):
+    @mock.patch("boat_sdk.api.boat_api.BoatApi", autospec=True)
+    @mock.patch("boat_sdk.ApiClient", autospec=True)
+    @mock.patch("boat_sdk.Configuration", autospec=True)
+    def test_none_connection_id_reads_environment(self, configuration, _client, _boat_api):
         with mock.patch.dict(
             "os.environ",
-            {"BOX_API_KEY": "env-key", "BOX_BASE_URL": "https://custom.example/api/box/v1"},
+            {"BOAT_API_KEY": "env-key", "BOAT_BASE_URL": "https://custom.example/api/v1"},
             clear=False,
         ):
-            AsciiBoxSandboxBackend(box_conn_id=None)._get_api()
+            BoatSandboxBackend(boat_conn_id=None)._get_api()
 
-        configuration.assert_called_once_with(
-            host="https://custom.example/api/box/v1", access_token="env-key"
-        )
+        configuration.assert_called_once_with(host="https://custom.example/api/v1", access_token="env-key")
 
     @mock.patch(_BASE_HOOK_PATH, autospec=True)
     def test_missing_api_key_is_terminal(self, hook):
         hook.get_connection.return_value = _connection(password="")
 
         with pytest.raises(SandboxTerminalError, match="has no password"):
-            AsciiBoxSandboxBackend()._get_api()
+            BoatSandboxBackend()._get_api()
 
     @mock.patch(_BASE_HOOK_PATH, autospec=True)
     def test_invalid_connection_extra_is_terminal(self, hook):
         hook.get_connection.return_value = _connection(extra={"timeout": "never"})
 
         with pytest.raises(SandboxTerminalError, match="timeout must be a positive finite number"):
-            AsciiBoxSandboxBackend()._get_api()
+            BoatSandboxBackend()._get_api()
 
 
 class TestCreate:
@@ -189,15 +193,15 @@ class TestCreate:
         with pytest.raises(SandboxTerminalError, match="cannot deny outbound network access"):
             backend.create(spec=SandboxSpec(block_network=True))
 
-    @mock.patch("ascii_box_sdk.wait_until_ready", autospec=True)
+    @mock.patch("boat_sdk.wait_until_ready", autospec=True)
     def test_spec_and_sizing_are_passed_at_creation(self, wait_ready):
         backend, api = _backend_with_api(machine_type="small", ttl_seconds=120, ready_timeout=45, no_env=True)
-        api.create.return_value = SimpleNamespace(id="bx_created1")
+        api.create.return_value = _created("bx_created1")
 
-        box_id = backend.create(spec=SandboxSpec(block_network=False, env={"TOKEN": "value"}))
+        sandbox_id = backend.create(spec=SandboxSpec(block_network=False, env={"TOKEN": "value"}))
 
-        assert box_id == "bx_created1"
-        request = api.create.call_args.kwargs["create_box_request"]
+        assert sandbox_id == "bx_created1"
+        request = api.create.call_args.kwargs["create_sandbox_request"]
         assert request.type == "small"
         assert request.ttl_seconds == 120
         assert request.no_env is True
@@ -205,35 +209,35 @@ class TestCreate:
         wait_ready.assert_called_once()
         assert api.update.called
 
-    @mock.patch("ascii_box_sdk.wait_until_ready", autospec=True)
+    @mock.patch("boat_sdk.wait_until_ready", autospec=True)
     def test_none_spec_is_allowed(self, _wait_ready):
         backend, api = _backend_with_api()
-        api.create.return_value = SimpleNamespace(box=SimpleNamespace(id="bx_created1"))
+        api.create.return_value = _created("bx_created1")
 
         backend.create()
 
-        request = api.create.call_args.kwargs["create_box_request"]
+        request = api.create.call_args.kwargs["create_sandbox_request"]
         assert request.env is None
 
-    @mock.patch("ascii_box_sdk.wait_until_ready", autospec=True)
-    def test_a_box_that_never_becomes_ready_is_destroyed(self, wait_ready):
+    @mock.patch("boat_sdk.wait_until_ready", autospec=True)
+    def test_a_sandbox_that_never_becomes_ready_is_destroyed(self, wait_ready):
         backend, api = _backend_with_api()
-        api.create.return_value = SimpleNamespace(box=SimpleNamespace(id="bx_stuck01"))
+        api.create.return_value = _created("bx_stuck01")
         wait_ready.side_effect = TimeoutError("never became ready")
-        api.api_client.param_serialize.return_value = ("DELETE", "https://example/boxes", {}, None, None)
+        api.api_client.param_serialize.return_value = ("DELETE", "https://example/sandboxes", {}, None, None)
         api.api_client.call_api.return_value = mock.MagicMock(status=202, read=mock.MagicMock())
 
         with pytest.raises(SandboxTerminalError):
             backend.create(spec=SandboxSpec(block_network=False))
 
         # The id never reached the caller, so create is the only place that can
-        # still tear this Box down.
-        assert api.api_client.param_serialize.call_args.kwargs["path_params"] == {"boxId": "bx_stuck01"}
+        # still tear this sandbox down.
+        assert api.api_client.param_serialize.call_args.kwargs["path_params"] == {"sandboxId": "bx_stuck01"}
 
-    @mock.patch("ascii_box_sdk.wait_until_ready", autospec=True)
-    def test_an_unnameable_box_is_still_created(self, _wait_ready):
+    @mock.patch("boat_sdk.wait_until_ready", autospec=True)
+    def test_an_unnameable_sandbox_is_still_created(self, _wait_ready):
         backend, api = _backend_with_api()
-        api.create.return_value = SimpleNamespace(box=SimpleNamespace(id="bx_created1"))
+        api.create.return_value = _created("bx_created1")
         api.update.side_effect = _api_error(500)
 
         assert backend.create(spec=SandboxSpec(block_network=False)) == "bx_created1"
@@ -254,10 +258,10 @@ class TestCreate:
                     "ok": False,
                     "status": 402,
                     "code": "billing_required",
-                    "message": "Start the $20/month Box plan to create sandboxes.",
+                    "message": "Start the $20/month plan to create sandboxes.",
                     "error": {
                         "code": "billing_required",
-                        "message": "Start the $20/month Box plan to create sandboxes.",
+                        "message": "Start the $20/month plan to create sandboxes.",
                     },
                 }
             ),
@@ -265,7 +269,7 @@ class TestCreate:
 
         with pytest.raises(
             SandboxTerminalError,
-            match=r"HTTP 402\)\. billing_required: Start the \$20/month Box plan",
+            match=r"HTTP 402\)\. billing_required: Start the \$20/month plan",
         ):
             backend.create(spec=SandboxSpec(block_network=False))
 
@@ -274,29 +278,29 @@ class TestCreate:
         backend, api = _backend_with_api()
         api.create.side_effect = _api_error(500, body)
 
-        with pytest.raises(
-            SandboxTerminalError, match=r"^Ascii Box could not create a sandbox \(HTTP 500\)\.$"
-        ):
+        with pytest.raises(SandboxTerminalError, match=r"^Boat could not create a sandbox \(HTTP 500\)\.$"):
             backend.create(spec=SandboxSpec(block_network=False))
 
-    @mock.patch("ascii_box_sdk.wait_until_ready", autospec=True)
-    def test_wrapped_create_response_remains_supported(self, _wait_ready):
+    @pytest.mark.parametrize("state", ["ready", "idle", "running"])
+    def test_confirm_exists_accepts_a_runnable_state(self, state):
         backend, api = _backend_with_api()
-        api.create.return_value = SimpleNamespace(box=SimpleNamespace(id="bx_wrapped1"))
+        api.get.return_value = SimpleNamespace(sandbox=SimpleNamespace(id="bx_1", state=state))
 
-        assert backend.create(spec=SandboxSpec(block_network=False)) == "bx_wrapped1"
+        backend._confirm_sandbox_exists("bx_1")
 
-    def test_confirm_exists_accepts_direct_box_response(self):
+    @pytest.mark.parametrize("state", ["archiving", "archived", "error"])
+    def test_confirm_exists_rejects_a_sandbox_that_cannot_run(self, state):
         backend, api = _backend_with_api()
-        api.get.return_value = SimpleNamespace(id="bx_direct1", state="running")
+        api.get.return_value = SimpleNamespace(sandbox=SimpleNamespace(id="bx_1", state=state))
 
-        backend._confirm_sandbox_exists("bx_direct1")
+        with pytest.raises(SandboxTerminalError, match="not runnable"):
+            backend._confirm_sandbox_exists("bx_1")
 
 
 class TestRunCommand:
     def test_forwards_command_and_bounds_output(self):
         backend, api = _backend_with_api()
-        api.command.return_value = _command_result(
+        api.command.return_value = _command_response(
             stdout="0" * 20, stderr="err", stdout_truncated=True, stderr_truncated=False
         )
 
@@ -310,13 +314,12 @@ class TestRunCommand:
         assert result.stderr == "err"
         assert result.exit_code == 0
 
-    def test_unwraps_sdk_oneof_command_response(self):
+    def test_a_detached_command_response_is_terminal(self):
         backend, api = _backend_with_api()
-        api.command.return_value = _wrapped_command_result(stdout="wrapped")
+        api.command.return_value = SimpleNamespace(actual_instance=SimpleNamespace(id="cmd_1"))
 
-        result = backend.run_command("bx_1", "echo hi", timeout=5, max_output_bytes=8)
-
-        assert result.stdout == "wrapped"
+        with pytest.raises(SandboxTerminalError, match="no result for the command"):
+            backend.run_command("bx_1", "echo hi", timeout=5, max_output_bytes=8)
 
     def test_rejects_timeout_above_api_cap(self):
         backend, _ = _backend_with_api()
@@ -326,11 +329,17 @@ class TestRunCommand:
 
     def test_timeout_destroys_sandbox(self):
         backend, api = _backend_with_api()
-        api.command.return_value = _command_result(timed_out=True, stdout="partial")
+        api.command.return_value = _command_response(exit_code=-1, timed_out=True, stdout="partial")
         response = mock.MagicMock()
         response.status = 202
         response.read = mock.MagicMock()
-        api.api_client.param_serialize.return_value = ("DELETE", "https://example/boxes/bx_1", {}, None, None)
+        api.api_client.param_serialize.return_value = (
+            "DELETE",
+            "https://example/sandboxes/bx_1",
+            {},
+            None,
+            None,
+        )
         api.api_client.call_api.return_value = response
 
         result = backend.run_command("bx_1", "sleep 99", timeout=1, max_output_bytes=1024)
@@ -344,7 +353,7 @@ class TestFiles:
     def test_read_file_caps_the_transfer_inside_the_guest(self):
         backend, api = _backend_with_api()
         payload = b"hello-world"
-        api.command.return_value = _command_result(
+        api.command.return_value = _command_response(
             stdout=f"{len(payload)}\n{base64.b64encode(payload).decode()}"
         )
 
@@ -358,7 +367,7 @@ class TestFiles:
     def test_read_file_rejects_a_file_over_budget(self):
         backend, api = _backend_with_api()
         payload = b"hello-world"
-        api.command.return_value = _command_result(
+        api.command.return_value = _command_response(
             stdout=f"{len(payload)}\n{base64.b64encode(payload).decode()}"
         )
 
@@ -367,14 +376,14 @@ class TestFiles:
 
     def test_missing_file_is_recoverable(self):
         backend, api = _backend_with_api()
-        api.command.return_value = _command_result(exit_code=66)
+        api.command.return_value = _command_response(exit_code=66)
 
         with pytest.raises(SandboxError, match="does not exist"):
             backend.read_file("bx_1", "/tmp/missing", max_bytes=10)
 
     def test_write_file_uses_base64_and_creates_parents(self):
         backend, api = _backend_with_api()
-        api.command.return_value = _command_result()
+        api.command.return_value = _command_response()
 
         backend.write_file("bx_1", "/tmp/dir/file.bin", b"\x00\x01")
 
@@ -387,26 +396,40 @@ class TestFiles:
 
 
 class TestDestroy:
-    def test_delete_is_idempotent_for_missing_boxes(self):
+    def test_delete_is_idempotent_for_missing_sandboxes(self):
         backend, api = _backend_with_api()
-        api.api_client.param_serialize.return_value = ("DELETE", "https://example/boxes/bx_1", {}, None, None)
+        api.api_client.param_serialize.return_value = (
+            "DELETE",
+            "https://example/sandboxes/bx_1",
+            {},
+            None,
+            None,
+        )
         api.api_client.call_api.side_effect = _api_error(404)
 
         backend.destroy("bx_1")
 
         assert api.api_client.call_api.called
 
-    def test_delete_sends_confirm_header(self):
+    def test_delete_targets_the_sandbox_route_with_the_confirm_header(self):
         backend, api = _backend_with_api()
         response = mock.MagicMock()
         response.status = 202
         response.read = mock.MagicMock()
-        api.api_client.param_serialize.return_value = ("DELETE", "https://example/boxes/bx_1", {}, None, None)
+        api.api_client.param_serialize.return_value = (
+            "DELETE",
+            "https://example/sandboxes/bx_1",
+            {},
+            None,
+            None,
+        )
         api.api_client.call_api.return_value = response
 
         backend.destroy("bx_gone01")
 
         kwargs = api.api_client.param_serialize.call_args.kwargs
         assert kwargs["method"] == "DELETE"
-        assert kwargs["path_params"] == {"boxId": "bx_gone01"}
+        assert kwargs["resource_path"] == "/sandboxes/{sandboxId}"
+        assert kwargs["path_params"] == {"sandboxId": "bx_gone01"}
         assert kwargs["header_params"]["X-Ascii-Confirm-Delete"] == "bx_gone01"
+        assert kwargs["auth_settings"] == ["BoatBearerAuth"]

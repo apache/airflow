@@ -1596,6 +1596,12 @@ apache-airflow-task-sdk-integration-tests = false
 # past that release so 1.2.0 resolves while any later release stays quarantined.
 # Remove once the rolling window advances past 2026-07-15.
 pydantic-ai-skills = "2026-07-16T00:00:00Z"
+# Temporary: boat-sdk 1.0.0 is the first release of the renamed SDK behind the
+# apache-airflow-providers-common-ai[sandbox-boat] extra (the Ascii Box service became Boat on
+# 2026-09-15), and it was published 2026-09-16, inside the "4 days" exclude-newer window. This
+# pins the per-package cutoff just past that release so 1.0.0 resolves while any later release
+# stays quarantined. Remove once the rolling window advances past 2026-09-16.
+boat-sdk = "2026-09-17T00:00:00Z"
 # Temporary: google-cloud-aiplatform 1.164.0 is the first release whose "evaluation" extra
 # allows the litellm versions that carry the Python 3.14 security fixes, and it was published
 # 2026-08-12, inside the "4 days" exclude-newer window. This pins the per-package cutoff just
@@ -1754,6 +1760,12 @@ apache-airflow-task-sdk-integration-tests = false
 # `[tool.uv.exclude-newer-package]` above for rationale.
 # Temporary: see the pydantic-ai-skills note in `[tool.uv.exclude-newer-package]`.
 pydantic-ai-skills = "2026-07-16T00:00:00Z"
+# Temporary: boat-sdk 1.0.0 is the first release of the renamed SDK behind the
+# apache-airflow-providers-common-ai[sandbox-boat] extra (the Ascii Box service became Boat on
+# 2026-09-15), and it was published 2026-09-16, inside the "4 days" exclude-newer window. This
+# pins the per-package cutoff just past that release so 1.0.0 resolves while any later release
+# stays quarantined. Remove once the rolling window advances past 2026-09-16.
+boat-sdk = "2026-09-17T00:00:00Z"
 # Temporary: see the google-cloud-aiplatform note in `[tool.uv.exclude-newer-package]`.
 google-cloud-aiplatform = "2026-08-13T00:00:00Z"
 
