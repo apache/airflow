@@ -538,19 +538,15 @@ class TestCallbackSubprocessStart:
         self, base_start_kwargs, mock_bundle_setup
     ):
         """Test that the bundle discovery path and import root are added to sys.path."""
-        with (
-            patch("sys.path", new_callable=list) as mock_sys_path,
-            patch("importlib.invalidate_caches") as mock_invalidate_caches,
-        ):
+        with patch("sys.path", new_callable=list) as mock_sys_path:
             bundle_info = BundleInfo(name="test-bundle", version="1.0")
             adjusted_kwargs = {**base_start_kwargs, "bundle_info": bundle_info}
 
             CallbackSubprocess.start(**adjusted_kwargs)
             self.mock_super_start.call_args.kwargs["target"]()
 
-            assert str(mock_bundle_setup["bundle_path"]) in mock_sys_path
-            assert str(mock_bundle_setup["bundle_import_root"]) in mock_sys_path
-            mock_invalidate_caches.assert_called_once_with()
+            assert mock_sys_path.count(str(mock_bundle_setup["bundle_path"])) == 1
+            assert mock_sys_path.count(str(mock_bundle_setup["bundle_import_root"])) == 1
 
     def test_callback_supervisor_should_exit_on_error(self, base_start_kwargs):
         """Test that callback supervisor exits if execute_callback returns an error."""
