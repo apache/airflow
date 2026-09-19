@@ -76,6 +76,67 @@ describe("renderStructuredLog — traceback frame highlighting", () => {
   });
 });
 
+describe("renderStructuredLog — already rendered error_detail", () => {
+  const traceback = [
+    "Traceback (most recent call last):",
+    '  File "/dags/t.py", line 12, in run',
+    "RuntimeError: outer",
+  ].join("\n");
+
+  const logMessage = { error_detail: traceback, event: "Trigger failed" };
+
+  it("text mode: puts the traceback on its own line rather than against the event", () => {
+    const result = renderStructuredLog({
+      index: 0,
+      logLink: "",
+      logMessage,
+      renderingMode: "text",
+      translate: translate as never,
+    });
+
+    expect(result).toBe(`Trigger failed\n${traceback}`);
+  });
+
+  it("jsx mode: puts the traceback on its own line rather than against the event", () => {
+    const result = renderStructuredLog({
+      index: 0,
+      logLink: "",
+      logMessage,
+      renderingMode: "jsx",
+      translate: translate as never,
+    });
+
+    const { container } = render(<Wrapper>{result}</Wrapper>);
+
+    // The leading "0" is the line-number gutter link, which carries the index.
+    expect(container.textContent).toBe(`0Trigger failed\n${traceback}`);
+  });
+
+  it("adds no blank line when error_detail is an empty string", () => {
+    const result = renderStructuredLog({
+      index: 0,
+      logLink: "",
+      logMessage: { error_detail: "", event: "Trigger failed" },
+      renderingMode: "text",
+      translate: translate as never,
+    });
+
+    expect(result).toBe("Trigger failed");
+  });
+
+  it("does not throw on an error_detail that is neither a list nor a string", () => {
+    const result = renderStructuredLog({
+      index: 0,
+      logLink: "",
+      logMessage: { error_detail: { unexpected: true }, event: "Trigger failed" },
+      renderingMode: "text",
+      translate: translate as never,
+    });
+
+    expect(result).toBe('Trigger failed\n{"unexpected":true}');
+  });
+});
+
 describe("renderStructuredLog — TI context field stripping", () => {
   it("does not render TI context fields as per-line structured attributes", () => {
     const result = renderStructuredLog({
