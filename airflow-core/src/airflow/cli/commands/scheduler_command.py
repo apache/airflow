@@ -91,8 +91,7 @@ def _serve_logs(skip_serve_logs: bool = False):
     finally:
         if sub_proc:
             sub_proc.terminate()
-
-
+            
 @contextmanager
 def _serve_health_check(enable_health_check: bool = False):
     """Start serve_health_check sub-process."""
@@ -105,3 +104,4 @@ def _serve_health_check(enable_health_check: bool = False):
     finally:
         if sub_proc:
             sub_proc.terminate()
+            sub_proc.join()
