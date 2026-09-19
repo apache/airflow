@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pydantic import BaseModel
 
@@ -93,6 +93,9 @@ class LLMFileAnalysisOperator(LLMOperator):
         "file_path",
         "file_conn_id",
     )
+
+    # Runs its own execute() without the confidence gate; a decision_policy is rejected at construction.
+    supports_decision_policy: ClassVar[bool] = False
 
     def __init__(
         self,

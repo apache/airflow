@@ -28,6 +28,7 @@ import pytest
 from airflow.providers.common.ai.mixins.approval import (
     LLMApprovalMixin,
 )
+from airflow.providers.common.ai.operators.llm import DecisionPolicy
 from airflow.providers.common.ai.operators.llm_sql import LLMSQLQueryOperator
 from airflow.providers.common.ai.utils.sql_validation import SQLSafetyError
 from airflow.providers.common.compat.sdk import TaskDeferred
@@ -876,3 +877,13 @@ class TestLLMSQLQueryOperatorMultimodalPromptGuard:
             op.execute(context=_make_context())
 
         mock_agent.run_sync.assert_not_called()
+
+
+def test_decision_policy_with_a_bar_is_rejected_at_construction():
+    """The operator runs its own execute without the gate; accepting the policy would silently ignore it."""
+    with pytest.raises(ValueError, match="LLMSQLQueryOperator does not support decision_policy"):
+        LLMSQLQueryOperator(
+            task_id="t", prompt="p", llm_conn_id="c", decision_policy=DecisionPolicy(min_confidence=0.7)
+        )
+    # A policy without a bar is the default and stays accepted.
+    LLMSQLQueryOperator(task_id="t", prompt="p", llm_conn_id="c", decision_policy=DecisionPolicy())
