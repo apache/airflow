@@ -55,8 +55,9 @@ Goals:
 - Project CI (`apache/airflow` runners) does not run for gated pull requests. The decision is
   made by one function with one configuration file.
 - A single scheduled reconciler owns the lifecycle of gated pull requests: labelling, drafting,
-  undrafting, the state comment, the nudge after workflows are enabled, and closing after
-  inactivity. It is idempotent, so missed or duplicated scheduled runs are harmless.
+  undrafting, the state comment, the nudge after workflows are enabled, closing after
+  inactivity, and closing a pull request that tampered with the gate to get project CI. It is
+  idempotent, so missed or duplicated scheduled runs are harmless.
 - Maintainers and contributors see the fork CI state where they already look: a commit status
   on the pull request head, red / yellow / green, linking to the run in the fork.
 - A contributor can verify their whole setup locally with `breeze ci audit` before pushing.
@@ -87,7 +88,8 @@ Non-goals:
                      │ GraphQL: checkSuites   │        per labelled PR: fork state ->     │
                      │ REST: workflow state   │          draft/undraft, labels, comment,  │
                      └────────────────────────│          commit status with run link,     │
-                                              │          close after 7 days               │
+                                              │          close after 7 days or when the   │
+                                              │          PR tampered with the gate        │
                                               │        unknown failures -> Slack          │
                                               └──────────────────────────────────────────┘
 ```
@@ -281,13 +283,17 @@ pull request whose author later becomes a committer keeps the label until a main
 removes it or adds `use project ci`; the reconciler does not un-gate on its own.
 
 **Pass 2, reconcile.** GraphQL search for open pull requests with the `fork ci required`
-label, 100 per page, fetching for each: number, `isDraft`, labels, `headRefOid`,
-`headRepository { nameWithOwner }`, the last `ConvertToDraftEvent` actor from
+label, 100 per page, fetching for each: number, `isDraft`, labels, `authorAssociation`,
+`author.login`, `createdAt`, `headRefOid`, `headRepository { nameWithOwner }`, the last
+`ConvertToDraftEvent` actor and the last `UnlabeledEvent` for `use project ci` from
 `timelineItems`, the current `Fork CI / Tests (AMD)` commit status on the head commit
 (`commits(last: 1) { nodes { commit { status { context(name: ...) { state targetUrl
-description } } } } }`), and the reconciler's own state comment (`comments(last: 50)`
-filtered by the marker). The fork state is then fetched in batches of 50 with one GraphQL query per batch using
-aliases:
+description } } } } }`), the project CI check suites on that same head commit
+(`checkSuites(first: 20) { nodes { createdAt workflowRun { url workflow { name
+resourcePath } } checkRuns(first: 100) { nodes { name status conclusion } } } }`, used by
+the gate tampering check below), and the reconciler's own state comment (`comments(last:
+50)` filtered by the marker). The fork state is then fetched in batches of 50 with one GraphQL
+query per batch using aliases:
 
 ```graphql
 pr123: repository(owner: "<fork-owner>", name: "airflow") {
@@ -316,11 +322,17 @@ pull requests in that state, not by the total.
 | **failed**: conclusion is failure, cancelled or timed out | draft | remove | `failure` (red), link to the run | update with the run link |
 | **green**: conclusion success | undraft\* | add | `success` (green), link to the run | update: ready for review, run link |
 | setup_required or awaiting_push for `close_after_days` | unchanged | unchanged | unchanged | close with a new comment; reopening restarts the clock |
+| **gate_bypassed**: project CI ran for the head SHA and the pull request changes workflow files (see "Gate tampering") | draft | remove | `error` (red), link to the project CI run that should not have happened | post a **new** comment explaining why, then close; takes precedence over every row above |
 
 \* only if the last convert-to-draft event on the pull request was by `github-actions[bot]`;
 a pull request the author drafted stays a draft.
 
 Rules that sit under the table:
+
+- **Gate tampering wins.** The `gate_bypassed` check is evaluated first for every pull
+  request whose eligibility reason is `external`; when it holds, the fork state is not
+  consulted at all. A pull request that was already `green` and undrafted is drafted again,
+  loses the review label and is closed on the same run.
 
 - **A new push resets the row.** The head SHA is recorded in the state comment. A push to a
   green pull request is observed as `running` or `awaiting_push` on the next run, which drafts
@@ -340,6 +352,54 @@ Rules that sit under the table:
   on any state change, and starts fresh after a reopen because the reconciler records a new
   state on the first run after reopening.
 
+### Gate tampering
+
+`pull_request` runs use the workflow files of the pull request's merge commit, so a gated
+pull request can edit `ci-amd.yml` to drop the `gate` job or its `if` on `build-info`, or add
+a workflow file with a `pull_request` trigger, and get project CI anyway. The gate job cannot
+prevent this (see "Security considerations"); the reconciler detects it after the fact and
+closes the pull request, which also stops further pushes from triggering `pull_request` runs
+in `apache/airflow`.
+
+The check applies only to pull requests whose `fork_ci_gate.decide` reason is `external`,
+recomputed from the pass 2 fields. Committers piloting with `use fork ci` are excluded: their
+pull request legitimately ran project CI before the label was added. Two signals are
+required, and both must hold:
+
+1. **Project CI ran.** Among the check suites on the head SHA in `apache/airflow`, either the
+   `Tests (AMD)` suite has a check run other than the `gate` job whose conclusion is not
+   `SKIPPED` (a run still queued or in progress counts), or a suite belongs to a workflow
+   whose `resourcePath` is not one of the workflow files on the base branch (an injected
+   workflow). Suites created before the most recent removal of `use project ci` from the pull
+   request are ignored, because they ran legitimately while the label was on. This signal
+   comes from the pass 2 query and costs nothing extra.
+2. **The pull request changes workflow files.** One REST call,
+   `GET /repos/apache/airflow/pulls/<n>/files`, made only for pull requests that tripped
+   signal 1, must show at least one changed path under `.github/workflows/`.
+
+Signal 2 exists so that project CI runs with a legitimate cause never close anything: a pull
+request created before an `enabled_since` that was later moved back for the backlog reset, or
+one that was released with `use project ci` and later re-gated, has full runs on its head
+SHA but does not touch workflows. Signal 1 exists so that an external pull request that
+edits `ci-amd.yml` legitimately, and leaves the gate intact, is not closed for touching the
+file.
+
+When both hold the reconciler records `gate_bypassed` in the state comment marker, drafts the
+pull request, removes `ready for maintainer review`, posts an `error` status whose
+`target_url` is the project CI run that should not have happened, posts a new comment and
+closes. The comment says which run was observed, that changes to `.github/workflows/` from a
+gated pull request cannot be verified in `apache/airflow` without a maintainer, and that a
+maintainer can reopen the pull request with `use project ci` if the workflow change is
+wanted. The closure is also reported to Slack as an attention item, with the pull request
+number, the author login and the run link.
+
+Reopening without a change is observed on the next run with the same head SHA and the same
+suites, and the pull request is closed again. Reopening after a push that restores the gate
+triggers a fresh `pull_request` run in `apache/airflow` in which only `gate` executes, so
+signal 1 no longer holds and the pull request re-enters the fork state machine. `use project
+ci` releases it like any other gated pull request; a maintainer who wants to keep an external
+workflow change has to leave that label on.
+
 ### State comment
 
 One comment per pull request, created on first contact and edited afterwards. It starts with
@@ -350,8 +410,9 @@ an HTML marker the reconciler parses:
 ```
 
 followed by the human text for the current state. Editing does not notify, which is the
-point: state churn is silent. The two moments that need the author's attention, the nudge
-after enabling workflows and the close, are new comments.
+point: state churn is silent. The three moments that need the author's attention, the nudge
+after enabling workflows, the close after inactivity and the close for gate tampering, are
+new comments.
 
 All comment texts live in `dev/breeze/src/airflow_breeze/utils/fork_ci_messages.py` as
 templates so wording can be reviewed in one place. Every comment ends with the AI-attribution
@@ -364,10 +425,11 @@ and must give the exact command to run.
 The reconciler posts a commit status with context `Fork CI / Tests (AMD)` on the pull
 request head SHA in `apache/airflow` (`POST /repos/apache/airflow/statuses/<sha>`). That is
 how the state becomes visible without opening the pull request: red for `setup_required`
-(`error`) and `failed` (`failure`), yellow for `awaiting_push` and `running` (`pending`),
-green for `green` (`success`). `target_url` is the run in the fork when one exists and the
-fork's Actions page for `ci-amd.yml` otherwise, so a maintainer can open the fork run in one
-click. The `description` is a short sentence under 140 characters that always ends with
+and `gate_bypassed` (`error`) and `failed` (`failure`), yellow for `awaiting_push` and
+`running` (`pending`), green for `green` (`success`). `target_url` is the run in the fork
+when one exists and the fork's Actions page for `ci-amd.yml` otherwise, so a maintainer can
+open the fork run in one click; for `gate_bypassed` it is the project CI run that was
+observed. The `description` is a short sentence under 140 characters that always ends with
 where to look next.
 
 Statuses are immutable and per SHA. The reconciler compares the desired `(state,
@@ -389,17 +451,24 @@ close-after-inactivity decision; the skill must treat `fork ci required` pull re
 out of scope for those three actions. Everything else the skill does (quality gates, pings,
 suspicious-change flags) is unaffected.
 
-### Unknown failures go to Slack
+### Unknown failures and attention items go to Slack
 
 The reconciler is defensive per pull request: an exception while processing one pull request
 is caught, recorded and the loop continues. At the end of the run every recorded item that the
-reconciler could not classify is turned into one Slack message written to `slack-message.json`
-with `channel: internal-airflow-ci-cd`, and the workflow posts it with
-`slackapi/slack-github-action` exactly as `ci-duration-monitor.yml` does. The output
-`has-alerts=true` gates the posting step. Unknown means any of:
+reconciler could not classify, plus every attention item, is turned into one Slack message
+written to `slack-message.json` with `channel: internal-airflow-ci-cd`, and the workflow
+posts it with `slackapi/slack-github-action` exactly as `ci-duration-monitor.yml` does. The
+output `has-alerts=true` gates the posting step.
+
+Attention items are expected outcomes that a maintainer should still see: a pull request
+closed for gate tampering, and a pull request carrying both override labels. They are listed
+in their own section of the message so they are not mistaken for reconciler failures.
+
+Unknown means any of:
 
 - GraphQL or REST error that is not a rate-limit wait (rate limits back off and retry).
-- A check suite for `Tests (AMD)` with a status or conclusion outside the modelled set.
+- A check suite for `Tests (AMD)`, in the fork or in `apache/airflow`, with a status or
+  conclusion outside the modelled set.
 - A workflow state outside `active` / `disabled_fork` / `disabled_manually` / not found.
 - A mutation that returned an error (label, draft, undraft, comment, close, status).
 - A head repository that no longer exists.
@@ -412,9 +481,11 @@ green unless the reconciler could not talk to GitHub at all.
 ### Budget
 
 Per run, with ~700 gated pull requests: ~7 GraphQL calls for pass 2, ~14 for fork state,
-~1 for pass 1, plus one REST call per pull request in `setup_required`, plus one mutation per
-actual state change. Well inside the `GITHUB_TOKEN` limits at a 15-minute cadence. The
-reconciler logs its call counts so the budget stays observable.
+~1 for pass 1, plus one REST call per pull request in `setup_required`, one REST call per
+pull request that tripped the first gate tampering signal, one REST call per run for the list
+of workflow files on the base branch, plus one mutation per actual state change. Well inside
+the `GITHUB_TOKEN` limits at a 15-minute cadence. The reconciler logs its call counts so the
+budget stays observable.
 
 ## Monitor workflow
 
@@ -489,10 +560,16 @@ The remote-parsing block currently inside `breeze ci upgrade` is factored into
 
 - The gate job runs with `contents: read` and reads configuration from the base branch only.
 - `pull_request` runs the workflow file from the pull request's merge commit, so a pull
-  request can edit `ci-amd.yml` to remove the gate. That is visible in review, is covered by
-  the existing workflow checks, and costs at most one pull request's CI. `pull_request_target`
-  was deliberately not used to avoid running any logic with write permissions in reaction to
-  an untrusted event.
+  request can edit `ci-amd.yml` to remove the gate or add a workflow with a `pull_request`
+  trigger. The gate job cannot prevent that; `pull_request_target` was deliberately not used
+  to avoid running any logic with write permissions in reaction to an untrusted event. The
+  cost is bounded instead: the reconciler closes such a pull request within one cadence (see
+  "Gate tampering"), and a closed pull request no longer triggers `pull_request` runs, so
+  one push buys at most one run. The change is also visible in review and covered by the
+  existing workflow checks.
+- The tampering check trusts nothing from the pull request's tree. Its inputs are the check
+  suites GitHub recorded, the list of changed paths and the workflow files on the base
+  branch.
 - The reconciler runs on `main` with `pull-requests: write` and never checks out or executes
   pull request content. Its inputs are API data; its comment templates are static.
 - Fork runs get the fork's `GITHUB_TOKEN` only. Nothing in project CI trusts a fork run's
@@ -510,6 +587,14 @@ The remote-parsing block currently inside `breeze ci upgrade` is factored into
   distinguished from anyone else; the AIP treats that as acceptable friction.
 - `enabled_since` compares against pull request creation, so a pull request opened before the
   switch and pushed after keeps project CI. This is intentional.
+- Gate tampering detection is after the fact: the first push that removes the gate gets one
+  project CI run before the reconciler closes the pull request. It is also scoped to the
+  gate: an edit to one of the workflows that already run for every pull request (CodeQL,
+  dependency review, the newsfragment check) that makes it do more work is not distinguished
+  from a legitimate fix to that workflow and is left to review.
+- An external pull request that legitimately changes workflow files, was released with `use
+  project ci` and then had that label removed is closed on the next run, because both
+  signals hold. Keeping `use project ci` on such a pull request is the intended handling.
 
 ## Testing
 
@@ -518,9 +603,12 @@ The remote-parsing block currently inside `breeze ci upgrade` is factored into
   labels with `enabled` true and false.
 - `dev/breeze/tests/test_fork_ci_reconcile.py`: one parametrized case per row of the state
   table, plus the human-draft rule, the label escape hatch, the `use project ci` release,
-  the conflicting-labels alert, the close clock reset, marker
-  round-trips, status desired-vs-current comparison and the unknown-failure collection. GraphQL and REST are mocked with
-  `autospec`; no network.
+  the conflicting-labels alert, the close clock reset, marker round-trips, status
+  desired-vs-current comparison, the unknown-failure collection and the gate tampering
+  check: each signal alone does not close, both together do, an in-progress non-gate job
+  counts, an injected workflow counts, suites older than the last `use project ci` removal
+  are ignored, `label_fork_ci` pull requests are exempt, and a reopen with the same head SHA
+  closes again. GraphQL and REST are mocked with `autospec`; no network.
 - `dev/breeze/tests/test_selective_checks.py`: fork mode cases (changed files from compare,
   300-file fallback, committer build forced false, full-matrix not forced).
 - `dev/breeze/tests/test_ci_audit.py`: each check with mocked `gh` and `git remote -v`
