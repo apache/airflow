@@ -1048,6 +1048,7 @@ class TestGKEStartPodOperator:
             cluster_url=GKE_CLUSTER_URL,
             ssl_ca_cert=GKE_SSL_CA_CERT,
             get_logs=mock_get_logs,
+            init_container_logs=None,
             startup_timeout=120,
             schedule_timeout=60,  # issue-66352: schedule_timeout should now be passed into the trigger
             cluster_context=None,

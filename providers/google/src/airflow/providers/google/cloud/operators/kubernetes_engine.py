@@ -807,6 +807,7 @@ class GKEStartPodOperator(GKEOperatorMixin, KubernetesPodOperator):
                 cluster_url=self.cluster_url,
                 ssl_ca_cert=self.ssl_ca_cert,
                 get_logs=self.get_logs,
+                init_container_logs=self.init_container_logs,
                 startup_timeout=self.startup_timeout_seconds,
                 schedule_timeout=self.schedule_timeout_seconds,
                 cluster_context=self.cluster_context,
