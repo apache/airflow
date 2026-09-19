@@ -313,6 +313,108 @@ def _make_context(ti_id=None):
     return MagicMock(**{"__getitem__": lambda self, key: {"task_instance": ti}[key]})
 
 
+class TestLLMOperatorConfidenceGate:
+    """review_below on a structured output: per-field bars, and the decision XCom."""
+
+    def _result(self, make_mock_run_result, output, details):
+        result = make_mock_run_result(output)
+        result.response = ModelResponse(parts=[], model_name="jev-1.13.0", provider_details=details)
+        return result
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_confident_output_returns_and_records_per_field_confidence(
+        self, mock_hook_cls, make_mock_run_result
+    ):
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = self._result(
+            make_mock_run_result,
+            Summary(text="t"),
+            {"confidence": {"text": 0.9}, "probabilities": {}, "scores": {}},
+        )
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=Summary, review_below=0.7)
+        context = MagicMock(spec=dict)
+
+        output = op.execute(context)
+
+        assert isinstance(output, (Summary, dict))
+        pushes = {
+            c.kwargs["key"]: c.kwargs["value"] for c in context["task_instance"].xcom_push.call_args_list
+        }
+        assert pushes["decision"]["confidence"] == {"text": 0.9}
+        assert pushes["decision"]["threshold"] == 0.7
+        assert pushes["decision"]["review"] is None
+        assert pushes["decision"]["decided_by"] == "model"
+        assert pushes["decision"]["proposed"] is None
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="review needs the HITL flow, Airflow >= 3.1")
+    @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
+    @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail", autospec=True)
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_one_weak_field_sends_the_output_to_review(
+        self, mock_hook_cls, mock_upsert, mock_trigger_cls, make_mock_run_result
+    ):
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = self._result(
+            make_mock_run_result,
+            Summary(text="t"),
+            {"confidence": {"text": 0.4}, "probabilities": {}, "scores": {}},
+        )
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        op = LLMOperator(
+            task_id="t", prompt="p", llm_conn_id="c", output_type=Summary, review_below={"text": 0.7}
+        )
+        context = MagicMock(spec=dict)
+        context["task_instance"].id = uuid4()
+
+        with pytest.raises(ApprovalPauseSignal):
+            op.execute(context)
+
+        body = mock_upsert.call_args.kwargs["body"]
+        assert "Confidence: 0.40 (review below 0.70)" in body
+        pushes = {
+            c.kwargs["key"]: c.kwargs["value"] for c in context["task_instance"].xcom_push.call_args_list
+        }
+        assert pushes["decision"]["review"] == "below_threshold"
+        assert pushes["decision"]["decided_by"] is None
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_no_bar_keeps_todays_behaviour_and_still_records(self, mock_hook_cls, make_mock_run_result):
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = make_mock_run_result("plain text")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c")
+        context = MagicMock(spec=dict)
+
+        assert op.execute(context) == "plain text"
+
+        pushes = {
+            c.kwargs["key"]: c.kwargs["value"] for c in context["task_instance"].xcom_push.call_args_list
+        }
+        assert pushes["decision"] == {
+            "model": "test-model",
+            "proposed": None,
+            "action": None,
+            "confidence": {},
+            "probabilities": {},
+            "threshold": None,
+            "review": None,
+            "decided_by": "model",
+        }
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_text_model_with_a_bar_can_fail(self, mock_hook_cls, make_mock_run_result):
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = make_mock_run_result("plain text")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        op = LLMOperator(
+            task_id="t", prompt="p", llm_conn_id="c", review_below=0.7, on_missing_confidence="fail"
+        )
+
+        with pytest.raises(ValueError, match="reported no confidence"):
+            op.execute(MagicMock(spec=dict))
+
+
 class TestLLMOperatorApprovalVersionGate:
     """__init__ rejects require_approval on cores without human-in-the-loop support.
 

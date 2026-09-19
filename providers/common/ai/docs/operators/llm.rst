@@ -292,6 +292,27 @@ user row id as a string, not the username.  This needs Airflow 3.1+.  On Airflow
 clearing the task re-runs it against the existing review row, so a changed
 list does not take effect.
 
+Reviewing Uncertain Output
+--------------------------
+
+A classifier model such as TypeSafe's reports a confidence for every field
+of a structured output, in ``provider_details`` on the model response. It is a
+summary of how concentrated the model's probability distribution was, not the
+probability that the field is right. ``review_below`` sends the output to human
+review, through the same approval flow as ``require_approval``, when any
+field's confidence is under the bar; a mapping of field name to number sets a
+bar per field, and an unlisted field has no bar. A text model reports no
+confidence, and ``on_missing_confidence`` then decides: ``"review"`` (default)
+asks a person, ``"fail"`` fails the task, ``"proceed"`` returns the output.
+``require_approval=True`` keeps its meaning and always asks.
+
+With or without a bar, the operator pushes a ``decision`` XCom carrying the
+model name, the per-field ``confidence`` and ``probabilities`` (empty for a text
+model), the bar that applied, why the output went to review if it did, and
+who decided. See :ref:`LLMBranchOperator <howto/operator:llm_branch>` for the
+record's fields; there ``proposed`` and ``action`` name the branches, while
+here they are ``null`` and the output itself is the return value.
+
 Parameters
 ----------
 
@@ -302,6 +323,10 @@ Parameters
 - ``system_prompt``: System-level instructions for the agent. Supports Jinja templating.
 - ``output_type``: Expected output type (default: ``str``). Set to a Pydantic ``BaseModel``
   for structured output.
+- ``review_below``: Send the output to review when a field's confidence is under this
+  bar; a number for every field or a mapping of field name to number. Default ``None``.
+- ``on_missing_confidence``: With ``review_below`` set and no confidence reported:
+  ``"review"`` (default), ``"fail"`` or ``"proceed"``.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai ``Agent``
   constructor (e.g. ``retries``, ``model_settings``, ``tools``). Supports Jinja templating.
 - ``usage_limits``: Optional pydantic-ai ``UsageLimits`` enforced on the run, or a

@@ -23,7 +23,15 @@ from collections.abc import Iterable, Mapping, Sequence
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
+from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin
 from airflow.providers.common.ai.operators.llm import LLMOperator
+from airflow.providers.common.ai.utils.decision import (
+    ModelConfidence,
+    decision_record,
+    describe_confidence,
+    review_reason,
+    threshold_for,
+)
 from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.standard.exceptions import HITLRejectException
@@ -99,6 +107,20 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
         called. Supports Jinja templating.
     :param allow_multiple_branches: When ``False`` (default) the LLM returns a
         single task ID. When ``True`` the LLM may return one or more task IDs.
+    :param review_below: Send the pick to human review, through the same approval
+        flow as ``require_approval``, when the model's confidence in it is under
+        this bar. A number is one bar for every branch; a mapping of task ID to
+        number sets a bar per branch, so a branch whose wrong pick costs more can
+        demand more certainty, and a picked branch not in the mapping has no bar.
+        With ``allow_multiple_branches`` the strictest bar among the picked branches
+        applies. Confidence comes from models that report one, such as a classifier
+        model (TypeSafe's); a text model reports none and
+        ``on_missing_confidence`` decides. ``require_approval=True`` still sends
+        every pick to a person regardless. Default ``None``: no gate.
+    :param on_missing_confidence: With ``review_below`` set and no confidence
+        reported: ``"review"`` (default) asks a person, ``"fail"`` fails the task,
+        ``"proceed"`` branches. The default is the conservative one so that swapping
+        in a model that reports nothing does not silently switch off the bar.
     :param fail_on_reject: If ``True``, a rejected review fails the task
         instead of skipping the downstream tasks. Generally discouraged,
         as for :class:`~airflow.providers.standard.operators.hitl.ApprovalOperator`.
@@ -197,13 +219,40 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
                 f"LLM selected no branches for {self.task_id!r}, which would skip every downstream task."
             )
 
-        if self.require_approval:
+        # The pick is one field, ``response``; its confidence is what the bar is compared against.
+        model_confidence = ModelConfidence.from_result(result)
+        picked = [branches] if isinstance(branches, str) else branches
+        threshold = threshold_for(self.review_below, picked)
+        confidence = model_confidence.confidence.get("response")
+        review = review_reason(
+            require_approval=self.require_approval,
+            threshold=threshold,
+            confidence=confidence,
+            on_missing_confidence=self.on_missing_confidence,
+            what=f"branch task {self.task_id!r}",
+        )
+        self._push_decision(
+            context,
+            decision_record(
+                model_confidence=model_confidence,
+                proposed=branches,
+                action=None if review else branches,
+                threshold=threshold,
+                review=review,
+                decided_by=None if review else "model",
+            ),
+        )
+
+        if review:
+            self._log_review(review, confidence, threshold)
             choices = sorted(self.downstream_task_ids)
             chosen = branches if isinstance(branches, str) else json.dumps(branches)
             body = (
                 f"Valid branches: {', '.join(f'`{c}`' for c in choices)}\n\n"
                 f"```\nPrompt: {self.prompt}\n\nChosen branch(es): {chosen}\n```"
             )
+            if review != "require_approval" or model_confidence.confidence:
+                body += "\n\n" + describe_confidence(model_confidence, "response", threshold)
             modification_schema = (
                 {"type": "array", "items": {"type": "string", "enum": choices}, "examples": choices}
                 if self.allow_multiple_branches
@@ -218,11 +267,16 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
     def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> Any:
         """Resume after human review, validating the reviewed choice before branching."""
         try:
-            output = super().execute_complete(context, generated_output, event)
+            # The mixin, not LLMOperator: the branch finalises the decision record itself, with the
+            # branches that ran, and there is no Pydantic output to rehydrate.
+            output = LLMApprovalMixin.execute_complete(self, context, generated_output, event)
         except HITLRejectException:
             if self.fail_on_reject:
                 raise
             self.log.info("Rejected by %s. Skipping downstream tasks...", self._describe_responder(event))
+            # Before skip(): on the Task SDK, skip() hands the skip to the supervisor by raising, so
+            # nothing after it runs.
+            self._finalize_decision(context, event, action=None)
             task = context["task"]
             tasks = (
                 task.get_flat_relatives(upstream=False)
@@ -239,6 +293,7 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
                 f"Reviewed branch(es) {sorted(invalid)} are not downstream tasks of "
                 f"{self.task_id!r}. Valid choices: {sorted(self.downstream_task_ids)}."
             )
+        self._finalize_decision(context, event, action=branches)
         return self.do_branch(context, branches)
 
     def _parse_reviewed_branches(self, output: str) -> str | list[str]:

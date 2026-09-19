@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
@@ -27,6 +27,18 @@ from pydantic import BaseModel
 
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin
+from airflow.providers.common.ai.utils.decision import (
+    DECISION_XCOM_KEY,
+    MissingConfidencePolicy,
+    ModelConfidence,
+    ReviewReason,
+    decision_record,
+    describe_confidence,
+    review_reason,
+    threshold_for,
+    validate_missing_confidence_policy,
+    validate_review_below,
+)
 from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
@@ -123,6 +135,18 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         ``{"id": ..., "name": ...}`` dicts where ``id`` is the auth manager's
         user id.  ``None`` (default) lets any user with the permission respond.
         The list is fixed when the review is first created.  Needs Airflow 3.1+.
+    :param review_below: Send the output to human review when the model's confidence in
+        it is under this bar. A number is one bar for every field; a mapping of output
+        field name to number sets a bar per field, and a field not in the mapping has no
+        bar. Confidence comes from models that report one per field, such as a classifier
+        model (TypeSafe's), in ``provider_details``. A text model reports none, and
+        ``on_missing_confidence`` then decides. Independent of ``require_approval``, which
+        always asks. Default ``None``: no gate, and behaviour is unchanged.
+    :param on_missing_confidence: What to do when ``review_below`` is set and the model
+        reported no confidence for the answer: ``"review"`` (default) sends it to a person,
+        ``"fail"`` fails the task, ``"proceed"`` acts on it. The default is the conservative
+        one so that swapping in a model that reports nothing does not silently switch off
+        a bar the author set.
     :param serialize_output: If ``True`` and ``output_type`` is a Pydantic
         ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
         ``model_dump()`` before being pushed to XCom. Default ``False`` --
@@ -158,10 +182,14 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         allow_modifications: bool = False,
         approval_notifiers: BaseNotifier | Iterable[BaseNotifier] | None = None,
         approval_assigned_users: HITLUser | Iterable[HITLUser] | None = None,
+        review_below: float | Mapping[str, float] | None = None,
+        on_missing_confidence: MissingConfidencePolicy = "review",
         serialize_output: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
+        self.review_below = validate_review_below(review_below)
+        self.on_missing_confidence = validate_missing_confidence_policy(on_missing_confidence)
         self.prompt = prompt
         self.llm_conn_id = llm_conn_id
         self.model_id = model_id
@@ -263,8 +291,37 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         log_run_summary(self.log, result)
         output = result.output
 
-        if self.require_approval:
-            self.defer_for_approval(context, output)  # type: ignore[misc]
+        model_confidence = ModelConfidence.from_result(result)
+        # A structured output is gated per field; a bare output type is one field, ``response``.
+        fields = list(model_confidence.confidence) or ["response"]
+        threshold = threshold_for(self.review_below, fields)
+        review = review_reason(
+            require_approval=self.require_approval,
+            threshold=threshold,
+            confidence=model_confidence.lowest(fields),
+            on_missing_confidence=self.on_missing_confidence,
+            what=f"task {self.task_id!r}",
+        )
+        self._push_decision(
+            context,
+            decision_record(
+                model_confidence=model_confidence,
+                proposed=None,
+                action=None,
+                threshold=threshold,
+                review=review,
+                decided_by=None if review else "model",
+            ),
+        )
+
+        if review:
+            self._log_review(review, model_confidence.lowest(fields), threshold)
+            body = None
+            if review != "require_approval":
+                body = f"```\nPrompt: {self.prompt}\n\n{output}\n```\n\n" + "\n\n".join(
+                    describe_confidence(model_confidence, name, threshold) for name in fields
+                )
+            self.defer_for_approval(context, output, body=body)  # type: ignore[misc]
 
         if self._serialize_model_output and isinstance(output, BaseModel):
             # ``serialize_output=True``, or a core without the worker-side
@@ -277,6 +334,55 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
     def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> Any:
         """Resume after human review and restore the Pydantic model for XCom consumers."""
         output = super().execute_complete(context, generated_output, event)
+        self._finalize_decision(context, event, action=None)
         return rehydrate_pydantic_output(
             self.output_type, output, serialize_output=self._serialize_model_output
+        )
+
+    def _log_review(self, review: ReviewReason, confidence: float | None, threshold: float | None) -> None:
+        if review == "below_threshold":
+            self.log.info(
+                "Sending the output to review: confidence %.2f is below review_below=%.2f.",
+                confidence,
+                threshold,
+            )
+        elif review == "missing_confidence":
+            self.log.info(
+                "Sending the output to review: review_below=%.2f is set but the model reported no "
+                "confidence (on_missing_confidence='review').",
+                threshold,
+            )
+
+    @staticmethod
+    def _task_instance(context: Context) -> Any:
+        """Return the task instance from the context under either of its two names, or None."""
+        for key in ("task_instance", "ti"):
+            try:
+                return context[key]  # type: ignore[literal-required]
+            except (KeyError, TypeError):
+                continue
+        return None
+
+    def _push_decision(self, context: Context, record: dict[str, Any]) -> None:
+        """Expose what the model proposed, its confidence, and what the gate decided, on XCom."""
+        if not self.do_xcom_push:
+            return
+        ti = self._task_instance(context)
+        if ti is not None:
+            ti.xcom_push(key=DECISION_XCOM_KEY, value=record)
+
+    def _finalize_decision(self, context: Context, event: dict[str, Any], *, action: Any) -> None:
+        """After a review, overwrite the pending ``decision`` record with who decided and what was done."""
+        if not self.do_xcom_push:
+            return
+        ti = self._task_instance(context)
+        if ti is None:
+            return
+        record = ti.xcom_pull(task_ids=self.task_id, key=DECISION_XCOM_KEY)
+        if not isinstance(record, dict):
+            return
+        timed_out = bool(event.get("timedout")) or event.get("responded_by_user") is None
+        ti.xcom_push(
+            key=DECISION_XCOM_KEY,
+            value={**record, "action": action, "decided_by": "timeout_default" if timed_out else "human"},
         )

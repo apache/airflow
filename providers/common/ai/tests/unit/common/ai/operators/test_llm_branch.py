@@ -426,11 +426,376 @@ class TestLLMBranchOperator:
             op.execute(MagicMock())
 
 
+def _jev_result(make_mock_run_result, output, *, confidence=None, probabilities=None, model="jev-1.13.0"):
+    """A run result shaped like pydantic-ai's TypeSafe adapter returns: provider_details on the response."""
+    result = make_mock_run_result(output)
+    details = None
+    if confidence is not None:
+        details = {
+            "confidence": {"response": confidence},
+            "probabilities": {"response": probabilities or {}},
+            "scores": {},
+        }
+    result.response = ModelResponse(parts=[], model_name=model, provider_details=details)
+    return result
+
+
+def _decision_pushes(context):
+    return [
+        c.kwargs["value"]
+        for c in context["task_instance"].xcom_push.call_args_list
+        if c.kwargs.get("key") == "decision"
+    ]
+
+
 def _make_context(ti_id=None):
     ti_id = ti_id or uuid4()
     ti = MagicMock()
     ti.id = ti_id
     return MagicMock(**{"__getitem__": lambda self, key: {"task_instance": ti}[key]})
+
+
+class TestLLMBranchOperatorConfidenceGate:
+    """review_below and the decision XCom. The review itself reuses the approval flow tested below."""
+
+    def _op(self, **kwargs):
+        op = LLMBranchOperator(task_id="triage", prompt="traceback", llm_conn_id="my_llm", **kwargs)
+        op.downstream_task_ids = {"rerun", "page_oncall", "ignore"}
+        return op
+
+    @pytest.mark.parametrize("bad", [1.5, -0.1, "0.7", {"rerun": 2}, {}])
+    def test_review_below_is_validated_at_construction(self, bad):
+        with pytest.raises((ValueError, TypeError)):
+            self._op(review_below=bad)
+
+    def test_on_missing_confidence_is_validated_at_construction(self):
+        with pytest.raises(ValueError, match="on_missing_confidence must be one of"):
+            self._op(review_below=0.7, on_missing_confidence="ignore")
+
+    @patch.object(LLMBranchOperator, "do_branch")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_confident_pick_branches_and_records_the_decision(
+        self, mock_hook_cls, mock_do_branch, make_mock_run_result
+    ):
+        enum = Enum("DownstreamTasks", {"ignore": "ignore", "page_oncall": "page_oncall", "rerun": "rerun"})
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _jev_result(
+            make_mock_run_result,
+            enum.rerun,
+            confidence=0.94,
+            probabilities={"rerun": 0.94, "page_oncall": 0.05, "ignore": 0.01},
+        )
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        op = self._op(review_below=0.7)
+        context = _make_context()
+
+        op.execute(context)
+
+        mock_do_branch.assert_called_once_with(context, "rerun")
+        (record,) = _decision_pushes(context)
+        assert record == {
+            "model": "jev-1.13.0",
+            "proposed": "rerun",
+            "action": "rerun",
+            "confidence": {"response": 0.94},
+            "probabilities": {"response": {"rerun": 0.94, "page_oncall": 0.05, "ignore": 0.01}},
+            "threshold": 0.7,
+            "review": None,
+            "decided_by": "model",
+        }
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="review needs the HITL flow, Airflow >= 3.1")
+    @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
+    @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail", autospec=True)
+    @patch.object(LLMBranchOperator, "do_branch")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_pick_below_the_bar_goes_to_review_before_branching(
+        self, mock_hook_cls, mock_do_branch, mock_upsert, mock_trigger_cls, make_mock_run_result
+    ):
+        enum = Enum("DownstreamTasks", {"ignore": "ignore", "page_oncall": "page_oncall", "rerun": "rerun"})
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _jev_result(
+            make_mock_run_result,
+            enum.page_oncall,
+            confidence=0.52,
+            probabilities={"page_oncall": 0.52, "rerun": 0.46, "ignore": 0.02},
+        )
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        op = self._op(review_below={"page_oncall": 0.9, "rerun": 0.6})
+        context = _make_context()
+
+        with pytest.raises(ApprovalPauseSignal) as exc_info:
+            op.execute(context)
+
+        assert exc_info.value.kwargs["generated_output"] == "page_oncall"
+        mock_do_branch.assert_not_called()
+        body = mock_upsert.call_args.kwargs["body"]
+        assert "Confidence: 0.52 (review below 0.90)" in body
+        assert "page_oncall 0.52, rerun 0.46, ignore 0.02" in body
+        (record,) = _decision_pushes(context)
+        assert record["proposed"] == "page_oncall"
+        assert record["action"] is None
+        assert record["threshold"] == 0.9
+        assert record["review"] == "below_threshold"
+        assert record["decided_by"] is None
+
+    @patch.object(LLMBranchOperator, "do_branch")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_per_branch_bar_applies_to_the_picked_branch_only(
+        self, mock_hook_cls, mock_do_branch, make_mock_run_result
+    ):
+        """0.52 is under page_oncall's 0.9 bar but rerun's bar is 0.6, so a rerun at 0.65 branches."""
+        enum = Enum("DownstreamTasks", {"ignore": "ignore", "page_oncall": "page_oncall", "rerun": "rerun"})
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _jev_result(make_mock_run_result, enum.rerun, confidence=0.65)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        op = self._op(review_below={"page_oncall": 0.9, "rerun": 0.6})
+        context = _make_context()
+
+        op.execute(context)
+
+        mock_do_branch.assert_called_once_with(context, "rerun")
+        (record,) = _decision_pushes(context)
+        assert record["threshold"] == 0.6
+        assert record["review"] is None
+
+    @patch.object(LLMBranchOperator, "do_branch")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_picked_branch_absent_from_the_mapping_has_no_bar(
+        self, mock_hook_cls, mock_do_branch, make_mock_run_result
+    ):
+        enum = Enum("DownstreamTasks", {"ignore": "ignore", "page_oncall": "page_oncall", "rerun": "rerun"})
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _jev_result(make_mock_run_result, enum.ignore, confidence=0.3)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        op = self._op(review_below={"page_oncall": 0.9})
+        context = _make_context()
+
+        op.execute(context)
+
+        mock_do_branch.assert_called_once_with(context, "ignore")
+        (record,) = _decision_pushes(context)
+        assert record["threshold"] is None
+        assert record["review"] is None
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="review needs the HITL flow, Airflow >= 3.1")
+    @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
+    @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail", autospec=True)
+    @patch.object(LLMBranchOperator, "do_branch")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_text_model_with_a_bar_goes_to_review_by_default(
+        self, mock_hook_cls, mock_do_branch, mock_upsert, mock_trigger_cls, make_mock_run_result
+    ):
+        """A model that reports no confidence must not silently bypass a configured bar."""
+        enum = Enum("DownstreamTasks", {"ignore": "ignore", "page_oncall": "page_oncall", "rerun": "rerun"})
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _jev_result(
+            make_mock_run_result, enum.rerun, model="claude-sonnet-5"
+        )
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        op = self._op(review_below=0.7)
+        context = _make_context()
+
+        with pytest.raises(ApprovalPauseSignal):
+            op.execute(context)
+
+        mock_do_branch.assert_not_called()
+        assert (
+            "Confidence: not reported by the model (review below 0.70)"
+            in mock_upsert.call_args.kwargs["body"]
+        )
+        (record,) = _decision_pushes(context)
+        assert record["model"] == "claude-sonnet-5"
+        assert record["confidence"] == {}
+        assert record["review"] == "missing_confidence"
+
+    @patch.object(LLMBranchOperator, "do_branch")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_text_model_with_a_bar_can_proceed(self, mock_hook_cls, mock_do_branch, make_mock_run_result):
+        enum = Enum("DownstreamTasks", {"ignore": "ignore", "page_oncall": "page_oncall", "rerun": "rerun"})
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _jev_result(
+            make_mock_run_result, enum.rerun, model="claude-sonnet-5"
+        )
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        op = self._op(review_below=0.7, on_missing_confidence="proceed")
+        context = _make_context()
+
+        op.execute(context)
+
+        mock_do_branch.assert_called_once_with(context, "rerun")
+        (record,) = _decision_pushes(context)
+        assert record["review"] is None
+        assert record["decided_by"] == "model"
+
+    @patch.object(LLMBranchOperator, "do_branch")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_text_model_with_a_bar_can_fail(self, mock_hook_cls, mock_do_branch, make_mock_run_result):
+        enum = Enum("DownstreamTasks", {"ignore": "ignore", "page_oncall": "page_oncall", "rerun": "rerun"})
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _jev_result(
+            make_mock_run_result, enum.rerun, model="claude-sonnet-5"
+        )
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        op = self._op(review_below=0.7, on_missing_confidence="fail")
+
+        with pytest.raises(ValueError, match="reported no confidence"):
+            op.execute(_make_context())
+
+        mock_do_branch.assert_not_called()
+
+    @patch.object(LLMBranchOperator, "do_branch")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_no_bar_and_no_confidence_is_todays_behaviour(
+        self, mock_hook_cls, mock_do_branch, make_mock_run_result
+    ):
+        enum = Enum("DownstreamTasks", {"ignore": "ignore", "page_oncall": "page_oncall", "rerun": "rerun"})
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _jev_result(
+            make_mock_run_result, enum.rerun, model="claude-sonnet-5"
+        )
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        op = self._op()
+        context = _make_context()
+
+        op.execute(context)
+
+        mock_do_branch.assert_called_once_with(context, "rerun")
+        (record,) = _decision_pushes(context)
+        assert record == {
+            "model": "claude-sonnet-5",
+            "proposed": "rerun",
+            "action": "rerun",
+            "confidence": {},
+            "probabilities": {},
+            "threshold": None,
+            "review": None,
+            "decided_by": "model",
+        }
+
+    @patch.object(LLMBranchOperator, "do_branch")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_do_xcom_push_false_suppresses_the_record(
+        self, mock_hook_cls, mock_do_branch, make_mock_run_result
+    ):
+        enum = Enum("DownstreamTasks", {"ignore": "ignore", "page_oncall": "page_oncall", "rerun": "rerun"})
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _jev_result(make_mock_run_result, enum.rerun, confidence=0.9)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        op = self._op(review_below=0.7, do_xcom_push=False)
+        context = _make_context()
+
+        op.execute(context)
+
+        assert _decision_pushes(context) == []
+
+    @patch.object(LLMBranchOperator, "do_branch")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_multiple_branches_use_the_strictest_picked_bar(
+        self, mock_hook_cls, mock_do_branch, make_mock_run_result
+    ):
+        enum = Enum("DownstreamTasks", {"ignore": "ignore", "page_oncall": "page_oncall", "rerun": "rerun"})
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _jev_result(
+            make_mock_run_result, [enum.rerun, enum.page_oncall], confidence=0.95
+        )
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        op = self._op(allow_multiple_branches=True, review_below={"page_oncall": 0.9, "rerun": 0.6})
+        context = _make_context()
+
+        op.execute(context)
+
+        mock_do_branch.assert_called_once_with(context, ["rerun", "page_oncall"])
+        (record,) = _decision_pushes(context)
+        assert record["threshold"] == 0.9
+        assert record["proposed"] == ["rerun", "page_oncall"]
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="review needs the HITL flow, Airflow >= 3.1")
+    @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
+    @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail", autospec=True)
+    @patch.object(LLMBranchOperator, "do_branch")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_require_approval_still_asks_at_high_confidence(
+        self, mock_hook_cls, mock_do_branch, mock_upsert, mock_trigger_cls, make_mock_run_result
+    ):
+        enum = Enum("DownstreamTasks", {"ignore": "ignore", "page_oncall": "page_oncall", "rerun": "rerun"})
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _jev_result(make_mock_run_result, enum.rerun, confidence=0.99)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        op = self._op(require_approval=True, review_below=0.5)
+        context = _make_context()
+
+        with pytest.raises(ApprovalPauseSignal):
+            op.execute(context)
+
+        mock_do_branch.assert_not_called()
+        (record,) = _decision_pushes(context)
+        assert record["review"] == "require_approval"
+
+    @patch.object(LLMBranchOperator, "do_branch")
+    def test_execute_complete_records_the_human_decision(self, mock_do_branch):
+        op = self._op(review_below=0.7, allow_modifications=True)
+        ti = MagicMock(spec=["id", "xcom_pull", "xcom_push"])
+        ti.xcom_pull.return_value = {
+            "model": "jev-1.13.0",
+            "proposed": "page_oncall",
+            "action": None,
+            "confidence": {"response": 0.52},
+            "probabilities": {"response": {"page_oncall": 0.52, "rerun": 0.46}},
+            "threshold": 0.9,
+            "review": "below_threshold",
+            "decided_by": None,
+        }
+        context = MagicMock(spec=dict, **{"__getitem__": lambda self, key: {"task_instance": ti}[key]})
+        event = {
+            "chosen_options": ["Approve"],
+            "params_input": {"output": "rerun"},
+            "responded_by_user": {"id": "u1", "name": "Sam"},
+        }
+
+        op.execute_complete(context, generated_output="page_oncall", event=event)
+
+        mock_do_branch.assert_called_once_with(context, "rerun")
+        ti.xcom_pull.assert_called_once_with(task_ids="triage", key="decision")
+        final = ti.xcom_push.call_args.kwargs["value"]
+        assert final["proposed"] == "page_oncall"
+        assert final["action"] == "rerun"
+        assert final["decided_by"] == "human"
+        assert final["review"] == "below_threshold"
+
+    @patch.object(LLMBranchOperator, "skip")
+    def test_execute_complete_records_a_rejection_before_skipping(self, mock_skip):
+        """skip() raises on the Task SDK to hand the skip to the supervisor, so the record must be written first."""
+        mock_skip.side_effect = RuntimeError("DownstreamTasksSkipped stands in here")
+        op = self._op(review_below=0.7)
+        ti = MagicMock(spec=["id", "xcom_pull", "xcom_push"])
+        ti.xcom_pull.return_value = {"proposed": "rerun", "action": None, "decided_by": None}
+        task = MagicMock(spec=["get_direct_relatives", "get_flat_relatives"])
+        task.get_direct_relatives.return_value = []
+        context = {"task_instance": ti, "ti": ti, "task": task}
+        event = {"chosen_options": ["Reject"], "responded_by_user": {"id": "u1", "name": "Sam"}}
+
+        with pytest.raises(RuntimeError):
+            op.execute_complete(context, generated_output="rerun", event=event)
+
+        final = ti.xcom_push.call_args.kwargs["value"]
+        assert final["action"] is None
+        assert final["decided_by"] == "human"
+
+    @patch.object(LLMBranchOperator, "do_branch")
+    def test_execute_complete_records_a_timeout_default(self, mock_do_branch):
+        op = self._op(review_below=0.7)
+        ti = MagicMock(spec=["id", "xcom_pull", "xcom_push"])
+        ti.xcom_pull.return_value = {"proposed": "rerun", "action": None, "decided_by": None}
+        context = MagicMock(spec=dict, **{"__getitem__": lambda self, key: {"task_instance": ti}[key]})
+
+        op.execute_complete(
+            context, generated_output="rerun", event={"chosen_options": ["Approve"], "timedout": True}
+        )
+
+        final = ti.xcom_push.call_args.kwargs["value"]
+        assert final["action"] == "rerun"
+        assert final["decided_by"] == "timeout_default"
 
 
 @pytest.mark.skipif(
