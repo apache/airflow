@@ -719,6 +719,21 @@ You can either do this all inside of the Dag bundle, with a standard filesystem 
     package1/__init__.py
     package1/functions.py
 
+Dags do not have to sit at the root of the archive. A Dag file placed inside a sub-folder is
+discovered as long as that folder — and every folder above it — is an importable package, i.e.
+contains an ``__init__.py``::
+
+    my_dag1.py
+    team_a/__init__.py
+    team_a/team_dag.py
+    team_a/reports/__init__.py
+    team_a/reports/report_dag.py
+
+A ``.py`` file in a sub-folder that is *not* a package (no ``__init__.py`` in that folder or one of
+its parents) cannot be imported from a zip archive, so it is skipped and a warning naming the
+unreachable file is logged. Add an ``__init__.py`` to every parent folder, or move the Dag to the
+archive root, to make it discoverable.
+
 Note that packaged Dags come with some caveats:
 
 * They cannot be used if you have pickling enabled for serialization
