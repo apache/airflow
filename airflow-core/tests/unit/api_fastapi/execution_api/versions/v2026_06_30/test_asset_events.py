@@ -16,13 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
 from sqlalchemy import delete
 
 from airflow._shared.timezones import timezone
-from airflow.models.asset import AssetActive, AssetEvent, AssetModel
+from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
 from airflow.models.dagrun import DagRun
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
@@ -30,6 +30,12 @@ from airflow.utils.types import DagRunType
 pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.parse("2021-01-01T00:00:00")
+STARTED_AT = timezone.parse("2021-01-03T00:00:00")
+
+ENDPOINTS = [
+    pytest.param("/execution/asset-events/by-asset", {"name": "test_asset", "uri": None}, id="by-asset"),
+    pytest.param("/execution/asset-events/by-asset-alias", {"name": "test_alias"}, id="by-asset-alias"),
+]
 
 
 @pytest.fixture
@@ -73,10 +79,26 @@ def asset_with_queued_created_dagrun(session):
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
     )
+    event.created_dagruns.append(
+        DagRun(
+            dag_id="created_dag",
+            run_id="running_run",
+            logical_date=DEFAULT_DATE + timedelta(days=1),
+            start_date=STARTED_AT,
+            state=DagRunState.RUNNING,
+            run_type=DagRunType.ASSET_TRIGGERED,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+        )
+    )
+    alias = AssetAliasModel(id=1, name="test_alias")
+    alias.asset_events.append(event)
+    alias.assets.append(asset)
+    session.add(alias)
     session.commit()
 
     yield asset
 
+    session.delete(alias)
     session.execute(delete(AssetEvent))
     session.execute(delete(DagRun))
     session.execute(delete(AssetActive))
@@ -84,16 +106,32 @@ def asset_with_queued_created_dagrun(session):
     session.commit()
 
 
+def _created_dagruns_by_run_id(response) -> dict[str, dict]:
+    assert response.status_code == 200
+    return {run["run_id"]: run for run in response.json()["asset_events"][0]["created_dagruns"]}
+
+
 @pytest.mark.usefixtures("asset_with_queued_created_dagrun")
-def test_created_dagrun_start_date_is_never_null(ver_client):
+@pytest.mark.parametrize(("path", "params"), ENDPOINTS)
+def test_created_dagrun_start_date_is_never_null(ver_client, path, params):
     """A queued created Dag run must still report a non-null start_date at this version.
 
     Clients of this version declare ``start_date`` non-nullable and reject the whole response
-    when it is null, so the value falls back to ``run_after``.
+    when it is null, so the value falls back to ``run_after``. A run that has started keeps its
+    own start_date, and the field these clients never knew about is dropped from both.
     """
-    response = ver_client.get("/execution/asset-events/by-asset", params={"name": "test_asset", "uri": None})
+    created = _created_dagruns_by_run_id(ver_client.get(path, params=params))
 
-    assert response.status_code == 200
-    created = response.json()["asset_events"][0]["created_dagruns"][0]
-    assert created["start_date"] is not None
-    assert "run_after" not in created
+    assert created["queued_run"]["start_date"] is not None
+    assert timezone.parse(created["running_run"]["start_date"]) == STARTED_AT
+    assert all("run_after" not in run for run in created.values())
+
+
+@pytest.mark.usefixtures("asset_with_queued_created_dagrun")
+@pytest.mark.parametrize(("path", "params"), ENDPOINTS)
+def test_head_version_reports_run_after_and_a_null_start_date(client, path, params):
+    created = _created_dagruns_by_run_id(client.get(path, params=params))
+
+    assert created["queued_run"]["start_date"] is None
+    assert created["queued_run"]["run_after"] is not None
+    assert timezone.parse(created["running_run"]["start_date"]) == STARTED_AT
