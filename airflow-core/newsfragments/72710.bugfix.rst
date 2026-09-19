@@ -1,0 +1,1 @@
+Accept integer seconds when deserializing ``datetime.timedelta`` payloads. A payload carrying whole seconds as an ``int`` previously raised ``TypeError``, which was unhandled during scheduler DAG-run creation and terminated the scheduler.
