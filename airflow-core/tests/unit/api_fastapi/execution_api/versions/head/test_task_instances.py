@@ -2446,6 +2446,72 @@ class TestTIUpdateState:
         assert ti.next_kwargs is None
         assert ti.duration == 3600.00
 
+    def test_ti_update_state_to_failed_persists_retry_reason(self, client, session, create_task_instance):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_failed_persists_retry_reason",
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": TerminalTIState.FAILED,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "retry_reason": "auth error, do not retry",
+            },
+        )
+
+        assert response.status_code == 204
+
+        session.expire_all()
+        ti = session.get(TaskInstance, ti.id)
+        assert ti.state == State.FAILED
+        assert ti.retry_reason == "auth error, do not retry"
+
+    def test_ti_update_state_to_failed_truncates_retry_reason(self, client, session, create_task_instance):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_failed_truncates_retry_reason",
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": TerminalTIState.FAILED,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "retry_reason": "x" * 600,
+            },
+        )
+
+        assert response.status_code == 204
+
+        session.expire_all()
+        ti = session.get(TaskInstance, ti.id)
+        assert ti.retry_reason == "x" * 500
+
+    def test_ti_update_state_to_failed_without_retry_reason(self, client, session, create_task_instance):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_failed_without_retry_reason",
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": TerminalTIState.FAILED,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+            },
+        )
+
+        assert response.status_code == 204
+
+        session.expire_all()
+        ti = session.get(TaskInstance, ti.id)
+        assert ti.retry_reason is None
+
     def test_ti_update_state_not_running(self, client, session, create_task_instance):
         """Test that a 409 error is returned when attempting to update a TI that is not in RUNNING state."""
         ti = create_task_instance(
