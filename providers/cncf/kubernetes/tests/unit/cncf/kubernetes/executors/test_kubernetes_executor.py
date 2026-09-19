@@ -2361,6 +2361,65 @@ class TestKubernetesExecutor:
         finally:
             executor.end()
 
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_execute_async_pod_override_is_picklable_in_cluster(
+        self, mock_get_kube_client, mock_kubernetes_job_watcher
+    ):
+        """A pod_override built under an in-cluster Configuration must still be picklable.
+
+        kubernetes-client 36.x's default Configuration carries a ``refresh_api_key_hook``
+        local closure when running in-cluster (set by ``InClusterConfigLoader``). Any
+        ``V1Pod``/nested model built without an explicit ``local_vars_configuration``
+        inherits that closure via ``Configuration.get_default_copy()`` and becomes
+        unpicklable -- crashing the scheduler (not just the task) when execute_async's
+        ``task_queue.put()`` tries to pickle it.
+        """
+        import pickle
+
+        from kubernetes.client.configuration import Configuration
+
+        def _unpicklable_refresh_hook(client_configuration):
+            pass
+
+        original_default = Configuration.get_default_copy()
+        bad_config = Configuration()
+        bad_config.refresh_api_key_hook = _unpicklable_refresh_hook
+        Configuration.set_default(bad_config)
+        try:
+            pod_override = k8s.V1Pod(
+                spec=k8s.V1PodSpec(
+                    containers=[
+                        k8s.V1Container(
+                            name="base",
+                            resources=k8s.V1ResourceRequirements(requests={"cpu": "100m", "memory": "384Mi"}),
+                        )
+                    ]
+                ),
+            )
+            # Sanity check the reproduction: an unprotected pod_override must not be
+            # picklable under this Configuration, otherwise this test proves nothing.
+            with pytest.raises(AttributeError, match="local object"):
+                pickle.dumps(pod_override)
+
+            executor = self.kubernetes_executor
+            executor.start()
+            try:
+                key = TaskInstanceKey("dag", "task", "run_id", 1, -1)
+                executor.execute_async(
+                    key=key,
+                    queue=None,
+                    command=["airflow", "tasks", "run", "true", "some_parameter"],
+                    executor_config={"pod_override": pod_override},
+                )
+                stored_config = executor.pod_launch_attempts[key].job.kube_executor_config
+                # Must not raise: this is what task_queue.put() does internally.
+                pickle.dumps(stored_config)
+            finally:
+                executor.end()
+        finally:
+            Configuration.set_default(original_default)
+
     @pytest.mark.db_test
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
