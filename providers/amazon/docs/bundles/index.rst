@@ -85,5 +85,5 @@ same CI job that syncs the Dags:
     aws s3 cp dags.tar.gz s3://my-airflow-bucket/bundle-archives/dags.tar.gz
 
 .. note::
-    Keep the archive outside the ``prefix`` location, otherwise a ``aws s3 sync --delete`` of the Dag
+    Keep the archive outside the ``prefix`` location, otherwise an ``aws s3 sync --delete`` of the Dag
     files may remove it.
