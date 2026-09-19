@@ -17,8 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+import logging
+
 from airflow.models.taskinstance import PAST_DEPENDS_MET
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
+
+log = logging.getLogger(__name__)
 
 # The following constants are taken from the SkipMixin class in the standard provider
 # The key used by SkipMixin to store XCom data.
@@ -62,15 +66,31 @@ class NotPreviouslySkippedDep(BaseTIDep):
                 # (e.g. LatestOnlyOperator) writes XCom with map_index=-1, so we must
                 # query with -1 instead of the child's map_index.
                 xcom_map_index = ti.map_index if parent.is_mapped else -1
+                # `full=False`: this runs in the scheduler and the value is written by
+                # task code, so it must not be able to import or instantiate anything
+                # here. The payload is a plain mapping of lists of task ids.
                 prev_result = ti.xcom_pull(
                     task_ids=parent.task_id,
                     key=XCOM_SKIPMIXIN_KEY,
                     session=session,
                     map_indexes=xcom_map_index,
+                    full=False,
                 )
 
                 if prev_result is None:
                     # This can happen if the parent task has not yet run.
+                    continue
+
+                if not isinstance(prev_result, dict):
+                    # Not the shape SkipMixin writes. Treat it as absent rather than
+                    # trusting it -- and do not fail the dep, because a task may write
+                    # anything under this key.
+                    log.warning(
+                        "Ignoring malformed %s XCom from task %s: expected a mapping, got %s",
+                        XCOM_SKIPMIXIN_KEY,
+                        parent.task_id,
+                        type(prev_result).__name__,
+                    )
                     continue
 
                 should_skip = False
@@ -93,7 +113,11 @@ class NotPreviouslySkippedDep(BaseTIDep):
                     # ti does not execute.
                     if dep_context.wait_for_past_depends_before_skipping:
                         past_depends_met = ti.xcom_pull(
-                            task_ids=ti.task_id, key=PAST_DEPENDS_MET, session=session, default=False
+                            task_ids=ti.task_id,
+                            key=PAST_DEPENDS_MET,
+                            session=session,
+                            default=False,
+                            full=False,
                         )
                         if not past_depends_met:
                             yield self._failing_status(

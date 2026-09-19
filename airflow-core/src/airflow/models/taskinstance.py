@@ -93,7 +93,12 @@ from airflow.models.log import Log
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
-from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence, XComModel
+from airflow.models.xcom import (
+    XCOM_RETURN_KEY,
+    LazyXComPrimitivesSelectSequence,
+    LazyXComSelectSequence,
+    XComModel,
+)
 from airflow.serialization.enums import stringify_encoding_keys
 from airflow.settings import task_instance_mutation_hook
 from airflow.task.priority_strategy import validate_and_load_priority_weight_strategy
@@ -2055,9 +2060,16 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         map_indexes: int | Iterable[int] | None = None,
         default: Any = None,
         run_id: str | None = None,
+        full: bool = True,
     ) -> Any:
         """:meta private:"""  # noqa: D400
         # This is only kept for compatibility in tests for now while AIP-72 is in progress.
+        #
+        # `full=False` returns plain JSON types and never runs the Airflow
+        # serialization module, so a stored `__classname__` envelope is not imported or
+        # instantiated. Scheduler-side callers -- the ti_deps that read XCom to decide
+        # whether a task may run -- must pass it: those bytes are task-controlled, and
+        # the security model reserves the scheduler process for installed code.
 
         if dag_id is None:
             dag_id = self.dag_id
@@ -2092,9 +2104,12 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 return default
 
             if map_indexes is not None or first.map_index < 0:
-                return XComModel.deserialize_value(first)
+                if full:
+                    return XComModel.deserialize_value(first)
+                return XComModel.deserialize_value_primitives(first)
 
-            return LazyXComSelectSequence.from_select(
+            sequence_cls = LazyXComSelectSequence if full else LazyXComPrimitivesSelectSequence
+            return sequence_cls.from_select(
                 query.with_only_columns(XComModel.value).order_by(None),
                 order_by=[XComModel.map_index.expression],
                 session=session,
@@ -2120,7 +2135,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             ordering.append(case(map_index_whens, value=XComModel.map_index))
         else:
             ordering.append(XComModel.map_index)
-        return LazyXComSelectSequence.from_select(
+        sequence_cls = LazyXComSelectSequence if full else LazyXComPrimitivesSelectSequence
+        return sequence_cls.from_select(
             query.with_only_columns(XComModel.value).order_by(None),
             order_by=ordering,
             session=session,
