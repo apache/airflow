@@ -508,13 +508,28 @@ class TestCli:
         assert set(selected_names) <= {command.name for command in source_commands}
 
     def test_dag_cli_parser_keeps_args_when_rebuilt(self):
-        """``_remove_dag_id_opt`` must not hand argparse a one-shot generator."""
+        """``_remove_dag_selection_opts`` must not hand argparse a one-shot generator."""
         cli_parser.get_parser.cache_clear()
         first = vars(cli_parser.get_parser(dag_parser=True).parse_args(["dags", "pause"]))
         cli_parser.get_parser.cache_clear()
         second = vars(cli_parser.get_parser(dag_parser=True).parse_args(["dags", "pause"]))
         assert "treat_dag_id_as_regex" in first
         assert first.keys() == second.keys()
+
+    @pytest.mark.parametrize(
+        ("cmd_args", "flag"),
+        [
+            pytest.param(["dags", "test"], "--bundle-name", id="dags-test-bundle-name"),
+            pytest.param(["dags", "test"], "--dagfile-path", id="dags-test-dagfile-path"),
+            pytest.param(["tasks", "list"], "--bundle-name", id="tasks-list-bundle-name"),
+            pytest.param(["tasks", "test", "some_task"], "--bundle-name", id="tasks-test-bundle-name"),
+        ],
+    )
+    def test_dag_cli_rejects_dag_selection_opts(self, cmd_args, flag):
+        """``DAG.cli()`` hands the handler its own Dag, so a Dag-lookup flag could only be ignored."""
+        parser = cli_parser.get_parser(dag_parser=True)
+        with pytest.raises(SystemExit):
+            parser.parse_args([*cmd_args, flag, "anything"])
 
     def test_positive_int(self):
         assert cli_config.positive_int(allow_zero=True)("1") == 1
