@@ -2087,7 +2087,8 @@ class TestBigQueryAsyncHookMethods:
             "cacheHit": False,
         }
         hook = BigQueryAsyncHook(use_legacy_sql=True)
-        result = hook.get_records(query_result)
+        with pytest.deprecated_call(match="get_records.*deprecated"):
+            result = hook.get_records(query_result)
         assert isinstance(result[0][0], int)
         assert isinstance(result[0][1], float)
         assert isinstance(result[0][2], str)
@@ -2115,8 +2116,92 @@ class TestBigQueryAsyncHookMethods:
             "cacheHit": False,
         }
         hook = BigQueryAsyncHook(use_legacy_sql=True)
-        result = hook.get_records(query_result, as_dict=True)
+        with pytest.deprecated_call(match="get_records.*deprecated"):
+            result = hook.get_records(query_result, as_dict=True)
         assert result == [{"f0_": 22, "f1_": 3.14, "f2_": "PI"}]
+
+    @pytest.mark.asyncio
+    async def test_aget_records_return_type(self):
+        query_result = {
+            "kind": "bigquery#getQueryResultsResponse",
+            "etag": "test_etag",
+            "schema": {
+                "fields": [
+                    {"name": "f0_", "type": "INTEGER", "mode": "NULLABLE"},
+                    {"name": "f1_", "type": "FLOAT", "mode": "NULLABLE"},
+                    {"name": "f2_", "type": "STRING", "mode": "NULLABLE"},
+                ]
+            },
+            "jobReference": {
+                "projectId": "test_airflow-providers",
+                "jobId": "test_jobid",
+                "location": "US",
+            },
+            "totalRows": "1",
+            "rows": [{"f": [{"v": "22"}, {"v": "3.14"}, {"v": "PI"}]}],
+            "totalBytesProcessed": "0",
+            "jobComplete": True,
+            "cacheHit": False,
+        }
+        hook = BigQueryAsyncHook(use_legacy_sql=True)
+        result = await hook.aget_records(query_result)
+        assert isinstance(result[0][0], int)
+        assert isinstance(result[0][1], float)
+        assert isinstance(result[0][2], str)
+
+    @pytest.mark.asyncio
+    async def test_aget_records_as_dict(self):
+        query_result = {
+            "kind": "bigquery#getQueryResultsResponse",
+            "etag": "test_etag",
+            "schema": {
+                "fields": [
+                    {"name": "f0_", "type": "INTEGER", "mode": "NULLABLE"},
+                    {"name": "f1_", "type": "FLOAT", "mode": "NULLABLE"},
+                    {"name": "f2_", "type": "STRING", "mode": "NULLABLE"},
+                ]
+            },
+            "jobReference": {
+                "projectId": "test_airflow-providers",
+                "jobId": "test_jobid",
+                "location": "US",
+            },
+            "totalRows": "1",
+            "rows": [{"f": [{"v": "22"}, {"v": "3.14"}, {"v": "PI"}]}],
+            "totalBytesProcessed": "0",
+            "jobComplete": True,
+            "cacheHit": False,
+        }
+        hook = BigQueryAsyncHook(use_legacy_sql=True)
+        result = await hook.aget_records(query_result, as_dict=True)
+        assert result == [{"f0_": 22, "f1_": 3.14, "f2_": "PI"}]
+
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.sleep", new_callable=mock.AsyncMock)
+    async def test_aget_records_yields_control(self, mock_sleep):
+        rows = [{"f": [{"v": str(i)}]} for i in range(2500)]
+        query_result = {
+            "schema": {"fields": [{"name": "col", "type": "INTEGER"}]},
+            "rows": rows,
+        }
+        hook = BigQueryAsyncHook(use_legacy_sql=True)
+        result = await hook.aget_records(query_result, yield_frequency=1000)
+        assert len(result) == 2500
+        assert mock_sleep.call_count == 2
+        mock_sleep.assert_awaited_with(0)
+
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.sleep", new_callable=mock.AsyncMock)
+    async def test_aget_records_no_yield_when_disabled(self, mock_sleep):
+        rows = [{"f": [{"v": str(i)}]} for i in range(500)]
+        query_result = {
+            "schema": {"fields": [{"name": "col", "type": "INTEGER"}]},
+            "rows": rows,
+        }
+        hook = BigQueryAsyncHook(use_legacy_sql=True)
+        result = await hook.aget_records(query_result, yield_frequency=0)
+        assert len(result) == 500
+        mock_sleep.assert_not_called()
 
 
 @pytest.mark.db_test

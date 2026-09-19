@@ -20,6 +20,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -2437,7 +2438,6 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
                 self.log.error("Failed to cancel BigQuery job %s: %s", job_id, str(e))
                 raise
 
-    # TODO: Convert get_records into an async method
     def get_records(
         self,
         query_results: dict[str, Any],
@@ -2445,12 +2445,21 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
         selected_fields: str | list[str] | None = None,
     ) -> list[Any]:
         """
-        Convert a response from BigQuery to records.
+        Convert a response from BigQuery to records (synchronous).
+
+        .. deprecated:: 3.0.0
+            Use :meth:`aget_records` instead to avoid blocking the asyncio event loop.
 
         :param query_results: the results from a SQL query
         :param as_dict: if True returns the result as a list of dictionaries, otherwise as list of lists.
         :param selected_fields:
         """
+        warnings.warn(
+            "The `get_records` method is deprecated and will be removed in a future release. "
+            "Please use the asynchronous `aget_records` method instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
         if isinstance(selected_fields, str):
             selected_fields = selected_fields.split(",")
         buffer: list[Any] = []
@@ -2460,6 +2469,44 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
             fields_names = [field["name"] for field in fields]
             col_types = [field["type"] for field in fields]
             for dict_row in rows:
+                typed_row = [bq_cast(vs["v"], col_type) for vs, col_type in zip(dict_row["f"], col_types)]
+                if as_dict:
+                    typed_row_dict = dict(zip(fields_names, typed_row))
+                    buffer.append(typed_row_dict)
+                else:
+                    buffer.append(typed_row)
+        return buffer
+
+    async def aget_records(
+        self,
+        query_results: dict[str, Any],
+        as_dict: bool = False,
+        selected_fields: str | list[str] | None = None,
+        yield_frequency: int = 1000,
+    ) -> list[Any]:
+        """
+        Convert a response from BigQuery to records asynchronously.
+
+        Periodically yields control back to the event loop when processing large
+        result sets to prevent blocking the Triggerer event loop.
+
+        :param query_results: the results from a SQL query
+        :param as_dict: if True returns the result as a list of dictionaries, otherwise as list of lists.
+        :param selected_fields:
+        :param yield_frequency: number of rows processed before yielding to the asyncio event loop.
+            Set to 0 to disable yielding.
+        """
+        if isinstance(selected_fields, str):
+            selected_fields = selected_fields.split(",")
+        buffer: list[Any] = []
+        if rows := query_results.get("rows"):
+            fields = query_results["schema"]["fields"]
+            fields = [field for field in fields if not selected_fields or field["name"] in selected_fields]
+            fields_names = [field["name"] for field in fields]
+            col_types = [field["type"] for field in fields]
+            for i, dict_row in enumerate(rows):
+                if yield_frequency > 0 and i > 0 and i % yield_frequency == 0:
+                    await asyncio.sleep(0)
                 typed_row = [bq_cast(vs["v"], col_type) for vs, col_type in zip(dict_row["f"], col_types)]
                 if as_dict:
                     typed_row_dict = dict(zip(fields_names, typed_row))
