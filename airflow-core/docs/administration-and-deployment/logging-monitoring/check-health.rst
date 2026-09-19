@@ -24,7 +24,7 @@ Airflow has two methods to check the health of components - HTTP checks and CLI 
 accessible through the CLI, but only some are accessible through HTTP due to the role of the component being checked
 and the tools being used to monitor the deployment.
 
-For example, when running on Kubernetes, use `a Liveness probes <https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/>`__ (``livenessProbe`` property)
+For example, when running on Kubernetes, use `a Liveness probe <https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/>`__ (``livenessProbe`` property)
 with :ref:`CLI checks <check-health/cli-checks-for-scheduler>` on the scheduler deployment to restart it when it fails.
 For the webserver, you can configure the readiness probe (``readinessProbe`` property) using :ref:`check-health/http-endpoint`.
 
@@ -51,7 +51,6 @@ including per-instance details when multiple schedulers, triggerers, or Dag proc
       "detailed_status": "healthy",
       "instances": [
         {
-          "status": "healthy",
           "hostname": "scheduler-1.example.com",
           "latest_scheduler_heartbeat": "2018-12-26T17:15:11+00:00"
         }
@@ -63,16 +62,9 @@ including per-instance details when multiple schedulers, triggerers, or Dag proc
       "detailed_status": "degraded",
       "instances": [
         {
-          "status": "healthy",
           "hostname": "triggerer-1.example.com",
           "latest_triggerer_heartbeat": "2018-12-26T17:16:12+00:00",
           "team_name": "team-a"
-        },
-        {
-          "status": "unhealthy",
-          "hostname": "triggerer-2.example.com",
-          "latest_triggerer_heartbeat": "2018-12-26T17:10:00+00:00",
-          "team_name": null
         }
       ]
     },
@@ -82,7 +74,6 @@ including per-instance details when multiple schedulers, triggerers, or Dag proc
       "detailed_status": "healthy",
       "instances": [
         {
-          "status": "healthy",
           "hostname": "dag-processor-1.example.com",
           "latest_dag_processor_heartbeat": "2018-12-26T17:16:12+00:00",
           "bundle_names": ["dags-team-a"]
@@ -100,11 +91,28 @@ including per-instance details when multiple schedulers, triggerers, or Dag proc
   * ``status`` (legacy aggregate): ``"healthy"`` if **any** running instance is alive, otherwise ``"unhealthy"``
     (including when no running jobs exist for that component).
 
-  * ``detailed_status``: reflects the full set of running instances:
+  * ``detailed_status``: whether every part of that component's work is being covered by a live instance.
+    What counts as "every part" differs per component, because only some of them divide their work up:
 
-    * ``"healthy"`` — every running instance is alive
-    * ``"degraded"`` — some instances are alive and some are not
-    * ``"down"`` — no running instance is alive (including when no jobs exist)
+    * **Dag processor** — the parts are the Dag bundles in ``[dag_processor] dag_bundle_config_list``.
+      A processor started without ``--bundle-name`` covers every configured bundle;
+      one started with it covers only the bundles it was given.
+      ``"healthy"`` when every configured bundle has a live processor, ``"degraded"`` when only some do,
+      ``"down"`` when none do.
+    * **Triggerer** — with ``[core] multi_team`` enabled, the parts are the teams those bundles are scoped to
+      (plus the unscoped bundles), because a triggerer only picks up triggers for its own team.
+      ``"healthy"`` when every team scope has a live triggerer, ``"degraded"`` when only some do,
+      ``"down"`` when none do. With multi-team disabled, no team filtering applies, so any live triggerer
+      covers everything: ``"healthy"`` if one is alive, ``"down"`` if none is.
+    * **Scheduler** — schedulers are symmetric and share no partitioned work, so there is nothing partial
+      to report: ``"healthy"`` if at least one is alive, ``"down"`` if none is. ``"degraded"`` is never
+      returned for the scheduler. Use ``instances`` to see how many replicas are up, and your orchestrator
+      or the ``scheduler_heartbeat`` metric to alert on reduced scheduling throughput.
+
+    Because the expected set of work comes from configuration rather than from the job table,
+    ``detailed_status`` is unaffected by how instances come and go. Restarting an instance — including after
+    a ``SIGKILL``, an out-of-memory kill, or a node eviction, none of which let Airflow mark the old job row
+    as finished — does not report the component as ``"degraded"``.
 
   * ``latest_*_heartbeat``: the most recent heartbeat among running jobs of that type (ordered by heartbeat descending),
     or ``null`` when there are none.
@@ -113,9 +121,13 @@ including per-instance details when multiple schedulers, triggerers, or Dag proc
     ``[triggerer] triggerer_health_check_threshold``,
     ``[dag_processor] health_check_threshold``).
 
-  * ``instances``: one entry per **running** job of that type (``null`` when there are none). Each entry includes:
+  * ``instances``: one entry per **live** instance of that type — ``null`` when none is live. Airflow cannot
+    mark a job as finished when its process is killed abruptly (``SIGKILL``, an out-of-memory kill, a node
+    eviction), so the job row of such an instance is never closed; listing it would show a host that is gone
+    and, under an orchestrator that assigns a fresh hostname on each restart, will never come back.
+    ``status`` and ``latest_*_heartbeat`` are still derived from every unfinished job, so how long a dead
+    component has been silent stays visible after it drops out of ``instances``. Each entry includes:
 
-    * ``status``: ``"healthy"`` or ``"unhealthy"`` for that instance
     * ``hostname``: host where the component is running
     * the corresponding ``latest_*_heartbeat`` for that instance
     * ``team_name`` (triggerer only): team the triggerer is scoped to, or ``null`` when unscoped

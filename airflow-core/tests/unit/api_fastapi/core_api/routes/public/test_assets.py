@@ -2029,12 +2029,49 @@ class TestPostAssetEvents(TestAssets):
         }
         check_last_log(session, dag_id=None, event="create_asset_event", logical_date=None)
 
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.is_authorized_asset",
+        autospec=True,
+    )
+    def test_should_authorize_on_the_asset_named_in_the_body(
+        self, mock_is_authorized_asset, test_client, session
+    ):
+        """The asset id lives in the body, so the route must resolve it and authorize on the full asset."""
+        (asset,) = self.create_assets(num=1, session=session)
+        mock_is_authorized_asset.return_value = True
+
+        response = test_client.post("/assets/events", json={"asset_id": asset.id})
+
+        assert response.status_code == 200
+        mock_is_authorized_asset.assert_called_once_with(
+            mock.ANY,
+            method="POST",
+            details=AssetDetails(id=str(asset.id), name="simple1", uri="s3://bucket/key/1"),
+            user=mock.ANY,
+        )
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.is_authorized_asset",
+        autospec=True,
+    )
+    def test_should_respond_403_when_not_authorized_on_the_asset(
+        self, mock_is_authorized_asset, test_client, session
+    ):
+        (asset,) = self.create_assets(num=1, session=session)
+        mock_is_authorized_asset.return_value = False
+
+        response = test_client.post("/assets/events", json={"asset_id": asset.id})
+
+        assert response.status_code == 403
+        assert session.scalar(select(func.count()).select_from(AssetEvent)) == 0
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.post("/assets/events", json={"asset_uri": "s3://bucket/key/1"})
         assert response.status_code == 401
 
-    def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.post("/assets/events", json={"asset_uri": "s3://bucket/key/1"})
+    def test_should_respond_403(self, unauthorized_test_client, session):
+        (asset,) = self.create_assets(num=1, session=session)
+        response = unauthorized_test_client.post("/assets/events", json={"asset_id": asset.id})
         assert response.status_code == 403
 
     def test_invalid_attr_not_allowed(self, test_client, session):

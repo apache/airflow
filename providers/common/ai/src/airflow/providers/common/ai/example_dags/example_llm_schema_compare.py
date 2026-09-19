@@ -72,14 +72,17 @@ def example_llm_schema_compare_with_object_storage():
         uri="s3://data-lake/customers/",
         format="parquet",
     )
+    # snowflake_default resolves to a DbApiHook, so no uri/format is needed;
+    # a plain database table can be listed alongside object-storage sources.
+    snowflake_source = DataSourceConfig(conn_id="snowflake_default", table_name="customers")
 
     LLMSchemaCompareOperator(
         task_id="compare_s3_vs_db",
-        prompt="Compare S3 Parquet schema against the Postgres table and flag breaking changes",
+        prompt="Compare S3 Parquet schema against the Postgres and Snowflake tables and flag breaking changes",
         llm_conn_id="pydanticai_default",
         db_conn_ids=["postgres_default"],
         table_names=["customers"],
-        data_sources=[s3_source],
+        data_sources=[s3_source, snowflake_source],
     )
 
 

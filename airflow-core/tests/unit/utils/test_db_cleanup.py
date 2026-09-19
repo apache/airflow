@@ -38,9 +38,11 @@ from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.deadline import Deadline
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.db_cleanup import (
     ARCHIVE_TABLE_PREFIX,
@@ -52,6 +54,7 @@ from airflow.utils.db_cleanup import (
     _dump_table_to_file,
     _effective_table_names,
     _get_archived_table_names,
+    _IndirectDagScope,
     _TableConfig,
     config_dict,
     drop_archived_tables,
@@ -63,8 +66,10 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import (
     clear_db_assets,
+    clear_db_callbacks,
     clear_db_dag_bundles,
     clear_db_dags,
+    clear_db_deadline,
     clear_db_runs,
     drop_tables_with_prefix,
 )
@@ -448,6 +453,88 @@ class TestDBCleanup:
             )
 
     @pytest.mark.parametrize(
+        ("dag_ids", "exclude_dag_ids", "expected_remaining"),
+        [
+            pytest.param(["dag1"], None, {"dag2", None}, id="include_scopes_through_dag_run"),
+            pytest.param(None, ["dag1"], {"dag1"}, id="exclude_keeps_only_that_dags_deadlines"),
+            pytest.param(["dag1", "dag2"], ["dag2"], {"dag2", None}, id="include_and_exclude"),
+            pytest.param(None, None, set(), id="unfiltered_purges_everything"),
+        ],
+    )
+    def test_deadline_cleanup_is_scoped_through_its_dag_run(
+        self, dag_ids, exclude_dag_ids, expected_remaining
+    ):
+        """
+        ``deadline`` has carried no ``dag_id`` since 3.1.0, so it is scoped via ``dagrun_id``.
+
+        A deadline with no dag run belongs to no Dag: ``--dag-ids`` must not claim it, and
+        ``--exclude-dag-ids`` must not shield it.
+        """
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+
+        with create_session() as session:
+            bundle_name = "testing"
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+
+            runs_by_dag = {}
+            for dag_id in ["dag1", "dag2"]:
+                dag = DAG(dag_id=dag_id)
+                session.add(DagModel(dag_id=dag_id, bundle_name=bundle_name))
+                SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+                dag_run = DagRun(
+                    dag_id,
+                    run_id=f"{dag_id}_run",
+                    run_type=DagRunType.MANUAL,
+                    start_date=base_date,
+                )
+                session.add(dag_run)
+                session.flush()
+                runs_by_dag[dag_id] = dag_run.id
+
+            for run_id in runs_by_dag.values():
+                session.add(
+                    Deadline(
+                        deadline_time=base_date,
+                        callback=AsyncCallback("tests.unit.models.test_deadline.callback_for_deadline"),
+                        dagrun_id=run_id,
+                        deadline_alert_id=None,
+                    )
+                )
+            # A deadline attached to no dag run at all.
+            session.add(
+                Deadline(
+                    deadline_time=base_date,
+                    callback=AsyncCallback("tests.unit.models.test_deadline.callback_for_deadline"),
+                    dagrun_id=None,
+                    deadline_alert_id=None,
+                )
+            )
+            session.commit()
+
+            run_cleanup(
+                clean_before_timestamp=base_date.add(days=10),
+                table_names=["deadline"],
+                dag_ids=dag_ids,
+                exclude_dag_ids=exclude_dag_ids,
+                dry_run=False,
+                confirm=False,
+                session=session,
+            )
+
+            run_id_to_dag = {run_id: dag_id for dag_id, run_id in runs_by_dag.items()}
+            remaining = {
+                run_id_to_dag.get(deadline.dagrun_id) for deadline in session.scalars(select(Deadline)).all()
+            }
+            assert remaining == expected_remaining
+
+        # The deadline with no dag run has nothing to cascade from, and callback rows are only
+        # reachable deadline -> callback, so neither is removed by the dag/run clears in
+        # clean_database. Left behind they leak into whatever runs next against this database.
+        clear_db_deadline()
+        clear_db_callbacks()
+
+    @pytest.mark.parametrize(
         ("skip_archive", "expected_archives"),
         [pytest.param(True, 0, id="skip_archive"), pytest.param(False, 1, id="do_archive")],
     )
@@ -560,6 +647,28 @@ class TestDBCleanup:
                 dag_id_column_name="dag_id",
                 skip_if_referenced=[("task_instance", "dag_version_id")],
                 # "id" intentionally omitted from extra_columns
+            )
+
+    def test_table_config_rejects_both_dag_id_column_and_scope(self):
+        """A table reaches its Dag one way or the other, so naming both ways must fail fast."""
+        with pytest.raises(ValueError, match="both dag_id_column_name and"):
+            _TableConfig(
+                table_name="deadline",
+                recency_column_name="deadline_time",
+                dag_id_column_name="dag_id",
+                dag_id_scope=_IndirectDagScope(fk_column="dagrun_id", referenced_table="dag_run"),
+                # present, so this fails on the conflict rather than on a missing fk_column
+                extra_columns=["dagrun_id"],
+            )
+
+    def test_table_config_dag_id_scope_requires_fk_column(self):
+        """A dag_id_scope whose fk_column is not selected must fail fast at construction."""
+        with pytest.raises(ValueError, match="fk_column"):
+            _TableConfig(
+                table_name="deadline",
+                recency_column_name="deadline_time",
+                dag_id_scope=_IndirectDagScope(fk_column="dagrun_id", referenced_table="dag_run"),
+                # "dagrun_id" intentionally omitted from extra_columns
             )
 
     def test_do_delete_rolls_back_before_drop_on_failure(self):
@@ -897,13 +1006,32 @@ class TestDBCleanup:
         assert set(all_models) - exclusion_list.union(config_dict) == set()
         assert exclusion_list.isdisjoint(config_dict)
 
-    def test_no_failure_warnings(self):
+    @pytest.mark.parametrize(
+        ("dag_ids", "exclude_dag_ids"),
+        [
+            pytest.param(None, None, id="unfiltered"),
+            pytest.param(["some_dag"], None, id="include"),
+            pytest.param(None, ["some_dag"], id="exclude"),
+            pytest.param(["some_dag"], ["other_dag"], id="include_and_exclude"),
+        ],
+    )
+    def test_no_failure_warnings(self, dag_ids, exclude_dag_ids):
         """
         Ensure every table we have configured (and that is present in the db) can be cleaned successfully.
         For example, this checks that the recency column is actually a column.
+
+        The Dag-scoped parametrizations matter as much as the unfiltered one: the Dag filter is the
+        only thing that dereferences ``dag_id_column_name`` / ``dag_id_scope``, so a config naming a
+        column a migration has dropped compiles fine without them. Three tables drifted that way
+        across 3.0.0 and 3.1.0 before this was covered.
         """
         with patch("airflow.utils.db_cleanup.logger") as mock_logger:
-            run_cleanup(clean_before_timestamp=timezone.utcnow(), dry_run=True)
+            run_cleanup(
+                clean_before_timestamp=timezone.utcnow(),
+                dag_ids=dag_ids,
+                exclude_dag_ids=exclude_dag_ids,
+                dry_run=True,
+            )
             for call in mock_logger.warning.call_args_list:
                 assert "Encountered error when attempting to clean table" not in str(call)
 
@@ -1474,8 +1602,6 @@ class TestCallbackCleanup:
         assert bool(survived) is should_survive
 
     def test_unfired_deadline_callback_and_its_deadline_survive(self, dag_maker):
-        from airflow.models.deadline import Deadline
-        from airflow.sdk.definitions.callback import AsyncCallback
         from airflow.utils.state import CallbackState
 
         old = pendulum.now(tz="UTC").subtract(days=30)
@@ -1555,8 +1681,6 @@ class TestCallbackCleanup:
         old = pendulum.now(tz="UTC").subtract(days=30)
         cutoff = pendulum.now(tz="UTC").subtract(days=1)
         future = pendulum.now(tz="UTC").add(days=365)
-
-        from airflow.models.deadline import Deadline
 
         with create_session() as session:
             callback_id = self._add_callback(session, "scheduled", old)

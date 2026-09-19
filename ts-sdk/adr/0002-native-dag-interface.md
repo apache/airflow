@@ -25,8 +25,10 @@ Proposed. Revised after the review on #72047.
 
 ## Decision
 
-1. **`dag.task(taskId, handler)` returns a factory.** Calling the factory both places the task in the
-   Dag and supplies its arguments by name — the shape Python TaskFlow uses for
+1. **`dag.task(handler)` returns a factory, and the task id is optional.** With no id the task takes
+   the handler's function name (`dag.task(extract)` → task `"extract"`); `dag.task(taskId, handler)`
+   sets it explicitly, which an anonymous handler must do. Calling the factory both places the task in
+   the Dag and supplies its arguments by name — the shape Python TaskFlow uses for
    `load(transformed=transform(...))`.
 2. **The call graph is the task graph.** `tsc` checks every wired key against the handler's own
    parameter type, and a `TaskRef` exists only once its producing call has returned, so a cycle
@@ -36,8 +38,8 @@ Proposed. Revised after the review on #72047.
 4. **`before` and `after` draw order-only edges** — the TypeScript pair for `>>` and `<<`, both
    variadic so one call fans out.
 5. **The Dag file owns Dag-level and task-level configuration.** `new Dag(dagId, spec)` carries the
-   schedule and the rest of `DagSpec`; `dag.task(taskId, handler, spec)` carries per-task options
-   such as retries. Python owns both in the mixed-language case
+   schedule and the rest of `DagSpec`; `dag.task(handler, spec)` — or `dag.task(taskId, handler, spec)` —
+   carries per-task options such as retries. Python owns both in the mixed-language case
    ([ADR-0001](0001-mixed-lang-dag-interface.md)), which is the difference between the two modes.
 6. **A handler is a plain function of its own data**; `getContext()` and `getClient()` supply the rest.
 7. **One registration verb**: `bundle.register(dag)`, the same call that takes task handlers, with
@@ -89,6 +91,30 @@ One statement per task, with each ref named, is the form to write. Nesting the c
 (`load({ transformed: transform({ extracted: extract() }) })`) is legal and equivalent, but it is
 shorthand for a two-task chain, not the general shape: a Dag of twenty tasks reads as twenty flat
 statements, never as a twenty-deep expression.
+
+### Omitting the task id
+
+A native task defaults its id to the handler's function name, so a named handler needs none:
+
+```ts
+const extract = dag.task(async function extract(): Promise<number> {
+  return 42;
+});
+// task id "extract"
+```
+
+The id comes from the handler's *source* name, resolved when the bundle is packed and written into
+the registration — not from `handler.name` at runtime, which minification renames (see
+Implementation Notes). A handler with no source name — a bare anonymous arrow passed inline,
+`dag.task(async () => 42)` — has nothing to resolve and is a compile error until given an explicit
+id. This default is for native Dags, where both ends of every name are TypeScript; a mixed-language
+handler follows the same convention but should probably use the explicit form, more information in ([ADR-0001](0001-mixed-lang-dag-interface.md)).
+
+The `TaskSpec` also carries the task id, so it can be set alongside the other task options:
+
+```ts
+const extract = dag.task(async () => 42, { taskId: "extract", retries: 2 });
+```
 
 ### Order-only edges: `>>` and `<<`
 
@@ -153,6 +179,12 @@ convention.
   (`ts-sdk/src/sdk/dag.ts`), so task fields land on a path that exists rather than a new one.
 - **A `TaskRef` is inert** — a handle for wiring, not a promise. Nothing in a Dag file executes a task
   body.
+- **A defaulted task id is resolved at pack time, not read at runtime.** esbuild renames function
+  identifiers, so `handler.name` in a packed bundle is the minified name, not the author's. The pack
+  step (`ts-sdk/src/cli/pack.ts`) therefore reads an omitted id from the handler's declared name in
+  source and writes it into the registration, rather than depending on `handler.name` or enabling
+  esbuild's `keepNames` across the whole bundle. A handler with no source name leaves nothing to
+  read, which is why an anonymous handler must state its id.
 - **`withArgNames` and the name folding behind it** ([ADR-0001](0001-mixed-lang-dag-interface.md))
   exist for the mixed-language case and are never needed here: both ends of every name are
   TypeScript, so `tsc` checks the wiring end to end and there is no foreign name to reconcile.
