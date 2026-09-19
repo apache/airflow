@@ -38,6 +38,7 @@ from airflow.sdk.bases.operator import (
     chain,
     chain_linear,
     cross_downstream,
+    get_merged_defaults,
 )
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.sdk.definitions.template import literal
@@ -1137,3 +1138,14 @@ def test_partial_default_args():
     assert op.arg2 == "b"
     assert op.arg3 == 3
     assert op.queue == "THIS"
+
+
+@pytest.mark.parametrize("task_params", [None, {"valid": 1}], ids=["no-params", "valid-params"])
+def test_get_merged_defaults_names_the_rejected_argument(task_params):
+    """The message must name default_args' type regardless of what task_params holds."""
+    with pytest.raises(TypeError) as ctx:
+        get_merged_defaults(
+            dag=None, task_group=None, task_params=task_params, task_default_args=["not a mapping"]
+        )
+
+    assert str(ctx.value) == "default_args must be a mapping, got <class 'list'>"
