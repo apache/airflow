@@ -31,12 +31,14 @@ from airflow.callbacks.callback_requests import (
     CallbackRequest,
     DagCallbackRequest,
     DagRunContext,
+    DagSkippedIntervalsCallbackRequest,
     EmailRequest,
     TaskCallbackRequest,
 )
 from airflow.models import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+from airflow.timetables.base import DataInterval, SkippedIntervalsSummary
 from airflow.utils.state import State, TaskInstanceState
 
 pytestmark = pytest.mark.db_test
@@ -398,6 +400,46 @@ class TestDagCallbackRequestWithContext:
         assert result.context_from_server is not None
         assert result.context_from_server.dag_run.dag_id == "test_dag"
         assert result.context_from_server.last_ti.task_id == "test_task"
+
+
+class TestDagSkippedIntervalsCallbackRequest:
+    def test_to_json_roundtrip(self):
+        interval_start = timezone.datetime(2024, 1, 1)
+        interval_end = timezone.datetime(2024, 1, 2)
+        summary = SkippedIntervalsSummary(
+            skipped_range=DataInterval(start=interval_start, end=interval_end),
+        )
+        request = DagSkippedIntervalsCallbackRequest.from_summary(
+            filepath="test.py",
+            dag_id="test_dag",
+            bundle_name="testing",
+            bundle_version="v1",
+            summary=summary,
+        )
+
+        result = DagSkippedIntervalsCallbackRequest.from_json(request.to_json())
+
+        assert result == request
+        assert result.to_summary() == summary
+
+    def test_callback_request_union_with_skipped_intervals(self):
+        interval_start = timezone.datetime(2024, 1, 1)
+        interval_end = timezone.datetime(2024, 1, 2)
+        request_data = {
+            "type": "DagSkippedIntervalsCallbackRequest",
+            "filepath": "test.py",
+            "dag_id": "test_dag",
+            "bundle_name": "testing",
+            "bundle_version": "v1",
+            "skipped_range": [interval_start.isoformat(), interval_end.isoformat()],
+        }
+
+        adapter = TypeAdapter(CallbackRequest)
+        callback_request = adapter.validate_python(request_data)
+
+        assert isinstance(callback_request, DagSkippedIntervalsCallbackRequest)
+        assert callback_request.dag_id == "test_dag"
+        assert callback_request.skipped_range == (interval_start, interval_end)
 
 
 class TestEmailRequest:
