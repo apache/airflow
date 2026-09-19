@@ -102,3 +102,23 @@ class TestOpenSearchServerlessCollectionActiveSensor:
         sensor = OpenSearchServerlessCollectionActiveSensor(**self.default_op_kwargs, aws_conn_id=None)
         with pytest.raises(AirflowException, match=sensor.FAILURE_MESSAGE):
             sensor.poke({})
+
+    def test_deferrable_sensor_forwards_aws_config(self):
+        sensor = OpenSearchServerlessCollectionActiveSensor(
+            **self.default_op_kwargs,
+            aws_conn_id="aws-test-custom-conn",
+            region_name="eu-west-1",
+            verify=False,
+            botocore_config={"read_timeout": 42},
+            deferrable=True,
+        )
+
+        with mock.patch.object(sensor, "defer") as mock_defer:
+            sensor.execute({})
+
+        trigger = mock_defer.call_args.kwargs["trigger"]
+
+        assert trigger.aws_conn_id == "aws-test-custom-conn"
+        assert trigger.region_name == "eu-west-1"
+        assert trigger.verify is False
+        assert trigger.botocore_config == {"read_timeout": 42}
