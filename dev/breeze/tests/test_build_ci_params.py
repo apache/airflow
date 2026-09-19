@@ -24,6 +24,19 @@ from airflow_breeze.params.build_ci_params import BuildCiParams
 INLINE_CACHE_FLAG = "--build-arg=BUILDKIT_INLINE_CACHE=1"
 
 
+@pytest.mark.parametrize("require_frozen_dependencies", [False, True])
+def test_frozen_dependency_build_disables_unpinned_fallback(require_frozen_dependencies: bool) -> None:
+    arguments = BuildCiParams(
+        require_frozen_dependencies=require_frozen_dependencies
+    ).prepare_arguments_for_docker_build_command()
+    assert ("AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION=false" in arguments) is require_frozen_dependencies
+
+
+def test_frozen_dependencies_cannot_be_upgraded() -> None:
+    with pytest.raises(ValueError, match="Frozen dependencies cannot be combined"):
+        BuildCiParams(require_frozen_dependencies=True, upgrade_to_newer_dependencies=True)
+
+
 @pytest.mark.parametrize(
     ("docker_cache", "inline_cache_expected"),
     [

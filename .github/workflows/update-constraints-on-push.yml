@@ -60,6 +60,7 @@ on:  # yamllint disable-line rule:truthy
         description: "Slack bot token used to post provider-downgrade alerts (optional)."
         required: false
 permissions:
+  actions: read
   contents: read
 
 concurrency:
@@ -155,6 +156,7 @@ jobs:
     needs: [build-info]
     uses: ./.github/workflows/ci-image-build.yml
     permissions:
+      actions: read
       contents: read
       packages: write
     with:
