@@ -206,6 +206,59 @@ def test_expand_mapped_task_propagates_ignore_upstream_deps(dag_maker, session):
     assert flags == [True] * len(literal)
 
 
+def test_force_run_expands_an_unexpanded_mapped_task(dag_maker, session):
+    """Forcing a mapped task that has not been expanded yet expands it and forces every index.
+
+    The instance only has to be expand*able*: the values it maps over must already exist.
+    """
+    with dag_maker(session=session, serialized=True):
+        producer = BaseOperator(task_id="producer")
+        blocker = BaseOperator(task_id="blocker")
+        mapped = MockOperator.partial(task_id="mapped").expand(arg2=producer.output)
+        blocker >> mapped
+
+    dr = dag_maker.create_dagrun()
+    session.add(
+        TaskMap(dag_id=dr.dag_id, task_id="producer", run_id=dr.run_id, map_index=-1, length=3, keys=None)
+    )
+    tis = {(ti.task_id, ti.map_index): ti for ti in dr.task_instances}
+    tis[("producer", -1)].state = TaskInstanceState.SUCCESS
+    tis[("blocker", -1)].state = TaskInstanceState.FAILED
+    tis[("mapped", -1)].ignore_upstream_deps = True
+    session.flush()
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+
+    assert sorted(ti.map_index for ti in decision.schedulable_tis if ti.task_id == "mapped") == [0, 1, 2]
+    mapped_tis = [ti for ti in dr.get_task_instances(session=session) if ti.task_id == "mapped"]
+    assert all(ti.ignore_upstream_deps for ti in mapped_tis)
+
+
+def test_force_run_cannot_expand_a_mapped_task_without_values(dag_maker, session):
+    """Forcing cannot conjure the values a mapped task expands over.
+
+    Expansion happens outside the dependency system, so an instance with no mapped values is
+    marked ``upstream_failed`` whether or not it was forced.
+    """
+    with dag_maker(session=session, serialized=True):
+        producer = BaseOperator(task_id="producer")
+        MockOperator.partial(task_id="mapped").expand(arg2=producer.output)
+
+    dr = dag_maker.create_dagrun()
+    tis = {(ti.task_id, ti.map_index): ti for ti in dr.task_instances}
+    # No TaskMap row: the producer never pushed the values to expand over.
+    tis[("producer", -1)].state = TaskInstanceState.FAILED
+    mapped_ti = tis[("mapped", -1)]
+    mapped_ti.ignore_upstream_deps = True
+    session.flush()
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    session.refresh(mapped_ti)
+
+    assert mapped_ti.state == TaskInstanceState.UPSTREAM_FAILED
+    assert not [ti for ti in decision.schedulable_tis if ti.task_id == "mapped"]
+
+
 def test_force_run_does_not_wave_through_new_mapped_siblings(dag_maker, session):
     """A forced index must not push sibling indexes it causes to be created past their deps.
 
