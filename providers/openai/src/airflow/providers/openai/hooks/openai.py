@@ -97,13 +97,26 @@ class BatchStatus(str, Enum):
 #: Statuses the provider's trigger emits in its terminal event.
 TRIGGER_EVENT_STATUSES = frozenset({"success", "error", "cancelled"})
 
+
+class TerminationReason(str, Enum):
+    """Enum for the ``termination_reason`` field of a trigger's terminal event."""
+
+    TIMEOUT = "timeout"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+    FAILED = "failed"
+    EXPIRED = "expired"
+    UNEXPECTED_STATUS = "unexpected_status"
+    POLLING_ERROR = "polling_error"
+
+
 # Maps the trigger's ``termination_reason`` field to the exception ``execute_complete``
 # should raise. Keyed on the reason field, never on the message text, so that a
 # rewording of the trigger's message never silently changes which exception a
 # downstream task can catch.
 _TERMINATION_REASON_EXCEPTIONS: dict[str, type[AirflowException]] = {
-    "timeout": OpenAIBatchTimeout,
-    "cancelled": OpenAIBatchCancelled,
+    TerminationReason.TIMEOUT: OpenAIBatchTimeout,
+    TerminationReason.CANCELLED: OpenAIBatchCancelled,
 }
 
 
