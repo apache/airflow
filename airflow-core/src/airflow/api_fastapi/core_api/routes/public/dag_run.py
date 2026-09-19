@@ -129,6 +129,41 @@ dag_run_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}/dagRuns")
 dag_run_at_dag_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}")
 
 
+def _mask_password_conf(dag, conf: dict | None) -> dict | None:
+    """Redact conf values for keys whose declared Param uses schema format="password"."""
+    if not conf or dag is None:
+        return conf
+    params = getattr(dag, "params", None)
+    if not params:
+        return conf
+    masked = dict(conf)
+    for key in masked:
+        if key not in params:
+            continue
+        schema = params.get_param(key).schema
+        if schema.get("type") == "string" and schema.get("format") == "password":
+            masked[key] = "***"
+    return masked
+
+
+def _build_masked_dag_run_responses(dag_runs, dag_bag, session) -> list[DAGRunResponse]:
+    """
+    Convert ORM DagRuns to DAGRunResponse, redacting password-format conf keys per-run.
+
+    Deliberately does not cache DAGs by dag_id: two DagRuns can share a dag_id but resolve to
+    different Dag versions (get_dag_for_run keys off dag_run.created_dag_version_id), and a param's
+    format="password" declaration can differ between versions. dag_bag itself already caches by
+    dag_version_id internally, so this stays cheap without an extra, incorrect layer on top.
+    """
+    responses = []
+    for dag_run in dag_runs:
+        response = DAGRunResponse.model_validate(dag_run)
+        dag = get_dag_for_run(dag_bag, dag_run, session=session)
+        response.conf = _mask_password_conf(dag, response.conf)
+        responses.append(response)
+    return responses
+
+
 @dag_run_router.get(
     "/{dag_run_id}",
     responses=create_openapi_http_exception_doc(
@@ -138,7 +173,7 @@ dag_run_at_dag_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}")
     ),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN))],
 )
-def get_dag_run(dag_id: str, dag_run_id: str, session: SessionDep) -> DAGRunResponse:
+def get_dag_run(dag_id: str, dag_run_id: str, session: SessionDep, dag_bag: DagBagDep) -> DAGRunResponse:
     dag_run = session.scalar(
         select(DagRun)
         .filter_by(dag_id=dag_id, run_id=dag_run_id)
@@ -149,7 +184,10 @@ def get_dag_run(dag_id: str, dag_run_id: str, session: SessionDep) -> DAGRunResp
             status.HTTP_404_NOT_FOUND,
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
-    return dag_run
+    response = DAGRunResponse.model_validate(dag_run)
+    dag = get_dag_for_run(dag_bag, dag_run, session=session)
+    response.conf = _mask_password_conf(dag, response.conf)
+    return response
 
 
 @dag_run_router.delete(
@@ -247,7 +285,9 @@ def patch_dag_run(
     if not final_dag_run:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Dag run not found after update")
 
-    return final_dag_run
+    response = DAGRunResponse.model_validate(final_dag_run)
+    response.conf = _mask_password_conf(dag, response.conf)
+    return response
 
 
 @dag_run_router.patch(
@@ -340,7 +380,7 @@ def clear_dag_run(
             total_entries=len(task_instances),
         )
 
-    return perform_clear_dag_run(
+    cleared_dag_run = perform_clear_dag_run(
         session=session,
         dag=dag,
         dag_run=dag_run,
@@ -351,6 +391,9 @@ def clear_dag_run(
         note=body.note,
         user=user,
     )
+    response = DAGRunResponse.model_validate(cleared_dag_run)
+    response.conf = _mask_password_conf(dag, response.conf)
+    return response
 
 
 @dag_run_at_dag_router.post(
@@ -456,7 +499,7 @@ def clear_dag_runs(
             )
         )
     return DAGRunCollectionResponse(
-        dag_runs=cleared_runs,
+        dag_runs=_build_masked_dag_run_responses(cleared_runs, dag_bag, session),
         total_entries=len(cleared_runs),
     )
 
@@ -716,7 +759,7 @@ def get_dag_runs(
             statement=query, filters=filters, session=session
         )
         return DAGRunCollectionResponse(
-            dag_runs=dag_runs,
+            dag_runs=_build_masked_dag_run_responses(dag_runs, dag_bag, session),
             total_entries=total_entries,
             total_entries_limit=total_entries_limit,
             next_cursor=(encode_cursor(dag_runs[-1], order_by) if has_next and dag_runs else None),
@@ -737,7 +780,7 @@ def get_dag_runs(
     attach_dag_versions_to_runs(dag_runs, session=session)
 
     return DAGRunCollectionResponse(
-        dag_runs=dag_runs,
+        dag_runs=_build_masked_dag_run_responses(dag_runs, dag_bag, session),
         total_entries=total_entries,
     )
 
@@ -834,7 +877,9 @@ def trigger_dag_run(
         if dag_run_note:
             current_user_id = user.get_id()
             dag_run.note = (dag_run_note, current_user_id)
-        return dag_run
+        response = DAGRunResponse.model_validate(dag_run)
+        response.conf = _mask_password_conf(context_dag, response.conf)
+        return response
 
     except (ParamValidationError, ValueError) as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
@@ -926,6 +971,7 @@ def get_list_dag_runs_batch(
     body: DAGRunsBatchBody,
     readable_dag_runs_filter: ReadableDagRunsFilterDep,
     session: SessionDep,
+    dag_bag: DagBagDep,
 ) -> DAGRunCollectionResponse:
     """Get a list of Dag Runs."""
     dag_ids = FilterParam(DagRun.dag_id, body.dag_ids, FilterOptionEnum.IN)  # type: ignore[arg-type]
@@ -1022,6 +1068,6 @@ def get_list_dag_runs_batch(
     attach_dag_versions_to_runs(dag_runs, session=session)
 
     return DAGRunCollectionResponse(
-        dag_runs=dag_runs,
+        dag_runs=_build_masked_dag_run_responses(dag_runs, dag_bag, session),
         total_entries=total_entries,
     )
