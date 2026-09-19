@@ -22,7 +22,7 @@ from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import apprise
 import pytest
-from apprise import NotifyFormat, NotifyType
+from apprise import NotifyFormat, NotifyType, PersistentStoreMode
 
 from airflow.models import Connection
 from airflow.providers.apprise.hooks.apprise import AppriseHook
@@ -144,3 +144,60 @@ class TestAppriseHook:
             attach=None,
             interpret_escapes=None,
         )
+
+    def test_build_apprise_asset_returns_none_without_storage_path(self):
+        """Persistent storage stays disabled, matching previous behavior, unless storage_path is set."""
+        hook = AppriseHook()
+        assert hook._build_apprise_asset() is None
+
+    @pytest.mark.parametrize(
+        "storage_mode",
+        [None, "flush", PersistentStoreMode.MEMORY],
+    )
+    @mock.patch("airflow.providers.apprise.hooks.apprise.AppriseAsset", autospec=True)
+    def test_build_apprise_asset_with_storage_path(self, mock_asset_cls, storage_mode):
+        hook = AppriseHook(storage_path="/tmp/apprise-cache", storage_mode=storage_mode)
+
+        asset = hook._build_apprise_asset()
+
+        mock_asset_cls.assert_called_once_with(storage_path="/tmp/apprise-cache", storage_mode=storage_mode)
+        assert asset is mock_asset_cls.return_value
+
+    @mock.patch("airflow.providers.apprise.hooks.apprise.AppriseHook._build_apprise_asset")
+    @mock.patch("airflow.providers.apprise.hooks.apprise.AppriseHook.get_connection")
+    def test_notify_uses_built_apprise_asset(self, mock_conn, mock_build_asset):
+        mock_conn.return_value = Connection(
+            conn_id="apprise",
+            extra={"config": {"path": "http://some_path_that_dont_exist/", "tag": "alert"}},
+        )
+        sentinel_asset = object()
+        mock_build_asset.return_value = sentinel_asset
+
+        apprise_obj = apprise.Apprise()
+        apprise_obj.notify = MagicMock()
+        apprise_obj.add = MagicMock()
+        with patch.object(apprise, "Apprise", return_value=apprise_obj) as mock_apprise_cls:
+            hook = AppriseHook(storage_path="/tmp/apprise-cache")
+            hook.notify(body="test")
+
+        mock_apprise_cls.assert_called_once_with(asset=sentinel_asset)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.apprise.hooks.apprise.AppriseHook._build_apprise_asset")
+    @mock.patch("airflow.providers.apprise.hooks.apprise.get_async_connection")
+    async def test_async_notify_uses_built_apprise_asset(self, mock_conn, mock_build_asset):
+        mock_conn.return_value = Connection(
+            conn_id="apprise",
+            extra={"config": {"path": "http://some_path_that_dont_exist/", "tag": "alert"}},
+        )
+        sentinel_asset = object()
+        mock_build_asset.return_value = sentinel_asset
+
+        apprise_obj = apprise.Apprise()
+        apprise_obj.async_notify = AsyncMock()
+        apprise_obj.add = MagicMock()
+        with patch.object(apprise, "Apprise", return_value=apprise_obj) as mock_apprise_cls:
+            hook = AppriseHook(storage_path="/tmp/apprise-cache")
+            await hook.async_notify(body="test")
+
+        mock_apprise_cls.assert_called_once_with(asset=sentinel_asset)
