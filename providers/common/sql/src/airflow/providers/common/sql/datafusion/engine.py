@@ -204,6 +204,38 @@ class DataFusionEngine(LoggingMixin):
                     key_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
                 credentials = self._remove_none_values({"key_path": key_path, "keyfile_dict": keyfile_dict})
 
+            case "wasb":
+                try:
+                    from airflow.providers.microsoft.azure.hooks.wasb import WasbHook  # noqa: F401
+                except ImportError:
+                    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+                    raise AirflowOptionalProviderFeatureException(
+                        "Failed to import WasbHook. To use the Azure Blob Storage functionality, please "
+                        "install the apache-airflow-providers-microsoft-azure package."
+                    )
+                extra_dejson = conn.extra_dejson
+                credentials = {"account": conn.login}
+                tenant_id = extra_dejson.get("tenant_id")
+                sas_token = extra_dejson.get("sas_token")
+                if tenant_id and conn.login and conn.password:
+                    # client_id/client_secret/tenant_id must all be set together, or not at all --
+                    # DataFusion's binding panics on a partial combination.
+                    credentials.update(
+                        {"client_id": conn.login, "client_secret": conn.password, "tenant_id": tenant_id}
+                    )
+                elif sas_token and not sas_token.startswith("http"):
+                    from urllib.parse import parse_qsl
+
+                    credentials["sas_query_pairs"] = parse_qsl(sas_token.lstrip("?"))
+                else:
+                    credentials["access_key"] = (
+                        conn.password
+                        or extra_dejson.get("shared_access_key")
+                        or extra_dejson.get("account_key")
+                    )
+                credentials = self._remove_none_values(credentials)
+
             case _:
                 raise ValueError(f"Unknown connection type {conn.conn_type}")
         return credentials, extra_config
