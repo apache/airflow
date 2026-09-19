@@ -1035,6 +1035,20 @@ class TestPatchConnection(TestConnectionEndpoint):
         )
         assert response.status_code == 422
 
+    def test_patch_unknown_update_mask_field_returns_400(self, test_client, session):
+        self.create_connection()
+        response = test_client.patch(
+            f"/connections/{TEST_CONN_ID}",
+            json={"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "host": "new_host"},
+            params={"update_mask": ["not_a_field"]},
+        )
+        assert response.status_code == 400
+        assert "Unknown field(s) in update_mask: 'not_a_field'" in response.json()["detail"]
+        assert (
+            session.scalar(select(Connection.host).where(Connection.conn_id == TEST_CONN_ID))
+            == TEST_CONN_HOST
+        )
+
     @conf_vars({("core", "multi_team"): "False"})
     def test_patch_rejects_team_name_when_multi_team_disabled(self, test_client):
         self.create_connection()
