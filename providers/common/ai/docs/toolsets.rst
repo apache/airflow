@@ -827,7 +827,9 @@ Install the SDK extra::
 
 Use a generic Airflow connection, resolved lazily on first use:
 
-- ``host`` and ``port``: OpenSandbox lifecycle API address.
+- ``host`` and ``port``: OpenSandbox lifecycle API address. ``host`` is
+  required; a connection without one is refused rather than left to the SDK's
+  ``localhost:8080`` default.
 - ``schema``: ``http`` or ``https``. Default ``http``.
 - ``password``: API key, when the server requires one.
 - Extra ``request_timeout``: HTTP request timeout in seconds. Default ``30``.
@@ -837,17 +839,28 @@ Use a generic Airflow connection, resolved lazily on first use:
 Set ``opensandbox_conn_id=None`` to let the SDK read
 ``OPEN_SANDBOX_DOMAIN`` and ``OPEN_SANDBOX_API_KEY`` instead.
 
-``SandboxSpec.env`` and network policy are enforced at sandbox creation. The
+``SandboxSpec.env`` and network policy are set at sandbox creation. The
 default spec becomes deny-all egress; ``allow_egress_to`` becomes explicit
-allow rules. OpenSandbox rejects the creation if its configured runtime cannot
-enforce the requested policy, so the backend never silently provisions a less
-restricted sandbox. Network policy requires the server's egress sidecar.
+allow rules. Network policy requires the server's egress sidecar, and the
+create API accepts a policy whether or not that sidecar is deployed, so the
+backend reads the enforced policy back after creation and destroys the sandbox
+if it does not match the spec. It never hands the agent a less restricted
+sandbox than was asked for.
+
+Every sandbox carries ``created-by: airflow`` metadata and an
+``airflow-sandbox-*`` name, so an operator on a shared server can find and
+reclaim Airflow's sandboxes.
 
 The server, runtime, and image remain deployment choices. The default Docker
 runtime shares the host kernel; choose a stronger runtime such as Kata when the
-threat model requires a VM boundary. The backend uses server-side command
-deadlines, a server-side sandbox lifetime, streamed bounded output, and native
-file operations.
+threat model requires a VM boundary. Command deadlines are enforced by the
+server; if its event stream stalls, the backend abandons the call 30 seconds
+past the budget, destroys the sandbox and reports the command as timed out with
+``sandbox_terminated`` set, so the toolset provisions a fresh one. Output is
+streamed and kept to ``max_output_bytes`` per stream on the worker, with one
+caveat: the SDK reassembles each output line before handing it over, so a
+single line with no newline in it is held in full first. File operations use
+the native file API.
 
 Constructor parameters:
 
