@@ -123,7 +123,10 @@ class SqlToSlackWebhookOperator(BaseSqlToSlackOperator):
         if self.times_rendered == 0:
             fields_to_render: Iterable[str] = (x for x in self.template_fields if x != "slack_message")
         else:
-            fields_to_render = self.template_fields
+            # Only the deferred field. Re-rendering a field that the first pass already rendered
+            # feeds its own output back in as template source, so any Jinja syntax that arrived in
+            # a context value (``dag_run.conf``, a param) would be evaluated on this second pass.
+            fields_to_render = ("slack_message",)
 
         if not jinja_env:
             jinja_env = self.get_template_env()
