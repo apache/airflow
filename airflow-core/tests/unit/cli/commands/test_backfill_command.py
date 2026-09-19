@@ -321,3 +321,20 @@ class TestCliBackfill:
         with pytest.raises(SystemExit) as exc_info:
             airflow.cli.commands.backfill_command.create_backfill(self.parser.parse_args(args))
         assert exc_info.value.code == 1
+
+    @pytest.mark.parametrize("dry_run", [False, True])
+    def test_backfill_unknown_dag_shows_friendly_message(self, dry_run):
+        args = [
+            "backfill",
+            "create",
+            "--dag-id",
+            "does_not_exist",
+            "--from-date",
+            DEFAULT_DATE.isoformat(),
+            "--to-date",
+            DEFAULT_DATE.isoformat(),
+        ]
+        if dry_run:
+            args.append("--dry-run")
+        with pytest.raises(SystemExit, match="does_not_exist"):
+            airflow.cli.commands.backfill_command.create_backfill(self.parser.parse_args(args))
