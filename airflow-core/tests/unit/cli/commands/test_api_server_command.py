@@ -134,6 +134,16 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
             # Verify that the environment variable was set and cleaned up correctly
             mock_environ.__setitem__.assert_has_calls(expected_setitem_calls)
 
+    def test_api_server_rejects_unknown_apps(self):
+        args = self.parser.parse_args(["api-server", "--apps", "cores"])
+        with (
+            mock.patch("uvicorn.run") as mock_run,
+            pytest.raises(SystemExit, match=r"Unknown API server app\(s\): cores"),
+        ):
+            api_server_command.api_server(args)
+
+        mock_run.assert_not_called()
+
     @pytest.mark.parametrize(
         ("cli_args", "expected_additional_kwargs"),
         [

@@ -65,6 +65,8 @@ def get_cookie_path() -> str:
 # Fast API apps mounted under these prefixes are not allowed
 RESERVED_URL_PREFIXES = ["/api/v2", "/ui", "/execution", "/auth", "/pluginsv2"]
 
+API_SERVER_APPS = ("all", "core", "execution")
+
 log = logging.getLogger(__name__)
 
 
@@ -109,9 +111,27 @@ async def lifespan(app: FastAPI):
         yield
 
 
+def parse_apps_selection(apps: str) -> set[str]:
+    """
+    Turn a comma-separated app selection into the set of apps to mount.
+
+    An unknown name would otherwise mount nothing and leave the server answering 404 for
+    every route, so it is rejected here instead.
+    """
+    selected = {name.strip() for name in apps.split(",")} - {""}
+    if not selected:
+        return {"all"}
+    if unknown := sorted(selected.difference(API_SERVER_APPS)):
+        raise ValueError(
+            f"Unknown API server app(s): {', '.join(unknown)}. "
+            f"Valid options are: {', '.join(API_SERVER_APPS)}."
+        )
+    return selected
+
+
 @providers_configuration_loaded
 def create_app(apps: str = "all") -> FastAPI:
-    apps_list = apps.split(",") if apps else ["all"]
+    selected_apps = parse_apps_selection(apps)
 
     app = FastAPI(
         title="Airflow API",
@@ -139,12 +159,12 @@ def create_app(apps: str = "all") -> FastAPI:
 
     dag_bag = create_dag_bag()
 
-    if "all" in apps_list or "execution" in apps_list:
+    if "all" in selected_apps or "execution" in selected_apps:
         task_exec_api_app = create_task_execution_api_app()
         task_exec_api_app.state.dag_bag = dag_bag
         app.mount("/execution", task_exec_api_app)
 
-    if "all" in apps_list or "core" in apps_list:
+    if "all" in selected_apps or "core" in selected_apps:
         app.state.dag_bag = dag_bag
         init_plugins(app)
         init_auth_manager(app)

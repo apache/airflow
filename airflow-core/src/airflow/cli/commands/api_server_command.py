@@ -221,6 +221,15 @@ def with_api_apps_env(func: Callable[[Namespace], RT]) -> Callable[[Namespace], 
 @with_api_apps_env
 def api_server(args: Namespace):
     """Start Airflow API server."""
+    from airflow.api_fastapi.app import parse_apps_selection
+
+    # The app is only built after this process has daemonized and forked, so a selection rejected
+    # there surfaces as a traceback in the server logs instead of an error on the operator's terminal.
+    try:
+        parse_apps_selection(args.apps)
+    except ValueError as e:
+        raise SystemExit(str(e))
+
     cli_utils.print_banner()
 
     apps = args.apps
