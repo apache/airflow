@@ -35,6 +35,16 @@ from airflow.utils.db import (
 )
 
 pytestmark = [pytest.mark.db_test]
+
+
+def _email_unique_constraint_names(bind) -> list[str]:
+    return sorted(
+        uq["name"]
+        for uq in sa.inspect(bind).get_unique_constraints("ab_register_user")
+        if "email" in uq["column_names"]
+    )
+
+
 try:
     from airflow.providers.fab.auth_manager.models.db import FABDBManager
 
@@ -121,26 +131,44 @@ try:
                     FABDBManager(session).upgradedb(from_revision=None, to_revision=None, show_sql_only=True)
 
         @pytest.mark.parametrize(
-            ("direction", "revision_range", "expected_procedure"),
+            ("direction", "revision_range", "expected_statements"),
             [
-                ("upgrade", "6709f7a774b9:02ca36b0235b", "CREATE PROCEDURE DropEmailUqIfExists()"),
-                ("downgrade", "02ca36b0235b:6709f7a774b9", "CREATE PROCEDURE DropIndexIfExists()"),
+                (
+                    "upgrade",
+                    "6709f7a774b9:02ca36b0235b",
+                    (
+                        "CREATE PROCEDURE CreateIdxPermissionViewId()",
+                        "CREATE PROCEDURE CreateIdxRoleId()",
+                        "CREATE PROCEDURE DropEmailUqIfExists()",
+                        "UPDATE alembic_version_fab SET version_num='02ca36b0235b'",
+                    ),
+                ),
+                (
+                    "downgrade",
+                    "02ca36b0235b:6709f7a774b9",
+                    (
+                        "CREATE PROCEDURE DropUniqueIfExists()",
+                        "CREATE PROCEDURE DropIndexIfExists()",
+                        "UPDATE alembic_version_fab SET version_num='6709f7a774b9'",
+                    ),
+                ),
             ],
         )
         @mock.patch("airflow.settings.SQL_ALCHEMY_CONN", "mysql+pymysql://user:pass@host/airflow")
         def test_offline_mysql_sql_generation(
-            self, session, capsys, direction, revision_range, expected_procedure
+            self, session, capsys, direction, revision_range, expected_statements
         ):
             # Offline mode hands the migration a MockConnection rather than None, so every
             # introspection has to be gated on the context's as_sql flag or it raises
-            # NoInspectionAvailable and no script is produced at all.
+            # NoInspectionAvailable and no script is produced at all. The version stamp is
+            # emitted last, so asserting it proves the whole revision ran.
             config = FABDBManager(session=session).get_alembic_config()
 
             getattr(command, direction)(config, revision_range, sql=True)
 
             script = capsys.readouterr().out
-            assert expected_procedure in script
-            assert "UPDATE alembic_version_fab SET version_num=" in script
+            for statement in expected_statements:
+                assert statement in script
 
         @mock.patch("alembic.command.upgrade")
         @mock.patch.object(FABDBManager, "create_db_from_orm")
@@ -331,21 +359,23 @@ try:
             try:
                 manager.downgrade(to_revision="6709f7a774b9")
 
+                # An Airflow 2.x database reaches this revision with FAB's own unique index on
+                # email, named after the column. That is what the revision has to find and drop.
+                with pymysql_engine.begin() as setup:
+                    for name in _email_unique_constraint_names(setup):
+                        setup.execute(sa.text(f"ALTER TABLE `ab_register_user` DROP INDEX `{name}`"))
+                    setup.execute(sa.text("ALTER TABLE `ab_register_user` ADD UNIQUE KEY `email` (`email`)"))
+
                 config = manager.get_alembic_config()
                 with pymysql_engine.connect() as connection:
                     config.attributes["connection"] = connection
+                    assert connection.dialect.driver == "pymysql"
 
                     command.upgrade(config, revision="02ca36b0235b")
-                    uq_names = {
-                        uq["name"] for uq in sa.inspect(connection).get_unique_constraints("ab_register_user")
-                    }
-                    assert "ab_register_user_email_uq" in uq_names
+                    assert _email_unique_constraint_names(connection) == ["ab_register_user_email_uq"]
 
                     command.downgrade(config, revision="6709f7a774b9")
-                    uq_names = {
-                        uq["name"] for uq in sa.inspect(connection).get_unique_constraints("ab_register_user")
-                    }
-                    assert "ab_register_user_email_uq" not in uq_names
+                    assert _email_unique_constraint_names(connection) == []
                     index_names = {
                         index["name"]
                         for index in sa.inspect(connection).get_indexes("ab_permission_view_role")
@@ -357,10 +387,7 @@ try:
                     # upgrade runs the drops against objects that are already gone — the state a
                     # database is in after the revision failed part-way through.
                     command.upgrade(config, revision="02ca36b0235b")
-                    uq_names = {
-                        uq["name"] for uq in sa.inspect(connection).get_unique_constraints("ab_register_user")
-                    }
-                    assert "ab_register_user_email_uq" in uq_names
+                    assert _email_unique_constraint_names(connection) == ["ab_register_user_email_uq"]
             finally:
                 pymysql_engine.dispose()
                 current_revision = manager.get_current_revision()

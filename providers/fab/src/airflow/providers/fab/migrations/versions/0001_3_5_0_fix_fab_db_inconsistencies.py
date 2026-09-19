@@ -200,7 +200,7 @@ def _drop_unique_constraint_if_exists(table_name: str, constraint_name: str) -> 
                 )
             )
         elif any(uq["name"] == constraint_name for uq in sa.inspect(bind).get_unique_constraints(table_name)):
-            op.execute(sa.text(f"ALTER TABLE `{table_name}` DROP INDEX `{constraint_name}`"))
+            op.drop_constraint(constraint_name, table_name, type_="unique")
     else:
         with op.batch_alter_table(table_name, schema=None) as batch_op:
             with contextlib.suppress(ValueError):
@@ -242,7 +242,7 @@ def _drop_index_if_exists(table_name: str, index_name: str) -> None:
                 )
             )
         elif any(idx["name"] == index_name for idx in sa.inspect(bind).get_indexes(table_name)):
-            op.execute(sa.text(f"DROP INDEX `{index_name}` ON `{table_name}`"))
+            op.drop_index(index_name, table_name=table_name)
     else:
         op.drop_index(index_name, table_name=table_name, if_exists=True)
 
@@ -323,7 +323,7 @@ def upgrade() -> None:
             op.execute(sa.text(_mysql_drop_unique_constraints_on_ab_register_user_email()))
         else:
             for name in _find_unique_constraint_names(bind, "ab_register_user", "email"):
-                op.execute(sa.text(f"ALTER TABLE `ab_register_user` DROP INDEX `{name}`"))
+                op.drop_constraint(name, "ab_register_user", type_="unique")
     elif dialect_name == "sqlite" and bind is not None:
         # SQLite: batch mode rewrites the table; requires a live connection.
         # Offline mode for SQLite is not supported by Airflow.
