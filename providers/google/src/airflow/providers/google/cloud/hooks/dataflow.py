@@ -339,6 +339,15 @@ class _DataflowJobsController(DataflowJobTerminalStateHelper):
             jobs = self._fetch_jobs_by_prefix_name(self._job_name.lower())
             if len(jobs) == 1:
                 self._job_id = jobs[0]["id"]
+            elif len(jobs) > 1 and not self._multiple_jobs:
+                active_jobs = [
+                    job for job in jobs if job.get("currentState") not in DataflowJobStatus.TERMINAL_STATES
+                ]
+                if len(active_jobs) == 1:
+                    self._job_id = active_jobs[0]["id"]
+                else:
+                    jobs.sort(key=lambda j: j.get("createTime", ""), reverse=True)
+                    self._job_id = jobs[0]["id"]
             return jobs
         raise ValueError("Missing both dataflow job ID and name.")
 
@@ -433,6 +442,10 @@ class _DataflowJobsController(DataflowJobTerminalStateHelper):
         for response in self._fetch_list_job_messages_responses(job_id=job_id):
             autoscaling_events.extend(response.get("autoscalingEvents", []))
         return autoscaling_events
+
+    def fetch_job_id(self):
+        self._refresh_jobs()
+        return self._job_id
 
     def _fetch_all_jobs(self) -> list[dict]:
         request = (
@@ -1172,6 +1185,21 @@ class DataflowHook(GoogleBaseHook):
             location=location,
         )
         return jobs_controller.fetch_job_by_id(job_id)
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def get_job_id_of_running_job(
+        self, job_name: str, project_id: str = PROVIDE_PROJECT_ID, location: str = DEFAULT_DATAFLOW_LOCATION
+    ):
+        """Get the job_id for currently running Dataflow Job by job_name."""
+        jobs_controller = _DataflowJobsController(
+            dataflow=self.get_conn(),
+            project_number=project_id,
+            name=job_name,
+            location=location,
+        )
+        job_id = jobs_controller.fetch_job_id()
+
+        return job_id
 
     @GoogleBaseHook.fallback_to_default_project_id
     def fetch_job_metrics_by_id(
