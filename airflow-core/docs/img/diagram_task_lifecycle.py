@@ -142,9 +142,11 @@ def generate_task_lifecycle_diagram():
             CONDITION_IMG,
             **CONDITION_NODE_ATTRS,
         )
-        cond_trigger_task_2 = Custom("\n\n\n\n\nA triggerer task?", CONDITION_IMG, **CONDITION_NODE_ATTRS)
+        cond_trigger_task_2 = Custom("\n\n\n\n\nTrigger fired?", CONDITION_IMG, **CONDITION_NODE_ATTRS)
         cond_task_complete_1 = Custom(
-            "\n\n\n\n\n                       Task completes?", CONDITION_IMG, **CONDITION_NODE_ATTRS
+            "\n\n\n\n\n                       Task completes\n                       in the triggerer?",
+            CONDITION_IMG,
+            **CONDITION_NODE_ATTRS,
         )
         cond_task_complete_2 = Custom("\n\n\n\n\nTask completes?", CONDITION_IMG, **CONDITION_NODE_ATTRS)
         cond_defer_signal_raised = Custom(
@@ -173,8 +175,8 @@ def generate_task_lifecycle_diagram():
         cond_retriable = Custom("\n\n\n\n\nEligible for retry?", CONDITION_IMG, **CONDITION_NODE_ATTRS)
 
         start_node >> state_none >> component_scheduler >> cond_upstream_task_failure
-        cond_upstream_task_failure >> Edge(label="NO") >> state_upstream_failed
-        cond_upstream_task_failure >> Edge(label="YES") >> cond_scheduled_skip
+        cond_upstream_task_failure >> Edge(label="YES") >> state_upstream_failed
+        cond_upstream_task_failure >> Edge(label="NO") >> cond_scheduled_skip
         cond_scheduled_skip >> Edge(label="NO") >> cond_task_def_existence
         (cond_scheduled_skip >> Edge(label="YES") >> state_skipped,)
         (cond_task_def_existence >> Edge(label="NO") >> state_removed,)
@@ -186,9 +188,9 @@ def generate_task_lifecycle_diagram():
         cond_trigger_task_1 >> Edge(label="NO") >> component_worker
         cond_trigger_task_1 >> Edge(label="YES") >> component_triggerer
         component_triggerer >> state_deferred >> cond_trigger_task_2
-        cond_trigger_task_2 >> Edge(label="NO") >> component_scheduler
+        cond_trigger_task_2 >> Edge(label="NO") >> state_deferred
         cond_trigger_task_2 >> Edge(label="YES") >> cond_task_complete_1
-        cond_task_complete_1 >> Edge(label="NO") >> state_deferred
+        cond_task_complete_1 >> Edge(label="NO") >> component_scheduler
         cond_task_complete_1 >> Edge(label="YES") >> cond_defer_signal_raised
         component_worker >> state_running >> cond_hitl_requested
         cond_hitl_requested >> Edge(label="YES") >> state_awaiting_input
@@ -199,7 +201,7 @@ def generate_task_lifecycle_diagram():
             >> component_scheduler
         )
         cond_defer_signal_raised >> Edge(label="NO") >> cond_skip_signal
-        cond_defer_signal_raised >> Edge(label="YES") >> component_triggerer
+        cond_defer_signal_raised >> Edge(label="YES,\ntrigger registered") >> state_deferred
         cond_skip_signal >> Edge(label="NO") >> cond_sensor_reschedule
         cond_skip_signal >> Edge(label="YES") >> state_skipped
         cond_sensor_reschedule >> Edge(label="NO") >> cond_fail_mark
