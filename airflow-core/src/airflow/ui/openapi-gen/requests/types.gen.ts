@@ -2367,6 +2367,7 @@ export type CalendarDeadlineResponse = {
 export type CalendarTimeRangeCollectionResponse = {
     total_entries: number;
     dag_runs: Array<CalendarTimeRangeResponse>;
+    planned_runs_capped?: boolean;
 };
 
 /**
