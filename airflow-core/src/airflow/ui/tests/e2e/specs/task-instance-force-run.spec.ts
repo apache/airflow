@@ -18,8 +18,10 @@
  */
 import { expect, test } from "tests/e2e/fixtures";
 import {
+  apiSetDagPaused,
   apiTriggerDagRun,
   safeCleanupDagRun,
+  waitForDagReady,
   waitForDagRunStatus,
   waitForTaskInstanceState,
 } from "tests/e2e/utils/api/dag-runs";
@@ -35,6 +37,11 @@ let runId: string;
 test.describe("Force run a task instance", () => {
   test.beforeAll(async ({ authenticatedRequest }) => {
     test.setTimeout(600_000);
+
+    // The compose stack sets DAGS_ARE_PAUSED_AT_CREATION=true, so without this the
+    // triggered run stays queued and never reaches "success".
+    await waitForDagReady(authenticatedRequest, dagId);
+    await apiSetDagPaused(authenticatedRequest, dagId, false);
 
     ({ dagRunId: runId } = await apiTriggerDagRun(authenticatedRequest, dagId, {
       runId: uniqueRunId("force_run"),
