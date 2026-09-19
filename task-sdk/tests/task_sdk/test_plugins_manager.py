@@ -24,10 +24,20 @@ import pytest
 from airflow.sdk import plugins_manager
 from airflow.sdk.plugins_manager import AirflowPlugin
 
+from tests_common.test_utils.config import conf_vars
+
 # ``_disable_ol_plugin`` in ``task-sdk/tests/conftest.py`` is a session-scoped autouse fixture that
 # replaces ``_get_plugins`` with a stub returning no plugins. Capture the real, ``@cache``-wrapped
 # function here at collection time — before any fixture runs — so these tests can put it back.
 _REAL_GET_PLUGINS = plugins_manager._get_plugins
+
+_PLUGIN_SOURCE = """
+from airflow.sdk.plugins_manager import AirflowPlugin
+
+
+class Plugin(AirflowPlugin):
+    name = "{name}"
+"""
 
 
 class TestGetPlugins:
@@ -110,3 +120,27 @@ class TestGetPlugins:
 
         assert [plugin.name for plugin in plugins] == ["plugin_a"]
         assert len(import_errors) == 1
+
+    @conf_vars({("core", "dag_ignore_file_syntax"): "regexp", ("core", "load_examples"): "False"})
+    def test_plugins_folder_airflowignore_uses_dag_ignore_file_syntax(self, tmp_path):
+        """
+        ``.airflowignore`` in the plugins folder is read with ``[core] dag_ignore_file_syntax``.
+
+        ``airflow.plugins_manager`` already passes the setting through. If this copy silently falls
+        back to ``glob``, the scheduler and the task-running process load a different set of plugins
+        from the same folder.
+        """
+        # ``^`` and ``$`` are literal characters to the glob reader, so only the regexp reader matches.
+        (tmp_path / ".airflowignore").write_text(r"^ignored_.*\.py$")
+        for stem in ("kept_plugin", "ignored_plugin"):
+            (tmp_path / f"{stem}.py").write_text(_PLUGIN_SOURCE.format(name=stem))
+
+        with (
+            mock.patch.object(plugins_manager.settings, "PLUGINS_FOLDER", str(tmp_path)),
+            mock.patch.object(plugins_manager.settings, "LAZY_LOAD_PROVIDERS", True),
+            mock.patch.object(plugins_manager, "_load_entrypoint_plugins", return_value=([], {})),
+        ):
+            plugins, import_errors = plugins_manager._get_plugins()
+
+        assert import_errors == {}
+        assert [plugin.name for plugin in plugins] == ["kept_plugin"]
