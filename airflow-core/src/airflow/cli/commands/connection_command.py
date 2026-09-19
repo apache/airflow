@@ -24,7 +24,7 @@ import warnings
 from functools import cache
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urlsplit
 
 from sqlalchemy import select
 from sqlalchemy.orm import exc
@@ -51,12 +51,13 @@ from airflow.utils.session import create_session
 
 def _mask_uri_credentials(uri: str) -> str:
     """
-    Mask credentials in a URI while preserving structure.
+    Mask credentials and extra in a URI while preserving structure.
 
     Examples::
 
         postgresql://user:pass@host:5432/db -> postgresql://***:***@host:5432/db
-        mysql://host/db -> mysql://host/db  (no credentials to mask)
+        http://host/?api_key=secret -> http://host/?***
+        mysql://host/db -> mysql://host/db  (nothing sensitive to mask)
     """
     if not uri:
         return uri
@@ -66,11 +67,26 @@ def _mask_uri_credentials(uri: str) -> str:
         if not parsed.scheme:
             return SENSITIVE_PLACEHOLDER
 
-        if "@" in parsed.netloc:
-            _creds, host_port = parsed.netloc.split("@", 1)
-            masked_netloc = f"{SENSITIVE_PLACEHOLDER}:{SENSITIVE_PLACEHOLDER}@{host_port}"
-            return urlunsplit((parsed.scheme, masked_netloc, parsed.path, parsed.query, parsed.fragment))
-        return uri
+        masked = uri
+        # ``get_uri`` serialises ``extra`` into the query, so it holds what ``extra_dejson`` masks.
+        if parsed.query:
+            masked = masked.replace(f"?{parsed.query}", f"?{SENSITIVE_PLACEHOLDER}", 1)
+
+        # A ``host`` with its own scheme makes ``get_uri`` emit ``http://https://user:pass@host``,
+        # which ``urlsplit`` reads as netloc ``https:``. Find the authority after the last "://".
+        scheme_block, separator, rest = masked.rpartition("://")
+        if separator:
+            authority_end = min(
+                (found for found in (rest.find(char) for char in "/?#") if found != -1),
+                default=len(rest),
+            )
+            _credentials, at_sign, host_block = rest[:authority_end].rpartition("@")
+            if at_sign:
+                masked = (
+                    f"{scheme_block}://{SENSITIVE_PLACEHOLDER}:{SENSITIVE_PLACEHOLDER}@"
+                    f"{host_block}{rest[authority_end:]}"
+                )
+        return masked
     except Exception:
         return SENSITIVE_PLACEHOLDER
 
