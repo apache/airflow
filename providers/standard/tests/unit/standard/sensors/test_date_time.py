@@ -158,6 +158,16 @@ class TestDateTimeSensor:
         )
         assert op.start_trigger_args.trigger_kwargs["moment"] == pendulum.datetime(2020, 1, 1, tz="UTC")
 
+    def test_async_start_from_trigger_skips_templated_target_time(self):
+        op = DateTimeSensorAsync(
+            task_id="async_templated",
+            target_time="{{ data_interval_end }}",
+            start_from_trigger=True,
+            dag=self.dag,
+        )
+
+        assert op.start_from_trigger is False
+
     def test_start_trigger_args_are_not_shared_between_tasks(self):
         """Each task must carry its own trigger arguments.
 
