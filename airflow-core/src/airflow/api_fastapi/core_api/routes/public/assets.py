@@ -450,7 +450,7 @@ def materialize_asset(
     dag_bag: DagBagDep,
     user: GetUserDep,
     session: SessionDep,
-    body: MaterializeAssetBody | None = None,
+    body: MaterializeAssetBody,
 ) -> DAGRunResponse:
     """Materialize an asset by triggering a Dag run that produces it."""
     dag_id_it = iter(
@@ -486,7 +486,7 @@ def materialize_asset(
 
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
 
-    resolved_body = body or MaterializeAssetBody()
+    resolved_body = body
 
     try:
         preloaded_dag_version = None

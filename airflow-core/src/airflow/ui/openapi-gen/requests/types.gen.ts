@@ -3069,7 +3069,7 @@ export type CreateAssetEventResponse = AssetEventResponse;
 
 export type MaterializeAssetData = {
     assetId: number;
-    requestBody?: MaterializeAssetBody | null;
+    requestBody: MaterializeAssetBody;
 };
 
 export type MaterializeAssetResponse = DAGRunResponse;
