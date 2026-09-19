@@ -5084,6 +5084,11 @@
           "title": "Should Retry",
           "type": "boolean"
         },
+        "has_mapped_dependants": {
+          "default": false,
+          "title": "Has Mapped Dependants",
+          "type": "boolean"
+        },
         "start_date": {
           "anyOf": [
             {
