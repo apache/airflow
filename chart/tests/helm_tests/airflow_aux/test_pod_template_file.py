@@ -23,6 +23,9 @@ from shutil import copyfile, copytree
 import jmespath
 import pytest
 from chart_utils.helm_template_generator import HelmFailedError, render_chart
+from kubernetes.client import models as k8s
+
+from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 
 
 @pytest.fixture(scope="class")
@@ -1293,6 +1296,79 @@ class TestPodTemplateFile:
 
         assert jmespath.search("spec.runtimeClassName", docs[0]) == "nvidia"
 
+    def test_kerberos_sidecar_is_native_sidecar(self):
+        docs = render_chart(
+            values={"workers": {"kubernetes": {"kerberosSidecar": {"enabled": True}}}},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+        sidecar = jmespath.search("spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0])
+        assert sidecar is not None
+        assert sidecar["restartPolicy"] == "Always"
+
+    @pytest.mark.parametrize(
+        ("sidecar_enabled", "probe_enabled", "expected_names"),
+        [
+            (False, True, []),
+            (True, True, ["worker-kerberos"]),
+            (True, False, ["worker-kerberos"]),
+        ],
+    )
+    def test_kerberos_initialization(self, sidecar_enabled, probe_enabled, expected_names):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "kubernetes": {
+                        "kerberosSidecar": {
+                            "enabled": sidecar_enabled,
+                            "startupProbe": {"enabled": probe_enabled},
+                        },
+                    }
+                }
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+        assert (jmespath.search("spec.initContainers[].name", docs[0]) or []) == expected_names
+        assert (
+            jmespath.search('metadata.annotations."checksum/kerberos-keytab"', docs[0]) is not None
+        ) == sidecar_enabled
+        if sidecar_enabled:
+            sidecar = jmespath.search("spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0])
+            assert sidecar["args"] == ["kerberos"]
+            assert sidecar["restartPolicy"] == "Always"
+            assert ("startupProbe" in sidecar) == probe_enabled
+
+    def test_pod_override_reconciliation_with_kerberos_sidecar(self):
+        docs = render_chart(
+            values={"workers": {"kubernetes": {"kerberosSidecar": {"enabled": True}}}},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+        base_pod = PodGenerator.deserialize_model_dict(docs[0])
+        override_pod = k8s.V1Pod(
+            spec=k8s.V1PodSpec(
+                containers=[
+                    k8s.V1Container(name="base"),
+                    k8s.V1Container(name="custom-container", image="custom-image:latest"),
+                ]
+            )
+        )
+        reconciled = PodGenerator.serialize_pod(PodGenerator.reconcile_pods(base_pod, override_pod))
+
+        assert jmespath.search("length(spec.initContainers[?name=='worker-kerberos'])", reconciled) == 1
+        assert (
+            jmespath.search("spec.initContainers[?name=='worker-kerberos'] | [0].restartPolicy", reconciled)
+            == "Always"
+        )
+
+        assert jmespath.search("length(spec.containers[?name=='custom-container'])", reconciled) == 1
+        assert (
+            jmespath.search("spec.containers[?name=='custom-container'] | [0].image", reconciled)
+            == "custom-image:latest"
+        )
+        assert jmespath.search("spec.containers[?name=='custom-container'] | [0].args", reconciled) is None
+
     def test_airflow_local_settings_kerberos_sidecar(self):
         docs = render_chart(
             values={
@@ -1302,14 +1378,17 @@ class TestPodTemplateFile:
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
-        assert jmespath.search("spec.containers[1].name", docs[0]) == "worker-kerberos"
+        assert (
+            jmespath.search("spec.initContainers[?name=='worker-kerberos'] | [0].name", docs[0])
+            == "worker-kerberos"
+        )
 
         assert {
             "name": "config",
             "mountPath": "/opt/airflow/config/airflow_local_settings.py",
             "subPath": "airflow_local_settings.py",
             "readOnly": True,
-        } in jmespath.search("spec.containers[1].volumeMounts", docs[0])
+        } in jmespath.search("spec.initContainers[?name=='worker-kerberos'] | [0].volumeMounts", docs[0])
 
     def test_kerberos_sidecar_resources(self):
         docs = render_chart(
@@ -1329,7 +1408,7 @@ class TestPodTemplateFile:
             chart_dir=self.temp_chart_dir,
         )
 
-        assert jmespath.search("spec.containers[?name=='worker-kerberos'] | [0].resources", docs[0]) == {
+        assert jmespath.search("spec.initContainers[?name=='worker-kerberos'] | [0].resources", docs[0]) == {
             "requests": {
                 "cpu": "1m",
                 "memory": "2Mi",
@@ -1356,7 +1435,7 @@ class TestPodTemplateFile:
             chart_dir=self.temp_chart_dir,
         )
 
-        assert jmespath.search("spec.containers[1].lifecycle", docs[0]) == {
+        assert jmespath.search("spec.initContainers[?name=='worker-kerberos'] | [0].lifecycle", docs[0]) == {
             hook_type: {"exec": {"command": ["echo", "test-release"]}}
         }
 
@@ -1376,9 +1455,9 @@ class TestPodTemplateFile:
             chart_dir=self.temp_chart_dir,
         )
 
-        assert jmespath.search("spec.containers[1].securityContext", docs[0]) == {
-            "allowPrivilegeEscalation": False
-        }
+        assert jmespath.search(
+            "spec.initContainers[?name=='worker-kerberos'] | [0].securityContext", docs[0]
+        ) == {"allowPrivilegeEscalation": False}
 
     @pytest.mark.parametrize(
         ("override", "expected"),
@@ -1421,10 +1500,10 @@ class TestPodTemplateFile:
             chart_dir=self.temp_chart_dir,
         )
 
-        assert (
-            jmespath.search("spec.containers[?name=='worker-kerberos'] | [0].startupProbe", docs[0])
-            == expected
-        )
+        sidecar = jmespath.search("spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0])
+        assert sidecar is not None
+        assert sidecar["restartPolicy"] == "Always"
+        assert sidecar["startupProbe"] == expected
 
     @pytest.mark.parametrize(
         "override",
@@ -1447,49 +1526,6 @@ class TestPodTemplateFile:
                 show_only=["templates/pod-template-file.yaml"],
                 chart_dir=self.temp_chart_dir,
             )
-
-    def test_kerberos_init_container_default(self):
-        docs = render_chart(
-            show_only=["templates/pod-template-file.yaml"],
-            chart_dir=self.temp_chart_dir,
-        )
-
-        assert jmespath.search("spec.initContainers[?name=='kerberos-init']", docs[0]) is None
-
-    def test_kerberos_init_container_default_different_versions(self):
-        docs = render_chart(
-            show_only=["templates/pod-template-file.yaml"],
-            chart_dir=self.temp_chart_dir,
-        )
-
-        assert jmespath.search("spec.initContainers[?name=='kerberos-init']", docs[0]) is None
-
-    def test_kerberos_init_container_enable(self):
-        docs = render_chart(
-            values={
-                "workers": {"kubernetes": {"kerberosInitContainer": {"enabled": True}}},
-            },
-            show_only=["templates/pod-template-file.yaml"],
-            chart_dir=self.temp_chart_dir,
-        )
-
-        assert jmespath.search("spec.initContainers[?name=='kerberos-init']", docs[0]) is not None
-
-    def test_kerberos_init_container_name_and_args_default(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "kubernetes": {"kerberosInitContainer": {"enabled": True}},
-                },
-            },
-            show_only=["templates/pod-template-file.yaml"],
-            chart_dir=self.temp_chart_dir,
-        )
-
-        initContainers = jmespath.search("spec.initContainers[0]", docs[0])
-
-        assert initContainers["name"] == "kerberos-init"
-        assert initContainers["args"] == ["kerberos", "-o"]
 
     @pytest.mark.parametrize("readonly_cache", [False, True])
     def test_kerberos_readonly_cache(self, readonly_cache: bool):
@@ -1555,126 +1591,34 @@ class TestPodTemplateFile:
 
         assert jmespath.search("spec.containers[0].command", docs[0]) is None
 
-    @pytest.mark.parametrize(
-        ("workers_values", "kerberos_init_container", "expected_config_name"),
-        [
-            ({"kubernetes": {"kerberosSidecar": {"enabled": True}}}, False, "api-server-config"),
-            ({"kubernetes": {"kerberosInitContainer": {"enabled": True}}}, True, "api-server-config"),
-        ],
-    )
-    def test_api_server_config_for_kerberos(
-        self, workers_values, kerberos_init_container, expected_config_name
-    ):
-        values = {
-            "workers": workers_values,
-            "apiServer": {"apiServerConfigConfigMapName": "config"},
-        }
-        docs = render_chart(
-            values=values,
-            show_only=["templates/pod-template-file.yaml"],
-            chart_dir=self.temp_chart_dir,
-        )
-
-        kerberos_container = "spec.containers[1].volumeMounts[*].name"
-        if kerberos_init_container:
-            kerberos_container = "spec.initContainers[0].volumeMounts[*].name"
-
-        volume_mounts_names = jmespath.search(kerberos_container, docs[0])
-        print(volume_mounts_names)
-        assert expected_config_name in volume_mounts_names
-        assert expected_config_name in jmespath.search("spec.volumes[*].name", docs[0])
-
-    @pytest.mark.parametrize(
-        "workers_values",
-        [
-            {"kubernetes": {"kerberosSidecar": {"enabled": True}}},
-            {"kubernetes": {"kerberosInitContainer": {"enabled": True}}},
-        ],
-    )
-    def test_base_contains_kerberos_env(self, workers_values):
+    @pytest.mark.parametrize("sidecar_enabled", [True, False])
+    def test_api_server_config_for_kerberos(self, sidecar_enabled):
         docs = render_chart(
             values={
-                "workers": workers_values,
+                "workers": {"kubernetes": {"kerberosSidecar": {"enabled": sidecar_enabled}}},
+                "apiServer": {"apiServerConfigConfigMapName": "config"},
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
-        scheduler_env = jmespath.search("spec.containers[0].env[*].name", docs[0])
-        assert set(["KRB5_CONFIG", "KRB5CCNAME"]).issubset(scheduler_env)
+        assert ("api-server-config" in jmespath.search("spec.volumes[*].name", docs[0])) == sidecar_enabled
+        if sidecar_enabled:
+            assert "api-server-config" in jmespath.search(
+                "spec.initContainers[?name=='worker-kerberos'] | [0].volumeMounts[*].name", docs[0]
+            )
 
-    def test_kerberos_init_container_resources(self):
+    @pytest.mark.parametrize("sidecar_enabled", [True, False])
+    def test_base_contains_kerberos_env(self, sidecar_enabled):
         docs = render_chart(
-            values={
-                "workers": {
-                    "kubernetes": {
-                        "kerberosInitContainer": {
-                            "enabled": True,
-                            "resources": {
-                                "requests": {"cpu": "1m", "memory": "2Mi"},
-                                "limits": {"cpu": "3m", "memory": "4Mi"},
-                            },
-                        }
-                    }
-                },
-            },
+            values={"workers": {"kubernetes": {"kerberosSidecar": {"enabled": sidecar_enabled}}}},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
-        assert jmespath.search("spec.initContainers[?name=='kerberos-init'] | [0].resources", docs[0]) == {
-            "requests": {
-                "cpu": "1m",
-                "memory": "2Mi",
-            },
-            "limits": {
-                "cpu": "3m",
-                "memory": "4Mi",
-            },
-        }
-
-    def test_kerberos_init_container_security_context(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "kubernetes": {
-                        "kerberosInitContainer": {
-                            "enabled": True,
-                            "securityContexts": {"container": {"runAsUser": 2000}},
-                        }
-                    }
-                }
-            },
-            show_only=["templates/pod-template-file.yaml"],
-            chart_dir=self.temp_chart_dir,
-        )
-
-        assert jmespath.search(
-            "spec.initContainers[?name=='kerberos-init'] | [0].securityContext", docs[0]
-        ) == {"runAsUser": 2000}
-
-    def test_kerberos_init_container_lifecycle_hooks(self):
-        docs = render_chart(
-            name="test-release",
-            values={
-                "workers": {
-                    "kubernetes": {
-                        "kerberosInitContainer": {
-                            "enabled": True,
-                            "containerLifecycleHooks": {
-                                "postStart": {"exec": {"command": ["echo", "{{ .Release.Name }}"]}}
-                            },
-                        }
-                    }
-                },
-            },
-            show_only=["templates/pod-template-file.yaml"],
-            chart_dir=self.temp_chart_dir,
-        )
-
-        assert jmespath.search("spec.initContainers[?name=='kerberos-init'] | [0].lifecycle", docs[0]) == {
-            "postStart": {"exec": {"command": ["echo", "test-release"]}}
-        }
+        env_names = jmespath.search("spec.containers[0].env[*].name", docs[0])
+        assert ("KRB5_CONFIG" in env_names) == sidecar_enabled
+        assert ("KRB5CCNAME" in env_names) == sidecar_enabled
 
     def test_service_account_name_default(self):
         docs = render_chart(
