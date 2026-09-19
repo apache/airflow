@@ -2158,12 +2158,23 @@ def _send_error_email_notification(
     if not to_emails:
         return
 
+    from airflow.sdk.definitions._internal.templater import SandboxedEnvironment
+    from airflow.sdk.definitions.context import render_template
+
     try:
+        # The email backend needs strings; on a Dag with render_template_as_native_obj=True a
+        # native environment would evaluate the subject and body into Python objects instead.
+        dag = task.get_dag()
+        jinja_env = dag.get_template_env(force_sandboxed=True) if dag else SandboxedEnvironment(cache_size=0)
         notifier = notifier_class(
             to=to_emails,
-            subject=subject,
-            html_content=html_content,
+            subject=render_template(jinja_env.from_string(subject), email_context, native=False),
+            html_content=render_template(jinja_env.from_string(html_content), email_context, native=False),
             from_email=conf.get("email", "from_email", fallback="airflow@airflow"),
+        )
+        # Letting the notifier render them again would undo that; recipients render as the Dag asks.
+        notifier.template_fields = tuple(
+            field for field in notifier.template_fields if field not in ("subject", "html_content")
         )
         notifier(email_context)
     except Exception:
