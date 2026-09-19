@@ -487,20 +487,13 @@ class OpenAITriggerBatchOperator(BaseOperator):
         event = validate_execute_complete_event(event)
         if event["status"] != "success":
             if event.get("termination_reason") == "timeout":
-                batch_id = event.get("batch_id")
-                if batch_id:
-                    self.log.warning(
-                        "%s timed out waiting for batch %s; requesting cancellation.",
-                        self.task_id,
-                        batch_id,
-                    )
-                    self._cancel_batch_quietly(batch_id)
-                else:
-                    self.log.warning(
-                        "%s timed out but the trigger event carried no batch_id; "
-                        "skipping cancellation request.",
-                        self.task_id,
-                    )
+                batch_id = event["batch_id"]
+                self.log.warning(
+                    "%s timed out waiting for batch %s; requesting cancellation.",
+                    self.task_id,
+                    batch_id,
+                )
+                self._cancel_batch_quietly(batch_id)
             raise build_batch_error(event["message"], event.get("termination_reason"))
 
         self.log.info("%s completed successfully.", self.task_id)
