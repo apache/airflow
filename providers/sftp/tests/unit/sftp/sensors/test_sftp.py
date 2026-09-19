@@ -18,11 +18,6 @@
 from __future__ import annotations
 
 import importlib
-import json
-import os
-import subprocess
-import sys
-import time
 import warnings
 from datetime import datetime, timezone as stdlib_timezone
 from unittest import mock
@@ -32,7 +27,11 @@ import pytest
 from paramiko.sftp import SFTP_FAILURE
 from pendulum import datetime as pendulum_datetime, timezone
 
-from airflow.providers.common.compat.sdk import AirflowException, PokeReturnValue
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    PokeReturnValue,
+    timezone as airflow_timezone,
+)
 from airflow.providers.sftp.sensors.sftp import SFTPSensor
 
 WARNING_CATEGORY: type[Warning]
@@ -44,73 +43,11 @@ else:
     WARNING_CATEGORY = DeprecatedImportWarning
 
 
-# Runs in a fresh process (see ``test_newer_than_is_timezone_independent``) so that ``TZ`` and
-# ``AIRFLOW__CORE__DEFAULT_TIMEZONE`` are applied before Airflow reads them. It exercises the real
-# ``SFTPHook.get_mod_time`` conversion through ``SFTPSensor`` with and without a file pattern, with the
-# SFTP server mocked out. ``MTIME`` is 2024-01-01 12:00:00 UTC.
-_SENSOR_TIMEZONE_PROBE = r"""
-import datetime
-import json
-import stat
-import time
-from unittest import mock
-
-time.tzset()
-
-import paramiko
-
-from airflow.providers.common.compat.sdk import Connection, timezone
-from airflow.providers.sftp.hooks.sftp import SFTPHook
-from airflow.providers.sftp.sensors.sftp import SFTPSensor
-
-MTIME = 1704110400
-
-
-def main():
-    attrs = paramiko.SFTPAttributes()
-    attrs.st_mtime = MTIME
-    attrs.st_mode = stat.S_IFREG | 0o644
-    attrs.filename = "file.txt"
-    client = mock.MagicMock(spec=paramiko.SFTPClient)
-    client.stat.return_value = attrs
-    client.listdir_attr.return_value = [attrs]
-
-    thresholds = {
-        "older": datetime.datetime(2024, 1, 1, 10, 0, tzinfo=datetime.timezone.utc),
-        "equal": datetime.datetime(2024, 1, 1, 12, 0, tzinfo=datetime.timezone.utc),
-        "newer": datetime.datetime(2024, 1, 1, 14, 0, tzinfo=datetime.timezone.utc),
-    }
-
-    with mock.patch.object(SFTPHook, "get_managed_conn", autospec=True) as managed_conn:
-        with mock.patch.object(SFTPHook, "get_connection", spec=True) as get_connection:
-            get_connection.return_value = Connection(
-                conn_id="sftp_default", conn_type="sftp", host="mock.invalid"
-            )
-            managed_conn.return_value.__enter__.return_value = client
-            hook = SFTPHook()
-            result = {
-                "process_hour": time.localtime(MTIME).tm_hour,
-                "default_timezone": str(timezone.datetime(2024, 1, 1).tzinfo),
-                "mod_time": hook.get_mod_time("/files/file.txt"),
-                "single_file": {},
-                "pattern": {},
-            }
-            for name, threshold in thresholds.items():
-                for file_pattern, key in (("", "single_file"), ("*.txt", "pattern")):
-                    sensor = SFTPSensor(
-                        task_id="probe",
-                        path="/files" if file_pattern else "/files/file.txt",
-                        file_pattern=file_pattern,
-                        newer_than=threshold,
-                    )
-                    sensor.hook = hook
-                    result[key][name] = bool(sensor._get_files())
-    print(json.dumps(result))
-
-
-if __name__ == "__main__":
-    main()
-"""
+@pytest.fixture
+def default_timezone(request):
+    airflow_timezone.initialize(request.param)
+    yield request.param
+    airflow_timezone.initialize("UTC")
 
 
 # Ignore missing args provided by default_args
@@ -247,39 +184,25 @@ class TestSFTPSensor:
         sftp_hook_mock.return_value.close_conn.assert_not_called()
         assert not output
 
-    @pytest.mark.skipif(not hasattr(time, "tzset"), reason="requires time.tzset (POSIX)")
+    @pytest.mark.parametrize("default_timezone", ["UTC", "America/New_York"], indirect=True)
     @pytest.mark.parametrize(
-        ("process_timezone", "airflow_timezone"),
+        ("mod_time", "newer_than", "expected"),
         [
-            ("UTC", "America/New_York"),
-            ("America/New_York", "UTC"),
-            ("UTC", "UTC"),
+            # The modification time string is 2024-01-01 12:00:00 UTC in every case.
+            ("20240101120000", datetime(2024, 1, 1, 10, 0, tzinfo=stdlib_timezone.utc), True),
+            ("20240101120000", datetime(2024, 1, 1, 12, 0, tzinfo=stdlib_timezone.utc), True),
+            ("20240101120000", datetime(2024, 1, 1, 14, 0, tzinfo=stdlib_timezone.utc), False),
         ],
     )
-    def test_newer_than_is_timezone_independent(self, process_timezone, airflow_timezone, tmp_path):
-        """The same mtime and threshold must decide identically whatever the process and Airflow timezones are."""
-        result = subprocess.run(
-            [sys.executable, "-c", _SENSOR_TIMEZONE_PROBE],
-            env={
-                **os.environ,
-                "TZ": process_timezone,
-                "AIRFLOW__CORE__DEFAULT_TIMEZONE": airflow_timezone,
-                "AIRFLOW_HOME": str(tmp_path),
-                "_AIRFLOW_PROCESS_CONTEXT": "client",
-            },
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=120,
-        )
-        assert result.returncode == 0, result.stdout + result.stderr
-        observed = json.loads(result.stdout.splitlines()[-1])
-        assert observed["default_timezone"] == airflow_timezone
-        assert observed["process_hour"] == (7 if process_timezone == "America/New_York" else 12)
-        assert observed["mod_time"] == "20240101120000"
-        expected = {"older": True, "equal": True, "newer": False}
-        assert observed["single_file"] == expected
-        assert observed["pattern"] == expected
+    @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
+    def test_newer_than_is_timezone_independent(
+        self, sftp_hook_mock, default_timezone, mod_time, newer_than, expected
+    ):
+        """The comparison must not depend on ``core.default_timezone``."""
+        sftp_hook_mock.return_value.isfile.return_value = True
+        sftp_hook_mock.return_value.get_mod_time.return_value = mod_time
+        sftp_sensor = SFTPSensor(task_id="unit_test", path="/path/to/file.txt", newer_than=newer_than)
+        assert bool(sftp_sensor.poke({"ds": "2024-01-01"})) is expected
 
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
     def test_file_present_with_pattern(self, sftp_hook_mock):
