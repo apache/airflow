@@ -471,7 +471,9 @@ class TestCallbackSubprocessStart:
         with patch("airflow.dag_processing.bundles.manager.DagBundlesManager") as mock_manager_class:
             mock_bundle = Mock()
             bundle_path = Path("/path/to/bundle")
+            bundle_import_root = Path("/path/to/import-root")
             mock_bundle.path = bundle_path
+            mock_bundle.import_root = bundle_import_root
             mock_bundle.name = "test-bundle"
 
             mock_bundle_manager = Mock()
@@ -483,6 +485,7 @@ class TestCallbackSubprocessStart:
                 "manager": mock_bundle_manager,
                 "bundle": mock_bundle,
                 "bundle_path": bundle_path,
+                "bundle_import_root": bundle_import_root,
             }
 
     def test_execute_callback_receives_correct_parameters(self, base_start_kwargs):
@@ -534,8 +537,11 @@ class TestCallbackSubprocessStart:
     def test_callback_supervisor_with_bundle_info_should_adjust_sys_path(
         self, base_start_kwargs, mock_bundle_setup
     ):
-        """Test that bundle_path is added to sys.path when bundle path is provided."""
-        with patch("sys.path", new_callable=list) as mock_sys_path:
+        """Test that the bundle discovery path and import root are added to sys.path."""
+        with (
+            patch("sys.path", new_callable=list) as mock_sys_path,
+            patch("importlib.invalidate_caches") as mock_invalidate_caches,
+        ):
             bundle_info = BundleInfo(name="test-bundle", version="1.0")
             adjusted_kwargs = {**base_start_kwargs, "bundle_info": bundle_info}
 
@@ -543,6 +549,8 @@ class TestCallbackSubprocessStart:
             self.mock_super_start.call_args.kwargs["target"]()
 
             assert str(mock_bundle_setup["bundle_path"]) in mock_sys_path
+            assert str(mock_bundle_setup["bundle_import_root"]) in mock_sys_path
+            mock_invalidate_caches.assert_called_once_with()
 
     def test_callback_supervisor_should_exit_on_error(self, base_start_kwargs):
         """Test that callback supervisor exits if execute_callback returns an error."""

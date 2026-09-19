@@ -26,6 +26,7 @@ Features
 ~~~~~~~~
 
 * ``Add GitHub App authentication for git Dag bundles (#64422)``
+* ``Allow Git Dag bundles with a subdir to import from the repository root``
 
 
 .. Below changes are excluded from the changelog. Move them to

@@ -470,3 +470,22 @@ class TestRealBundleArgBindingsDowngrade:
         assert isinstance(defaulted, LiteralArgBinding)
         assert defaulted.from_default is True
         assert defaulted.value_schema.root == {"type": "integer", "format": "int64"}
+
+
+class TestRealBundleDagFileParseRequestDowngrade:
+    def test_downgrade_strips_bundle_import_root_for_previous_version(self):
+        from pathlib import Path
+
+        from airflow.dag_processing.processor import DagFileParseRequest
+
+        request = DagFileParseRequest(
+            file="/bundle/dags/example.py",
+            bundle_path=Path("/bundle/dags"),
+            bundle_import_root=Path("/bundle"),
+            bundle_name="test-bundle",
+            callback_requests=[],
+        )
+
+        out = get_schema_version_migrator().downgrade(request, "2026-06-16").model_dump()
+
+        assert "bundle_import_root" not in out
