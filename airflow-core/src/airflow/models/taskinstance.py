@@ -99,7 +99,7 @@ from airflow.serialization.enums import stringify_encoding_keys
 from airflow.settings import task_instance_mutation_hook
 from airflow.task.priority_strategy import validate_and_load_priority_weight_strategy
 from airflow.ti_deps.dep_context import DepContext
-from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
+from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS, get_upstream_state_deps
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
@@ -1219,8 +1219,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         self, dep_context: DepContext | None = None, *, session: Session = NEW_SESSION
     ):
         """Get failed Dependencies."""
-        from airflow.ti_deps.dependencies_deps import get_upstream_state_deps
-
         if TYPE_CHECKING:
             assert self.task is not None
         dep_context = dep_context or DepContext()

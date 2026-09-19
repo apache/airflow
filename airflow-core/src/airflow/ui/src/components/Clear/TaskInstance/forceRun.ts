@@ -17,8 +17,6 @@
  * under the License.
  */
 
-export const FORCE_RUN_DISABLED_OPTIONS = ["upstream", "downstream"] as const;
-
 export type ClearOptions = {
   readonly downstream: boolean;
   readonly future: boolean;

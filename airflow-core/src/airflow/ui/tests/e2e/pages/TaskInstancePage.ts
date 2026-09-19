@@ -21,15 +21,45 @@ import { expect, type Locator, type Page } from "@playwright/test";
 import { BasePage } from "./BasePage";
 
 export class TaskInstancePage extends BasePage {
+  public readonly clearTaskInstanceButton: Locator;
+  public readonly confirmClearButton: Locator;
   public readonly confirmTriggerButton: Locator;
+  public readonly downstreamOption: Locator;
+  public readonly forceRunCheckbox: Locator;
+  public readonly forceRunWarning: Locator;
   public readonly stateBadge: Locator;
   public readonly triggerButton: Locator;
+  public readonly upstreamOption: Locator;
 
   public constructor(page: Page) {
     super(page);
     this.triggerButton = page.getByTestId("trigger-dag-button");
     this.confirmTriggerButton = page.getByTestId("trigger-dag-submit");
     this.stateBadge = page.getByTestId("header-card").getByTestId("state-badge").first();
+    this.clearTaskInstanceButton = page.getByTestId("clear-task-instance-button");
+    this.forceRunCheckbox = page.getByRole("checkbox", {
+      name: "Force run (ignore upstream dependencies)",
+    });
+    this.forceRunWarning = page.getByText("Runs this task even though its upstream tasks did not succeed", {
+      exact: false,
+    });
+    this.upstreamOption = page.getByRole("button", { exact: true, name: "Upstream" });
+    this.downstreamOption = page.getByRole("button", { exact: true, name: "Downstream" });
+    this.confirmClearButton = page.getByRole("button", { name: "Confirm" });
+  }
+
+  /**
+   * Opens the clear dialog, ticks "Force run", confirms the upstream-bypass
+   * warning and the disabled upstream/downstream options, then submits.
+   */
+  public async forceRun(): Promise<void> {
+    await this.clearTaskInstanceButton.click();
+    await this.forceRunCheckbox.check();
+    await expect(this.forceRunWarning).toBeVisible();
+    await expect(this.upstreamOption).toBeDisabled();
+    await expect(this.downstreamOption).toBeDisabled();
+    await this.confirmClearButton.click();
+    await this.waitForAllDialogsClosed();
   }
 
   public async navigateToDag(dagId: string): Promise<void> {

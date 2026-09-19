@@ -114,9 +114,7 @@ const renderDetails = (ignoreUpstreamDeps: boolean) => {
 };
 
 describe("Details", () => {
-  // src/i18n/config.ts kicks off VersionService.getVersion() at import time, which never
-  // settles in network-isolated environments. Initialising a plain i18next instance here
-  // avoids importing that module (and its network call) at all.
+  // Plain i18next instance: src/i18n/config fetches the version at import time.
   beforeAll(async () => {
     await i18n.use(initReactI18next).init({
       defaultNS: "common",

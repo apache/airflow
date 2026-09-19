@@ -107,9 +107,7 @@ const dryRunResult = {
 };
 
 describe("ClearTaskInstanceDialog", () => {
-  // src/i18n/config.ts kicks off VersionService.getVersion() at import time, which never
-  // settles in network-isolated environments. Initialising a plain i18next instance here
-  // avoids importing that module (and its network call) at all.
+  // Plain i18next instance: src/i18n/config fetches the version at import time.
   beforeAll(async () => {
     await i18n.use(initReactI18next).init({
       defaultNS: "common",
@@ -126,10 +124,7 @@ describe("ClearTaskInstanceDialog", () => {
     mockUseClearTaskInstancesDryRun.mockReturnValue(dryRunResult);
   });
 
-  // Ticking the checkbox is out of scope here: this Chakra v3/zag-js checkbox cannot be
-  // toggled with `fireEvent` (confirmed with a spy on `onCheckedChange` across 7 dispatch
-  // strategies — none registered a call), and `@testing-library/user-event` is not a
-  // dependency of this project.
+  // Chakra v3 checkboxes cannot be toggled with fireEvent and user-event is not a dependency, so only the unticked path is covered here; the ticked path is covered by the e2e spec.
   it("renders the force run checkbox unticked by default", () => {
     render(
       <Wrapper>

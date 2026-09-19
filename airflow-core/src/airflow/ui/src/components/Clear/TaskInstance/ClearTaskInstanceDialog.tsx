@@ -286,6 +286,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
                 value: "downstream",
               },
               {
+                disabled: forceRun,
                 label: translate("dags:runAndTaskActions.options.onlyFailed"),
                 value: "onlyFailed",
               },

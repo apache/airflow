@@ -252,7 +252,7 @@ There are multiple options you can select to re-run -
 * **Failed** - Only the failed tasks in the Dag's most recent run
 
 Force run: ignoring upstream dependencies
-'''''''''''''''''''''''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Clearing re-runs a task only once its dependencies are met again. To run a task that is blocked by
 other task instances — an upstream that failed or was skipped by a branch or ``ShortCircuitOperator``,
