@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 from dataclasses import dataclass, field
@@ -57,6 +58,7 @@ class BuildProdParams(CommonBuildParams):
     runtime_apt_deps: str | None = None
     use_constraints_for_context_distributions: bool = False
     use_uv: bool = True
+    dependency_context: str | None = None
 
     @property
     def airflow_version(self) -> str:
@@ -230,6 +232,9 @@ class BuildProdParams(CommonBuildParams):
         self._opt_arg("AIRFLOW_USE_UV", self.use_uv)
         self._req_arg("AIRFLOW_VERSION", self.airflow_version)
         self._req_arg("DOCKER_CONTEXT_FILES", self.docker_context_files)
+        if self.dependency_context:
+            self._req_arg("DOCKER_CONTEXT_DEPENDENCY_FILES", self.dependency_context)
+            self._req_arg("INSTALL_CONTEXT_DEPENDENCIES_ONLY", True)
         self._req_arg("INSTALL_DISTRIBUTIONS_FROM_CONTEXT", self.install_distributions_from_context)
         self._req_arg("INSTALL_POSTGRES_CLIENT", self.install_postgres_client)
         self._req_arg("BASE_IMAGE", self.python_base_image)
@@ -255,4 +260,8 @@ class BuildProdParams(CommonBuildParams):
         )
         build_args = self._to_build_args()
         build_args.extend(self._extra_prod_docker_build_flags())
+        if cache_from := os.environ.get("PROD_IMAGE_BUILD_CACHE_FROM"):
+            build_args.append(f"--cache-from=type=local,src={cache_from}")
+        if cache_to := os.environ.get("PROD_IMAGE_BUILD_CACHE_TO"):
+            build_args.append(f"--cache-to=type=local,dest={cache_to},mode=max")
         return build_args

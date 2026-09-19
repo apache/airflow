@@ -62,6 +62,18 @@ runs:
       run: |
         echo "Checking free space!"
         df -H
+    - name: "Restore selected main image"
+      id: selected-image
+      if: >-
+        inputs.image-stash-ref == '' &&
+        (contains(github.workflow_ref, '/ci-amd.yml@') || contains(github.workflow_ref, '/ci-arm.yml@'))
+      shell: bash
+      env:
+        IMAGE_KIND: ${{ inputs.image-type }}
+        IMAGE_PYTHON: ${{ inputs.python }}
+        IMAGE_PLATFORM: ${{ inputs.platform }}
+        GH_TOKEN: ${{ github.token }}
+      run: ./scripts/ci/restore_selected_image.sh
     - name: >
         Restore ${{ inputs.image-type }} docker image ${{ inputs.platform }}:${{ inputs.python }}
         ${{ inputs.image-stash-ref != '' && format('built for ref {0}', inputs.image-stash-ref) || '' }}
@@ -73,6 +85,7 @@ runs:
         path: "/mnt/"
         only-current-branch: 'true'
         fail-on-download: 'true'
+      if: steps.selected-image.outputs.hit != 'true'
     - name: "Load ${{ inputs.image-type }} image ${{ inputs.platform }}:${{ inputs.python }}"
       env:
         PLATFORM: ${{ inputs.platform }}

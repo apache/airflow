@@ -135,6 +135,7 @@ on:  # yamllint disable-line rule:truthy
         default: 65
         type: number
 permissions:
+  actions: read
   contents: read
 jobs:
   tests:
