@@ -189,9 +189,9 @@ Option B – One-Click GitHub Codespaces
 
       docker info
 
-   If ``docker info`` fails, try rebuilding the Codespace container
-   (Command Palette → *Codespaces: Rebuild Container*) or restarting
-   the Codespace from the GitHub Codespaces dashboard.
+   If ``docker info`` fails, see :ref:`troubleshooting_docker_in_codespaces`.
+   Do not rely on ``systemctl status docker`` in a Codespace: systemd is not
+   available there, so that command failing is expected.
 
 5. Install Breeze and start the development container
 
@@ -204,6 +204,9 @@ Option B – One-Click GitHub Codespaces
       ./scripts/tools/setup_breeze
       uv run dev/ide_setup/setup_vscode.py
       breeze start-airflow
+
+   If ``breeze start-airflow`` reports that Docker is not running even though
+   ``docker --version`` succeeds, follow :ref:`troubleshooting_docker_in_codespaces`.
 
 6. Edit a file in the editor, save, and commit via the Source Control sidebar.
    Push when prompted.
