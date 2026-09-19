@@ -693,6 +693,23 @@ def test_wait_for_in_progress_batch_timeout(mock_openai_hook, mock_wip_batch):
     assert mock_openai_hook.conn.batches.cancel.call_count == 1
 
 
+def test_wait_for_in_progress_batch_timeout_cancel_failure_does_not_mask_timeout(
+    mock_openai_hook, mock_wip_batch, caplog
+):
+    """A cancellation failure inside the timeout branch must not replace ``OpenAIBatchTimeout``
+    with the cancellation's own exception, and the failure must still be logged.
+    """
+    mock_openai_hook.conn.batches.retrieve.return_value = mock_wip_batch
+    mock_openai_hook.conn.batches.cancel.side_effect = RuntimeError("cancel failed")
+
+    with caplog.at_level("WARNING"):
+        with pytest.raises(OpenAIBatchTimeout, match="Timeout"):
+            mock_openai_hook.wait_for_batch(batch_id=BATCH_ID, wait_seconds=0.01, timeout=0.01)
+
+    assert mock_openai_hook.conn.batches.cancel.call_count == 1
+    assert any("Failed to request cancellation of batch" in message for message in caplog.messages)
+
+
 @pytest.mark.parametrize("status", ["cancelled", "cancelling"])
 def test_wait_for_cancelled_batch_raises_exact_cancelled_type(mock_openai_hook, status):
     """``OpenAIBatchCancelled`` is a subclass of ``OpenAIBatchJobException``, so asserting

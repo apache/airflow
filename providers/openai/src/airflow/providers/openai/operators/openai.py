@@ -503,15 +503,17 @@ class OpenAITriggerBatchOperator(BaseOperator):
         """
         Best-effort request to cancel a batch; never raises.
 
-        Called from ``execute_complete`` after a deferred timeout, using the batch id carried
-        by the trigger event rather than ``self.batch_id`` — this method runs on a resumed task
-        instance, a fresh operator object on which ``execute``'s assignment to ``self.batch_id``
-        never happened, so ``self.batch_id`` is ``None`` here.
+        Takes ``batch_id`` as a parameter rather than reading ``self.batch_id`` because it has
+        two callers with different sources for it: ``execute_complete``, after a deferred
+        timeout, passes the batch id carried by the trigger event, since it runs on a resumed
+        task instance where ``execute``'s assignment to ``self.batch_id`` never happened;
+        ``on_kill`` passes ``self.batch_id`` directly, already set by ``execute`` on this same
+        operator instance.
 
         Cancellation on OpenAI's side is asynchronous: the batch reports ``cancelling`` for up
         to 10 minutes before it settles as ``cancelled``, so this only requests cancellation. A
-        failure to cancel is logged, not raised, so it never masks the timeout that is the
-        task's real failure reason.
+        failure to cancel is logged, not raised, so it never masks the real failure reason
+        (the timeout, or the kill).
         """
         try:
             self.hook.cancel_batch(batch_id)
@@ -522,4 +524,4 @@ class OpenAITriggerBatchOperator(BaseOperator):
         """Cancel the batch if task is cancelled."""
         if self.batch_id:
             self.log.info("on_kill: cancel the OpenAI Batch %s", self.batch_id)
-            self.hook.cancel_batch(self.batch_id)
+            self._cancel_batch_quietly(self.batch_id)

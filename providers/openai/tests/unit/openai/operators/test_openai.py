@@ -903,6 +903,29 @@ def test_openai_trigger_batch_operator_deferred_logs_active_knob(mock_log, mock_
     )
 
 
+def test_openai_trigger_batch_operator_on_kill_cancels_batch_quietly(caplog):
+    """on_kill()'s cancellation failure is logged, not raised."""
+    operator = OpenAITriggerBatchOperator(
+        task_id=TASK_ID,
+        conn_id=CONN_ID,
+        file_id=FILE_ID,
+        endpoint=BATCH_ENDPOINT,
+    )
+    operator.batch_id = BATCH_ID
+    mock_hook_instance = Mock(spec=OpenAIHook)
+    mock_hook_instance.cancel_batch.side_effect = RuntimeError("cancel failed")
+    operator.hook = mock_hook_instance
+
+    with caplog.at_level("WARNING"):
+        try:
+            operator.on_kill()
+        except Exception as e:
+            pytest.fail(f"on_kill() should not raise: {e}")
+
+    mock_hook_instance.cancel_batch.assert_called_once_with(BATCH_ID)
+    assert any("Failed to request cancellation of batch" in message for message in caplog.messages)
+
+
 class TestOpenAITriggerBatchOperatorExecuteComplete:
     def _operator(self):
         return OpenAITriggerBatchOperator(

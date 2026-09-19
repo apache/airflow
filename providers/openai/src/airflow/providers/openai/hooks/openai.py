@@ -709,7 +709,12 @@ class OpenAIHook(BaseHook):
         start = time.monotonic()
         while True:
             if start + timeout < time.monotonic():
-                self.cancel_batch(batch_id=batch_id)
+                try:
+                    self.cancel_batch(batch_id=batch_id)
+                except Exception as e:
+                    self.log.warning(
+                        "Failed to request cancellation of batch %s after timeout: %s", batch_id, e
+                    )
                 raise OpenAIBatchTimeout(f"Timeout: OpenAI Batch {batch_id} is not ready after {timeout}s")
             batch = self.get_batch(batch_id=batch_id)
 
