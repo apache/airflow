@@ -1,0 +1,3571 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Describes the section/option values of a materialized Airflow configuration (airflow.cfg), generated from config.yml. Every value is validated the way Airflow's own config parser reads it: as a string (the raw ini representation), or, for tooling that materializes typed values, as the corresponding native JSON type. Installed provider packages (celery, fab, ...) contribute additional sections that are not enumerated here, so unrecognized top-level sections are allowed; unrecognized options within a *known* section are not.",
+  "properties": {
+    "api": {
+      "additionalProperties": false,
+      "properties": {
+        "access_control_allow_headers": {
+          "default": "",
+          "description": "Used in response to a preflight request to indicate which HTTP\nheaders can be used when making the actual request. This header is\nthe server side response to the browser's\nAccess-Control-Request-Headers header.",
+          "type": "string",
+          "x-version-added": "2.1.0"
+        },
+        "access_control_allow_methods": {
+          "default": "",
+          "description": "Specifies the method or methods allowed when accessing the resource.",
+          "type": "string",
+          "x-version-added": "2.1.0"
+        },
+        "access_control_allow_origins": {
+          "default": "",
+          "description": "Indicates whether the response can be shared with requesting code from the given origins.\nSeparate URLs with space. Wildcard (``*``) is not allowed: Airflow's API requires\ncredentialed CORS, which is incompatible with a wildcard origin per the CORS spec, and\nbrowsers reject any response that combines the two. List exact origins instead\n(for example ``https://airflow.mycompany.com``).",
+          "type": "string",
+          "x-version-added": "2.2.0"
+        },
+        "auto_refresh_interval": {
+          "default": "3",
+          "description": "How frequently, in seconds, the DAG data will auto-refresh in graph or grid view\nwhen auto-refresh is turned on",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.2.0"
+        },
+        "base_url": {
+          "description": "The base url of the API server. Airflow cannot guess what domain or CNAME you are using.\nIf the Airflow console (the front-end) and the API server are on a different domain, this config\nshould contain the API server endpoint.",
+          "examples": [
+            "https://my-airflow.company.com"
+          ],
+          "type": "string"
+        },
+        "client_ssl_cert": {
+          "description": "Path to a PEM-encoded client SSL certificate to use\nwhen the Task SDK connects to the Airflow Execution API.\nMust be set together with ``client_ssl_key``.",
+          "examples": [
+            "/etc/airflow/certs/client.crt"
+          ],
+          "type": "string"
+        },
+        "client_ssl_key": {
+          "description": "Path to the PEM-encoded private key corresponding to ``client_ssl_cert``.\nMust be set together with ``client_ssl_cert``.",
+          "examples": [
+            "/etc/airflow/certs/client.key"
+          ],
+          "type": "string"
+        },
+        "client_use_public_certs": {
+          "default": "True",
+          "description": "Enable loading of public CA certificates from certifi into the client SSL context.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ]
+        },
+        "dag_cache_size": {
+          "default": "64",
+          "description": "Size of the LRU cache for SerializedDAG objects in the API server.\nSet to 0 to use an unbounded dict (no eviction, matching pre-3.2 behavior).\nThe cache is keyed by Dag version ID, so lookups by Dag ID\n(e.g., viewing a Dag's details) always query the database for the latest\nversion, but the deserialized result is cached for subsequent\nversion-specific lookups.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.3.0"
+        },
+        "dag_cache_ttl": {
+          "default": "3600",
+          "description": "Time-to-live (seconds) for cached SerializedDAG objects in the API server.\nAfter this time, cached DAGs will be re-fetched from the database on next access.\nSet to 0 to disable TTL (cache entries will only be evicted by LRU policy).\n\nNote: After a DAG is updated, the API server may serve the previous version\nuntil the cached entry expires. Lower values reduce staleness but increase\ndatabase load.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.3.0"
+        },
+        "default_wrap": {
+          "default": "False",
+          "description": "Default setting for wrap toggle on DAG code and TI log views.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "1.10.4"
+        },
+        "enable_swagger_ui": {
+          "default": "True",
+          "description": "Boolean for running SwaggerUI in the webserver.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.6.0"
+        },
+        "expose_config": {
+          "default": "False",
+          "description": "Expose the configuration file in the web server. Set to ``True`` to expose configuration with\nsensitive values always masked. The deprecated value ``non-sensitive-only`` is treated the same as\n``True`` for backward compatibility. ``False`` hides the configuration completely.",
+          "type": "string"
+        },
+        "expose_stacktrace": {
+          "default": "False",
+          "description": "Expose stacktrace in the web server",
+          "type": "string"
+        },
+        "fallback_page_limit": {
+          "default": "50",
+          "description": "Used to set the default page limit when limit param is zero or not provided in API\nrequests. Otherwise if positive integer is passed in the API requests as limit, the\nsmallest number of user given limit or maximum page limit is taken as limit.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.0.0"
+        },
+        "grid_view_sorting_order": {
+          "default": "topological",
+          "description": "Sorting order in grid view. Valid values are: ``topological``, ``hierarchical_alphabetical``",
+          "enum": [
+            "topological",
+            "hierarchical_alphabetical"
+          ],
+          "type": "string",
+          "x-version-added": "2.7.0"
+        },
+        "hide_paused_dags_by_default": {
+          "default": "False",
+          "description": "By default, the webserver shows paused DAGs. Flip this to hide paused\nDAGs by default",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ]
+        },
+        "host": {
+          "default": "0.0.0.0",
+          "description": "The ip specified when starting the api server",
+          "type": "string"
+        },
+        "instance_name": {
+          "description": "Sets a custom homepage heading and site title for all Airflow UI pages.\nIf set, the Dashboard will display this value instead of the default\n\"Welcome\" message.",
+          "type": "string",
+          "x-version-added": "2.1.0"
+        },
+        "log_config": {
+          "description": "Path to the logging configuration file for the uvicorn server.\nIf not set, the default uvicorn logging configuration will be used.",
+          "examples": [
+            "path/to/logging_config.yaml"
+          ],
+          "type": "string"
+        },
+        "log_fetch_timeout_sec": {
+          "default": "5",
+          "description": "The amount of time (in secs) webserver will wait for initial handshake\nwhile fetching logs from other worker machine",
+          "type": "string"
+        },
+        "log_stream_buffer_size": {
+          "default": "500",
+          "description": "Number of log lines to buffer before flushing to the client when streaming task logs\nin NDJSON format. Larger values reduce HTTP overhead but increase time-to-first-byte.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.2.0"
+        },
+        "maximum_page_limit": {
+          "default": "100",
+          "description": "Used to set the maximum page limit for API requests. If limit passed as param\nis greater than maximum page limit, it will be ignored and maximum page limit value\nwill be set as the limit",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.0.0"
+        },
+        "port": {
+          "default": "8080",
+          "description": "The port on which to run the api server",
+          "type": "string"
+        },
+        "regexp_query_timeout": {
+          "default": "0",
+          "description": "Timeout, in seconds, for regular-expression based query filters in the API. Fractional\nvalues are allowed (e.g. ``0.5``). This single value both enables the feature and bounds its\nruntime: a value of ``0`` (the default) disables regexp filtering entirely, and any positive\nvalue enables it while capping how long such a query may run.\n\nWhen enabled, it allows additional filtering features that require database-side regexp\nmatching, such as the ``partition_key_regexp_pattern`` filter on ``GET /assets/events``\nand on the Execution API asset-event endpoints. It is disabled by default for security\nreasons: a user-supplied regular expression is passed to the database's own regex engine,\nwhich is a Regular expression Denial of Service (ReDoS) vector: a crafted pattern can\nforce the engine into pathological backtracking and consume database backend CPU.\n\nThe timeout is the primary runtime mitigation for that risk: it is enforced as a\ntransaction-local ``statement_timeout`` on PostgreSQL and as the session ``max_execution_time``\non MySQL, so a pathological pattern is aborted instead of pinning a database backend. Keep it\nas low as your legitimate queries allow. Coupling the on/off switch with the timeout\nintentionally makes it impossible to enable regexp filtering without a runtime bound in place.",
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.4.0"
+        },
+        "require_confirmation_dag_change": {
+          "default": "False",
+          "description": "Require confirmation when changing a DAG in the web UI. This is to prevent accidental changes\nto a DAG that may be running on sensitive environments like production.\nWhen set to ``True``, confirmation dialog will be shown when a user tries to Pause/Unpause,\nTrigger a DAG",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.9.0"
+        },
+        "secret_key": {
+          "default": "{SECRET_KEY}",
+          "description": "Secret key used to run your api server. It should be as random as possible. However, when running\nmore than 1 instances of the api, make sure all of them use the same ``secret_key`` otherwise\none of them will error with \"CSRF session token is missing\".\nThe api key is also used to authorize requests to Celery workers when logs are retrieved.\nThe token generated using the secret key has a short expiry time though - make sure that time on\nALL the machines that you run airflow components on is synchronized (for example using ntpd)\notherwise you might get \"forbidden\" errors when the logs are accessed.",
+          "type": "string",
+          "writeOnly": true
+        },
+        "server_type": {
+          "default": "uvicorn",
+          "description": "The server type to use for the API server. Options are:\n\n- ``uvicorn``: Default. Uses uvicorn directly. Simple setup, but does not\n  support rolling worker restarts with ``worker_refresh_interval`` because\n  uvicorn's multiprocess mode has no master process when workers=1 and\n  SIGTTOU kills the newest worker (LIFO), not oldest.\n\n- ``gunicorn``: Uses gunicorn with uvicorn workers. Supports rolling worker\n  restarts via ``worker_refresh_interval``. Requires ``apache-airflow-core[gunicorn]``\n  extra. Gunicorn always has master/worker architecture and SIGTTOU kills\n  the oldest worker (FIFO) which is correct for rolling restarts.\n\nNote: When using gunicorn, workers share memory via copy-on-write after fork,\nreducing overall memory usage. With uvicorn multiprocess mode, each worker\nloads everything independently with no memory sharing.",
+          "examples": [
+            "gunicorn"
+          ],
+          "type": "string",
+          "x-version-added": "3.2.0"
+        },
+        "ssl_ca_file": {
+          "description": "Path to the SSL CA file for the api server. Defaults to None.",
+          "type": "string"
+        },
+        "ssl_cert": {
+          "default": "",
+          "description": "Paths to the SSL certificate and key for the api server. When both are\nprovided SSL will be enabled. This does not change the api server port.\nThe same SSL certificate will also be loaded into the worker to enable\nit to be trusted when a self-signed certificate is used.",
+          "type": "string"
+        },
+        "ssl_cert_reqs": {
+          "default": "none",
+          "description": "Enable ssl certificate verification on the api server.\nSee https://docs.python.org/3/library/ssl.html#ssl.SSLContext.verify_mode\nValid options are 'none', 'optional' or 'required'",
+          "examples": [
+            "required"
+          ],
+          "type": "string"
+        },
+        "ssl_key": {
+          "default": "",
+          "description": "Paths to the SSL certificate and key for the api server. When both are\nprovided SSL will be enabled. This does not change the api server port.",
+          "type": "string"
+        },
+        "theme": {
+          "description": "JSON config to customize the Chakra UI theme.\nSupports ``brand`` color customization, ``globalCss``, and optional navigation icons ``icon``\n(for light mode) and ``icon_dark_mode`` (for dark mode). Icons must be SVG files and can be\neither absolute http(s) URLs or app-relative paths starting with ``/``.\n\nMust supply ``50``-``950`` OKLCH color values for ``brand`` color.\n\nFor usage see :ref:`customizing-ui-theme`\n\n.. important::\n  ``oklch(l c h)`` must follow next format:\n\n  - l (lightness) : ``float`` Must be between 0 and 1\n  - c (chroma) : ``float`` Must be between 0 and 0.5\n  - h (hue) : ``float`` Must be between 0 and 360\n\nNote: As shown below, you can split your json config over multiple lines by indenting.\nSee configparser documentation for an example:\nhttps://docs.python.org/3/library/configparser.html#supported-ini-file-structure.",
+          "examples": [
+            "{\n      \"tokens\": {\n        \"colors\": {\n          \"brand\": {\n            \"50\": { \"value\": \"oklch(0.971 0.013 17.38)\" },\n            \"100\": { \"value\": \"oklch(0.936 0.032 17.717)\" },\n            \"200\": { \"value\": \"oklch(0.885 0.062 18.334)\" },\n            \"300\": { \"value\": \"oklch(0.808 0.114 19.571)\" },\n            \"400\": { \"value\": \"oklch(0.704 0.191 22.216)\" },\n            \"500\": { \"value\": \"oklch(0.637 0.237 25.331)\" },\n            \"600\": { \"value\": \"oklch(0.577 0.245 27.325)\" },\n            \"700\": { \"value\": \"oklch(0.505 0.213 27.518)\" },\n            \"800\": { \"value\": \"oklch(0.444 0.177 26.899)\" },\n            \"900\": { \"value\": \"oklch(0.396 0.141 25.723)\" },\n            \"950\": { \"value\": \"oklch(0.258 0.092 26.042)\" }\n          }\n        }\n      }\n    }\n"
+          ],
+          "type": "string"
+        },
+        "worker_refresh_batch_size": {
+          "default": "1",
+          "description": "Number of workers to refresh at a time during rolling restarts.\nHigher values refresh faster but temporarily use more resources.\n\nOnly used when ``worker_refresh_interval > 0`` and ``server_type = gunicorn``.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.2.0"
+        },
+        "worker_refresh_interval": {
+          "default": "0",
+          "description": "Number of seconds between rolling worker refreshes for the API server.\nWhen enabled, workers are periodically restarted using a rolling restart\npattern (new workers spawn before old ones are killed) to prevent memory\naccumulation while maintaining zero downtime.\n\nSet to 0 to disable worker refresh (default).\n\nThis option only works when ``server_type = gunicorn``. With uvicorn,\nthis setting is ignored because uvicorn's SIGTTOU kills the newest worker\n(LIFO order) rather than oldest, which defeats rolling restart purposes.",
+          "examples": [
+            "43200"
+          ],
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.2.0"
+        },
+        "worker_timeout": {
+          "default": "120",
+          "description": "Number of seconds the API server waits before timing out on a worker",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ]
+        },
+        "workers": {
+          "default": "1",
+          "description": "Number of workers to run on the API server. Should be roughly equal to the number of cpu cores\navailable. If you need to scale the API server, strongly consider deploying multiple API servers\ninstead of increasing the number of workers; See https://github.com/apache/airflow/issues/52270.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "api_auth": {
+      "additionalProperties": false,
+      "description": "Settings relating to authentication on the Airflow APIs",
+      "properties": {
+        "jwt_algorithm": {
+          "description": "The algorithm name use when generating and validating JWT Task Identities.\n\nThis value must be appropriate for the given private key type.\n\nIf this is not specified Airflow makes some guesses as what algorithm is best based on the key type.\n\n(\"HS512\" if ``jwt_secret`` is set, otherwise a key-type specific guess)",
+          "examples": [
+            "\"EdDSA\" or \"HS512\""
+          ],
+          "type": "string",
+          "x-version-added": "3.0.0"
+        },
+        "jwt_audience": {
+          "description": "The audience claim to use when generating and validating JWTs for the API.\n\nThis variable can be a single value, or a comma-separated string, in which case the first value is the\none that will be used when generating, and the others are accepted at validation time.\n\nNot required, but strongly encouraged.\n\nSee also :ref:`config:execution_api__jwt_audience`",
+          "examples": [
+            "my-unique-airflow-id"
+          ],
+          "type": "string",
+          "x-version-added": "3.0.0"
+        },
+        "jwt_cli_expiration_time": {
+          "default": "3600",
+          "description": "Number in seconds until the JWTs used for authentication expires for CLI commands.\nWhen the token expires, all CLI calls using this token will fail on authentication.\n\nMake sure that time on ALL the machines that you run airflow components on is synchronized\n(for example using ntpd) otherwise you might get \"forbidden\" errors.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.0.0"
+        },
+        "jwt_expiration_time": {
+          "default": "86400",
+          "description": "Number in seconds until the JWTs used for authentication expires. When the token expires,\nall API calls using this token will fail on authentication.\n\nMake sure that time on ALL the machines that you run airflow components on is synchronized\n(for example using ntpd) otherwise you might get \"forbidden\" errors.\n\nSee also :ref:`config:execution_api__jwt_expiration_time`",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.0.0"
+        },
+        "jwt_issuer": {
+          "description": "Issuer of the JWT. This becomes the ``iss`` claim of generated tokens, and is validated on incoming\nrequests.\n\nIdeally this should be unique per individual airflow deployment\n\nNot required, but strongly recommended to be set.\n\nSee also :ref:`config:api_auth__jwt_audience`",
+          "examples": [
+            "http://my-airflow.mycompany.com"
+          ],
+          "type": "string",
+          "x-version-added": "3.0.0"
+        },
+        "jwt_kid": {
+          "description": "The Key ID to place in header when generating JWTs. Not used in the validation path.\n\nIf this is not specified the RFC7638 thumbprint of the private key will be used.\n\nIgnored when ``jwt_secret`` is used.",
+          "examples": [
+            "my-key-id"
+          ],
+          "type": "string",
+          "x-version-added": "3.0.0"
+        },
+        "jwt_leeway": {
+          "default": "10",
+          "description": "Number of seconds leeway in validating expiry time of JWTs to account for clock skew between\nclient and server",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.0.0"
+        },
+        "jwt_private_key_path": {
+          "description": "The path to a file containing a PEM-encoded private key use when generating Task Identity tokens in\nthe executor.\n\nMutually exclusive with ``jwt_secret``.",
+          "examples": [
+            "/path/to/private_key.pem"
+          ],
+          "type": "string",
+          "x-version-added": "3.0.0"
+        },
+        "jwt_secret": {
+          "default": "{JWT_SECRET_KEY}",
+          "description": "Secret key used to encode and decode JWTs to authenticate to public and private APIs.\n\nIt should be as random as possible. This key must be consistent across all components that\ngenerate or validate JWT tokens (Scheduler, API Server). For improved security, consider\nusing asymmetric keys (``jwt_private_key_path``) instead, which allow you to restrict the\nsigning key to only the components that need to generate tokens.\n\nFor security-sensitive deployments, pass this value via environment variable\n(``AIRFLOW__API_AUTH__JWT_SECRET``) rather than storing it in a configuration file, and\nrestrict it to only the components that need it.\n\nMutually exclusive with ``jwt_private_key_path``.",
+          "type": "string",
+          "writeOnly": true,
+          "x-version-added": "3.0.0"
+        },
+        "trusted_jwks_url": {
+          "description": "The public signing keys of Task Execution token issuers to trust. It must contain the public key\nrelated to ``jwt_private_key_path`` else tasks will be unlikely to execute successfully.\n\nCan be a local file path (without the ``file://`` prefix) or an http or https URL.\n\nIf a remote URL is given it will be polled periodically for changes.\n\nMutually exclusive with ``jwt_secret``.\n\nIf a ``jwt_private_key_path`` is given but this settings is not set then the private key will be\ntrusted. If this is provided it is your responsibility to ensure that the private key used for\ngeneration is in this list.",
+          "examples": [
+            "\"/path/to/public-jwks.json\" or \"https://my-issuer/.well-known/jwks.json\""
+          ],
+          "type": "string",
+          "x-version-added": "3.0.0"
+        }
+      },
+      "type": "object"
+    },
+    "callbacks": {
+      "additionalProperties": false,
+      "description": "Configuration for callbacks (deadline alerts, etc.).",
+      "properties": {
+        "callback_execution_timeout": {
+          "default": "0",
+          "description": "Maximum execution time in seconds for deadline callbacks.\nSet to a positive integer to enable. When a callback exceeds this duration,\nit is terminated with SIGTERM followed by SIGKILL if it does not exit within 5 seconds.\n0 means no timeout (default).",
+          "examples": [
+            "300"
+          ],
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.3.0"
+        }
+      },
+      "type": "object"
+    },
+    "connection_test": {
+      "additionalProperties": false,
+      "description": "Configuration for the deferred connection-test workflow that dispatches\ntest requests to workers via the executor (instead of running them\nin-process on the API server).",
+      "properties": {
+        "max_concurrency": {
+          "default": "4",
+          "description": "Maximum number of connection tests that can be active\n(QUEUED + RUNNING) at the same time. Excess tests will remain in\nPENDING state until slots become available. This cap is enforced\nper-scheduler, not globally: with N HA schedulers the worst-case\nper-tick dispatch is ``N * max_concurrency``. Connection tests are\nuser-initiated and rare, so the overshoot self-corrects via the\nreaper.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.3.0"
+        },
+        "reaper_interval": {
+          "default": "30.0",
+          "description": "How often (in seconds) the scheduler should check for stale\nconnection tests (QUEUED or RUNNING past their timeout + grace\nperiod) and mark them as failed.",
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.3.0"
+        },
+        "timeout": {
+          "default": "60",
+          "description": "Maximum number of seconds a worker-dispatched connection test is\nallowed to run before it is considered timed out. The scheduler\nreaper uses this value plus a grace period to mark stale tests as\nfailed.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.3.0"
+        }
+      },
+      "type": "object"
+    },
+    "core": {
+      "additionalProperties": false,
+      "properties": {
+        "allow_double_dot_in_ids": {
+          "default": "False",
+          "description": "Allow ``..`` (consecutive dots) in DAG IDs and run IDs. By default, ``..`` is blocked to prevent\npath traversal attacks. Set to ``True`` only if you have existing DAGs or runs whose IDs contain\n``..`` and cannot be renamed.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.3.0"
+        },
+        "allowed_deserialization_classes": {
+          "default": "airflow.*",
+          "description": "Space-separated list of classes that may be imported during deserialization. Items can be glob\nexpressions. Python built-in classes (like dict) are always allowed.",
+          "examples": [
+            "airflow.* my_mod.my_other_mod.TheseClasses*"
+          ],
+          "type": "string",
+          "x-version-added": "2.5.0"
+        },
+        "allowed_deserialization_classes_regexp": {
+          "default": "",
+          "description": "Space-separated list of classes that may be imported during deserialization. Items are processed\nas regex expressions and matched against the full classname (``re.fullmatch`` semantics), so a\npattern such as ``airflow\\.models\\.Variable`` does not also admit ``airflow.models.VariableXYZ``.\nUse ``.*`` (e.g. ``airflow\\.models\\..*``) to allow a prefix and any suffix. Python built-in\nclasses (like dict) are always allowed.\nThis is a secondary option to ``[core] allowed_deserialization_classes``.",
+          "type": "string",
+          "x-version-added": "2.8.2"
+        },
+        "asset_manager_class": {
+          "description": "Class to use as asset manager.",
+          "examples": [
+            "airflow.assets.manager.AssetManager"
+          ],
+          "type": "string",
+          "x-version-added": "3.0.0"
+        },
+        "asset_manager_kwargs": {
+          "description": "Kwargs to supply to asset manager.",
+          "examples": [
+            "{\"some_param\": \"some_value\"}"
+          ],
+          "type": "string",
+          "writeOnly": true,
+          "x-version-added": "3.0.0"
+        },
+        "auth_manager": {
+          "default": "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager",
+          "description": "The auth manager class that airflow should use. Full import path to the auth manager class.",
+          "type": "string",
+          "x-version-added": "2.7.0"
+        },
+        "compress_serialized_dags": {
+          "default": "False",
+          "description": "If ``True``, serialized DAGs are compressed before writing to DB.\n\n.. note::\n\n    This will disable the DAG dependencies view",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.3.0"
+        },
+        "daemon_umask": {
+          "default": "0o077",
+          "description": "The default umask to use for process when run in daemon mode (scheduler, worker,  etc.)\n\nThis controls the file-creation mode mask which determines the initial value of file permission bits\nfor newly created files.\n\nThis value is treated as an octal-integer.",
+          "type": "string",
+          "x-version-added": "2.3.4"
+        },
+        "dag_discovery_safe_mode": {
+          "default": "True",
+          "description": "If enabled, Airflow only scans files containing both ``DAG`` and ``airflow`` (case-insensitive)\nwhen looking for Dags. Set this to ``False`` to scan every Python file instead -- required when\nyour Dags are defined through a wrapper or abstraction whose source does not contain those strings.\n\nThis setting is read by the Dag file processor, so it must be configured for that component. In a\nseparate-process deployment (for example the Helm chart) set it on the ``dag-processor`` as well as\non anything that runs ``airflow dags reserialize``, and restart the component for a change to take\neffect. If only some components see ``False``, Dags can appear after a manual reserialize and then\nbe deactivated again on the next processor scan.\n\nAs an alternative to scanning every file, set ``[core] might_contain_dag_callable`` to a custom\nheuristic that recognizes your wrapper.",
+          "type": "string",
+          "x-version-added": "1.10.3"
+        },
+        "dag_ignore_file_syntax": {
+          "default": "glob",
+          "description": "The pattern syntax used in the\n`.airflowignore\n<https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/dags.html#airflowignore>`__\nfiles in the DAG directories. Valid values are ``regexp`` or ``glob``.",
+          "enum": [
+            "regexp",
+            "glob"
+          ],
+          "type": "string",
+          "x-version-added": "2.3.0"
+        },
+        "dag_run_conf_overrides_params": {
+          "default": "True",
+          "description": "Whether to override params with dag_run.conf. If you pass some key-value pairs\nthrough ``airflow dags backfill -c`` or\n``airflow dags trigger -c``, the key-value pairs will override the existing ones in params.",
+          "type": "string"
+        },
+        "dagbag_import_error_traceback_depth": {
+          "default": "2",
+          "description": "If tracebacks are shown, how many entries from the traceback should be shown",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.0.0"
+        },
+        "dagbag_import_error_tracebacks": {
+          "default": "True",
+          "description": "Should a traceback be shown in the UI for dagbag import errors,\ninstead of just the exception message",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.0.0"
+        },
+        "dagbag_import_timeout": {
+          "default": "30.0",
+          "description": "How long before timing out a python file import",
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?$",
+              "type": "string"
+            }
+          ]
+        },
+        "dags_are_paused_at_creation": {
+          "default": "True",
+          "description": "Are DAGs paused by default at creation",
+          "type": "string"
+        },
+        "dags_folder": {
+          "default": "{AIRFLOW_HOME}/dags",
+          "description": "The folder where your airflow pipelines live, most likely a\nsubfolder in a code repository. This path must be absolute.",
+          "type": "string"
+        },
+        "default_impersonation": {
+          "default": "",
+          "description": "If set, tasks without a ``run_as_user`` argument will be run with this user\nCan be used to de-elevate a sudo user running Airflow when executing tasks",
+          "type": "string"
+        },
+        "default_pool_task_slot_count": {
+          "default": "128",
+          "description": "Task Slot counts for ``default_pool``. This setting would not have any effect in an existing\ndeployment where the ``default_pool`` is already created. For existing deployments, users can\nchange the number of slots using Webserver, API or the CLI",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.2.0"
+        },
+        "default_task_execution_timeout": {
+          "default": "",
+          "description": "The default task execution_timeout value for the operators. Expected an integer value to\nbe passed into timedelta as seconds. If not specified, then the value is considered as None,\nmeaning that the operators are never timed out by default.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^([+-]?[0-9]+)?$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.3.0"
+        },
+        "default_task_retries": {
+          "default": "0",
+          "description": "The number of retries each task is going to have by default. Can be overridden at dag or task level.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "1.10.6"
+        },
+        "default_task_retry_delay": {
+          "default": "300",
+          "description": "The number of seconds each task is going to wait by default between retries. Can be overridden at\ndag or task level.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.4.0"
+        },
+        "default_task_weight_rule": {
+          "default": "downstream",
+          "description": "The weighting method used for the effective total priority weight of the task",
+          "enum": [
+            "absolute",
+            "downstream",
+            "upstream"
+          ],
+          "type": "string",
+          "x-version-added": "2.2.0"
+        },
+        "default_timezone": {
+          "default": "utc",
+          "description": "Default timezone in case supplied date times are naive\ncan be `UTC` (default), `system`, or any `IANA <https://www.iana.org/time-zones>`\ntimezone string (e.g. Europe/Amsterdam)",
+          "type": "string"
+        },
+        "execute_tasks_new_python_interpreter": {
+          "default": "False",
+          "description": "Should tasks be executed via forking of the parent process\n\n* ``False``: Execute via forking of the parent process\n* ``True``: Spawning a new python process, slower than fork, but means plugin changes picked\n  up by tasks straight away",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.0.0"
+        },
+        "execution_api_server_url": {
+          "description": "The url of the execution api server. Default is ``{BASE_URL}/execution/``\nwhere ``{BASE_URL}`` is the base url of the API Server. If ``{BASE_URL}`` is not set,\nit will use ``http://localhost:8080`` as the default base url.",
+          "type": "string",
+          "x-version-added": "3.0.0"
+        },
+        "executor": {
+          "default": "LocalExecutor",
+          "description": "The executor class that airflow should use. Choices include\n``LocalExecutor``, ``CeleryExecutor``,\n``KubernetesExecutor`` or the full import path to the class when using a custom executor.",
+          "type": "string"
+        },
+        "fernet_key": {
+          "default": "{FERNET_KEY}",
+          "description": "Secret key to save connection passwords in the db",
+          "type": "string",
+          "writeOnly": true
+        },
+        "hide_sensitive_var_conn_fields": {
+          "default": "True",
+          "description": "Hide sensitive **Variables** or **Connection extra json keys** from UI\nand task logs when set to ``True``\n\n.. note::\n\n    Connection passwords are always hidden in logs",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.1.0"
+        },
+        "hostname_callable": {
+          "default": "airflow.utils.net.getfqdn",
+          "description": "Hostname by providing a path to a callable, which will resolve the hostname.\nThe format is \"package.function\".\n\nFor example, default value ``airflow.utils.net.getfqdn`` means that result from patched\nversion of `socket.getfqdn() <https://docs.python.org/3/library/socket.html#socket.getfqdn>`__,\nsee related `CPython Issue <https://github.com/python/cpython/issues/49254>`__.\n\nNo argument should be required in the function specified.\nIf using IP address as hostname is preferred, use value ``airflow.utils.net.get_host_ip_address``",
+          "type": "string"
+        },
+        "killed_task_cleanup_time": {
+          "default": "60",
+          "description": "When a task is killed forcefully, this is the amount of time in seconds that\nit has to cleanup after it is sent a SIGTERM, before it is SIGKILLED",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ]
+        },
+        "lazy_discover_providers": {
+          "default": "True",
+          "description": "By default Airflow providers are lazily-discovered (discovery and imports happen only when required).\nSet it to ``False``, if you want to discover providers whenever 'airflow' is invoked via cli or\nloaded from module.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.0.0"
+        },
+        "lazy_load_plugins": {
+          "default": "True",
+          "description": "By default Airflow plugins are lazily-loaded (only loaded when required). Set it to ``False``,\nif you want to load plugins whenever 'airflow' is invoked via cli or loaded from module.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.0.0"
+        },
+        "load_examples": {
+          "default": "True",
+          "description": "Whether to load the Dag examples that ship with Airflow. It's good to\nget started, but you probably want to set this to ``False`` in a production\nenvironment\n\n.. note::\n\n    If you are using the Official Airflow Docker Image, this value is set to ``False`` by default\n    via the environment variable ``AIRFLOW__CORE__LOAD_EXAMPLES``. To enable example Dags when\n    using the official image, you must explicitly set ``AIRFLOW__CORE__LOAD_EXAMPLES=True`` in your\n    environment.",
+          "type": "string"
+        },
+        "max_active_runs_per_dag": {
+          "default": "16",
+          "description": "The maximum number of active DAG runs per DAG. The scheduler will not create more DAG runs\nif it reaches the limit. This is configurable at the DAG level with ``max_active_runs``,\nwhich is defaulted as ``[core] max_active_runs_per_dag``.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ]
+        },
+        "max_active_tasks_per_dag": {
+          "default": "16",
+          "description": "The maximum number of task instances allowed to run concurrently in each dag run.\nThis is also configurable per-dag with ``max_active_tasks``,\nwhich is defaulted as ``[core] max_active_tasks_per_dag``.\n\nAn example scenario when this would be useful is when you want to stop a new dag run with an early\nstart date from stealing all the executor slots in a cluster.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.2.0"
+        },
+        "max_consecutive_failed_dag_runs_per_dag": {
+          "default": "0",
+          "description": "(experimental) The maximum number of consecutive DAG failures before DAG is automatically paused.\nThis is also configurable per DAG level with ``max_consecutive_failed_dag_runs``,\nwhich is defaulted as ``[core] max_consecutive_failed_dag_runs_per_dag``.\nIf not specified, then the value is considered as 0,\nmeaning that the dags are never paused out by default.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.9.0"
+        },
+        "max_map_length": {
+          "default": "1024",
+          "description": "The maximum list/dict length an XCom can push to trigger task mapping. If the pushed list/dict has a\nlength exceeding this value, the task pushing the XCom will be failed automatically to prevent the\nmapped tasks from clogging the scheduler.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.3.0"
+        },
+        "max_task_retry_delay": {
+          "default": "86400",
+          "description": "The maximum delay (in seconds) each task is going to wait by default between retries.\nThis is a global setting and cannot be overridden at task or DAG level.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.6.0"
+        },
+        "max_templated_field_length": {
+          "default": "4096",
+          "description": "The maximum length of the rendered template field. If the value to be stored in the\nrendered template field exceeds this size, it's redacted.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.9.0"
+        },
+        "might_contain_dag_callable": {
+          "default": "airflow.utils.file.might_contain_dag_via_default_heuristic",
+          "description": "A callable to check if a python file has airflow dags defined or not and should\nreturn ``True`` if it has dags otherwise ``False``.\nIf this is not provided, Airflow uses its own heuristic rules.\n\nThe function should have the following signature\n\n.. code-block:: python\n\n    def func_name(file_path: str, zip_file: zipfile.ZipFile | None = None) -> bool: ...",
+          "type": "string",
+          "x-version-added": "2.6.0"
+        },
+        "min_serialized_dag_update_interval": {
+          "default": "30",
+          "description": "Updating serialized DAG can not be faster than a minimum interval to reduce database write rate.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "1.10.7"
+        },
+        "mp_forkserver_preload": {
+          "description": "Comma-separated list of modules the ``forkserver`` process should import up front, so that\nforked workers inherit them copy-on-write instead of re-importing them. Only used when the\neffective ``mp_start_method`` is ``forkserver``. See `multiprocessing.set_forkserver_preload\n<https://docs.python.org/3/library/multiprocessing.html#multiprocessing.set_forkserver_preload>`__.",
+          "examples": [
+            "airflow,airflow.executors.local_executor"
+          ],
+          "type": "string",
+          "x-version-added": "3.3.0"
+        },
+        "mp_start_method": {
+          "description": "The ``multiprocessing`` start method used by long-lived components that spawn worker\nprocesses (the scheduler's ``LocalExecutor`` and the triggerer). Must be\none of the values returned by `multiprocessing.get_all_start_methods()\n<https://docs.python.org/3/library/multiprocessing.html#multiprocessing.get_all_start_methods>`__\non your platform (typically ``fork``, ``forkserver`` or ``spawn``). When unset (the\ndefault) the platform default is used.\n\nPython 3.14 changed the Unix default from ``fork`` to ``forkserver``. ``forkserver`` and\n``spawn`` children re-import Airflow instead of sharing it copy-on-write, which can sharply\nincrease the resident memory of the scheduler and triggerer. Set this to ``fork`` to restore\nthe pre-3.14 behaviour (note: forking a multi-threaded process is not always safe), or keep\n``forkserver`` and set ``[core] mp_forkserver_preload`` to recover most of the sharing.\n\nThis can be overridden per component by setting ``mp_start_method`` in the ``[scheduler]``,\n``[triggerer]`` or ``[dag_processor]`` section.",
+          "examples": [
+            "fork"
+          ],
+          "type": "string",
+          "x-version-added": "3.3.0"
+        },
+        "multi_team": {
+          "default": "False",
+          "description": "Whether to run the Airflow environment in multi-team mode.\nIn this mode, different teams can have scoped access to their own resources while still sharing the\nsame underlying deployment.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.2.0"
+        },
+        "num_dag_runs_to_retain_rendered_fields": {
+          "default": "30",
+          "description": "Number of recent dag runs for which Rendered Task Instance Fields are retained.\nRecords from older runs are deleted during task execution.\nKeeping this number small may cause an error when you try to view ``Rendered`` tab in\nTaskInstance view for older tasks.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.2.0"
+        },
+        "parallelism": {
+          "default": "32",
+          "description": "This defines the maximum number of task instances that can run concurrently per scheduler in\nAirflow, regardless of the worker count. Generally this value, multiplied by the number of\nschedulers in your cluster, is the maximum number of task instances with the running\nstate in the metadata database. The value must be larger or equal 1.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ]
+        },
+        "plugins_folder": {
+          "default": "{AIRFLOW_HOME}/plugins",
+          "description": "Path to the folder containing Airflow plugins",
+          "type": "string"
+        },
+        "rerun_with_latest_version": {
+          "description": "Default value for whether cleared, rerun, or backfilled tasks should use\nthe latest bundle version. When set to True, reruns and backfills pick up\nthe latest code. When set to False, they use the original bundle version.\nWhen unset, the fallback depends on the call site: False for clearing or\nrerunning tasks, True for creating backfills (preserving the historical\ndefaults for each). Individual DAGs can override this with the\n``rerun_with_latest_version`` parameter.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.2.0"
+        },
+        "security": {
+          "default": "",
+          "description": "What security module to use (for example kerberos)",
+          "type": "string"
+        },
+        "sensitive_var_conn_names": {
+          "default": "",
+          "description": "A comma-separated list of extra sensitive keywords to look for in variables names or connection's\nextra JSON.",
+          "type": "string",
+          "x-version-added": "2.1.0"
+        },
+        "simple_auth_manager_all_admins": {
+          "default": "False",
+          "description": "Whether to disable authentication and allow everyone as admin in the environment.",
+          "type": "string",
+          "x-version-added": "3.0.0"
+        },
+        "simple_auth_manager_passwords_file": {
+          "description": "The json file where the simple auth manager stores passwords for the configured users.\nBy default this is ``AIRFLOW_HOME/simple_auth_manager_passwords.json.generated``.",
+          "examples": [
+            "/path/to/passwords.json"
+          ],
+          "type": "string",
+          "x-version-added": "3.0.0"
+        },
+        "simple_auth_manager_users": {
+          "default": "admin:admin",
+          "description": "The list of users and their associated role in simple auth manager. If the simple auth manager is\nused in your environment, this list controls who can access the environment.\n\nList of user-role delimited with a comma. Each user-role is a colon delimited couple of username and\nrole. Roles are predefined in simple auth managers: viewer, user, op, admin.\n\nYou can also associate users to teams by appending the list of teams (separated by \"|\") as third item\nin the user-role definition. Example: ``bob:admin:marketing|hr``.\nThis can only be used if ``[core] multi_team`` is set to True.",
+          "examples": [
+            "bob:admin,peter:viewer"
+          ],
+          "type": "string",
+          "x-version-added": "3.0.0"
+        },
+        "task_success_overtime": {
+          "default": "20",
+          "description": "Maximum possible time (in seconds) that task will have for execution of auxiliary processes\n(like listeners, mini scheduler...) after task is marked as success..",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.10.0"
+        },
+        "team_name_cache_ttl": {
+          "default": "30",
+          "description": "Number of seconds a Dag's owning team (resolved from its bundle) is cached in memory before it\nis looked up again. The team is read on every Dag authorization check, including the grid\nendpoints which re-poll continuously, so caching it avoids repeated Team-table joins. A team\nreassignment takes up to this many seconds to take effect, and different API server workers may\nbriefly disagree during that window. Set to ``0`` to disable caching.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.3.0"
+        },
+        "test_connection": {
+          "default": "Disabled",
+          "description": "The ability to allow testing connections across Airflow UI, API and CLI.\nSupported options: ``Disabled``, ``Enabled``, ``Hidden``. Default: Disabled\nDisabled - Disables the test connection functionality and disables the Test Connection button in UI.\nEnabled - Enables the test connection functionality and shows the Test Connection button in UI.\nHidden - Disables the test connection functionality and hides the Test Connection button in UI.\nBefore setting this to Enabled, make sure that you review the users who are able to add/edit\nconnections and ensure they are trusted. Connection testing can be done maliciously leading to\nundesired and insecure outcomes.\nSee `Airflow Security Model: Capabilities of authenticated UI users\n<https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html#capabilities-of-authenticated-ui-users>`__\nfor more details.",
+          "type": "string",
+          "x-version-added": "2.7.0"
+        },
+        "unit_test_mode": {
+          "default": "False",
+          "description": "Turn unit test mode on (overwrites many configuration options with test\nvalues at runtime)",
+          "type": "string"
+        },
+        "xcom_backend": {
+          "default": "airflow.sdk.execution_time.xcom.BaseXCom",
+          "description": "Path to custom XCom class that will be used to store and resolve operators results",
+          "examples": [
+            "path.to.CustomXCom"
+          ],
+          "type": "string",
+          "x-version-added": "1.10.12"
+        }
+      },
+      "type": "object"
+    },
+    "dag_processor": {
+      "additionalProperties": false,
+      "description": "Configuration for the Airflow DAG processor. This includes, for example:\n  - DAG bundles, which allows Airflow to load DAGs from different sources\n  - Parsing configuration, like:\n     - how often to refresh DAGs from those sources\n     - how many files to parse concurrently",
+      "properties": {
+        "bundle_refresh_check_interval": {
+          "default": "5",
+          "description": "How often the DAG processor should check if any DAG bundles are ready for a refresh, either by hitting\nthe bundles refresh_interval or because another DAG processor has seen a newer version of the bundle.\nA low value means we check more frequently, and have a smaller window of time where DAG processors are\nout of sync with each other, parsing different versions of the same bundle.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ]
+        },
+        "dag_bundle_config_list": {
+          "default": "[\n      {\n        \"name\": \"dags-folder\",\n        \"classpath\": \"airflow.dag_processing.bundles.local.LocalDagBundle\",\n        \"kwargs\": {}\n      }\n    ]\n",
+          "description": "List of backend configs.  Must supply name, classpath, and kwargs for each backend.\n\nBy default, ``refresh_interval`` is set to ``[dag_processor] refresh_interval``, but that can\nalso be overridden in kwargs if desired.\n\nThe default is the dags folder dag bundle.\n\nNote: As shown below, you can split your json config over multiple lines by indenting.\nSee configparser documentation for an example:\nhttps://docs.python.org/3/library/configparser.html#supported-ini-file-structure.",
+          "examples": [
+            "[\n      {\n        \"name\": \"my-git-repo\",\n        \"classpath\": \"airflow.providers.git.bundles.git.GitDagBundle\",\n        \"kwargs\": {\n          \"subdir\": \"dags\",\n          \"tracking_ref\": \"main\",\n          \"refresh_interval\": 0\n        }\n      }\n    ]\n"
+          ],
+          "type": "string",
+          "x-version-added": "3.0.0"
+        },
+        "dag_bundle_storage_path": {
+          "description": "String path to folder where Airflow bundles can store files locally. Not templated.\nIf no path is provided, Airflow will use ``Path(tempfile.gettempdir()) / \"airflow\"``.\nThis path must be absolute.",
+          "examples": [
+            "/tmp/some-place"
+          ],
+          "type": "string",
+          "x-version-added": "3.0.0"
+        },
+        "dag_file_processor_timeout": {
+          "default": "50",
+          "description": "How long before timing out a DagFileProcessor, which processes a dag file",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ]
+        },
+        "dag_version_inflation_check_level": {
+          "default": "warning",
+          "description": "Controls the behavior of Dag stability checker performed before Dag parsing in the Dag processor.\nThe check detects detect potential issues such as runtime-varying values in Dag/Task constructors\nthat could cause Dag version inflation.\n\n* ``off``: Disables Dag stability checks entirely. No errors or warnings are generated.\n* ``warning``: Dags load normally but warnings are displayed in the UI when issues are detected.\n* ``error``: Treats Dag stability failures as Dag import errors, preventing the Dag from loading.\n\nDefault is \"warning\" to alert users of potential issues without blocking Dag execution.",
+          "type": "string",
+          "x-version-added": "3.2.0"
+        },
+        "disable_bundle_versioning": {
+          "default": "False",
+          "description": "Always run tasks with the latest code.  If set to True, the bundle version will not\nbe stored on the dag run and therefore, the latest code will always be used.\n\n.. note::\n\n  This setting only applies to bundles that support versioning and does not affect\n  DAG versions displayed in the UI.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ]
+        },
+        "file_parsing_sort_mode": {
+          "default": "modified_time",
+          "description": "One of ``modified_time``, ``random_seeded_by_host`` and ``alphabetical``.\nThe DAG processor will list and sort the dag files to decide the parsing order.\n\n* ``modified_time``: Sort by modified time of the files. This is useful on large scale to parse the\n  recently modified DAGs first.\n* ``random_seeded_by_host``: Sort randomly across multiple DAG processors but with same order on the\n  same host, allowing each processor to parse the files in a different order.\n* ``alphabetical``: Sort by filename",
+          "enum": [
+            "modified_time",
+            "random_seeded_by_host",
+            "alphabetical"
+          ],
+          "type": "string"
+        },
+        "health_check_threshold": {
+          "default": "30",
+          "description": "If the last dag processor heartbeat happened more than\n``[dag_processor] health_check_threshold`` ago (in seconds),\ndag processor is considered unhealthy.\nThis is used by the health check in the **/health** endpoint and in ``airflow jobs check``\nCLI for DagProcessorJob.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.2.0"
+        },
+        "max_callbacks_per_loop": {
+          "default": "20",
+          "description": "The maximum number of callbacks that are fetched during a single loop.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ]
+        },
+        "min_file_process_interval": {
+          "default": "30",
+          "description": "Number of seconds after which a DAG file is parsed. The DAG file is parsed every\n``[dag_processor] min_file_process_interval`` number of seconds. Updates to DAGs are reflected after\nthis interval. Keeping this number low will increase CPU usage.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ]
+        },
+        "parsing_pre_import_modules": {
+          "default": "True",
+          "description": "The dag_processor reads dag files to extract the airflow modules that are going to be used,\nand imports them ahead of time to avoid having to re-do it for each parsing process.\nThis flag can be set to ``False`` to disable this behavior in case an airflow module needs\nto be freshly imported each time (at the cost of increased DAG parsing time).",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.6.0"
+        },
+        "parsing_processes": {
+          "default": "2",
+          "description": "The DAG processor can run multiple processes in parallel to parse dags.\nThis defines how many processes will run.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ]
+        },
+        "print_stats_interval": {
+          "default": "30",
+          "description": "How often should DAG processor stats be printed to the logs. Setting to 0 will disable printing stats",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ]
+        },
+        "refresh_interval": {
+          "default": "300",
+          "description": "How often (in seconds) to refresh, or look for new files, in a DAG bundle.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ]
+        },
+        "stale_bundle_cleanup_age_threshold": {
+          "default": "21600",
+          "description": "Bundle versions used more recently than this threshold will not be removed.\nRecency of use is determined by when the task began running on the worker,\nthat age is compared with this setting, given as time delta in seconds.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ]
+        },
+        "stale_bundle_cleanup_interval": {
+          "default": "1800",
+          "description": "On shared workers, bundle copies accumulate in local storage as tasks run\nand version of the bundle changes.\nThis setting represents the delta in seconds between checks for these stale bundles.\nBundles which are older than `stale_bundle_cleanup_age_threshold` may be removed. But\nwe always keep `stale_bundle_cleanup_min_versions` versions locally.\nSet to 0 or negative to disable.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ]
+        },
+        "stale_bundle_cleanup_min_versions": {
+          "default": "10",
+          "description": "Minimum number of local bundle versions to retain on disk.\nLocal bundle versions older than `stale_bundle_cleanup_age_threshold` will\nonly be deleted we have more than `stale_bundle_cleanup_min_versions` versions\naccumulated on the worker.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ]
+        },
+        "stale_dag_threshold": {
+          "default": "50",
+          "description": "How long (in seconds) to wait after we have re-parsed a DAG file before deactivating stale\nDAGs (DAGs which are no longer present in the expected files). The reason why we need\nthis threshold is to account for the time between when the file is parsed and when the\nDAG is loaded. The absolute maximum that this could take is\n``[dag_processor] dag_file_processor_timeout``, but when you have a long timeout configured,\nit results in a significant delay in the deactivation of stale dags.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "database": {
+      "additionalProperties": false,
+      "properties": {
+        "alembic_ini_file_path": {
+          "default": "alembic.ini",
+          "description": "Path to the ``alembic.ini`` file. You can either provide the file path relative\nto the Airflow home directory or the absolute path if it is located elsewhere.",
+          "type": "string",
+          "x-version-added": "2.7.0"
+        },
+        "check_migrations": {
+          "default": "True",
+          "description": "Whether to run alembic migrations during Airflow start up. Sometimes this operation can be expensive,\nand the users can assert the correct version through other means (e.g. through a Helm chart).\nAccepts ``True`` or ``False``.",
+          "type": "string",
+          "x-version-added": "2.6.0"
+        },
+        "external_db_managers": {
+          "description": "Additional DB managers to include when migrating external tables in the Airflow\ndatabase, beyond those automatically discovered from installed providers.\nThe managers must inherit from BaseDBManager.",
+          "examples": [
+            "airflow.providers.fab.auth_manager.models.db.FABDBManager"
+          ],
+          "type": "string",
+          "x-version-added": "3.0.0"
+        },
+        "max_db_retries": {
+          "default": "3",
+          "description": "Number of times the code should be retried in case of DB Operational Errors.\nNot all transactions will be retried as it can cause undesired state.\nCurrently it is only used in ``DagFileProcessor.process_file`` to retry ``dagbag.sync_to_db``.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.3.0"
+        },
+        "migration_batch_size": {
+          "default": "10000",
+          "description": "The number of rows to process in each batch when performing a migration.\nThis is useful for large tables to avoid locking and failure due to query timeouts.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.0.0"
+        },
+        "sql_alchemy_conn": {
+          "default": "sqlite:///{AIRFLOW_HOME}/airflow.db",
+          "description": "The SQLAlchemy connection string to the metadata database.\nSQLAlchemy supports many different database engines.\nSee: `Set up a Database Backend: Database URI\n<https://airflow.apache.org/docs/apache-airflow/stable/howto/set-up-database.html#database-uri>`__\nfor more details.",
+          "type": "string",
+          "writeOnly": true,
+          "x-version-added": "2.3.0"
+        },
+        "sql_alchemy_conn_async": {
+          "description": "The SQLAlchemy connection string to the metadata database used for async connections.\nIf this is not set, Airflow automatically derives a string by converting ``sql_alchemy_conn``.\nUnfortunately, this conversion logic does not always work due to various incompatibilities\nbetween sync and async db driver implementations. This sets the connection string directly\nwithout any conversion instead.",
+          "examples": [
+            "postgresql+asyncpg://postgres:airflow@postgres/airflow"
+          ],
+          "type": "string",
+          "writeOnly": true,
+          "x-version-added": "3.1.0"
+        },
+        "sql_alchemy_connect_args": {
+          "description": "Import path for connect args in SQLAlchemy. Defaults to an empty dict.\nThis is useful when you want to configure db engine args that SQLAlchemy won't parse\nin connection string. This can be set by passing a dictionary containing the create engine parameters.\nFor more details about passing create engine parameters (keepalives variables, timeout etc)\nin Postgres DB Backend see `Setting up a PostgreSQL Database\n<https://airflow.apache.org/docs/apache-airflow/stable/howto/set-up-database.html#setting-up-a-postgresql-database>`__\ne.g ``connect_args={\"timeout\":30}`` can be defined in ``airflow_local_settings.py`` and\ncan be imported as shown below\n\n*Changed in 3.1.0*: This configuration is only applied to synchronous engines, such as psycopg2.\nSee ``sql_alchemy_connect_args_async``.",
+          "examples": [
+            "airflow_local_settings.connect_args"
+          ],
+          "type": "string",
+          "x-version-added": "2.3.0"
+        },
+        "sql_alchemy_connect_args_async": {
+          "description": "Import path for connect args in SQLAlchemy. Defaults to an empty dict.\nThis is similar to ``sql_alchemy_connect_args``, but only for async connections.\n\nThis configuration is only applied to async engines, such as asyncpg.",
+          "examples": [
+            "airflow_local_settings.connect_args_async"
+          ],
+          "type": "string",
+          "x-version-added": "3.1.0"
+        },
+        "sql_alchemy_engine_args": {
+          "description": "Extra engine specific keyword args passed to SQLAlchemy's create_engine, as a JSON-encoded value",
+          "examples": [
+            "{\"arg1\": true}"
+          ],
+          "type": "string",
+          "writeOnly": true,
+          "x-version-added": "2.3.0"
+        },
+        "sql_alchemy_max_overflow": {
+          "default": "10",
+          "description": "The maximum overflow size of the pool.\nWhen the number of checked-out connections reaches the size set in pool_size,\nadditional connections will be returned up to this limit.\nWhen those additional connections are returned to the pool, they are disconnected and discarded.\nIt follows then that the total number of simultaneous connections the pool will allow\nis **pool_size** + **max_overflow**,\nand the total number of \"sleeping\" connections the pool will allow is pool_size.\nmax_overflow can be set to ``-1`` to indicate no overflow limit;\nno limit will be placed on the total number of concurrent connections. Defaults to ``10``.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.3.0"
+        },
+        "sql_alchemy_pool_enabled": {
+          "default": "True",
+          "description": "If SQLAlchemy should pool database connections.",
+          "type": "string",
+          "x-version-added": "2.3.0"
+        },
+        "sql_alchemy_pool_pre_ping": {
+          "default": "True",
+          "description": "Check connection at the start of each connection pool checkout.\nTypically, this is a simple statement like \"SELECT 1\".\nSee `SQLAlchemy Pooling: Disconnect Handling - Pessimistic\n<https://docs.sqlalchemy.org/en/20/core/pooling.html#disconnect-handling-pessimistic>`__\nfor more details.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.3.0"
+        },
+        "sql_alchemy_pool_recycle": {
+          "default": "1800",
+          "description": "The SQLAlchemy pool recycle is the number of seconds a connection\ncan be idle in the pool before it is invalidated. This config does\nnot apply to sqlite. If the number of DB connections is ever exceeded,\na lower config value will allow the system to recover faster.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.3.0"
+        },
+        "sql_alchemy_pool_size": {
+          "default": "5",
+          "description": "The SQLAlchemy pool size is the maximum number of database connections\nin the pool. 0 indicates no limit.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.3.0"
+        },
+        "sql_alchemy_schema": {
+          "default": "",
+          "description": "The schema to use for the metadata database.\nSQLAlchemy supports databases with the concept of multiple schemas.",
+          "type": "string",
+          "x-version-added": "2.3.0"
+        },
+        "sql_alchemy_session_maker": {
+          "description": "Important Warning: Use of sql_alchemy_session_maker Highly Discouraged\nImport path for function which returns 'sqlalchemy.orm.sessionmaker'.\nImproper configuration of sql_alchemy_session_maker can lead to serious issues,\nincluding data corruption, unrecoverable application crashes. Please review the SQLAlchemy\ndocumentation for detailed guidance on proper configuration and best practices.",
+          "examples": [
+            "airflow_local_settings._sessionmaker"
+          ],
+          "type": "string",
+          "x-version-added": "2.10.0"
+        },
+        "sql_engine_collation_for_ids": {
+          "description": "Collation for ``dag_id``, ``task_id``, ``key``, ``external_executor_id`` columns\nin case they have different encoding.\nBy default this collation is the same as the database collation, however for ``mysql`` and ``mariadb``\nthe default is ``utf8mb3_bin`` so that the index sizes of our index keys will not exceed\nthe maximum size of allowed index when collation is set to ``utf8mb4`` variant, see\n`GitHub Issue Comment <https://github.com/apache/airflow/pull/17603#issuecomment-901121618>`__\nfor more details.",
+          "type": "string",
+          "x-version-added": "2.3.0"
+        },
+        "sql_engine_encoding": {
+          "default": "utf-8",
+          "description": "The encoding for the databases",
+          "type": "string",
+          "x-version-added": "2.3.0"
+        }
+      },
+      "type": "object"
+    },
+    "email": {
+      "additionalProperties": false,
+      "description": "Configuration email backend and whether to\nsend email alerts on retry or failure",
+      "properties": {
+        "default_email_on_failure": {
+          "default": "True",
+          "description": "Whether email alerts should be sent when a task failed",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.0.0"
+        },
+        "default_email_on_retry": {
+          "default": "True",
+          "description": "Whether email alerts should be sent when a task is retried",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.0.0"
+        },
+        "email_backend": {
+          "default": "airflow.utils.email.send_email_smtp",
+          "description": "Email backend to use",
+          "type": "string"
+        },
+        "email_conn_id": {
+          "default": "smtp_default",
+          "description": "Email connection to use",
+          "type": "string",
+          "x-version-added": "2.1.0"
+        },
+        "from_email": {
+          "description": "Email address that will be used as sender address.\nIt can either be raw email or the complete address in a format ``Sender Name <sender@email.com>``",
+          "examples": [
+            "Airflow <airflow@example.com>"
+          ],
+          "type": "string",
+          "x-version-added": "2.2.4"
+        },
+        "html_content_template": {
+          "description": "File that will be used as the template for Email content (which will be rendered using Jinja2).\nIf not set, Airflow uses a base template.",
+          "examples": [
+            "/path/to/my_html_content_template_file"
+          ],
+          "type": "string",
+          "x-version-added": "2.0.1"
+        },
+        "ssl_context": {
+          "default": "default",
+          "description": "ssl context to use when using SMTP and IMAP SSL connections. By default, the context is \"default\"\nwhich sets it to ``ssl.create_default_context()`` which provides the right balance between\ncompatibility and security, it however requires that certificates in your operating system are\nupdated and that SMTP/IMAP servers of yours have valid certificates that have corresponding public\nkeys installed on your machines. You can switch it to \"none\" if you want to disable checking\nof the certificates, but it is not recommended as it allows MITM (man-in-the-middle) attacks\nif your infrastructure is not sufficiently secured. It should only be set temporarily while you\nare fixing your certificate configuration. This can be typically done by upgrading to newer\nversion of the operating system you run Airflow components on,by upgrading/refreshing proper\ncertificates in the OS or by updating certificates for your mail servers.",
+          "examples": [
+            "default"
+          ],
+          "type": "string",
+          "x-version-added": "2.7.0"
+        },
+        "subject_template": {
+          "description": "File that will be used as the template for Email subject (which will be rendered using Jinja2).\nIf not set, Airflow uses a base template.",
+          "examples": [
+            "/path/to/my_subject_template_file"
+          ],
+          "type": "string",
+          "x-version-added": "2.0.1"
+        }
+      },
+      "type": "object"
+    },
+    "execution_api": {
+      "additionalProperties": false,
+      "description": "Settings related to the Execution API server.\n\nThe ExecutionAPI also uses a lot of settings from the :ref:`config:api_auth` section.",
+      "properties": {
+        "jwt_audience": {
+          "default": "urn:airflow.apache.org:task",
+          "description": "The audience claim to use when generating and validating JWTs for the Execution API.\n\nThis variable can be a single value, or a comma-separated string, in which case the first value is the\none that will be used when generating, and the others are accepted at validation time.\n\nNot required, but strongly encouraged\n\nSee also :ref:`config:api_auth__jwt_audience`",
+          "type": "string",
+          "x-version-added": "3.0.0"
+        },
+        "jwt_expiration_time": {
+          "default": "600",
+          "description": "Number in seconds until the JWT used for authentication expires. When the token expires,\nall API calls using this token will fail on authentication.\n\nMake sure that time on ALL the machines that you run airflow components on is synchronized\n(for example using ntpd) otherwise you might get \"forbidden\" errors.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.0.0"
+        },
+        "otel_trace_propagation": {
+          "default": "only-authenticated",
+          "description": "Controls when W3C trace context (``traceparent``/``tracestate``) is extracted from\nincoming Execution API requests and attached to the OpenTelemetry context.\n\n``only-authenticated`` (default): trace context is extracted as a FastAPI dependency\non authenticated routes, after JWT verification succeeds. Unauthenticated requests\n(including probes and attack traffic) cannot inject trace context.\n\n``unsafe-always``: trace context is extracted on all routes (including unauthenticated ones\nsuch as health checks), before JWT verification. Use this when you want trace context\npropagated even on auth failures. If untrusted traffic can reach your API server this can\nresult in data pollution or load/cost in your OTel trace store.\n\n``never``: trace context is never extracted. Use this to disable the feature entirely.",
+          "type": "string",
+          "x-version-added": "3.3.0"
+        }
+      },
+      "type": "object"
+    },
+    "kerberos": {
+      "additionalProperties": false,
+      "properties": {
+        "ccache": {
+          "default": "/tmp/airflow_krb5_ccache",
+          "description": "Location of your ccache file once kinit has been performed.",
+          "type": "string"
+        },
+        "forwardable": {
+          "default": "True",
+          "description": "Allow to disable ticket forwardability.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.2.0"
+        },
+        "include_ip": {
+          "default": "True",
+          "description": "Allow to remove source IP from token, useful when using token behind NATted Docker host.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.2.0"
+        },
+        "include_renewal_lifetime": {
+          "default": "True",
+          "description": "Whether to include the renewable lifetime option (`-r`) in the `kinit` command.\nThis is enabled by default for MIT Kerberos, but can be disabled (set to False)\nif using a Kerberos implementation that doesn't support this flag, such as `Heimdal`.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.4.0"
+        },
+        "keytab": {
+          "default": "airflow.keytab",
+          "description": "Designates the path to the Kerberos keytab file for the Airflow user",
+          "type": "string"
+        },
+        "kinit_path": {
+          "default": "kinit",
+          "description": "Path to the kinit executable",
+          "type": "string"
+        },
+        "principal": {
+          "default": "airflow",
+          "description": "gets augmented with fqdn",
+          "type": "string"
+        },
+        "reinit_frequency": {
+          "default": "3600",
+          "description": "Determines the frequency at which initialization or re-initialization processes occur.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "lineage": {
+      "additionalProperties": false,
+      "properties": {
+        "max_assets_per_collector": {
+          "default": "100",
+          "description": "Maximum number of asset inputs or outputs that can be collected by a single hook lineage collector\ninstance. Input assets and output assets are counted separately. Once the maximum is reached, any\nadditional assets will be dropped.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.2.0"
+        },
+        "max_extras_per_collector": {
+          "default": "200",
+          "description": "Maximum number of extra metadata entries that can be collected by a single hook lineage collector\ninstance. Once the maximum is reached, any additional extra metadata will be dropped.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.2.0"
+        }
+      },
+      "type": "object"
+    },
+    "logging": {
+      "additionalProperties": false,
+      "properties": {
+        "base_log_folder": {
+          "default": "{AIRFLOW_HOME}/logs",
+          "description": "The folder where airflow should store its log files.\nThis path must be absolute.\nThere are a few existing configurations that assume this is set to the default.\nIf you choose to override this you may need to update the\n``[logging] dag_processor_manager_log_location`` and\n``[logging] dag_processor_child_process_log_directory settings`` as well.",
+          "type": "string",
+          "x-version-added": "2.0.0"
+        },
+        "callsite_parameters": {
+          "default": "filename,lineno",
+          "description": "A comma separated list of information about the callsite (such as line number of filename etc) of\nlogger calls to include in each message.\n\nSee :class:`structlog.processors.CallsiteParameter` for the possible values.The values should be the\nconstant names (``FUNC_NAME``) or the values (``func_name``)\n\nIncluding these in a log message adds a lot to the usability to the logs, but collecting these has a\n(tiny) cost -- if you are super concerned with eking out every last ounce of performance you could\nturn these off (by setting this value to an empty string)",
+          "type": "string",
+          "x-version-added": "3.1.0"
+        },
+        "celery_logging_level": {
+          "default": "",
+          "description": "Logging level for celery. If not set, it uses the value of logging_level\n\nSupported values: ``CRITICAL``, ``ERROR``, ``WARNING``, ``INFO``, ``DEBUG``.",
+          "enum": [
+            "CRITICAL",
+            "FATAL",
+            "ERROR",
+            "WARN",
+            "WARNING",
+            "INFO",
+            "DEBUG",
+            ""
+          ],
+          "type": "string",
+          "x-version-added": "2.3.0"
+        },
+        "celery_stdout_stderr_separation": {
+          "default": "False",
+          "description": "By default Celery sends all logs into stderr.\nIf enabled any previous logging handlers will get *removed*.\nWith this option AirFlow will create new handlers\nand send low level logs like INFO and WARNING to stdout,\nwhile sending higher severity logs to stderr.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.7.0"
+        },
+        "color_log_error_keywords": {
+          "default": "error,exception",
+          "description": "A comma separated list of keywords related to errors whose presence should display the line in red\ncolor in UI",
+          "type": "string",
+          "x-version-added": "2.10.0"
+        },
+        "color_log_warning_keywords": {
+          "default": "warn",
+          "description": "A comma separated list of keywords related to warning whose presence should display the line in yellow\ncolor in UI",
+          "type": "string",
+          "x-version-added": "2.10.0"
+        },
+        "colored_console_log": {
+          "default": "True",
+          "description": "Flag to enable/disable Colored logs in Console\nColour the logs when the controlling terminal is a TTY.",
+          "type": "string",
+          "x-version-added": "2.0.0"
+        },
+        "dag_processor_child_process_log_directory": {
+          "default": "{AIRFLOW_HOME}/logs/dag_processor",
+          "description": "Determines the directory where logs for the child processes of the dag processor will be stored",
+          "type": "string"
+        },
+        "dag_processor_log_format": {
+          "default": "[%%(asctime)s] [SOURCE:DAG_PROCESSOR] {%%(filename)s:%%(lineno)d} %%(levelname)s - %%(message)s",
+          "description": "Format of Dag Processor Log line",
+          "type": "string",
+          "x-version-added": "2.4.0"
+        },
+        "dag_processor_log_target": {
+          "default": "file",
+          "description": "Where to send dag parser logs. If \"file\", logs are sent to log files defined by child_process_log_directory.",
+          "enum": [
+            "file",
+            "stdout"
+          ],
+          "type": "string",
+          "x-version-added": "2.4.0"
+        },
+        "delete_local_logs": {
+          "default": "False",
+          "description": "Whether the local log files for GCS, S3, WASB, HDFS and OSS remote logging should be deleted after\nthey are uploaded to the remote location.",
+          "type": "string",
+          "x-version-added": "2.6.0"
+        },
+        "encrypt_s3_logs": {
+          "default": "False",
+          "description": "Use server-side encryption for logs stored in S3",
+          "type": "string",
+          "x-version-added": "2.0.0"
+        },
+        "extra_logger_names": {
+          "default": "",
+          "description": "A comma\\-separated list of third-party logger names that will be configured to print messages to\nconsoles\\.",
+          "examples": [
+            "fastapi,sqlalchemy"
+          ],
+          "type": "string",
+          "x-version-added": "2.0.0"
+        },
+        "fab_logging_level": {
+          "default": "WARNING",
+          "description": "Logging level for Flask-appbuilder UI.\n\nSupported values: ``CRITICAL``, ``ERROR``, ``WARNING``, ``INFO``, ``DEBUG``.",
+          "enum": [
+            "CRITICAL",
+            "FATAL",
+            "ERROR",
+            "WARN",
+            "WARNING",
+            "INFO",
+            "DEBUG"
+          ],
+          "type": "string",
+          "x-version-added": "2.0.0"
+        },
+        "file_task_handler_new_file_permissions": {
+          "default": "0o664",
+          "description": "Permissions in the form or of octal string as understood by chmod. The permissions are important\nwhen you use impersonation, when logs are written by a different user than airflow. The most secure\nway of configuring it in this case is to add both users to the same group and make it the default\ngroup of both users. Group-writeable logs are default in airflow, but you might decide that you are\nOK with having the logs other-writeable, in which case you should set it to ``0o666``. You might\ndecide to add more security if you do not use impersonation and change it to ``0o644`` to make it\nonly owner-writeable. You can also make it just readable only for owner by changing it to ``0o600``\nif all the access (read/write) for your logs happens from the same user.",
+          "examples": [
+            "0o664"
+          ],
+          "type": "string",
+          "x-version-added": "2.6.0"
+        },
+        "file_task_handler_new_folder_permissions": {
+          "default": "0o775",
+          "description": "Permissions in the form or of octal string as understood by chmod. The permissions are important\nwhen you use impersonation, when logs are written by a different user than airflow. The most secure\nway of configuring it in this case is to add both users to the same group and make it the default\ngroup of both users. Group-writeable logs are default in airflow, but you might decide that you are\nOK with having the logs other-writeable, in which case you should set it to ``0o777``. You might\ndecide to add more security if you do not use impersonation and change it to ``0o755`` to make it\nonly owner-writeable. You can also make it just readable only for owner by changing it to ``0o700``\nif all the access (read/write) for your logs happens from the same user.",
+          "examples": [
+            "0o775"
+          ],
+          "type": "string",
+          "x-version-added": "2.6.0"
+        },
+        "google_key_path": {
+          "default": "",
+          "description": "Path to Google Credential JSON file. If omitted, authorization based on `the Application Default\nCredentials\n<https://cloud.google.com/docs/authentication/application-default-credentials>`__ will\nbe used.",
+          "type": "string",
+          "x-version-added": "2.0.0"
+        },
+        "interleave_timestamp_parser": {
+          "description": "We must parse timestamps to interleave logs between trigger and task.  To do so,\nwe need to parse timestamps in log files. In case your log format is non-standard,\nyou may provide import path to callable which takes a string log line and returns\nthe timestamp (datetime.datetime compatible).",
+          "examples": [
+            "path.to.my_func"
+          ],
+          "type": "string",
+          "x-version-added": "2.6.0"
+        },
+        "json_logs": {
+          "default": "False",
+          "description": "Enable JSON-structured logging for all output. When ``True``, every log line emitted by\nthe process is a single-line JSON object (including HTTP access logs from the API server).\nRecommended for production / cloud-native deployments where logs are collected by a log\naggregator.",
+          "examples": [
+            "True"
+          ],
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.2.0"
+        },
+        "log_filename_template": {
+          "default": "dag_id={ ti.dag_id }/run_id={ ti.run_id }/task_id={ ti.task_id }/{%% if ti.map_index >= 0 %%}map_index={ ti.map_index }/{%% endif %%}attempt={ try_number|default(ti.try_number) }.log",
+          "description": "Formatting for how airflow generates file names/paths for each task run.",
+          "type": "string",
+          "x-version-added": "2.0.0"
+        },
+        "log_format": {
+          "default": "",
+          "description": "Format of Log line\n\n*Changed in 3.1.0*: This can now contain color escape sequences ``%(blue)s`` etc which will only\nresult in colours if :ref:`config:logging__colored_console_log` is true.",
+          "examples": [
+            "[%%(asctime)s] {%%(filename)s:%%(lineno)d} %%(levelname)s - %%(message)s"
+          ],
+          "type": "string",
+          "x-version-added": "2.0.0"
+        },
+        "log_formatter_class": {
+          "default": "airflow.utils.log.timezone_aware.TimezoneAware",
+          "description": "Determines the formatter class used by Airflow for structuring its log messages\nThe default formatter class is timezone-aware, which means that timestamps attached to log entries\nwill be adjusted to reflect the local timezone of the Airflow instance.\nNote: This setting does NOT affect component logs (scheduler, api-server, triggerer, etc.) since\nthose use structlog directly. Use ``log_timestamp_format`` to control timestamps for those logs.",
+          "type": "string",
+          "x-version-added": "2.3.4"
+        },
+        "log_timestamp_format": {
+          "default": "iso",
+          "description": "Timestamp format for component logs (scheduler, api-server, triggerer, etc.).\nUse ``iso`` for ISO 8601 format (default), or a Python strftime format string\nsuch as ``%Y-%m-%d %H:%M:%S``.\nNote: This setting only applies to component logs rendered via structlog.\nTask/DAG logs use ``log_format`` instead.",
+          "examples": [
+            "%Y-%m-%d %H:%M:%S"
+          ],
+          "type": "string",
+          "x-version-added": "3.0.4"
+        },
+        "logging_config_class": {
+          "default": "",
+          "description": "Dotted import path to a ``logging.config.dictConfig`` dict. The\n``_class`` suffix is historical \u2014 the target is a dict, not a class.\n\nAirflow also reads two optional module-level attributes from the\nenclosing module: ``REMOTE_TASK_LOG`` and ``DEFAULT_REMOTE_CONN_ID``,\nused to drive remote task-log read-back. See :ref:`write-logs-advanced`.",
+          "examples": [
+            "my.path.default_local_settings.LOGGING_CONFIG"
+          ],
+          "type": "string",
+          "x-version-added": "2.0.0"
+        },
+        "logging_level": {
+          "default": "INFO",
+          "description": "Logging level.\n\nIndividual loggers can be set at a different level with the :ref:`config:logging__namespace_levels`\noption.\n\nSupported values: ``CRITICAL``, ``ERROR``, ``WARNING``, ``INFO``, ``DEBUG``.",
+          "enum": [
+            "CRITICAL",
+            "FATAL",
+            "ERROR",
+            "WARN",
+            "WARNING",
+            "INFO",
+            "DEBUG"
+          ],
+          "type": "string",
+          "x-version-added": "2.0.0"
+        },
+        "min_length_masked_secret": {
+          "default": "5",
+          "description": "The minimum length of a secret to be masked in log messages.\nSecrets shorter than this length will not be masked.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.0.0"
+        },
+        "namespace_levels": {
+          "description": "Set the log level for individual named loggers.\n\nA very common convention in Python is to use the module name as the name of the logger from which log\nmessages originate. This config option gives us the ability to set log levels for those loggers\neasily.\n\nThe format of this variable is a series of ``<logger>=<level>`` pairs, separated by whitespace or\ncommas.\n\nEach level is one of the possible values to ``logging_level``.\n\nThe logger names are viewable in task logs (as the \"source\" attribute), or in server components by\nincluding ``%(name)s`` in your format string, or in the between ``[]`` after the message in the\ndefault format.",
+          "examples": [
+            "sqlalchemy=INFO sqlalchemy.engine=DEBUG, botocor"
+          ],
+          "type": "string",
+          "x-version-added": "3.2.0"
+        },
+        "remote_base_log_folder": {
+          "default": "",
+          "description": "Storage bucket URL for remote logging\nS3 buckets should start with **s3://**\nCloudwatch log groups should start with **cloudwatch://**\nGCS buckets should start with **gs://**\nWASB buckets should start with **wasb** just to help Airflow select correct handler\nStackdriver logs should start with **stackdriver://**",
+          "type": "string",
+          "x-version-added": "2.0.0"
+        },
+        "remote_log_conn_id": {
+          "default": "",
+          "description": "Users must supply an Airflow connection id that provides access to the storage\nlocation. Depending on your remote logging service, this may only be used for\nreading logs, not writing them.",
+          "type": "string",
+          "x-version-added": "2.0.0"
+        },
+        "remote_logging": {
+          "default": "False",
+          "description": "Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.\nSet this to ``True`` if you want to enable remote logging.",
+          "type": "string",
+          "x-version-added": "2.0.0"
+        },
+        "remote_task_handler_kwargs": {
+          "default": "",
+          "description": "The remote_task_handler_kwargs param is loaded into a dictionary and passed to the ``__init__``\nof remote task handler and it overrides the values provided by Airflow config. For example if you set\n``delete_local_logs=False`` and you provide ``{\"delete_local_copy\": true}``, then the local\nlog files will be deleted after they are uploaded to remote location.",
+          "examples": [
+            "{\"delete_local_copy\": true}"
+          ],
+          "type": "string",
+          "writeOnly": true,
+          "x-version-added": "2.6.0"
+        },
+        "secret_mask_adapter": {
+          "default": "",
+          "description": "An import path to a function to add adaptations of each secret added with\n``airflow.sdk.execution_time.secrets_masker.mask_secret`` to be masked in log messages.\nThe given function is expected to require a single parameter: the secret to be adapted.\nIt may return a single adaptation of the secret or an iterable of adaptations to each be\nmasked as secrets. The original secret will be masked as well as any adaptations returned.",
+          "examples": [
+            "urllib.parse.quote"
+          ],
+          "type": "string",
+          "x-version-added": "2.6.0"
+        },
+        "simple_log_format": {
+          "default": "%%(asctime)s %%(levelname)s - %%(message)s",
+          "description": "Defines the format of log messages for simple logging configuration",
+          "type": "string",
+          "x-version-added": "2.0.0"
+        },
+        "task_log_prefix_template": {
+          "default": "",
+          "description": "Specify prefix pattern like mentioned below with stream handler ``TaskHandlerWithCustomFormatter``",
+          "examples": [
+            "{ti.dag_id}-{ti.task_id}-{logical_date}-{ti.try_number}"
+          ],
+          "type": "string",
+          "x-version-added": "2.0.0"
+        },
+        "task_log_reader": {
+          "default": "task",
+          "description": "Name of handler to read task instance logs.\nDefaults to use ``task`` handler.",
+          "type": "string",
+          "x-version-added": "2.0.0"
+        },
+        "trigger_log_server_port": {
+          "default": "8794",
+          "description": "Port to serve logs from for triggerer.\nSee ``[logging] worker_log_server_port`` description for more info.",
+          "type": "string",
+          "x-version-added": "2.6.0"
+        },
+        "uvicorn_logging_level": {
+          "default": "INFO",
+          "description": "Logging level for uvicorn (API server and serve-logs).\n\nSupported values: ``CRITICAL``, ``ERROR``, ``WARNING``, ``INFO``, ``DEBUG``.",
+          "enum": [
+            "CRITICAL",
+            "FATAL",
+            "ERROR",
+            "WARN",
+            "WARNING",
+            "INFO",
+            "DEBUG"
+          ],
+          "type": "string",
+          "x-version-added": "3.2.0"
+        },
+        "worker_log_server_port": {
+          "default": "8793",
+          "description": "When you start an Airflow worker, Airflow starts a tiny web server\nsubprocess to serve the workers local log files to the airflow main\nweb server, who then builds pages and sends them to users. This defines\nthe port on which the logs are served. It needs to be unused, and open\nvisible from the main web server to connect into the workers.",
+          "type": "string",
+          "x-version-added": "2.2.0"
+        }
+      },
+      "type": "object"
+    },
+    "metrics": {
+      "additionalProperties": false,
+      "description": "`StatsD <https://github.com/statsd/statsd>`__ integration settings.",
+      "properties": {
+        "dag_tags_in_metrics": {
+          "default": "False",
+          "description": "Set to ``True`` to include Dag tags as metric tags on all Dag-run and task-instance metrics.\nTags that contain a colon (e.g. ``env:prod``) are split into a key/value pair. Plain tags\n(e.g. ``production``) are emitted as standalone DogStatsd tags, or as ``tag=true`` in InfluxDB\nline-protocol format. Disabled by default to avoid unexpected cardinality increases, since Dag\ntags are free-form, user-defined strings.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.4.0"
+        },
+        "legacy_names_on": {
+          "default": "True",
+          "description": "If true, it exports both new and legacy metric names.\nLegacy names contain variables such as dag_id and task_id,\nwhile the new names set these variables inside tags.",
+          "type": "string",
+          "x-version-added": "3.2.0"
+        },
+        "metrics_allow_list": {
+          "default": "",
+          "description": "Configure an allow list (comma separated regex patterns to match) to send only certain metrics.",
+          "examples": [
+            "\"scheduler,executor,dagrun,pool,triggerer,celery\" or \"^scheduler,^executor,heartbeat|timeout\""
+          ],
+          "type": "string",
+          "x-version-added": "2.6.0"
+        },
+        "metrics_block_list": {
+          "default": "",
+          "description": "Configure a block list (comma separated regex patterns to match) to block certain metrics\nfrom being emitted.\nIf ``[metrics] metrics_allow_list`` and ``[metrics] metrics_block_list`` are both configured,\n``[metrics] metrics_block_list`` is ignored.",
+          "examples": [
+            "\"scheduler,executor,dagrun,pool,triggerer,celery\" or \"^scheduler,^executor,heartbeat|timeout\""
+          ],
+          "type": "string",
+          "x-version-added": "2.6.0"
+        },
+        "otel_debugging_on": {
+          "default": "False",
+          "deprecated": true,
+          "description": "If ``True``, all metrics are also emitted to the console. Defaults to ``False``.\n\nDeprecated: According to the OpenTelemetry specification, configuration is expected to happen through\nthe standard OpenTelemetry environment variables rather than project-specific settings.\n\nThis option has been deprecated to ensure consistent behavior across different environments\nand deployments that use OpenTelemetry.\n\nOpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables\nsuch as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.7.0"
+        },
+        "otel_host": {
+          "default": "localhost",
+          "deprecated": true,
+          "description": "Specifies the hostname or IP address of the OpenTelemetry Collector to which Airflow sends\nmetrics and traces.\n\nDeprecated: According to the OpenTelemetry specification, configuration is expected to happen through\nthe standard OpenTelemetry environment variables rather than project-specific settings.\n\nThis option has been deprecated to ensure consistent behavior across different environments\nand deployments that use OpenTelemetry.\n\nOpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables\nsuch as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.",
+          "type": "string",
+          "x-version-added": "2.6.0"
+        },
+        "otel_interval_milliseconds": {
+          "default": "60000",
+          "deprecated": true,
+          "description": "Defines the interval, in milliseconds, at which Airflow sends batches of metrics and traces\nto the configured OpenTelemetry Collector.\n\nDeprecated: According to the OpenTelemetry specification, configuration is expected to happen through\nthe standard OpenTelemetry environment variables rather than project-specific settings.\n\nThis option has been deprecated to ensure consistent behavior across different environments\nand deployments that use OpenTelemetry.\n\nOpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables\nsuch as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.6.0"
+        },
+        "otel_on": {
+          "default": "False",
+          "description": "Enables sending metrics to OpenTelemetry.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.6.0"
+        },
+        "otel_port": {
+          "default": "8889",
+          "deprecated": true,
+          "description": "Specifies the port of the OpenTelemetry Collector that is listening to.\n\nDeprecated: According to the OpenTelemetry specification, configuration is expected to happen through\nthe standard OpenTelemetry environment variables rather than project-specific settings.\n\nThis option has been deprecated to ensure consistent behavior across different environments\nand deployments that use OpenTelemetry.\n\nOpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables\nsuch as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.6.0"
+        },
+        "otel_prefix": {
+          "default": "airflow",
+          "description": "The prefix for the Airflow metrics.",
+          "type": "string",
+          "x-version-added": "2.6.0"
+        },
+        "otel_service": {
+          "default": "Airflow",
+          "deprecated": true,
+          "description": "The default service name of traces.\n\nDeprecated: According to the OpenTelemetry specification, configuration is expected to happen through\nthe standard OpenTelemetry environment variables rather than project-specific settings.\n\nThis option has been deprecated to ensure consistent behavior across different environments\nand deployments that use OpenTelemetry.\n\nOpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables\nsuch as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.",
+          "type": "string",
+          "x-version-added": "2.10.3"
+        },
+        "otel_ssl_active": {
+          "default": "False",
+          "deprecated": true,
+          "description": "If ``True``, SSL will be enabled. Defaults to ``False``.\nTo establish an HTTPS connection to the OpenTelemetry collector,\nyou need to configure the SSL certificate and key within the OpenTelemetry collector's\n``config.yml`` file.\n\nDeprecated: According to the OpenTelemetry specification, configuration is expected to happen through\nthe standard OpenTelemetry environment variables rather than project-specific settings.\n\nThis option has been deprecated to ensure consistent behavior across different environments\nand deployments that use OpenTelemetry.\n\nOpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables\nsuch as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.7.0"
+        },
+        "stat_name_handler": {
+          "default": "",
+          "description": "A function that validate the StatsD stat name, apply changes to the stat name if necessary and return\nthe transformed stat name.\n\nThe function should have the following signature\n\n.. code-block:: python\n\n    def func_name(stat_name: str) -> str: ...",
+          "type": "string",
+          "x-version-added": "2.0.0"
+        },
+        "statsd_custom_client_path": {
+          "description": "If you want to utilise your own custom StatsD client set the relevant\nmodule path below.\nNote: The module path must exist on your\n`PYTHONPATH <https://docs.python.org/3/using/cmdline.html#envvar-PYTHONPATH>`\nfor Airflow to pick it up",
+          "type": "string",
+          "x-version-added": "2.0.0"
+        },
+        "statsd_datadog_enabled": {
+          "default": "False",
+          "description": "To enable datadog integration to send airflow metrics.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.0.0"
+        },
+        "statsd_datadog_metrics_tags": {
+          "default": "True",
+          "description": "Set to ``False`` to disable metadata tags for some of the emitted metrics",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.6.0"
+        },
+        "statsd_datadog_tags": {
+          "default": "",
+          "description": "List of datadog tags attached to all metrics(e.g: ``key1:value1,key2:value2``)",
+          "type": "string",
+          "x-version-added": "2.0.0"
+        },
+        "statsd_disabled_tags": {
+          "default": "job_id,run_id",
+          "description": "If you want to avoid sending all the available metrics tags to StatsD,\nyou can configure a block list of prefixes (comma separated) to filter out metric tags\nthat start with the elements of the list (e.g: ``job_id,run_id``)",
+          "examples": [
+            "job_id,run_id,dag_id,task_id"
+          ],
+          "type": "string",
+          "x-version-added": "2.6.0"
+        },
+        "statsd_host": {
+          "default": "localhost",
+          "description": "Specifies the host address where the StatsD daemon (or server) is running",
+          "type": "string",
+          "x-version-added": "2.0.0"
+        },
+        "statsd_influxdb_enabled": {
+          "default": "False",
+          "description": "To enable sending Airflow metrics with StatsD-Influxdb tagging convention.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.6.0"
+        },
+        "statsd_ipv6": {
+          "default": "False",
+          "description": "Enables the statsd host to be resolved into IPv6 address",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.0.0"
+        },
+        "statsd_on": {
+          "default": "False",
+          "description": "Enables sending metrics to StatsD.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.0.0"
+        },
+        "statsd_port": {
+          "default": "8125",
+          "description": "Specifies the port on which the StatsD daemon (or server) is listening to",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.0.0"
+        },
+        "statsd_prefix": {
+          "default": "airflow",
+          "description": "Defines the namespace for all metrics sent from Airflow to StatsD",
+          "type": "string",
+          "x-version-added": "2.0.0"
+        }
+      },
+      "type": "object"
+    },
+    "operators": {
+      "additionalProperties": false,
+      "properties": {
+        "default_cpus": {
+          "default": "1",
+          "description": "Indicates the default number of CPU units allocated to each operator when no specific CPU request\nis specified in the operator's configuration",
+          "type": "string"
+        },
+        "default_deferrable": {
+          "default": "false",
+          "description": "The default value of attribute \"deferrable\" in operators and sensors.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.7.0"
+        },
+        "default_disk": {
+          "default": "512",
+          "description": "Indicates the default number of disk storage allocated to each operator when no specific disk request\nis specified in the operator's configuration",
+          "type": "string"
+        },
+        "default_gpus": {
+          "default": "0",
+          "description": "Indicates the default number of GPUs allocated to each operator when no specific GPUs request\nis specified in the operator's configuration",
+          "type": "string"
+        },
+        "default_owner": {
+          "default": "airflow",
+          "description": "The default owner assigned to each new operator, unless\nprovided explicitly or passed via ``default_args``",
+          "type": "string"
+        },
+        "default_queue": {
+          "default": "default",
+          "description": "Default queue that tasks get assigned to and that worker listen on.",
+          "type": "string",
+          "x-version-added": "2.1.0"
+        },
+        "default_ram": {
+          "default": "512",
+          "description": "Indicates the default number of RAM allocated to each operator when no specific RAM request\nis specified in the operator's configuration",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "profiling": {
+      "additionalProperties": false,
+      "description": "Configuration for memory profiling in Airflow component.\nCurrently, we provide profiling using Memray and additional tools may be added in the future\nAlso, see the guide in Link (TBD)",
+      "properties": {
+        "memray_detailed_tracing": {
+          "default": "False",
+          "description": "Whether to enable memray's ``native_traces`` and ``trace_python_allocators`` options\nwhen ``memray_trace_components`` is set. Captures C/C++ stack frames for compiled\nextensions (numpy, pandas, etc.) and small ``pymalloc`` allocations that would\notherwise be invisible.\n\nThis adds significant runtime overhead and produces much larger profile files, so\nleave it disabled unless the default trace lacks the detail you need. Native symbol\nresolution is most accurate on Linux and less precise on macOS. See\nhttps://bloomberg.github.io/memray/api.html for the underlying ``Tracker`` options.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.3.0"
+        },
+        "memray_trace_components": {
+          "description": "Comma-separated list of Airflow components to profile with memray.\nValid components are: scheduler, api, dag_processor, triggerer\n\nThis option only takes effect when it is not set to blank (default option).\nstart tracing memory allocation and store the metrics in \"$AIRFLOW_HOME/<component>_memory.bin\"\nTo generate analyzed view, run this command in base directory where the bin file is generated\n```\n# see also https://bloomberg.github.io/memray/run.html#aggregated-capture-files\nmemray flamegraph $AIRFLOW_HOME/<component>_memory.bin\n```\nThis is an expensive operation and generally should not be used except for debugging purposes.",
+          "examples": [
+            "scheduler,api,dag_processor"
+          ],
+          "type": "string",
+          "x-version-added": "3.2.0"
+        }
+      },
+      "type": "object"
+    },
+    "scheduler": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed_run_id_pattern": {
+          "default": "^[A-Za-z0-9_.~:+-]+$",
+          "description": "The run_id pattern used to verify the validity of user input to the run_id parameter when\ntriggering a DAG. This pattern cannot change the pattern used by scheduler to generate run_id\nfor scheduled DAG runs or DAG runs triggered without changing the run_id parameter.",
+          "type": "string",
+          "x-version-added": "2.6.3"
+        },
+        "catchup_by_default": {
+          "default": "False",
+          "description": "Turn on scheduler catchup by setting this to ``True``.\nDefault behavior is unchanged and\nCommand Line Backfills still work, but the scheduler\nwill not do scheduler catchup if this is ``False``,\nhowever it can be set on a per DAG basis in the\nDAG definition (catchup)",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ]
+        },
+        "create_cron_data_intervals": {
+          "default": "False",
+          "description": "Whether to create DAG runs that span an interval or one single point in time for cron schedules, when\na cron string is provided to ``schedule`` argument of a DAG.\n\n* ``True``: **CronDataIntervalTimetable** is used, which is suitable\n  for DAGs with well-defined data interval. You get contiguous intervals from the end of the previous\n  interval up to the scheduled datetime.\n* ``False``: **CronTriggerTimetable** is used, which is closer to the behavior of cron itself.\n\nNotably, for **CronTriggerTimetable**, the logical date is the same as the time the DAG Run will\ntry to schedule, while for **CronDataIntervalTimetable**, the logical date is the beginning of\nthe data interval, but the DAG Run will try to schedule at the end of the data interval.\n\nWhen a DAG is switched from **CronTriggerTimetable** to **CronDataIntervalTimetable** (for example,\nby flipping this setting from ``False`` to ``True``), the next scheduled run skips one period past\nthe most recent **CronTriggerTimetable** run to avoid colliding with its logical date.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.9.0"
+        },
+        "create_delta_data_intervals": {
+          "default": "False",
+          "description": "Whether to create DAG runs that span an interval or one single point in time when a timedelta or\nrelativedelta is provided to ``schedule`` argument of a DAG.\n\n* ``True``: **DeltaDataIntervalTimetable** is used, which is suitable for DAGs with well-defined data\n  interval. You get contiguous intervals from the end of the previous interval up to the scheduled\n  datetime.\n* ``False``: **DeltaTriggerTimetable** is used, which is suitable for DAGs that simply want to say\n  e.g. \"run this every day\" and do not care about the data interval.\n\nNotably, for **DeltaTriggerTimetable**, the logical date is the same as the time the DAG Run will\ntry to schedule, while for **DeltaDataIntervalTimetable**, the logical date is the beginning of\nthe data interval, but the DAG Run will try to schedule at the end of the data interval.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.11.0"
+        },
+        "dagrun_metrics_interval": {
+          "default": "30.0",
+          "description": "How often (in seconds) the scheduler emits metrics on running DAG runs\nto StatsD (if statsd_on is enabled)",
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.1.0"
+        },
+        "enable_health_check": {
+          "default": "False",
+          "description": "When you start a scheduler, airflow starts a tiny web server\nsubprocess to serve a health check if this is set to ``True``",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.4.0"
+        },
+        "enable_tracemalloc": {
+          "default": "False",
+          "description": "Whether to enable memory allocation tracing in the scheduler. If enabled, Airflow will start\ntracing memory allocation and log the top 10 memory usages at the error level upon receiving the\nsignal SIGUSR1.\nThis is an expensive operation and generally should not be used except for debugging purposes.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.0.0"
+        },
+        "ignore_first_depends_on_past_by_default": {
+          "default": "True",
+          "description": "Setting this to ``True`` will make first task instance of a task\nignore depends_on_past setting. A task instance will be considered\nas the first task instance of a task when there is no task instance\nin the DB with a logical_date earlier than it., i.e. no manual marking\nsuccess will be needed for a newly added task to be scheduled.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.3.0"
+        },
+        "job_heartbeat_sec": {
+          "default": "5",
+          "description": "Task instances listen for external kill signal (when you clear tasks\nfrom the CLI or the UI), this defines the frequency at which they should\nlisten (in seconds).",
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?$",
+              "type": "string"
+            }
+          ]
+        },
+        "max_dagruns_per_loop_to_schedule": {
+          "default": "20",
+          "description": "How many DagRuns should a scheduler examine (and lock) when scheduling\nand queuing tasks.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.0.0"
+        },
+        "max_dagruns_to_create_per_loop": {
+          "default": "10",
+          "description": "Max number of DAGs to create DagRuns for per scheduler loop.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.0.0"
+        },
+        "max_tis_per_query": {
+          "default": "16",
+          "description": "This determines the number of task instances to be evaluated for scheduling\nduring each scheduler loop.\nSet this to 0 to use the value of ``[core] parallelism``",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ]
+        },
+        "num_runs": {
+          "default": "-1",
+          "description": "The number of times to try to schedule each DAG file\n-1 indicates unlimited number",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "1.10.6"
+        },
+        "only_idle": {
+          "default": "false",
+          "description": "Only count scheduler runs where the scheduler was idle (no tasks queued or finished)\ntoward the run limit set by ``[scheduler] num_runs``. The count resets whenever a task is processed.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.2.0"
+        },
+        "orphaned_tasks_check_interval": {
+          "default": "300.0",
+          "description": "How often (in seconds) should the scheduler check for orphaned tasks and SchedulerJobs",
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.0.0"
+        },
+        "parsing_cleanup_interval": {
+          "default": "60",
+          "description": "How often (in seconds) to check for stale DAGs (DAGs which are no longer present in\nthe expected files) which should be deactivated, as well as assets that are no longer\nreferenced and should be marked as orphaned.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.5.0"
+        },
+        "partition_mapper_max_downstream_keys": {
+          "default": "1000",
+          "description": "Maximum number of downstream partition keys produced by a single\nPartitionMapper invocation, applied to any PartitionMapper that returns\nmultiple keys (e.g. FanOutMapper). When a mapper instance sets a per-instance\n``max_downstream_keys`` parameter, that value completely overrides this global\ncap for that instance \u2014 including when the per-mapper value exceeds this\nglobal. **Deployment managers cannot enforce this setting as a hard\ncluster-wide ceiling**; treat this value as a default that user code may\noverride.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.3.0"
+        },
+        "pool_metrics_interval": {
+          "default": "5.0",
+          "description": "How often (in seconds) should pool usage stats be sent to StatsD (if statsd_on is enabled)",
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.0.0"
+        },
+        "scheduler_health_check_server_host": {
+          "default": "0.0.0.0",
+          "description": "When you start a scheduler, airflow starts a tiny web server\nsubprocess to serve a health check on this host",
+          "type": "string",
+          "x-version-added": "2.8.0"
+        },
+        "scheduler_health_check_server_port": {
+          "default": "8974",
+          "description": "When you start a scheduler, airflow starts a tiny web server\nsubprocess to serve a health check on this port",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.4.0"
+        },
+        "scheduler_health_check_threshold": {
+          "default": "30",
+          "description": "If the last scheduler heartbeat happened more than ``[scheduler] scheduler_health_check_threshold``\nago (in seconds), scheduler is considered unhealthy.\nThis is used by the health check in the **/health** endpoint and in ``airflow jobs check`` CLI\nfor SchedulerJob.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "1.10.2"
+        },
+        "scheduler_heartbeat_sec": {
+          "default": "5",
+          "description": "The scheduler constantly tries to trigger new tasks (look at the\nscheduler section in the docs for more information). This defines\nhow often the scheduler should run (in seconds).",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ]
+        },
+        "scheduler_idle_sleep_time": {
+          "default": "1",
+          "description": "Controls how long the scheduler will sleep between loops, but if there was nothing to do\nin the loop. i.e. if it scheduled something then it will start the next loop\niteration straight away.",
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.2.0"
+        },
+        "task_instance_heartbeat_sec": {
+          "default": "0",
+          "description": "The frequency (in seconds) at which the LocalTaskJob should send heartbeat signals to the\nscheduler to notify it's still alive. If this value is set to 0, the heartbeat interval will default\nto the value of ``[scheduler] task_instance_heartbeat_timeout``.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.7.0"
+        },
+        "task_instance_heartbeat_timeout": {
+          "default": "300",
+          "description": "Local task jobs periodically heartbeat to the DB. If the job has\nnot heartbeat in this many seconds, the scheduler will mark the\nassociated task instance as failed and will re-schedule the task.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ]
+        },
+        "task_instance_heartbeat_timeout_detection_interval": {
+          "default": "10.0",
+          "description": "How often (in seconds) should the scheduler check for task instances whose heartbeats have timed out.",
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.3.0"
+        },
+        "task_queued_timeout": {
+          "default": "600.0",
+          "description": "Amount of time a task can be in the queued state before being retried or set to failed.\n\nThis value also sets the lifetime of the workload JWT token that is sent with the task\nto an executor queue, so a task waiting in the queue can still authenticate to the\nExecution API until its queue-starvation deadline.",
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.6.0"
+        },
+        "task_queued_timeout_check_interval": {
+          "default": "120.0",
+          "description": "How often to check for tasks that have been in the queued state for\nlonger than ``[scheduler] task_queued_timeout``.",
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.6.0"
+        },
+        "ti_metrics_interval": {
+          "default": "30.0",
+          "description": "How often (in seconds) should task instance (scheduled, queued, running and deferred) stats\nbe sent to StatsD (if statsd_on is enabled)",
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.0.0"
+        },
+        "trigger_timeout_check_interval": {
+          "default": "15",
+          "description": "How often to check for expired trigger requests that have not run yet.",
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.2.0"
+        },
+        "use_job_schedule": {
+          "default": "True",
+          "description": "Turn off scheduler use of cron intervals by setting this to ``False``.\nDAGs submitted manually in the web UI or with trigger_dag will still run.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "1.10.2"
+        },
+        "use_row_level_locking": {
+          "default": "True",
+          "description": "Should the scheduler issue ``SELECT ... FOR UPDATE`` in relevant queries.\nIf this is set to ``False`` then you should not run more than a single\nscheduler at once",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.0.0"
+        }
+      },
+      "type": "object"
+    },
+    "sdk": {
+      "additionalProperties": false,
+      "description": "Settings for non-Python SDK runtime coordination",
+      "properties": {
+        "coordinators": {
+          "description": "JSON object mapping of coordinator keys to coordinator definitions.\n\nEach value is an object with ``classpath`` and optional ``kwargs``.\n``classpath`` is resolved via ``import_string`` and constructed with\n``kwargs`` on first use.  Entries are\nindependent instances, so the same ``classpath`` can be configured\nmultiple times under different names with different ``kwargs`` (for\nexample, two ``JavaCoordinator`` instances pinned to different JDK\nversions).\n\nAn entry may also carry an optional ``extra`` object for additional\ninformation associated with the coordinator that the coordinator itself\ndoes not receive; other components read it as needed. For example,\nKubernetesExecutor reads ``extra.pod_template_file`` to launch a queue's\nworker pod from a specific pod template, and\n``extra.worker_container_repository`` + ``extra.worker_container_tag`` to\noverride the worker base image for that queue (both are required).",
+          "examples": [
+            "{\n  \"jdk-17\": {\n    \"classpath\": \"airflow.sdk.coordinators.java.JavaCoordinator\",\n    \"kwargs\": {\n      \"jars_root\": [\"/opt/airflow/java-bundles\"],\n      \"java_executable\": \"/usr/lib/jvm/java-17-openjdk/bin/java\",\n      \"jvm_args\": [\"-Xmx1024m\"]\n    },\n    \"extra\": {\n      \"pod_template_file\": \"/opt/airflow/pod_templates/java.yaml\",\n      \"worker_container_repository\": \"apache/airflow\",\n      \"worker_container_tag\": \"3.3.0\"\n    }\n  },\n  \"go-sdk\": {\n    \"classpath\": \"airflow.sdk.coordinators.executable.ExecutableCoordinator\",\n    \"kwargs\": {\n      \"executables_root\": [\"/opt/airflow/executable-bundles\"]\n    }\n  }\n}\n"
+          ],
+          "type": "string",
+          "x-version-added": "3.3.0"
+        },
+        "queue_to_coordinator": {
+          "description": "JSON mapping of queue names to a coordinator key from\n``[sdk] coordinators``.\n\nThis mapping is checked to route a task to a configured coordinator\ninstance based on its queue.  An entry in this mapping is needed if\ntasks of a queue should be handled by a custom coordinator instead of\nthe default Python task-running mechanism.",
+          "examples": [
+            "{\"legacy-java\": \"jdk-11\", \"modern-java\": \"jdk-17\"}"
+          ],
+          "type": "string",
+          "x-version-added": "3.3.0"
+        }
+      },
+      "type": "object"
+    },
+    "secrets": {
+      "additionalProperties": false,
+      "properties": {
+        "backend": {
+          "default": "",
+          "description": "Full class name of secrets backend to enable (will precede env vars and metastore in search path)",
+          "examples": [
+            "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend"
+          ],
+          "type": "string",
+          "x-version-added": "1.10.10"
+        },
+        "backend_kwargs": {
+          "default": "",
+          "description": "The backend_kwargs param is loaded into a dictionary and passed to ``__init__``\nof secrets backend class. See documentation for the secrets backend you are using.\nJSON is expected.\n\nExample for AWS Systems Manager ParameterStore:\n``{\"connections_prefix\": \"/airflow/connections\", \"profile_name\": \"default\"}``\n\nYou can also set individual kwargs via ``AIRFLOW__SECRETS__BACKEND_KWARG__<KEY>=value``\nenvironment variables. Per-key variables override the same key in this JSON setting.\nValues are raw strings (not JSON-parsed).",
+          "type": "string",
+          "writeOnly": true,
+          "x-version-added": "1.10.10"
+        },
+        "cache_ttl_seconds": {
+          "default": "900",
+          "description": ".. note:: |experimental|\n\nWhen the cache is enabled, this is the duration for which we consider an entry in the cache to be\nvalid. Entries are refreshed if they are older than this many seconds.\nIt means that when the cache is enabled, this is the maximum amount of time you need to wait to see a\nVariable change take effect.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.7.0"
+        },
+        "use_cache": {
+          "default": "False",
+          "description": ".. note:: |experimental|\n\nEnables local caching of Variables, when parsing DAGs only.\nUsing this option can make dag parsing faster if Variables are used in top level code, at the expense\nof longer propagation time for changes.\nPlease note that this cache concerns only the DAG parsing step. There is no caching in place when DAG\ntasks are run.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.7.0"
+        }
+      },
+      "type": "object"
+    },
+    "sensors": {
+      "additionalProperties": false,
+      "properties": {
+        "default_timeout": {
+          "default": "604800",
+          "description": "Sensor default timeout, 7 days by default (7 * 24 * 60 * 60).",
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.3.0"
+        }
+      },
+      "type": "object"
+    },
+    "sentry": {
+      "additionalProperties": false,
+      "description": "`Sentry <https://docs.sentry.io>`__ integration. Here you can supply\nadditional configuration options based on the Python platform.\nSee `Python / Configuration / Basic Options\n<https://docs.sentry.io/platforms/python/configuration/options/>`__ for more details.\nUnsupported options: ``integrations``, ``in_app_include``, ``in_app_exclude``,\n``ignore_errors``, ``before_breadcrumb``, ``transport``.",
+      "properties": {
+        "before_send": {
+          "description": "Dotted path to a before_send function that the sentry SDK should be configured to use.",
+          "type": "string",
+          "x-version-added": "2.2.0"
+        },
+        "sentry_dsn": {
+          "default": "",
+          "type": "string",
+          "writeOnly": true,
+          "x-version-added": "1.10.6"
+        },
+        "sentry_on": {
+          "default": "false",
+          "description": "Enable error reporting to Sentry",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.0.0"
+        }
+      },
+      "type": "object"
+    },
+    "smtp": {
+      "additionalProperties": false,
+      "description": "If you want airflow to send emails on retries, failure, and you want to use\nthe airflow.utils.email.send_email_smtp function, you have to configure an\nsmtp server here",
+      "properties": {
+        "smtp_host": {
+          "default": "localhost",
+          "description": "Specifies the host server address used by Airflow when sending out email notifications via SMTP.",
+          "type": "string"
+        },
+        "smtp_mail_from": {
+          "default": "airflow@example.com",
+          "description": "Specifies the default **from** email address used when Airflow sends email notifications.",
+          "type": "string"
+        },
+        "smtp_port": {
+          "default": "25",
+          "description": "Defines the port number on which Airflow connects to the SMTP server to send email notifications.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ]
+        },
+        "smtp_retry_limit": {
+          "default": "5",
+          "description": "Defines the number of times Airflow will attempt to connect to the SMTP server after the first\nattempt.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.0.0"
+        },
+        "smtp_ssl": {
+          "default": "False",
+          "description": "Determines whether to use an SSL connection when talking to the SMTP server.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ]
+        },
+        "smtp_starttls": {
+          "default": "True",
+          "description": "Determines whether to use the STARTTLS command when connecting to the SMTP server.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ]
+        },
+        "smtp_timeout": {
+          "default": "30",
+          "description": "Determines the maximum time (in seconds) the Apache Airflow system will wait for a\nconnection to the SMTP server to be established.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.0.0"
+        }
+      },
+      "type": "object"
+    },
+    "state_store": {
+      "additionalProperties": false,
+      "description": "Configuration for task and asset state storage backend.",
+      "properties": {
+        "backend": {
+          "default": "airflow.state.metastore.MetastoreBackend",
+          "description": "Full dotted path to the class that implements state storage for tasks and assets.\nThe class must be a subclass of ``BaseStoreBackend``.\nThe default implementation persists state in the Airflow metadata database.",
+          "examples": [
+            "mypackage.state.CustomStoreBackend"
+          ],
+          "type": "string",
+          "x-version-added": "3.3.0"
+        },
+        "clear_on_success": {
+          "default": "False",
+          "description": "If set to True, all task state keys for a task instance are automatically cleared\nwhen that task instance moved to SUCCESS.\n\nDefaults to False so that task state persists after success for observability \u2014\noperators and the UI can inspect what the task wrote (e.g. submitted job IDs,\nadvanced watermarks) after the run completes.\nConsider setting to True if you do not need post-success visibility and want automatic\ncleanup without waiting for the global retention period.",
+          "examples": [
+            "True"
+          ],
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.3.0"
+        },
+        "default_retention_days": {
+          "default": "30",
+          "description": "Number of days to retain task state after their last update.\nRows older than this are removed when cleanup is triggered.\nThis config does not affect asset_state_store rows.\nSet to 0 to disable time-based cleanup entirely.",
+          "examples": [
+            "7"
+          ],
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.3.0"
+        },
+        "max_value_storage_bytes": {
+          "default": "65535",
+          "description": "Maximum size in bytes that a single task or asset store value may have when written via\nthe public REST API. Values that exceed this limit are rejected with a 422 error.\n\nWorkers writing via the execution API are not blocked, they log a warning and the write\nproceeds, so tasks are never interrupted mid-execution. Set to 0 to disable the limit entirely.\n\nThe default of 65535 bytes (64 KB) is a policy default suited for coordination state such as\njob IDs, cursors, and small status maps \u2014 the underlying database column (MEDIUMTEXT on MySQL,\nunbounded Text on Postgres) does not enforce this limit. For larger payloads, configure a custom\n[workers] state_store_backend to offload values to external storage.",
+          "examples": [
+            "1048576"
+          ],
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.3.0"
+        },
+        "state_cleanup_batch_size": {
+          "default": "0",
+          "description": "Number of rows deleted per batch during cleanup. Defaults to 0 (no batching).\nTune this on deployments with large task_state_store tables to improve performance per transaction.",
+          "examples": [
+            "10000"
+          ],
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.3.0"
+        }
+      },
+      "type": "object"
+    },
+    "traces": {
+      "additionalProperties": false,
+      "description": "Distributed traces integration settings.",
+      "properties": {
+        "otel_debug_traces_on": {
+          "default": "False",
+          "deprecated": true,
+          "description": "If True, then traces from Airflow internal methods are exported. Defaults to False.\n\nDeprecated: This parameter is no longer used.",
+          "type": "string",
+          "x-version-added": "3.1.0"
+        },
+        "otel_debugging_on": {
+          "default": "False",
+          "deprecated": true,
+          "description": "If True, all traces are also emitted to the console. Defaults to False.\n\nDeprecated: According to the OpenTelemetry specification, configuration is expected to happen through\nthe standard OpenTelemetry environment variables rather than project-specific settings.\n\nThis option has been deprecated to ensure consistent behavior across different environments\nand deployments that use OpenTelemetry.\n\nOpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables\nsuch as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.10.0"
+        },
+        "otel_host": {
+          "default": "localhost",
+          "deprecated": true,
+          "description": "Specifies the hostname or IP address of the OpenTelemetry Collector to which Airflow sends\ntraces.\n\nDeprecated: According to the OpenTelemetry specification, configuration is expected to happen through\nthe standard OpenTelemetry environment variables rather than project-specific settings.\n\nThis option has been deprecated to ensure consistent behavior across different environments\nand deployments that use OpenTelemetry.\n\nOpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables\nsuch as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.",
+          "type": "string",
+          "x-version-added": "2.10.0"
+        },
+        "otel_on": {
+          "default": "False",
+          "description": "Enables sending traces to OpenTelemetry.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.10.0"
+        },
+        "otel_port": {
+          "default": "8889",
+          "deprecated": true,
+          "description": "Specifies the port of the OpenTelemetry Collector that is listening to.\n\nDeprecated: According to the OpenTelemetry specification, configuration is expected to happen through\nthe standard OpenTelemetry environment variables rather than project-specific settings.\n\nThis option has been deprecated to ensure consistent behavior across different environments\nand deployments that use OpenTelemetry.\n\nOpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables\nsuch as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.10.0"
+        },
+        "otel_service": {
+          "default": "Airflow",
+          "deprecated": true,
+          "description": "The default service name of traces.\n\nDeprecated: According to the OpenTelemetry specification, configuration is expected to happen through\nthe standard OpenTelemetry environment variables rather than project-specific settings.\n\nThis option has been deprecated to ensure consistent behavior across different environments\nand deployments that use OpenTelemetry.\n\nOpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables\nsuch as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.",
+          "type": "string",
+          "x-version-added": "2.10.0"
+        },
+        "otel_ssl_active": {
+          "default": "False",
+          "deprecated": true,
+          "description": "If True, SSL will be enabled.  Defaults to False.\nTo establish an HTTPS connection to the OpenTelemetry collector,\nyou need to configure the SSL certificate and key within the OpenTelemetry collector's\nconfig.yml file.\n\nDeprecated: According to the OpenTelemetry specification, configuration is expected to happen through\nthe standard OpenTelemetry environment variables rather than project-specific settings.\n\nThis option has been deprecated to ensure consistent behavior across different environments\nand deployments that use OpenTelemetry.\n\nOpenTelemetry should be configured exclusively using the standard OpenTelemetry environment variables\nsuch as 'OTEL_EXPORTER_OTLP_ENDPOINT', 'OTEL_EXPORTER_OTLP_PROTOCOL', 'OTEL_SERVICE_NAME', etc.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.10.0"
+        },
+        "task_runner_flush_timeout_milliseconds": {
+          "default": "30000",
+          "description": "Timeout in milliseconds to wait for the OpenTelemetry span exporter to flush pending spans\nwhen a task runner process exits. If the exporter does not finish within this time, any\nbuffered spans may be dropped.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.2.0"
+        }
+      },
+      "type": "object"
+    },
+    "triggerer": {
+      "additionalProperties": false,
+      "properties": {
+        "blocked_main_thread_warning_threshold": {
+          "default": "0.2",
+          "description": "Threshold in seconds for logging a warning when the Triggerer's async thread appears blocked.\nIncrease this value if your deployment can tolerate longer delays in the Triggerer's async\nloop before logging a warning.",
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.2.0"
+        },
+        "capacity": {
+          "default": "1000",
+          "description": "How many triggers a single Triggerer will run at once, by default.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.2.0"
+        },
+        "job_heartbeat_sec": {
+          "default": "5",
+          "description": "How often to heartbeat the Triggerer job to ensure it hasn't been killed.",
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.6.3"
+        },
+        "max_trigger_to_select_per_loop": {
+          "default": "50",
+          "description": "Maximum number of triggers to select per loop. Set this notably lower than ``[triggerer] capacity``\nto keep load balanced across triggerers in HA deployments.\nBenchmarks show that two triggerers can still claim about 1,000 triggers within one second by default.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.2.0"
+        },
+        "on_kill_timeout": {
+          "default": "30",
+          "description": "Maximum number of seconds the triggerer will wait for ``BaseTrigger.on_kill()`` to complete\nbefore giving up and logging a warning. Prevents a slow or hung external API call from\nblocking the triggerer indefinitely when a deferred task is killed by a user.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.3.0"
+        },
+        "queues_enabled": {
+          "default": "False",
+          "description": "When set to True, deferred tasks will register triggers with the task queue they originated from,\nand triggerers can selectively run triggers based on their queue assignment. Only relevant when using\nexecutors which support task queue assignment. For more details, refer to the trigger docs.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "pattern": "^([Tt]|[Tt][Rr][Uu][Ee]|1|[Ff]|[Ff][Aa][Ll][Ss][Ee]|0)$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.2.0"
+        },
+        "runner_health_check_threshold": {
+          "default": "30",
+          "description": "If the TriggerRunner subprocess's async event loop sends no communication to the parent\nprocess for more than this many seconds, the parent stops updating the triggerer's\nheartbeat in the database. The triggerer then appears unhealthy to the scheduler, which\nwill reassign its triggers. This detects a deadlocked or hung event loop that the normal\nprocess-alive check cannot catch. Set to 0 to disable the watchdog.",
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.2.2"
+        },
+        "shared_stream_ack_timeout": {
+          "default": "300.0",
+          "description": "Per-event ack timeout in seconds for shared-stream triggers running in ack mode (triggers that\noverride ``BaseEventTrigger.create_shared_stream_producer``). A subscriber that has not finished\nprocessing an event (moved past it and had its derived trigger events confirmed persisted) within\nthis window is force-failed. Other subscribers in the same group are unaffected; once they\nresolve, the producer advances normally.",
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.3.0"
+        },
+        "shared_stream_cohort_grace_period": {
+          "default": "0.0",
+          "description": "Seconds to delay the start of polling after a shared-stream group is created, giving triggers\nthat share the same key a window to subscribe before any event is broadcast. The default of 0\nstarts polling immediately (no delay). Set to a small positive value (e.g. 2.0\u20135.0) to reduce\nthe chance of triggers missing events on triggerer restart, when multiple triggers sharing a key\nre-subscribe concurrently and the first to arrive would otherwise start the poll before the\nothers have joined. This is a best-effort window: triggers that take longer than the grace period\nto re-subscribe can still miss events committed after polling starts.",
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.3.0"
+        },
+        "shared_stream_subscriber_queue_size": {
+          "default": "1024",
+          "description": "Per-subscriber buffer size for shared-stream triggers (triggers that opt into a shared poll loop\nvia ``BaseEventTrigger.shared_stream_key``). Each subscribing trigger keeps an in-memory queue of\nraw events produced by the shared poll; if a slow subscriber fills its queue, only that subscriber\nfails, sibling subscribers are unaffected. Increase if a slow subscriber must tolerate bursts from\na fast upstream.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.3.0"
+        },
+        "triggerer_health_check_threshold": {
+          "default": "30",
+          "description": "If the last triggerer heartbeat happened more than ``[triggerer] triggerer_health_check_threshold``\nago (in seconds), triggerer is considered unhealthy.\nThis is used by the health check in the **/health** endpoint and in ``airflow jobs check`` CLI\nfor TriggererJob.",
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "2.7.0"
+        }
+      },
+      "type": "object"
+    },
+    "workers": {
+      "additionalProperties": false,
+      "description": "Configuration related to workers that run Airflow tasks.",
+      "properties": {
+        "execution_api_retries": {
+          "default": "5",
+          "description": "The maximum number of retry attempts to the execution API server.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.0.0"
+        },
+        "execution_api_retry_wait_max": {
+          "default": "90.0",
+          "description": "The maximum amount of time (in seconds) to wait before retrying a failed API request.",
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.0.0"
+        },
+        "execution_api_retry_wait_min": {
+          "default": "1.0",
+          "description": "The minimum amount of time (in seconds) to wait before retrying a failed API request.",
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.0.0"
+        },
+        "execution_api_timeout": {
+          "default": "5.0",
+          "description": "The timeout (in seconds) for HTTP requests from workers to the Execution API server.\nThis controls how long a worker will wait for a response from the API server before\ntiming out. Increase this value if you experience timeout errors under high load.",
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.1.1"
+        },
+        "max_failed_heartbeats": {
+          "default": "3",
+          "description": "The maximum number of consecutive failed heartbeats before terminating the task instance process.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.0.0"
+        },
+        "min_heartbeat_interval": {
+          "default": "5",
+          "description": "The minimum interval (in seconds) at which the worker checks the task instance's\nheartbeat status with the API server to confirm it is still alive.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.0.0"
+        },
+        "missing_dag_retries": {
+          "default": "3",
+          "description": "Maximum number of times a task will be rescheduled if the worker fails to\nload the Dag or task definition during startup.\n\nThis situation can occur due to transient infrastructure issues such as\nmissing Dag files, temporary filesystem or network problems, or bundle\nsynchronization delays. Rescheduling in this case does not count as a\ntask retry.\n\nSet this value to 0 to disable rescheduling and fail the task immediately\non startup failures.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.1.7"
+        },
+        "missing_dag_retry_delay": {
+          "default": "60",
+          "description": "Delay in seconds before a task is rescheduled after a worker startup\nfailure caused by an inability to load the Dag or task definition.\n\nThis delay is applied when the task runner requests the scheduler to\nreschedule the task instance in UP_FOR_RESCHEDULE state.",
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.1.7"
+        },
+        "secrets_backend": {
+          "default": "",
+          "description": "Full class name of secrets backend to enable for workers (will precede env vars backend)",
+          "examples": [
+            "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend"
+          ],
+          "type": "string",
+          "x-version-added": "3.0.0"
+        },
+        "secrets_backend_kwargs": {
+          "default": "",
+          "description": "The secrets_backend_kwargs param is loaded into a dictionary and passed to ``__init__``\nof secrets backend class. See documentation for the secrets backend you are using.\nJSON is expected.\n\nExample for AWS Systems Manager ParameterStore:\n``{\"connections_prefix\": \"/airflow/connections\", \"profile_name\": \"default\"}``\n\nYou can also set individual kwargs via ``AIRFLOW__WORKERS__SECRETS_BACKEND_KWARG__<KEY>=value``\nenvironment variables. Per-key variables override the same key in this JSON setting.\nValues are raw strings (not JSON-parsed).",
+          "type": "string",
+          "writeOnly": true,
+          "x-version-added": "3.0.0"
+        },
+        "socket_cleanup_timeout": {
+          "default": "60.0",
+          "description": "Number of seconds to wait after a task process exits before forcibly closing any\nremaining communication sockets. This helps prevent the task supervisor from hanging\nindefinitely due to missed EOF signals.",
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^[+-]?[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?$",
+              "type": "string"
+            }
+          ],
+          "x-version-added": "3.0.3"
+        },
+        "state_store_backend": {
+          "default": "",
+          "description": "Full class name of a custom worker-side store backend. When set, task store values are\nrouted through this backend so large payloads or credentialed storage stay on worker\ninfrastructure. The Execution API still records a reference string in the database.\n\nLeave empty (default) to use the standard path through the task sdk supervisor.",
+          "examples": [
+            "mypackage.state.S3StateBackend"
+          ],
+          "type": "string",
+          "x-version-added": "3.3.0"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "title": "Apache Airflow configuration",
+  "type": "object"
+}
