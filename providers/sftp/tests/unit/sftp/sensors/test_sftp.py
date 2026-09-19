@@ -330,6 +330,34 @@ class TestSFTPSensor:
             "decorator_return_value": ["sample_return"],
         }
 
+    @pytest.mark.parametrize(
+        ("op_args", "op_kwargs"),
+        [
+            pytest.param(("op_arg_1",), {"key": "value"}),
+            pytest.param((), {}),
+        ],
+    )
+    def test_execute_complete_with_callback(self, op_args, op_kwargs):
+        sample_callable = Mock()
+        sample_callable.return_value = ["sample_return"]
+        files_found = ["/path/to/file/text_file.txt", "/path/to/file/another_text_file.txt"]
+        sftp_sensor = SFTPSensor(
+            task_id="unit_test",
+            path="/path/to/file/",
+            file_pattern="*.txt",
+            python_callable=sample_callable,
+            op_args=op_args,
+            op_kwargs=op_kwargs,
+            deferrable=True,
+        )
+        event = {"status": "success", "message": "Sensed 2 files", "files_found": files_found}
+
+        output = sftp_sensor.execute_complete({}, event=event)
+
+        expected_kwargs = {**op_kwargs, "files_found": files_found} if op_kwargs else {}
+        sample_callable.assert_called_once_with(*op_args, **expected_kwargs)
+        assert output == {"files_found": files_found, "decorator_return_value": ["sample_return"]}
+
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
     def test_mod_time_called_when_newer_than_set(self, sftp_hook_mock):
         sftp_hook_mock.return_value.isfile.return_value = True
