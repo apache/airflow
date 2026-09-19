@@ -134,18 +134,14 @@ reported as such are described in "What is NOT considered a security vulnerabili
 
 - **Always format and check Python files with ruff immediately after writing or editing them:** `uv run ruff format <file_path>` and `uv run ruff check --fix <file_path>`. Do this for every Python file you create or modify, before moving on to the next step.
 - No `assert` in production code.
-- **Add a comment only when it preserves context that is not readily apparent from the code.**
-  Explaining a generic purpose does not qualify: `# Log for debugging` above `logging.info(...)`,
-  `# Validate for safety`, and `# Retry for reliability` add no useful information.
-  Useful comments record a specific constraint, invariant, compatibility quirk, or tradeoff;
-  for example, `# Closing the connection clears the request ID, so log first.` is useful
-  if that constraint actually applies and is not apparent at the call site.
+- **Comment only when context is not readily apparent from the code.**
+  Generic purpose explanation do not qualify: `# Log for debugging` above `logging.debug(...)`,
+  `# Validate for safety`, and `# Retry for reliability` and similar, provide no useful information.
+  Useful comments record a specific constraint, invariant, compatibility quirk, or tradeoff.
   Before adding a comment, identify the misunderstanding or incorrect change it would prevent.
-  If removing it loses no such context, omit it. Prefer clearer names or structure when they
-  convey the same information. Do not narrate code, repeat test names, or invent a rationale.
-  Keep necessary explanations concise and at the source of truth; do not repeat them at each
-  call site. Judge their value by the context they preserve, not by the number of lines of code
-  they describe.
+  If removing a comment will lose non-code-related context, omit it. Do not narrate code, repeat code,
+  or invent a rationale in comments. Keep necessary explanations short, precise and at the source of truth.
+  Do not repeat comments at each call site. Judge each comment value by the preserved context only.
 - `time.monotonic()` for durations, not `time.time()`.
 - In `airflow-core`, functions with a `session` parameter must not call `session.commit()`. Use keyword-only `session` parameters.
 - Imports at top of file. Valid exceptions: circular imports, lazy loading for worker isolation, `TYPE_CHECKING` blocks.
