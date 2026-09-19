@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import builtins
 import os
 import signal
 import subprocess
@@ -28,8 +29,10 @@ import pytest
 
 pytest.importorskip("islo")
 
+import httpx
 from islo.core.api_error import ApiError
 from islo.errors import NotFoundError
+from islo.sandboxes.client import SandboxesClient
 
 from airflow.providers.common.ai.sandbox.base import (
     SandboxError,
@@ -40,17 +43,14 @@ from airflow.providers.common.ai.sandbox.base import (
 )
 from airflow.providers.common.ai.sandbox.islo import (
     _COMMAND_WRAPPER,
+    _SERVER_STREAM_CAP,
     IsloSandboxBackend,
     _bound_result_stream,
 )
 
 _MODULE = "airflow.providers.common.ai.sandbox.islo"
-_BASE_HOOK_PATH = f"{_MODULE}.BaseHook"
+_HOOK_PATH = f"{_MODULE}.IsloHook"
 _ISLO_PATH = "islo.Islo"
-
-
-def _connection(password="secret-key", host=None, extra=None):
-    return SimpleNamespace(password=password, host=host, extra_dejson=extra or {})
 
 
 def _exec_result(status="completed", exit_code=0, stdout="", stderr="", truncated=False):
@@ -59,63 +59,50 @@ def _exec_result(status="completed", exit_code=0, stdout="", stderr="", truncate
     )
 
 
+def _sandbox_info(name="box-1", status="running", deleted_at=None):
+    return SimpleNamespace(name=name, status=status, deleted_at=deleted_at)
+
+
 def _backend_with_client(**kwargs) -> tuple[IsloSandboxBackend, mock.MagicMock]:
     backend = IsloSandboxBackend(**kwargs)
     client = mock.MagicMock(spec=["sandboxes"])
-    client.sandboxes = mock.MagicMock(
-        spec=[
-            "create_sandbox",
-            "delete_sandbox",
-            "download_file",
-            "exec_in_sandbox",
-            "get_exec_result",
-            "get_sandbox",
-            "upload_file",
-        ]
-    )
+    client.sandboxes = mock.create_autospec(SandboxesClient, instance=True)
     client.sandboxes.exec_in_sandbox.return_value = SimpleNamespace(exec_id="exec-1")
-    client.sandboxes.create_sandbox.return_value = SimpleNamespace(name="box-1")
+    client.sandboxes.create_sandbox.return_value = _sandbox_info()
+    client.sandboxes.get_sandbox.return_value = _sandbox_info()
     client.sandboxes.get_exec_result.return_value = _exec_result()
     backend._client = client
     return backend, client
 
 
 class TestCredentials:
-    @mock.patch(_ISLO_PATH, autospec=True)
-    @mock.patch(_BASE_HOOK_PATH, autospec=True)
-    def test_api_key_and_allowlisted_connection_options_are_forwarded(self, hook, islo):
+    @mock.patch(_HOOK_PATH, autospec=True)
+    def test_client_comes_from_the_hook(self, hook):
         backend = IsloSandboxBackend(islo_conn_id="my_islo")
-        hook.get_connection.return_value = _connection(
-            password=" key ",
-            host="https://compute",
-            extra={"base_url": "https://api", "timeout": 12},
-        )
 
-        backend._get_client()
+        client = backend._get_client()
 
-        hook.get_connection.assert_called_once_with("my_islo")
-        islo.assert_called_once_with(
-            api_key="key", compute_url="https://compute", base_url="https://api", timeout=12.0
-        )
+        hook.assert_called_once_with(islo_conn_id="my_islo")
+        assert client is hook.return_value.get_conn.return_value
 
-    @mock.patch(_ISLO_PATH, autospec=True)
-    @mock.patch(_BASE_HOOK_PATH, autospec=True)
-    def test_client_is_resolved_once_and_cached(self, hook, _islo):
+    @mock.patch(_HOOK_PATH, autospec=True)
+    def test_client_is_resolved_once_and_cached(self, hook):
         backend = IsloSandboxBackend()
-        hook.get_connection.return_value = _connection()
 
         backend._get_client()
         backend._get_client()
 
-        hook.get_connection.assert_called_once_with("islo_default")
+        hook.assert_called_once_with(islo_conn_id="islo_default")
+        hook.return_value.get_conn.assert_called_once_with()
 
-    @mock.patch(_BASE_HOOK_PATH, autospec=True)
-    def test_missing_api_key_is_terminal(self, hook):
-        backend = IsloSandboxBackend()
-        hook.get_connection.return_value = _connection(password="")
+    @mock.patch(_HOOK_PATH, autospec=True)
+    def test_a_connection_the_hook_rejects_is_terminal_and_actionable(self, hook):
+        hook.return_value.get_conn.side_effect = ValueError(
+            "Connection 'islo_default' has no password; set it to the Islo API key."
+        )
 
         with pytest.raises(SandboxTerminalError, match="has no password"):
-            backend._get_client()
+            IsloSandboxBackend()._get_client()
 
     @mock.patch(_ISLO_PATH, autospec=True)
     def test_none_conn_id_defers_to_the_sdk_environment(self, islo):
@@ -125,21 +112,25 @@ class TestCredentials:
 
         islo.assert_called_once_with()
 
-    @mock.patch(_BASE_HOOK_PATH, autospec=True)
+    @mock.patch(_HOOK_PATH, autospec=True)
     def test_connection_resolution_failure_is_terminal(self, hook):
-        backend = IsloSandboxBackend()
-        hook.get_connection.side_effect = RuntimeError("secret backend down")
+        hook.return_value.get_conn.side_effect = RuntimeError("secret backend down")
 
         with pytest.raises(SandboxTerminalError, match="initialize its client"):
-            backend._get_client()
+            IsloSandboxBackend()._get_client()
 
-    @mock.patch(_BASE_HOOK_PATH, autospec=True)
-    def test_invalid_connection_timeout_is_terminal_and_actionable(self, hook):
-        backend = IsloSandboxBackend()
-        hook.get_connection.return_value = _connection(extra={"timeout": "never"})
+    def test_missing_sdk_error_is_actionable(self):
+        real_import = builtins.__import__
 
-        with pytest.raises(SandboxTerminalError, match="timeout must be a positive finite number"):
-            backend._get_client()
+        def blocked_import(name, *args, **kwargs):
+            if name.startswith("islo"):
+                raise ImportError("blocked for test")
+            return real_import(name, *args, **kwargs)
+
+        backend = IsloSandboxBackend(islo_conn_id=None)
+        with mock.patch("builtins.__import__", side_effect=blocked_import):
+            with pytest.raises(SandboxTerminalError, match="sandbox-islo"):
+                backend.create()
 
 
 @pytest.mark.parametrize(
@@ -149,6 +140,8 @@ class TestCredentials:
         ({"vcpus": 0}, "vcpus"),
         ({"memory_mb": 0}, "memory_mb"),
         ({"delete_after": 0}, "delete_after"),
+        ({"pause_after_idle": 0}, "pause_after_idle"),
+        ({"auto_resume": "sometimes"}, "auto_resume"),
     ],
 )
 def test_constructor_rejects_invalid_values(kwargs, message):
@@ -162,6 +155,14 @@ class TestCreate:
 
         with pytest.raises(SandboxTerminalError, match="per-domain egress allowlist"):
             backend.create(spec=SandboxSpec(allow_egress_to=["example.com"]))
+
+    def test_refuses_a_path_the_runner_would_drop(self):
+        backend, client = _backend_with_client()
+
+        with pytest.raises(SandboxTerminalError, match="PATH"):
+            backend.create(spec=SandboxSpec(env={"PATH": "/opt/tool/bin"}))
+
+        client.sandboxes.create_sandbox.assert_not_called()
 
     @pytest.mark.parametrize(
         ("spec", "expected"),
@@ -180,7 +181,14 @@ class TestCreate:
         assert client.sandboxes.create_sandbox.call_args.kwargs["internet_enabled"] is expected
 
     def test_spec_and_sizing_are_passed_at_creation(self):
-        backend, client = _backend_with_client(image="python", vcpus=2, memory_mb=1024, delete_after=120)
+        backend, client = _backend_with_client(
+            image="python",
+            vcpus=2,
+            memory_mb=1024,
+            pause_after_idle=300,
+            auto_resume="never",
+            delete_after=120,
+        )
 
         name = backend.create(spec=SandboxSpec(env={"TOKEN": "value"}))
 
@@ -190,8 +198,29 @@ class TestCreate:
         assert kwargs["vcpus"] == 2
         assert kwargs["memory_mb"] == 1024
         assert kwargs["env"] == {"TOKEN": "value"}
+        assert kwargs["lifecycle"].pause_after_idle == 300
+        assert kwargs["lifecycle"].auto_resume == "never"
         assert kwargs["lifecycle"].delete_after == 120
-        assert kwargs["request_options"] == {"timeout_in_seconds": 120, "max_retries": 0}
+        assert kwargs["request_options"] == {"timeout_in_seconds": 120}
+
+    def test_default_lifecycle_pauses_idle_sandboxes_and_deletes_after_a_day(self):
+        backend, client = _backend_with_client()
+
+        backend.create()
+
+        lifecycle = client.sandboxes.create_sandbox.call_args.kwargs["lifecycle"]
+        assert lifecycle.pause_after_idle == 600
+        assert lifecycle.auto_resume == "on_activity"
+        assert lifecycle.delete_after == 86400
+
+    def test_disabled_lifecycle_timers_are_sent_as_unset(self):
+        backend, client = _backend_with_client(pause_after_idle=None, delete_after=None)
+
+        backend.create()
+
+        lifecycle = client.sandboxes.create_sandbox.call_args.kwargs["lifecycle"]
+        assert lifecycle.pause_after_idle is None
+        assert lifecycle.delete_after is None
 
     def test_omitted_sizing_is_left_to_the_server(self):
         backend, client = _backend_with_client()
@@ -227,6 +256,15 @@ class TestCreate:
 
         with pytest.raises(SandboxTerminalError, match="HTTP 503"):
             backend.create()
+
+    def test_a_sandbox_that_cannot_serve_after_creation_is_destroyed_and_terminal(self):
+        backend, client = _backend_with_client()
+        client.sandboxes.create_sandbox.return_value = _sandbox_info(status="stopped")
+
+        with pytest.raises(SandboxTerminalError, match="cannot serve requests"):
+            backend.create()
+
+        client.sandboxes.delete_sandbox.assert_called_once()
 
     def test_spec_env_is_forwarded_so_it_is_never_silently_dropped(self):
         backend, client = _backend_with_client()
@@ -269,6 +307,22 @@ class TestRunCommand:
         assert user_command not in command[2]
         # One byte over the budget, so an over-budget stream proves truncation.
         assert command[4:] == [user_command, "1025"]
+
+    def test_budget_above_the_server_cap_is_clamped_to_it(self):
+        backend, client = _backend_with_client()
+
+        backend.run_command("box", "x", timeout=5, max_output_bytes=5 * _SERVER_STREAM_CAP)
+
+        command = client.sandboxes.exec_in_sandbox.call_args.kwargs["command"]
+        assert command[-1] == str(_SERVER_STREAM_CAP)
+
+    def test_requests_leave_the_sdk_retries_in_place(self):
+        backend, client = _backend_with_client()
+
+        backend.run_command("box", "x", timeout=5, max_output_bytes=1024)
+
+        for call in (client.sandboxes.exec_in_sandbox, client.sandboxes.get_exec_result):
+            assert "max_retries" not in call.call_args.kwargs["request_options"]
 
     def test_a_stream_within_budget_is_passed_through_untouched(self):
         backend, client = _backend_with_client()
@@ -322,14 +376,27 @@ class TestRunCommand:
         assert result.stdout == "éé"
         assert result.stdout_truncated
 
-    def test_server_truncation_is_reported_for_both_streams(self):
+    def test_the_server_flag_marks_only_a_stream_at_the_server_cap(self):
         backend, client = _backend_with_client()
-        client.sandboxes.get_exec_result.return_value = _exec_result(truncated=True)
+        client.sandboxes.get_exec_result.return_value = _exec_result(
+            stdout="x" * _SERVER_STREAM_CAP, stderr="short\n", truncated=True
+        )
+
+        result = backend.run_command("box", "x", timeout=5, max_output_bytes=_SERVER_STREAM_CAP)
+
+        assert result.stdout_truncated
+        assert not result.stderr_truncated
+
+    def test_the_server_flag_alone_does_not_mark_streams_that_fit(self):
+        backend, client = _backend_with_client()
+        client.sandboxes.get_exec_result.return_value = _exec_result(
+            stdout="a\n", stderr="b\n", truncated=True
+        )
 
         result = backend.run_command("box", "x", timeout=5, max_output_bytes=1024)
 
-        assert result.stdout_truncated
-        assert result.stderr_truncated
+        assert not result.stdout_truncated
+        assert not result.stderr_truncated
 
     @mock.patch.object(IsloSandboxBackend, "_await_exec", autospec=True, return_value=None)
     def test_poll_deadline_destroys_the_sandbox(self, _await_exec):
@@ -343,14 +410,16 @@ class TestRunCommand:
 
     @mock.patch(f"{_MODULE}.log", autospec=True)
     @mock.patch.object(IsloSandboxBackend, "_await_exec", autospec=True, return_value=None)
-    def test_timeout_cleanup_failure_warns_and_leaves_the_ttl_to_reclaim(self, _await_exec, logger):
+    def test_timeout_cleanup_failure_warns_and_leaves_the_lifecycle_policy_to_reclaim(
+        self, _await_exec, logger
+    ):
         backend, client = _backend_with_client()
         client.sandboxes.delete_sandbox.side_effect = ApiError(status_code=503)
 
         result = backend.run_command("box", "x", timeout=5, max_output_bytes=1024)
 
         # A command that merely ran long must not fail the task because one
-        # cleanup call was refused; delete_after reclaims the microVM anyway.
+        # cleanup call was refused; the lifecycle policy reclaims the microVM.
         assert result.timed_out
         assert result.sandbox_terminated
         assert "could not confirm its deletion" in logger.warning.call_args.args[0]
@@ -401,12 +470,47 @@ class TestRunCommand:
         with pytest.raises(SandboxTerminalError, match="HTTP 401"):
             backend.run_command("box", "x", timeout=5, max_output_bytes=1024)
 
-    def test_poll_failure_is_terminal(self):
+    def test_transient_poll_errors_are_ridden_out(self):
         backend, client = _backend_with_client()
-        client.sandboxes.get_exec_result.side_effect = RuntimeError("transport down")
+        client.sandboxes.get_exec_result.side_effect = [
+            ApiError(status_code=502),
+            httpx.ReadError("connection reset"),
+            ApiError(status_code=None),
+            _exec_result(stdout="done\n"),
+        ]
+
+        with mock.patch("time.sleep", autospec=True):
+            result = backend.run_command("box", "x", timeout=60, max_output_bytes=1024)
+
+        assert result.stdout == "done\n"
+        assert not result.timed_out
+        client.sandboxes.delete_sandbox.assert_not_called()
+
+    @pytest.mark.parametrize("error", [ApiError(status_code=404), RuntimeError("bad client state")])
+    def test_a_non_transient_poll_error_is_terminal(self, error):
+        backend, client = _backend_with_client()
+        client.sandboxes.get_exec_result.side_effect = error
 
         with pytest.raises(SandboxTerminalError, match="poll a sandbox command"):
             backend.run_command("box", "x", timeout=5, max_output_bytes=1024)
+
+    def test_transient_errors_lasting_past_the_deadline_are_terminal_not_a_timeout(self):
+        backend, client = _backend_with_client()
+        client.sandboxes.get_exec_result.side_effect = ApiError(status_code=503)
+
+        with pytest.raises(SandboxTerminalError, match="poll a sandbox command"):
+            backend.run_command("box", "x", timeout=0.05, max_output_bytes=1024)
+
+        # Nothing was heard from the command, so claiming it timed out would be a guess.
+        client.sandboxes.delete_sandbox.assert_not_called()
+
+    def test_the_last_poll_keeps_a_minimum_http_budget(self):
+        backend, client = _backend_with_client()
+
+        backend.run_command("box", "x", timeout=1, max_output_bytes=1024)
+
+        options = client.sandboxes.get_exec_result.call_args.kwargs["request_options"]
+        assert options["timeout_in_seconds"] == 5
 
     @pytest.mark.parametrize(
         ("timeout", "max_bytes", "message"), [(0, 1, "timeout"), (1, 0, "max_output_bytes")]
@@ -429,11 +533,11 @@ class TestFileOperations:
         client.sandboxes.download_file.assert_called_once_with(
             "box",
             path="/w/a",
-            request_options={"timeout_in_seconds": 120, "max_retries": 0, "chunk_size": 101},
+            request_options={"timeout_in_seconds": 120, "chunk_size": 101},
         )
         client.sandboxes.exec_in_sandbox.assert_not_called()
 
-    def test_oversized_read_stops_and_closes_the_stream(self):
+    def test_oversized_read_stops_closes_the_stream_and_reports_the_real_size(self):
         backend, client = _backend_with_client()
         closed: list[bool] = []
 
@@ -445,11 +549,24 @@ class TestFileOperations:
                 closed.append(True)
 
         client.sandboxes.download_file.return_value = chunks()
+        client.sandboxes.get_exec_result.return_value = _exec_result(stdout="123456\n")
 
-        with pytest.raises(SandboxFileTooLargeError):
+        with pytest.raises(SandboxFileTooLargeError) as error:
             backend.read_file("box", "/w/a", max_bytes=10)
 
         assert closed == [True]
+        assert error.value.size_bytes == 123456
+        assert client.sandboxes.exec_in_sandbox.call_args.kwargs["command"][4].startswith("stat -Lc %s -- ")
+
+    def test_oversized_read_without_a_size_says_so_rather_than_inventing_one(self):
+        backend, client = _backend_with_client()
+        client.sandboxes.download_file.return_value = iter([b"x" * 11])
+        client.sandboxes.get_exec_result.return_value = _exec_result(exit_code=1, stderr="stat: no such file")
+
+        with pytest.raises(SandboxError, match="larger than the 10 byte read limit") as error:
+            backend.read_file("box", "/w/a", max_bytes=10)
+
+        assert not isinstance(error.value, (SandboxTerminalError, SandboxFileTooLargeError))
 
     def test_missing_file_is_recoverable_when_the_sandbox_exists(self):
         backend, client = _backend_with_client()
@@ -460,6 +577,30 @@ class TestFileOperations:
 
         assert not isinstance(error.value, SandboxTerminalError)
         client.sandboxes.get_sandbox.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "info",
+        [_sandbox_info(status="stopped"), _sandbox_info(deleted_at="2026-09-19T00:00:00Z")],
+        ids=["stopped", "deleted"],
+    )
+    def test_missing_file_on_a_sandbox_that_cannot_serve_is_terminal(self, info):
+        backend, client = _backend_with_client()
+        client.sandboxes.download_file.side_effect = NotFoundError({})
+        client.sandboxes.get_sandbox.return_value = info
+
+        with pytest.raises(SandboxTerminalError, match="cannot serve requests"):
+            backend.read_file("box", "/w/a", max_bytes=100)
+
+    @pytest.mark.parametrize(("auto_resume", "terminal"), [("on_activity", False), ("never", True)])
+    def test_a_paused_sandbox_is_usable_only_when_it_resumes_on_activity(self, auto_resume, terminal):
+        backend, client = _backend_with_client(auto_resume=auto_resume)
+        client.sandboxes.download_file.side_effect = NotFoundError({})
+        client.sandboxes.get_sandbox.return_value = _sandbox_info(status="paused")
+
+        with pytest.raises(SandboxError) as error:
+            backend.read_file("box", "/w/a", max_bytes=100)
+
+        assert isinstance(error.value, SandboxTerminalError) is terminal
 
     def test_missing_sandbox_is_terminal(self):
         backend, client = _backend_with_client()
@@ -487,12 +628,12 @@ class TestFileOperations:
             "box",
             path="/w/sub/a",
             file=("upload", b"data", "application/octet-stream"),
-            request_options={"timeout_in_seconds": 120, "max_retries": 0},
+            request_options={"timeout_in_seconds": 120},
         )
 
     def test_write_stops_when_parent_creation_fails(self):
         backend, client = _backend_with_client()
-        client.sandboxes.get_exec_result.return_value = _exec_result(exit_code=1, stderr="0\nread-only")
+        client.sandboxes.get_exec_result.return_value = _exec_result(exit_code=1, stderr="read-only")
 
         with pytest.raises(SandboxError, match="read-only"):
             backend.write_file("box", "/w/a", b"data")
@@ -508,13 +649,28 @@ class TestFileOperations:
 
     def test_list_directory_marks_directories_and_preserves_newlines(self):
         backend, client = _backend_with_client()
-        client.sandboxes.get_exec_result.return_value = _exec_result(stdout="0\nf a.txt\0d new\nline\0")
+        client.sandboxes.get_exec_result.return_value = _exec_result(stdout="f a.txt\0d new\nline\0")
 
         assert backend.list_directory("box", "/w") == [("a.txt", False), ("new\nline", True)]
 
+    @mock.patch(f"{_MODULE}._HELPER_OUTPUT_CAP", 16)
+    def test_a_listing_cut_at_the_head_drops_only_the_leading_record(self):
+        backend, client = _backend_with_client()
+        client.sandboxes.get_exec_result.return_value = _exec_result(stdout="f aaaa\0d bbbb\0d cccc\0")
+
+        assert backend.list_directory("box", "/w") == [("bbbb", True), ("cccc", True)]
+
+    def test_the_server_flag_alone_leaves_a_short_listing_intact(self):
+        backend, client = _backend_with_client()
+        client.sandboxes.get_exec_result.return_value = _exec_result(
+            stdout="f a.txt\0d sub\0", truncated=True
+        )
+
+        assert backend.list_directory("box", "/w") == [("a.txt", False), ("sub", True)]
+
     def test_list_failure_is_recoverable(self):
         backend, client = _backend_with_client()
-        client.sandboxes.get_exec_result.return_value = _exec_result(exit_code=1, stderr="0\nmissing")
+        client.sandboxes.get_exec_result.return_value = _exec_result(exit_code=1, stderr="missing")
 
         with pytest.raises(SandboxError, match="missing"):
             backend.list_directory("box", "/w")
@@ -567,7 +723,7 @@ class TestDestroy:
         assert options["max_retries"] > 0
 
 
-def _run_wrapper(command: str, max_output_bytes: int, *, timeout: float = 30.0):
+def _run_wrapper(command: str, max_output_bytes: int, *, timeout: float = 30.0, env: dict | None = None):
     """Run the real wrapper through a local ``sh``, exactly as the backend invokes it."""
     return subprocess.run(
         [
@@ -582,6 +738,7 @@ def _run_wrapper(command: str, max_output_bytes: int, *, timeout: float = 30.0):
         text=True,
         timeout=timeout,
         check=False,
+        env=env,
     )
 
 
@@ -601,6 +758,14 @@ class TestCommandWrapper:
         assert result.stderr == "err\n"
         assert result.returncode == 3
 
+    def test_the_process_environment_reaches_the_command_unchanged(self):
+        # A login shell would run /etc/profile after the spec's variables were set,
+        # and Debian's and macOS's both rewrite PATH.
+        env = {**os.environ, "PATH": "/spec/wins:" + os.environ["PATH"]}
+        result = _run_wrapper('echo "${PATH%%:*}"', 1024, env=env)
+
+        assert result.stdout == "/spec/wins\n"
+
     def test_a_backgrounded_process_does_not_hold_the_command_open(self):
         # The command's foreground part finishes at once. Waiting for the capture
         # to reach end-of-input would block until the backgrounded child exits,
@@ -616,11 +781,13 @@ class TestCommandWrapper:
 
     def test_a_long_lived_daemon_does_not_hold_the_command_open(self):
         start = time.monotonic()
-        result = _run_wrapper("nohup sleep 300 & echo server-started", 1024)
+        result = _run_wrapper("nohup sleep 300 >/dev/null 2>&1 & echo $! >&2; echo server-started", 1024)
         elapsed = time.monotonic() - start
-
-        assert result.stdout == "server-started\n"
-        assert elapsed < 5.0
+        try:
+            assert result.stdout == "server-started\n"
+            assert elapsed < 5.0
+        finally:
+            os.kill(int(result.stderr.strip()), signal.SIGTERM)
 
     def test_does_not_change_the_permissions_of_what_the_agent_creates(self, tmp_path):
         result = _run_wrapper(f"cd {tmp_path} && touch a_file && mkdir a_dir && ls -ld a_dir a_file", 4096)
@@ -668,7 +835,7 @@ class TestCommandWrapper:
         assert payload.endswith("line1000\n")
         assert all(line.startswith("line") for line in payload.splitlines())
 
-    def test_a_terminated_command_exits_nonzero_without_emitting_garbage(self):
+    def test_a_terminated_command_exits_143_and_emits_nothing(self):
         process = subprocess.Popen(
             ["sh", "-c", _COMMAND_WRAPPER, "airflow-sandbox", "sleep 30", "1024"],
             stdout=subprocess.PIPE,
@@ -676,12 +843,26 @@ class TestCommandWrapper:
             text=True,
             start_new_session=True,
         )
-        time.sleep(1.0)
+        pgid = os.getpgid(process.pid)
+        # The traps are in place once the agent's command itself is running,
+        # which on a loaded host can take longer than any fixed pause.
+        deadline = time.monotonic() + 10.0
+        while (
+            subprocess.run(
+                ["pgrep", "-g", str(pgid), "-x", "sleep"], capture_output=True, check=False
+            ).returncode
+            and time.monotonic() < deadline
+        ):
+            time.sleep(0.05)
         # What stopping the microVM looks like from inside it.
-        os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-        stdout, _ = process.communicate(timeout=30)
+        os.killpg(pgid, signal.SIGTERM)
+        stdout, stderr = process.communicate(timeout=30)
 
-        # A trap that cleans up and then falls through would carry on with its
-        # scratch files already deleted and report a clean exit 0.
-        assert process.returncode != 0
+        # Without the trap the wrapper dies of the signal itself (a negative
+        # return code); a trap that cleans up and then falls through reaches
+        # ``tail`` with its scratch files already deleted and reports that on
+        # stderr. bash may still announce the child's death ("Terminated: 15"),
+        # which is the shell's notice, not wrapper output.
+        assert process.returncode == 143
         assert stdout == ""
+        assert "No such file" not in stderr

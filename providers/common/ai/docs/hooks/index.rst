@@ -51,6 +51,11 @@ Choosing a hook
      - Backs ``MCPToolset`` (see :doc:`../toolsets`) for agent tasks that call
        tools on a remote MCP server. Configure the connection via
        :doc:`../connections/mcp`.
+   * - :class:`~airflow.providers.common.ai.hooks.islo.IsloHook`
+     - Backs ``IsloSandboxBackend`` (see :doc:`../toolsets`) for agent tasks
+       that run commands in islo.dev microVMs, and returns the ``islo`` SDK
+       client for direct use. Configure the connection via
+       :doc:`../connections/islo`.
 
 Hook guides
 -----------

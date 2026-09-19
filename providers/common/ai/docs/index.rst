@@ -155,6 +155,7 @@ See the Optional dependencies table below for the exact package each extra insta
     MCP connection <connections/mcp>
     LangChain connection <connections/langchain>
     LlamaIndex connection <connections/llamaindex>
+    Islo connection <connections/islo>
     Hooks <hooks/index>
     Toolsets <toolsets>
     Operators <operators/index>

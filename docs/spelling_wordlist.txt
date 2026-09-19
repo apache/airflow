@@ -212,6 +212,7 @@ bugfix
 bugfixes
 buildType
 burstable
+busybox
 bytestring
 cacert
 Cadwyn

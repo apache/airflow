@@ -86,6 +86,7 @@ def get_provider_info():
                 "integration-name": "LlamaIndex",
                 "python-modules": ["airflow.providers.common.ai.hooks.llamaindex"],
             },
+            {"integration-name": "Islo", "python-modules": ["airflow.providers.common.ai.hooks.islo"]},
         ],
         "plugins": [
             {
@@ -398,6 +399,31 @@ def get_provider_info():
                         "label": "LLM Model",
                         "description": "Default LlamaIndex LLM model name (e.g. gpt-4o). The OpenAI default; for other vendors pass a pre-built LLM instance to the operator.\n",
                         "schema": {"type": ["string", "null"]},
+                    },
+                },
+            },
+            {
+                "hook-class-name": "airflow.providers.common.ai.hooks.islo.IsloHook",
+                "hook-name": "Islo",
+                "connection-type": "islo",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "login"],
+                    "relabeling": {"password": "API Key", "host": "Compute URL"},
+                    "placeholders": {
+                        "host": "https://ca.compute.islo.dev (optional, the regional compute API)",
+                        "extra": '{"base_url": "https://api.islo.dev", "timeout": 30}',
+                    },
+                },
+                "conn-fields": {
+                    "base_url": {
+                        "label": "API URL",
+                        "description": "Control-plane URL. Defaults to https://api.islo.dev.",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "timeout": {
+                        "label": "Request Timeout (s)",
+                        "description": "HTTP request timeout in seconds for every SDK call (optional).",
+                        "schema": {"type": ["number", "null"]},
                     },
                 },
             },

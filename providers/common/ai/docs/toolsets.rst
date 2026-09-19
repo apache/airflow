@@ -826,45 +826,57 @@ Requires the ``sandbox-islo`` extra::
 
     SandboxToolset(IsloSandboxBackend(islo_conn_id="islo_default"))
 
-By default, credentials come from a generic Airflow connection, resolved lazily
-on first use, so the API key lives in your configured secrets backend rather
-than the worker environment:
-
-- ``password``: the Islo API key. Required.
-- ``host``: the compute URL. Optional.
-- Extra: optional ``base_url`` and ``timeout`` (request timeout in seconds).
+Credentials come from an ``islo`` connection (see :doc:`connections/islo`),
+resolved lazily on first use through
+:class:`~airflow.providers.common.ai.hooks.islo.IsloHook`, so the API key lives
+in your configured secrets backend rather than the worker environment.
 
 Constructor parameters:
 
 - ``islo_conn_id``: Connection ID. Default ``"islo_default"``. Passing ``None``
-  instead hands credential resolution to the SDK, which reads ``ISLO_API_KEY``
-  from the worker environment -- convenient for a local trial, but it puts the
-  key outside your secrets backend, so prefer a connection in a deployment.
+  instead hands credential resolution to the SDK, which reads ``ISLO_API_KEY``,
+  ``ISLO_BASE_URL`` and ``ISLO_COMPUTE_URL`` from the worker environment --
+  convenient for a local trial, but it puts the key outside your secrets
+  backend, so prefer a connection in a deployment.
 - ``image``, ``vcpus``, ``memory_mb``: image and sizing. ``None`` (default) uses
-  the server default for each.
-- ``delete_after``: Server-side TTL in seconds, after which the sandbox is
-  deleted even if the worker never got to destroy it. Default ``3600``. This is
-  the backstop the ``sbx`` backend lacks.
+  the server default for each. The server default image is Debian based, and
+  any Debian or Ubuntu based image, including ``python:*-slim``, has the GNU
+  ``find``, ``stat`` and ``tail`` the file operations need; Alpine and other
+  busybox images do not.
+- ``pause_after_idle``: Seconds without a command or file operation after which
+  the server pauses the microVM and stops charging for its compute. Default
+  ``600``; ``None`` disables it.
+- ``auto_resume``: ``"on_activity"`` (default) resumes a paused sandbox on the
+  next tool call, so a long think between calls costs a resume rather than the
+  run; ``"never"`` leaves it paused, and the backend then treats a paused
+  sandbox as unusable.
+- ``delete_after``: Seconds after **creation** at which the server deletes the
+  sandbox, whether or not it is in use. Default ``86400``; ``None`` disables
+  it. This is the backstop for a worker killed mid-run; it is not renewed while
+  the sandbox is busy, so keep it longer than the longest run you expect.
 
-``SandboxSpec.env`` is passed at creation, and ``block_network`` maps to the
-API's ``internet_enabled``. A per-domain ``allow_egress_to`` is refused: the API
-can turn outbound access on or off, not scope it to named hosts.
+``SandboxSpec.env`` becomes the process environment of every command, and
+``block_network`` maps to the API's ``internet_enabled``. Two things Islo cannot
+do are refused rather than silently dropped: a per-domain ``allow_egress_to``
+(the API turns outbound access on or off, not per host) and a ``PATH`` entry in
+``env`` (the runner sets ``PATH`` for every command itself).
 
-File reads and writes use Islo's native streaming APIs. Directory listings and
-command-output bounding require common Unix command-line tools in the sandbox
-image: ``sh``, ``tail`` and a ``find`` implementation with ``-printf`` support.
-Command output is capped inside the microVM before the SDK returns it to the
-worker, keeping the tail of each stream -- where a traceback and the exit status
-live -- rather than the head that the vendor's own 1 MB cap would keep. Each
-stream is captured to a scratch file in the sandbox first, so total output is
-bounded by the sandbox's own ephemeral disk rather than by worker memory.
+File reads and writes use Islo's native streaming APIs; directory listings and
+command-output bounding run ``sh``, ``tail``, ``stat`` and GNU ``find`` in the
+sandbox. The compute API caps each output stream at 1 MiB and keeps the tail.
+The backend captures each stream to a scratch file in the sandbox and returns
+only its last ``max_output_bytes`` -- where a traceback and the exit status
+live -- so the worker sees a window sized to the caller's budget, a budget above
+the server cap is clamped to it, and total output is bounded by the sandbox's
+own ephemeral disk rather than by worker memory.
 
 The backend enforces the command deadline itself because the API's
-``timeout_secs`` is only a hint. If no terminal state arrives by the deadline,
-the backend deletes the microVM before reporting a timeout; if deletion cannot
-be confirmed, the task fails instead of claiming that the sandbox stopped. The
-server-side ``delete_after`` policy remains the backstop for a worker killed
-mid-run.
+``timeout_secs`` is accepted but not enforced. Polling rides out transient API
+errors until the deadline. If no terminal state arrives by then, the backend
+deletes the microVM and reports the command as timed out with
+``sandbox_terminated`` set, so the toolset provisions a fresh sandbox for the
+next call; a deletion the API refused is logged and left to the lifecycle
+policy to reclaim rather than failing the task.
 
 Bringing your own backend
 ^^^^^^^^^^^^^^^^^^^^^^^^^
