@@ -755,8 +755,9 @@ class SerializedDagModel(Base):
             )
 
             if getattr(result, "rowcount", 0) == 0:
-                # No rows updated - serialized DAG doesn't exist
-                return False
+                new_serialized_dag.dag_version = dag_version
+                session.add(new_serialized_dag)
+                session.flush()
 
             if deadline_uuid_mapping:
                 updated_serialized_dag = session.scalar(
