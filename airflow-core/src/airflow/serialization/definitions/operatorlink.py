@@ -28,8 +28,18 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
+    from sqlalchemy import Row
+    from sqlalchemy.orm import Session
+
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.serialization.definitions.mappedoperator import Operator
+
+LINK_TRY_SUFFIX = "__try_"
+
+
+def build_xcom_key_for_try(xcom_key: str, try_number: int) -> str:
+    """Build the per try xcom key a link value is stored under."""
+    return f"{xcom_key}{LINK_TRY_SUFFIX}{try_number}"
 
 
 @attrs.define()
@@ -43,6 +53,20 @@ class XComOperatorLink(LoggingMixin):
     name: str
     xcom_key: str
 
+    @staticmethod
+    def _read_value(session: Session, key: str, ti_key: TaskInstanceKey) -> Row | None:
+        return session.execute(
+            XComModel.get_many(
+                key=key,
+                run_id=ti_key.run_id,
+                dag_ids=ti_key.dag_id,
+                task_ids=ti_key.task_id,
+                map_indexes=ti_key.map_index,
+            )
+            .with_only_columns(XComModel.value)
+            .limit(1)
+        ).first()
+
     def get_link(self, operator: Operator, *, ti_key: TaskInstanceKey) -> str:
         """
         Retrieve the link from the XComs.
@@ -55,17 +79,10 @@ class XComOperatorLink(LoggingMixin):
             "Attempting to retrieve link from XComs with key: %s for task id: %s", self.xcom_key, ti_key
         )
         with create_session() as session:
-            result = session.execute(
-                XComModel.get_many(
-                    key=self.xcom_key,
-                    run_id=ti_key.run_id,
-                    dag_ids=ti_key.dag_id,
-                    task_ids=ti_key.task_id,
-                    map_indexes=ti_key.map_index,
-                )
-                .with_only_columns(XComModel.value)
-                .limit(1)
-            ).first()
+            # Runs from before per-try keys existed only have the unsuffixed key.
+            result = self._read_value(
+                session, build_xcom_key_for_try(self.xcom_key, ti_key.try_number), ti_key
+            ) or self._read_value(session, self.xcom_key, ti_key)
         if not result:
             self.log.debug(
                 "No link with name: %s present in XCom as key: %s, returning empty link",
