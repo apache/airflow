@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import contextlib
-import importlib
 import os
 import sys
 import textwrap
@@ -573,13 +572,9 @@ class BundleDagBag(DagBag):
         if not bundle_path:
             raise ValueError("bundle_path is required for BundleDagBag")
 
-        paths_added = False
         for path in dict.fromkeys((bundle_path, bundle_import_root or bundle_path)):
             if str(path) not in sys.path:
                 sys.path.append(str(path))
-                paths_added = True
-        if paths_added:
-            importlib.invalidate_caches()
 
         kwargs["bundle_path"] = bundle_path
         super().__init__(*args, **kwargs)

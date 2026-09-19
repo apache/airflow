@@ -1401,19 +1401,17 @@ class TestBundlePathSysPath:
         monkeypatch.setattr(sys, "path", sys.path.copy())
 
         try:
-            with patch("airflow.dag_processing.dagbag.importlib.invalidate_caches") as invalidate_caches:
-                dagbag = BundleDagBag(
-                    dag_folder=str(dag_file),
-                    bundle_path=bundle_path,
-                    bundle_import_root=repository_root,
-                    bundle_name="test-bundle",
-                )
+            dagbag = BundleDagBag(
+                dag_folder=str(dag_file),
+                bundle_path=bundle_path,
+                bundle_import_root=repository_root,
+                bundle_name="test-bundle",
+            )
 
             assert not dagbag.import_errors
             assert dagbag.get_dag("test_import_root").description == "imported from repository root"
             assert sys.path.count(str(bundle_path)) == 1
             assert sys.path.count(str(repository_root)) == 1
-            invalidate_caches.assert_called_once_with()
         finally:
             sys.modules.pop("company_shared.engine", None)
             sys.modules.pop("company_shared", None)

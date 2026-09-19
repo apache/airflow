@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import importlib
 import os
 import signal
 import sys
@@ -240,7 +239,6 @@ class CallbackSubprocess(WatchedSubprocess):
                             sys.path.append(path)
                             paths_added = True
                     if paths_added:
-                        importlib.invalidate_caches()
                         _log.debug(
                             "Added bundle paths to sys.path",
                             bundle_name=bundle_info.name,
