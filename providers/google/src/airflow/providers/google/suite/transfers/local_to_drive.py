@@ -86,6 +86,7 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
         chunk_size: int = 100 * 1024 * 1024,
         resumable: bool = False,
         impersonation_chain: str | Sequence[str] | None = None,
+        subject: str | None = None,
         folder_id: str = "root",
         show_full_target_path: bool = True,
         **kwargs,
@@ -99,6 +100,7 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
         self.chunk_size = chunk_size
         self.resumable = resumable
         self.impersonation_chain = impersonation_chain
+        self.subject = subject
         self.folder_id = folder_id
         self.show_full_target_path = show_full_target_path
 
@@ -106,6 +108,7 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
         hook = GoogleDriveHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
+            subject=self.subject,
         )
 
         remote_file_ids = []
