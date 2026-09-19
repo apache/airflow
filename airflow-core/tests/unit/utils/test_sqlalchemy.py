@@ -38,6 +38,7 @@ from airflow.utils.sqlalchemy import (
     apply_regex_query_timeout,
     ensure_pod_is_valid_after_unpickling,
     get_dialect_name,
+    lock_rows,
     prohibit_commit,
     with_row_locks,
 )
@@ -179,6 +180,19 @@ class TestSqlAlchemyUtils:
         else:
             assert returned_value == query
             query.with_for_update.assert_not_called()
+
+    def test_lock_rows_executes_locking_query(self):
+        query = mock.Mock()
+        session = mock.Mock()
+        locked_query = mock.Mock()
+
+        with mock.patch("airflow.utils.sqlalchemy.with_row_locks", return_value=locked_query) as mock_wrl:
+            with lock_rows(query, session):
+                pass
+
+        mock_wrl.assert_called_once_with(query, session)
+        session.execute.assert_called_once_with(locked_query)
+        session.execute.return_value.all.assert_called_once()
 
     def test_prohibit_commit(self):
         with prohibit_commit(self.session) as guard:
