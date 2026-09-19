@@ -62,6 +62,33 @@ Add the following lines to your configuration file e.g. ``airflow.cfg``
     See the OpenTelemetry `exporter protocol specification <https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options>`_  and
     `SDK environment variable documentation <https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#periodic-exporting-metricreader>`_ for more information.
 
+Using auto-instrumentation or a vendor distro
+---------------------------------------------
+
+Airflow does not generate span ids randomly: a Dag run and its task runs get ids derived from the
+metadata database so that spans emitted by different components join up into one trace. That is
+implemented by a custom OpenTelemetry ``IdGenerator``, which Airflow installs on the
+``TracerProvider`` it builds itself.
+
+If you bring your own ``TracerProvider`` — via ``opentelemetry-instrument``, a call to
+``opentelemetry.instrumentation.auto_instrumentation.initialize()``, or a vendor distro — that
+provider is already registered by the time Airflow configures tracing, and OpenTelemetry does not
+allow it to be replaced. Select Airflow's generator through the standard environment variable so it
+is applied when your provider is built:
+
+.. code-block:: bash
+
+    export OTEL_PYTHON_ID_GENERATOR=airflow
+    opentelemetry-instrument airflow scheduler
+
+Airflow registers the generator under the ``opentelemetry_id_generator`` entry point group, so this
+works with any distro or configuration tool that follows the OpenTelemetry SDK configuration conventions.
+
+If the variable is not set, Airflow falls back to patching the generator onto the existing provider
+and logs a warning. That fallback is best-effort only: tracers that were already created keep the
+generator they were built with, so their span ids will not be linked. Prefer the environment
+variable.
+
 Adding Custom Spans in Tasks
 -----------------------------
 
