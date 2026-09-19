@@ -223,11 +223,12 @@ prerequisite each one needs before the operator can check driver status on retry
     immediately) still emits a deprecation warning on every Airflow version and maps onto
     ``durable``.
 
-Clearing a task is treated the same as a retry, which matters specifically for a task whose driver
-already succeeded: clearing does not delete the stored driver ID, so the next attempt reads it
-back and returns immediately without resubmitting. See
+Clearing a task now discards the stored driver ID by default, so the next attempt resubmits
+instead of reconnecting to the driver already run. To resume from the stored driver ID instead,
+pass ``keep_task_state`` when clearing (or tick the corresponding box in the clear dialog). See
 :doc:`apache-airflow:core-concepts/resumable-tasks` for why, and for the
-``[state_store] clear_on_success`` setting that restores "clearing always resubmits."
+``[state_store] clear_on_success`` setting that discards the driver ID automatically as soon as
+the task succeeds.
 
 This is most reliable for deferred tasks (``deferrable=True``); clearing a task that's actively
 polling synchronously can cancel the driver via ``on_kill`` before the next attempt gets a chance
