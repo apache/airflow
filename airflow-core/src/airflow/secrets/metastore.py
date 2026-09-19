@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import or_, select
 
 from airflow.secrets import BaseSecretsBackend
+from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
@@ -36,6 +37,7 @@ class MetastoreBackend(BaseSecretsBackend):
     """Retrieves Connection object and Variable from airflow metastore database."""
 
     @provide_session
+    @retry_db_transaction
     def get_connection(
         self, conn_id: str, team_name: str | None = None, *, session: Session = NEW_SESSION
     ) -> Connection | None:
@@ -62,6 +64,7 @@ class MetastoreBackend(BaseSecretsBackend):
         return conn
 
     @provide_session
+    @retry_db_transaction
     def get_variable(
         self, key: str, team_name: str | None = None, *, session: Session = NEW_SESSION
     ) -> str | None:
