@@ -63,6 +63,7 @@ from airflow.sdk.execution_time.comms import (
     PreviousTIResult,
     PrevSuccessfulDagRunResult,
     PutVariable,
+    SetXCom,
     TaskStatesResult,
     VariableKeysResult,
     VariableResult,
@@ -85,6 +86,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_get_xcom_sequence_slice,
     handle_mask_secret,
     handle_put_variable,
+    handle_set_xcom,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _send_error_email_notification
@@ -161,6 +163,7 @@ ToManager = Annotated[
     | GetXComCount
     | GetXComSequenceItem
     | GetXComSequenceSlice
+    | SetXCom
     | MaskSecret,
     Field(discriminator="type"),
 ]
@@ -724,6 +727,8 @@ class DagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
             resp, dump_opts = handle_get_xcom_sequence_item(self.client, msg)
         elif isinstance(msg, GetXComSequenceSlice):
             resp, dump_opts = handle_get_xcom_sequence_slice(self.client, msg)
+        elif isinstance(msg, SetXCom):
+            resp, dump_opts = handle_set_xcom(self.client, msg)
         elif isinstance(msg, MaskSecret):
             handle_mask_secret(msg)
         elif isinstance(msg, GetTICount):
