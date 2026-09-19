@@ -249,3 +249,25 @@ class TestGetDAGSource:
             "version_number": 1,
             "dag_display_name": TEST_DAG_DISPLAY_NAME,
         }
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_sources.get_auth_manager")
+    def test_source_is_returned_when_unreadable_colocated_dag_is_stale(
+        self, mock_get_auth_manager, test_client, test_dag, colocated_unreadable_dag, session
+    ):
+        colocated_unreadable_dag.is_stale = True
+        session.commit()
+
+        mock_get_auth_manager.return_value.get_authorized_dag_ids.return_value = {TEST_DAG_ID}
+        dag_content = self._get_dag_file_code(test_dag.fileloc)
+
+        response: Response = test_client.get(
+            f"{API_PREFIX}/{TEST_DAG_ID}", headers={"Accept": "application/json"}
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "content": dag_content,
+            "dag_id": TEST_DAG_ID,
+            "version_number": 1,
+            "dag_display_name": TEST_DAG_DISPLAY_NAME,
+        }
