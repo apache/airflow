@@ -169,6 +169,26 @@ class DataFusionEngine(LoggingMixin):
                 credentials = self._remove_none_values(credentials)
                 extra_config = _fetch_extra_configs(["region", "endpoint"])
 
+            case "google_cloud_platform":
+                try:
+                    from airflow.providers.google.common.hooks.base_google import get_field
+                except ImportError:
+                    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+                    raise AirflowOptionalProviderFeatureException(
+                        "Failed to import get_field. To use the GCS storage functionality, please install "
+                        "the apache-airflow-providers-google package."
+                    )
+                extra_dejson = conn.extra_dejson
+                key_path = get_field(extra_dejson, "key_path")
+                keyfile_dict = get_field(extra_dejson, "keyfile_dict")
+                if key_path and keyfile_dict:
+                    raise ValueError(
+                        "The `keyfile_dict` and `key_path` fields are mutually exclusive. "
+                        "Please provide only one value."
+                    )
+                credentials = self._remove_none_values({"key_path": key_path, "keyfile_dict": keyfile_dict})
+
             case _:
                 raise ValueError(f"Unknown connection type {conn.conn_type}")
         return credentials, extra_config

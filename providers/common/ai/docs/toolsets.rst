@@ -284,7 +284,7 @@ later request.
 Curated toolset wrapping
 :class:`~airflow.providers.common.sql.datafusion.engine.DataFusionEngine`
 with three tools — ``list_tables``, ``get_schema``, and ``query`` — for
-querying files on object stores (S3, local filesystem, Iceberg) via Apache DataFusion.
+querying files on object stores (S3, GCS, local filesystem, Iceberg) via Apache DataFusion.
 
 .. list-table::
    :header-rows: 1
