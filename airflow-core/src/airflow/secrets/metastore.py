@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import or_, select
 
 from airflow.secrets import BaseSecretsBackend
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -35,9 +35,8 @@ if TYPE_CHECKING:
 class MetastoreBackend(BaseSecretsBackend):
     """Retrieves Connection object and Variable from airflow metastore database."""
 
-    @provide_session
     def get_connection(
-        self, conn_id: str, team_name: str | None = None, *, session: Session = NEW_SESSION
+        self, conn_id: str, team_name: str | None = None, *, session: Session | None = None
     ) -> Connection | None:
         """
         Get Airflow Connection from Metadata DB.
@@ -47,6 +46,17 @@ class MetastoreBackend(BaseSecretsBackend):
         :param session: SQLAlchemy Session
         :return: Connection Object
         """
+        if session is None:
+            # Deliberately not @provide_session: that decorator's own default resolves to
+            # settings.Session(), a thread-local scoped session. A caller with no session in
+            # scope (e.g. a dag_run listener hook) may be running on the scheduler's own thread
+            # under `prohibit_commit`, where that scoped session is the guarded one -- committing
+            # it below would raise "UNEXPECTED COMMIT" and corrupt the scheduler's in-flight
+            # transaction instead of just reading a row. A genuinely independent, non-scoped
+            # session avoids aliasing into it.
+            with create_session(scoped=False) as new_session:
+                return self.get_connection(conn_id, team_name=team_name, session=new_session)
+
         from airflow.models import Connection
 
         conn = session.scalar(
@@ -61,9 +71,8 @@ class MetastoreBackend(BaseSecretsBackend):
             session.expunge(conn)
         return conn
 
-    @provide_session
     def get_variable(
-        self, key: str, team_name: str | None = None, *, session: Session = NEW_SESSION
+        self, key: str, team_name: str | None = None, *, session: Session | None = None
     ) -> str | None:
         """
         Get Airflow Variable from Metadata DB.
@@ -73,6 +82,11 @@ class MetastoreBackend(BaseSecretsBackend):
         :param session: SQLAlchemy Session
         :return: Variable Value
         """
+        if session is None:
+            # See get_connection() above for why this must be a non-scoped session.
+            with create_session(scoped=False) as new_session:
+                return self.get_variable(key, team_name=team_name, session=new_session)
+
         from airflow.models import Variable
 
         var_value = session.scalar(
