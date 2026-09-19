@@ -56,6 +56,11 @@ class _BaseTemporalMapper(PartitionMapper):
         if not self.output_format:
             self.output_format = self.default_output_format
 
+    @property
+    def tzinfo(self) -> Timezone | FixedTimezone:
+        """Timezone this mapper localizes keys in (mirrors core for DST-aware windows)."""
+        return self._timezone  # type: ignore[return-value]
+
 
 class StartOfHourMapper(_BaseTemporalMapper):
     """
