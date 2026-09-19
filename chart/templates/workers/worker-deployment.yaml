@@ -113,13 +113,13 @@ spec:
           {{- mustMerge .Values.workers.celery.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
       annotations:
-        checksum/metadata-secret: {{ include (print $.Template.BasePath "/secrets/metadata-connection-secret.yaml") . | sha256sum }}
-        checksum/result-backend-secret: {{ include (print $.Template.BasePath "/secrets/result-backend-connection-secret.yaml") . | sha256sum }}
-        checksum/pgbouncer-config-secret: {{ include (print $.Template.BasePath "/secrets/pgbouncer-config-secret.yaml") . | sha256sum }}
-        checksum/kerberos-keytab: {{ include (print $.Template.BasePath "/secrets/kerberos-keytab-secret.yaml") . | sha256sum }}
-        checksum/airflow-config: {{ include (print $.Template.BasePath "/configmaps/configmap.yaml") . | sha256sum }}
-        checksum/extra-configmaps: {{ include (print $.Template.BasePath "/configmaps/extra-configmaps.yaml") . | sha256sum }}
-        checksum/extra-secrets: {{ include (print $.Template.BasePath "/secrets/extra-secrets.yaml") . | sha256sum }}
+        checksum/metadata-secret: {{ include "airflow.configMapOrSecretContentHash" (dict "ctx" . "name" "/secrets/metadata-connection-secret.yaml") }}
+        checksum/result-backend-secret: {{ include "airflow.configMapOrSecretContentHash" (dict "ctx" . "name" "/secrets/result-backend-connection-secret.yaml") }}
+        checksum/pgbouncer-config-secret: {{ include "airflow.configMapOrSecretContentHash" (dict "ctx" . "name" "/secrets/pgbouncer-config-secret.yaml") }}
+        checksum/kerberos-keytab: {{ include "airflow.configMapOrSecretContentHash" (dict "ctx" . "name" "/secrets/kerberos-keytab-secret.yaml") }}
+        checksum/airflow-config: {{ include "airflow.configMapOrSecretContentHash" (dict "ctx" . "name" "/configmaps/configmap.yaml") }}
+        checksum/extra-configmaps: {{ include "airflow.configMapOrSecretContentHash" (dict "ctx" . "name" "/configmaps/extra-configmaps.yaml") }}
+        checksum/extra-secrets: {{ include "airflow.configMapOrSecretContentHash" (dict "ctx" . "name" "/secrets/extra-secrets.yaml") }}
         {{- if $podAnnotations }}
           {{- tpl (toYaml $podAnnotations) . | nindent 8 }}
         {{- end }}

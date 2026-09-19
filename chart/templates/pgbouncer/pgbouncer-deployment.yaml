@@ -71,8 +71,8 @@ spec:
           {{- mustMerge .Values.pgbouncer.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
       annotations:
-        checksum/pgbouncer-config-secret: {{ include (print $.Template.BasePath "/secrets/pgbouncer-config-secret.yaml") . | sha256sum }}
-        checksum/pgbouncer-certificates-secret: {{ include (print $.Template.BasePath "/secrets/pgbouncer-certificates-secret.yaml") . | sha256sum }}
+        checksum/pgbouncer-config-secret: {{ include "airflow.configMapOrSecretContentHash" (dict "ctx" . "name" "/secrets/pgbouncer-config-secret.yaml") }}
+        checksum/pgbouncer-certificates-secret: {{ include "airflow.configMapOrSecretContentHash" (dict "ctx" . "name" "/secrets/pgbouncer-certificates-secret.yaml") }}
         {{- if .Values.pgbouncer.podAnnotations }}
           {{- tpl (toYaml .Values.pgbouncer.podAnnotations) . | nindent 8 }}
         {{- end }}
