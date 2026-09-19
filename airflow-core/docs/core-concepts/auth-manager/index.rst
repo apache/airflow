@@ -194,22 +194,127 @@ available at ``POST /auth/token``.
 Please double check the auth manager documentation to find the accurate token generation endpoint.
 
 The auth manager is also responsible for passing the JWT token to the Airflow UI. The protocol to exchange the JWT
-token between the auth manager and Airflow UI is using cookies. The auth manager needs to save the JWT token in a
-cookie named ``_token`` before redirecting to the Airflow UI. The Airflow UI will then read the cookie, save it, and delete it.
-
-.. code-block:: python
-
-    from airflow.api_fastapi.app import get_cookie_path
-    from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
-
-    response = RedirectResponse(url="/")
-
-    secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
-    response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, path=get_cookie_path(), secure=secure, httponly=True)
-    return response
+token between the auth manager and Airflow UI uses a cookie named ``_token``. The auth manager must attach this
+cookie to the final response that redirects the authenticated user to the UI. The browser then sends the
+``httponly`` cookie with subsequent requests; the UI does not manage the token.
 
 .. note::
   Ensure that the cookie parameter ``httponly`` is set to ``True``. The UI does not manage the token.
+
+Redirect-based UI login flows
+'''''''''''''''''''''''''''''
+
+OAuth, OIDC, SAML, and similar login protocols leave Airflow while the identity provider authenticates the user.
+For these flows, complete authentication and set the Airflow JWT cookie before returning to the UI:
+
+#. When an unauthenticated UI request receives a ``401``, the UI navigates to ``/api/v2/auth/login`` and sends its
+   original destination in ``next``.
+#. Airflow validates ``next`` and forwards it to the auth manager's mounted login endpoint.
+#. The login endpoint validates the return URL again and preserves it across the external redirects in
+   integrity-protected state, together with a unique nonce for this login attempt.
+#. The callback verifies and consumes the CSRF/state value, completes the provider exchange, verifies the provider
+   credentials, constructs the Airflow user, and calls ``get_auth_manager().generate_jwt(user)``.
+#. Only after those operations succeed does the callback create the final ``RedirectResponse`` and attach the
+   ``_token`` cookie to that same response.
+#. The callback returns a ``303`` redirect to the validated return URL, or to the configured ``[api] base_url`` when
+   there was no original destination.
+
+The following compact example shows the two auth-manager handlers. The ``validate_airflow_return_url``,
+``store_login_nonce``, ``sign_login_state``, ``verify_and_consume_login_state``,
+``build_provider_authorization_url``, and ``exchange_code_and_build_user`` helpers are placeholders that the auth
+manager must implement. Airflow does not provide provider token exchange or state signing.
+
+.. code-block:: python
+
+    import secrets
+    from urllib.parse import urlsplit, urlunsplit
+
+    from fastapi import APIRouter, HTTPException, Request, status
+    from fastapi.responses import RedirectResponse
+
+    from airflow.api_fastapi.app import (
+        AUTH_MANAGER_FASTAPI_APP_PREFIX,
+        get_auth_manager,
+        get_cookie_path,
+    )
+    from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
+    from airflow.configuration import conf
+
+    router = APIRouter()
+    airflow_base_url = conf.get("api", "base_url", fallback="/")
+    base_url_parts = urlsplit(airflow_base_url)
+    callback_url = urlunsplit(
+        (
+            base_url_parts.scheme,
+            base_url_parts.netloc,
+            f"{AUTH_MANAGER_FASTAPI_APP_PREFIX.rstrip('/')}/callback",
+            "",
+            "",
+        )
+    )
+
+
+    @router.get("/login")
+    def login(next: str | None = None) -> RedirectResponse:
+        validated_return_url = validate_airflow_return_url(next, base_url=airflow_base_url)
+        nonce = secrets.token_urlsafe(32)
+        store_login_nonce(nonce)
+        state = sign_login_state({"nonce": nonce, "return_url": validated_return_url})
+        provider_url = build_provider_authorization_url(redirect_uri=callback_url, state=state)
+        return RedirectResponse(url=provider_url, status_code=303)
+
+
+    @router.get("/callback")
+    def callback(
+        request: Request,
+        state: str | None = None,
+        code: str | None = None,
+        error: str | None = None,
+    ) -> RedirectResponse:
+        if state is None:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Missing login state")
+
+        # This verifies the signature and expiry, matches the stored nonce, and consumes it to prevent replay.
+        login_state = verify_and_consume_login_state(state)
+        if error is not None or code is None:
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Authentication failed")
+
+        validated_return_url = validate_airflow_return_url(login_state["return_url"], base_url=airflow_base_url)
+        user = exchange_code_and_build_user(code=code, redirect_uri=callback_url)
+        token = get_auth_manager().generate_jwt(user)
+
+        secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
+        response = RedirectResponse(url=validated_return_url, status_code=303)
+        response.set_cookie(
+            COOKIE_NAME_JWT_TOKEN,
+            token,
+            path=get_cookie_path(),
+            secure=secure,
+            httponly=True,
+            samesite="lax",
+        )
+        return response
+
+Treat the return URL as opaque state so that its query string is neither lost nor double-encoded. Never redirect to a
+raw ``next`` value returned by the identity provider: protect its integrity and restrict both the initial and restored
+values to the configured Airflow origin and base path. Use a unique, expiring nonce for each attempt rather than one
+global mutable return URL, so concurrent logins in separate tabs cannot overwrite each other. Reject missing,
+expired, replayed, or mismatched state before generating the Airflow JWT.
+
+On provider denial, token-exchange failure, user-construction failure, or JWT-generation failure, return an error
+without setting ``_token`` or redirecting to the UI. Do not log provider credentials, authorization codes, or Airflow
+JWTs. The UI must not be an intermediate callback page and must not be revisited before the cookie is attached.
+
+Use ``get_cookie_path()`` consistently, especially when Airflow is served under a URL prefix; setting another
+``_token`` cookie at ``/`` can make competing cookies cause redirect loops. Derive ``secure`` consistently with the
+example above, and configure reverse-proxy forwarding so that the API server detects HTTPS correctly. If an explicit
+cookie lifetime is used, it must not exceed the configured JWT validity; do not copy an arbitrary ``max_age`` from an
+example.
+
+The `FAB OAuth fix <https://github.com/apache/airflow/pull/61287>`_ marks a Flask session as modified so that FAB's
+session is persisted before its redirect. A FastAPI custom auth manager should use the final-callback JWT-cookie
+pattern above instead of Flask session APIs. Logout and token refresh are separate flows; refresh behavior is
+documented below.
 
 Refreshing JWT Token
 ''''''''''''''''''''
