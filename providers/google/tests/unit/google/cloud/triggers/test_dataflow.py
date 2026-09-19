@@ -43,6 +43,7 @@ LOCATION = "us-central1"
 GCP_CONN_ID = "test_gcp_conn_id"
 POLL_SLEEP = 20
 IMPERSONATION_CHAIN = ["impersonate", "this"]
+JOB_NAME = "test-job-name"
 CANCEL_TIMEOUT = 10 * 420
 WAIT_UNTIL_FINISHED = None
 
@@ -104,6 +105,19 @@ def dataflow_job_status_trigger():
     return DataflowJobStatusTrigger(
         project_id=PROJECT_ID,
         job_id=JOB_ID,
+        expected_statuses={JobState.JOB_STATE_DONE, JobState.JOB_STATE_FAILED},
+        location=LOCATION,
+        gcp_conn_id=GCP_CONN_ID,
+        poll_sleep=POLL_SLEEP,
+        impersonation_chain=IMPERSONATION_CHAIN,
+    )
+
+
+@pytest.fixture
+def dataflow_job_status_by_name_trigger():
+    return DataflowJobStatusTrigger(
+        project_id=PROJECT_ID,
+        job_name=JOB_NAME,
         expected_statuses={JobState.JOB_STATE_DONE, JobState.JOB_STATE_FAILED},
         location=LOCATION,
         gcp_conn_id=GCP_CONN_ID,
@@ -692,6 +706,7 @@ class TestDataflowJobStatusTrigger:
             {
                 "project_id": PROJECT_ID,
                 "job_id": JOB_ID,
+                "job_name": None,
                 "expected_statuses": {JobState.JOB_STATE_DONE, JobState.JOB_STATE_FAILED},
                 "location": LOCATION,
                 "gcp_conn_id": GCP_CONN_ID,
@@ -701,6 +716,39 @@ class TestDataflowJobStatusTrigger:
         )
         actual_data = dataflow_job_status_trigger.serialize()
         assert actual_data == expected_data
+
+    def test_serialize_by_job_name(self, dataflow_job_status_by_name_trigger):
+        expected_data = (
+            "airflow.providers.google.cloud.triggers.dataflow.DataflowJobStatusTrigger",
+            {
+                "project_id": PROJECT_ID,
+                "job_id": None,
+                "job_name": JOB_NAME,
+                "expected_statuses": {JobState.JOB_STATE_DONE, JobState.JOB_STATE_FAILED},
+                "location": LOCATION,
+                "gcp_conn_id": GCP_CONN_ID,
+                "poll_sleep": POLL_SLEEP,
+                "impersonation_chain": IMPERSONATION_CHAIN,
+            },
+        )
+        actual_data = dataflow_job_status_by_name_trigger.serialize()
+        assert actual_data == expected_data
+
+    @pytest.mark.parametrize(
+        "job_kwargs",
+        [
+            pytest.param({}, id="neither"),
+            pytest.param({"job_id": JOB_ID, "job_name": JOB_NAME}, id="both"),
+        ],
+    )
+    def test_init_raises_exception_unless_exactly_one_job_identifier(self, job_kwargs):
+        with pytest.raises(ValueError, match="Exactly one of `job_id` or `job_name` must be provided."):
+            DataflowJobStatusTrigger(
+                project_id=PROJECT_ID,
+                expected_statuses={JobState.JOB_STATE_DONE},
+                location=LOCATION,
+                **job_kwargs,
+            )
 
     @pytest.mark.parametrize(
         ("attr", "expected"),
@@ -785,6 +833,84 @@ class TestDataflowJobStatusTrigger:
         mock_job_status.return_value = JobState.JOB_STATE_RUNNING
         task = asyncio.create_task(dataflow_job_status_trigger.run().__anext__())
         await asyncio.sleep(0.5)
+        assert task.done() is False
+        task.cancel()
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_latest_job_by_name")
+    async def test_run_yields_success_event_by_job_name(
+        self, mock_get_latest_job_by_name, dataflow_job_status_by_name_trigger
+    ):
+        """The event reports the id of the job resolved from the name."""
+        dataflow_job_status_by_name_trigger.expected_statuses = {DataflowJobStatus.JOB_STATE_DONE}
+        mock_get_latest_job_by_name.return_value = Job(id=JOB_ID, current_state=JobState.JOB_STATE_DONE)
+        expected_event = TriggerEvent(
+            {
+                "status": "success",
+                "message": f"Job with id '{JOB_ID}' has reached an expected state: {JobState.JOB_STATE_DONE.name}",
+            }
+        )
+
+        actual_event = await dataflow_job_status_by_name_trigger.run().asend(None)
+
+        assert actual_event == expected_event
+        mock_get_latest_job_by_name.assert_called_once_with(
+            job_name=JOB_NAME, project_id=PROJECT_ID, location=LOCATION
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_latest_job_by_name")
+    async def test_run_yields_terminal_state_event_by_job_name(
+        self, mock_get_latest_job_by_name, dataflow_job_status_by_name_trigger
+    ):
+        dataflow_job_status_by_name_trigger.expected_statuses = {DataflowJobStatus.JOB_STATE_CANCELLING}
+        mock_get_latest_job_by_name.return_value = Job(id=JOB_ID, current_state=JobState.JOB_STATE_FAILED)
+        expected_event = TriggerEvent(
+            {
+                "status": "error",
+                "message": f"Job with id '{JOB_ID}' is already in terminal state: {JobState.JOB_STATE_FAILED.name}",
+            }
+        )
+
+        actual_event = await dataflow_job_status_by_name_trigger.run().asend(None)
+
+        assert actual_event == expected_event
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.asyncio.sleep")
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_latest_job_by_name")
+    async def test_run_keeps_polling_until_a_job_with_the_name_appears(
+        self, mock_get_latest_job_by_name, mock_sleep, dataflow_job_status_by_name_trigger
+    ):
+        """The trigger must resume polling after an absent job, not give up on it."""
+        dataflow_job_status_by_name_trigger.expected_statuses = {DataflowJobStatus.JOB_STATE_DONE}
+        mock_get_latest_job_by_name.side_effect = [
+            None,
+            None,
+            Job(id=JOB_ID, current_state=JobState.JOB_STATE_DONE),
+        ]
+
+        actual_event = await dataflow_job_status_by_name_trigger.run().asend(None)
+
+        assert actual_event == TriggerEvent(
+            {
+                "status": "success",
+                "message": f"Job with id '{JOB_ID}' has reached an expected state: {JobState.JOB_STATE_DONE.name}",
+            }
+        )
+        assert mock_get_latest_job_by_name.call_count == 3
+        assert mock_sleep.await_count == 2
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_latest_job_by_name")
+    async def test_run_loop_is_still_running_if_no_job_with_name_exists_yet(
+        self, mock_get_latest_job_by_name, dataflow_job_status_by_name_trigger
+    ):
+        """Test that DataflowJobStatusTrigger keeps waiting until a job with that name shows up."""
+        mock_get_latest_job_by_name.return_value = None
+        task = asyncio.create_task(dataflow_job_status_by_name_trigger.run().__anext__())
+        await asyncio.sleep(0.5)
+
         assert task.done() is False
         task.cancel()
 

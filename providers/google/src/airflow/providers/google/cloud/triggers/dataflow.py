@@ -169,10 +169,13 @@ class DataflowJobStatusTrigger(BaseTrigger):
     """
     Trigger that monitors if a Dataflow job has reached any of the expected statuses.
 
-    :param job_id: Required. ID of the job.
+    The job can be identified either by its ID or by its name. Parameters ``job_id``
+    and ``job_name`` are mutually exclusive, and exactly one of them must be provided.
+
+    :param job_id: ID of the job.
     :param expected_statuses: The expected state(s) of the operation.
         See: https://cloud.google.com/dataflow/docs/reference/rest/v1b3/projects.jobs#Job.JobState
-    :param project_id: Required. The Google Cloud project ID in which the job was started.
+    :param project_id: The Google Cloud project ID in which the job was started.
     :param location: Optional. The location where the job is executed. If set to None then
         the value of DEFAULT_DATAFLOW_LOCATION will be used.
     :param gcp_conn_id: The connection ID to use for connecting to Google Cloud.
@@ -185,21 +188,28 @@ class DataflowJobStatusTrigger(BaseTrigger):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param job_name: Name of the job. Dataflow job names are not unique over time, so the most
+        recently created job with that name is the one being monitored. If no job with that name
+        exists yet, the trigger keeps waiting for one to appear.
     """
 
     def __init__(
         self,
-        job_id: str,
-        expected_statuses: set[str],
-        project_id: str | None,
+        job_id: str | None = None,
+        expected_statuses: set[str] | None = None,
+        project_id: str | None = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
         poll_sleep: int = 10,
         impersonation_chain: str | Sequence[str] | None = None,
+        job_name: str | None = None,
     ):
         super().__init__()
+        if (job_id is None) == (job_name is None):
+            raise ValueError("Exactly one of `job_id` or `job_name` must be provided.")
         self.job_id = job_id
-        self.expected_statuses = expected_statuses
+        self.job_name = job_name
+        self.expected_statuses = expected_statuses or set()
         self.project_id = project_id
         self.location = location
         self.gcp_conn_id = gcp_conn_id
@@ -212,6 +222,7 @@ class DataflowJobStatusTrigger(BaseTrigger):
             "airflow.providers.google.cloud.triggers.dataflow.DataflowJobStatusTrigger",
             {
                 "job_id": self.job_id,
+                "job_name": self.job_name,
                 "expected_statuses": self.expected_statuses,
                 "project_id": self.project_id,
                 "location": self.location,
@@ -235,16 +246,33 @@ class DataflowJobStatusTrigger(BaseTrigger):
         """
         try:
             while True:
-                job_status = await self.async_hook.get_job_status(
-                    job_id=self.job_id,
-                    project_id=self.project_id,
-                    location=self.location,
-                )
+                if self.job_name is not None:
+                    job = await self.async_hook.get_latest_job_by_name(
+                        job_name=self.job_name,
+                        project_id=self.project_id,
+                        location=self.location,
+                    )
+                    if job is None:
+                        self.log.info(
+                            "No job named %s found yet, sleeping for %s seconds.",
+                            self.job_name,
+                            self.poll_sleep,
+                        )
+                        await asyncio.sleep(self.poll_sleep)
+                        continue
+                    job_id, job_status = job.id, job.current_state
+                else:
+                    job_id = self.job_id
+                    job_status = await self.async_hook.get_job_status(
+                        job_id=self.job_id,
+                        project_id=self.project_id,
+                        location=self.location,
+                    )
                 if job_status.name in self.expected_statuses:
                     yield TriggerEvent(
                         {
                             "status": "success",
-                            "message": f"Job with id '{self.job_id}' has reached an expected state: {job_status.name}",
+                            "message": f"Job with id '{job_id}' has reached an expected state: {job_status.name}",
                         }
                     )
                     return
@@ -252,7 +280,7 @@ class DataflowJobStatusTrigger(BaseTrigger):
                     yield TriggerEvent(
                         {
                             "status": "error",
-                            "message": f"Job with id '{self.job_id}' is already in terminal state: {job_status.name}",
+                            "message": f"Job with id '{job_id}' is already in terminal state: {job_status.name}",
                         }
                     )
                     return
