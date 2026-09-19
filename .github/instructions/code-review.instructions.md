@@ -65,11 +65,11 @@ Flag these patterns that indicate low-quality AI-generated contributions:
 - **Description doesn't match code**: PR description describes something different from what the code actually does.
 - **No evidence of testing**: Claims of fixes without test evidence, or author admitting they cannot run the test suite.
 - **Over-engineered solutions**: Adding caching layers, complex locking, or benchmark scripts for problems that don't exist or are misunderstood.
-- **Narrating or redundant comments**: Flag comments that restate code or test names, duplicate
-  rationale, or explain only a generic purpose (e.g., `# Log for debugging` above `logging.info(...)`).
+- **Non-contextual or narrating comments**: Flag comments that restate code or test names, duplicate
+  rationale, or explain generic purpose (e.g., `# Log for debugging` above `logging.debug(...)`).
   Explaining "why" is insufficient unless the comment preserves specific context that is not
-  readily apparent from the code. Identify the misunderstanding or incorrect change it prevents;
-  if removing it loses no such context, flag it for removal. A subtle one-line change can still
+  readily apparent from the code itself. Identify the misunderstanding or incorrect change the comment prevents.
+  If removing a comment does not lose context, flag it for removal. A one-line change can still
   warrant an explanation of a constraint or failure mode. Apply the
   [comment guidance in AGENTS.md](../../AGENTS.md#coding-standards).
 - **Empty PR descriptions**: PRs with just the template filled in and no actual description of the changes.
