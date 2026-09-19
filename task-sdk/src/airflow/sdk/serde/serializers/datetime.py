@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
     from airflow.sdk.serde import U
 
-__version__ = 2
+__version__ = 3
 
 serializers = [
     "datetime.date",
@@ -51,6 +51,9 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
 
     if isinstance(o, datetime):
         qn = qualname(o)
+
+        if o.tzinfo is None:
+            return o.isoformat(), qn, __version__, True
 
         tz = serialize_timezone(o.tzinfo) if o.tzinfo else None
 
@@ -95,6 +98,9 @@ def deserialize(cls: type, version: int, data: dict | str) -> datetime.date | da
     if cls is datetime.datetime and isinstance(data, dict):
         return datetime.datetime.fromtimestamp(float(data[TIMESTAMP]), tz=tz)
 
+    if cls is datetime.datetime and isinstance(data, str):
+        return datetime.datetime.fromisoformat(data)
+
     if cls is datetime.datetime and isinstance(data, int | float):
         # Legacy BaseSerialization stored datetimes as a bare UTC timestamp float
         # (rather than serde's {timestamp, tz} dict). Round-trip that form so trigger
@@ -103,6 +109,9 @@ def deserialize(cls: type, version: int, data: dict | str) -> datetime.date | da
 
     if cls is DateTime and isinstance(data, dict):
         return DateTime.fromtimestamp(float(data[TIMESTAMP]), tz=tz)
+
+    if cls is DateTime and isinstance(data, str):
+        return DateTime.fromisoformat(data)
 
     if cls is datetime.timedelta and isinstance(data, str | float):
         return datetime.timedelta(seconds=float(data))
