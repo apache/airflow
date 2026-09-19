@@ -147,6 +147,7 @@ VALID_SDK_IDS = {sdk["id"] for sdk in LANG_SDKS}
 class DimensionEntry(TypedDict, total=False):
     supported: bool
     since: str | None
+    sdk_version: str | None
     note: str
 
 
@@ -231,13 +232,15 @@ def _validate_entries(entries: object, *, expected: set[str], kind: str, source:
         if not isinstance(entry, dict) or not isinstance(entry.get("supported"), bool):
             raise CapabilitiesError(f"{source}: {kind}.{name} must be a mapping with a boolean 'supported'")
         # A misspelled optional key would otherwise be dropped silently and render as a blank cell.
-        unknown_fields = entry.keys() - {"supported", "since", "note"}
+        unknown_fields = entry.keys() - {"supported", "since", "sdk_version", "note"}
         if unknown_fields:
             raise CapabilitiesError(
                 f"{source}: {kind}.{name} has unknown keys: {', '.join(sorted(unknown_fields))}"
             )
         if not isinstance(entry.get("since", None), (str, type(None))):
             raise CapabilitiesError(f"{source}: {kind}.{name}.since must be a string or null")
+        if not isinstance(entry.get("sdk_version", None), (str, type(None))):
+            raise CapabilitiesError(f"{source}: {kind}.{name}.sdk_version must be a string or null")
         if not entry["supported"] and entry.get("since") is not None:
             # "Since" means "supported since"; carrying one while unsupported is contradictory and
             # would silently render as the not-supported placeholder. Supported *without* a version
@@ -245,6 +248,11 @@ def _validate_entries(entries: object, *, expected: set[str], kind: str, source:
             raise CapabilitiesError(
                 f"{source}: {kind}.{name} is not supported but carries since="
                 f"{entry['since']!r}; drop the version or mark it supported"
+            )
+        if not entry["supported"] and entry.get("sdk_version") is not None:
+            raise CapabilitiesError(
+                f"{source}: {kind}.{name} is not supported but carries sdk_version="
+                f"{entry['sdk_version']!r}; drop the version or mark it supported"
             )
         if not isinstance(entry.get("note", ""), str):
             raise CapabilitiesError(f"{source}: {kind}.{name}.note must be a string")
@@ -260,10 +268,17 @@ def _capability_mark(doc: CapabilitiesDoc, cap: Capability) -> str:
     return SUPPORTED_MARK if doc["capabilities"][cap.name].get("supported") else UNSUPPORTED_MARK
 
 
-def _since(entry: DimensionEntry) -> str:
+SDK_DISPLAY_NAMES = {"go": "Go", "java": "Java", "ts": "TypeScript"}
+
+
+def _since(entry: DimensionEntry, sdk_display_name: str) -> str:
     if not entry.get("supported"):
         return NO_VERSION_MARK
-    return entry.get("since") or NO_VERSION_MARK
+    since = entry.get("since") or NO_VERSION_MARK
+    sdk_version = entry.get("sdk_version")
+    if sdk_version:
+        return f"{since} ({sdk_display_name} SDK {sdk_version})"
+    return since
 
 
 def _note(entry: DimensionEntry) -> str:
@@ -285,10 +300,12 @@ def render_markdown_table(doc: CapabilitiesDoc) -> list[str]:
         "|---|---|---|---|---|\n",
         f"| **{STATES_GROUP_LABEL}** |  |  |  |  |\n",
     ]
+    sdk_display_name = SDK_DISPLAY_NAMES[doc["sdk"]]
     for state, tier in STATE_DIMENSIONS:
         entry = doc["states"][state]
         lines.append(
-            f"| state: `{state}` | {tier} | {_state_mark(entry)} | {_since(entry)} | {_note(entry)} |\n"
+            f"| state: `{state}` | {tier} | {_state_mark(entry)} | {_since(entry, sdk_display_name)} | "
+            f"{_note(entry)} |\n"
         )
     current_group = ""
     for cap in CAPABILITY_DIMENSIONS:
@@ -298,7 +315,7 @@ def render_markdown_table(doc: CapabilitiesDoc) -> list[str]:
         entry = doc["capabilities"][cap.name]
         lines.append(
             f"| capability: `{cap.name}` | {_tier_label(cap)} | {_capability_mark(doc, cap)} | "
-            f"{_since(entry)} | {_note(entry)} |\n"
+            f"{_since(entry, sdk_display_name)} | {_note(entry)} |\n"
         )
     lines.append("\n")
     lines.append(f"*{LEGEND}*\n")

@@ -21,8 +21,8 @@ import yaml
 from ci.prek import lang_sdk_compat_matrix as matrix
 
 
-def _entry(supported: bool, since: str | None = None, note: str = "") -> dict:
-    return {"supported": supported, "since": since, "note": note}
+def _entry(supported: bool, since: str | None = None, sdk_version: str | None = None, note: str = "") -> dict:
+    return {"supported": supported, "since": since, "sdk_version": sdk_version, "note": note}
 
 
 def _doc(sdk_id: str = "go", **overrides) -> dict:
@@ -116,6 +116,18 @@ class TestValidateCapabilities:
         with pytest.raises(matrix.CapabilitiesError, match="not supported but carries since"):
             matrix.validate_capabilities(doc, source="test")
 
+    def test_unsupported_entry_carrying_sdk_version_raises(self):
+        doc = _doc()
+        doc["capabilities"]["branching"] = _entry(False, sdk_version="1.0.0-beta3")
+        with pytest.raises(matrix.CapabilitiesError, match="not supported but carries sdk_version"):
+            matrix.validate_capabilities(doc, source="test")
+
+    def test_non_string_sdk_version_raises(self):
+        doc = _doc()
+        doc["capabilities"]["xcom-read-write"] = {"supported": True, "since": "3.3", "sdk_version": 3}
+        with pytest.raises(matrix.CapabilitiesError, match="sdk_version must be a string or null"):
+            matrix.validate_capabilities(doc, source="test")
+
     def test_supported_gated_capability_without_native_dag_authoring_raises(self):
         doc = _doc()
         doc["capabilities"][matrix.NATIVE_DAG_GATE] = _entry(False)
@@ -195,6 +207,15 @@ class TestRenderMarkdownTable:
                 )
         assert f"| capability: `branching` | SHOULD † | {matrix.UNSUPPORTED_MARK} |" in rendered
         assert matrix.NA_MARK not in rendered.replace(matrix.LEGEND, "")
+
+    def test_sdk_version_renders_alongside_since(self):
+        doc = _doc()
+        doc["capabilities"]["xcom-read-write"] = _entry(True, since="3.3", sdk_version="1.0.0-beta3")
+        rendered = "".join(matrix.render_markdown_table(doc))
+        assert (
+            f"| capability: `xcom-read-write` | MUST | {matrix.SUPPORTED_MARK} | "
+            "3.3 (Go SDK 1.0.0-beta3) |" in rendered
+        )
 
     def test_pipe_in_note_is_escaped(self):
         doc = _doc()
