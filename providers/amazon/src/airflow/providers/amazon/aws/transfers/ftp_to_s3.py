@@ -135,17 +135,17 @@ class FTPToS3Operator(BaseOperator):
                     path=self.ftp_path,
                 )
 
-                if self.ftp_filenames == "*":
+                ftp_prefix: str = self.ftp_filenames
+                if ftp_prefix == "*":
                     files = list_dir
                 else:
-                    ftp_filename: str = self.ftp_filenames
-                    files = [f for f in list_dir if ftp_filename in f]
+                    files = [f for f in list_dir if f.startswith(ftp_prefix)]
 
                 for file in files:
                     self.log.info("Moving file %s", file)
 
                     if self.s3_filenames and isinstance(self.s3_filenames, str):
-                        filename = file.replace(self.ftp_filenames, self.s3_filenames)
+                        filename = file.replace(ftp_prefix, self.s3_filenames, 1)
                     else:
                         filename = file
 

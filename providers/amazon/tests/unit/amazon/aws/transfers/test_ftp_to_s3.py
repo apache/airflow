@@ -116,22 +116,31 @@ class TestFTPToS3Operator:
             s3_file=operator.s3_key + operator.ftp_filenames[0],
         )
 
-    @mock.patch("airflow.providers.ftp.hooks.ftp.FTPHook.list_directory")
+    @mock.patch.object(FTPToS3Operator, "_FTPToS3Operator__upload_to_s3_from_ftp")
+    @mock.patch(
+        "airflow.providers.ftp.hooks.ftp.FTPHook.list_directory",
+        return_value=["pre_one.txt", "xpre_two.txt", "pre_again_pre_.txt"],
+    )
     def test_execute_multiple_files_prefix(
         self,
         mock_ftp_hook_list_directory,
+        mock_upload_to_s3,
     ):
         operator = FTPToS3Operator(
             task_id=TASK_ID,
             s3_bucket=BUCKET,
             s3_key=S3_KEY_MULTIPLE,
             ftp_path=FTP_PATH_MULTIPLE,
-            ftp_filenames="test_prefix",
-            s3_filenames="s3_prefix",
+            ftp_filenames="pre_",
+            s3_filenames="new_",
         )
         operator.execute(None)
 
         mock_ftp_hook_list_directory.assert_called_once_with(path=FTP_PATH_MULTIPLE)
+        assert mock_upload_to_s3.call_args_list == [
+            mock.call("pre_one.txt", "test/new_one.txt"),
+            mock.call("pre_again_pre_.txt", "test/new_again_pre_.txt"),
+        ]
 
 
 class TestFTPToS3OperatorInit:

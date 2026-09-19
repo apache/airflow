@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import boto3
 import pytest
 from moto import mock_aws
@@ -318,6 +320,41 @@ class TestS3ToSFTPOperator:
 
 class TestS3ToSFTPOperatorInit:
     """Unit tests for S3ToSFTPOperator.__init__ that do not require an SSH server."""
+
+    @mock.patch.object(S3ToSFTPOperator, "_download_from_s3")
+    @mock.patch("airflow.providers.amazon.aws.transfers.s3_to_sftp.SSHHook")
+    @mock.patch("airflow.providers.amazon.aws.transfers.s3_to_sftp.S3Hook")
+    def test_execute_prefix_matches_and_replaces_only_leading_prefix(
+        self, mock_s3_hook_class, mock_ssh_hook_class, mock_download_from_s3
+    ):
+        mock_s3_hook = mock_s3_hook_class.return_value
+        mock_s3_hook.list_keys.return_value = [
+            "source/pre_one.txt",
+            "source/xpre_two.txt",
+            "source/pre_again_pre_.txt",
+        ]
+        sftp_client = mock_ssh_hook_class.return_value.get_conn.return_value.open_sftp.return_value
+        operator = S3ToSFTPOperator(
+            task_id=TASK_ID,
+            s3_bucket=BUCKET,
+            s3_key="source/",
+            sftp_path="/destination/",
+            sftp_conn_id=SFTP_CONN_ID,
+            s3_filenames="pre_",
+            sftp_filenames="new_",
+        )
+
+        operator.execute(None)
+
+        assert mock_download_from_s3.call_args_list == [
+            mock.call(sftp_client, mock_s3_hook, "source/pre_one.txt", "/destination/new_one.txt"),
+            mock.call(
+                sftp_client,
+                mock_s3_hook,
+                "source/pre_again_pre_.txt",
+                "/destination/new_again_pre_.txt",
+            ),
+        ]
 
     @pytest.mark.parametrize(
         ("s3_filenames", "sftp_filenames"),
