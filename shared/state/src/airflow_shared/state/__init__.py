@@ -30,6 +30,15 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 
+ATTEMPT_LINK_STATE_KEY_PREFIX = "_link_attempt_"
+"""Prefix for the state-store keys holding one attempt's rendered operator link."""
+
+
+def attempt_link_state_key(xcom_key: str, try_number: int) -> str:
+    """Return the state-store key holding ``xcom_key``'s link as rendered for ``try_number``."""
+    return f"{ATTEMPT_LINK_STATE_KEY_PREFIX}{try_number}_{xcom_key}"
+
+
 @dataclass(frozen=True)
 class TaskScope:
     """
