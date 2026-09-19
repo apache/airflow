@@ -71,9 +71,9 @@ def read_trigger_name(call: ast.Call) -> str | None:
     return None
 
 
-def trigger_constructions(expr: ast.expr) -> list[ast.Call] | None:
+def trigger_constructions(expr: ast.expr) -> list[tuple[ast.Call, str]] | None:
     """
-    Resolve a ``trigger=`` expression to the constructions it can evaluate to.
+    Resolve a ``trigger=`` expression to the constructions it can evaluate to, each with its name.
 
     ``None`` means the expression cannot be read statically. Returning that rather than an empty
     list is what keeps a site from disappearing: a bare reference, a subscript, or a conditional
@@ -83,12 +83,16 @@ def trigger_constructions(expr: ast.expr) -> list[ast.Call] | None:
     if isinstance(expr, ast.Call):
         # A construction whose callee cannot be named is no more readable than a bare reference:
         # the allowlists key on the class name, so an unnamed one could never match them.
-        return [expr] if read_trigger_name(expr) is not None else None
+        name = read_trigger_name(expr)
+        return [(expr, name)] if name is not None else None
     if isinstance(expr, ast.IfExp):
-        branches = (trigger_constructions(expr.body), trigger_constructions(expr.orelse))
-        if any(branch is None for branch in branches):
-            return None
-        return [call for branch in branches for call in branch]
+        constructions: list[tuple[ast.Call, str]] = []
+        for branch in (expr.body, expr.orelse):
+            resolved = trigger_constructions(branch)
+            if resolved is None:
+                return None
+            constructions.extend(resolved)
+        return constructions
     return None
 
 
@@ -115,12 +119,11 @@ def walk_defer_sites() -> Iterator[tuple[Path, ast.expr]]:
 
 def find_defer_sites() -> list[tuple[str, int, str, list[str]]]:
     """Collect every ``self.defer(trigger=SomeTrigger(...))`` in the provider."""
-    sites = []
+    sites: list[tuple[str, int, str, list[str]]] = []
     for path, trigger in walk_defer_sites():
         # The trigger may be built inline, or picked between in a conditional expression, so take
         # every construction the expression can yield rather than assuming a single call.
-        for call in trigger_constructions(trigger) or ():
-            name = read_trigger_name(call)
+        for call, name in trigger_constructions(trigger) or ():
             if name in UNCONFIGURABLE_TRIGGERS:
                 continue
             passed = {kw.arg for kw in call.keywords if kw.arg}
