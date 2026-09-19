@@ -337,6 +337,49 @@ class TestConnIdCredentialResolution:
         assert all(c.__wrapped__._fs_cached is fake_fs_with_conn for c in children)
 
 
+class TestRecursiveCopyToLocal:
+    """Recursive remote->local copy must not follow ``..`` in object keys outside the destination."""
+
+    @pytest.fixture(autouse=True)
+    def restore_cache(self):
+        cache = _STORE_CACHE.copy()
+        yield
+        _STORE_CACHE.clear()
+        _STORE_CACHE.update(cache)
+
+    @pytest.fixture
+    def remote_fs(self):
+        fs = _FakeRemoteFileSystem(conn_id="my_conn")
+        attach(protocol="ffs2", conn_id="my_conn", fs=fs)
+        try:
+            yield fs
+        finally:
+            _FakeRemoteFileSystem.store.clear()
+            _FakeRemoteFileSystem.pseudo_dirs[:] = [""]
+
+    def test_rejects_key_escaping_destination(self, remote_fs, tmp_path):
+        remote_fs.pipe_file("bucket/srcdir/normal.txt", b"ok")
+        remote_fs.pipe_file("bucket/srcdir/../../escape/pwned.txt", b"pwned")
+        src = ObjectStoragePath("ffs2://my_conn@bucket/srcdir", conn_id="my_conn")
+        dst = ObjectStoragePath(f"file://{tmp_path.as_posix()}/dest")
+
+        with pytest.raises(ValueError, match="resolves outside"):
+            src.copy(dst, recursive=True)
+
+        assert not (tmp_path / "escape" / "pwned.txt").exists()
+
+    def test_allows_contained_keys(self, remote_fs, tmp_path):
+        remote_fs.pipe_file("bucket/srcdir/a.txt", b"a")
+        remote_fs.pipe_file("bucket/srcdir/sub/b.txt", b"b")
+        src = ObjectStoragePath("ffs2://my_conn@bucket/srcdir", conn_id="my_conn")
+        dst = ObjectStoragePath(f"file://{tmp_path.as_posix()}/dest")
+
+        src.copy(dst, recursive=True)
+
+        assert (tmp_path / "dest" / "a.txt").read_bytes() == b"a"
+        assert (tmp_path / "dest" / "sub" / "b.txt").read_bytes() == b"b"
+
+
 class TestRemotePath:
     def test_bucket_key_protocol(self):
         bucket = "bkt"
