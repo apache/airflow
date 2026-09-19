@@ -273,8 +273,10 @@ Force run only bypasses the dependencies on *other task instances*. Before using
   own trigger rules. Force run cannot be combined with the *Upstream* / *Downstream* options.
 * Bypassing ``depends_on_past`` removes the ordering guarantee it exists for; incremental or
   non-idempotent tasks may double-count or leave gaps.
-* A mapped task can be forced only once it has been expanded. If the upstream that produces the
-  mapped values never ran, the task is marked ``upstream_failed`` instead; force that upstream first.
+* A mapped task can be forced before it is expanded, but only if the values it expands over already
+  exist: forcing it expands it, and every resulting map index is forced too. If the upstream that
+  produces those values did not succeed there is nothing to expand into, so the task is marked
+  ``upstream_failed`` whether or not it was forced; force that upstream first.
 * Force run is a clear: with ``reset_dag_runs=false`` on a finished Dag run the task is never
   scheduled. Combine it with ``only_failed=false``; a task blocked on its dependencies is not in
   the ``failed`` state and would not be selected.
