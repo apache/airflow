@@ -20,6 +20,7 @@
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { AIRFLOW_METADATA_FLAG } from "../src/coordinator/manifest.js";
 import type {
+  ArgNameMap,
   ConnectionResult,
   DagSpec,
   GetXComOpts,
@@ -43,6 +44,7 @@ import {
   SUPERVISOR_API_VERSION,
   TaskHandler,
   VariableNotFoundError,
+  withArgNames,
 } from "../src/index.js";
 
 describe("public API", () => {
@@ -193,6 +195,34 @@ describe("public API", () => {
       void handler.handler;
     };
     void rejectsFactoryMisuse;
+  });
+
+  it("exports withArgNames for a name the Python side never used", () => {
+    interface ReportArgs {
+      label: string;
+      threshold: number;
+    }
+    const report = withArgNames({ label: "run_label" }, async ({ label }: ReportArgs) => label);
+
+    // Wrapping keeps the handler's own type, so the result registers like any
+    // other handler and nothing at the registration site has to change.
+    expectTypeOf(report).toEqualTypeOf<TaskFunction<ReportArgs, string>>();
+    expect(
+      new Bundle(new TaskHandler("etl", "report", report)).getTaskHandler("etl", "report"),
+    ).toBe(report);
+    expectTypeOf<ArgNameMap<ReportArgs>>().toEqualTypeOf<{
+      readonly label?: string;
+      readonly threshold?: string;
+    }>();
+
+    const rejectsUnknownKeys = () => {
+      // @ts-expect-error "labl" is not a parameter of ReportArgs; "label" is.
+      withArgNames({ labl: "run_label" }, async ({ label }: ReportArgs) => label);
+    };
+    void rejectsUnknownKeys;
+    // Reading the renames back is the runtime's business, not an author's.
+    expectTypeOf<typeof sdk>().not.toHaveProperty("getArgNames");
+    expect("getArgNames" in sdk).toBe(false);
   });
 
   describe("the task-handler getters", () => {

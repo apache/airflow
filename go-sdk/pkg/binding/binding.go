@@ -37,6 +37,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/apache/airflow/go-sdk/airflow"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
 	"github.com/apache/airflow/go-sdk/sdk"
@@ -69,7 +70,8 @@ func (LiteralArg) sealedArg() {}
 type paramKind int
 
 const (
-	paramTIRunContext paramKind = iota
+	paramAirflowContext paramKind = iota
+	paramTIRunContext
 	paramContext
 	paramLogger
 	paramClient
@@ -169,13 +171,13 @@ func (p *Plan) resolveInjectables(
 	out := make([]reflect.Value, len(p.params))
 	for i, plan := range p.params {
 		switch plan.kind {
+		case paramAirflowContext:
+			// Bound to the live task context, so actx.Done() fires on supervisor shutdown.
+			ti, dagRun := storedRunMetadata(ctx)
+			out[i] = reflect.ValueOf(airflow.NewContext(ctx, logger, client, ti, dagRun))
 		case paramTIRunContext:
 			// Rebuild the stored metadata around the live task context.
-			var ti sdk.TaskInstance
-			var dagRun sdk.DagRun
-			if stored, ok := ctx.Value(sdkcontext.RuntimeContextKey).(sdk.TIRunContext); ok {
-				ti, dagRun = stored.TaskInstance(), stored.DagRun()
-			}
+			ti, dagRun := storedRunMetadata(ctx)
 			out[i] = reflect.ValueOf(sdk.NewTIRunContext(ctx, ti, dagRun))
 		case paramContext:
 			out[i] = reflect.ValueOf(ctx)
@@ -187,6 +189,15 @@ func (p *Plan) resolveInjectables(
 		}
 	}
 	return out
+}
+
+// storedRunMetadata reads the task instance and Dag run recorded on the task context.
+func storedRunMetadata(ctx context.Context) (sdk.TaskInstance, sdk.DagRun) {
+	stored, ok := ctx.Value(sdkcontext.RuntimeContextKey).(sdk.TIRunContext)
+	if !ok {
+		return sdk.TaskInstance{}, sdk.DagRun{}
+	}
+	return stored.TaskInstance(), stored.DagRun()
 }
 
 func (p *Plan) resolveFlatParams(
@@ -494,6 +505,9 @@ func (p *Plan) decodeArg(
 
 func classifyParam(fnName string, in reflect.Type, index int) (paramPlan, error) {
 	switch {
+	case isAirflowContext(in):
+		// airflow.Context satisfies isContext too, so match it on identity first.
+		return paramPlan{kind: paramAirflowContext, index: index}, nil
 	case isTIRunContext(in):
 		// TIRunContext also satisfies context.Context, so check it first.
 		return paramPlan{kind: paramTIRunContext, index: index}, nil
@@ -501,7 +515,7 @@ func classifyParam(fnName string, in reflect.Type, index int) (paramPlan, error)
 		if !contextType.Implements(in) {
 			return paramPlan{}, fmt.Errorf(
 				"task function %s: parameter %d: interface %s adds methods on top of "+
-					"context.Context; declare sdk.TIRunContext or a separate parameter instead",
+					"context.Context; declare airflow.Context or a separate parameter instead",
 				fnName, index, in,
 			)
 		}
@@ -514,7 +528,7 @@ func classifyParam(fnName string, in reflect.Type, index int) (paramPlan, error)
 	if in.Kind() == reflect.Interface && in.NumMethod() > 0 {
 		return paramPlan{}, fmt.Errorf(
 			"task function %s: parameter %d: interface %s is not injectable "+
-				"(want context.Context, sdk.TIRunContext, or a subset of sdk.Client): %s",
+				"(want airflow.Context, context.Context, or a subset of sdk.Client): %s",
 			fnName, index, in, explainClientMismatch(in),
 		)
 	}
@@ -840,17 +854,25 @@ func implementsUnmarshaler(t reflect.Type) bool {
 }
 
 var (
-	contextType      = reflect.TypeFor[context.Context]()
-	tiRunContextType = reflect.TypeFor[sdk.TIRunContext]()
-	slogLoggerType   = reflect.TypeFor[*slog.Logger]()
-	clientType       = reflect.TypeFor[sdk.Client]()
+	contextType        = reflect.TypeFor[context.Context]()
+	airflowContextType = reflect.TypeFor[airflow.Context]()
+	tiRunContextType   = reflect.TypeFor[sdk.TIRunContext]()
+	slogLoggerType     = reflect.TypeFor[*slog.Logger]()
+	clientType         = reflect.TypeFor[sdk.Client]()
 
 	jsonUnmarshalerType = reflect.TypeFor[json.Unmarshaler]()
 	textUnmarshalerType = reflect.TypeFor[encoding.TextUnmarshaler]()
 )
 
+// isContext reports whether inType is an interface a plain context.Context can fill.
+// A struct can implement context.Context too, so it is matched earlier or bound as data.
 func isContext(inType reflect.Type) bool {
-	return inType != nil && inType.Implements(contextType)
+	return inType != nil && inType.Kind() == reflect.Interface &&
+		inType.Implements(contextType)
+}
+
+func isAirflowContext(inType reflect.Type) bool {
+	return inType == airflowContextType
 }
 
 func isTIRunContext(inType reflect.Type) bool {

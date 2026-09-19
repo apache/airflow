@@ -57,13 +57,17 @@ in the schema context sent to the LLM.
     :start-after: [START howto_operator_llm_schema_compare_full]
     :end-before: [END howto_operator_llm_schema_compare_full]
 
-With Object Storage
--------------------
+With Object Storage or a Database Table
+---------------------------------------
 
 Use ``data_sources`` with
 :class:`~airflow.providers.common.sql.config.DataSourceConfig` to include
 object-storage sources (S3 Parquet, CSV, Iceberg, etc.) in the comparison.
-These can be freely combined with ``db_conn_ids``:
+These can be freely combined with ``db_conn_ids``. Whether an entry is
+introspected via ``DbApiHook`` or DataFusion depends on what its ``conn_id``
+resolves to, not on its ``uri``/``format`` fields — a ``DataSourceConfig``
+with neither ``uri`` nor ``format`` set only works when ``conn_id`` resolves
+to a ``DbApiHook``:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_schema_compare.py
     :language: python
@@ -188,8 +192,9 @@ Parameters
 - ``db_conn_ids``: List of database connection IDs to compare. Each must resolve
   to a ``DbApiHook``.
 - ``table_names``: Tables to introspect from each ``db_conn_id``.
-- ``data_sources``: List of ``DataSourceConfig`` objects for object-storage or
-  catalog-managed sources.
+- ``data_sources``: List of ``DataSourceConfig`` objects for object-storage
+  or catalog-managed sources. An entry with neither ``uri`` nor ``format``
+  set works only if its ``conn_id`` resolves to a ``DbApiHook``.
 - ``context_strategy``: To fetch primary keys, foreign keys, and indexes.``full`` or ``basic``,
   strongly recommended for cross-system comparisons. default is ``full``
 - ``require_approval``: If ``True``, the task pauses after the comparison and

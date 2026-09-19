@@ -126,12 +126,17 @@ export type AssetExpressionAsset = {
  * persisted; ``BaseAsset.as_expression()`` itself only emits ``uri``/``name``/``group``. It is left
  * optional so a row persisted before id-enrichment (or migrated from the pre-3.0 dataset format)
  * degrades gracefully instead of failing response validation.
+ *
+ * A leaf the caller is not authorized to read is served with ``hidden`` set and ``uri``, ``name``
+ * and ``id`` blanked (see ``airflow.api_fastapi.common.asset_expression``), so the shape of the
+ * schedule stays visible without revealing which asset it waits on.
  */
 export type AssetExpressionAssetInfo = {
-    uri: string;
-    name: string;
+    uri: string | null;
+    name: string | null;
     group: string;
     id?: number | null;
+    hidden?: boolean;
 };
 
 /**
