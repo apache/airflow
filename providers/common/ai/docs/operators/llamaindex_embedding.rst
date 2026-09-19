@@ -86,22 +86,38 @@ Parameters
        binding ``loader.output`` resolves to the native list before
        execute.
    * - ``embed_model``
-     - String model name OR pre-built ``BaseEmbedding`` instance.
+     - String model name OR pre-built ``BaseEmbedding`` instance. Templated.
    * - ``llm_conn_id``
      - Airflow connection ID used when ``embed_model`` is a string. Falls
        back to ``LlamaIndexHook.default_conn_name`` (``llamaindex_default``)
-       when ``None``.
+       when ``None``. Templated.
    * - ``embed_conn_id``
      - Optional separate connection ID for the embedding provider. Falls
-       back to ``llm_conn_id`` when ``None``.
+       back to ``llm_conn_id`` when ``None``. Templated.
+   * - ``embedding_kwargs``
+     - Additional keyword arguments passed to the embedding model constructor
+       when ``embed_model`` is a string or omitted, for example
+       ``{"dimensions": 128}``. Templated, so binding an upstream task's output
+       resolves to the native dictionary before execute and preserves typed
+       values such as integer ``dimensions``. When persisting an index, record
+       and reuse shape-affecting values such as ``dimensions`` in the retrieval
+       operator's ``embedding_kwargs``. Values are forwarded without filtering.
+       Connection credentials take precedence at the top level, but nested
+       options supported by the underlying library can override hook-provided
+       request values, including credentials, the model, and the input. Only pass
+       trusted values.
    * - ``chunk_size``
      - Sentence-splitter chunk size (default 512).
    * - ``chunk_overlap``
      - Overlap between chunks (default 50).
    * - ``persist_dir``
-     - Local path or storage URI to persist the LlamaIndex index.
+     - Local path or storage URI to persist the LlamaIndex index. Templated.
    * - ``persist_conn_id``
-     - Cloud credentials connection ID for ``persist_dir`` URIs.
+     - Cloud credentials connection ID for ``persist_dir`` URIs. Templated.
+
+.. seealso::
+   `llama_index.embeddings.openai.OpenAIEmbedding <https://developers.llamaindex.ai/python/framework-api-reference/embeddings/openai/>`__
+   for valid ``embedding_kwargs`` keys.
 
 Output
 ------
