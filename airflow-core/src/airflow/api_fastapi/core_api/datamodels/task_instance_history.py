@@ -62,6 +62,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     executor: str | None
     executor_config: Annotated[str, BeforeValidator(str)]
     dag_version: DagVersionResponse | None
+    ignore_upstream_deps: bool
 
 
 class TaskInstanceHistoryCollectionResponse(BaseModel):

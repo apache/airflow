@@ -228,6 +228,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "pool": "default_pool",
             "pool_slots": 1,
             "priority_weight": 14,
+            "ignore_upstream_deps": False,
             "queue": "default_queue",
             "queued_when": None,
             "scheduled_when": None,
@@ -315,6 +316,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "pool_slots": 1,
             "queue": "default",
             "priority_weight": 1,
+            "ignore_upstream_deps": False,
             "operator": "EmptyOperator",
             "operator_name": "EmptyOperator",
             "queued_when": None,
@@ -396,6 +398,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "pool": "default_pool",
             "pool_slots": 1,
             "priority_weight": 14,
+            "ignore_upstream_deps": False,
             "queue": "default_queue",
             "queued_when": None,
             "scheduled_when": None,
@@ -463,6 +466,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "pool": "default_pool",
             "pool_slots": 1,
             "priority_weight": 14,
+            "ignore_upstream_deps": False,
             "queue": "default_queue",
             "queued_when": None,
             "scheduled_when": None,
@@ -520,6 +524,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "pool": "default_pool",
             "pool_slots": 1,
             "priority_weight": 14,
+            "ignore_upstream_deps": False,
             "queue": "default_queue",
             "queued_when": None,
             "scheduled_when": None,
@@ -641,6 +646,7 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
                 "pool": "default_pool",
                 "pool_slots": 1,
                 "priority_weight": 14,
+                "ignore_upstream_deps": False,
                 "queue": "default_queue",
                 "queued_when": None,
                 "scheduled_when": None,
@@ -2792,6 +2798,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "pool": "default_pool",
             "pool_slots": 1,
             "priority_weight": 14,
+            "ignore_upstream_deps": False,
             "queue": "default_queue",
             "queued_when": None,
             "scheduled_when": None,
@@ -2838,6 +2845,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "pool": "default_pool",
             "pool_slots": 1,
             "priority_weight": 14,
+            "ignore_upstream_deps": False,
             "queue": "default_queue",
             "queued_when": None,
             "scheduled_when": None,
@@ -2915,6 +2923,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "pool": "default_pool",
                 "pool_slots": 1,
                 "priority_weight": 14,
+                "ignore_upstream_deps": False,
                 "queue": "default_queue",
                 "queued_when": None,
                 "scheduled_when": None,
@@ -2987,6 +2996,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "pool": "default_pool",
             "pool_slots": 1,
             "priority_weight": 14,
+            "ignore_upstream_deps": False,
             "queue": "default_queue",
             "queued_when": None,
             "scheduled_when": None,
@@ -3034,6 +3044,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "pool": "default_pool",
             "pool_slots": 1,
             "priority_weight": 14,
+            "ignore_upstream_deps": False,
             "queue": "default_queue",
             "queued_when": None,
             "scheduled_when": None,
@@ -3112,6 +3123,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "pool_slots": 1,
             "queue": "default",
             "priority_weight": 1,
+            "ignore_upstream_deps": False,
             "operator": "EmptyOperator",
             "operator_name": "EmptyOperator",
             "queued_when": None,
@@ -3671,8 +3683,77 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         # dag (3rd argument) is a different session object. Manually asserting that the dag_id
         # is the same.
         mock_clearti.assert_called_once_with(
-            [], mock.ANY, DagRunState.QUEUED, prevent_running_task=False, run_on_latest_version=False
+            [],
+            mock.ANY,
+            DagRunState.QUEUED,
+            prevent_running_task=False,
+            run_on_latest_version=False,
+            ignore_upstream_deps=False,
         )
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.task_instances.clear_task_instances")
+    def test_clear_taskinstance_passes_ignore_upstream_deps(self, mock_clearti, test_client, session):
+        self.create_task_instances(session)
+        dag_id = "example_python_operator"
+        payload = {
+            "dry_run": False,
+            "only_failed": False,
+            "ignore_upstream_deps": True,
+            "task_ids": ["print_the_context"],
+        }
+        response = test_client.post(
+            f"/dags/{dag_id}/clearTaskInstances",
+            json=payload,
+        )
+        assert response.status_code == 200
+        assert mock_clearti.call_args.kwargs["ignore_upstream_deps"] is True
+
+    @pytest.mark.parametrize("relative_option", ["include_upstream", "include_downstream"])
+    def test_clear_taskinstance_ignore_upstream_deps_rejects_relatives(
+        self, relative_option, test_client, session
+    ):
+        self.create_task_instances(session)
+        dag_id = "example_python_operator"
+        payload = {
+            "dry_run": False,
+            "ignore_upstream_deps": True,
+            "task_ids": ["print_the_context"],
+            relative_option: True,
+        }
+        response = test_client.post(
+            f"/dags/{dag_id}/clearTaskInstances",
+            json=payload,
+        )
+        assert response.status_code == 422
+        assert "ignore_upstream_deps cannot be combined with" in response.text
+
+    def test_clear_taskinstance_ignore_upstream_deps_end_to_end(self, test_client, session):
+        self.create_task_instances(session)
+        dag_id = "example_python_operator"
+        payload = {
+            "dry_run": False,
+            "only_failed": False,
+            "ignore_upstream_deps": True,
+            "task_ids": ["print_the_context"],
+        }
+        response = test_client.post(
+            f"/dags/{dag_id}/clearTaskInstances",
+            json=payload,
+        )
+        assert response.status_code == 200
+
+        ti = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dag_id, TaskInstance.task_id == "print_the_context"
+            )
+        ).one()
+        assert ti.ignore_upstream_deps is True
+
+        get_response = test_client.get(
+            f"/dags/{dag_id}/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
+        )
+        assert get_response.status_code == 200
+        assert get_response.json()["ignore_upstream_deps"] is True
 
     def test_clear_taskinstance_is_called_with_invalid_task_ids(self, test_client, session):
         """Test that dagrun is running when invalid task_ids are passed to clearTaskInstances API."""
@@ -3854,6 +3935,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "pool": "default_pool",
                 "pool_slots": 1,
                 "priority_weight": 14,
+                "ignore_upstream_deps": False,
                 "queue": "default_queue",
                 "queued_when": None,
                 "scheduled_when": None,
@@ -4309,6 +4391,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "pool": "default_pool",
                     "pool_slots": 1,
                     "priority_weight": 14,
+                    "ignore_upstream_deps": False,
                     "queue": "default_queue",
                     "queued_when": None,
                     "scheduled_when": None,
@@ -4346,6 +4429,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "pool": "default_pool",
                     "pool_slots": 1,
                     "priority_weight": 14,
+                    "ignore_upstream_deps": False,
                     "queue": "default_queue",
                     "queued_when": None,
                     "scheduled_when": None,
@@ -4417,6 +4501,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "pool": "default_pool",
                     "pool_slots": 1,
                     "priority_weight": 14,
+                    "ignore_upstream_deps": False,
                     "queue": "default_queue",
                     "queued_when": None,
                     "scheduled_when": None,
@@ -4500,6 +4585,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "pool": "default_pool",
                         "pool_slots": 1,
                         "priority_weight": 14,
+                        "ignore_upstream_deps": False,
                         "queue": "default_queue",
                         "queued_when": None,
                         "scheduled_when": None,
@@ -4537,6 +4623,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "pool": "default_pool",
                         "pool_slots": 1,
                         "priority_weight": 14,
+                        "ignore_upstream_deps": False,
                         "queue": "default_queue",
                         "queued_when": None,
                         "scheduled_when": None,
@@ -4607,6 +4694,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
             "pool_slots": 1,
             "queue": "default",
             "priority_weight": 1,
+            "ignore_upstream_deps": False,
             "operator": "EmptyOperator",
             "operator_name": "EmptyOperator",
             "queued_when": None,
@@ -4735,6 +4823,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "pool": "default_pool",
                     "pool_slots": 1,
                     "priority_weight": 14,
+                    "ignore_upstream_deps": False,
                     "queue": "default_queue",
                     "queued_when": None,
                     "scheduled_when": None,
@@ -5013,6 +5102,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                             "pool": "default_pool",
                             "pool_slots": 1,
                             "priority_weight": 14,
+                            "ignore_upstream_deps": False,
                             "queue": "default_queue",
                             "queued_when": None,
                             "scheduled_when": None,
@@ -5151,6 +5241,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "pool": "default_pool",
                     "pool_slots": 1,
                     "priority_weight": 14,
+                    "ignore_upstream_deps": False,
                     "queue": "default_queue",
                     "queued_when": None,
                     "scheduled_when": None,
@@ -5216,6 +5307,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "pool": "default_pool",
                     "pool_slots": 1,
                     "priority_weight": 14,
+                    "ignore_upstream_deps": False,
                     "queue": "default_queue",
                     "queued_when": None,
                     "scheduled_when": None,
@@ -5313,6 +5405,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                         "pool": "default_pool",
                         "pool_slots": 1,
                         "priority_weight": 14,
+                        "ignore_upstream_deps": False,
                         "queue": "default_queue",
                         "queued_when": None,
                         "scheduled_when": None,
@@ -5398,6 +5491,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 "pool": "default_pool",
                 "pool_slots": 1,
                 "priority_weight": 14,
+                "ignore_upstream_deps": False,
                 "queue": "default_queue",
                 "queued_when": None,
                 "scheduled_when": None,
@@ -5596,6 +5690,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                     "pool": "default_pool",
                     "pool_slots": 1,
                     "priority_weight": 14,
+                    "ignore_upstream_deps": False,
                     "queue": "default_queue",
                     "queued_when": None,
                     "scheduled_when": None,
@@ -5886,6 +5981,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                             "pool": "default_pool",
                             "pool_slots": 1,
                             "priority_weight": 14,
+                            "ignore_upstream_deps": False,
                             "queue": "default_queue",
                             "queued_when": None,
                             "scheduled_when": None,

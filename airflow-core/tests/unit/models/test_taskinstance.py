@@ -1399,6 +1399,78 @@ class TestTaskInstance:
             "DepContext.deps was mutated — ReadyToRescheduleDep leaked into the shared set"
         )
 
+    def test_get_failed_dep_statuses_ignore_upstream_deps(self, dag_maker, session):
+        with dag_maker("test_ignore_upstream_deps", serialized=True) as dag:
+            upstream = EmptyOperator(task_id="upstream")
+            downstream = EmptyOperator(task_id="downstream")
+            upstream >> downstream
+
+        dr = dag_maker.create_dagrun(session=session)
+        upstream_ti = dr.get_task_instance(task_id="upstream", session=session)
+        downstream_ti = dr.get_task_instance(task_id="downstream", session=session)
+        upstream_ti.state = TaskInstanceState.FAILED
+        downstream_ti.task = dag.task_dict["downstream"]
+        session.merge(upstream_ti)
+        session.flush()
+
+        statuses = list(
+            downstream_ti.get_failed_dep_statuses(
+                dep_context=DepContext(flag_upstream_failed=True), session=session
+            )
+        )
+        assert any(status.dep_name == "Trigger Rule" for status in statuses)
+        assert downstream_ti.state == TaskInstanceState.UPSTREAM_FAILED
+
+        downstream_ti.state = None
+        downstream_ti.ignore_upstream_deps = True
+        session.merge(downstream_ti)
+        session.flush()
+
+        statuses = list(
+            downstream_ti.get_failed_dep_statuses(
+                dep_context=DepContext(flag_upstream_failed=True), session=session
+            )
+        )
+        assert statuses == []
+        assert downstream_ti.state is None
+
+    def test_get_failed_dep_statuses_keeps_timing_deps(self, dag_maker, session):
+        with dag_maker("test_keeps_timing_deps", serialized=True) as dag:
+            EmptyOperator(task_id="t", retries=1, retry_delay=datetime.timedelta(minutes=5))
+
+        dr = dag_maker.create_dagrun(session=session)
+        ti = dr.get_task_instance(task_id="t", session=session)
+        ti.task = dag.task_dict["t"]
+        ti.state = TaskInstanceState.UP_FOR_RETRY
+        ti.end_date = timezone.utcnow()
+        ti.ignore_upstream_deps = True
+        session.merge(ti)
+        session.flush()
+
+        statuses = list(ti.get_failed_dep_statuses(session=session))
+        assert any(status.dep_name == "Not In Retry Period" for status in statuses)
+
+    def test_upstream_state_deps_covers_exactly_the_bypassed_deps(self):
+        """A force run must skip the deps on other instances and only those.
+
+        Timing deps stay in force: bypassing them would hot-loop a reschedule-mode sensor and
+        let a forced retry ignore its ``retry_delay`` for as long as the flag is set.
+        """
+        from airflow.ti_deps.dependencies_deps import get_upstream_state_deps
+        from airflow.ti_deps.deps.mapped_task_upstream_dep import MappedTaskUpstreamDep
+        from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
+        from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
+        from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
+
+        assert set(get_upstream_state_deps()) == {
+            MappedTaskUpstreamDep,
+            NotPreviouslySkippedDep,
+            PrevDagrunDep,
+            TriggerRuleDep,
+        }
+        assert NotInRetryPeriodDep not in get_upstream_state_deps()
+        assert ReadyToRescheduleDep not in get_upstream_state_deps()
+
     @pytest.mark.parametrize(
         ("downstream_ti_state", "expected_are_dependents_done"),
         [
@@ -2590,6 +2662,7 @@ class TestTaskInstance:
             "context_carrier": {},
             "retry_delay_override": 60.0,
             "retry_reason": "Rate limit, backing off",
+            "ignore_upstream_deps": True,
         }
         # Make sure we aren't missing any new value in our expected_values list.
         expected_keys = {f"task_instance.{key}" for key in expected_values}

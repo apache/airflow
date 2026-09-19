@@ -2270,6 +2270,12 @@ export const $ClearTaskInstancesBody = {
             title: 'Prevent Running Task',
             default: false
         },
+        ignore_upstream_deps: {
+            type: 'boolean',
+            title: 'Ignore Upstream Deps',
+            description: 'Force run: re-run the cleared task instances even if their dependencies on other task instances are not met (trigger rule, branch/ShortCircuit skips, depends_on_past, wait_for_downstream, mapped upstream). Retry delay, sensor reschedule interval, pools, concurrency limits, paused Dags and Dag-run state still apply. Cannot be combined with include_upstream or include_downstream. Usually combine with only_failed=false, because an instance blocked on its dependencies is not in the failed state. The flag stays on the task instances until they are cleared again.',
+            default: false
+        },
         note: {
             anyOf: [
                 {
@@ -7336,10 +7342,14 @@ export const $TaskInstanceHistoryResponse = {
                     type: 'null'
                 }
             ]
+        },
+        ignore_upstream_deps: {
+            type: 'boolean',
+            title: 'Ignore Upstream Deps'
         }
     },
     type: 'object',
-    required: ['task_id', 'dag_id', 'dag_run_id', 'map_index', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'operator_name', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'dag_version'],
+    required: ['task_id', 'dag_id', 'dag_run_id', 'map_index', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'operator_name', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'dag_version', 'ignore_upstream_deps'],
     title: 'TaskInstanceHistoryResponse',
     description: 'TaskInstanceHistory serializer for responses.'
 } as const;
@@ -7636,10 +7646,14 @@ export const $TaskInstanceResponse = {
                 }
             ],
             title: 'Team Name'
+        },
+        ignore_upstream_deps: {
+            type: 'boolean',
+            title: 'Ignore Upstream Deps'
         }
     },
     type: 'object',
-    required: ['id', 'task_id', 'dag_id', 'dag_run_id', 'map_index', 'logical_date', 'run_after', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'operator_name', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'note', 'rendered_map_index', 'trigger', 'triggerer_job', 'dag_version'],
+    required: ['id', 'task_id', 'dag_id', 'dag_run_id', 'map_index', 'logical_date', 'run_after', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'operator_name', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'note', 'rendered_map_index', 'trigger', 'triggerer_job', 'dag_version', 'ignore_upstream_deps'],
     title: 'TaskInstanceResponse',
     description: 'TaskInstance serializer for responses.'
 } as const;

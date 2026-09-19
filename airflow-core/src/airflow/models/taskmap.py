@@ -265,6 +265,10 @@ class TaskMap(TaskInstanceDependencies):
                 state=state,
                 dag_version_id=dag_version_id,
             )
+            if unmapped_ti is not None:
+                # unmapped_ti can be None here when indexes are added to an already-expanded
+                # task (e.g. the mapped length grew); there is no single source row to copy from.
+                ti.ignore_upstream_deps = unmapped_ti.ignore_upstream_deps
             task.log.debug("Expanding TIs upserted %s", ti)
             _add_and_prime_mapped_ti(
                 ti, task, dr, session=session, context_carrier=new_task_run_carrier(dr.context_carrier)

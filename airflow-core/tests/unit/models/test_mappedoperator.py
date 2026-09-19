@@ -162,6 +162,92 @@ def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expec
     assert indices == expected
 
 
+def test_expand_mapped_task_propagates_ignore_upstream_deps(dag_maker, session):
+    literal = [1, 2, 3]
+    with dag_maker(session=session, serialized=True) as dag:
+        task1 = BaseOperator(task_id="op1")
+        mapped = MockOperator.partial(task_id="task_2").expand(arg2=task1.output)
+
+    mapped_deser = dag.task_dict[mapped.task_id]
+    dr = dag_maker.create_dagrun()
+
+    session.add(
+        TaskMap(
+            dag_id=dr.dag_id,
+            task_id=task1.task_id,
+            run_id=dr.run_id,
+            map_index=-1,
+            length=len(literal),
+            keys=None,
+        )
+    )
+    session.flush()
+
+    unmapped_ti = session.scalars(
+        select(TaskInstance).where(
+            TaskInstance.dag_id == mapped.dag_id,
+            TaskInstance.task_id == mapped.task_id,
+            TaskInstance.run_id == dr.run_id,
+            TaskInstance.map_index == -1,
+        )
+    ).one()
+    unmapped_ti.ignore_upstream_deps = True
+    session.flush()
+
+    TaskMap.expand_mapped_task(mapped_deser, dr.run_id, session=session)
+
+    flags = session.scalars(
+        select(TaskInstance.ignore_upstream_deps).where(
+            TaskInstance.task_id == mapped.task_id,
+            TaskInstance.dag_id == mapped.dag_id,
+            TaskInstance.run_id == dr.run_id,
+        )
+    ).all()
+    assert flags == [True] * len(literal)
+
+
+def test_force_run_does_not_wave_through_new_mapped_siblings(dag_maker, session):
+    """A forced index must not push sibling indexes it causes to be created past their deps.
+
+    Indexes added by ``_revise_map_indexes_if_mapped`` are normally waved straight through on the
+    strength of the sibling that just passed its dependency check. A forced instance passes by
+    skipping that check, so the siblings — which the user never selected — must be evaluated.
+    """
+    with dag_maker(session=session, serialized=True) as dag:
+        producer = BaseOperator(task_id="producer")
+        blocker = BaseOperator(task_id="blocker")
+        mapped = MockOperator.partial(task_id="mapped").expand(arg2=producer.output)
+        blocker >> mapped
+
+    dr = dag_maker.create_dagrun()
+    session.add(
+        TaskMap(dag_id=dr.dag_id, task_id="producer", run_id=dr.run_id, map_index=-1, length=3, keys=None)
+    )
+
+    tis = {(ti.task_id, ti.map_index): ti for ti in dr.task_instances}
+    tis[("producer", -1)].state = TaskInstanceState.SUCCESS
+    tis[("blocker", -1)].state = TaskInstanceState.FAILED
+
+    # Stand in for an earlier expansion to a single index, so the revise pass has indexes to add.
+    dag_version_id = tis[("mapped", -1)].dag_version_id
+    session.delete(tis[("mapped", -1)])
+    forced = TaskInstance(
+        dag.task_dict["mapped"], run_id=dr.run_id, map_index=0, state=None, dag_version_id=dag_version_id
+    )
+    forced.ignore_upstream_deps = True
+    session.add(forced)
+    session.flush()
+
+    schedulable = {
+        (ti.task_id, ti.map_index)
+        for ti in dr.task_instance_scheduling_decisions(session=session).schedulable_tis
+    }
+
+    assert ("mapped", 0) in schedulable
+    assert ("mapped", 1) not in schedulable
+    assert ("mapped", 2) not in schedulable
+
+
 def test_expand_mapped_task_failed_state_in_db(dag_maker, session):
     """
     This test tries to recreate a faulty state in the database and checks if we can recover from it.

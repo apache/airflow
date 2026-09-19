@@ -1712,7 +1712,14 @@ class DagRun(Base, LoggingMixin):
                     revised_tis = self._revise_map_indexes_if_mapped(
                         schedulable.task, dag_version_id=schedulable.dag_version_id, session=session
                     )
-                    ready_tis.extend(revised_tis)
+                    if schedulable.ignore_upstream_deps:
+                        # Indexes added here are normally waved through on the strength of the
+                        # sibling that just passed its dependency check. A forced instance passed
+                        # by skipping that check, so it cannot vouch for indexes the user never
+                        # selected: queue them for this loop's own evaluation instead.
+                        additional_tis.extend(revised_tis)
+                    else:
+                        ready_tis.extend(revised_tis)
                     revised_map_index_task_ids.add(schedulable.task.task_id)
                     if revised_tis:
                         # Revising a mapped task can add new instances, growing its instance count
