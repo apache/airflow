@@ -272,6 +272,12 @@ export const Details = () => {
             <Table.Cell>{translate("taskInstance.priorityWeight")}</Table.Cell>
             <Table.Cell>{tryInstance?.priority_weight}</Table.Cell>
           </Table.Row>
+          {tryInstance?.ignore_upstream_deps === true ? (
+            <Table.Row>
+              <Table.Cell>{translate("taskInstance.forceRun")}</Table.Cell>
+              <Table.Cell>{translate("yes")}</Table.Cell>
+            </Table.Row>
+          ) : undefined}
           <Table.Row>
             <Table.Cell>{translate("taskInstance.executor")}</Table.Cell>
             <Table.Cell>{tryInstance?.executor_config}</Table.Cell>

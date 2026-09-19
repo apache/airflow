@@ -317,6 +317,55 @@ class TestDagRun:
         dag_run.update_state()
         assert dag_run.state == DagRunState.SUCCESS
 
+    def test_get_ready_tis_force_run_after_short_circuit(self, dag_maker, session):
+        """Force run (``ignore_upstream_deps``) bypasses the branch/ShortCircuit skip propagation
+        that ``NotPreviouslySkippedDep`` would otherwise re-apply on clear."""
+        from airflow.models.xcom import XComModel
+        from airflow.ti_deps.deps.not_previously_skipped_dep import (
+            XCOM_SKIPMIXIN_FOLLOWED,
+            XCOM_SKIPMIXIN_KEY,
+        )
+
+        with dag_maker(
+            dag_id="test_get_ready_tis_force_run_after_short_circuit",
+            schedule=datetime.timedelta(days=1),
+            start_date=timezone.datetime(2017, 1, 1),
+        ) as dag:
+            upstream = ShortCircuitOperator(task_id="upstream", python_callable=bool)
+            downstream = EmptyOperator(task_id="downstream")
+            upstream >> downstream
+
+        initial_task_states = {
+            "upstream": TaskInstanceState.SUCCESS,
+            "downstream": TaskInstanceState.SKIPPED,
+        }
+        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
+        XComModel.set(
+            key=XCOM_SKIPMIXIN_KEY,
+            value={XCOM_SKIPMIXIN_FOLLOWED: []},
+            dag_id=dag_run.dag_id,
+            task_id="upstream",
+            run_id=dag_run.run_id,
+            map_index=-1,
+            session=session,
+        )
+        downstream_ti = dag_run.get_task_instance("downstream", session=session)
+
+        # Without force run: clearing re-applies the branch skip.
+        clear_task_instances([downstream_ti], session, dag_run_state=False)
+        decision = dag_run.task_instance_scheduling_decisions(session=session)
+        assert downstream_ti.state == TaskInstanceState.SKIPPED
+        assert downstream_ti.id not in {ti.id for ti in decision.schedulable_tis}
+
+        # Reset and force run: the skip is bypassed, TI becomes schedulable.
+        downstream_ti.state = TaskInstanceState.SKIPPED
+        session.merge(downstream_ti)
+        session.flush()
+        clear_task_instances([downstream_ti], session, dag_run_state=False, ignore_upstream_deps=True)
+        decision = dag_run.task_instance_scheduling_decisions(session=session)
+        assert downstream_ti.state is None
+        assert downstream_ti.id in {ti.id for ti in decision.schedulable_tis}
+
     def test_dagrun_not_stuck_in_running_when_all_tasks_instances_are_removed(self, dag_maker, session):
         """
         Tests that a DAG run succeeds when all tasks are removed

@@ -982,6 +982,7 @@ def post_clear_task_instances(
                 DagRunState.QUEUED if reset_dag_runs else False,
                 run_on_latest_version=resolved_run_on_latest,
                 prevent_running_task=body.prevent_running_task,
+                ignore_upstream_deps=body.ignore_upstream_deps,
             )
         except AirflowClearRunningTaskException as e:
             raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from e
