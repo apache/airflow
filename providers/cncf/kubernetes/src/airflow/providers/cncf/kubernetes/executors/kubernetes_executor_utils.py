@@ -225,7 +225,15 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             # However, need to free the executor slot from the current executor.
             self.log.info("Event: pod %s adopted, annotations: %s", pod_name, annotations_string)
             self.watcher_queue.put(
-                KubernetesWatch(pod_name, namespace, ADOPTED, annotations, resource_version, None)
+                KubernetesWatch(
+                    pod_name,
+                    namespace,
+                    ADOPTED,
+                    annotations,
+                    resource_version,
+                    None,
+                    pod_uid=pod.metadata.uid,
+                )
             )
         elif hasattr(pod.status, "reason") and pod.status.reason == "ProviderFailed":
             # Most likely this happens due to Kubernetes setup (virtual kubelet, virtual nodes, etc.)
@@ -245,6 +253,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                     annotations,
                     resource_version,
                     None,
+                    pod_uid=pod.metadata.uid,
                 )
             )
         elif status == "Pending":
@@ -292,6 +301,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                                     annotations,
                                     resource_version,
                                     None,
+                                    pod_uid=pod.metadata.uid,
                                 )
                             )
                             break
@@ -321,12 +331,15 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                     annotations,
                     resource_version,
                     failure_details,
+                    pod_uid=pod.metadata.uid,
                 )
             )
         elif status == "Succeeded":
             self.log.info("Event: %s Succeeded, annotations: %s", pod_name, annotations_string)
             self.watcher_queue.put(
-                KubernetesWatch(pod_name, namespace, None, annotations, resource_version, None)
+                KubernetesWatch(
+                    pod_name, namespace, None, annotations, resource_version, None, pod_uid=pod.metadata.uid
+                )
             )
         elif status == "Running":
             # deletion_timestamp is set by kube server when a graceful deletion is requested.
@@ -345,6 +358,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                         annotations,
                         resource_version,
                         None,
+                        pod_uid=pod.metadata.uid,
                     )
                 )
             else:
@@ -844,6 +858,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
                     task.namespace,
                     task.resource_version,
                     task.failure_details,
+                    pod_uid=task.pod_uid,
                 )
             )
 
