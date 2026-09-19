@@ -381,7 +381,16 @@ class _Serializer:
 
     @serialize_timetable.register
     def _(self, timetable: CronDataIntervalTimetable) -> dict[str, Any]:
-        return {"expression": timetable.expression, "timezone": encode_timezone(timetable.timezone)}
+        data: dict[str, Any] = {
+            "expression": timetable.expression,
+            "timezone": encode_timezone(timetable.timezone),
+        }
+
+        if timetable.max_jitter:
+            data["seed"] = timetable.seed
+            data["max_jitter"] = timetable.max_jitter.total_seconds()
+
+        return data
 
     @serialize_timetable.register
     def _(self, timetable: DeltaDataIntervalTimetable) -> dict[str, Any]:
@@ -389,22 +398,30 @@ class _Serializer:
 
     @serialize_timetable.register
     def _(self, timetable: CronTriggerTimetable) -> dict[str, Any]:
-        return {
+        data = {
             "expression": timetable.expression,
             "timezone": encode_timezone(timetable.timezone),
             "interval": encode_interval(timetable.interval),
             "run_immediately": encode_run_immediately(timetable.run_immediately),
         }
+        if timetable.max_jitter:
+            data["seed"] = timetable.seed
+            data["max_jitter"] = timetable.max_jitter.total_seconds()
+        return data
 
     @serialize_timetable.register
     def _(self, timetable: CronPartitionTimetable) -> dict[str, Any]:
-        return {
+        data: dict[str, Any] = {
             "expression": timetable.expression,
             "timezone": encode_timezone(timetable.timezone),
             "run_immediately": encode_run_immediately(timetable.run_immediately),
             "run_offset": timetable.run_offset,
             "key_format": timetable.key_format,
         }
+        if timetable.max_jitter:
+            data["seed"] = timetable.seed
+            data["max_jitter"] = timetable.max_jitter.total_seconds()
+        return data
 
     @serialize_timetable.register
     def _(self, timetable: DeltaTriggerTimetable) -> dict[str, Any]:
@@ -418,12 +435,16 @@ class _Serializer:
         # All timetables share the same timezone, interval, and run_immediately
         # values, so we can just use the first to represent them.
         representitive = timetable.timetables[0]
-        return {
+        data: dict[str, Any] = {
             "expressions": [t.expression for t in timetable.timetables],
             "timezone": encode_timezone(representitive.timezone),
             "interval": encode_interval(representitive.interval),
             "run_immediately": encode_run_immediately(representitive.run_immediately),
         }
+        if representitive.max_jitter:
+            data["seed"] = representitive.seed
+            data["max_jitter"] = representitive.max_jitter.total_seconds()
+        return data
 
     @serialize_timetable.register
     def _(self, timetable: AssetOrTimeSchedule) -> dict[str, Any]:
