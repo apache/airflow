@@ -52,8 +52,8 @@ dag_warning_router = AirflowRouter(tags=["DagWarning"])
 def list_dag_warnings(
     dag_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(DagWarning.dag_id, str | None))],
     warning_type: Annotated[
-        FilterParam[DagWarningType | None],
-        Depends(filter_param_factory(DagWarning.warning_type, DagWarningType | None)),
+        FilterParam[DagWarningType | str | None],
+        Depends(filter_param_factory(DagWarning.warning_type, DagWarningType | str | None)),
     ],
     limit: QueryLimit,
     offset: QueryOffset,

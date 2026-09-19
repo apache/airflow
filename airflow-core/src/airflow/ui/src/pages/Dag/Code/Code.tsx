@@ -161,6 +161,8 @@ export const Code = () => {
       ? translate("code.noCode")
       : (compareCode?.content ?? "");
 
+  const language: string = code?.language ?? "python";
+
   const codeStatus = (
     <>
       <ErrorAlert
@@ -183,7 +185,11 @@ export const Code = () => {
         <FileLocation fileloc={dag.fileloc} relativeFileloc={dag.relative_fileloc} />
       )}
       <Box flex={1} minH={0}>
-        <CodeDiffViewer modifiedCode={displayedCode} originalCode={displayedCompareCode} />
+        <CodeDiffViewer
+          language={language}
+          modifiedCode={displayedCode}
+          originalCode={displayedCompareCode}
+        />
       </Box>
     </Box>
   ) : (
@@ -206,7 +212,7 @@ export const Code = () => {
       <Box flex={1} minH={0}>
         <Editor
           beforeMount={beforeMount}
-          language="python"
+          language={language}
           options={editorOptions}
           theme={theme}
           value={displayedCode}

@@ -4337,6 +4337,17 @@ export const $DAGSourceResponse = {
         dag_display_name: {
             type: 'string',
             title: 'Dag Display Name'
+        },
+        language: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Language'
         }
     },
     type: 'object',
@@ -4412,7 +4423,15 @@ export const $DAGWarningResponse = {
             title: 'Dag Id'
         },
         warning_type: {
-            '$ref': '#/components/schemas/DagWarningType'
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/DagWarningType'
+                },
+                {
+                    type: 'string'
+                }
+            ],
+            title: 'Warning Type'
         },
         message: {
             type: 'string',

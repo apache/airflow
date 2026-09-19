@@ -482,6 +482,7 @@ class DAGSourceResponse(BaseModel):
     dag_id: Annotated[str, Field(title="Dag Id")]
     version_number: Annotated[int | None, Field(title="Version Number")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
+    language: Annotated[str | None, Field(title="Language")] = None
 
 
 class DAGTagCollectionResponse(BaseModel):
@@ -2007,7 +2008,7 @@ class DAGWarningResponse(BaseModel):
     """
 
     dag_id: Annotated[str, Field(title="Dag Id")]
-    warning_type: DagWarningType
+    warning_type: Annotated[DagWarningType | str, Field(title="Warning Type")]
     message: Annotated[str, Field(title="Message")]
     timestamp: Annotated[datetime, Field(title="Timestamp")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]

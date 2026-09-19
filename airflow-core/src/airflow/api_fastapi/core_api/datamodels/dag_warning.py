@@ -30,7 +30,7 @@ class DAGWarningResponse(BaseModel):
     """Dag Warning serializer for responses."""
 
     dag_id: str
-    warning_type: DagWarningType
+    warning_type: DagWarningType | str
     message: str
     timestamp: datetime
     dag_display_name: str = Field(validation_alias=AliasPath("dag_model", "dag_display_name"))

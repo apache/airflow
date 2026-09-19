@@ -424,6 +424,7 @@ def _update_import_errors(
                 )
                 .values(
                     filename=relative_fileloc,
+                    source_reference=relative_fileloc,
                     bundle_name=bundle_name_,
                     timestamp=utcnow(),
                     stacktrace=stacktrace,
@@ -447,6 +448,7 @@ def _update_import_errors(
         else:
             import_error = ParseImportError(
                 filename=relative_fileloc,
+                source_reference=relative_fileloc,
                 bundle_name=bundle_name_,
                 timestamp=utcnow(),
                 stacktrace=stacktrace,
