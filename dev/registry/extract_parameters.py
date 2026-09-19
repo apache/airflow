@@ -763,7 +763,8 @@ def discover_classes_from_provider(
     """Discover classes from a single provider by importing its modules at runtime.
 
     Reads the provider.yaml to find which modules/classes to inspect, imports them,
-    and returns metadata for each discovered class with every `Module` dataclass field.
+    and returns metadata for each discovered class with every required `Module`
+    dataclass field, plus ``guide_url`` when a how-to guide documents the class.
     """
     with open(provider_yaml_path) as f:
         provider_yaml = yaml.safe_load(f)
