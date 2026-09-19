@@ -27,6 +27,7 @@ from airflow.executors.executor_loader import ConnectorSource, ExecutorName
 from airflow.executors.local_executor import LocalExecutor
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.markers import skip_if_cncf_kubernetes_not_installed
 
 
 class FakeExecutor:
@@ -56,7 +57,10 @@ class TestExecutorLoader:
         "executor_name",
         [
             "CeleryExecutor",
-            "KubernetesExecutor",
+            pytest.param(
+                "KubernetesExecutor",
+                marks=skip_if_cncf_kubernetes_not_installed,
+            ),
             "LocalExecutor",
         ],
     )
@@ -364,7 +368,11 @@ class TestExecutorLoader:
         ("executor_config", "expected_value"),
         [
             ("CeleryExecutor", "CeleryExecutor"),
-            ("KubernetesExecutor", "KubernetesExecutor"),
+            pytest.param(
+                "KubernetesExecutor",
+                "KubernetesExecutor",
+                marks=skip_if_cncf_kubernetes_not_installed,
+            ),
             ("LocalExecutor", "LocalExecutor"),
             ("CeleryExecutor, LocalExecutor", "CeleryExecutor"),
             ("LocalExecutor, CeleryExecutor", "LocalExecutor"),

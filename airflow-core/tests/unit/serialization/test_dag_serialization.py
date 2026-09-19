@@ -45,7 +45,6 @@ import jsonschema
 import pendulum
 import pytest
 from dateutil.relativedelta import FR, relativedelta
-from kubernetes.client import models as k8s
 
 import airflow
 from airflow._shared.module_loading import qualname
@@ -61,7 +60,6 @@ from airflow.models.asset import AssetModel
 from airflow.models.connection import Connection
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
-from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.sdk import DAG, Asset, AssetAlias, BaseHook, TaskGroup, WeightRule, XComArg, teardown
 from airflow.sdk.bases.decorator import DecoratedOperator
@@ -101,7 +99,11 @@ from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker, skip_if_not_on_main
+from tests_common.test_utils.markers import (
+    skip_if_force_lowest_dependencies_marker,
+    skip_if_kubernetes_client_not_installed,
+    skip_if_not_on_main,
+)
 from tests_common.test_utils.mock_operators import (
     AirflowLink,
     AirflowLink2,
@@ -119,6 +121,11 @@ from tests_common.test_utils.timetables import (
     delta_timetable,
 )
 from unit.models import TEST_DAGS_FOLDER
+
+try:
+    from kubernetes.client import models as k8s
+except ImportError:
+    k8s = None  # type: ignore[assignment]
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
@@ -174,17 +181,6 @@ def operator_defaults(monkeypatch):
 AIRFLOW_REPO_ROOT_PATH = Path(airflow.__file__).parents[3]
 
 
-executor_config_pod = k8s.V1Pod(
-    metadata=k8s.V1ObjectMeta(name="my-name"),
-    spec=k8s.V1PodSpec(
-        containers=[
-            k8s.V1Container(
-                name="base",
-                volume_mounts=[k8s.V1VolumeMount(name="my-vol", mount_path="/vol/")],
-            )
-        ]
-    ),
-)
 TYPE = Encoding.TYPE
 VAR = Encoding.VAR
 serialized_simple_dag_ground_truth = {
@@ -254,12 +250,7 @@ serialized_simple_dag_ground_truth = {
                     "pool": "pool1",
                     "executor_config": {
                         "__type": "dict",
-                        "__var": {
-                            "pod_override": {
-                                "__type": "k8s.V1Pod",
-                                "__var": PodGenerator.serialize_pod(executor_config_pod),
-                            }
-                        },
+                        "__var": {"custom": {"__type": "dict", "__var": {"setting": "value"}}},
                     },
                     "doc_md": "### Task Tutorial Documentation",
                     "has_retry_policy": False,
@@ -389,7 +380,7 @@ def make_simple_dag():
             task_id="bash_task",
             bash_command="echo {{ task.task_id }}",
             owner="airflow1",
-            executor_config={"pod_override": executor_config_pod},
+            executor_config={"custom": {"setting": "value"}},
             doc_md="### Task Tutorial Documentation",
             inlets=[Asset("asset-1"), AssetAlias(name="alias-name")],
             outlets=Asset("asset-2"),
@@ -2952,7 +2943,7 @@ def test_kubernetes_optional():
         # pod loading is not supported when kubernetes is not available
         pod_override = {
             "__type": "k8s.V1Pod",
-            "__var": PodGenerator.serialize_pod(executor_config_pod),
+            "__var": {"metadata": {"name": "my-name"}},
         }
 
         # we should error if attempting to deserialize POD without kubernetes installed
@@ -2961,6 +2952,49 @@ def test_kubernetes_optional():
 
         # basic serialization should succeed
         module.DagSerialization.to_dict(make_simple_dag())
+
+
+@skip_if_kubernetes_client_not_installed
+def test_pod_override_executor_config_serde():
+    """A ``pod_override`` executor config keeps its pod through a serialization round trip."""
+    pod = k8s.V1Pod(
+        metadata=k8s.V1ObjectMeta(name="my-name"),
+        spec=k8s.V1PodSpec(
+            containers=[
+                k8s.V1Container(
+                    name="base",
+                    volume_mounts=[k8s.V1VolumeMount(name="my-vol", mount_path="/vol/")],
+                )
+            ]
+        ),
+    )
+    with DAG(dag_id="pod_override_dag", schedule=None, start_date=datetime(2019, 8, 1)) as dag:
+        BashOperator(task_id="bash_task", bash_command="echo 1", executor_config={"pod_override": pod})
+
+    serialized = DagSerialization.to_dict(dag)
+
+    assert serialized["dag"]["tasks"][0]["__var"]["executor_config"] == {
+        "__type": "dict",
+        "__var": {
+            "pod_override": {
+                "__type": "k8s.V1Pod",
+                "__var": {
+                    "metadata": {"name": "my-name"},
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "base",
+                                "volumeMounts": [{"mountPath": "/vol/", "name": "my-vol"}],
+                            }
+                        ]
+                    },
+                },
+            }
+        },
+    }
+    assert DagSerialization.from_dict(serialized).task_dict["bash_task"].executor_config == {
+        "pod_override": pod
+    }
 
 
 def test_operator_expand_serde():
@@ -3709,12 +3743,7 @@ def test_handle_v1_serdag():
                         "on_failure_fail_dagrun": False,
                         "executor_config": {
                             "__type": "dict",
-                            "__var": {
-                                "pod_override": {
-                                    "__type": "k8s.V1Pod",
-                                    "__var": PodGenerator.serialize_pod(executor_config_pod),
-                                }
-                            },
+                            "__var": {"custom": {"__type": "dict", "__var": {"setting": "value"}}},
                         },
                         "doc_md": "### Task Tutorial Documentation",
                         "_log_config_logger_name": "airflow.task.operators",
@@ -4027,12 +4056,7 @@ def test_handle_v2_serdag():
                         "on_failure_fail_dagrun": False,
                         "executor_config": {
                             "__type": "dict",
-                            "__var": {
-                                "pod_override": {
-                                    "__type": "k8s.V1Pod",
-                                    "__var": PodGenerator.serialize_pod(executor_config_pod),
-                                }
-                            },
+                            "__var": {"custom": {"__type": "dict", "__var": {"setting": "value"}}},
                         },
                         "doc_md": "### Task Tutorial Documentation",
                         "_needs_expansion": False,
