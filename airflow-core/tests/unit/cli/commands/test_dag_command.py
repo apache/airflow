@@ -29,6 +29,7 @@ import msgspec
 import pendulum
 import pytest
 import time_machine
+import yaml
 from sqlalchemy import func, select
 
 from airflow import settings
@@ -669,6 +670,19 @@ class TestCliDags:
             dag_command.dag_pause(args)
         out = temp_stdout.splitlines()[-1]
         assert out == "No unpaused DAGs were found"
+
+    @pytest.mark.parametrize(("output", "loader"), [("json", json.loads), ("yaml", yaml.safe_load)])
+    @pytest.mark.parametrize(
+        ("command", "subcommand"),
+        [(dag_command.dag_pause, "pause"), (dag_command.dag_unpause, "unpause")],
+    )
+    def test_pause_unpause_non_existing_dag_structured_output(
+        self, command, subcommand, output, loader, stdout_capture
+    ):
+        args = self.parser.parse_args(["dags", subcommand, "non_existing_dag", f"--output={output}"])
+        with stdout_capture as temp_stdout:
+            command(args)
+        assert loader(temp_stdout.getvalue()) == []
 
     def test_trigger_dag(self):
         dag_command.dag_trigger(
