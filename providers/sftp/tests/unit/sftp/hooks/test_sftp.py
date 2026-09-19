@@ -351,6 +351,20 @@ class TestSFTPHook:
         )
         assert len(output) == 14
 
+    def test_get_mod_time_returns_utc_string(self):
+        mtime = 1704110400  # 2024-01-01 12:00 UTC
+        with patch.object(SFTPHook, "get_managed_conn") as managed_conn:
+            attrs = paramiko.SFTPAttributes()
+            attrs.st_mtime = mtime
+            client = MagicMock(spec=SFTPClient)
+            client.stat.return_value = attrs
+            managed_conn.return_value.__enter__.return_value = client
+
+            output = self.hook.get_mod_time(path="/path/to/file")
+
+        expected = datetime.datetime.fromtimestamp(mtime, tz=datetime.timezone.utc).strftime("%Y%m%d%H%M%S")
+        assert output == expected
+
     @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_no_host_key_check_default(self, get_connection):
         connection = Connection(login="login", host="host")
@@ -1095,7 +1109,7 @@ class TestSFTPHookAsync:
         hook, sftp_client_mock = sftp_hook_mocked
 
         mtime = 1667302566  # This is a valid Unix timestamp
-        expected = datetime.datetime.fromtimestamp(mtime).strftime("%Y%m%d%H%M%S")
+        expected = datetime.datetime.fromtimestamp(mtime, tz=datetime.timezone.utc).strftime("%Y%m%d%H%M%S")
         sftp_client_mock.__aenter__.return_value.stat.return_value = Mock(spec=SFTPAttrs, mtime=mtime)
 
         mod_time = await hook.get_mod_time("/path/exists/file")
