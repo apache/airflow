@@ -1,0 +1,1 @@
+The per-DAG permission sync during DAG parsing now honors ``[fab] update_fab_perms``. The default (``True``) keeps the existing behavior; setting it to ``False`` skips the per-DAG permission sync, avoiding the extra per-parse writes for deployments that manage DAG access at the role level.
