@@ -24,7 +24,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 import pytest
-from google.api_core.exceptions import AlreadyExists, NotFound
+from google.api_core.exceptions import AlreadyExists, NotFound, PermissionDenied
 from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, Job, JobStatus
 from google.protobuf.any_pb2 import Any
 from google.rpc.status_pb2 import Status
@@ -1083,13 +1083,15 @@ class TestDataprocSubmitJobDirectTrigger:
         assert mock_hook.submit_job.call_args.kwargs["request_id"] == trigger.build_assigned_job_id()
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("request_id", [TEST_REQUEST_ID, None])
     @mock.patch(
         "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobDirectTrigger.get_async_hook"
     )
     async def test_run_polls_the_job_it_already_submitted(
-        self, mock_get_async_hook, submit_job_direct_trigger
+        self, mock_get_async_hook, submit_job_direct_trigger, request_id
     ):
         attach_trigger_identity(submit_job_direct_trigger)
+        submit_job_direct_trigger.request_id = request_id
         expected_job_id = submit_job_direct_trigger.build_assigned_job_id()
         mock_hook = mock_get_async_hook.return_value
         mock_hook.submit_job.side_effect = AlreadyExists("job already exists")
@@ -1105,14 +1107,16 @@ class TestDataprocSubmitJobDirectTrigger:
         )
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("request_id", [TEST_REQUEST_ID, None])
     @mock.patch(
         "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobDirectTrigger.get_async_hook"
     )
     async def test_run_reraises_already_exists_for_a_job_the_caller_named(
-        self, mock_get_async_hook, submit_job_direct_trigger
+        self, mock_get_async_hook, submit_job_direct_trigger, request_id
     ):
         attach_trigger_identity(submit_job_direct_trigger)
         submit_job_direct_trigger.job = {**TEST_JOB, "reference": {"job_id": "caller-job-id"}}
+        submit_job_direct_trigger.request_id = request_id
         mock_hook = mock_get_async_hook.return_value
         mock_hook.submit_job.side_effect = AlreadyExists("job already exists")
 
@@ -1134,6 +1138,19 @@ class TestDataprocSubmitJobDirectTrigger:
         await submit_job_direct_trigger.on_kill()
 
         mock_get_sync_hook.return_value.cancel_job.assert_called_once()
+
+    @pytest.mark.asyncio
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobDirectTrigger.get_sync_hook"
+    )
+    async def test_on_kill_propagates_a_failure_to_cancel(
+        self, mock_get_sync_hook, submit_job_direct_trigger
+    ):
+        submit_job_direct_trigger.job_id = TEST_JOB_ID
+        mock_get_sync_hook.return_value.cancel_job.side_effect = PermissionDenied("not allowed")
+
+        with pytest.raises(PermissionDenied):
+            await submit_job_direct_trigger.on_kill()
 
     @pytest.mark.asyncio
     @pytest.mark.skipif(AIRFLOW_V_3_3_PLUS, reason="on_kill() handles cancellation for Airflow 3.3.0+")
