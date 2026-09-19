@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,30 +17,28 @@
 # under the License.
 from __future__ import annotations
 
+import httpx
 import httpx2
+import pytest
 
-from airflow.sdk.api.client import Client
-from airflow.sdk.execution_time.comms import BundleInfo
-
-FAKE_BUNDLE = BundleInfo(name="anything", version="any")
+from tests_common.test_utils.in_process_taskrun import resolve_sdk_httpx
 
 
-def make_client(transport: httpx2.MockTransport) -> Client:
-    """Get a client with a custom transport."""
-    return Client(base_url="test://server", token="", transport=transport)
+@pytest.mark.parametrize("expected", [httpx, httpx2])
+def test_resolve_sdk_httpx_follows_the_client_base(monkeypatch, expected):
+    class FakeClient(expected.Client):
+        pass
+
+    monkeypatch.setattr("airflow.sdk.api.client.Client", FakeClient, raising=True)
+
+    assert resolve_sdk_httpx() is expected
 
 
-def make_client_w_dry_run() -> Client:
-    """Get a client with dry_run enabled."""
-    return Client(base_url=None, dry_run=True, token="")
+def test_resolve_sdk_httpx_rejects_an_unknown_stack(monkeypatch):
+    class FakeClient:
+        pass
 
+    monkeypatch.setattr("airflow.sdk.api.client.Client", FakeClient, raising=True)
 
-def make_client_w_responses(responses: list[httpx2.Response]) -> Client:
-    """Get a client with custom responses."""
-
-    def handle_request(request: httpx2.Request) -> httpx2.Response:
-        return responses.pop(0)
-
-    return Client(
-        base_url=None, dry_run=True, token="", mounts={"'http://": httpx2.MockTransport(handle_request)}
-    )
+    with pytest.raises(RuntimeError, match="neither httpx nor httpx2"):
+        resolve_sdk_httpx()
