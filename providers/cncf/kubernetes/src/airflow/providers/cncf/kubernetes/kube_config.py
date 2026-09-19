@@ -55,6 +55,18 @@ class KubeConfig:
         self.delete_worker_pods_on_failure = self._conf.getboolean(
             self.kubernetes_section, "delete_worker_pods_on_failure"
         )
+        self.kpo_zombie_pod_cleanup_enabled = self._conf.getboolean(
+            self.kubernetes_section, "kpo_zombie_pod_cleanup_enabled", fallback=False
+        )
+        self.kpo_zombie_pod_cleanup_interval = self._conf.getint(
+            self.kubernetes_section, "kpo_zombie_pod_cleanup_interval", fallback=300
+        )
+        self.kpo_zombie_pod_cleanup_max_deletes_per_loop = self._conf.getint(
+            self.kubernetes_section, "kpo_zombie_pod_cleanup_max_deletes_per_loop", fallback=100
+        )
+        self.kpo_zombie_pod_deletion_grace_period_seconds = self._conf.getint(
+            self.kubernetes_section, "kpo_zombie_pod_deletion_grace_period_seconds", fallback=5
+        )
         self.worker_pod_pending_fatal_container_state_reasons: list[str] = []
         fatal_reasons = self._conf.get(
             self.kubernetes_section, "worker_pod_pending_fatal_container_state_reasons", fallback=""
