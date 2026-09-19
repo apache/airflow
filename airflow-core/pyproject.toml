@@ -159,7 +159,7 @@ dependencies = [
     # pre-installed providers
     "apache-airflow-providers-common-compat>=1.7.4",
     "apache-airflow-providers-common-io>=1.6.3",
-    "apache-airflow-providers-common-sql>=1.28.1",
+    "apache-airflow-providers-common-sql>=1.30.2",
     "apache-airflow-providers-smtp>=2.3.1",
     "apache-airflow-providers-standard>=1.9.0",
     # Start of shared logging dependencies

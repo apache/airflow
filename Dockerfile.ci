@@ -1578,6 +1578,30 @@ function run_pre_extras_install_if_registered() {
     done
 }
 
+function lower_cross_provider_dependencies() {
+    # Other providers are uv workspace members, so the lowest-direct sync above always installs
+    # them from the sources. Replace the ones this provider requires with the lowest release on PyPI
+    # that the installed distributions accept, so their declared lower bounds get tested too.
+    local provider_id="${1}"
+    local pins
+    echo
+    echo "${COLOR_BLUE}Lowering cross-provider dependencies of ${provider_id} to their lowest released versions${COLOR_RESET}"
+    echo
+    if ! pins=$(python "${AIRFLOW_SOURCES}/scripts/in_container/lower_cross_provider_dependencies.py" "${provider_id}"); then
+        echo "${COLOR_RED}Failed to determine the cross-provider dependencies of ${provider_id}.${COLOR_RESET}"
+        exit 1
+    fi
+    if [[ -z "${pins}" ]]; then
+        echo "${COLOR_YELLOW}No cross-provider dependency of ${provider_id} to lower.${COLOR_RESET}"
+        return
+    fi
+    # Not --no-deps: an older release can need older dependencies than the sync picked (an old
+    # cncf.kubernetes needs an old kubernetes client), so let uv adjust them, then check the result.
+    # shellcheck disable=SC2086
+    uv pip install ${pins}
+    uv pip check
+}
+
 function check_force_lowest_dependencies() {
     if [[ ${FORCE_LOWEST_DEPENDENCIES=} != "true" ]]; then
         return
@@ -1620,6 +1644,7 @@ function check_force_lowest_dependencies() {
             echo "${COLOR_RED}Failed to sync lowest dependencies after 3 attempts.${COLOR_RESET}"
             exit 1
         fi
+        lower_cross_provider_dependencies "${provider_id}"
     else
         echo
         echo "${COLOR_BLUE}Forcing dependencies to lowest versions for Airflow.${COLOR_RESET}"
