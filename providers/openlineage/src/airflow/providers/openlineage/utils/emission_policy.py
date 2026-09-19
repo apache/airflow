@@ -70,9 +70,29 @@ Control flag keys (all optional inside ``controls``; the dict must be non-empty)
   extractor finds no inputs/outputs.  **Has no effect when ``extract_operator_metadata``
   is ``false``** — the entire extraction pipeline (including hook lineage) is skipped.
   Only meaningful for task events.  Default: ``true``.
+- ``exclude_hook_lineage_assets`` — list of regex patterns; hook-collected assets whose URI
+  matches any of them are dropped.  Only meaningful for task events when ``hook_lineage``
+  is ``true``.  Default: ``[]`` (drop nothing).
+- ``exclude_hook_lineage_hooks`` — list of regex patterns; hook-collected assets reported by
+  a hook whose **fully-qualified** class name (``module.ClassName``, as with the ``operator``
+  scope key) matches any of them are dropped.  Only meaningful for task events when
+  ``hook_lineage`` is ``true``.  Default: ``[]`` (drop nothing).
 - ``include_full_task_info`` — whether to include the full serialized operator state
   in the ``AirflowRunFacet``.  When ``false`` (default), only a curated subset of
   task attributes is sent.  Only meaningful for task events.  Default: ``false``.
+
+Both exclude lists are always matched as ``re.fullmatch`` patterns, independent of the
+rule's ``match_mode`` (which governs ``scope`` only) — a URI or hook name is rarely worth
+excluding one exact value at a time.  Unlike the boolean flags they are not merged across
+tiers: the most specific rule that sets a list replaces any broader one, so a task-scoped
+rule can narrow a global exclusion rather than only adding to it.
+
+Both filters run when OpenLineage **reads** the collector, which is *after*
+``[lineage] max_assets_per_collector`` has already capped what the collector kept.  Excluding
+assets therefore reduces what is reported, but it does not free capacity for assets the cap
+already dropped: if a task writes more objects than the cap allows, the ones written past the
+limit were never collected and no exclusion pattern can bring them back.  Lowering the volume
+of collected assets requires producer-side changes in the hooks themselves.
 
 ``locked: true`` is an admin floor lock that prevents per-Dag / per-task authoring
 overrides from changing the field(s) carried by this rule's ``controls`` dict.
@@ -87,6 +107,8 @@ enabled:
   When this is ``false``, both ``include_source_code`` and ``hook_lineage`` have **no
   effect** regardless of their values, because the code paths they control are never
   reached.
+- ``hook_lineage: false`` skips hook lineage collection entirely, so
+  ``exclude_hook_lineage_assets`` and ``exclude_hook_lineage_hooks`` have **no effect**.
 - ``include_source_code`` only applies inside Python and Bash operator extractors; setting
   it to ``false`` on other operator types is a no-op.
 
@@ -150,6 +172,10 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+# A validated ``controls`` value: bool for the flags, list of patterns for the
+# ``exclude_hook_lineage_*`` controls.
+ControlValue = bool | list[str]
+
 # Control flag names — the keys that may appear inside a rule's ``controls`` dict.
 EMIT = "emit"
 EMIT_TASK_EVENTS = "emit_task_events"
@@ -157,7 +183,13 @@ EMIT_DAG_EVENTS = "emit_dag_events"
 EXTRACT_OPERATOR_METADATA = "extract_operator_metadata"
 INCLUDE_SOURCE_CODE = "include_source_code"
 HOOK_LINEAGE = "hook_lineage"
+EXCLUDE_HOOK_LINEAGE_ASSETS = "exclude_hook_lineage_assets"
+EXCLUDE_HOOK_LINEAGE_HOOKS = "exclude_hook_lineage_hooks"
 INCLUDE_FULL_TASK_INFO = "include_full_task_info"
+
+# Controls whose value is a list of patterns rather than a bool. They are validated and
+# resolved separately from the boolean flags.
+_PATTERN_LIST_CONTROLS: frozenset[str] = frozenset({EXCLUDE_HOOK_LINEAGE_ASSETS, EXCLUDE_HOOK_LINEAGE_HOOKS})
 
 # Scope keys — the keys that may appear inside a rule's ``scope`` dict.
 SCOPE_DAG_ID = "dag_id"
@@ -187,6 +219,8 @@ _ALLOWED_CONTROL_KEYS: frozenset[str] = frozenset(
         EXTRACT_OPERATOR_METADATA,
         INCLUDE_SOURCE_CODE,
         HOOK_LINEAGE,
+        EXCLUDE_HOOK_LINEAGE_ASSETS,
+        EXCLUDE_HOOK_LINEAGE_HOOKS,
         INCLUDE_FULL_TASK_INFO,
     }
 )
@@ -199,6 +233,8 @@ _LOCKABLE_TASK_FIELDS: tuple[str, ...] = (
     EXTRACT_OPERATOR_METADATA,
     INCLUDE_SOURCE_CODE,
     HOOK_LINEAGE,
+    EXCLUDE_HOOK_LINEAGE_ASSETS,
+    EXCLUDE_HOOK_LINEAGE_HOOKS,
     INCLUDE_FULL_TASK_INFO,
 )
 
@@ -212,6 +248,8 @@ _TASK_FLAG_KEYS: frozenset[str] = frozenset(
         EXTRACT_OPERATOR_METADATA,
         INCLUDE_SOURCE_CODE,
         HOOK_LINEAGE,
+        EXCLUDE_HOOK_LINEAGE_ASSETS,
+        EXCLUDE_HOOK_LINEAGE_HOOKS,
         INCLUDE_FULL_TASK_INFO,
     }
 )
@@ -227,6 +265,8 @@ class EmissionPolicy:
     include_source_code: bool
     hook_lineage: bool
     include_full_task_info: bool
+    exclude_hook_lineage_assets: tuple[str, ...] = ()
+    exclude_hook_lineage_hooks: tuple[str, ...] = ()
 
     @classmethod
     def defaults(cls) -> EmissionPolicy:
@@ -251,7 +291,7 @@ class Rule:
     """
 
     scope: dict[str, str]
-    controls: dict[str, bool]
+    controls: dict[str, ControlValue]
     match_mode: str = "exact"
     locked: bool = False
 
@@ -275,7 +315,26 @@ def _matches(pattern: str, value: str, match_mode: str) -> bool:
     return pattern == value
 
 
-def _read_param(obj: object, param_name: str) -> dict[str, bool]:
+def find_invalid_pattern(field: str, value: object) -> str | None:
+    """
+    Return an error message if *value* is not a usable list of regex patterns, else ``None``.
+
+    Shared by the conf parser (which skips the offending rule) and the authoring API (which
+    raises), so every pattern that reaches asset matching has already compiled once here.
+    """
+    if not isinstance(value, list):
+        return f"'{field}' must be a list of strings, got {value!r}"
+    for pattern in value:
+        if not isinstance(pattern, str):
+            return f"'{field}' must contain only strings, got {pattern!r}"
+        try:
+            re.compile(pattern)
+        except re.error as exc:
+            return f"'{field}' pattern {pattern!r} is not a valid regex ({exc})"
+    return None
+
+
+def _read_param(obj: object, param_name: str) -> dict[str, ControlValue]:
     """Read the flags dict stored at *param_name* on *obj*, or ``{}`` if absent."""
     val = getattr(obj, "params", {}).get(param_name)
     if val is None:
@@ -285,7 +344,7 @@ def _read_param(obj: object, param_name: str) -> dict[str, bool]:
     return val if isinstance(val, dict) else {}
 
 
-def _merge_param(obj: object, param_name: str, new_flags: dict[str, bool]) -> None:
+def _merge_param(obj: object, param_name: str, new_flags: dict[str, ControlValue]) -> None:
     """
     Merge *new_flags* into the ``param_name`` param on *obj*, creating it if absent.
 
@@ -321,17 +380,32 @@ def _audit_log_conf_field(field: str, value: bool, context: str, source: Rule) -
     )
 
 
+def _audit_log_conf_patterns(field: str, patterns: tuple[str, ...], context: str, source: Rule) -> None:
+    """Log the winning conf value for a pattern-list field whenever any rule set it."""
+    log.info(
+        "OpenLineage emission policy: '%s' set to %r for %s by %r",
+        field,
+        list(patterns),
+        context,
+        source,
+    )
+
+
 def _audit_log_authoring_updates(
-    field_changes: dict[str, bool],
+    field_changes: dict[str, bool | tuple[str, ...]],
     context: str,
 ) -> None:
     """Audit-log authoring overrides that actually change the resolved policy value."""
     for field, new_value in field_changes.items():
+        if isinstance(new_value, bool):
+            state = "enabled" if new_value else "disabled"
+        else:
+            state = f"set to {list(new_value)!r}"
         log.info(
             "OpenLineage emission policy: '%s' %s for %s "
             "by manual `extend_global_openlineage_emission_policy` call.",
             field,
-            "enabled" if new_value else "disabled",
+            state,
             context,
         )
 
@@ -433,7 +507,16 @@ def _parse_rule(rule: object) -> Rule | None:
         )
         return None
     for k, v in controls.items():
-        if not isinstance(v, bool):
+        if k in _PATTERN_LIST_CONTROLS:
+            invalid = find_invalid_pattern(k, v)
+            if invalid:
+                log.warning(
+                    "OpenLineage emission_policy rule controls.%s; ignoring: %r",
+                    invalid,
+                    rule,
+                )
+                return None
+        elif not isinstance(v, bool):
             log.warning(
                 "OpenLineage emission_policy rule 'controls.%s' must be bool, got %r; ignoring: %r",
                 k,
@@ -576,7 +659,7 @@ def _classify_dag_rules(
 
 def _walk_tiers(
     tiers: list[list[Rule]],
-    extract_value: Callable[[dict[str, bool]], bool | None],
+    extract_value: Callable[[dict[str, ControlValue]], bool | None],
     field_label: str,
     default: bool,
 ) -> tuple[bool, Rule | None]:
@@ -612,11 +695,42 @@ def _walk_tiers(
     return default, None
 
 
+def _read_bool_control(controls: dict[str, ControlValue], field: str) -> bool | None:
+    """
+    Read a boolean control, or ``None`` when *field* is absent.
+
+    Rule validation already guarantees boolean controls hold bools, so the isinstance check
+    only narrows the union for the type checker.
+    """
+    value = controls.get(field)
+    return value if isinstance(value, bool) else None
+
+
 def _resolve_field_with_source(
     tiers: list[list[Rule]], field: str, default: bool
 ) -> tuple[bool, Rule | None]:
     """Walk tiers for a single boolean *field* in ``controls``."""
-    return _walk_tiers(tiers, lambda c: c.get(field), field, default)
+    return _walk_tiers(tiers, lambda c: _read_bool_control(c, field), field, default)
+
+
+def _resolve_pattern_list(tiers: list[list[Rule]], field: str) -> tuple[tuple[str, ...], Rule | None]:
+    """
+    Walk tiers for a pattern-list *field*, returning the winning rule's list verbatim.
+
+    Lists replace rather than merge: the most specific tier that sets *field* wins outright,
+    so a task-scoped rule can narrow a broad global exclusion instead of adding to it.
+    Within a tier the last matching rule wins, mirroring the boolean resolution order.
+    """
+    for tier_rules in tiers:
+        winning_rule: Rule | None = None
+        for rule in tier_rules:
+            if field in rule.controls:
+                winning_rule = rule
+        if winning_rule is not None:
+            patterns = winning_rule.controls[field]
+            # Validation guarantees a list here; the check only narrows the union.
+            return (tuple(patterns) if isinstance(patterns, list) else ()), winning_rule
+    return (), None
 
 
 def _resolve_emit_with_source(
@@ -633,10 +747,10 @@ def _resolve_emit_with_source(
     """
     specific_key = EMIT_TASK_EVENTS if scope == "task" else EMIT_DAG_EVENTS
 
-    def _extract(c: dict[str, bool]) -> bool | None:
+    def _extract(c: dict[str, ControlValue]) -> bool | None:
         if specific_key in c:
-            return c[specific_key]
-        return c.get(EMIT)
+            return _read_bool_control(c, specific_key)
+        return _read_bool_control(c, EMIT)
 
     return _walk_tiers(tiers, _extract, f"emit ({scope})", default)
 
@@ -815,7 +929,7 @@ def _compute_locked_task_fields(
 def _apply_authoring_overrides(
     config: EmissionPolicy,
     locked_fields: frozenset[str],
-    flags: dict[str, bool],
+    flags: dict[str, ControlValue],
     emit_key: str,
     context: str,
     extra_fields: tuple[str, ...] = (),
@@ -827,9 +941,13 @@ def _apply_authoring_overrides(
     ``emit_dag_events`` for DAG events).  *extra_fields* lists additional lockable
     fields that the task path carries but the DAG path does not.
     """
-    updates: dict[str, bool] = {}
+    # Values here are already normalised to their EmissionPolicy field types, so pattern lists
+    # are tuples rather than the lists the authoring API accepts.
+    updates: dict[str, bool | tuple[str, ...]] = {}
 
-    effective_emit: bool | None = flags.get(emit_key, flags.get(EMIT))
+    effective_emit = _read_bool_control(flags, emit_key)
+    if effective_emit is None:
+        effective_emit = _read_bool_control(flags, EMIT)
     if effective_emit is not None:
         if EMIT in locked_fields:
             log.warning(
@@ -853,14 +971,17 @@ def _apply_authoring_overrides(
                 getattr(config, field),
             )
         else:
-            updates[field] = flags[field]
+            value = flags[field]
+            # Pattern lists are stored as tuples on the policy, so normalise before comparing
+            # to avoid a list-vs-tuple mismatch always reading as "changed".
+            updates[field] = tuple(value) if isinstance(value, list) else value
 
     changed = {k: v for k, v in updates.items() if getattr(config, k) != v}
     if not changed:
         return config
 
     _audit_log_authoring_updates(changed, context)
-    return replace(config, **changed)
+    return replace(config, **changed)  # type: ignore[arg-type]
 
 
 def _extend_policy_with_task_authoring(
@@ -888,7 +1009,14 @@ def _extend_policy_with_task_authoring(
         flags,
         EMIT_TASK_EVENTS,
         context,
-        extra_fields=(EXTRACT_OPERATOR_METADATA, INCLUDE_SOURCE_CODE, HOOK_LINEAGE, INCLUDE_FULL_TASK_INFO),
+        extra_fields=(
+            EXTRACT_OPERATOR_METADATA,
+            INCLUDE_SOURCE_CODE,
+            HOOK_LINEAGE,
+            EXCLUDE_HOOK_LINEAGE_ASSETS,
+            EXCLUDE_HOOK_LINEAGE_HOOKS,
+            INCLUDE_FULL_TASK_INFO,
+        ),
     )
 
 
@@ -937,6 +1065,8 @@ def _resolve_task_policy_from_conf_only(
         tiers, INCLUDE_SOURCE_CODE, defaults.include_source_code
     )
     hook_lineage, hl_rule = _resolve_field_with_source(tiers, HOOK_LINEAGE, defaults.hook_lineage)
+    exclude_assets, ea_rule = _resolve_pattern_list(tiers, EXCLUDE_HOOK_LINEAGE_ASSETS)
+    exclude_hooks, eh_rule = _resolve_pattern_list(tiers, EXCLUDE_HOOK_LINEAGE_HOOKS)
     include_full_task_info, ift_rule = _resolve_field_with_source(
         tiers, INCLUDE_FULL_TASK_INFO, defaults.include_full_task_info
     )
@@ -949,6 +1079,10 @@ def _resolve_task_policy_from_conf_only(
         _audit_log_conf_field(INCLUDE_SOURCE_CODE, include_source_code, context, isc_rule)
     if hl_rule is not None:
         _audit_log_conf_field(HOOK_LINEAGE, hook_lineage, context, hl_rule)
+    if ea_rule is not None:
+        _audit_log_conf_patterns(EXCLUDE_HOOK_LINEAGE_ASSETS, exclude_assets, context, ea_rule)
+    if eh_rule is not None:
+        _audit_log_conf_patterns(EXCLUDE_HOOK_LINEAGE_HOOKS, exclude_hooks, context, eh_rule)
     if ift_rule is not None:
         _audit_log_conf_field(INCLUDE_FULL_TASK_INFO, include_full_task_info, context, ift_rule)
 
@@ -961,6 +1095,8 @@ def _resolve_task_policy_from_conf_only(
             include_source_code=include_source_code,
             hook_lineage=hook_lineage,
             include_full_task_info=include_full_task_info,
+            exclude_hook_lineage_assets=exclude_assets,
+            exclude_hook_lineage_hooks=exclude_hooks,
         ),
         locked_fields,
     )
