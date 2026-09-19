@@ -79,19 +79,39 @@ member ends up serving the call. Summing ``managed_agent.invoked`` by
 names from lone toolsets; filter by ``tool`` instead when a group and its
 members share a dashboard.
 
-``platform`` can also show up as the literal string ``"unknown"``, but only
-when a subclass's ``agent_ref`` returns a dict with no ``platform`` key: the
-tag degrades rather than failing the call over a missing label. It is not the
-bucket for an identity that fails to resolve. ``call_tool()`` reads the
-toolset's own ``agent_ref`` directly, so one that *raises* -- a connection
-lookup failing, or a bug in the subclass -- fails the tool call rather than
-sending the invocation out under an ``"unknown"`` tag.
+For ``managed_agent.invoked``, ``platform`` can also show up as the literal
+string ``"unknown"``, but only when a subclass's ``agent_ref`` returns a dict
+with no ``platform`` key: the tag degrades rather than failing the call over a
+missing label. For this counter, ``"unknown"`` is not the bucket for an
+identity that fails to resolve. ``call_tool()`` reads the toolset's own
+``agent_ref`` directly, so one that *raises* -- a connection lookup failing, or
+a bug in the subclass -- fails the tool call rather than sending the
+invocation out under an ``"unknown"`` tag.
+
+``managed_agent.served`` and ``managed_agent.failover`` are different: inside
+a group, every member's ``agent_ref`` is read through a helper that collapses
+*both* a dict with no ``platform`` key *and* a raised lookup failure into the
+same ``{"platform": "unknown", "name": "?"}`` stand-in before ``invoke()``
+ever sees it. So on these two counters, ``"unknown"`` (and, on
+``managed_agent.failover``, ``from_platform="unknown"``) covers two different
+causes on a member -- a raised lookup failure, or an ``agent_ref``
+implementation that silently omits the ``platform`` key -- and the tag alone
+cannot tell them apart.
 
 The one identity failure a call tolerates is a *member's*, inside a group: a
-group resolves every member to build its own label, and renders an unreachable
-one as ``?`` in ``name`` with a warning in the task log. That keeps a broken
-standby from failing a call the primary can serve, which is the whole point of
-the group.
+group resolves every member to build its own label, and renders an
+unreachable one as ``?`` in ``name``. Only the raised-lookup-failure case logs
+its own warning naming the member's class and the original exception; a
+member whose ``agent_ref`` silently omits ``platform`` leaves no such warning,
+the same way a lone toolset's would not. So an operator watching
+``platform="unknown"`` climb on ``managed_agent.served`` should check the task
+log for that warning before assuming a broken connection -- its absence
+points at the member's own ``agent_ref`` instead. ``managed_agent.failover``
+carries no ``position`` tag of its own, but the transition warning that fires
+alongside every failover names both the failing member and the standby taking
+over by their position in the member list, so a chain longer than two can
+still be narrowed down from the task log. That keeps a broken standby from
+failing a call the primary can serve, which is the whole point of the group.
 
 .. warning::
 
