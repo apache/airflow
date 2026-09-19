@@ -65,7 +65,19 @@ def retry_db_transaction(_func: Callable | None = None, *, retries: int = MAX_DB
     """
     Retry functions in case of ``DBAPIError`` from DB.
 
-    It should not be used with ``@provide_session``.
+    The decorated function must take a ``session`` argument, and that session has to be
+    bound by the time the wrapper runs, because a failed attempt rolls it back before
+    retrying.
+
+    Stack it *inside* ``@provide_session`` so the session exists when the retry wrapper
+    runs::
+
+        @provide_session
+        @retry_db_transaction
+        def func(..., *, session: Session = NEW_SESSION): ...
+
+    The opposite order raises ``TypeError`` at call time, since no session has been
+    created yet.
     """
 
     def retry_decorator(func: Callable) -> Callable:
