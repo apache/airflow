@@ -124,6 +124,9 @@ class TptHook(TtuHook):
         with self.preferred_temp_directory() as tmp_dir:
             local_script_file = os.path.join(tmp_dir, f"tbuild_script_{uuid.uuid4().hex}.sql")
             write_file(local_script_file, tpt_script_content)
+            # The script embeds the connection password, so restrict it to the owner before
+            # it is encrypted and transferred, matching `_execute_tbuild_locally`.
+            set_local_file_permissions(local_script_file, logging.getLogger(__name__))
             encrypted_file_path = f"{local_script_file}.enc"
             remote_encrypted_script_file = os.path.join(
                 remote_working_dir, os.path.basename(encrypted_file_path)
@@ -293,6 +296,9 @@ class TptHook(TtuHook):
         with self.preferred_temp_directory() as tmp_dir:
             local_job_var_file = os.path.join(tmp_dir, f"tdload_job_var_{uuid.uuid4().hex}.txt")
             write_file(local_job_var_file, job_var_content or "")
+            # The job variable file embeds the connection password, so restrict it to the owner
+            # before it is encrypted and transferred, matching the direct tdload path.
+            set_local_file_permissions(local_job_var_file, logging.getLogger(__name__))
             return self._transfer_to_and_execute_tdload_on_remote(
                 local_job_var_file, remote_working_dir, tdload_options, tdload_job_name
             )

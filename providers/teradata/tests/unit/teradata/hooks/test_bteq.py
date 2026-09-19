@@ -228,7 +228,9 @@ def hook_with_ssh(patch_ssh_hook_class):
 @patch(
     "airflow.providers.teradata.hooks.bteq.decrypt_remote_file_to_string", return_value=(0, ["output"], [])
 )
+@patch("airflow.providers.teradata.hooks.bteq.set_local_file_permissions")
 def test_execute_bteq_script_at_remote_success(
+    mock_set_local_permissions,
     mock_decrypt,
     mock_prepare_cmd,
     mock_transfer,
@@ -273,6 +275,10 @@ def test_execute_bteq_script_at_remote_success(
     mock_transfer.assert_called_once()
     mock_prepare_cmd.assert_called_once()
     mock_decrypt.assert_called_once()
+
+    # The script embeds the `.LOGON` credentials, so it must be restricted to the owner
+    mock_set_local_permissions.assert_called_once()
+    assert mock_set_local_permissions.call_args.args[0].endswith("bteq_script.txt")
 
     # Assert the return code is what decrypt_remote_file_to_string returns (0 here)
     assert ret_code == 0
