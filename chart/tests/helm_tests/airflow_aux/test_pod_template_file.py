@@ -1306,38 +1306,26 @@ class TestPodTemplateFile:
         assert sidecar is not None
         assert sidecar["restartPolicy"] == "Always"
 
-    @pytest.mark.parametrize(
-        ("sidecar_enabled", "probe_enabled", "expected_names"),
-        [
-            (False, True, []),
-            (True, True, ["worker-kerberos"]),
-            (True, False, ["worker-kerberos"]),
-        ],
-    )
-    def test_kerberos_initialization(self, sidecar_enabled, probe_enabled, expected_names):
+    def test_kerberos_sidecar_disabled(self):
         docs = render_chart(
-            values={
-                "workers": {
-                    "kubernetes": {
-                        "kerberosSidecar": {
-                            "enabled": sidecar_enabled,
-                            "startupProbe": {"enabled": probe_enabled},
-                        },
-                    }
-                }
-            },
+            values={"workers": {"kubernetes": {"kerberosSidecar": {"enabled": False}}}},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
-        assert (jmespath.search("spec.initContainers[].name", docs[0]) or []) == expected_names
-        assert (
-            jmespath.search('metadata.annotations."checksum/kerberos-keytab"', docs[0]) is not None
-        ) == sidecar_enabled
-        if sidecar_enabled:
-            sidecar = jmespath.search("spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0])
-            assert sidecar["args"] == ["kerberos"]
-            assert sidecar["restartPolicy"] == "Always"
-            assert ("startupProbe" in sidecar) == probe_enabled
+        assert jmespath.search("spec.initContainers[].name", docs[0]) is None
+        assert jmespath.search('metadata.annotations."checksum/kerberos-keytab"', docs[0]) is None
+
+    def test_kerberos_sidecar_enabled(self):
+        docs = render_chart(
+            values={"workers": {"kubernetes": {"kerberosSidecar": {"enabled": True}}}},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+        assert jmespath.search("spec.initContainers[].name", docs[0]) == ["worker-kerberos"]
+        assert jmespath.search('metadata.annotations."checksum/kerberos-keytab"', docs[0]) is not None
+        sidecar = jmespath.search("spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0])
+        assert sidecar["args"] == ["kerberos"]
+        assert sidecar["restartPolicy"] == "Always"
 
     def test_pod_override_reconciliation_with_kerberos_sidecar(self):
         docs = render_chart(
@@ -1487,9 +1475,8 @@ class TestPodTemplateFile:
                     "failureThreshold": 14,
                 },
             ),
-            ({"enabled": False}, None),
         ],
-        ids=["default", "custom", "disabled"],
+        ids=["default", "custom"],
     )
     def test_kerberos_sidecar_startup_probe(self, override, expected):
         docs = render_chart(
@@ -1504,6 +1491,21 @@ class TestPodTemplateFile:
         assert sidecar is not None
         assert sidecar["restartPolicy"] == "Always"
         assert sidecar["startupProbe"] == expected
+
+    def test_kerberos_sidecar_startup_probe_disabled(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "kubernetes": {"kerberosSidecar": {"enabled": True, "startupProbe": {"enabled": False}}}
+                }
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        sidecar = jmespath.search("spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0])
+        assert sidecar is not None
+        assert "startupProbe" not in sidecar
 
     @pytest.mark.parametrize(
         "override",
@@ -1591,34 +1593,54 @@ class TestPodTemplateFile:
 
         assert jmespath.search("spec.containers[0].command", docs[0]) is None
 
-    @pytest.mark.parametrize("sidecar_enabled", [True, False])
-    def test_api_server_config_for_kerberos(self, sidecar_enabled):
+    def test_api_server_config_for_kerberos(self):
         docs = render_chart(
             values={
-                "workers": {"kubernetes": {"kerberosSidecar": {"enabled": sidecar_enabled}}},
+                "workers": {"kubernetes": {"kerberosSidecar": {"enabled": True}}},
                 "apiServer": {"apiServerConfigConfigMapName": "config"},
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
-        assert ("api-server-config" in jmespath.search("spec.volumes[*].name", docs[0])) == sidecar_enabled
-        if sidecar_enabled:
-            assert "api-server-config" in jmespath.search(
-                "spec.initContainers[?name=='worker-kerberos'] | [0].volumeMounts[*].name", docs[0]
-            )
+        assert "api-server-config" in jmespath.search("spec.volumes[*].name", docs[0])
+        assert "api-server-config" in jmespath.search(
+            "spec.initContainers[?name=='worker-kerberos'] | [0].volumeMounts[*].name", docs[0]
+        )
 
-    @pytest.mark.parametrize("sidecar_enabled", [True, False])
-    def test_base_contains_kerberos_env(self, sidecar_enabled):
+    def test_api_server_config_not_mounted_when_kerberos_sidecar_disabled(self):
         docs = render_chart(
-            values={"workers": {"kubernetes": {"kerberosSidecar": {"enabled": sidecar_enabled}}}},
+            values={
+                "workers": {"kubernetes": {"kerberosSidecar": {"enabled": False}}},
+                "apiServer": {"apiServerConfigConfigMapName": "config"},
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert "api-server-config" not in jmespath.search("spec.volumes[*].name", docs[0])
+
+    def test_base_contains_kerberos_env(self):
+        docs = render_chart(
+            values={"workers": {"kubernetes": {"kerberosSidecar": {"enabled": True}}}},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
         env_names = jmespath.search("spec.containers[0].env[*].name", docs[0])
-        assert ("KRB5_CONFIG" in env_names) == sidecar_enabled
-        assert ("KRB5CCNAME" in env_names) == sidecar_enabled
+        assert "KRB5_CONFIG" in env_names
+        assert "KRB5CCNAME" in env_names
+
+    def test_base_has_no_kerberos_env_when_sidecar_disabled(self):
+        docs = render_chart(
+            values={"workers": {"kubernetes": {"kerberosSidecar": {"enabled": False}}}},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        env_names = jmespath.search("spec.containers[0].env[*].name", docs[0])
+        assert "KRB5_CONFIG" not in env_names
+        assert "KRB5CCNAME" not in env_names
 
     def test_service_account_name_default(self):
         docs = render_chart(

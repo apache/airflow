@@ -1444,7 +1444,6 @@ class TestWorkerSets:
                     "failureThreshold": 6,
                 },
             ),
-            ({"enabled": True}, {"enabled": False}, None),
             (
                 {
                     "timeoutSeconds": 1,
@@ -1462,7 +1461,7 @@ class TestWorkerSets:
                 },
             ),
         ],
-        ids=["enabled", "disabled", "custom"],
+        ids=["enabled", "custom"],
     )
     def test_overwrite_kerberos_sidecar_startup_probe(
         self, startup_probe, worker_set_startup_probe, expected
@@ -1490,7 +1489,27 @@ class TestWorkerSets:
         )
         assert sidecar is not None
         assert sidecar["restartPolicy"] == "Always"
-        assert sidecar.get("startupProbe") == expected
+        assert sidecar["startupProbe"] == expected
+
+    def test_overwrite_kerberos_sidecar_startup_probe_disabled(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "celery": {
+                        "enableDefault": False,
+                        "kerberosSidecar": {"enabled": True, "startupProbe": {"enabled": True}},
+                        "sets": [{"name": "test", "kerberosSidecar": {"startupProbe": {"enabled": False}}}],
+                    }
+                }
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        sidecar = jmespath.search(
+            "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0]
+        )
+        assert sidecar is not None
+        assert "startupProbe" not in sidecar
 
     @pytest.mark.parametrize(
         "values",
