@@ -144,7 +144,7 @@ class JWTReissueMiddleware(BaseHTTPMiddleware):
         token = request.scope.get(_REQUEST_SCOPE_TOKEN_KEY)
         if token:
             try:
-                claims = token.claims.model_dump()
+                claims = token.claims.model_dump() if hasattr(token, "claims") else token
 
                 # Only short-lived execution tokens are renewed here. Any other type has a
                 # lifetime set by its issuer (workload and callback tokens outlive queue waits,
