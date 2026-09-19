@@ -840,6 +840,7 @@ class AsyncKubernetesHook(KubernetesHook):
         # Cached result of exec-auth detection. None means not yet detected.
         # This is to optimise and not calling _uses_exec_auth repeatedly on every _load_config() call.
         self._is_exec_auth: bool | None = None
+        self._cached_kube_client: async_client.ApiClient | None = None
 
     def _uses_exec_auth(self, kubeconfig_data: dict, context: str | None = None) -> bool:
         """
@@ -1024,14 +1025,28 @@ class AsyncKubernetesHook(KubernetesHook):
 
     @contextlib.asynccontextmanager
     async def get_conn(self) -> AsyncGenerator[async_client.ApiClient, None]:
-        kube_client = None
+        await self._load_config()
+        if self._config_loaded:
+            # Reuse one client per hook: each construction runs ssl.create_default_context()
+            # on the event loop and opens a new connection pool. Owners release it via
+            # close(); triggers do so in cleanup().
+            if self._cached_kube_client is None:
+                self._cached_kube_client = _TimeoutAsyncK8sApiClient(configuration=self.client_configuration)
+            yield self._cached_kube_client
+            return
+        # Exec-based auth rotates short-lived tokens by reloading the config on
+        # every call, so the client cannot be reused.
+        kube_client = _TimeoutAsyncK8sApiClient(configuration=self.client_configuration)
         try:
-            await self._load_config()
-            kube_client = _TimeoutAsyncK8sApiClient(configuration=self.client_configuration)
             yield kube_client
         finally:
-            if kube_client is not None:
-                await kube_client.close()
+            await kube_client.close()
+
+    async def close(self) -> None:
+        """Release the cached API client, if any. Safe to call multiple times."""
+        cached, self._cached_kube_client = self._cached_kube_client, None
+        if cached is not None:
+            await cached.close()
 
     @generic_api_retry
     async def get_pod(self, name: str, namespace: str) -> V1Pod:
