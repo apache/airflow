@@ -175,13 +175,44 @@ class _BaseTemporalMapper(PartitionMapper):
         self._timezone = timezone
 
     def to_downstream(self, key: str) -> str:
-        dt = datetime.strptime(key, self.input_format)
+        dt = self._parse_upstream_key(key)
+        normalized = self.normalize(dt)
+        return self.format(normalized)
+
+    def _parse_upstream_key(self, key: str) -> datetime:
+        """
+        Parse *key* into an aware datetime, tolerating already-normalized keys.
+
+        Tries ``input_format`` first -- the documented, explicit contract for
+        upstream keys. If *key* doesn't match ``input_format``, falls back to
+        parsing it as an already-downstream-formatted key via
+        :meth:`decode_downstream` (i.e. ``output_format``, or a subclass's
+        custom parsing). This lets a mapper accept upstream keys that already
+        arrive at its own granularity -- e.g. a day-level key such as
+        ``"2026-07-30"`` fed into ``StartOfDayMapper`` without the caller
+        having to override ``input_format`` -- and makes a mapper's own
+        output "chainable" back through another instance of itself.
+
+        Only engages once ``input_format`` parsing has already failed, so
+        keys that already match ``input_format`` keep their existing,
+        unambiguous behavior.
+        """
+        try:
+            dt = datetime.strptime(key, self.input_format)
+        except ValueError as input_format_error:
+            try:
+                dt = self.decode_downstream(key)
+            except ValueError:
+                raise ValueError(
+                    f"{type(self).__name__} could not parse partition key {key!r}: "
+                    f"it matches neither input_format {self.input_format!r} "
+                    f"nor output_format {self.output_format!r}."
+                ) from input_format_error
         if dt.tzinfo is None:
             dt = make_aware(dt, self._timezone)
         else:
             dt = dt.astimezone(self._timezone)
-        normalized = self.normalize(dt)
-        return self.format(normalized)
+        return dt
 
     @abstractmethod
     def normalize(self, dt: datetime) -> datetime:
