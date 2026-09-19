@@ -2348,9 +2348,12 @@ core_commands: list[CLICommand] = [
 ]
 
 
-def _remove_dag_id_opt(command: ActionCommand):
+def _remove_dag_selection_opts(command: ActionCommand):
+    # ``DAG.cli()`` passes its Dag straight to the handler, which short-circuits on it and never
+    # looks a Dag up, so on this parser these flags could only be accepted and ignored.
+    dag_selection_args = (ARG_DAG_ID, ARG_BUNDLE_NAME, ARG_DAGFILE_PATH)
     cmd = command._asdict()
-    cmd["args"] = tuple(arg for arg in command.args if arg is not ARG_DAG_ID)
+    cmd["args"] = tuple(arg for arg in command.args if arg not in dag_selection_args)
     return ActionCommand(**cmd)
 
 
@@ -2362,12 +2365,16 @@ dag_cli_commands: list[CLICommand] = [
     GroupCommand(
         name="dags",
         help="Manage DAGs",
-        subcommands=[_remove_dag_id_opt(sp) for sp in DAGS_COMMANDS if sp.name in DAG_CLI_DAGS_SUBCOMMANDS],
+        subcommands=[
+            _remove_dag_selection_opts(sp) for sp in DAGS_COMMANDS if sp.name in DAG_CLI_DAGS_SUBCOMMANDS
+        ],
     ),
     GroupCommand(
         name="tasks",
         help="Manage tasks",
-        subcommands=[_remove_dag_id_opt(sp) for sp in TASKS_COMMANDS if sp.name in DAG_CLI_TASKS_SUBCOMMANDS],
+        subcommands=[
+            _remove_dag_selection_opts(sp) for sp in TASKS_COMMANDS if sp.name in DAG_CLI_TASKS_SUBCOMMANDS
+        ],
     ),
 ]
 DAG_CLI_DICT: dict[str, CLICommand] = {sp.name: sp for sp in dag_cli_commands}
