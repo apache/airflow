@@ -53,7 +53,8 @@ class RetryAction(Enum):
 
     The retry is still subject to the task's ``retries`` count -- the policy
     can fail a task earlier but cannot extend past the configured maximum.
-    When all retries are exhausted, RETRY behaves identically to DEFAULT.
+    When all retries are exhausted, RETRY fails the task like DEFAULT does,
+    but still records the policy's reason; DEFAULT records none.
     """
 
     FAIL = "fail"
