@@ -890,6 +890,8 @@ class TestCycleTester:
             create_cluster >> pod_task_xcom >> delete_cluster
             pod_task_xcom >> pod_task_xcom_result
 
+        assert not dag.check_cycle()
+
     def test_cycle_no_cycle(self):
         # test no cycle
         dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
