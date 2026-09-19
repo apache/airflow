@@ -47,6 +47,9 @@ metadata:
   {{- end }}
 spec:
   replicas: 1
+  {{- if .Values.statsd.strategy }}
+  strategy: {{- toYaml .Values.statsd.strategy | nindent 4 }}
+  {{- end }}
   {{- if ne $revisionHistoryLimit "" }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}
   {{- end }}
