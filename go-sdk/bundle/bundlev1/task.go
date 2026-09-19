@@ -44,18 +44,23 @@ type Bundle interface {
 }
 
 type taskFunction struct {
-	fn       reflect.Value
-	fullName string
-	plan     *binding.Plan
+	fn         reflect.Value
+	fullName   string
+	plan       *binding.Plan
+	doXComPush bool
 }
 
 var _ Task = (*taskFunction)(nil)
 
 // NewTaskFunction validates and wraps a Go function as a Task.
 func NewTaskFunction(fn any) (Task, error) {
+	return newTaskFunction(fn, true)
+}
+
+func newTaskFunction(fn any, doXComPush bool) (Task, error) {
 	v := reflect.ValueOf(fn)
 	fullName := runtime.FuncForPC(v.Pointer()).Name()
-	f := &taskFunction{fn: v, fullName: fullName}
+	f := &taskFunction{fn: v, fullName: fullName, doXComPush: doXComPush}
 	if err := f.validateFn(v.Type()); err != nil {
 		return nil, err
 	}
@@ -106,9 +111,17 @@ func (f *taskFunction) call(
 			)
 		}
 	}
-	// If there are two results, convert the first only if it's not a nil pointer
-	if len(retValues) > 1 && (retValues[0].Kind() != reflect.Ptr || !retValues[0].IsNil()) {
-		res := retValues[0].Interface()
+	if len(retValues) > 1 && f.doXComPush {
+		var res any
+		value := retValues[0]
+		switch value.Kind() {
+		case reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+			if !value.IsNil() {
+				res = value.Interface()
+			}
+		default:
+			res = value.Interface()
+		}
 		f.sendXcom(ctx, res, sdkClient, logger)
 	}
 	return err
