@@ -4645,6 +4645,9 @@ parquet = [
 pdf = [
     { name = "pypdf" },
 ]
+sandbox-opensandbox = [
+    { name = "opensandbox" },
+]
 shields = [
     { name = "pydantic-ai-shields" },
 ]
@@ -4670,6 +4673,7 @@ dev = [
     { name = "llama-index-core" },
     { name = "llama-index-embeddings-openai" },
     { name = "llama-index-llms-openai" },
+    { name = "opensandbox" },
     { name = "pydantic-ai-skills" },
     { name = "pydantic-ai-slim", extra = ["mcp"] },
     { name = "sqlglot" },
@@ -4694,6 +4698,7 @@ requires-dist = [
     { name = "llama-index-core", marker = "extra == 'llamaindex'", specifier = ">=0.13.0" },
     { name = "llama-index-embeddings-openai", marker = "extra == 'llamaindex'", specifier = ">=0.6.0" },
     { name = "llama-index-llms-openai", marker = "extra == 'llamaindex'", specifier = ">=0.6.0" },
+    { name = "opensandbox", marker = "extra == 'sandbox-opensandbox'", specifier = ">=0.1.16" },
     { name = "pyarrow", marker = "python_full_version >= '3.14' and extra == 'parquet'", specifier = ">=22.0.0" },
     { name = "pyarrow", marker = "python_full_version < '3.14' and extra == 'parquet'", specifier = ">=18.0.0" },
     { name = "pydantic-ai-harness", extras = ["codemode"], marker = "extra == 'code-mode'", specifier = ">=0.3.0" },
@@ -4709,7 +4714,7 @@ requires-dist = [
     { name = "python-docx", marker = "extra == 'docx'", specifier = ">=1.0.0" },
     { name = "sqlglot", marker = "extra == 'sql'", specifier = ">=30.0.0" },
 ]
-provides-extras = ["anthropic", "bedrock", "google", "openai", "mcp", "code-mode", "shields", "skills", "avro", "parquet", "sql", "common-sql", "langchain", "llamaindex", "pdf", "docx", "git"]
+provides-extras = ["anthropic", "bedrock", "google", "openai", "mcp", "code-mode", "shields", "skills", "sandbox-opensandbox", "avro", "parquet", "sql", "common-sql", "langchain", "llamaindex", "pdf", "docx", "git"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -4725,6 +4730,7 @@ dev = [
     { name = "llama-index-core", specifier = ">=0.13.0" },
     { name = "llama-index-embeddings-openai", specifier = ">=0.6.0" },
     { name = "llama-index-llms-openai", specifier = ">=0.6.0" },
+    { name = "opensandbox", specifier = ">=0.1.16" },
     { name = "pydantic-ai-skills", specifier = ">=1.2.0" },
     { name = "pydantic-ai-slim", extras = ["mcp"], specifier = ">=2.23.0" },
     { name = "sqlglot", specifier = ">=30.0.0" },
@@ -15042,6 +15048,15 @@ http2 = [
 ]
 
 [[package]]
+name = "httpx-sse"
+version = "0.4.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/0f/4c/751061ffa58615a32c31b2d82e8482be8dd4a89154f003147acee90f2be9/httpx_sse-0.4.3.tar.gz", hash = "sha256:9b1ed0127459a66014aec3c56bebd93da3c1bc8bb6618c8082039a44889a755d", size = 15943, upload-time = "2025-10-10T21:48:22.271Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d2/fd/6668e5aec43ab844de6fc74927e155a3b37bf40d7c3790e49fc0406b6578/httpx_sse-0.4.3-py3-none-any.whl", hash = "sha256:0ac1c9fe3c0afad2e0ebb25a934a59f4c7823b60792691f779fad2c5568830fc", size = 8960, upload-time = "2025-10-10T21:48:21.158Z" },
+]
+
+[[package]]
 name = "httpx2"
 version = "2.12.0"
 source = { registry = "https://pypi.org/simple" }
@@ -18831,6 +18846,22 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/3d/f9/88d94a75de065ea32619465d2f77b29a0469500e99012523b91cc4141cd1/openpyxl-3.1.5.tar.gz", hash = "sha256:cf0e3cf56142039133628b5acffe8ef0c12bc902d2aadd3e0fe5878dc08d1050", size = 186464, upload-time = "2024-06-28T14:03:44.161Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c0/da/977ded879c29cbd04de313843e76868e6e13408a94ed6b987245dc7c8506/openpyxl-3.1.5-py2.py3-none-any.whl", hash = "sha256:5282c12b107bffeef825f4617dc029afaf41d0ea60823bbb665ef3079dc79de2", size = 250910, upload-time = "2024-06-28T14:03:41.161Z" },
+]
+
+[[package]]
+name = "opensandbox"
+version = "0.1.16"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "attrs" },
+    { name = "httpx" },
+    { name = "httpx-sse" },
+    { name = "pydantic" },
+    { name = "python-dateutil" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/3f/15/3db0638f9a4f2ace097e8ebfc9a592eff5a864f36933ee0579fce88350b5/opensandbox-0.1.16.tar.gz", hash = "sha256:b9253a58eb9f01bff522fccf317746b464805893c56a6ad447e0f1cc7f37276c", size = 253711, upload-time = "2026-08-26T04:07:41.242Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9a/a3/5431e516c1ed4027c4b011b1969b46b7ec6754c47e2b5a1427a99f8827a6/opensandbox-0.1.16-py3-none-any.whl", hash = "sha256:2e3b7e18e52f69f9696cb563713e2581e10a727d4dc83edc0ec27b1c725c3ce0", size = 583522, upload-time = "2026-08-26T04:07:39.503Z" },
 ]
 
 [[package]]
