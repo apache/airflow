@@ -42,6 +42,25 @@
 #                                as described in https://airflow.apache.org/docs/docker-stack/build.html.
 #                                Default: ''
 #
+# AIRFLOW__LOG_RETENTION_DAYS   - Number of days to keep task logs for. The airflow-log-groomer service
+#                                deletes older logs from the shared logs volume so that they do not fill
+#                                up the disk. Default: 15
+# AIRFLOW__LOG_RETENTION_MINUTES
+#                              - Additional minutes to keep task logs for, for finer granularity than
+#                                days. Total retention is both values added together. Default: 0
+# AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES
+#                              - How often (in minutes) the airflow-log-groomer service looks for logs to
+#                                delete. Default: 15
+# AIRFLOW__LOG_MAX_SIZE_BYTES  - Maximum size of the logs folder in bytes. When it is exceeded, the
+#                                retention period is reduced step by step until the folder fits. 0
+#                                disables the size limit. Default: 0
+# AIRFLOW__LOG_MAX_SIZE_PERCENT
+#                              - Same as AIRFLOW__LOG_MAX_SIZE_BYTES, but as a percentage of the disk
+#                                size. Ignored when AIRFLOW__LOG_MAX_SIZE_BYTES is set. Default: 0
+#
+# The AIRFLOW__LOG_* variables above are read by the /clean-logs script run by the airflow-log-groomer
+# service, not by Airflow itself, and despite the prefix they are not Airflow configuration options.
+#
 # Feel free to modify this file to suit your needs.
 ---
 x-airflow-common:
@@ -201,6 +220,27 @@ services:
     restart: always
     depends_on:
       <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+  # The log groomer deletes task logs older than AIRFLOW__LOG_RETENTION_DAYS from the shared logs
+  # volume, so that they do not fill up the disk. It runs the same /clean-logs script that the
+  # logGroomerSidecar of the official Helm chart runs. Remove this service if you want to keep all
+  # your logs.
+  airflow-log-groomer:
+    <<: *airflow-common
+    command: ["bash", "/clean-logs"]
+    environment:
+      <<: *airflow-common-env
+      # The log groomer does not need any additional Python packages.
+      _PIP_ADDITIONAL_REQUIREMENTS: ''
+      AIRFLOW__LOG_RETENTION_DAYS: ${AIRFLOW__LOG_RETENTION_DAYS:-15}
+      AIRFLOW__LOG_RETENTION_MINUTES: ${AIRFLOW__LOG_RETENTION_MINUTES:-0}
+      AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES: ${AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES:-15}
+      AIRFLOW__LOG_MAX_SIZE_BYTES: ${AIRFLOW__LOG_MAX_SIZE_BYTES:-0}
+      AIRFLOW__LOG_MAX_SIZE_PERCENT: ${AIRFLOW__LOG_MAX_SIZE_PERCENT:-0}
+    restart: always
+    depends_on:
       airflow-init:
         condition: service_completed_successfully
 
