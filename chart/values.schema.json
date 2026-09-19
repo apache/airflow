@@ -1793,7 +1793,13 @@
                             "default": [],
                             "items": {
                                 "type": "object",
-                                "additionalProperties": {}
+                                "additionalProperties": {},
+                                "properties": {
+                                    "kerberosInitContainer": {
+                                        "description": "Removed in chart 2.0.0. Configure `kerberosSidecar` instead and enable its `startupProbe` to wait for the initial Kerberos ticket.",
+                                        "not": {}
+                                    }
+                                }
                             }
                         },
                         "securityContexts": {
@@ -2111,6 +2117,10 @@
                                     }
                                 }
                             }
+                        },
+                        "kerberosInitContainer": {
+                            "description": "Removed in chart 2.0.0. Configure `kerberosSidecar` instead and enable its `startupProbe` to wait for the initial Kerberos ticket.",
+                            "not": {}
                         },
                         "kerberosSidecar": {
                             "description": "Kerberos sidecar for Airflow Celery workers.",
@@ -2820,6 +2830,10 @@
                                     }
                                 }
                             }
+                        },
+                        "kerberosInitContainer": {
+                            "description": "Removed in chart 2.0.0. Configure `kerberosSidecar` instead and enable its `startupProbe` to wait for the initial Kerberos ticket.",
+                            "not": {}
                         },
                         "kerberosSidecar": {
                             "description": "Kerberos sidecar for pods created with pod-template-file.",
