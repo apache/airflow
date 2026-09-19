@@ -622,6 +622,20 @@ class TestInvokedMetric:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.common.ai.toolsets.managed_agent.Stats")
+    async def test_call_tool_tags_unknown_when_agent_ref_omits_platform(self, mock_stats, caplog):
+        # The one path that actually produces the "unknown" default: a
+        # subclass's agent_ref returning a dict with no "platform" key.
+        toolset = PartialAgentRefManagedAgentToolset()
+        tools = await toolset.get_tools(ctx=None)
+        await toolset.call_tool("ask_specialist", {"prompt": "q"}, None, tools["ask_specialist"])
+        mock_stats.incr.assert_called_once_with(
+            "managed_agent.invoked",
+            tags={"tool": "ask_specialist", "platform": "unknown"},
+        )
+        assert "None" not in caplog.text
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.common.ai.toolsets.managed_agent.Stats")
     async def test_group_call_tool_emits_invoked_once_regardless_of_failover(self, mock_stats):
         primary = FakeManagedAgentToolset(raises=ManagedAgentInvocationError("down"))
         standby = FakeManagedAgentToolset(result="from standby", platform="standby.cloud")

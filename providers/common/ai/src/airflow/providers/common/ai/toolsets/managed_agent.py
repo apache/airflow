@@ -290,15 +290,18 @@ class BaseManagedAgentToolset(AbstractToolset[Any]):
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> Any:
-        ref = self.agent_ref
-        log.info("Consulting managed agent %s on %s", ref.get("name"), ref.get("platform"))
+        # self.agent_ref is read unmediated as this call's argument, so a raise
+        # here still fails the call. Normalizing right after keeps the log line
+        # and the metric tag on the same fallback.
+        ref = _normalize_agent_ref(self.agent_ref)
+        log.info("Consulting managed agent %s on %s", ref["name"], ref["platform"])
         # Emitted before invoke() runs, not after -- an attempt, not an answer,
         # so a total outage still moves this counter and it stays the right
         # per-tool denominator for managed_agent.failover even when nothing
         # succeeds at all.
         Stats.incr(
             "managed_agent.invoked",
-            tags={"tool": self._tool_name, "platform": ref.get("platform", "unknown")},
+            tags={"tool": self._tool_name, "platform": ref["platform"]},
         )
         result = await self.invoke(tool_args["prompt"])
         return serialize_for_llm(result)
