@@ -146,7 +146,7 @@ class ResumableJobMixin(ABC):
                 )
             else:
                 external_id = task_state_store.get(self.external_id_key)
-                if external_id:
+                if external_id is not None:
                     stats.incr("resumable_job.reconnect_attempt", tags=stats_tags)
 
                     status = self.get_job_status(external_id, context)
