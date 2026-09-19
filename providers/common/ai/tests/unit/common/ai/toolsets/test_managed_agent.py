@@ -29,6 +29,7 @@ from airflow.providers.common.ai.exceptions import ManagedAgentInvocationError
 from airflow.providers.common.ai.toolsets.managed_agent import (
     BaseManagedAgentToolset,
     FailoverManagedAgentToolset,
+    _resolve_agent_ref,
 )
 
 
@@ -72,6 +73,14 @@ class BrokenAgentRefManagedAgentToolset(FakeManagedAgentToolset):
     @property
     def agent_ref(self) -> dict[str, str]:
         raise self._ref_raises
+
+
+class PartialAgentRefManagedAgentToolset(FakeManagedAgentToolset):
+    """agent_ref returns without raising but is missing a required key."""
+
+    @property
+    def agent_ref(self) -> dict[str, str]:
+        return {"name": "partial-specialist"}
 
 
 class TestBaseManagedAgentToolsetConstruction:
@@ -373,6 +382,33 @@ class TestFailoverManagedAgentToolset:
         assert "served by standby" in caplog.text
 
     @pytest.mark.asyncio
+    async def test_failover_warning_uses_the_sentinel_label_when_a_members_own_ref_is_broken(self, caplog):
+        primary = BrokenAgentRefManagedAgentToolset(raises=ManagedAgentInvocationError("down"))
+        standby = FakeManagedAgentToolset(result="ok")
+        await self._call(self._group(primary, standby))
+        assert "Managed agent ? on unknown (position 0) failed" in caplog.text
+        assert "None" not in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_failover_warning_names_both_positions(self, caplog):
+        # Distinct platforms stand in for "same image, two clouds" -- the
+        # motivating case for threading position into the message.
+        primary = FakeManagedAgentToolset(
+            raises=ManagedAgentInvocationError("down"), platform="primary.cloud"
+        )
+        standby = FakeManagedAgentToolset(result="ok", platform="standby.cloud")
+        await self._call(self._group(primary, standby))
+        assert "specialist-1 on primary.cloud (position 0)" in caplog.text
+        assert "failing over to specialist-1 (position 1)" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_served_by_standby_log_names_the_position(self, caplog):
+        primary = FakeManagedAgentToolset(raises=ManagedAgentInvocationError("down"))
+        standby = FakeManagedAgentToolset(result="ok")
+        await self._call(self._group(primary, standby))
+        assert "served by standby specialist-1 (position 1)" in caplog.text
+
+    @pytest.mark.asyncio
     async def test_groups_nest(self):
         inner = self._group(
             FakeManagedAgentToolset(raises=ManagedAgentInvocationError("a down")),
@@ -542,6 +578,22 @@ class TestSafeAgentRef:
         )
         with pytest.raises(ModelRetry):
             _ = group.agent_ref
+
+    def test_resolve_agent_ref_returns_a_fully_labelled_sentinel_on_failure(self):
+        # The exception path must degrade to the same shape callers can index
+        # into directly, not the bare {} that used to render as "None".
+        assert _resolve_agent_ref(BrokenAgentRefManagedAgentToolset()) == {
+            "platform": "unknown",
+            "name": "?",
+        }
+
+    def test_resolve_agent_ref_fills_in_a_missing_key_on_a_non_raising_member(self):
+        # A member whose agent_ref returns without raising, but violates its own
+        # contract by omitting a key, degrades the same way a raising member does.
+        assert _resolve_agent_ref(PartialAgentRefManagedAgentToolset()) == {
+            "platform": "unknown",
+            "name": "partial-specialist",
+        }
 
 
 class TestInvokedMetric:

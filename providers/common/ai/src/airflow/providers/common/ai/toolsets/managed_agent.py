@@ -51,6 +51,11 @@ _PROMPT_SCHEMA: dict[str, Any] = {
 }
 
 
+def _normalize_agent_ref(ref: dict[str, str]) -> dict[str, str]:
+    """Fill in a missing ``platform``/``name`` so callers never read ``None``."""
+    return {"platform": ref.get("platform", "unknown"), "name": ref.get("name", "?")}
+
+
 def _resolve_agent_ref(toolset: BaseManagedAgentToolset) -> dict[str, str]:
     """
     Resolve *another* toolset's ``agent_ref`` without letting it block the call.
@@ -66,9 +71,13 @@ def _resolve_agent_ref(toolset: BaseManagedAgentToolset) -> dict[str, str]:
     bug there surfaces as itself instead of being logged away. ``ModelRetry``
     is re-raised because it is the calling model's control flow rather than a
     resolution failure, and this module never swallows one.
+
+    The returned dict always has both ``"platform"`` and ``"name"``, falling
+    back to ``"unknown"``/``"?"`` whichever path -- a successful but partial
+    ``agent_ref``, or the exception sentinel -- supplied less than both.
     """
     try:
-        return toolset.agent_ref
+        return _normalize_agent_ref(toolset.agent_ref)
     except ModelRetry:
         raise
     except Exception:
@@ -77,7 +86,7 @@ def _resolve_agent_ref(toolset: BaseManagedAgentToolset) -> dict[str, str]:
             type(toolset).__name__,
             exc_info=True,
         )
-        return {}
+        return _normalize_agent_ref({})
 
 
 class BaseManagedAgentToolset(AbstractToolset[Any]):
@@ -369,7 +378,7 @@ class FailoverManagedAgentToolset(BaseManagedAgentToolset):
     def agent_ref(self) -> dict[str, str]:
         return {
             "platform": "failover",
-            "name": " -> ".join(_resolve_agent_ref(m).get("name", "?") for m in self._members),
+            "name": " -> ".join(_resolve_agent_ref(m)["name"] for m in self._members),
         }
 
     async def invoke(self, prompt: str) -> Any:
@@ -388,10 +397,12 @@ class FailoverManagedAgentToolset(BaseManagedAgentToolset):
                     raise
                 standby = _resolve_agent_ref(self._members[position + 1])
                 log.warning(
-                    "Managed agent %s on %s failed; failing over to %s",
-                    ref.get("name"),
-                    ref.get("platform"),
-                    standby.get("name"),
+                    "Managed agent %s on %s (position %d) failed; failing over to %s (position %d)",
+                    ref["name"],
+                    ref["platform"],
+                    position,
+                    standby["name"],
+                    position + 1,
                     exc_info=True,
                 )
                 # Metrics, not just logs: a failover is a success-shaped event, so
@@ -402,21 +413,25 @@ class FailoverManagedAgentToolset(BaseManagedAgentToolset):
                     "managed_agent.failover",
                     tags={
                         "tool": self._tool_name,
-                        "from_platform": ref.get("platform", "unknown"),
-                        "to_platform": standby.get("platform", "unknown"),
+                        "from_platform": ref["platform"],
+                        "to_platform": standby["platform"],
                     },
                 )
                 continue
             served_by_standby = position > 0
             if served_by_standby:
-                log.info("Managed agent request served by standby %s", ref.get("name"))
+                log.info(
+                    "Managed agent request served by standby %s (position %d)",
+                    ref["name"],
+                    position,
+                )
             # Emitted on every answer so the standby-served fraction is a ratio of
             # this counter, not something that has to be scanned out of XCom.
             Stats.incr(
                 "managed_agent.served",
                 tags={
                     "tool": self._tool_name,
-                    "platform": ref.get("platform", "unknown"),
+                    "platform": ref["platform"],
                     "role": "standby" if served_by_standby else "primary",
                     "position": str(position),
                 },
