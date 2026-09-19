@@ -124,6 +124,7 @@ if TYPE_CHECKING:
 
     from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
     from airflow.models.dag import DagModel
+    from airflow.models.dagbag import DBDagBag
     from airflow.models.dagrun import DagRun
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.serialization.definitions.mappedoperator import Operator
@@ -373,6 +374,78 @@ def _pin_versionless_tis_to_run_version(dag_run: DagRun, dag_version_id: UUID, s
     )
 
 
+def _get_expansion_sources(dag: SerializedDAG) -> dict[str, set[str]]:
+    """Map each task that is mapped, or sits in a mapped task group, to the task ids it expands over."""
+    from airflow.serialization.definitions.mappedoperator import is_mapped
+
+    expansion_sources: dict[str, set[str]] = {}
+    for task in dag.task_dict.values():
+        sources = {op.task_id for op in task.iter_mapped_dependencies()} if is_mapped(task) else set()
+        for group in task.iter_mapped_task_groups():
+            sources.update(op.task_id for op in group.iter_mapped_dependencies())
+        if sources:
+            expansion_sources[task.task_id] = sources
+    return expansion_sources
+
+
+def _clear_state_store_of_re_expanded_tasks(
+    tis: Iterable[TaskInstance],
+    *,
+    scheduler_dagbag: DBDagBag,
+    run_on_latest_version: bool,
+    session: Session,
+) -> None:
+    """
+    Delete the task state store of mapped tasks whose expansion is about to be recomputed.
+
+    The task state store is keyed by the positional ``map_index``. Clearing a task that a
+    mapped task expands over makes it run again, and its new output can put a different
+    item at a given index, which would then read the state written for the previous one.
+    Clearing only the mapped task keeps its input, so its state is kept as well.
+    """
+    from airflow.models.task_state_store import TaskStateStoreModel
+
+    cleared_task_ids: dict[tuple[str, str], set[str]] = defaultdict(set)
+    dag_runs: dict[tuple[str, str], DagRun] = {}
+    for ti in tis:
+        cleared_task_ids[ti.dag_id, ti.run_id].add(ti.task_id)
+        dag_runs.setdefault((ti.dag_id, ti.run_id), ti.dag_run)
+
+    # The Dag is looked up per run, but runs usually share a version; hold on to the Dag so its id stays unique.
+    expansion_sources_by_dag: dict[int, tuple[SerializedDAG, dict[str, set[str]]]] = {}
+    for (dag_id, run_id), task_ids in cleared_task_ids.items():
+        dag_run = dag_runs[dag_id, run_id]
+        # The same Dag version clear_task_instances runs the cleared task instances on.
+        if run_on_latest_version or dag_run.created_dag_version_id is None:
+            dag = scheduler_dagbag.get_latest_version_of_dag(dag_id, session=session)
+        else:
+            dag = scheduler_dagbag.get_dag_for_run(dag_run=dag_run, session=session)
+        if dag is None:
+            continue
+        if id(dag) not in expansion_sources_by_dag:
+            expansion_sources_by_dag[id(dag)] = (dag, _get_expansion_sources(dag))
+        _, expansion_sources = expansion_sources_by_dag[id(dag)]
+
+        re_expanded = sorted(task_id for task_id, sources in expansion_sources.items() if sources & task_ids)
+        if not re_expanded:
+            continue
+        result = session.execute(
+            delete(TaskStateStoreModel).where(
+                TaskStateStoreModel.dag_id == dag_id,
+                TaskStateStoreModel.run_id == run_id,
+                TaskStateStoreModel.task_id.in_(re_expanded),
+            )
+        )
+        if deleted := getattr(result, "rowcount", 0):
+            log.info(
+                "Deleted %s task state store rows of %s in %s/%s, because a task they expand over was cleared",
+                deleted,
+                ", ".join(re_expanded),
+                dag_id,
+                run_id,
+            )
+
+
 def clear_task_instances(
     tis: list[TaskInstance],
     session: Session,
@@ -454,6 +527,13 @@ def clear_task_instances(
                 # only go there.
                 ti.dag_version_id = dr.created_dag_version_id
             session.merge(ti)
+
+    _clear_state_store_of_re_expanded_tasks(
+        tis,
+        scheduler_dagbag=scheduler_dagbag,
+        run_on_latest_version=run_on_latest_version,
+        session=session,
+    )
 
     if dag_run_state is not False and tis:
         from airflow.models.dagrun import (  # Avoid circular import
