@@ -19,10 +19,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
+from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
 from airflow.jobs.job import Job, JobState
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+from airflow.models.team import Team
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State
 
@@ -207,6 +209,51 @@ class TestGetJobs(TestJobEndpoint):
         assert response_json["total_entries"] == 1
         assert response_json["jobs"][0]["team_name"] == testing_team.name
         assert response_json["jobs"][0]["bundle_names"] == ["bundle-a", "bundle-b"]
+
+    def test_get_jobs_filters_by_teams(self, test_client, session: Session, testing_team):
+        clear_db_jobs()
+        session.add_all(
+            [
+                Job(state=JobState.RUNNING, job_type="SchedulerJob", team_name=testing_team.name),
+                Job(state=JobState.RUNNING, job_type="SchedulerJob"),
+            ]
+        )
+        session.commit()
+
+        response = test_client.get("/jobs", params={"teams": [testing_team.name]})
+
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json["total_entries"] == 1
+        assert response_json["jobs"][0]["team_name"] == testing_team.name
+
+    def test_get_jobs_sorts_by_team_name(self, test_client, session: Session, testing_team):
+        clear_db_jobs()
+        # merge keeps the row unique if an interrupted run left it behind, since name is the primary key
+        other_team = session.merge(Team(name="another_team"))
+        # Job.team_name is a bare foreign key with no relationship, so the unit of work does not
+        # know it must insert the team first
+        session.flush()
+        session.add_all(
+            [
+                Job(state=JobState.RUNNING, job_type="SchedulerJob", team_name=testing_team.name),
+                Job(state=JobState.RUNNING, job_type="TriggererJob", team_name=other_team.name),
+            ]
+        )
+        session.commit()
+
+        try:
+            response = test_client.get("/jobs", params={"order_by": "team_name"})
+
+            assert response.status_code == 200
+            assert [job["team_name"] for job in response.json()["jobs"]] == [
+                other_team.name,
+                testing_team.name,
+            ]
+        finally:
+            clear_db_jobs()
+            session.execute(delete(Team).where(Team.name == other_team.name))
+            session.commit()
 
     def test_should_raises_401_unauthenticated(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/jobs")

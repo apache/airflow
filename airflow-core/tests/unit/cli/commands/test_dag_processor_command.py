@@ -21,13 +21,40 @@ import os
 from unittest import mock
 
 import pytest
+from sqlalchemy import delete
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_processor_command
+from airflow.models.dagbundle import DagBundleModel
+from airflow.models.team import Team
 
 from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
+
+BUNDLE_TEAMS = {
+    "bundle_a": "team_a",
+    "other_bundle_a": "team_a",
+    "bundle_b": "team_b",
+    "global_bundle": None,
+}
+
+
+@pytest.fixture
+def dag_bundles_with_teams(session):
+    teams = {team_name: Team(name=team_name) for team_name in set(BUNDLE_TEAMS.values()) - {None}}
+    for bundle_name, team_name in BUNDLE_TEAMS.items():
+        bundle = DagBundleModel(name=bundle_name)
+        if team_name is not None:
+            bundle.teams.append(teams[team_name])
+        session.add(bundle)
+    session.commit()
+
+    yield
+
+    session.execute(delete(DagBundleModel).where(DagBundleModel.name.in_(BUNDLE_TEAMS)))
+    session.execute(delete(Team).where(Team.name.in_(teams)))
+    session.commit()
 
 
 class TestDagProcessorCommand:
@@ -57,6 +84,34 @@ class TestDagProcessorCommand:
             dag_processor_command.dag_processor(args)
         assert mock_runner.call_args.kwargs["processor"].bundle_names_to_parse == ["testing"]
         assert mock_runner.call_args.kwargs["job"].bundle_names == ["testing"]
+
+    @pytest.mark.usefixtures("dag_bundles_with_teams")
+    @pytest.mark.parametrize(
+        ("bundle_names", "expected_team_name"),
+        [
+            pytest.param(None, None, id="every-bundle"),
+            pytest.param(["bundle_a"], "team_a", id="one-bundle-of-a-team"),
+            pytest.param(["bundle_a", "other_bundle_a"], "team_a", id="several-bundles-of-one-team"),
+            pytest.param(["bundle_a", "bundle_b"], None, id="bundles-of-several-teams"),
+            pytest.param(["bundle_a", "global_bundle"], None, id="bundles-of-a-team-and-of-no-team"),
+            pytest.param(["global_bundle"], None, id="bundle-of-no-team"),
+            pytest.param(["unknown_bundle"], None, id="unknown-bundle"),
+        ],
+    )
+    def test_get_team_name(self, bundle_names, expected_team_name):
+        assert dag_processor_command._get_team_name(bundle_names) == expected_team_name
+
+    @conf_vars({("core", "load_examples"): "False"})
+    @mock.patch("airflow.cli.commands.dag_processor_command.DagProcessorJobRunner")
+    @mock.patch("airflow.utils.cli.validate_dag_bundle_arg")
+    @pytest.mark.usefixtures("dag_bundles_with_teams")
+    def test_job_records_the_team_owning_the_parsed_bundle(self, _, mock_runner):
+        mock_runner.return_value.job_type = "DagProcessorJob"
+        args = self.parser.parse_args(["dag-processor", "--bundle-name", "bundle_a"])
+
+        dag_processor_command.dag_processor(args)
+
+        assert mock_runner.call_args.kwargs["job"].team_name == "team_a"
 
     @conf_vars({("core", "load_examples"): "False"})
     @mock.patch("airflow.cli.commands.dag_processor_command.DagProcessorJobRunner")
