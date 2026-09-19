@@ -931,6 +931,23 @@ def test_get_conn_does_not_leak_proxies_into_connector(mock_connect, mock_get_re
     assert "proxies" not in mock_connect.call_args.kwargs
 
 
+@mock.patch("airflow.providers.databricks.hooks.databricks_sql.sql.connect")
+def test_get_conn_passes_user_agent_entry_without_underscore(mock_connect, mock_get_requests):
+    """get_conn() must pass ``user_agent_entry`` (no leading underscore) to sql.connect().
+
+    databricks-sql-connector deprecated the ``_user_agent_entry`` alias and logs a warning
+    on every connection when the old name is used.
+    """
+    hook = DatabricksSqlHook(databricks_conn_id=DEFAULT_CONN_ID, http_path=HTTP_PATH)
+
+    hook.get_conn()
+
+    mock_connect.assert_called_once()
+    call_kwargs = mock_connect.call_args.kwargs
+    assert "user_agent_entry" in call_kwargs
+    assert "_user_agent_entry" not in call_kwargs
+
+
 class TestFormatQueryTags:
     def test_simple_values(self):
         result = _format_query_tags({"dag_id": "my_dag", "task_id": "my_task"})
