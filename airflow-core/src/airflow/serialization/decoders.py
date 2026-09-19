@@ -53,6 +53,9 @@ from airflow.serialization.helpers import (
 )
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
     from airflow.partition_mappers.base import PartitionMapper
     from airflow.partition_mappers.wait_policy import WaitPolicy
     from airflow.partition_mappers.window import Window
@@ -309,7 +312,7 @@ def _decode_deadline_callback(raw_callback: Any) -> AsyncCallback | SyncCallback
     return callback_cls(callback_callable=_SerializedCallbackPath(path), **fields)
 
 
-def decode_deadline_alert(encoded_data: dict):
+def decode_deadline_alert(encoded_data: dict) -> SerializedDeadlineAlert:
     """
     Decode a previously serialized deadline alert.
 
@@ -336,6 +339,43 @@ def decode_deadline_alert(encoded_data: dict):
         callback=_decode_deadline_callback(data[DeadlineAlertFields.CALLBACK]),
         name=data.get(DeadlineAlertFields.NAME),
     )
+
+
+def decode_deadline_alert_model(deadline_alert: DeadlineAlertModel) -> SerializedDeadlineAlert:
+    """
+    Decode a ``DeadlineAlert`` ORM row into its serialized representation.
+
+    :meta private:
+    """
+    return decode_deadline_alert(
+        {
+            DeadlineAlertFields.REFERENCE: deadline_alert.reference,
+            DeadlineAlertFields.INTERVAL: deadline_alert.interval,
+            DeadlineAlertFields.CALLBACK: deadline_alert.callback_def,
+        }
+    )
+
+
+def resolve_deadline_alert_interval(
+    alert: SerializedDeadlineAlert, *, session: Session | None = None
+) -> datetime.timedelta:
+    """
+    Resolve a decoded alert's interval to a ``timedelta``.
+
+    A ``SerializedVariableInterval`` reads its Airflow Variable here, so this is only called at
+    the point a deadline is actually calculated. It raises ``ValueError`` if the Variable is
+    missing or is not an integer number of seconds.
+
+    :param alert: The decoded alert whose interval should be resolved.
+    :param session: Existing SQLAlchemy Session. Both callers run under the scheduler's
+        ``prohibit_commit`` guard, so the open session has to reach ``Variable.get`` instead of
+        ``provide_session`` handing back the same scoped session and rolling it back on exit.
+
+    :meta private:
+    """
+    if isinstance(alert.interval, SerializedVariableInterval):
+        return alert.interval.resolve(session=session)
+    return alert.interval
 
 
 def decode_timetable(var: dict[str, Any]) -> CoreTimetable:
