@@ -215,6 +215,32 @@ def test_build_task_group():
     assert group34.group_id == "group234.group34"
 
 
+def test_task_group_retries():
+    """TaskGroup accepts a ``retries`` count for retrying the group as a unit; it defaults to 0."""
+    logical_date = pendulum.parse("20200101")
+    with DAG("test_task_group_retries", schedule=None, start_date=logical_date):
+        with TaskGroup("g", retries=3) as g:
+            EmptyOperator(task_id="t")
+        with TaskGroup("plain") as plain:
+            EmptyOperator(task_id="t2")
+
+    assert g.retries == 3
+    assert plain.retries == 0
+
+
+def test_mapped_task_group_rejects_retries():
+    """retries on a mapped (expanded) task group must fail loudly, not silently misbehave."""
+    logical_date = pendulum.parse("20200101")
+    with DAG("test_mapped_task_group_retries", schedule=None, start_date=logical_date):
+
+        @task_group_decorator(retries=2)
+        def grp(x):
+            EmptyOperator(task_id="inner")
+
+        with pytest.raises(ValueError, match="not supported on a mapped"):
+            grp.expand(x=[1, 2, 3])
+
+
 def test_build_task_group_with_prefix():
     """
     Tests that prefix_group_id turns on/off prefixing of task_id with group_id.
