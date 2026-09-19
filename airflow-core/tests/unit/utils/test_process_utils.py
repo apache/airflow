@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import errno
 import logging
 import multiprocessing
 import os
@@ -87,6 +88,33 @@ time.sleep(300)
                 os.kill(parent.pid, signal.SIGKILL)
             parent.stdout.close()
             parent.wait()
+
+
+class TestReapProcessGroupSudoFallback:
+    def test_sudo_kill_gets_a_signal_and_a_pid(self):
+        """The sudo fallback must name the signal and the target, like the killpg one."""
+        pgid = 4242
+        calls: list[list[str]] = []
+
+        def fake_killpg(pgid_arg, sig):
+            raise OSError(errno.ESRCH, "No such process")
+
+        def fake_kill(pid, sig):
+            raise OSError(errno.EPERM, "Operation not permitted")
+
+        with (
+            mock.patch("os.getpgid", return_value=1),
+            mock.patch("os.killpg", side_effect=fake_killpg),
+            mock.patch("os.kill", side_effect=fake_kill),
+            mock.patch("psutil.Process", side_effect=psutil.NoSuchProcess(pgid)),
+            mock.patch("psutil.process_iter", return_value=[]),
+            mock.patch("psutil.wait_procs", return_value=([], [])),
+            mock.patch("subprocess.check_call", side_effect=lambda a, **k: calls.append(a)),
+        ):
+            process_utils.reap_process_group(pgid, logging.getLogger(__name__))
+
+        assert calls, "the sudo fallback was never invoked"
+        assert calls[0] == ["sudo", "-n", "kill", "-15", str(pgid)]
 
 
 @pytest.mark.db_test
