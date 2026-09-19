@@ -54,7 +54,9 @@ export class TaskInstancePage extends BasePage {
    */
   public async forceRun(): Promise<void> {
     await this.clearTaskInstanceButton.click();
-    await this.forceRunCheckbox.check();
+    await expect(this.forceRunCheckbox).toBeVisible();
+    // Use force:true because Chakra's visually-hidden checkbox input intercepts pointer events
+    await this.forceRunCheckbox.click({ force: true });
     await expect(this.forceRunWarning).toBeVisible();
     await expect(this.upstreamOption).toBeDisabled();
     await expect(this.downstreamOption).toBeDisabled();
