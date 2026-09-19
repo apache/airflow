@@ -681,20 +681,26 @@ def configure_adapters():
             )
 
 
-def _configure_secrets_masker():
-    """Configure the secrets masker with values from config."""
-    from airflow._shared.secrets_masker import (
-        DEFAULT_SENSITIVE_FIELDS,
-        _secrets_masker as secrets_masker_core,
-    )
+def get_sensitive_variable_fields() -> frozenset[str]:
+    """Return the default sensitive field names unioned with ``[core] sensitive_var_conn_names``."""
+    from airflow._shared.secrets_masker import DEFAULT_SENSITIVE_FIELDS
     from airflow.configuration import conf
 
-    min_length_to_mask = conf.getint("logging", "min_length_masked_secret", fallback=5)
-    secret_mask_adapter = conf.getimport("logging", "secret_mask_adapter", fallback=None)
     sensitive_fields = DEFAULT_SENSITIVE_FIELDS.copy()
     sensitive_variable_fields = conf.get("core", "sensitive_var_conn_names")
     if sensitive_variable_fields:
         sensitive_fields |= frozenset({field.strip() for field in sensitive_variable_fields.split(",")})
+    return sensitive_fields
+
+
+def _configure_secrets_masker():
+    """Configure the secrets masker with values from config."""
+    from airflow._shared.secrets_masker import _secrets_masker as secrets_masker_core
+    from airflow.configuration import conf
+
+    min_length_to_mask = conf.getint("logging", "min_length_masked_secret", fallback=5)
+    secret_mask_adapter = conf.getimport("logging", "secret_mask_adapter", fallback=None)
+    sensitive_fields = get_sensitive_variable_fields()
 
     hide_sensitive_var_conn_fields = conf.getboolean("core", "hide_sensitive_var_conn_fields")
 
