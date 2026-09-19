@@ -183,7 +183,7 @@ class TestGetGcpCredentialsAndProjectId:
 
     @mock.patch("google.auth.default", return_value=("CREDENTIALS", "PROJECT_ID"))
     def test_get_credentials_and_project_id_with_default_auth(self, mock_auth_default, caplog):
-        with caplog.at_level(level=logging.INFO, logger=CRED_PROVIDER_LOGGER_NAME):
+        with caplog.at_level(level=logging.DEBUG, logger=CRED_PROVIDER_LOGGER_NAME):
             caplog.clear()
             result = get_credentials_and_project_id()
         mock_auth_default.assert_called_once_with(scopes=None)
