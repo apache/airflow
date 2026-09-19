@@ -60,7 +60,9 @@ MINIMUM_PRIORITY_WEIGHT: int = -2147483648
 MAXIMUM_PRIORITY_WEIGHT: int = 2147483647
 DEFAULT_EXECUTOR: str | None = None
 DEFAULT_QUEUE: str = conf.get_mandatory_value("operators", "default_queue")
-DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST: bool = False
+DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST: bool = conf.getboolean(
+    "scheduler", "ignore_first_depends_on_past_by_default"
+)
 DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING: bool = False
 DEFAULT_RETRIES: int = conf.getint("core", "default_task_retries", fallback=0)
 DEFAULT_RETRY_DELAY: datetime.timedelta = datetime.timedelta(
