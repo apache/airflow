@@ -714,8 +714,8 @@ DEPRECATION WARNING:
 
  DEPRECATION WARNING:
     `workers.kerberosInitContainer` will be removed in Chart 2.0.
-    Configure `workers.celery.kerberosSidecar` and/or `workers.kubernetes.kerberosSidecar`
-    instead. Enable the corresponding `startupProbe` to wait for the initial Kerberos ticket.
+    When upgrading to Chart 2.0, configure `workers.celery.kerberosSidecar` and/or
+    `workers.kubernetes.kerberosSidecar` instead.
 
 {{- end }}
 
@@ -726,8 +726,7 @@ DEPRECATION WARNING:
 
  DEPRECATION WARNING:
     `workers.{{ $workerType }}.kerberosInitContainer` will be removed in Chart 2.0.
-    Configure `workers.{{ $workerType }}.kerberosSidecar` instead and enable its `startupProbe`
-    to wait for the initial Kerberos ticket.
+    When upgrading to Chart 2.0, configure `workers.{{ $workerType }}.kerberosSidecar` instead.
 
 {{- end }}
 {{- end }}
@@ -737,8 +736,7 @@ DEPRECATION WARNING:
 
  DEPRECATION WARNING:
     `kerberosInitContainer` in Celery worker set {{ $workerSet.name | quote }} will be removed in Chart 2.0.
-    Configure `kerberosSidecar` for that worker set instead and enable its `startupProbe`
-    to wait for the initial Kerberos ticket.
+    When upgrading to Chart 2.0, configure `kerberosSidecar` for that worker set instead.
 
 {{- end }}
 {{- end }}
