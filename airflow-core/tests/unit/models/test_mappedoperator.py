@@ -1828,3 +1828,45 @@ def test_mapped_operator_retry_delay_explicit(dag_maker):
 
     # Should return the explicitly set value
     assert mapped_deser.retry_delay == custom_retry_delay
+
+
+@pytest.mark.parametrize(
+    ("batch_size", "items"),
+    [
+        pytest.param(5, [1, 2, 3], id="batch_size-larger-than-items"),
+        pytest.param(2, [1, 2, 3], id="batch_size-smaller-than-items"),
+        pytest.param(3, [1, 2, 3], id="batch_size-equal-to-items"),
+        pytest.param(2, 5, id="scalar-input-is-never-measured"),
+    ],
+)
+def test_batched_ti_count_is_batch_size_regardless_of_items(dag_maker, session, batch_size, items):
+    from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
+
+    with dag_maker(dag_id=f"test_batch_size_{batch_size}", session=session, serialized=True) as dag:
+        MockOperator.partial(task_id="task").batch(size=batch_size).iterate(arg1=items)
+
+    dr = dag_maker.create_dagrun()
+    task = dag.task_dict["task"]
+
+    assert task.get_parse_time_mapped_ti_count() == batch_size
+    assert get_mapped_ti_count(task, dr.run_id, session=session) == batch_size
+
+
+def test_get_mapped_ti_count_measures_input_before_resolving_parent_group(dag_maker, session):
+    from airflow.models.expandinput import NotFullyPopulated
+    from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator, get_mapped_ti_count
+
+    with dag_maker(session=session, serialized=True) as dag:
+        upstream = BaseOperator(task_id="upstream")
+        MockOperator.partial(task_id="task").expand(arg1=upstream.output)
+
+    dr = dag_maker.create_dagrun()
+    task = dag.task_dict["task"]
+
+    with patch.object(
+        SerializedMappedOperator, "get_closest_mapped_task_group", autospec=True
+    ) as mock_group_lookup:
+        with pytest.raises(NotFullyPopulated):
+            get_mapped_ti_count(task, dr.run_id, session=session)
+
+    mock_group_lookup.assert_not_called()

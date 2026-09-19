@@ -18,7 +18,8 @@
 from __future__ import annotations
 
 import collections
-from typing import Any, Protocol
+from collections.abc import Iterable, Iterator, Sequence
+from typing import Any, Protocol, cast
 
 import structlog
 
@@ -564,3 +565,227 @@ class BaseXCom:
                 map_index=map_index,
             ),
         )
+
+
+class XComIterable(Sequence):
+    """
+    An iterable that lazily fetches XCom values one by one instead of loading all at once.
+
+    The class has two sides. The *producing* task builds it and grows it with :meth:`append` /
+    :meth:`aappend`, each call pushing one more ``return_value_<index>`` XCom, before returning it as
+    the task's result. Everything *downstream* (``.iterate()``, ``.expand()``, a plain ``xcom_pull``)
+    only ever reads it, which is why the class implements the read-only
+    :class:`collections.abc.Sequence` rather than ``MutableSequence``: once handed over it is a fixed
+    view of the values already pushed, and the two append methods are not part of that contract.
+
+    Negative indices are not supported: every element is a remote fetch, and resolving a negative
+    index against a lazily counted stream would cost a full walk just to find the end.
+    """
+
+    def __init__(
+        self,
+        task_id: str,
+        dag_id: str,
+        run_id: str,
+        map_index: int | None = None,
+        length: int | None = None,
+    ):
+        self.task_id = task_id
+        self.dag_id = dag_id
+        self.run_id = run_id
+        self.map_index = map_index
+        self.length = length or 0
+        self._index = self.length
+
+    def __iter__(self) -> Iterator[Any]:
+        return _XComIterator(self)
+
+    def __len__(self) -> int:
+        return self.length
+
+    def __getitem__(self, key: int | slice) -> Any | Sequence[Any]:
+        """Allow direct indexing so this works like a sequence."""
+        from airflow.sdk.execution_time.xcom import XCom
+
+        if isinstance(key, slice):
+            # TODO: This issues one XCom.get_one call per element — N round-trips for a full slice.
+            # XComIterable stores results under distinct keys (return_value_0, return_value_1, …)
+            # with the same map_index, so the existing GetXComSequenceSlice endpoint (which ranges
+            # over map_index for a single key) cannot be reused.  A new POST endpoint that accepts
+            # a list of keys and returns values in a single query is needed; once that lands, replace
+            # this loop with a single batched fetch.
+            start, stop, step = key.indices(len(self))
+            return [self[i] for i in range(start, stop, step)]
+
+        if not (0 <= key < self.length):
+            raise IndexError(key)
+
+        return XCom.get_one(
+            key=f"{BaseXCom.XCOM_RETURN_KEY}_{key}",
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            run_id=self.run_id,
+            map_index=self.map_index,
+        )
+
+    def append(self, value: Any):
+        """
+        Push ``value`` as the next indexed XCom of the producing task.
+
+        Producer-side only: call it from the task that owns this iterable, before returning the
+        iterable as the task's result. Downstream consumers see a read-only ``Sequence``.
+        """
+        from airflow.sdk.execution_time.xcom import XCom
+
+        XCom.set(
+            key=f"{BaseXCom.XCOM_RETURN_KEY}_{self._index}",
+            value=value,
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            run_id=self.run_id,
+            map_index=self.map_index,
+        )
+        self._index += 1
+        self.length += 1
+
+    async def aappend(self, value: Any):
+        """Async version of :meth:`append`; the same producer-side-only rule applies."""
+        from airflow.sdk.execution_time.xcom import XCom
+
+        await XCom.aset(
+            key=f"{BaseXCom.XCOM_RETURN_KEY}_{self._index}",
+            value=value,
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            run_id=self.run_id,
+            map_index=self.map_index,
+        )
+
+        self._index += 1
+        self.length += 1
+
+    def flatten(self) -> XComIterable:
+        """Return a FlattenedXComIterable that recursively expands nested iterables (except str/bytes)."""
+        return FlattenedXComIterable(
+            task_id=self.task_id,
+            dag_id=self.dag_id,
+            run_id=self.run_id,
+            map_index=self.map_index,
+            length=self.length,
+        )
+
+    def serialize(self) -> dict:
+        """Ensure the object is JSON serializable."""
+        return {
+            "task_id": self.task_id,
+            "dag_id": self.dag_id,
+            "run_id": self.run_id,
+            "map_index": self.map_index,
+            "length": self.length,
+        }
+
+    @classmethod
+    def deserialize(cls, data: dict, version: int):
+        """Ensure the object is JSON deserializable."""
+        return XComIterable(**data)
+
+
+class FlattenedXComIterable(XComIterable):
+    """
+    An XComIterable whose iterator recursively expands nested iterables (except str/bytes).
+
+    ``__len__``/``__getitem__`` must speak in terms of *flattened* items, not the raw pages
+    ``XComIterable`` stores, since a single page can expand to any number of items (or none).
+    Counting or indexing therefore requires walking the underlying page stream, but this class
+    never materializes the whole flattened sequence in memory to do so — ``XComIterable``'s
+    paged fetches are meant to hold only one page at a time, and caching a flattened list would
+    defeat that and risk out-of-memory for large iterables.
+
+    Instead, a running item count is tracked while the stream is consumed, and the final total
+    is cached once the stream is exhausted, so a subsequent ``__len__()`` is O(1) without
+    re-walking. Random-access reads via ``__getitem__`` walk the stream discarding items outside
+    the requested position(s), so memory use stays bounded by the size of the requested result
+    rather than the size of the whole iterable — at the cost of re-walking (and re-fetching)
+    pages on each call, since items themselves are never cached.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        self._flattened_length: int | None = None
+
+    def _iter_pages(self) -> Iterator[Any]:
+        """Iterate raw pages via the base class, bypassing this class's own __len__/__getitem__ overrides."""
+        for index in range(XComIterable.__len__(self)):
+            yield XComIterable.__getitem__(self, index)
+
+    def __iter__(self) -> Iterator[Any]:
+        count = 0
+        for page in self._iter_pages():
+            for item in self._flatten(page):
+                count += 1
+                yield item
+        # Only reached once the generator is fully exhausted, so a caller that breaks out
+        # of a partial iteration does not poison the cache with an incomplete count.
+        self._flattened_length = count
+
+    def __len__(self) -> int:
+        if self._flattened_length is None:
+            for _ in self:
+                pass  # Drain without keeping items in memory; __iter__ caches the count.
+        return cast("int", self._flattened_length)
+
+    def __getitem__(self, key: int | slice) -> Any | Sequence[Any]:
+        if isinstance(key, slice):
+            positions = range(*key.indices(len(self)))
+            if not positions:
+                return []
+            wanted = set(positions)
+            highest = max(positions)
+            found: dict[int, Any] = {}
+            for index, item in enumerate(self):
+                if index > highest:
+                    break
+                if index in wanted:
+                    found[index] = item
+            return [found[index] for index in positions]
+
+        # Same rule as XComIterable: no negative indices. Checked before len() so a negative key
+        # does not trigger a full walk of the stream just to be rejected.
+        if key < 0 or key >= len(self):
+            raise IndexError(key)
+
+        for current_index, item in enumerate(self):
+            if current_index == key:
+                return item
+        raise IndexError(key)  # pragma: no cover - unreachable given the bounds check above
+
+    @classmethod
+    def _flatten(cls, item: Any) -> Iterator[Any]:
+        if isinstance(item, Iterable) and not isinstance(item, (str, bytes)):
+            for sub in item:
+                yield from cls._flatten(sub)
+        else:
+            yield item
+
+    @classmethod
+    def deserialize(cls, data: dict, version: int):
+        return FlattenedXComIterable(**data)
+
+
+class _XComIterator:
+    """Iterator for XComIterable."""
+
+    def __init__(self, iterable: XComIterable):
+        self._iterable = iterable
+        self._index = 0
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self._index >= len(self._iterable):
+            raise StopIteration
+
+        value = self._iterable[self._index]
+        self._index += 1
+        return value

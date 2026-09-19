@@ -25,12 +25,15 @@ import inspect
 import os
 import sys
 import time
+from asyncio import TimeoutError as AsyncTimeoutError, wait_for
 from collections.abc import Callable, Iterable, Iterator, Mapping
 from contextlib import ExitStack, contextmanager, suppress
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from functools import cached_property
 from itertools import product
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, Literal
+from typing import TYPE_CHECKING, Annotated, Any, Literal, cast
 from urllib.parse import quote
 
 import attrs
@@ -57,7 +60,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstanceState,
     TIRunContext,
 )
-from airflow.sdk.bases.operator import BaseOperator, ExecutorSafeguard
+from airflow.sdk.bases.operator import BaseAsyncOperator, BaseOperator, ExecutorSafeguard
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
@@ -149,7 +152,12 @@ from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.listener import get_listener_manager
 from airflow.sdk.observability.metrics import stats_utils
-from airflow.sdk.serde import allow_class, iter_pydantic_models
+from airflow.sdk.serde import (
+    allow_class,
+    deserialize as serde_deserialize,
+    iter_pydantic_models,
+    serialize as serde_serialize,
+)
 from airflow.sdk.state import TaskScope
 from airflow.sdk.timezone import coerce_datetime
 
@@ -293,6 +301,26 @@ class RuntimeTaskInstance(TaskInstance):
 
     __rich_repr__.angular = True  # type: ignore[attr-defined]
 
+    @cached_property
+    def logical_date(self) -> datetime | None:
+        if self._ti_context_from_server:
+            dag_run = self._ti_context_from_server.dag_run
+
+            return dag_run.logical_date
+        return None
+
+    @cached_property
+    def task_state_store(self) -> TaskStateStoreAccessor:
+        return TaskStateStoreAccessor(
+            ti_id=self.id,
+            scope=TaskScope(
+                dag_id=self.dag_id,
+                run_id=self.run_id,
+                task_id=self.task_id,
+                map_index=self.map_index if self.map_index is not None else -1,
+            ),
+        )
+
     @detail_span("get_template_context")
     def get_template_context(self) -> Context:
         # TODO: Move this to `airflow.sdk.execution_time.context`
@@ -331,15 +359,7 @@ class RuntimeTaskInstance(TaskInstance):
                     "value": VariableAccessor(deserialize_json=False),
                 },
                 "conn": ConnectionAccessor(),
-                "task_state_store": TaskStateStoreAccessor(
-                    ti_id=self.id,
-                    scope=TaskScope(
-                        dag_id=self.dag_id,
-                        run_id=self.run_id,
-                        task_id=self.task_id,
-                        map_index=self.map_index if self.map_index is not None else -1,
-                    ),
-                ),
+                "task_state_store": self.task_state_store,
             }
             _asset_types = (Asset, AssetNameRef, AssetUriRef, AssetAlias)
             if any(isinstance(i, _asset_types) for i in self.task.inlets + self.task.outlets):
@@ -373,7 +393,7 @@ class RuntimeTaskInstance(TaskInstance):
             }
             self._cached_template_context.update(context_from_server)
 
-            if logical_date := coerce_datetime(dag_run.logical_date):
+            if logical_date := coerce_datetime(self.logical_date):
                 if TYPE_CHECKING:
                     assert isinstance(logical_date, DateTime)
                 ds = logical_date.strftime("%Y-%m-%d")
@@ -889,6 +909,120 @@ class RuntimeTaskInstance(TaskInstance):
     def mark_success_url(self) -> str:
         """URL to mark TI success."""
         return self.log_url
+
+
+@dataclass
+class IndexedTaskState:
+    status: TaskInstanceState
+    result: Any | None = None
+    # Outlet asset events the sub-task recorded on a previous successful attempt. Outlet events
+    # only reach the server on the parent's success payload (_handle_current_task_success), so an
+    # attempt that fails never registers what its succeeded sub-tasks emitted. A sub-task skipped
+    # on retry (because it already succeeded) never re-executes, so it never re-emits into the
+    # fresh OutletEventAccessors created for the new attempt; persisting a snapshot here lets
+    # IterableOperator._run_task replay it, which is the only way those events survive, and it
+    # cannot double-emit because the failed attempt sent nothing.
+    outlet_events: list[dict[str, Any]] | None = None
+
+    @staticmethod
+    def build_key(index: int) -> str:
+        # The task state store is already scoped to the parent task instance (dag, run, task and
+        # map index), so the key carries no identity, only a namespace that keeps the operator's own
+        # entries apart from anything user code stores from inside a sub-task.
+        return f"_iterable_{index}"
+
+    def serialize(self) -> dict[str, Any]:
+        # The checkpoint travels to the supervisor as a JsonValue, which rejects anything that is not
+        # plain JSON (tuples, datetimes, models, ...). Serde turns those into JSON-compatible
+        # structures and restores them on read, exactly as XCom does with the same result.
+        data: dict[str, Any] = {"status": self.status.value}
+        if self.result is not None:
+            data["result"] = serde_serialize(self.result)
+        if self.outlet_events:
+            data["outlet_events"] = self.outlet_events
+        return data
+
+    @classmethod
+    def deserialize(cls, raw: Any) -> IndexedTaskState | None:
+        if not isinstance(raw, Mapping):
+            return None
+        return cls(
+            status=TaskInstanceState(raw["status"]),
+            result=serde_deserialize(raw.get("result")),
+            outlet_events=raw.get("outlet_events"),
+        )
+
+
+class IndexedTaskInstance(RuntimeTaskInstance):
+    """Indexed task instance to run a mapped operator."""
+
+    index: int
+
+    @classmethod
+    def create_indexed_task(
+        cls, *, context: Context, index: int, operator: BaseOperator
+    ) -> IndexedTaskInstance:
+        """
+        Create the runtime instance for one index of an iterated task from the parent's context.
+
+        The instance shares the parent task instance's identity (id, run, map index, try number), so
+        XComs and task state land in the parent's scope, and carries the unmapped operator for that
+        index. ``model_construct`` skips Pydantic validation on purpose: one instance is built per
+        item, and the parent was validated already, so only the index needs checking here.
+        """
+        if index < 0:
+            raise ValueError(f"IndexedTaskInstance requires index >= 0, got {index}")
+        parent = context["ti"]
+        return cls.model_construct(
+            id=parent.id,
+            task_id=operator.task_id,
+            dag_id=operator.dag_id,
+            run_id=parent.run_id,
+            map_index=parent.map_index,
+            index=index,
+            max_tries=operator.retries,
+            start_date=context["task"].start_date,
+            state=TaskInstanceState.SCHEDULED.value,
+            is_mapped=True,
+            task=operator,
+            try_number=parent.try_number,
+        )
+
+    def xcom_push(
+        self,
+        key: str,
+        value: Any,
+    ):
+        super().xcom_push(key=f"{key}_{self.index}", value=value)
+
+    async def axcom_push(
+        self,
+        key: str,
+        value: Any,
+    ):
+        await super().axcom_push(key=f"{key}_{self.index}", value=value)
+
+    async def aget_state(self) -> IndexedTaskState | None:
+        return IndexedTaskState.deserialize(await self.task_state_store.aget(self.state_key))
+
+    async def aset_state(self, state: IndexedTaskState) -> None:
+        await self.task_state_store.aset(self.state_key, state.serialize())
+
+    @property
+    def is_async(self) -> bool:
+        return self.task.is_async
+
+    @property
+    def next_try_number(self) -> int:
+        return self.try_number + 1
+
+    @property
+    def state_key(self) -> str:
+        return IndexedTaskState.build_key(self.index)
+
+    @property
+    def do_xcom_push(self) -> bool:
+        return self.task.do_xcom_push
 
 
 def _xcom_push(
@@ -2230,10 +2364,46 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
             assert isinstance(kwargs, dict)
         execute = functools.partial(task.resume_execution, next_method=next_method, next_kwargs=kwargs)
 
-    # Export context in os.environ to make it available for operators to use.
-    airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
-    os.environ.update(airflow_context_vars)
+    # Export the context to os.environ for operators that read AIRFLOW_CTX_* directly. Indexed
+    # sub-tasks skip this: they run concurrently in one process, so the update would race, and the
+    # parent IterableOperator already exported the same values before they started.
+    if not isinstance(ti, IndexedTaskInstance):
+        os.environ.update(context_to_airflow_vars(context, in_env_var_format=True))
 
+    outlet_events = _run_pre_execute(task, context, log)
+
+    log.info("::endgroup::")
+
+    result = _run_execute_callable(context, execute, task)
+
+    _run_post_execute(task, context, outlet_events, result, log)
+    return result
+
+
+async def _execute_async_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
+    """Async counterpart of :func:`_execute_task` for :class:`BaseAsyncOperator` sub-tasks."""
+    task = cast("BaseAsyncOperator", ti.task)
+    # Async tasks cannot be resuming a deferral, so next_method never applies here.
+    outlet_events = _run_pre_execute(task, context, log)
+
+    ctx = contextvars.copy_context()
+    ctx.run(ExecutorSafeguard.tracker.set, task)
+    coro = ctx.run(lambda: task.aexecute(context=context))
+    try:
+        if task.execution_timeout:
+            result = await wait_for(coro, timeout=task.execution_timeout.total_seconds())
+        else:
+            result = await coro
+    except AsyncTimeoutError:
+        task.on_kill()
+        raise
+
+    _run_post_execute(task, context, outlet_events, result, log)
+    return result
+
+
+def _run_pre_execute(task: BaseOperator, context: Context, log: Logger) -> OutletEventAccessorsProtocol:
+    """Run the pre-execute hooks and the on_execute callback; shared by the sync and async paths."""
     outlet_events = context_get_outlet_events(context)
 
     if (pre_execute_hook := task._pre_execute_hook) is not None:
@@ -2242,17 +2412,21 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
         create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
 
     _run_task_state_change_callbacks(task, "on_execute_callback", context, log)
+    return outlet_events
 
-    log.info("::endgroup::")
 
-    result = _run_execute_callable(context, execute, task)
-
+def _run_post_execute(
+    task: BaseOperator,
+    context: Context,
+    outlet_events: OutletEventAccessorsProtocol,
+    result: Any,
+    log: Logger,
+) -> None:
+    """Run the post-execute hooks; shared by the sync and async paths."""
     if (post_execute_hook := task._post_execute_hook) is not None:
         create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)
     if getattr(post_execute_hook := task.post_execute, "__func__", None) is not BaseOperator.post_execute:
         create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context)
-
-    return result
 
 
 def _render_map_index(context: Context, ti: RuntimeTaskInstance, log: Logger) -> str | None:

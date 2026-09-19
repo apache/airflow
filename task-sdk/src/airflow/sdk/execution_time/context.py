@@ -146,7 +146,6 @@ AIRFLOW_VAR_NAME_FORMAT_MAPPING = {
     },
 }
 
-
 log = structlog.get_logger(logger_name="task")
 
 #: Pass as ``retention`` to ``task_state_store.set()`` to store a key that never expires,
@@ -1179,9 +1178,10 @@ class OutletEventAccessors(
         else:
             raise TypeError(f"Key should be either an asset or an asset alias, not {type(key)}")
 
-        if hashable_key not in self._dict:
-            self._dict[hashable_key] = OutletEventAccessor(extra={}, key=hashable_key)
-        return self._dict[hashable_key]
+        # setdefault is atomic under the GIL: if two threads race on the same
+        # key the first writer wins and both threads get back the same accessor,
+        # so neither thread's accumulated events are silently discarded.
+        return self._dict.setdefault(hashable_key, OutletEventAccessor(extra={}, key=hashable_key))
 
 
 @attrs.define(init=False)
@@ -1429,17 +1429,22 @@ def set_current_context(context: Context) -> Generator[Context, None, None]:
 
     This method should be called once per Task execution, before calling operator.execute.
     """
-    _CURRENT_CONTEXT.append(context)
+    current = _CURRENT_CONTEXT.get(None)
+    # Build a new list so that asyncio tasks / thread-pool workers that were
+    # created before this push still see the old stack (copy-on-set isolation).
+    new_stack = [*(current or []), context]
+    token = _CURRENT_CONTEXT.set(new_stack)
     try:
         yield context
     finally:
-        expected_state = _CURRENT_CONTEXT.pop()
-        if expected_state != context:
+        restored = _CURRENT_CONTEXT.get(None)
+        if not restored or restored[-1] != context:
             log.warning(
                 "Current context is not equal to the state at context stack.",
-                expected=context,
-                got=expected_state,
+                expected_id=id(context),
+                got_id=id(restored[-1]) if restored else None,
             )
+        _CURRENT_CONTEXT.reset(token)
 
 
 def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:

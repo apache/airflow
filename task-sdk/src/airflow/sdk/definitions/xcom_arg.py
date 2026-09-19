@@ -96,6 +96,16 @@ class XComArg(ResolveMixin, DependencyMixin):
     def iter_references(self) -> Iterator[tuple[Operator, str]]:
         raise NotImplementedError()
 
+    def iter_values(self, context: Mapping[str, Any]) -> Iterable[Any]:
+        resolved = self.resolve(context)
+
+        if isinstance(resolved, (str, bytes, dict)):
+            yield resolved
+        elif isinstance(resolved, Iterable):
+            yield from resolved
+        else:
+            yield resolved
+
     @staticmethod
     def iter_xcom_references(arg: Any) -> Iterator[tuple[Operator, str]]:
         """
