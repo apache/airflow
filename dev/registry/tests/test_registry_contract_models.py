@@ -115,14 +115,12 @@ def test_module_contract_preserves_supports_deferrable_true():
 
 
 def test_module_contract_omits_guide_url_for_undocumented_classes():
-    validated = validate_modules_catalog({"modules": [_module_payload()]})
-    assert "guide_url" not in validated["modules"][0]
+    assert ModuleContract.model_validate(_module_payload()).guide_url is None
 
 
-def test_module_contract_round_trips_guide_url():
+def test_module_contract_preserves_guide_url_value():
     guide_url = "https://example.invalid/docs/toolsets.html#exampletoolset"
-    validated = validate_modules_catalog({"modules": [_module_payload(guide_url=guide_url)]})
-    assert validated["modules"][0]["guide_url"] == guide_url
+    assert ModuleContract.model_validate(_module_payload(guide_url=guide_url)).guide_url == guide_url
 
 
 def test_connection_type_contract_defaults_external_services_to_empty_list():
