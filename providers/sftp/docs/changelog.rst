@@ -30,6 +30,14 @@ Changelog
 6.0.1
 .....
 
+.. note::
+    ``SFTPHook.get_mod_time()`` and ``SFTPHookAsync.get_mod_time()`` now return the modification time
+    as a UTC ``%Y%m%d%H%M%S`` string; previously they returned a naive local-time string. The bundled
+    ``SFTPSensor`` and ``SFTPTrigger`` now interpret that value as UTC, so ``newer_than`` is compared
+    against the file's real modification time even when the Airflow process timezone and
+    ``core.default_timezone`` differ. Code that parses the string itself should treat it as UTC, for
+    example ``datetime.strptime(value, "%Y%m%d%H%M%S").replace(tzinfo=datetime.timezone.utc)``.
+
 Bug Fixes
 ~~~~~~~~~
 
