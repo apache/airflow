@@ -688,10 +688,11 @@ class TestCliTeams:
         )
         self.session.commit()
 
-        with stdout_capture as stdout:
-            team_command.team_inspect(
-                self.parser.parse_args(["teams", "inspect", "team1", "--output", "json"])
-            )
+        with conf_vars({("core", "multi_team"): "True"}):
+            with stdout_capture as stdout:
+                team_command.team_inspect(
+                    self.parser.parse_args(["teams", "inspect", "team1", "--output", "json"])
+                )
 
         assert json.loads(stdout.getvalue()) == [
             {
@@ -722,11 +723,11 @@ class TestCliTeams:
         )
 
         self.session.commit()
-
-        with stdout_capture as stdout:
-            team_command.team_inspect(
-                self.parser.parse_args(["teams", "inspect", "team1", "--output", "json"])
-            )
+        with conf_vars({("core", "multi_team"): "True"}):
+            with stdout_capture as stdout:
+                team_command.team_inspect(
+                    self.parser.parse_args(["teams", "inspect", "team1", "--output", "json"])
+                )
 
         assert json.loads(stdout.getvalue()) == [
             {
@@ -739,6 +740,14 @@ class TestCliTeams:
         ]
 
     def test_team_inspect_nonexistent_team(self):
-        """Test inspecting a team that does not exist."""
-        with pytest.raises(SystemExit, match="Team 'team1' does not exist"):
-            team_command.team_inspect(self.parser.parse_args(["teams", "inspect", "team1"]))
+        """Test inspecting a team that does not exist."""  #
+        with conf_vars({("core", "multi_team"): "True"}):
+            with pytest.raises(SystemExit, match="Team 'team1' does not exist"):
+                team_command.team_inspect(self.parser.parse_args(["teams", "inspect", "team1"]))
+
+    def test_team_inspect_multi_team_disabled(self, stdout_capture):
+        with conf_vars({("core", "multi_team"): "False"}):
+            with stdout_capture as stdout:
+                team_command.team_inspect(self.parser.parse_args(["teams", "inspect", "team1"]))
+
+        assert "Multi-team is not enabled." in stdout.getvalue()

@@ -310,6 +310,10 @@ def team_verify(args, *, session=NEW_SESSION):
 @provide_session
 def team_inspect(args, *, session=NEW_SESSION):
     """Inspect resources belonging to a team."""
+    if not conf.getboolean("core", "multi_team"):
+        print("Multi-team is not enabled.")
+        return
+
     team_name = _extract_team_name(args)
 
     team = session.scalar(select(Team).where(Team.name == team_name))
@@ -335,13 +339,14 @@ def team_inspect(args, *, session=NEW_SESSION):
     ).all()
 
     AirflowConsole().print_as(
-        data=[team],
+        data=[
+            {
+                "name": team.name,
+                "dag_bundles": bundle_names,
+                "pools": pool_names,
+                "connections": connection_ids,
+                "variables": variable_keys,
+            }
+        ],
         output=args.output,
-        mapper=lambda x: {
-            "name": x.name,
-            "dag_bundles": bundle_names,
-            "pools": pool_names,
-            "connections": connection_ids,
-            "variables": variable_keys,
-        },
     )
