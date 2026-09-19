@@ -149,6 +149,8 @@ TEST_JOB = {
     "pyspark_job": {"main_python_file_uri": "gs://test"},
 }
 TEST_REQUEST_ID = "test-request-id"
+TEST_TI_UUID = "01999b0e-0000-7000-8000-000000000001"
+OTHER_TI_UUID = "01999b0e-0000-7000-8000-000000000002"
 
 
 @pytest.fixture
@@ -164,7 +166,7 @@ def submit_job_direct_trigger():
     )
 
 
-def attach_trigger_identity(trigger, trigger_id=42, **task_instance_overrides):
+def attach_trigger_identity(trigger, trigger_id=42, ti_uuid=TEST_TI_UUID, **task_instance_overrides):
     """Give the trigger the row id and task instance the triggerer attaches before running it."""
     task_instance = {
         "dag_id": "test-dag",
@@ -173,6 +175,9 @@ def attach_trigger_identity(trigger, trigger_id=42, **task_instance_overrides):
         "map_index": -1,
         "try_number": 1,
     }
+    if ti_uuid is not None:
+        # Airflow 2 task instances have a composite primary key and no uuid to carry here.
+        task_instance["id"] = ti_uuid
     trigger.trigger_id = trigger_id
     trigger.task_instance = SimpleNamespace(**{**task_instance, **task_instance_overrides})
 
@@ -985,14 +990,7 @@ class TestDataprocSubmitJobDirectTrigger:
 
     @pytest.mark.parametrize(
         "difference",
-        [
-            {"trigger_id": 43},
-            {"dag_id": "other-dag"},
-            {"task_id": "other-task"},
-            {"run_id": "other-run"},
-            {"map_index": 0},
-            {"try_number": 2},
-        ],
+        [{"trigger_id": 43}, {"ti_uuid": OTHER_TI_UUID}],
     )
     def test_build_assigned_job_id_identifies_one_deferral(self, submit_job_direct_trigger, difference):
         attach_trigger_identity(submit_job_direct_trigger)
@@ -1002,6 +1000,29 @@ class TestDataprocSubmitJobDirectTrigger:
         assert submit_job_direct_trigger.build_assigned_job_id() == job_id
 
         attach_trigger_identity(submit_job_direct_trigger, **difference)
+        assert submit_job_direct_trigger.build_assigned_job_id() != job_id
+
+    @pytest.mark.parametrize(
+        "difference",
+        [
+            {"trigger_id": 43},
+            {"dag_id": "other-dag"},
+            {"task_id": "other-task"},
+            {"run_id": "other-run"},
+            {"map_index": 0},
+            {"try_number": 2},
+        ],
+    )
+    def test_build_assigned_job_id_falls_back_to_the_task_identity(
+        self, submit_job_direct_trigger, difference
+    ):
+        attach_trigger_identity(submit_job_direct_trigger, ti_uuid=None)
+        job_id = submit_job_direct_trigger.build_assigned_job_id()
+
+        attach_trigger_identity(submit_job_direct_trigger, ti_uuid=None)
+        assert submit_job_direct_trigger.build_assigned_job_id() == job_id
+
+        attach_trigger_identity(submit_job_direct_trigger, ti_uuid=None, **difference)
         assert submit_job_direct_trigger.build_assigned_job_id() != job_id
 
     @pytest.mark.asyncio

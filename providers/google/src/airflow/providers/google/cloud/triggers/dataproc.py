@@ -288,9 +288,13 @@ class DataprocSubmitJobDirectTrigger(DataprocBaseTrigger):
         ti = self.task_instance
         if ti is None or self.trigger_id is None or (self.job.get("reference") or {}).get("job_id"):
             return None
-        # The trigger row id pins one deferral: it outlives triggerer restarts and a retry gets a new
-        # row. The task identity is mixed in because a database may reuse the id of a deleted row.
-        identity = f"{self.trigger_id}:{ti.dag_id}:{ti.task_id}:{ti.run_id}:{ti.map_index}:{ti.try_number}"
+        # ti.id is a per-try uuid7, so the job id stays unique even where two Airflow deployments
+        # share a Dataproc project; Airflow 2 has no such column and falls back to a task identity
+        # unique only within one deployment. trigger_id separates two deferrals of one attempt.
+        attempt = getattr(ti, "id", None) or (
+            f"{ti.dag_id}:{ti.task_id}:{ti.run_id}:{ti.map_index}:{ti.try_number}"
+        )
+        identity = f"{self.trigger_id}:{attempt}"
         return f"airflow-{hashlib.sha256(identity.encode()).hexdigest()[:24]}"
 
     async def on_kill(self) -> None:
