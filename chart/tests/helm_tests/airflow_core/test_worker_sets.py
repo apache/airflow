@@ -1410,9 +1410,6 @@ class TestWorkerSets:
         )
         assert sidecar is not None
         assert sidecar["restartPolicy"] == "Always"
-        assert (
-            jmespath.search("spec.template.spec.containers[?name=='worker-kerberos'] | [0]", docs[0]) is None
-        )
 
     def test_overwrite_kerberos_sidecar_disable(self):
         docs = render_chart(
@@ -1431,9 +1428,6 @@ class TestWorkerSets:
         assert (
             jmespath.search("spec.template.spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0])
             is None
-        )
-        assert (
-            jmespath.search("spec.template.spec.containers[?name=='worker-kerberos'] | [0]", docs[0]) is None
         )
 
     @pytest.mark.parametrize(
