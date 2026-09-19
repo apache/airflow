@@ -61,8 +61,8 @@ DEFAULT_APP_NAME = "airflow-sandbox"
 DEFAULT_WORKDIR = "/workspace"
 DEFAULT_SANDBOX_TIMEOUT = 3600
 # Off by default, as it is in Modal. One sandbox serves a whole agent run and nothing
-# keeps it warm between tool calls, so a gap for model generation, another toolset's
-# work, or a human review pause would look idle and reclaim it mid-run. Measured, that
+# keeps it warm between tool calls, so a gap for model generation or another toolset's
+# work would look idle and reclaim it mid-run. Measured, that
 # does not cost the agent its files: it costs the task. The next tool call reaches a
 # sandbox that is gone, which is terminal, so the run fails rather than continuing
 # against a fresh one. ``sandbox_timeout`` already bounds what a leak can cost.
@@ -177,7 +177,7 @@ class ModalSandboxBackend(SandboxBackend):
         Default ``None``, meaning ``sandbox_timeout`` is the only bound. Set it only if
         you want tighter cost control and know your agent's pace: one sandbox serves a
         whole run, nothing keeps it warm between tool calls, and a gap for model
-        generation or a human review would be reclaimed with every file in it.
+        generation would be reclaimed with every file in it.
     :param workdir: Working directory for commands, created if the image lacks it.
         Default ``"/workspace"``. ``None`` uses the image's own default, in which case
         the backend has to ask the sandbox where that is before its first file

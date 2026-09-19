@@ -588,20 +588,23 @@ vendor that has written an adapter for one is close to having written this one.
 What this is actually for
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**It does not give an agent a new power. It moves a power the agent already had
-off your worker.**
+**Adding this toolset gives the agent shell and file operations in a separate
+workspace. Every other tool keeps its existing permissions and runs where it ran
+before.**
 
-An agent in Airflow could already run code that nobody reviewed. An
+Whether that is a new capability depends on what the agent already had. An
 :ref:`agent skill <agent-skills>` can ship a ``run_skill_script`` tool, which runs
 a script on the worker, and the guidance there is already to switch it off when
 the worker holds anything sensitive. Teams without skills routinely hand an agent
 a tool of their own that shells out. In both, the code the model wrote runs beside
 your connections, your worker's filesystem, and your worker's position on the
-network.
+network, and ``SandboxToolset`` is where that code should run instead. An agent
+that only had named database operations, on the other hand, is being granted a
+general shell for the first time; the workspace is separate and less privileged
+than the worker, but you are choosing to grant it.
 
-``SandboxToolset`` is where that code goes instead. So the question it answers is
-not "should the agent be able to run code", which was already settled, but "where
-should the code it writes run".
+So the question this answers is "where should the code the model writes run", and
+the answer applies only to the four tools it adds. It relocates nothing else.
 
 :ref:`Code mode <code-mode>` is a different thing and not a weaker version of
 this. Monty confines generated code to the tools you registered, so it is not
@@ -630,8 +633,8 @@ at all.
        bounded, and the credential stays in the worker rather than reaching the
        model
    * - Chain those tools with glue logic
-     - :ref:`code mode <code-mode>`, remembering that the glue itself still runs
-       in the worker process
+     - :ref:`code mode <code-mode>`, remembering that the glue runs on the
+       worker host and every tool it calls runs in the task process
    * - Write and run open-ended code: reshape data with no known schema, install
        a package, or fix its own failing script by reading the traceback
      - ``SandboxToolset``
@@ -669,7 +672,9 @@ Four boundaries exist, from smallest to largest:
      - Generated orchestration code, via :ref:`code mode <code-mode>` and the
        Monty interpreter.
      - Generated code touching anything other than the tools you registered.
-       It still runs in the worker process.
+       Monty runs it in a worker subprocess on the worker host, a language-level
+       sandbox rather than an OS one, and every tool it calls executes in the
+       task process with the task's authority.
    * - **The agent process**
      - The whole agent loop, its LLM credentials and its message history.
      - The agent's own credentials leaking, and any *other* toolset on the same
@@ -747,13 +752,17 @@ and its network position. The pod protects the cluster from the task. It does no
 protect the task from what the model decided to run, because from the pod's point
 of view that code is the task.
 
-``KubernetesPodOperator`` does contain the work, and it is the right tool when
-your Dag already knows the command. That is the catch: a pod's image, command and
-arguments are fixed when the Dag is authored. An agent's whole value is deciding
-the next command after reading the last one's output, so expressing an agent as
-``KubernetesPodOperator`` means either one pod per turn, with scheduling latency
-and a lost filesystem between each, or giving up and letting the model run
-whatever it wants inside one pod, which is where you started.
+``KubernetesPodOperator`` does contain the work, and its image, command,
+arguments and environment are all templated, so it can launch a different payload
+per run and that payload can be a complete agent that writes, runs and repairs
+code inside the pod. The difference is what each one is. The pod is the
+environment that hosts the workload: everything inside it, including any code the
+model writes, runs with the pod's service account, secrets and network position.
+``SandboxToolset`` is a separate workspace that an already-running workload
+reaches into repeatedly, with less authority than the workload itself. Expressing
+the workspace as a pod means either one pod per turn, with scheduling latency and a
+lost filesystem between each, or letting the model run whatever it wants inside the
+pod that also holds your credentials, which is where you started.
 
 The two compose rather than compete, and on Kubernetes they are complementary:
 
@@ -907,10 +916,12 @@ independent of the agent: ``sandbox_timeout`` on the hosted backend, an hour by
 default, and ``idle_timeout`` if you set one. When either passes mid-run the next
 tool call reaches a sandbox that is gone, which is terminal, so the task fails
 rather than continuing against a fresh one. This is the normal end of any run that
-takes longer than its sandbox's lifetime, and you are paying for the model's
-thinking time and any review pause the whole way, so the deadline arrives sooner
-than the time actually spent running commands would suggest. Size
-``sandbox_timeout`` against the whole run, not against the commands in it.
+takes longer than its sandbox's lifetime, and the clock runs through the model's
+thinking time between tool calls, so the deadline arrives sooner than the time
+actually spent running commands would suggest. Size ``sandbox_timeout`` against
+the whole agent run, not against the commands in it. Human output review is not
+part of that run: it starts after the agent has finished and the sandbox has been
+destroyed, so a review pause costs no sandbox time and keeps no files.
 
 **Do not combine a sandbox with** ``durable=True``. Durable execution caches each
 tool result and replays it on a retry without calling the backend, so a replayed
@@ -1015,8 +1026,8 @@ Constructor parameters:
 - ``idle_timeout``: Seconds of inactivity after which Modal reclaims the sandbox,
   or ``None`` to rely on ``sandbox_timeout`` alone. Default ``None``. One sandbox
   serves a whole agent run and nothing keeps it warm between tool calls, so a gap
-  for model generation or a human review can look idle and take the files with it.
-  Set it when you want tighter cost control and know your agent's pace.
+  for model generation can look idle and take the files with it. Set it when you
+  want tighter cost control and know your agent's pace.
 - ``workdir``: Working directory for commands, created if the image lacks it.
   Default ``"/workspace"``.
 - ``cpu``, ``memory``, ``gpu``, ``region``, ``cloud``: passed through to Modal.
@@ -1119,7 +1130,9 @@ Measured: with those two hosts allowed, installing pandas took 14 seconds and
 ``https://github.com`` stayed blocked.
 
 **What it costs.** One sandbox serves a whole agent run, so you pay for the model's
-thinking time and any human review pause, not only for the seconds your commands run. A
+thinking time between tool calls, not only for the seconds your commands run. Human
+output review happens after the run has ended and the sandbox is gone, so it is not
+billed; only a wait inside the run, or a sandbox you keep alive yourself, is. A
 default sandbox is around two cents an hour, so this rarely matters; a data-sized one
 (``cpu=8, memory=32768``) is around two dollars an hour, and Modal bills the larger of
 what you requested and what you used, which is the second reason ``memory`` is worth
