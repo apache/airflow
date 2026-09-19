@@ -40,6 +40,7 @@ import pytest
 import time_machine
 from sqlalchemy import delete, func, inspect, select, update
 from sqlalchemy.dialects import mysql
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload
 
 from airflow import settings
@@ -14326,3 +14327,73 @@ class TestSchedulerObservabilityMetrics:
             self.job_runner._find_and_purge_task_instances_without_heartbeats()
 
         mock_stats.incr.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("scan_duration_ms", "expect_warning"),
+        [
+            pytest.param(90_000.0, True, id="scan_past_health_threshold_warns"),
+            pytest.param(45_000.0, False, id="scan_within_health_threshold_stays_quiet"),
+        ],
+    )
+    @mock.patch("airflow.jobs.scheduler_job_runner.health_check_threshold", autospec=True, return_value=60)
+    @mock.patch("airflow.jobs.scheduler_job_runner.stats.timer", autospec=True)
+    def test_heartbeat_timeout_scan_is_timed_and_warns_only_past_health_threshold(
+        self, mock_timer, mock_health_check_threshold, session, caplog, scan_duration_ms, expect_warning
+    ):
+        mock_timer.return_value.duration = scan_duration_ms
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        with caplog.at_level(logging.WARNING, logger="airflow.jobs.scheduler_job_runner"):
+            self.job_runner._find_task_instances_without_heartbeats(session=session)
+
+        mock_health_check_threshold.assert_called_once_with("SchedulerJob", scheduler_job.heartrate)
+        # Plugin loading may open an unnamed stats.timer() while the mock is active, so filter by name.
+        scan_timer_calls = [
+            timer_call
+            for timer_call in mock_timer.call_args_list
+            if timer_call.args == ("scheduler.task_instance_heartbeat_timeout_scan_duration",)
+        ]
+        assert len(scan_timer_calls) == 1
+        mock_timer.return_value.start.assert_called_once_with()
+        mock_timer.return_value.stop.assert_called_once_with(send=True)
+        if expect_warning:
+            assert {
+                "event": re.compile(
+                    r"^Scan for task instances without heartbeat took 90\.00s, "
+                    r"longer than scheduler_health_check_threshold \(60s\)"
+                ),
+                "log_level": "warning",
+            } in caplog
+        else:
+            assert {
+                "event": re.compile(r"^Scan for task instances without heartbeat took"),
+                "log_level": "warning",
+            } not in caplog
+
+    @mock.patch("airflow.jobs.scheduler_job_runner.health_check_threshold", autospec=True, return_value=60)
+    @mock.patch("airflow.jobs.scheduler_job_runner.stats.timer", autospec=True)
+    def test_heartbeat_timeout_scan_still_warns_when_slow_scan_ends_in_db_error(
+        self, mock_timer, mock_health_check_threshold, session, caplog
+    ):
+        mock_timer.return_value.duration = 90_000.0
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        with (
+            mock.patch.object(
+                session,
+                "scalars",
+                autospec=True,
+                side_effect=OperationalError("any_statement", "any_params", "any_orig"),
+            ),
+            caplog.at_level(logging.WARNING, logger="airflow.jobs.scheduler_job_runner"),
+            pytest.raises(OperationalError),
+        ):
+            self.job_runner._find_task_instances_without_heartbeats(session=session)
+
+        mock_timer.return_value.stop.assert_called_once_with(send=True)
+        assert {
+            "event": re.compile(r"^Scan for task instances without heartbeat took 90\.00s"),
+            "log_level": "warning",
+        } in caplog

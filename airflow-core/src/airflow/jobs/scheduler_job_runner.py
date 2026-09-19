@@ -70,7 +70,7 @@ from airflow.exceptions import DagNotFound
 from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
-from airflow.jobs.job import Job, JobState, perform_heartbeat
+from airflow.jobs.job import Job, JobState, health_check_threshold, perform_heartbeat
 from airflow.models import Deadline, Log
 from airflow.models.asset import (
     AssetActive,
@@ -356,6 +356,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # How many seconds do we wait for tasks to heartbeat before timeout.
         self._task_instance_heartbeat_timeout_secs = conf.getint(
             "scheduler", "task_instance_heartbeat_timeout"
+        )
+        # The scan for those task instances blocks the scheduler heartbeat, so past this threshold the
+        # scheduler is reported unhealthy.
+        self._heartbeat_timeout_scan_warning_secs = health_check_threshold(
+            self.job.job_type, self.job.heartrate
         )
         self._task_queued_timeout = conf.getfloat("scheduler", "task_queued_timeout")
         self._enable_tracemalloc = conf.getboolean("scheduler", "enable_tracemalloc")
@@ -3750,7 +3755,21 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # schedulers from blocking on each other. _purge_task_instances_without_heartbeats still
         # revalidates each row's state before acting, as defense in depth.
         query = with_row_locks(query, of=TI, session=session, skip_locked=True)
-        task_instances_without_heartbeats = list(session.scalars(query))
+        timer = stats.timer("scheduler.task_instance_heartbeat_timeout_scan_duration")
+        timer.start()
+        try:
+            task_instances_without_heartbeats = list(session.scalars(query))
+        finally:
+            # Warn on the error path too, so a long wait that ends in a DB error is still attributable.
+            timer.stop(send=True)
+            scan_duration_seconds = (timer.duration or 0.0) / 1000.0
+            if scan_duration_seconds > self._heartbeat_timeout_scan_warning_secs:
+                self.log.warning(
+                    "Scan for task instances without heartbeat took %.2fs, longer than "
+                    "scheduler_health_check_threshold (%ss); the scheduler heartbeat is delayed while it runs.",
+                    scan_duration_seconds,
+                    self._heartbeat_timeout_scan_warning_secs,
+                )
         if task_instances_without_heartbeats:
             self.log.warning(
                 "Failing %s TIs without heartbeat after %s",
