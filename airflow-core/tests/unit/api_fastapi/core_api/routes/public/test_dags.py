@@ -1298,7 +1298,7 @@ class TestDagDetails(TestDagEndpoint):
             ({}, DAG2_ID, 200, DAG2_ID, "2021-06-15T00:00:00Z", {}, 0.24),
         ],
     )
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_dag_details(
         self,
         test_client,
@@ -1691,7 +1691,7 @@ class TestDeleteDAG(TestDagEndpoint):
             (DAG5_ID, DAG5_DISPLAY_NAME, 409, 200, True, True),
         ],
     )
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_delete_dag(
         self,
         dag_maker,
