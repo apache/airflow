@@ -50,6 +50,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     AssetStateStorePutBody,
     AssetStateStoreResponse,
+    ClearDagRunPayload,
     ConnectionResponse,
     ConnectionTestConnectionResponse,
     ConnectionTestResultBody,
@@ -915,6 +916,8 @@ class DagRunOperations:
         run_after: datetime | None = None,
         reset_dag_run: bool = False,
         note: str | None = None,
+        *,
+        only_failed: bool = False,
     ) -> OKResponse | ErrorResponse:
         """Trigger a Dag run via the API server."""
         body = TriggerDAGRunPayload(
@@ -931,9 +934,9 @@ class DagRunOperations:
             )
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.CONFLICT:
-                if reset_dag_run:
-                    log.info("Dag Run already exists; Resetting Dag Run.", dag_id=dag_id, run_id=run_id)
-                    return self.clear(run_id=run_id, dag_id=dag_id)
+                if reset_dag_run or only_failed:
+                    log.info("Dag Run already exists; clearing to rerun.", dag_id=dag_id, run_id=run_id)
+                    return self.clear(run_id=run_id, dag_id=dag_id, only_failed=only_failed)
 
                 log.info("Dag Run already exists!", detail=e.detail, dag_id=dag_id, run_id=run_id)
                 return ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS)
@@ -941,9 +944,12 @@ class DagRunOperations:
 
         return OKResponse(ok=True)
 
-    def clear(self, dag_id: str, run_id: str) -> OKResponse:
+    def clear(self, dag_id: str, run_id: str, *, only_failed: bool = False) -> OKResponse:
         """Clear a Dag run via the API server."""
-        self.client.post(f"dag-runs/{dag_id}/{run_id}/clear")
+        body = ClearDagRunPayload(only_failed=only_failed)
+        self.client.post(
+            f"dag-runs/{dag_id}/{run_id}/clear", content=body.model_dump_json(exclude_defaults=True)
+        )
         # TODO: Error handling
         return OKResponse(ok=True)
 
