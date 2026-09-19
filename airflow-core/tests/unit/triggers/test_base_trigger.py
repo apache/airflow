@@ -22,7 +22,7 @@ from unittest.mock import create_autospec
 import pytest
 
 from airflow.sdk.bases.operator import BaseOperator
-from airflow.sdk.execution_time.context import AssetStateStoreAccessors
+from airflow.sdk.execution_time.context import AssetStateStoreAccessors, TaskStateStoreAccessor
 from airflow.triggers.base import BaseEventTrigger, BaseTrigger, StartTriggerArgs, TriggerEvent
 
 
@@ -276,6 +276,40 @@ def test_base_event_trigger_asset_state_store_independent_across_instances():
     b = _PlainEventTrigger(name="b")
     a.asset_state_store = create_autospec(AssetStateStoreAccessors, instance=True)
     assert b.asset_state_store is None
+
+
+def test_base_trigger_task_state_store_initialized_to_none():
+    """task_state_store is None before the triggerer injects one."""
+    trigger = DummyTrigger(name="Dummy Trigger")
+
+    assert trigger.task_state_store is None
+
+
+def test_base_trigger_task_state_store_can_be_set():
+    """task_state_store can be set once the Trigger is initialized."""
+    trigger = DummyTrigger(name="Dummy Trigger")
+
+    mock_store = create_autospec(TaskStateStoreAccessor, instance=True)
+    trigger.task_state_store = mock_store
+
+    assert trigger.task_state_store is mock_store
+
+
+def test_base_trigger_task_state_store_independent_across_instances():
+    """a.task_state_store does not impact b.task_state_store."""
+    a = DummyTrigger(name="Dummy Trigger")
+    b = DummyTrigger(name="Dummy Trigger")
+
+    a.task_state_store = create_autospec(TaskStateStoreAccessor, instance=True)
+
+    assert b.task_state_store is None
+
+
+def test_task_state_store_defaults_to_none_without_super_init():
+    """Being a class attribute is what keeps it readable on triggers that skip super().__init__()."""
+    trigger = _TriggerWithoutSuperInit(queue_url="https://sqs.example.com/queue")
+
+    assert trigger.task_state_store is None
 
 
 def test_create_shared_stream_producer_raises_by_default():
