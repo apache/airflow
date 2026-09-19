@@ -380,9 +380,10 @@ Before following this row, check whether the actual need is narrower than that:
 code to call several of them instead of emitting one call per step. It does not
 give the agent somewhere to run arbitrary code of its own, and it avoids the
 ``sbx`` backend's production-readiness, network-isolation, and reclamation
-caveats below — but not the reachability one: the glue code still runs in the
-worker process, so a credential-bearing toolset on the same agent stays within
-reach whether or not code mode is on. See :ref:`code-mode` and
+caveats below — but not the reachability one: the generated code runs in
+Monty's deny-by-default sandbox, but the tools it calls still run in the
+worker, so a credential-bearing toolset on the same agent stays within reach
+whether or not code mode is on. See :ref:`code-mode` and
 :ref:`sandbox-boundaries`.
 
 **What it cannot do**
