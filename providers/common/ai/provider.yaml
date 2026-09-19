@@ -68,6 +68,9 @@ integrations:
   - integration-name: Docker Sandboxes
     external-doc-url: https://docs.docker.com/ai/sandboxes/
     tags: [software]
+  - integration-name: Islo
+    external-doc-url: https://docs.islo.dev/
+    tags: [service]
 
 hooks:
   - integration-name: Pydantic AI
@@ -82,6 +85,9 @@ hooks:
   - integration-name: LlamaIndex
     python-modules:
       - airflow.providers.common.ai.hooks.llamaindex
+  - integration-name: Islo
+    python-modules:
+      - airflow.providers.common.ai.hooks.islo
 
 plugins:
   - name: hitl_review
@@ -514,6 +520,35 @@ connection-types:
         schema:
           type:
             - string
+            - 'null'
+  - hook-class-name: airflow.providers.common.ai.hooks.islo.IsloHook
+    hook-name: "Islo"
+    connection-type: islo
+    ui-field-behaviour:
+      hidden-fields:
+        - schema
+        - port
+        - login
+      relabeling:
+        password: API Key
+        host: Compute URL
+      placeholders:
+        host: "https://ca.compute.islo.dev (optional, the regional compute API)"
+        extra: '{"base_url": "https://api.islo.dev", "timeout": 30}'
+    conn-fields:
+      base_url:
+        label: API URL
+        description: "Control-plane URL. Defaults to https://api.islo.dev."
+        schema:
+          type:
+            - string
+            - 'null'
+      timeout:
+        label: Request Timeout (s)
+        description: "HTTP request timeout in seconds for every SDK call (optional)."
+        schema:
+          type:
+            - number
             - 'null'
 
 operators:
