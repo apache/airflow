@@ -34,6 +34,8 @@ from airflow.executors.workloads.types import state_class_for_key
 from airflow.models.callback import CallbackKey
 from airflow.sdk.api.datamodels._generated import TaskInstance as GeneratedTaskInstance
 
+from tests_common.test_utils.config import conf_vars
+
 
 def test_task_instance_alias_keeps_backwards_compat():
     assert TaskInstance is TaskInstanceDTO
@@ -74,7 +76,7 @@ def test_token_excluded_from_workload_repr():
 
 def test_generate_token_produces_workload_scope(monkeypatch):
     """generate_token should create a JWT with scope 'workload' and [scheduler] task_queued_timeout expiry."""
-    monkeypatch.setattr(workloads_base.conf, "getfloat", lambda section, key: 86400.0)
+    monkeypatch.setattr(workloads_base.conf, "getfloat", lambda section, key, **kwargs: 86400.0)
 
     generator = JWTGenerator(secret_key="test-secret", audience="test", valid_for=60)
     token = BaseWorkloadSchema.generate_token("ti-123", generator)
@@ -90,6 +92,31 @@ def test_generate_token_without_generator():
     assert BaseWorkloadSchema.generate_token("ti-123", None) == ""
 
 
+class TestWorkloadTokenValidFor:
+    """Regression tests for https://github.com/apache/airflow/issues/72469."""
+
+    def test_falls_back_to_task_queued_timeout_when_unset(self):
+        """With [execution_api] workload_token_expiration_time unset, use task_queued_timeout."""
+        # execution_api.workload_token_expiration_time defaults to unset (None) in config.yml,
+        # so only task_queued_timeout needs to be pinned.
+        with conf_vars({("scheduler", "task_queued_timeout"): "600"}):
+            assert BaseWorkloadSchema._workload_token_valid_for() == 600.0
+
+    def test_uses_independent_value_when_set(self):
+        """With [execution_api] workload_token_expiration_time set, it wins over task_queued_timeout."""
+        with conf_vars({("execution_api", "workload_token_expiration_time"): "120"}):
+            assert BaseWorkloadSchema._workload_token_valid_for() == 120.0
+
+    def test_generate_token_uses_independent_expiration_when_set(self):
+        """End-to-end: the minted token's exp reflects the new option, not task_queued_timeout."""
+        with conf_vars({("execution_api", "workload_token_expiration_time"): "120"}):
+            generator = JWTGenerator(secret_key="test-secret", audience="test", valid_for=60)
+            token = BaseWorkloadSchema.generate_token("ti-123", generator)
+
+            claims = jwt.decode(token, "test-secret", algorithms=["HS512"], audience="test")
+            assert claims["exp"] - claims["iat"] == 120
+
+
 def test_token_scope_is_a_class_level_invariant():
     """Token scope is fixed per workload type, not caller-suppliable."""
     assert BaseWorkloadSchema.token_scope == "workload"
@@ -99,7 +126,7 @@ def test_token_scope_is_a_class_level_invariant():
 
 def test_generate_token_uses_subclass_token_scope(monkeypatch):
     """ExecuteCallback.generate_token should stamp its own 'callback' scope."""
-    monkeypatch.setattr(workloads_base.conf, "getfloat", lambda section, key: 86400.0)
+    monkeypatch.setattr(workloads_base.conf, "getfloat", lambda section, key, **kwargs: 86400.0)
 
     generator = JWTGenerator(secret_key="test-secret", audience="test", valid_for=60)
     token = ExecuteCallback.generate_token("cb-123", generator)
