@@ -20,6 +20,8 @@ import re
 import warnings
 import weakref
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 from unittest import mock
 
@@ -37,6 +39,7 @@ from airflow.sdk import (
 )
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.timetable import BaseTimetable
+from airflow.sdk.definitions.dag import _dag_test_files_to_sync, _static_trigger_targets
 from airflow.sdk.definitions.param import DagParam, ParamsDict
 from airflow.sdk.exceptions import AirflowDagCycleException, DuplicateTaskIdFound, RemovedInAirflow4Warning
 from airflow.utils.types import DagRunType
@@ -1037,3 +1040,182 @@ class TestDagGetItem:
         dag = DAG("test_dag", schedule=None, start_date=DEFAULT_DATE)
         with pytest.raises(KeyError):
             dag["nonexistent"]
+
+
+class TriggerLikeOperator(BaseOperator):
+    """Stands in for ``TriggerDagRunOperator``: any operator with a ``trigger_dag_id`` template field counts."""
+
+    template_fields = ("trigger_dag_id", "conf")
+
+    def __init__(self, *, trigger_dag_id, conf=None, **kwargs):
+        super().__init__(**kwargs)
+        self.trigger_dag_id = trigger_dag_id
+        self.conf = conf
+
+    def execute(self, context):
+        pass
+
+
+class TestDagTestFilesToSync:
+    """The files ``DAG.test()`` parses before re-syncing the owning bundle (apache/airflow#72513)."""
+
+    @pytest.fixture
+    def bundle(self, tmp_path):
+        bundle_dir = tmp_path / "dags"
+        bundle_dir.mkdir()
+        return SimpleNamespace(name="testing", path=bundle_dir)
+
+    @staticmethod
+    def _dag(dag_id="parent", fileloc=None):
+        dag = DAG(dag_id, schedule=None, start_date=DEFAULT_DATE)
+        if fileloc is not None:
+            dag.fileloc = str(fileloc)
+        return dag
+
+    @staticmethod
+    def _file(directory, name):
+        path = Path(directory) / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("")
+        return path
+
+    @staticmethod
+    def _model(bundle_name="testing", relative_fileloc=None, fileloc=None):
+        return SimpleNamespace(bundle_name=bundle_name, relative_fileloc=relative_fileloc, fileloc=fileloc)
+
+    def test_static_trigger_targets_collects_literal_ids_and_ignores_self(self):
+        dag = self._dag()
+        with dag:
+            TriggerLikeOperator(task_id="a", trigger_dag_id="child_a")
+            TriggerLikeOperator(task_id="b", trigger_dag_id="child_b")
+            TriggerLikeOperator(task_id="a_again", trigger_dag_id="child_a")
+            TriggerLikeOperator(task_id="self", trigger_dag_id="parent")
+            DoNothingOperator(task_id="plain")
+
+        assert _static_trigger_targets(dag) == {"child_a", "child_b"}
+
+    def test_static_trigger_targets_without_trigger_tasks_is_empty(self):
+        dag = self._dag()
+        with dag:
+            DoNothingOperator(task_id="plain")
+
+        assert _static_trigger_targets(dag) == set()
+
+    def test_static_trigger_targets_templated_id_is_not_static(self):
+        dag = self._dag()
+        with dag:
+            TriggerLikeOperator(task_id="known", trigger_dag_id="child")
+            TriggerLikeOperator(task_id="templated", trigger_dag_id="{{ params.target }}")
+
+        assert _static_trigger_targets(dag) is None
+
+    def test_static_trigger_targets_xcom_arg_is_not_static(self):
+        dag = self._dag()
+        with dag:
+            upstream = DoNothingOperator(task_id="upstream")
+            TriggerLikeOperator(task_id="dynamic", trigger_dag_id=upstream.output)
+
+        assert _static_trigger_targets(dag) is None
+
+    def test_static_trigger_targets_mapped_operator(self):
+        dag = self._dag()
+        with dag:
+            TriggerLikeOperator.partial(task_id="fixed_target", trigger_dag_id="child").expand(
+                conf=[{"n": 1}, {"n": 2}]
+            )
+        assert _static_trigger_targets(dag) == {"child"}
+
+        dag = self._dag()
+        with dag:
+            TriggerLikeOperator.partial(task_id="expanded_target").expand(
+                trigger_dag_id=["child_a", "child_b"]
+            )
+        assert _static_trigger_targets(dag) is None
+
+    def test_files_to_sync_own_file_only(self, bundle):
+        own = self._file(bundle.path, "parent.py")
+        dag = self._dag(fileloc=own)
+        with dag:
+            DoNothingOperator(task_id="plain")
+
+        with mock.patch("airflow.models.dag.DagModel.get_current") as get_current:
+            files = _dag_test_files_to_sync(dag, bundle, session=mock.sentinel.session)
+
+        assert files == [own.resolve()]
+        get_current.assert_not_called()
+
+    def test_files_to_sync_adds_target_files_known_to_the_metadata_db(self, bundle):
+        own = self._file(bundle.path, "parent.py")
+        child_a = self._file(bundle.path, "sub/child_a.py")
+        child_b = self._file(bundle.path, "child_b.py")
+        dag = self._dag(fileloc=own)
+        with dag:
+            TriggerLikeOperator(task_id="a", trigger_dag_id="child_a")
+            TriggerLikeOperator(task_id="b", trigger_dag_id="child_b")
+            TriggerLikeOperator(task_id="elsewhere", trigger_dag_id="other_bundle_dag")
+        models = {
+            "child_a": self._model(relative_fileloc="sub/child_a.py"),
+            # no relative location recorded: the absolute one is used
+            "child_b": self._model(fileloc=str(child_b)),
+            # defined in another bundle: already known, and not this bundle's to refresh
+            "other_bundle_dag": self._model(bundle_name="other", relative_fileloc="other.py"),
+        }
+
+        with mock.patch(
+            "airflow.models.dag.DagModel.get_current", side_effect=lambda dag_id, session: models[dag_id]
+        ) as get_current:
+            files = _dag_test_files_to_sync(dag, bundle, session=mock.sentinel.session)
+
+        assert files == sorted([own.resolve(), child_a.resolve(), child_b.resolve()])
+        assert get_current.call_args_list == [
+            mock.call("child_a", session=mock.sentinel.session),
+            mock.call("child_b", session=mock.sentinel.session),
+            mock.call("other_bundle_dag", session=mock.sentinel.session),
+        ]
+
+    def test_files_to_sync_walks_bundle_when_dag_is_outside_it(self, bundle, tmp_path):
+        own = self._file(tmp_path, "elsewhere/parent.py")
+        dag = self._dag(fileloc=own)
+        with dag:
+            DoNothingOperator(task_id="plain")
+
+        with mock.patch("airflow.models.dag.DagModel.get_current") as get_current:
+            assert _dag_test_files_to_sync(dag, bundle, session=mock.sentinel.session) is None
+        get_current.assert_not_called()
+
+    def test_files_to_sync_walks_bundle_when_a_target_is_not_static(self, bundle):
+        own = self._file(bundle.path, "parent.py")
+        dag = self._dag(fileloc=own)
+        with dag:
+            TriggerLikeOperator(task_id="templated", trigger_dag_id="{{ params.target }}")
+
+        with mock.patch("airflow.models.dag.DagModel.get_current") as get_current:
+            assert _dag_test_files_to_sync(dag, bundle, session=mock.sentinel.session) is None
+        get_current.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "target_model",
+        [
+            pytest.param(None, id="never-parsed"),
+            pytest.param(
+                SimpleNamespace(bundle_name="testing", relative_fileloc=None, fileloc=None), id="no-location"
+            ),
+            pytest.param(
+                SimpleNamespace(bundle_name="testing", relative_fileloc="gone.py", fileloc=None),
+                id="file-missing",
+            ),
+            pytest.param(
+                SimpleNamespace(bundle_name="testing", relative_fileloc="../outside.py", fileloc=None),
+                id="file-outside-bundle",
+            ),
+        ],
+    )
+    def test_files_to_sync_walks_bundle_when_a_target_file_is_unknown(self, bundle, tmp_path, target_model):
+        own = self._file(bundle.path, "parent.py")
+        self._file(tmp_path, "outside.py")
+        dag = self._dag(fileloc=own)
+        with dag:
+            TriggerLikeOperator(task_id="a", trigger_dag_id="child")
+
+        with mock.patch("airflow.models.dag.DagModel.get_current", return_value=target_model):
+            assert _dag_test_files_to_sync(dag, bundle, session=mock.sentinel.session) is None
