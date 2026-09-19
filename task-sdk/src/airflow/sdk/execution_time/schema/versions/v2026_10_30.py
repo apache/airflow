@@ -34,3 +34,16 @@ class AddArgBindingsToSupervisorTIRunContext(VersionChange):
     description = __doc__
 
     instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("arg_bindings").didnt_exist,)
+
+
+class AddExecutionTimeoutSupervisorMessage(VersionChange):
+    """
+    Add the ``SetExecutionTimeout`` task-to-supervisor message.
+
+    This introduces a new message body, not a field on an existing body. Older runtimes do not send this
+    message, so there is no field-level downgrade instruction to apply.
+    """
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = ()

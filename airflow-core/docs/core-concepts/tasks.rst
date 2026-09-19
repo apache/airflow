@@ -119,7 +119,10 @@ Timeouts
 If you want a task to have a maximum runtime, set its ``execution_timeout`` attribute to a ``datetime.timedelta`` value
 that is the maximum permissible runtime. This applies to all Airflow tasks, including sensors. ``execution_timeout`` controls the
 maximum time allowed for every execution. If ``execution_timeout`` is breached, the task times out and
-``AirflowTaskTimeout`` is raised.
+``AirflowTaskTimeout`` is raised. For tasks executed by the Python task runner, the task supervisor enforces
+the timeout from outside the task process too: if the task has not stopped within a short grace period after
+``execution_timeout`` elapses (for example because it is blocked in native code that never returns control to
+Python), the supervisor terminates it.
 
 In addition, sensors have a ``timeout`` parameter. This only matters for sensors in ``reschedule`` mode. ``timeout`` controls the maximum
 time allowed for the sensor to succeed. If ``timeout`` is breached, ``AirflowSensorTimeout`` will be raised and the sensor fails immediately
