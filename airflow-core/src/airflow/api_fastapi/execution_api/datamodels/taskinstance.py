@@ -447,6 +447,17 @@ class TIRunContext(BaseModel):
     ``None`` for regular tasks and for stub tasks that declare no parameters.
     """
 
+    multi_team: bool = False
+    """
+    Whether the deployment runs in multi-team mode.
+
+    Sent explicitly because a worker cannot read ``core.multi_team`` itself: its config is
+    not guaranteed to match the scheduler's, and reading it as disabled while it is in fact
+    enabled would drop team scoping and apply a team's plugins to every task. ``team_name``
+    cannot stand in for this, being ``None`` both for a teamless task and for every task
+    when multi-team is off.
+    """
+
 
 class PrevSuccessfulDagRunResponse(BaseModel):
     """Schema for response with previous successful DagRun information for Task Template Context."""
