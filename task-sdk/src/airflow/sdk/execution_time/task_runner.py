@@ -1214,6 +1214,17 @@ def startup(msg: StartupDetails) -> tuple[RuntimeTaskInstance, Context, Logger]:
 
     with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
         ti = parse(msg, log)
+
+    if conf.getboolean("logging", "dag_tags_in_logs", fallback=False):
+        # Dag tags are only available once the Dag is parsed, so this can't be folded into the
+        # bind_contextvars() call above -- logs emitted during parsing itself can't carry them.
+        # Built-in TI identifiers always win on collision with a same-named Dag tag.
+        reserved_keys = {"ti_id", "dag_id", "task_id", "run_id", "try_number", "map_index"}
+        dag_tags = {
+            k: v for k, v in build_dag_metric_tags(ti.task.dag.tags).items() if k not in reserved_keys
+        }
+        bind_contextvars(**dag_tags)
+
     log.debug("Dag file parsed", file=msg.dag_rel_path)
 
     run_as_user = getattr(ti.task, "run_as_user", None) or conf.get(
