@@ -589,12 +589,14 @@ class SFTPHook(SSHHook):
     @handle_connection_management
     def get_mod_time(self, path: str) -> str:
         """
-        Get an entry's modification time.
+        Get an entry's modification time as a ``%Y%m%d%H%M%S`` UTC string.
 
         :param path: full path to the remote file
         """
         ftp_mdtm = self.conn.stat(path).st_mtime  # type: ignore[union-attr]
-        return datetime.datetime.fromtimestamp(ftp_mdtm).strftime("%Y%m%d%H%M%S")  # type: ignore
+        return datetime.datetime.fromtimestamp(ftp_mdtm, tz=datetime.timezone.utc).strftime(  # type: ignore
+            "%Y%m%d%H%M%S"
+        )
 
     @handle_connection_management
     def path_exists(self, path: str) -> bool:
@@ -1066,7 +1068,7 @@ class SFTPHookAsync(BaseHook):
         Make SFTP async connection.
 
         Looks for last modified time in the specific file path and returns last modification time for
-         the file path.
+         the file path as a ``%Y%m%d%H%M%S`` UTC string.
 
         :param path: full path to the remote file
         """
@@ -1075,7 +1077,9 @@ class SFTPHookAsync(BaseHook):
                 try:
                     ftp_mdtm = await sftp.stat(path)
                     modified_time = ftp_mdtm.mtime
-                    mod_time = datetime.datetime.fromtimestamp(modified_time).strftime("%Y%m%d%H%M%S")  # type: ignore[arg-type]
+                    mod_time = datetime.datetime.fromtimestamp(  # type: ignore[arg-type]
+                        modified_time, tz=datetime.timezone.utc
+                    ).strftime("%Y%m%d%H%M%S")
                     self.log.info("Found File %s last modified: %s", str(path), str(mod_time))
                     return mod_time
                 except asyncssh.SFTPNoSuchFile:
