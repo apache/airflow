@@ -26,6 +26,7 @@ from airflow.sdk._shared.observability.metrics.stats import (
     incr,
     initialize,
     normalize_name_for_stats,
+    observable_gauge,
     timer,
     timing,
 )
@@ -37,6 +38,7 @@ __all__ = [
     "incr",
     "initialize",
     "normalize_name_for_stats",
+    "observable_gauge",
     "timer",
     "timing",
 ]
