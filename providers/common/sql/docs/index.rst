@@ -127,6 +127,7 @@ Dependent package                                                               
 ====================================================================================================================  ==================
 `apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                  ``amazon``
 `apache-airflow-providers-apache-iceberg <https://airflow.apache.org/docs/apache-airflow-providers-apache-iceberg>`_  ``apache.iceberg``
+`apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_                  ``google``
 `apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_        ``openlineage``
 ====================================================================================================================  ==================
 
@@ -149,6 +150,7 @@ Extra               Dependencies
 ``polars``          ``polars>=1.26.0``
 ``sqlalchemy``      ``sqlalchemy>=1.4.54``
 ``amazon``          ``apache-airflow-providers-amazon``
+``google``          ``apache-airflow-providers-google``
 ``datafusion``      ``datafusion>=50.0.0,<52.0.0``
 ``pyiceberg-core``  ``pyiceberg-core>=0.8.0``
 ``apache.iceberg``  ``apache-airflow-providers-apache-iceberg``

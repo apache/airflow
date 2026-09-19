@@ -73,7 +73,12 @@ class TestDataFusionEngine:
 
     @pytest.mark.parametrize(
         ("storage_type", "format", "scheme"),
-        [("s3", "parquet", "s3"), ("s3", "csv", "s3"), ("s3", "avro", "s3")],
+        [
+            ("s3", "parquet", "s3"),
+            ("s3", "csv", "s3"),
+            ("s3", "avro", "s3"),
+            ("gcs", "parquet", "gs"),
+        ],
     )
     @patch("airflow.providers.common.sql.datafusion.engine.get_object_storage_provider", autospec=True)
     @patch.object(DataFusionEngine, "_get_connection_config")
@@ -280,6 +285,48 @@ class TestDataFusionEngine:
         assert result.conn_id == expected.conn_id
         assert result.credentials == expected.credentials
         assert result.extra_config == expected.extra_config
+
+    def test_get_credentials_gcs_with_key_path(self):
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "google_cloud_platform"
+        mock_conn.extra_dejson = {"key_path": "/path/to/key.json"}
+        engine = DataFusionEngine()
+
+        credentials, extra_config = engine._get_credentials(mock_conn)
+
+        assert credentials == {"key_path": "/path/to/key.json"}
+        assert extra_config == {}
+
+    def test_get_credentials_gcs_with_keyfile_dict(self):
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "google_cloud_platform"
+        mock_conn.extra_dejson = {"keyfile_dict": '{"type": "service_account"}'}
+        engine = DataFusionEngine()
+
+        credentials, extra_config = engine._get_credentials(mock_conn)
+
+        assert credentials == {"keyfile_dict": '{"type": "service_account"}'}
+        assert extra_config == {}
+
+    def test_get_credentials_gcs_without_key_path_uses_adc(self):
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "google_cloud_platform"
+        mock_conn.extra_dejson = {}
+        engine = DataFusionEngine()
+
+        credentials, extra_config = engine._get_credentials(mock_conn)
+
+        assert credentials == {}
+        assert extra_config == {}
+
+    def test_get_credentials_gcs_key_path_and_keyfile_dict_mutually_exclusive(self):
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "google_cloud_platform"
+        mock_conn.extra_dejson = {"key_path": "/path/to/key.json", "keyfile_dict": "{}"}
+        engine = DataFusionEngine()
+
+        with pytest.raises(ValueError, match="mutually exclusive"):
+            engine._get_credentials(mock_conn)
 
     def test_get_credentials_unknown_type(self):
         mock_conn = MagicMock()
