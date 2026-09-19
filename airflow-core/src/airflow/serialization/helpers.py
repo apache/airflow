@@ -89,8 +89,9 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
             return serialize_object(obj.to_dict())
 
         if callable(obj):
-            # Use qualified name; default repr embeds memory addresses, which would change the DAG hash on every parse
-            return f"<callable {qualname(obj, True)}>"
+            # The default repr includes a memory address, and a Dag file's module name includes a hash of the
+            # file path. Leave both out so the Dag hash does not change between parses or when the file moves.
+            return f"<callable {qualname(obj, exclude_module=True)}>"
 
         # A custom __str__ or __repr__ is treated as an intentional textual representation
         # supplied by the author and used as-is.
@@ -100,7 +101,7 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
         # Otherwise fall back to a qualname marker. The default object repr is
         # `<ClassName object at 0x...>`, which embeds a memory address that flips per process
         # and would break DAG hash stability — use the class qualname instead.
-        return f"<{qualname(type(obj), True)} object>"
+        return f"<{qualname(type(obj), exclude_module=True)} object>"
 
     max_length = conf.getint("core", "max_templated_field_length")
 
