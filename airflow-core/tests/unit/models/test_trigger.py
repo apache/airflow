@@ -26,7 +26,8 @@ import pendulum
 import pytest
 import pytz
 from cryptography.fernet import Fernet
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, event, func, select
+from sqlalchemy.exc import OperationalError
 
 from airflow._shared.timezones import timezone
 from airflow.jobs.job import Job
@@ -171,13 +172,149 @@ def test_clean_unused(session, dag_maker):
     callback = TriggererCallback(callback_def=AsyncCallback("classpath.callback"))
     callback.trigger = trigger6
     session.add(callback)
-    session.flush()
+    expected_trigger_ids = {trigger1.id, trigger4.id, trigger5.id, trigger6.id}
+    session.commit()
 
     # Run clear operation
-    Trigger.clean_unused(session=session)
+    Trigger.clean_unused()
+    session.expire_all()
     results = session.scalars(select(Trigger)).all()
     assert len(results) == 4
-    assert {result.id for result in results} == {trigger1.id, trigger4.id, trigger5.id, trigger6.id}
+    assert {result.id for result in results} == expected_trigger_ids
+
+
+@conf_vars({("triggerer", "unreferenced_triggers_cleanup_batch_size"): "2"})
+@pytest.mark.parametrize(
+    ("trigger_count", "expected_delete_rowcounts", "expected_commit_count"),
+    [
+        pytest.param(0, [], 1, id="empty"),
+        pytest.param(1, [1], 1, id="below-batch-size"),
+        pytest.param(2, [2], 2, id="exactly-batch-size"),
+        pytest.param(3, [2, 1], 2, id="above-batch-size"),
+        pytest.param(5, [2, 2, 1], 3, id="multiple-batches"),
+    ],
+)
+def test_clean_unused_batches_deletes_and_commits(
+    session, trigger_count, expected_delete_rowcounts, expected_commit_count
+):
+    session.add_all(
+        [
+            Trigger(classpath=f"airflow.triggers.testing.SuccessTrigger{index}", kwargs={})
+            for index in range(trigger_count)
+        ]
+    )
+    session.commit()
+
+    deleted_rows_per_statement = []
+    commit_count = 0
+
+    def capture_delete_rowcount(connection, cursor, statement, parameters, context, executemany):
+        normalized_statement = " ".join(statement.lower().replace('"', "").replace("`", "").split())
+        if "delete from trigger" in normalized_statement:
+            deleted_rows_per_statement.append(cursor.rowcount)
+
+    def count_commit(committed_session):
+        nonlocal commit_count
+        commit_count += 1
+
+    event.listen(session.bind, "after_cursor_execute", capture_delete_rowcount)
+    event.listen(session.__class__, "after_commit", count_commit)
+    try:
+        Trigger.clean_unused()
+    finally:
+        event.remove(session.bind, "after_cursor_execute", capture_delete_rowcount)
+        event.remove(session.__class__, "after_commit", count_commit)
+
+    assert (deleted_rows_per_statement, commit_count) == (
+        expected_delete_rowcounts,
+        expected_commit_count,
+    )
+    session.expire_all()
+    assert session.scalar(select(func.count()).select_from(Trigger)) == 0
+
+
+@pytest.mark.parametrize("batch_size", [0, -1])
+def test_clean_unused_rejects_non_positive_batch_size_before_transaction(session, batch_size):
+    commit_count = 0
+
+    def count_commit(committed_session):
+        nonlocal commit_count
+        commit_count += 1
+
+    event.listen(session.__class__, "after_commit", count_commit)
+    try:
+        with conf_vars({("triggerer", "unreferenced_triggers_cleanup_batch_size"): str(batch_size)}):
+            with pytest.raises(
+                ValueError,
+                match=r"\[triggerer\] unreferenced_triggers_cleanup_batch_size must be at least 1",
+            ):
+                Trigger.clean_unused()
+    finally:
+        event.remove(session.__class__, "after_commit", count_commit)
+
+    assert commit_count == 0
+
+
+@conf_vars({("triggerer", "unreferenced_triggers_cleanup_batch_size"): "2"})
+def test_clean_unused_retries_failed_batch_in_fresh_transactions(session):
+    session.add_all(
+        [
+            Trigger(classpath=f"airflow.triggers.testing.SuccessTrigger{index}", kwargs={})
+            for index in range(5)
+        ]
+    )
+    session.commit()
+
+    successful_delete_count = 0
+    cleanup_sessions = []
+    commit_count = 0
+    rollback_count = 0
+
+    def fail_second_delete(connection, cursor, statement, parameters, context, executemany):
+        normalized_statement = " ".join(statement.lower().replace('"', "").replace("`", "").split())
+        if "delete from trigger" in normalized_statement and successful_delete_count == 1:
+            raise OperationalError(statement, parameters, RuntimeError("injected cleanup failure"))
+
+    def count_successful_deletes(connection, cursor, statement, parameters, context, executemany):
+        nonlocal successful_delete_count
+        normalized_statement = " ".join(statement.lower().replace('"', "").replace("`", "").split())
+        if "delete from trigger" in normalized_statement:
+            successful_delete_count += 1
+
+    def capture_session(cleanup_session, transaction, connection):
+        cleanup_sessions.append(cleanup_session)
+
+    def count_commit(committed_session):
+        nonlocal commit_count
+        commit_count += 1
+
+    def count_rollback(rolled_back_session):
+        nonlocal rollback_count
+        rollback_count += 1
+
+    event.listen(session.bind, "before_cursor_execute", fail_second_delete)
+    event.listen(session.bind, "after_cursor_execute", count_successful_deletes)
+    event.listen(session.__class__, "after_begin", capture_session)
+    event.listen(session.__class__, "after_commit", count_commit)
+    event.listen(session.__class__, "after_rollback", count_rollback)
+    try:
+        with pytest.raises(OperationalError, match="injected cleanup failure"):
+            Trigger.clean_unused()
+    finally:
+        event.remove(session.bind, "before_cursor_execute", fail_second_delete)
+        event.remove(session.bind, "after_cursor_execute", count_successful_deletes)
+        event.remove(session.__class__, "after_begin", capture_session)
+        event.remove(session.__class__, "after_commit", count_commit)
+        event.remove(session.__class__, "after_rollback", count_rollback)
+
+    assert len({id(cleanup_session) for cleanup_session in cleanup_sessions}) == 4
+    assert (successful_delete_count, commit_count, rollback_count) == (1, 1, 3)
+    session.expire_all()
+    assert session.scalar(select(func.count()).select_from(Trigger)) == 3
+
+    Trigger.clean_unused()
+    session.expire_all()
+    assert session.scalar(select(func.count()).select_from(Trigger)) == 0
 
 
 @patch.object(TriggererCallback, "handle_event")
