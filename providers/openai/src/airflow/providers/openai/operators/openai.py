@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from airflow.providers.common.compat.sdk import BaseOperator, conf
 from airflow.providers.openai.hooks.openai import (
     OpenAIHook,
+    TerminationReason,
     build_batch_error,
     validate_execute_complete_event,
 )
@@ -486,7 +487,7 @@ class OpenAITriggerBatchOperator(BaseOperator):
         """
         event = validate_execute_complete_event(event)
         if event["status"] != "success":
-            if event.get("termination_reason") == "timeout":
+            if event.get("termination_reason") == TerminationReason.TIMEOUT:
                 batch_id = event["batch_id"]
                 self.log.warning(
                     "%s timed out waiting for batch %s; requesting cancellation.",
