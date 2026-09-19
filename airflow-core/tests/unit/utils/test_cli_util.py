@@ -37,6 +37,7 @@ from airflow.models.dag import DagModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.log import Log
 from airflow.models.team import Team
+from airflow.sdk import DAG
 from airflow.utils import cli, cli_action_loggers
 from airflow.utils.cli import _search_for_dag_file
 
@@ -242,6 +243,22 @@ class TestCliUtil:
             log = session.scalar(select(Log).where(Log.dag_id == "dag_owned_by_a_team"))
 
         assert log.team_name == "payments"
+
+    def test_dag_cli_records_the_dag_id_in_the_audit_log(self):
+        """``DAG.cli()``'s parser drops ``dag_id``, so the Dag has to supply it before dispatch."""
+        dag = DAG("dag_cli_audit_log")
+
+        with (
+            mock.patch.object(sys, "argv", ["dag_cli_audit_log.py", "tasks", "list"]),
+            mock.patch("airflow.utils.session.create_session") as mock_create_session,
+        ):
+            dag.cli()
+
+        audit_session = mock_create_session.return_value.__enter__.return_value
+        model, rows = audit_session.bulk_insert_mappings.call_args.args
+        assert model is Log
+        assert rows[0]["event"] == "cli_task_list"
+        assert rows[0]["dag_id"] == "dag_cli_audit_log"
 
     def test_setup_locations_relative_pid_path(self):
         relative_pid_path = "fake.pid"

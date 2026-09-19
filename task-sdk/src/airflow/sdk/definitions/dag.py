@@ -1185,6 +1185,9 @@ class DAG:
 
         parser = cli_parser.get_parser(dag_parser=True)
         args = parser.parse_args()
+        # This parser drops ``dag_id``, but the audit log is written from the namespace before the
+        # command runs, so a handler back-filling it later is already too late.
+        args.dag_id = self.dag_id
         args.func(args, self)
 
     @classmethod
