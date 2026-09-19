@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useMemo } from "react";
+
 import { createListCollection, Flex, Select, type SelectValueChangeDetails, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
@@ -40,7 +42,7 @@ type VersionCompareSelectProps = {
 export const VersionCompareSelect = ({
   label,
   onVersionChange,
-  placeholder = "Select version",
+  placeholder,
   selectedVersionNumber,
 }: VersionCompareSelectProps) => {
   const { t: translate } = useTranslation("components");
@@ -49,9 +51,13 @@ export const VersionCompareSelect = ({
 
   const selectedVersion = data?.dag_versions.find((dv) => dv.version_number === selectedVersionNumber);
 
-  const versionOptions = createListCollection({
-    items: (data?.dag_versions ?? []).map((dv) => ({ value: dv.version_number, version: dv })),
-  });
+  const versionOptions = useMemo(
+    () =>
+      createListCollection({
+        items: (data?.dag_versions ?? []).map((dv) => ({ value: dv.version_number, version: dv })),
+      }),
+    [data],
+  );
 
   const handleStateChange = ({ items }: SelectValueChangeDetails<VersionSelected>) => {
     if (items[0]) {
@@ -71,7 +77,7 @@ export const VersionCompareSelect = ({
       <Select.Label fontSize="xs">{label}</Select.Label>
       <Select.Control>
         <Select.Trigger>
-          <Select.ValueText placeholder={placeholder}>
+          <Select.ValueText placeholder={placeholder ?? translate("versionSelect.placeholder")}>
             {selectedVersion === undefined ? undefined : (
               <Flex gap={2} justifyContent="space-between">
                 <Text>

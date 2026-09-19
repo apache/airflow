@@ -1294,6 +1294,97 @@ export type DagTagResponse = {
 };
 
 /**
+ * What part of a Dag a difference belongs to. Mirrors ``DiffCategory``.
+ */
+export type DagVersionDiffCategory = 'asset' | 'authorization' | 'callback' | 'deadline' | 'dependency' | 'metadata' | 'param' | 'provenance' | 'schedule' | 'task' | 'unknown';
+
+/**
+ * One structural difference between two stored Dag versions.
+ */
+export type DagVersionDiffChangeResponse = {
+    path: string;
+    operation: DagVersionDiffOperation;
+    category: DagVersionDiffCategory;
+    impact: DagVersionDiffImpact;
+    /**
+     * How many underlying changes this record stands for. Always 1 when values are disclosed, since each change is then its own record; a redacted record merges every change sharing its path and operation.
+     */
+    occurrence_count: number;
+    /**
+     * SHA-256 over the canonical JSON of `before_value`. Present only when values are disclosed, and null when the change has no before side.
+     */
+    before_digest?: string | null;
+    /**
+     * SHA-256 over the canonical JSON of `after_value`. Present only when values are disclosed, and null when the change has no after side.
+     */
+    after_digest?: string | null;
+    /**
+     * The value this path held in the base version. Present only when values are disclosed, and omitted entirely when the change has no before side — which is how an absent side is told apart from a stored null.
+     */
+    before_value?: unknown;
+    /**
+     * The value this path holds in the target version. Present only when values are disclosed, and omitted entirely when the change has no after side — which is how an absent side is told apart from a stored null.
+     */
+    after_value?: unknown;
+};
+
+/**
+ * What a difference affects. Mirrors ``DiffImpact``.
+ */
+export type DagVersionDiffImpact = 'authorization' | 'execution' | 'metadata' | 'provenance' | 'unknown';
+
+/**
+ * Whether a comparison could be made at all.
+ */
+export type DagVersionDiffMode = 'observed_state' | 'unavailable';
+
+/**
+ * How a difference presents at its path.
+ */
+export type DagVersionDiffOperation = 'added' | 'removed' | 'changed';
+
+/**
+ * Observed-state difference between two stored Dag versions.
+ */
+export type DagVersionDiffResponse = {
+    /**
+     * Wire format of this payload. Incremented when its shape changes.
+     */
+    diff_schema_version: number;
+    base_version_number: number;
+    target_version_number: number;
+    serialized_dag_schema_versions: DagVersionDiffSchemaVersions;
+    mode: DagVersionDiffMode;
+    /**
+     * Why no comparison could be made. Populated only when `mode` is `unavailable`.
+     */
+    unavailable_reason?: string | null;
+    values_status: DagVersionDiffValuesStatus;
+    /**
+     * Whether a change at a path not already in `changes` was dropped to stay within `max_changes`. Paths that are absent are absent, not unchanged.
+     */
+    truncated: boolean;
+    /**
+     * Underlying changes across every disclosed path, not the number of records. Exact when `truncated` is false; a lower bound when it is true, because the changes at dropped paths are not counted.
+     */
+    total_changes: number;
+    changes: Array<DagVersionDiffChangeResponse>;
+};
+
+/**
+ * Which serializer schema each compared version was stored under.
+ */
+export type DagVersionDiffSchemaVersions = {
+    base: number | null;
+    target: number | null;
+};
+
+/**
+ * Whether values were disclosed. Mirrors ``ValuesStatus``.
+ */
+export type DagVersionDiffValuesStatus = 'available' | 'unavailable';
+
+/**
  * Dag Version serializer for responses.
  */
 export type DagVersionResponse = {
@@ -4762,6 +4853,18 @@ export type GetDagVersionsData = {
 };
 
 export type GetDagVersionsResponse = DAGVersionCollectionResponse;
+
+export type GetDagVersionDiffData = {
+    baseVersionNumber: number;
+    dagId: string;
+    /**
+     * Largest number of records `changes` may hold. A repeat of a path already recorded does not count towards it, and `truncated` says whether the bound dropped anything.
+     */
+    maxChanges?: number;
+    targetVersionNumber: number;
+};
+
+export type GetDagVersionDiffResponse = DagVersionDiffResponse;
 
 export type GetHealthResponse = HealthInfoResponse;
 
@@ -8589,6 +8692,37 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DAGVersionCollectionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagVersions/{base_version_number}/diff/{target_version_number}': {
+        get: {
+            req: GetDagVersionDiffData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DagVersionDiffResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */
