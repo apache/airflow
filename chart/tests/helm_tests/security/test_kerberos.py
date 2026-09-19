@@ -46,10 +46,7 @@ class TestKerberos:
         if worker_set:
             worker_values = {"enableDefault": False, "sets": [{"name": "test", **worker_values}]}
 
-        with pytest.raises(
-            HelmFailedError,
-            match="kerberosInitContainer has been removed.*kerberosSidecar.*startupProbe",
-        ):
+        with pytest.raises(HelmFailedError, match=r"kerberosInitContainer': 'not' failed"):
             render_chart(values={"workers": {worker_type: worker_values}})
 
     def test_kerberos_envs_available_in_worker_with_persistence(self):
