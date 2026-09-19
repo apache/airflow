@@ -158,6 +158,10 @@ you want clearing to always resubmit regardless of a prior success, set
 ``[state_store] clear_on_success = True``, which deletes a task's state store rows automatically
 when it moves to ``SUCCESS`` (see :doc:`/administration-and-deployment/task-and-asset-state-store`).
 
+Dynamically mapped tasks are the exception. If a task that a mapped task expands over is cleared as
+well, the mapped task's rows are deleted for every map index, because the list is about to be
+recomputed and a map index may then name a different item (see :ref:`concepts:task-state-store-mapped`).
+
 This does not guarantee the external job is still there to reconnect to, though. Clearing a task
 that is actively running (``deferrable=False``) stops the worker process, which runs the
 operator's ``on_kill``. Most operators with durable execution cancel the external job there by

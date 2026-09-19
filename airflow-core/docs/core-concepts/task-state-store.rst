@@ -288,10 +288,14 @@ Deferrable tasks
 Once a task defers, the Triggerer handles continuity across poke cycles. Use task state store in deferrable tasks only when you need to survive an operator-initiated clear, not for normal poke continuity.
 
 
+.. _concepts:task-state-store-mapped:
+
 Mapped tasks
 ------------
 
 When a task is dynamically mapped (``task.expand(...)``), each map index has its own task state store namespace. ``clear()`` clears only the current index's store.
+
+The namespace is keyed by the position of the item in the expanded list, not by the item itself. So when a task that a mapped task expands over is cleared, for example by clearing it with its downstream tasks or by clearing the whole Dag run, Airflow deletes the mapped task's state for every map index. The upstream task runs again and may return a different list, and a map index would otherwise read the state written for the item that used to be at that position. Clearing only the mapped task keeps its state, since its input does not change.
 
 To wipe state across all map indices of a task, use the :doc:`Core API </administration-and-deployment/task-and-asset-state-store>` (e.g. via the UI or CLI) after the task group has finished.
 

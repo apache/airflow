@@ -34,6 +34,9 @@ class TaskStateStoreModel(Base):
     Scoped to (dag_run_id, task_id, map_index). Retries of the same task share
     the same rows — that is the point. Different DAG runs have different dag_run_id
     values so they get independent namespaces automatically.
+
+    ``map_index`` is a position in the expanded list, so a mapped task's rows are
+    deleted when a task it expands over is cleared (see ``clear_task_instances``).
     """
 
     __tablename__ = "task_state_store"

@@ -25,11 +25,13 @@ from sqlalchemy import func, select, update
 
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
+from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import TaskInstance, TaskInstance as TI, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.sensors.python import PythonSensor
+from airflow.sdk import task, task_group
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -1190,3 +1192,141 @@ class TestClearTasks:
 
         cleared_ids = {ti.task_id for ti in cleared}
         assert cleared_ids == {"teardown_t"}
+
+    @staticmethod
+    def _write_task_state(session, dag_run, task_id, map_indexes):
+        for map_index in map_indexes:
+            session.add(
+                TaskStateStoreModel(
+                    dag_run_id=dag_run.id,
+                    dag_id=dag_run.dag_id,
+                    run_id=dag_run.run_id,
+                    task_id=task_id,
+                    map_index=map_index,
+                    key="checkpoint",
+                    value=f"{task_id}-{map_index}",
+                )
+            )
+        session.flush()
+
+    @staticmethod
+    def _task_state(session, dag_run):
+        return set(
+            session.execute(
+                select(TaskStateStoreModel.task_id, TaskStateStoreModel.map_index).where(
+                    TaskStateStoreModel.dag_id == dag_run.dag_id,
+                    TaskStateStoreModel.run_id == dag_run.run_id,
+                )
+            ).all()
+        )
+
+    @pytest.mark.parametrize(
+        ("cleared_task_ids", "expected_task_state"),
+        [
+            pytest.param(
+                {"make_items"},
+                {("plain", -1), ("mapped_over_literal", 0)},
+                id="expansion-source-cleared",
+            ),
+            pytest.param(
+                {"process"},
+                {("process", 0), ("process", 1), ("process", 2), ("plain", -1), ("mapped_over_literal", 0)},
+                id="only-mapped-task-cleared",
+            ),
+            pytest.param(
+                {"make_items", "process", "plain", "mapped_over_literal"},
+                {("plain", -1), ("mapped_over_literal", 0)},
+                id="whole-run-cleared",
+            ),
+        ],
+    )
+    def test_clear_task_instances_deletes_task_state_of_re_expanded_tasks(
+        self, cleared_task_ids, expected_task_state, dag_maker, session
+    ):
+        """A mapped task keeps its task state unless a task it expands over is cleared too."""
+        with dag_maker("test_clear_task_state_of_re_expanded_tasks", session=session):
+
+            @task
+            def make_items():
+                return ["a", "b", "c"]
+
+            @task
+            def process(item): ...
+
+            @task
+            def plain(items): ...
+
+            @task
+            def mapped_over_literal(item): ...
+
+            items = make_items()
+            process.expand(item=items)
+            plain(items)
+            mapped_over_literal.expand(item=["x"])
+
+        dag_run = dag_maker.create_dagrun()
+        other_run = dag_maker.create_dagrun(
+            run_id="other_run", logical_date=DEFAULT_DATE + datetime.timedelta(1)
+        )
+        for run in (dag_run, other_run):
+            self._write_task_state(session, run, "process", [0, 1, 2])
+            self._write_task_state(session, run, "plain", [-1])
+            self._write_task_state(session, run, "mapped_over_literal", [0])
+
+        tis = [ti for ti in dag_run.get_task_instances(session=session) if ti.task_id in cleared_task_ids]
+        clear_task_instances(tis, session=session)
+        session.flush()
+
+        assert self._task_state(session, dag_run) == expected_task_state
+        # Another run of the same Dag has its own expansion, so it is left alone.
+        assert ("process", 1) in self._task_state(session, other_run)
+
+    def test_clear_task_instances_deletes_task_state_of_re_expanded_task_group(self, dag_maker, session):
+        """Tasks in a mapped task group expand over the group's input, so clearing it resets them."""
+        with dag_maker("test_clear_task_state_of_re_expanded_task_group", session=session):
+
+            @task
+            def make_items():
+                return ["a", "b"]
+
+            @task
+            def inner(item): ...
+
+            @task_group
+            def group(item):
+                inner(item)
+
+            group.expand(item=make_items())
+
+        dag_run = dag_maker.create_dagrun()
+        self._write_task_state(session, dag_run, "group.inner", [0, 1])
+
+        clear_task_instances(
+            [ti for ti in dag_run.get_task_instances(session=session) if ti.task_id == "make_items"],
+            session=session,
+        )
+        session.flush()
+
+        assert self._task_state(session, dag_run) == set()
+
+    def test_dag_clear_with_downstream_deletes_task_state_of_re_expanded_tasks(self, dag_maker, session):
+        """Clearing the expansion source with its downstream, as the UI does, resets the mapped task."""
+        with dag_maker("test_dag_clear_task_state_of_re_expanded_tasks", session=session) as dag:
+
+            @task
+            def make_items():
+                return ["a", "b"]
+
+            @task
+            def process(item): ...
+
+            process.expand(item=make_items())
+
+        dag_run = dag_maker.create_dagrun()
+        for ti in dag_run.get_task_instances(session=session):
+            ti.set_state(TaskInstanceState.SUCCESS, session=session)
+        self._write_task_state(session, dag_run, "process", [0, 1])
+
+        dag.clear(task_ids=["make_items", "process"], run_id=dag_run.run_id, session=session)
+
+        assert self._task_state(session, dag_run) == set()
