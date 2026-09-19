@@ -32,8 +32,7 @@ export const DagsFilters = () => {
   const searchParamKeys: Array<FilterableSearchParamsKeys> = [
     SearchParamsKeys.PAUSED,
     SearchParamsKeys.SCHEDULING_STATE,
-    SearchParamsKeys.LAST_DAG_RUN_STATE,
-    SearchParamsKeys.DAG_RUN_STATE,
+    SearchParamsKeys.RUN_STATE,
     SearchParamsKeys.NEEDS_REVIEW,
     SearchParamsKeys.TAGS,
     SearchParamsKeys.OWNERS,
