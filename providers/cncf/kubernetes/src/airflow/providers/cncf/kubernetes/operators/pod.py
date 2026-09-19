@@ -1139,11 +1139,18 @@ class KubernetesPodOperator(BaseOperator):
                 pod_name,
             )
             if event["status"] == "success":
-                # Trigger already observed the pod completed successfully;
-                # logs/XCom are unrecoverable but the task itself succeeded.
-                return
+                if not self.do_xcom_push:
+                    # The pod ran to completion and the task returns nothing, so only
+                    # its logs are lost.
+                    return
+                # The XCom sidecar went with the pod, so the value the task is contracted
+                # to produce is unrecoverable — fail so a retry re-runs the pod instead of
+                # leaving downstreams to pull a missing XCom.
+                reason = " — its XCom result can no longer be retrieved"
+            else:
+                reason = ""
             raise PodNotFoundException(
-                f"Pod {pod_namespace}/{pod_name} not found after resuming from deferral"
+                f"Pod {pod_namespace}/{pod_name} not found after resuming from deferral{reason}"
             ) from e
 
         if not self.pod:
