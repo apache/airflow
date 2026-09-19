@@ -587,6 +587,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         task_instance: TI,
         concurrency_map: ConcurrencyMap,
         session: Session,
+        starved_dag_runs: dict[str, set[str]],
         starved_tasks: set[tuple[str, str]],
         starved_tasks_task_dagrun_concurrency: set[tuple[str, str, str]],
     ) -> bool:
@@ -595,25 +596,30 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         task_id = task_instance.task_id
         run_id = task_instance.run_id
 
+        if run_id in starved_dag_runs.get(dag_id, ()):
+            return False
+
         serialized_dag = self.scheduler_dag_bag.get_dag_for_run(
             dag_run=task_instance.dag_run,
             session=session,
         )
 
-        # If the DAG is missing, fail all scheduled TIs for this DAG.
+        # Leave the task instances SCHEDULED: the miss is usually transient, and when it is not,
+        # _schedule_dag_run cannot progress the run either, so failing its task instances costs
+        # them their retries and callbacks without unsticking the run. Starving the run is what
+        # keeps this loop live: unstarved, these task instances refill every query iteration and
+        # no other Dag is ever examined.
         if not serialized_dag:
-            self.log.error(
-                "DAG '%s' for task instance %s not found in serialized_dag table",
-                dag_id,
-                task_instance,
-            )
+            if dag_id not in starved_dag_runs:
+                self.log.error(
+                    "Dag '%s' (run %s) for task instance %s not found in serialized_dag table; "
+                    "skipping its task instances for this scheduling round",
+                    dag_id,
+                    run_id,
+                    task_instance,
+                )
 
-            session.execute(
-                update(TI)
-                .where(TI.dag_id == dag_id, TI.state == TaskInstanceState.SCHEDULED)
-                .values(state=TaskInstanceState.FAILED)
-                .execution_options(synchronize_session="fetch")
-            )
+            starved_dag_runs.setdefault(dag_id, set()).add(run_id)
 
             return False
 
@@ -723,12 +729,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         starved_dags: set[str] = set()
         starved_tasks: set[tuple[str, str]] = set()
         starved_tasks_task_dagrun_concurrency: set[tuple[str, str, str]] = set()
+        # Run ids, per Dag, whose serialized Dag could not be resolved. Grouped that way because
+        # resolution is per run -- a run pinned to a deleted version misses while another run of
+        # the same Dag still resolves -- so the runs starve one by one but the Dag is logged once.
+        starved_dag_runs: dict[str, set[str]] = {}
 
         pool_num_starving_tasks: dict[str, int] = Counter()
 
         for loop_count in itertools.count(start=1):
             num_starved_pools = len(starved_pools)
             num_starved_dags = len(starved_dags)
+            num_starved_dag_runs = sum(len(run_ids) for run_ids in starved_dag_runs.values())
             num_starved_tasks = len(starved_tasks)
             num_starved_tasks_task_dagrun_concurrency = len(starved_tasks_task_dagrun_concurrency)
 
@@ -770,6 +781,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             if starved_dags:
                 query = query.where(TI.dag_id.not_in(starved_dags))
+
+            if starved_dag_runs:
+                query = query.where(
+                    tuple_(TI.dag_id, TI.run_id).not_in(
+                        [
+                            (dag_id, run_id)
+                            for dag_id, run_ids in starved_dag_runs.items()
+                            for run_id in run_ids
+                        ]
+                    )
+                )
 
             if starved_tasks:
                 query = query.where(tuple_(TI.dag_id, TI.task_id).not_in(starved_tasks))
@@ -987,6 +1009,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         task_instance=task_instance,
                         concurrency_map=concurrency_map,
                         session=session,
+                        starved_dag_runs=starved_dag_runs,
                         starved_tasks=starved_tasks,
                         starved_tasks_task_dagrun_concurrency=(starved_tasks_task_dagrun_concurrency),
                     )
@@ -1035,6 +1058,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             found_new_filters = (
                 len(starved_pools) > num_starved_pools
                 or len(starved_dags) > num_starved_dags
+                or sum(len(run_ids) for run_ids in starved_dag_runs.values()) > num_starved_dag_runs
                 or len(starved_tasks) > num_starved_tasks
                 or len(starved_tasks_task_dagrun_concurrency) > num_starved_tasks_task_dagrun_concurrency
             )
