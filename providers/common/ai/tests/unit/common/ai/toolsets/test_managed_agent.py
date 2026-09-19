@@ -517,7 +517,7 @@ class TestFailoverMetrics:
         mock_stats.incr.assert_not_called()
 
 
-class TestSafeAgentRef:
+class TestResolveAgentRef:
     """A member's agent_ref only labels a call, so a group tolerates a broken one.
     A toolset's own broken agent_ref is a bug in that toolset and surfaces."""
 
