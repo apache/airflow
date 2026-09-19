@@ -19,6 +19,8 @@ from __future__ import annotations
 import io
 import os
 import tarfile
+from pathlib import Path
+from unittest import mock
 from unittest.mock import MagicMock, call
 
 import boto3
@@ -312,6 +314,61 @@ class TestS3DagBundle:
         assert (bundle.path / "dag_01.py").is_file()
         assert (bundle.path / "dag_02.py").is_file()
         assert not (bundle.path / bundle.archive_etag_marker).exists()
+
+    def test_archive_failure_keeps_bundle_when_prefix_has_nothing_to_sync(
+        self, mocked_s3_resource, s3_client
+    ):
+        # Bucket holds only the archive: the per-object sync has nothing to stage and would
+        # delete the already staged Dags, so the archive failure must be raised instead.
+        mocked_s3_resource.create_bucket(Bucket=S3_BUCKET_NAME)
+        s3_client.put_object(
+            Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=_make_archive({"dag_01.py": b"test data"})
+        )
+
+        bundle = self._archive_bundle()
+        bundle.initialize()
+        assert (bundle.path / "dag_01.py").is_file()
+
+        s3_client.put_object(Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=b"this is not a tarball")
+        with pytest.raises(tarfile.ReadError):
+            bundle.refresh()
+
+        # the previously staged bundle survived the failed refresh
+        assert (bundle.path / "dag_01.py").is_file()
+
+    def test_archive_staging_restores_previous_bundle_when_swap_fails(self, mocked_s3_resource, s3_client):
+        mocked_s3_resource.create_bucket(Bucket=S3_BUCKET_NAME)
+        s3_client.put_object(
+            Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=_make_archive({"dag_01.py": b"old"})
+        )
+
+        bundle = self._archive_bundle()
+        bundle.initialize()
+        assert (bundle.path / "dag_01.py").read_text() == "old"
+
+        s3_client.put_object(
+            Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=_make_archive({"dag_01.py": b"new"})
+        )
+
+        real_rename = Path.rename
+
+        def fail_swap_into_place(self: Path, target):
+            # fail only moving the newly unpacked tree into place, so the restore of the
+            # previous tree (renamed from "previous") still works
+            if self.name == "unpacked" and Path(target) == bundle.path:
+                raise OSError("swap failed")
+            return real_rename(self, target)
+
+        with (
+            mock.patch.object(Path, "rename", fail_swap_into_place),
+            pytest.raises(OSError, match="swap failed"),
+        ):
+            bundle.refresh()
+
+        # the previous bundle was moved back into place, and neither the backup nor the
+        # staging directory was left behind
+        assert (bundle.path / "dag_01.py").read_text() == "old"
+        assert not list(bundle.path.parent.glob(".s3-archive-*"))
 
     def test_fallback_sync_clears_etag_marker(self, s3_bucket, s3_client):
         archive = _make_archive({"dag_01.py": b"test data"})

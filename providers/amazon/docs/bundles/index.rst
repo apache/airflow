@@ -57,7 +57,9 @@ pods) means on every task start.
 Setting the optional ``archive_key`` stages the bundle from a single ``.tar.gz`` object instead: one
 ``HEAD`` request to detect changes (unchanged archives are not re-downloaded), one ``GET`` to fetch it, then
 a local unpack and an atomic swap into place. If the archive cannot be fetched or unpacked, staging
-automatically falls back to the per-object sync of ``prefix``.
+falls back to the per-object sync of ``prefix``. That fallback needs the Dag files to actually be
+present under ``prefix``: if the bucket holds only the archive, the failure is raised instead and the
+bundle already staged locally is left in place rather than being emptied by the sync.
 
 .. code-block:: bash
 
