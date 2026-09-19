@@ -96,6 +96,7 @@ from airflow.sdk.api.datamodels._generated import (
     TriggerDAGRunPayload,
     UpdateHITLDetailPayload,
     VariableResponse,
+    XComBatchResponse,
     XComResponse,
     XComSequenceIndexResponse,
     XComSequenceSliceResponse,
@@ -556,6 +557,23 @@ class XComResult(XComResponse):
         return cls(**xcom_response.model_dump(exclude_defaults=True), type="XComResult")
 
 
+class XComBatchItemResult(BaseModel):
+    task_id: str
+    value: JsonValue | None
+
+
+class XComBatchResult(BaseModel):
+    """Response to batch ReadXCom request."""
+
+    key: str
+    values: list[XComBatchItemResult]
+    type: Literal["XComBatchResult"] = "XComBatchResult"
+
+    @classmethod
+    def from_xcom_batch_response(cls, xcom_response: XComBatchResponse) -> XComBatchResult:
+        return cls(**xcom_response.model_dump(exclude_defaults=True), type="XComBatchResult")
+
+
 class XComCountResponse(BaseModel):
     len: int
     type: Literal["XComCountResponse"] = "XComCountResponse"
@@ -839,6 +857,7 @@ ToTask = Annotated[
     | TaskStatesResult
     | VariableResult
     | VariableKeysResult
+    | XComBatchResult
     | XComCountResponse
     | XComResult
     | XComSequenceIndexResult
@@ -915,6 +934,16 @@ class GetXCom(BaseModel):
     map_index: int | None = None
     include_prior_dates: bool = False
     type: Literal["GetXCom"] = "GetXCom"
+
+
+class GetXComs(BaseModel):
+    key: str
+    dag_id: str
+    run_id: str
+    task_ids: list[str]
+    map_index: int | None = None
+    include_prior_dates: bool = False
+    type: Literal["GetXComs"] = "GetXComs"
 
 
 class GetXComCount(BaseModel):
@@ -1282,6 +1311,7 @@ ToSupervisor = Annotated[
     | GetVariable
     | GetVariableKeys
     | GetXCom
+    | GetXComs
     | GetXComCount
     | GetXComSequenceItem
     | GetXComSequenceSlice

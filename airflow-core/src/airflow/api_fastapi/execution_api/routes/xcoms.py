@@ -28,6 +28,8 @@ from sqlalchemy.sql.selectable import Select
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.api_fastapi.execution_api.datamodels.xcom import (
+    XComBatchItemResponse,
+    XComBatchResponse,
     XComResponse,
     XComSequenceIndexResponse,
     XComSequenceSliceResponse,
@@ -38,36 +40,17 @@ from airflow.models.xcom import XComModel
 from airflow.utils.db import get_query_count
 
 
-def has_xcom_access(
+def _check_xcom_access(
     dag_id: str,
-    run_id: str,
-    task_id: str,
-    xcom_key: Annotated[str, Path(alias="key", min_length=1)],
+    xcom_key: str,
     request: Request,
+    *,
     session: SessionDep,
-    token=CurrentTIToken,
+    token,
+    write: bool,
 ) -> bool:
-    """
-    Check whether the requesting task may access the XCom for ``dag_id``.
-
-    In multi-team mode, XCom access is scoped by team ownership (resolved via the
-    ``dag -> bundle -> team`` chain). There is no cross-team XCom sharing:
-
-    * reads (``GET``/``HEAD``) are allowed for the requester's own team or for
-      global (teamless) dags;
-    * writes and deletes are allowed only for the requester's own team; a team
-      task may not mutate a global dag's XCom, mirroring how team-scoped
-      Variables and Connections behave.
-
-    When multi-team mode is disabled this is a no-op and all access is allowed,
-    consistent with Airflow's single-team security model where workers within a
-    deployment trust each other. Note this enforces the boundary at the Execution
-    API only; it does not constrain code paths with direct database access (e.g.
-    the Dag File Processor or Triggerer).
-    """
+    """Check whether the requesting task may read or write the XCom for ``dag_id``."""
     from airflow.configuration import conf
-
-    write = request.method not in {"GET", "HEAD", "OPTIONS"}
 
     log.debug(
         "Checking %s XCom access for task instance '%s' to XCom '%s' on dag '%s'",
@@ -104,6 +87,44 @@ def has_xcom_access(
     )
 
 
+def has_xcom_access(
+    dag_id: str,
+    run_id: str,
+    task_id: str,
+    xcom_key: Annotated[str, Path(alias="key", min_length=1)],
+    request: Request,
+    *,
+    session: SessionDep,
+    token=CurrentTIToken,
+) -> bool:
+    """
+    Check whether the requesting task may access the XCom for ``dag_id``.
+
+    In multi-team mode, XCom access is scoped by team ownership (resolved via the
+    ``dag -> bundle -> team`` chain). There is no cross-team XCom sharing:
+
+    * reads (``GET``/``HEAD``) are allowed for the requester's own team or for
+      global (teamless) dags;
+    * writes and deletes are allowed only for the requester's own team; a team
+      task may not mutate a global dag's XCom, mirroring how team-scoped
+      Variables and Connections behave.
+
+    When multi-team mode is disabled this is a no-op and all access is allowed,
+    consistent with Airflow's single-team security model where workers within a
+    deployment trust each other. Note this enforces the boundary at the Execution
+    API only; it does not constrain code paths with direct database access (e.g.
+    the Dag File Processor or Triggerer).
+    """
+    return _check_xcom_access(
+        dag_id,
+        xcom_key,
+        request,
+        session=session,
+        token=token,
+        write=request.method not in {"GET", "HEAD", "OPTIONS"},
+    )
+
+
 router = APIRouter(
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
@@ -114,6 +135,72 @@ router = APIRouter(
 )
 
 log = logging.getLogger(__name__)
+
+
+batch_router = APIRouter(
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
+        status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the XCom"},
+        status.HTTP_404_NOT_FOUND: {"description": "XCom not found"},
+    },
+)
+
+
+class XComBatchRequest(BaseModel):
+    """Request body for batch XCom fetches."""
+
+    dag_id: str
+    run_id: str
+    key: str
+    task_ids: list[str]
+    map_index: int = -1
+    include_prior_dates: bool = False
+
+
+@batch_router.post(
+    "/batch",
+    description="Get multiple XCom values for the same Dag run, key, and map index",
+)
+def get_xcom_batch(
+    body: XComBatchRequest,
+    request: Request,
+    *,
+    session: SessionDep,
+    token=CurrentTIToken,
+) -> XComBatchResponse:
+    """Get several Airflow XComs from database - not other XCom Backends."""
+    if not body.task_ids or any(not task_id for task_id in body.task_ids) or not body.key:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "reason": "invalid_request",
+                "message": "Key and at least one non-empty task_id are required.",
+            },
+        )
+
+    _check_xcom_access(body.dag_id, body.key, request, session=session, token=token, write=False)
+
+    query = XComModel.get_many(
+        run_id=body.run_id,
+        key=body.key,
+        task_ids=body.task_ids,
+        dag_ids=body.dag_id,
+        map_indexes=body.map_index,
+        include_prior_dates=body.include_prior_dates,
+    )
+    rows = session.execute(query.with_only_columns(XComModel.task_id, XComModel.value)).all()
+
+    values_by_task_id: dict[str, JsonValue | None] = {}
+    for task_id, value in rows:
+        values_by_task_id.setdefault(task_id, value)
+
+    return XComBatchResponse(
+        key=body.key,
+        values=[
+            XComBatchItemResponse(task_id=task_id, value=values_by_task_id.get(task_id))
+            for task_id in body.task_ids
+        ],
+    )
 
 
 async def xcom_query(
