@@ -79,6 +79,13 @@ export class TaskInstancePage extends BasePage {
     }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
+  public async navigateToTaskInstanceDetails(dagId: string, runId: string, taskId: string): Promise<void> {
+    await expect(async () => {
+      await this.navigateTo(`/dags/${dagId}/runs/${runId}/tasks/${taskId}/details`);
+      await expect(this.page.locator("#details-panel")).toBeVisible();
+    }).toPass({ intervals: [2000], timeout: 60_000 });
+  }
+
   public async triggerDagAndWaitForSuccess(dagId: string): Promise<void> {
     await this.triggerDagRun(dagId);
     await this.waitForDagRunSuccess();
