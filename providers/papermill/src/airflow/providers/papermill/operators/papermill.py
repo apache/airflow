@@ -27,7 +27,12 @@ import papermill as pm
 from airflow.providers.common.compat.lineage.entities import File
 from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.providers.papermill.hooks.kernel import REMOTE_KERNEL_ENGINE, KernelHook
+from airflow.providers.papermill.hooks.kernel import (
+    REMOTE_GATEWAY_KERNEL_ENGINE,
+    REMOTE_KERNEL_ENGINE,
+    GatewayKernelConnection,
+    KernelHook,
+)
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
@@ -54,6 +59,9 @@ class PapermillOperator(BaseOperator):
     :param parameters: the notebook parameters to set
     :param kernel_name: (optional) name of kernel to execute the notebook against
         (ignores kernel name in the notebook document metadata)
+    :param kernel_conn_id: (optional) Jupyter Kernel connection to execute the notebook on a
+        remote kernel: either raw ZMQ (host + ports) or, when the connection host is an
+        ``http(s)://`` URL, a Jupyter server/kernel gateway with token authentication.
     :param log_output: (optional) Log the notebook cell output to the task log.
         When True, the stdout/stderr of each cell execution is visible in the Airflow task log.
     """
@@ -115,17 +123,34 @@ class PapermillOperator(BaseOperator):
         remote_kernel_kwargs = {}
         kernel_hook = self.hook
         if kernel_hook:
-            engine_name = REMOTE_KERNEL_ENGINE
             kernel_connection = kernel_hook.get_conn()
-            remote_kernel_kwargs = {
-                "kernel_ip": kernel_connection.ip,
-                "kernel_shell_port": kernel_connection.shell_port,
-                "kernel_iopub_port": kernel_connection.iopub_port,
-                "kernel_stdin_port": kernel_connection.stdin_port,
-                "kernel_control_port": kernel_connection.control_port,
-                "kernel_hb_port": kernel_connection.hb_port,
-                "kernel_session_key": kernel_connection.session_key,
-            }
+            if isinstance(kernel_connection, GatewayKernelConnection):
+                engine_name = REMOTE_GATEWAY_KERNEL_ENGINE
+                remote_kernel_kwargs = {
+                    "gateway_url": kernel_connection.url,
+                    "gateway_token": kernel_connection.token,
+                    "gateway_auth_scheme": kernel_connection.auth_scheme,
+                    "gateway_auth_header_key": kernel_connection.auth_header_key,
+                    "gateway_verify_ssl": kernel_connection.verify_ssl,
+                    "gateway_ca_certs": kernel_connection.ca_certs,
+                    "gateway_client_cert": kernel_connection.client_cert,
+                    "gateway_client_key": kernel_connection.client_key,
+                    "gateway_request_timeout": kernel_connection.request_timeout,
+                    "gateway_connect_timeout": kernel_connection.connect_timeout,
+                    "gateway_kernel_id": kernel_connection.kernel_id,
+                    "gateway_headers": kernel_connection.headers,
+                }
+            else:
+                engine_name = REMOTE_KERNEL_ENGINE
+                remote_kernel_kwargs = {
+                    "kernel_ip": kernel_connection.ip,
+                    "kernel_shell_port": kernel_connection.shell_port,
+                    "kernel_iopub_port": kernel_connection.iopub_port,
+                    "kernel_stdin_port": kernel_connection.stdin_port,
+                    "kernel_control_port": kernel_connection.control_port,
+                    "kernel_hb_port": kernel_connection.hb_port,
+                    "kernel_session_key": kernel_connection.session_key,
+                }
         else:
             engine_name = None
 
