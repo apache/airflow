@@ -108,9 +108,11 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
                 "LLMBranchOperator requires at least one downstream task to branch into."
             )
 
+        # Sorted so every worker sends the model the same option order. downstream_task_ids
+        # is a set, and set order follows string hashing, which differs between processes.
         downstream_tasks_enum = Enum(  # type: ignore[misc]
             "DownstreamTasks",
-            {task_id: task_id for task_id in self.downstream_task_ids},
+            {task_id: task_id for task_id in sorted(self.downstream_task_ids)},
         )
         output_type = list[downstream_tasks_enum] if self.allow_multiple_branches else downstream_tasks_enum
 
