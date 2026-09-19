@@ -18,12 +18,14 @@
  */
 import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
+import i18n from "i18next";
+import { initReactI18next } from "react-i18next";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import type { TaskInstanceHistoryResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
 
-import i18n from "src/i18n/config";
+import { TimezoneProvider } from "src/context/timezone";
 import { BaseWrapper } from "src/utils/Wrapper";
 
 import commonLocale from "../../../public/i18n/locales/en/common.json";
@@ -100,18 +102,29 @@ const renderDetails = (ignoreUpstreamDeps: boolean) => {
 
   return render(
     <BaseWrapper>
-      <MemoryRouter initialEntries={["/dags/example_dag/runs/TEST_DAG_RUN_ID/tasks/task/-1"]}>
-        <Routes>
-          <Route element={<Details />} path="/dags/:dagId/runs/:runId/tasks/:taskId/:mapIndex" />
-        </Routes>
-      </MemoryRouter>
+      <TimezoneProvider>
+        <MemoryRouter initialEntries={["/dags/example_dag/runs/TEST_DAG_RUN_ID/tasks/task/-1"]}>
+          <Routes>
+            <Route element={<Details />} path="/dags/:dagId/runs/:runId/tasks/:taskId/:mapIndex" />
+          </Routes>
+        </MemoryRouter>
+      </TimezoneProvider>
     </BaseWrapper>,
   );
 };
 
 describe("Details", () => {
-  beforeEach(() => {
-    i18n.addResourceBundle("en", "common", commonLocale, true, true);
+  // src/i18n/config.ts kicks off VersionService.getVersion() at import time, which never
+  // settles in network-isolated environments. Initialising a plain i18next instance here
+  // avoids importing that module (and its network call) at all.
+  beforeAll(async () => {
+    await i18n.use(initReactI18next).init({
+      defaultNS: "common",
+      fallbackLng: "en",
+      lng: "en",
+      ns: ["common"],
+      resources: { en: { common: commonLocale } },
+    });
   });
 
   it("does not show the force run row when the task instance was not forced", () => {
