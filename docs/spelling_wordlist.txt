@@ -632,6 +632,7 @@ ExaConnection
 Exasol
 exasol
 exc
+execd
 executables
 exitcode
 expanduser
