@@ -188,16 +188,12 @@ You can use deferrable mode for this action in order to run the operator asynchr
 
 Generating Cluster Config
 ^^^^^^^^^^^^^^^^^^^^^^^^^
-You can also generate **CLUSTER_CONFIG** using functional API,
-this could be easily done using **make()** of
-:class:`~airflow.providers.google.cloud.operators.dataproc.ClusterGenerator`
-You can generate and use config as followed:
 
-.. exampleinclude:: /../../google/tests/system/google/cloud/dataproc/example_dataproc_cluster_generator.py
-    :language: python
-    :dedent: 0
-    :start-after: [START how_to_cloud_dataproc_create_cluster_generate_cluster_config]
-    :end-before: [END how_to_cloud_dataproc_create_cluster_generate_cluster_config]
+.. warning::
+    **Deprecated:** The :class:`~airflow.providers.google.cloud.operators.dataproc.ClusterGenerator`
+    class is deprecated and will be removed after February 10, 2027. Please pass
+    ``cluster_config`` or ``virtual_cluster_config`` dictionaries directly as arguments to the
+    ``DataprocCreateClusterOperator``.
 
 Diagnose a cluster
 ------------------
