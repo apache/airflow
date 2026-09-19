@@ -25,14 +25,24 @@ import pytest
 import structlog
 
 from airflow.sdk import timezone
+from airflow.sdk.api.datamodels._generated import (
+    AssetEventResponse,
+    AssetResponse,
+    ConnectionResponse,
+    VariableResponse,
+    XComSequenceIndexResponse,
+)
 from airflow.sdk.execution_time.comms import (
+    AssetEventResult,
     BundleInfo,
     CommsDecoder,
+    ConnectionResult,
     DeadlockImminentError,
     GetVariable,
     MaskSecret,
     StartupDetails,
     VariableResult,
+    XComSequenceIndexResult,
     _RequestFrame,
     _ResponseFrame,
 )
@@ -60,6 +70,52 @@ class TestCommsModels:
     def test_mask_secret_with_objects(self, object_to_mask):
         mask_secret_object = MaskSecret(value=object_to_mask, name="test_secret")
         assert mask_secret_object.value == object_to_mask
+
+    def test_typed_api_response_result_conversion_sets_discriminator(self):
+        response = VariableResponse(key="test_key", value="test_value")
+
+        result = VariableResult.from_api_response(response)
+
+        assert result.model_dump(exclude_unset=True) == {
+            "key": "test_key",
+            "value": "test_value",
+            "type": "VariableResult",
+        }
+
+    def test_api_response_result_conversion_without_discriminator(self):
+        response = AssetEventResponse(
+            id=1,
+            timestamp=timezone.parse("2024-10-31T12:00:00Z"),
+            asset=AssetResponse(name="asset", uri="s3://bucket/asset", group="asset"),
+            created_dagruns=[],
+        )
+
+        result = AssetEventResult.from_api_response(response)
+
+        assert result.model_dump(exclude_unset=True) == response.model_dump(exclude_unset=True)
+        assert "type" not in result.model_dump()
+
+    def test_special_case_result_converters_keep_custom_shape(self):
+        connection = ConnectionResponse(
+            conn_id="test_conn",
+            conn_type="postgres",
+            host="localhost",
+            schema="public",
+            login="airflow",
+            password="airflow",
+            port=5432,
+            extra=None,
+        )
+        xcom = XComSequenceIndexResponse(root="value")
+
+        connection_result = ConnectionResult.from_conn_response(connection)
+        xcom_result = XComSequenceIndexResult.from_response(xcom)
+
+        assert connection_result.model_dump(by_alias=True, exclude_unset=True)["schema"] == "public"
+        assert xcom_result.model_dump(exclude_unset=True) == {
+            "root": "value",
+            "type": "XComSequenceIndexResult",
+        }
 
 
 class TestCommsDecoder:
