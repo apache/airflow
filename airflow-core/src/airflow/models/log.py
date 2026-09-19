@@ -71,7 +71,10 @@ class Log(Base):
         "TaskInstance",
         viewonly=True,
         foreign_keys=[dag_id, task_id, run_id, map_index],
-        primaryjoin="and_(Log.dag_id == TaskInstance.dag_id, Log.task_id == TaskInstance.task_id, Log.run_id == TaskInstance.run_id, Log.map_index == TaskInstance.map_index)",
+        # The REST API leaves map_index empty when the request does not include one, and its older
+        # audit rows never have it. Treat a missing map_index as -1 so those rows still join to
+        # the unmapped task instance, which is where task_display_name comes from.
+        primaryjoin="and_(Log.dag_id == TaskInstance.dag_id, Log.task_id == TaskInstance.task_id, Log.run_id == TaskInstance.run_id, func.coalesce(Log.map_index, -1) == TaskInstance.map_index)",
         lazy="raise",
     )
 
