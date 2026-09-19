@@ -2859,6 +2859,7 @@ class TestTriggererMessageTypes:
             "GetPreviousDagRun",
             "GetTaskBreadcrumbs",
             "GetTaskRescheduleStartDate",
+            "GetXComByKeys",
             "GetXComCount",
             "GetXComSequenceItem",
             "GetXComSequenceSlice",
