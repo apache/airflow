@@ -96,6 +96,10 @@ class TestSQLToolsetInit:
         ts = SQLToolset("my_pg")
         assert ts.id == "sql-my_pg"
 
+    def test_empty_allowed_tables_raises(self):
+        with pytest.raises(ValueError, match="allowed_tables must not be empty"):
+            SQLToolset("my_pg", allowed_tables=[])
+
 
 class TestSQLToolsetGetTools:
     def test_returns_four_tools(self):

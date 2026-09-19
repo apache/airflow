@@ -171,9 +171,10 @@ class SQLToolset(AbstractToolset[Any]):
 
     :param db_conn_id: Airflow connection ID for the database.
     :param allowed_tables: Restrict the agent to a fixed set of tables. ``None``
-        (default) exposes every table in ``schema``. Entries may be schema-qualified
-        (``"SCHEMA.TABLE"``) to span multiple schemas in one database -- common on
-        warehouses such as Snowflake. ``list_tables`` introspects each referenced
+        (default) exposes every table in ``schema``; an empty list raises
+        ``ValueError`` rather than silently exposing every table. Entries may be
+        schema-qualified (``"SCHEMA.TABLE"``) to span multiple schemas in one database
+        -- common on warehouses such as Snowflake. ``list_tables`` introspects each referenced
         schema and returns the matching tables fully qualified, and ``get_schema``
         routes to the table's own schema. Unqualified entries use ``schema``.
         Matching is case-insensitive, since databases reflect identifiers in their
@@ -246,6 +247,11 @@ class SQLToolset(AbstractToolset[Any]):
         max_rows: int = 50,
         max_result_bytes: int = DEFAULT_MAX_RESULT_BYTES,
     ) -> None:
+        if allowed_tables is not None and not allowed_tables:
+            raise ValueError(
+                "allowed_tables must not be empty. Pass None to allow every table in the schema, "
+                "or list the tables the agent may access."
+            )
         self._db_conn_id = db_conn_id
         self._allowed_tables: frozenset[str] | None = frozenset(allowed_tables) if allowed_tables else None
         # Case-folded so matching a query's function names (also case-folded) is
