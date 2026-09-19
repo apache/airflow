@@ -48,6 +48,23 @@ export interface TaskClient {
   getVariableOrThrow(key: string): Promise<string>;
 
   /**
+   * Store an Airflow Variable, replacing any existing value.
+   *
+   * The value is stored as a string. Serialize structured data (for example
+   * with `JSON.stringify`) before storing it.
+   *
+   * Omitting `description` clears the description the Variable had.
+   */
+  setVariable(key: string, value: string, description?: string | null): Promise<void>;
+
+  /**
+   * Delete an Airflow Variable.
+   *
+   * Rejects when the key does not exist, matching Python `Variable.delete`.
+   */
+  deleteVariable(key: string): Promise<void>;
+
+  /**
    * Pull an XCom value.
    *
    * Returns `null` when the row is missing. Locator fields default to the
