@@ -149,7 +149,14 @@ export const AssetsList = () => {
   const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(assetsFilterKeys);
 
   const hasEventsParam = searchParams.get(SearchParamsKeys.HAS_EVENTS);
-  const hasEvents = hasEventsParam === "true" ? true : hasEventsParam === "false" ? false : undefined;
+  let hasEvents = undefined;
+
+  if (hasEventsParam === "true") {
+    hasEvents = true;
+  } else if (hasEventsParam === "false") {
+    hasEvents = false;
+  }
+
   const lastAssetEventTimestampGte = searchParams.get(SearchParamsKeys.LAST_ASSET_EVENT_TIMESTAMP_GTE);
   const lastAssetEventTimestampLte = searchParams.get(SearchParamsKeys.LAST_ASSET_EVENT_TIMESTAMP_LTE);
   const groupArg = useAdvancedSearchArg({

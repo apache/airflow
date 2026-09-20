@@ -57,8 +57,8 @@ describe("AssetsList columns", () => {
 
 describe("AssetsList filtering", () => {
   it.each([
-    { expectedLabel: "filters.hasEventsTrue", hasEvents: "true" },
-    { expectedLabel: "filters.hasEventsFalse", hasEvents: "false" },
+    { expectedLabel: "yes", hasEvents: "true" },
+    { expectedLabel: "no", hasEvents: "false" },
     { expectedLabel: undefined, hasEvents: null },
   ])("restores has_events=$hasEvents from the URL", async ({ expectedLabel, hasEvents }) => {
     let requestedHasEvents: string | null | undefined;

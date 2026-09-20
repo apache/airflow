@@ -255,8 +255,8 @@ export const useFilterConfigs = () => {
       icon: <MdCheckCircle />,
       label: translate("assets:filters.hasEvents"),
       options: [
-        { label: translate("assets:filters.hasEventsTrue"), value: "true" },
-        { label: translate("assets:filters.hasEventsFalse"), value: "false" },
+        { label: translate("common:yes"), value: "true" },
+        { label: translate("common:no"), value: "false" },
       ],
       type: FilterTypes.SELECT,
     },
