@@ -43,7 +43,7 @@ You can view a :ref:`full list of Airflow hooks <pythonapi:hooks>` in our API do
 Custom connections
 ------------------
 
-Airflow allows to define custom connection types. This is what is described in detail in
+Airflow allows you to define custom connection types. This is what is described in detail in
 :doc:`apache-airflow-providers:index` - providers give you the capability of defining your own connections.
 The connection customization can be done by any provider, but also
 many of the providers managed by the community define custom connection types.

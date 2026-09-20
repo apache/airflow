@@ -125,4 +125,7 @@ class CloudBuildCreateBuildTrigger(BaseTrigger):
             yield TriggerEvent({"status": "error", "message": str(e)})
 
     def _get_async_hook(self) -> CloudBuildAsyncHook:
-        return CloudBuildAsyncHook(gcp_conn_id=self.gcp_conn_id)
+        return CloudBuildAsyncHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )

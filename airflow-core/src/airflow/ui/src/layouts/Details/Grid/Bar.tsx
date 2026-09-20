@@ -20,6 +20,7 @@ import { Flex, Box } from "@chakra-ui/react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { RunTypeIcon } from "src/components/RunTypeIcon";
+
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 
 import { GridButton } from "./GridButton";
@@ -83,8 +84,8 @@ export const Bar = ({ max, onClick, run, showVersionIndicatorMode }: Props) => {
           flexDir="column"
           height={`${(run.duration / max) * BAR_HEIGHT}px`}
           justifyContent="flex-end"
-          label={run.run_after}
           minHeight="14px"
+          runAfter={run.run_after}
           runId={run.run_id}
           searchParams={search}
           state={run.state}

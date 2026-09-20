@@ -55,8 +55,8 @@ class MwaaTriggerDagRunOperator(AwsBaseOperator[MwaaHook]):
             This parameter is only used if the local web token method is used to call Airflow API. (templated)
 
     :param wait_for_completion: Whether to wait for Dag run to stop. (default: False)
-    :param waiter_delay: Time in seconds to wait between status checks. (default: 120)
-    :param waiter_max_attempts: Maximum number of attempts to check for Dag run completion. (default: 720)
+    :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
+    :param waiter_max_attempts: Maximum number of attempts to check for Dag run completion. (default: 20)
     :param deferrable: If True, the operator will wait asynchronously for the Dag run to stop.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False)

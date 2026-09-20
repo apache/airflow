@@ -69,3 +69,20 @@ def test_add_xcom_sidecar_empty_security_context():
 def test_add_xcom_sidecar_does_not_mutate_shared_default():
     add_xcom_sidecar(_base_pod(), sidecar_container_security_context={"readOnlyRootFilesystem": True})
     assert PodDefaults.SIDECAR_CONTAINER.security_context is None
+
+
+def test_add_xcom_sidecar_does_not_mutate_input_pod_volumes():
+    pod = _base_pod()
+    pod.spec.volumes = [k8s.V1Volume(name="data", empty_dir=k8s.V1EmptyDirVolumeSource())]
+
+    result = add_xcom_sidecar(pod)
+
+    assert [v.name for v in pod.spec.volumes] == ["data"]
+    assert [v.name for v in result.spec.volumes] == ["xcom", "data"]
+
+
+def test_add_xcom_sidecar_copies_default_volume_and_mount():
+    result = add_xcom_sidecar(_base_pod())
+
+    assert result.spec.volumes[0] is not PodDefaults.VOLUME
+    assert result.spec.containers[0].volume_mounts[0] is not PodDefaults.VOLUME_MOUNT

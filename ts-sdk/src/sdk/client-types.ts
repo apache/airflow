@@ -19,12 +19,7 @@
 
 /** JSON-compatible value accepted by Airflow for XCom payloads. */
 export type JsonValue =
-  | string
-  | number
-  | boolean
-  | null
-  | JsonValue[]
-  | { [key: string]: JsonValue };
+  string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
 /**
  * Options for pulling an XCom value.

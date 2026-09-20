@@ -56,6 +56,22 @@ class TestCloudSpeechToTextRecognizeSpeechOperator:
         )
 
     @patch("airflow.providers.google.cloud.operators.speech_to_text.CloudSpeechToTextHook")
+    def test_empty_audio_fails_at_execute_time(self, mock_hook):
+        op = CloudSpeechToTextRecognizeSpeechOperator(
+            project_id=PROJECT_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            audio="{{ var.value.audio }}",
+            config=CONFIG,
+            task_id="id",
+        )
+        # Template rendering replaces the Jinja expression with the resolved value before execute.
+        op.audio = ""
+
+        with pytest.raises(ValueError, match="The required parameter 'audio' is empty"):
+            op.execute(context={"task_instance": Mock()})
+        mock_hook.assert_not_called()
+
+    @patch("airflow.providers.google.cloud.operators.speech_to_text.CloudSpeechToTextHook")
     def test_missing_config(self, mock_hook):
         mock_hook.return_value.recognize_speech.return_value = True
 

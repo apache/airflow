@@ -154,6 +154,21 @@ dags:
       - "extract"
       - "transform"
       - "load"
+  taskflow_binding_dag:
+    tasks:
+      - "make_config"
+      - "make_numbers"
+      - "make_region"
+      - "via_flat_args"
+      - "via_struct_no_tags"
+      - "via_struct_arg_tag"
+      - "via_struct_unmatched_arg"
+      - "via_flat_map"
+      - "via_struct_map"
+      - "via_plain_map"
+  variable_write_dag:
+    tasks:
+      - "write_and_delete_variable"
 `
 	assert.Equal(t, expectedManifest, string(metadata))
 

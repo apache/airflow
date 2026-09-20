@@ -21,14 +21,15 @@ import { useTranslation } from "react-i18next";
 import { FiChevronRight } from "react-icons/fi";
 import { LuPlug } from "react-icons/lu";
 
-import { Menu } from "src/components/ui";
+import { Menu } from "src/system-components";
+
 import type { NavItemResponse } from "src/utils/types";
 
 import { NavButton } from "./NavButton";
 import { PluginMenuItem } from "./PluginMenuItem";
 
 export const PluginMenus = ({ navItems }: { readonly navItems: Array<NavItemResponse> }) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   if (navItems.length === 0) {
     return undefined;

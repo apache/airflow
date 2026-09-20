@@ -17,6 +17,7 @@
  * under the License.
  */
 import { testConfig } from "playwright.config";
+
 import { expect, test } from "tests/e2e/fixtures";
 import { REPROCESS_API_TO_UI } from "tests/e2e/pages/BackfillPage";
 import type { ReprocessBehaviorApi } from "tests/e2e/pages/BackfillPage";
@@ -148,9 +149,22 @@ test.describe("Backfill", () => {
     test("verify date range selection (start date, end date)", async ({ backfillPage }) => {
       await backfillPage.navigateToDagDetail(testDagId);
       await backfillPage.openBackfillDialog();
-      await backfillPage.backfillFromDateInput.fill("2025-01-10T00:00");
-      await backfillPage.backfillToDateInput.fill("2025-01-01T00:00");
+      // Date-only entry: the control defaults the time (start of day for From, end of day for To).
+      // From (Jan 10) after To (Jan 01) must surface the range error.
+      await backfillPage.setBound(backfillPage.backfillFromTrigger, "2025/01/10");
+      await backfillPage.setBound(backfillPage.backfillToTrigger, "2025/01/01");
       await expect(backfillPage.backfillDateError).toBeVisible();
+    });
+
+    // Regression for #54429: entering only dates (no time) must yield a valid range. The range-style
+    // text inputs default the missing time, so the form is usable without a native datetime-local
+    // picker (which yielded no value on Firefox/Safari when a date was picked without a time).
+    test("a date-only entry yields a valid range", async ({ backfillPage }) => {
+      await backfillPage.navigateToDagDetail(testDagId);
+      await backfillPage.openBackfillDialog();
+      await backfillPage.setBound(backfillPage.backfillFromTrigger, "2025/01/01");
+      await backfillPage.setBound(backfillPage.backfillToTrigger, "2025/01/05");
+      await expect(backfillPage.backfillDateError).not.toBeVisible();
     });
   });
 

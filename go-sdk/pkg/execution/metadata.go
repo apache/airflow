@@ -64,7 +64,7 @@ func ParseMetadataFormat(s string) (MetadataFormat, error) {
 
 // DumpAirflowMetadata writes the bundle's airflow-metadata manifest to stdout
 // (YAML by default, JSON when format is MetadataFormatJSON). It runs
-// RegisterDags against an in-memory recorder only — no gRPC server, no external
+// RegisterDags against an in-memory recorder only — no task execution, no external
 // services. airflow-go-pack execs the binary with --airflow-metadata and
 // decodes this output to build the embedded manifest.
 func DumpAirflowMetadata(bundle bundlev1.BundleProvider, format MetadataFormat) error {

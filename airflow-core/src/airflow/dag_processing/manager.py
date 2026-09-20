@@ -155,7 +155,7 @@ class DagFileInfo:
     @property
     def normalized_file_path_for_stats(self) -> str:
         """Return the relative file path normalized for use in stats tags."""
-        return normalize_name_for_stats(str(self.rel_path))
+        return normalize_name_for_stats(str(self.rel_path), log_warning=False)
 
 
 def _config_int_factory(section: str, key: str):
@@ -713,12 +713,23 @@ class DagFileProcessorManager(LoggingMixin):
         *,
         session: Session = NEW_SESSION,
     ) -> list[CallbackRequest]:
-        """Fetch callbacks from database and add them to the internal queue for execution."""
+        """Claim callbacks for ready bundles, leaving the rest pending."""
         self.log.debug("Fetching callbacks from the database.")
 
         callback_queue: list[CallbackRequest] = []
         with prohibit_commit(session) as guard:
-            bundle_names = [bundle.name for bundle in self._dag_bundles]
+            # Claiming deletes rows, so defer unavailable bundles before applying the limit.
+            bundle_names = [
+                bundle.name
+                for bundle in self._dag_bundles
+                if not bundle.supports_versioning or bundle.is_initialized
+            ]
+            if unready_bundles := [
+                bundle.name
+                for bundle in self._dag_bundles
+                if bundle.supports_versioning and not bundle.is_initialized
+            ]:
+                self.log.debug("Skipping callback fetch for uninitialized bundles: %s", unready_bundles)
             query: Select[tuple[DbCallbackRequest]] = with_row_locks(
                 select(DbCallbackRequest)
                 .where(DbCallbackRequest.bundle_name.in_(bundle_names))
@@ -743,12 +754,22 @@ class DagFileProcessorManager(LoggingMixin):
 
     def prepare_callback_bundle(self, request: CallbackRequest) -> BaseDagBundle | None:
         """
-        Return the bundle to run the callback against, or ``None`` to skip the callback.
+        Return a usable bundle or ``None`` to skip; override for API-backed bundles.
 
-        Default implementation looks the bundle up via :class:`DagBundlesManager` and, for
-        versioned requests on bundles that support versioning, calls ``bundle.initialize()``.
-        Override to source the bundle from an API.
+        Reuse loaded bundles for unversioned requests; versioning bundles must be initialized.
         """
+        if request.bundle_version is None:
+            # Reuse the scan path without fetching or checking out per callback.
+            loaded = next((b for b in self._dag_bundles if b.name == request.bundle_name), None)
+            if loaded is None:
+                self.log.error(
+                    "Bundle %s is not parsed by this processor, skipping callback", request.bundle_name
+                )
+                return None
+            if loaded.supports_versioning and not loaded.is_initialized:
+                self.log.error("Bundle %s is not initialized, skipping callback", request.bundle_name)
+                return None
+            return loaded
         try:
             bundle = DagBundlesManager().get_bundle(
                 name=request.bundle_name,
@@ -758,7 +779,7 @@ class DagFileProcessorManager(LoggingMixin):
         except ValueError:
             self.log.error("Bundle %s no longer configured, skipping callback", request.bundle_name)
             return None
-        if bundle.supports_versioning and request.bundle_version:
+        if bundle.supports_versioning:
             try:
                 bundle.initialize()
             except Exception:
@@ -888,7 +909,7 @@ class DagFileProcessorManager(LoggingMixin):
                 current_version_matches_db=current_version_matches_db,
                 previously_seen=previously_seen,
             ):
-                self.log.info("Not time to refresh bundle %s", bundle.name)
+                self.log.debug("Not time to refresh bundle %s", bundle.name)
                 continue
 
             self.log.info("Refreshing bundle %s", bundle.name)
@@ -988,7 +1009,7 @@ class DagFileProcessorManager(LoggingMixin):
                 with zipfile.ZipFile(abs_path) as z:
                     for info in z.infolist():
                         # Use the configured discovery safe mode
-                        if might_contain_dag(info.filename, self.dag_discovery_safe_mode, z):
+                        if might_contain_dag(info.filename, self.dag_discovery_safe_mode, z, conf=conf):
                             yield os.path.join(abs_path, info.filename)
             except zipfile.BadZipFile:
                 self.log.exception("There was an error accessing ZIP file %s", abs_path)
@@ -1405,9 +1426,8 @@ class DagFileProcessorManager(LoggingMixin):
             self._symlink_latest_log_directory()
             self._latest_log_symlink_date = datetime.today()
 
-        bundle = next(b for b in self._dag_bundles if b.name == dag_file.bundle_name)
         relative_path = Path(dag_file.rel_path)
-        return os.path.join(self._get_log_dir(), bundle.name, f"{relative_path}.log")
+        return os.path.join(self._get_log_dir(), dag_file.bundle_name, f"{relative_path}.log")
 
     def _get_logger_for_dag_file(self, dag_file: DagFileInfo):
         log_filename = self._render_log_filename(dag_file)

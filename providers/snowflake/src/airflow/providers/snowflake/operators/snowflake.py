@@ -22,7 +22,7 @@ import warnings
 from collections.abc import Iterable, Mapping, Sequence
 from datetime import timedelta
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, SupportsAbs, cast
+from typing import TYPE_CHECKING, Any, ClassVar, SupportsAbs, cast
 
 import requests
 
@@ -395,6 +395,9 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
             To set the timeout to the maximum value (604800 seconds), set timeout to 0.
     :param deferrable: Run operator in the deferrable mode.
     :param snowflake_api_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` & ``tenacity.AsyncRetrying`` classes.
+    :param cancel_on_kill: If True (default), cancel the running Snowflake queries when the task is
+        killed. This applies both while the operator is running and, for a deferred task, while it
+        waits in the triggerer.
     :param durable: When ``True`` (the default), the submitted statement handles are persisted to
         task state before polling begins. A worker crash on retry reconnects to the existing
         statements instead of resubmitting the SQL. Set to ``False`` to always submit fresh on
@@ -429,6 +432,7 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         snowflake_api_retry_args: dict[str, Any] | None = None,
         durable: bool | None = None,
+        cancel_on_kill: bool = True,
         **kwargs: Any,
     ) -> None:
         # Named here (not left to **kwargs) so default_args reaches it on every
@@ -445,6 +449,7 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
         self.execute_async = False
         self.snowflake_api_retry_args = snowflake_api_retry_args or {}
         self.deferrable = deferrable
+        self.cancel_on_kill = cancel_on_kill
         self.query_ids: list[str] = []
         if any([warehouse, database, role, schema, authenticator, session_parameters]):  # pragma: no cover
             hook_params = kwargs.pop("hook_params", {})  # pragma: no cover
@@ -511,6 +516,7 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
                 snowflake_conn_id=self.snowflake_conn_id,
                 token_life_time=self.token_life_time,
                 token_renewal_delta=self.token_renewal_delta,
+                cancel_on_kill=self.cancel_on_kill,
             ),
             method_name="execute_complete",
         )
@@ -637,7 +643,68 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
 
     def on_kill(self) -> None:
         """Cancel the running query."""
+        if not self.cancel_on_kill:
+            return
         if self.query_ids:
             self.log.info("Cancelling the query ids %s", self.query_ids)
             self._hook.cancel_queries(self.query_ids)
             self.log.info("Query ids %s cancelled successfully", self.query_ids)
+
+
+class SnowflakeNotebookOperator(SnowflakeSqlApiOperator):
+    """
+    Execute a Snowflake Notebook via the Snowflake SQL API.
+
+    Builds an ``EXECUTE NOTEBOOK`` statement and delegates execution to
+    :class:`~airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiOperator`,
+    which handles query submission, polling, deferral, and cancellation.
+
+    .. seealso::
+        `Snowflake EXECUTE NOTEBOOK
+        <https://docs.snowflake.com/en/sql-reference/sql/execute-notebook>`_
+
+    :param notebook: Fully-qualified notebook name
+        (e.g. ``MY_DB.MY_SCHEMA.MY_NOTEBOOK``).
+    :param notebook_parameters: Optional list of string parameters to pass to
+        the notebook.  Values must be strings (the type hint declares
+        ``list[str]``).  Parameters are accessible in the notebook via
+        ``sys.argv``.
+    """
+
+    template_fields: Sequence[str] = tuple(
+        set(SnowflakeSqlApiOperator.template_fields) | {"notebook", "notebook_parameters"}
+    )
+    # The SQL is generated from `notebook`/`notebook_parameters`, never loaded from a
+    # file, so the inherited `.sql`/`.json` extensions would only cause harm: a notebook
+    # parameter that happens to end in one gets replaced by the contents of a file of
+    # that name.
+    template_ext: Sequence[str] = ()
+    # Same reason the parent's `parameters` renderer is dropped: it describes SQL bind
+    # parameters, not notebook arguments.
+    template_fields_renderers: ClassVar[dict] = {"sql": "sql"}
+
+    def __init__(
+        self,
+        *,
+        notebook: str,
+        notebook_parameters: list[str] | None = None,
+        **kwargs: Any,
+    ) -> None:
+        self.notebook = notebook
+        self.notebook_parameters = notebook_parameters
+        super().__init__(sql=self._build_execute_notebook_query(), statement_count=1, **kwargs)
+
+    def execute(self, context: Context) -> None:
+        """Rebuild SQL from rendered template fields, then execute."""
+        self.sql = self._build_execute_notebook_query()
+        return super().execute(context)
+
+    def _build_execute_notebook_query(self) -> str:
+        """Build the ``EXECUTE NOTEBOOK`` SQL statement."""
+        params_clause = ""
+        if self.notebook_parameters:
+            # Escape backslashes first (Snowflake interprets `\` in string literals),
+            # then single quotes.
+            sanitized = [p.replace("\\", "\\\\").replace("'", "''") for p in self.notebook_parameters]
+            params_clause = ", ".join(f"'{p}'" for p in sanitized)
+        return f"EXECUTE NOTEBOOK {self.notebook}({params_clause})"

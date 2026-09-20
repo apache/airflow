@@ -33,6 +33,7 @@ from airflow_breeze.utils.path_utils import (
     AIRFLOW_CTL_SOURCES_PATH,
     AIRFLOW_ROOT_PATH,
     AIRFLOW_TASK_SDK_SOURCES_PATH,
+    MYPY_SOURCES_PATH,
 )
 
 PUBLIC_AMD_RUNNERS = '["ubuntu-22.04"]'
@@ -223,8 +224,6 @@ ALLOWED_EXECUTORS = [
 SIMPLE_AUTH_MANAGER = "SimpleAuthManager"
 FAB_AUTH_MANAGER = "FabAuthManager"
 
-GOLANG_WORKER = "go"
-
 JAVA_SDK = "java"
 TYPESCRIPT_SDK = "typescript"
 ALLOWED_SDKS = [JAVA_SDK, TYPESCRIPT_SDK]
@@ -242,8 +241,6 @@ ALLOWED_AUTH_MANAGERS = [SIMPLE_AUTH_MANAGER, FAB_AUTH_MANAGER]
 START_AIRFLOW_ALLOWED_EXECUTORS = [LOCAL_EXECUTOR, CELERY_EXECUTOR, EDGE_EXECUTOR]
 START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR = START_AIRFLOW_ALLOWED_EXECUTORS[0]
 ALLOWED_CELERY_EXECUTORS = [CELERY_EXECUTOR, CELERY_K8S_EXECUTOR]
-ALLOWED_WORKER_TYPES = [GOLANG_WORKER]
-
 CONSTRAINTS_SOURCE_PROVIDERS = "constraints-source-providers"
 CONSTRAINTS = "constraints"
 CONSTRAINTS_NO_PROVIDERS = "constraints-no-providers"
@@ -304,7 +301,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
 PIP_VERSION = "26.2.1"
-UV_VERSION = "0.12.3"
+UV_VERSION = "0.12.13"
 
 # packages that providers docs
 REGULAR_DOC_PACKAGES = [
@@ -316,6 +313,7 @@ REGULAR_DOC_PACKAGES = [
     "task-sdk",
     "ts-sdk",
     "apache-airflow-ctl",
+    "apache-airflow-mypy",
 ]
 
 
@@ -522,7 +520,9 @@ BREEZE_DEBUG_WEBSERVER_PORT = "50237"
 
 CELERY_BROKER_URLS_MAP = {"rabbitmq": "amqp://guest:guest@rabbitmq:5672", "redis": "redis://redis:6379/0"}
 SQLITE_URL = "sqlite:////root/airflow/sqlite/airflow.db"
-PYTHONDONTWRITEBYTECODE = True
+# Bytecode cache lives outside the mounted sources so it never pollutes the host checkout
+# and can be persisted in a docker volume across container runs (see pycache.yml).
+PYCACHE_PREFIX_IN_CONTAINER = "/root/.cache/airflow-pycache"
 
 PRODUCTION_IMAGE = False
 # All python versions include all past python versions available in previous branches
@@ -711,6 +711,19 @@ def get_airflowctl_version():
     return airflowctl_version
 
 
+def get_airflow_mypy_version():
+    mypy_init_py_file = MYPY_SOURCES_PATH / "airflow_mypy" / "__init__.py"
+    mypy_version = "unknown"
+    with open(mypy_init_py_file) as init_file:
+        while line := init_file.readline():
+            if "__version__ = " in line:
+                mypy_version = line.split()[2][1:-1]
+                break
+    if mypy_version == "unknown":
+        raise RuntimeError("Unable to determine Apache Airflow Mypy version")
+    return mypy_version
+
+
 def get_airflow_version():
     airflow_init_py_file = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "__init__.py"
     airflow_version = "unknown"
@@ -789,6 +802,9 @@ FILES_FOR_REBUILD_CHECK = [
     "scripts/docker/install_from_docker_context_files.sh",
     "scripts/docker/install_mysql.sh",
 ]
+
+# Hash of FILES_FOR_REBUILD_CHECK contents, set on CI images so other checkouts can detect identical sources
+CI_IMAGE_SOURCES_HASH_LABEL = "org.apache.airflow.ci.sources-hash"
 
 CURRENT_KUBERNETES_VERSIONS = ALLOWED_KUBERNETES_VERSIONS
 CURRENT_EXECUTORS = [KUBERNETES_EXECUTOR]
@@ -880,18 +896,18 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     },
     {
         "python-version": "3.10",
-        "airflow-version": "3.3.1",
+        "airflow-version": "3.3.2",
         "remove-providers": "",
         "run-unit-tests": "true",
     },
 ]
 
 ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
-    "3.10": "3.10.20",
-    "3.11": "3.11.15",
-    "3.12": "3.12.13",
+    "3.10": "3.10.21",
+    "3.11": "3.11.16",
+    "3.12": "3.12.14",
     "3.13": "3.13.15",
-    "3.14": "3.14.3",
+    "3.14": "3.14.7",
 }
 
 # Number of slices for low dep tests

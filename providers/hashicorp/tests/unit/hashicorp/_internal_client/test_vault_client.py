@@ -21,7 +21,7 @@ from unittest import mock
 from unittest.mock import call, mock_open, patch
 
 import pytest
-from hvac.exceptions import InvalidPath, VaultError
+from hvac.exceptions import Forbidden, InvalidPath, VaultError
 from requests import Session
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
@@ -83,7 +83,6 @@ class TestVaultClient:
         client = vault_client.client
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.auth.approle.login.assert_called_with(role_id="role", secret_id="pass")
-        client.is_authenticated.assert_called_with()
         assert vault_client.kv_engine_version == 2
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -101,7 +100,6 @@ class TestVaultClient:
         client = vault_client.client
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.auth.approle.login.assert_called_with(role_id="role", secret_id="pass", mount_point="other")
-        client.is_authenticated.assert_called_with()
         assert vault_client.kv_engine_version == 2
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -130,7 +128,6 @@ class TestVaultClient:
             secret_key="pass",
             role="role",
         )
-        client.is_authenticated.assert_called_with()
         assert vault_client.kv_engine_version == 2
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -151,7 +148,6 @@ class TestVaultClient:
         client.auth.aws.iam_login.assert_called_with(
             access_key="user", secret_key="pass", role="role", mount_point="other"
         )
-        client.is_authenticated.assert_called_with()
         assert vault_client.kv_engine_version == 2
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -175,7 +171,6 @@ class TestVaultClient:
             role="role",
             region="us-east-2",
         )
-        client.is_authenticated.assert_called_with()
         assert vault_client.kv_engine_version == 2
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -199,7 +194,6 @@ class TestVaultClient:
             client_id="user",
             client_secret="pass",
         )
-        client.is_authenticated.assert_called_with()
         assert vault_client.kv_engine_version == 2
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -225,7 +219,6 @@ class TestVaultClient:
             client_secret="pass",
             mount_point="other",
         )
-        client.is_authenticated.assert_called_with()
         assert vault_client.kv_engine_version == 2
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -309,7 +302,6 @@ class TestVaultClient:
         assert payload["sub"] == "service_account_email"
 
         client.auth.gcp.login.assert_called_with(role="role", jwt="mocked_jwt")
-        client.is_authenticated.assert_called_with()
         assert vault_client.kv_engine_version == 2
 
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider._get_scopes")
@@ -363,7 +355,6 @@ class TestVaultClient:
         assert payload["sub"] == "service_account_email"
 
         client.auth.gcp.login.assert_called_with(role="role", jwt="mocked_jwt")
-        client.is_authenticated.assert_called_with()
         assert vault_client.kv_engine_version == 2
 
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider._get_scopes")
@@ -418,7 +409,6 @@ class TestVaultClient:
         assert payload["sub"] == "service_account_email"
 
         client.auth.gcp.login.assert_called_with(role="role", jwt="mocked_jwt")
-        client.is_authenticated.assert_called_with()
         assert vault_client.kv_engine_version == 2
 
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider._get_scopes")
@@ -480,7 +470,6 @@ class TestVaultClient:
         assert payload["sub"] == "service_account_email"
 
         client.auth.gcp.login.assert_called_with(role="role", jwt="mocked_jwt", mount_point="other")
-        client.is_authenticated.assert_called_with()
         assert vault_client.kv_engine_version == 2
 
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider._get_scopes")
@@ -536,7 +525,6 @@ class TestVaultClient:
         assert payload["sub"] == "service_account_email"
 
         client.auth.gcp.login.assert_called_with(role="role", jwt="mocked_jwt")
-        client.is_authenticated.assert_called_with()
         assert vault_client.kv_engine_version == 2
 
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider._get_scopes")
@@ -572,7 +560,6 @@ class TestVaultClient:
         client = vault_client.client
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.auth.github.login.assert_called_with(token="s.7AU0I51yv1Q1lxOIg1F3ZRAS")
-        client.is_authenticated.assert_called_with()
         assert vault_client.kv_engine_version == 2
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -589,7 +576,6 @@ class TestVaultClient:
         client = vault_client.client
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.auth.github.login.assert_called_with(token="s.7AU0I51yv1Q1lxOIg1F3ZRAS", mount_point="other")
-        client.is_authenticated.assert_called_with()
         assert vault_client.kv_engine_version == 2
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -608,12 +594,11 @@ class TestVaultClient:
             auth_type="kubernetes", kubernetes_role="kube_role", url="http://localhost:8180", session=None
         )
         with patch("builtins.open", mock_open(read_data="data")) as mock_file:
-            client = vault_client.client
+            vault_client.client
         mock_file.assert_called_with("/var/run/secrets/kubernetes.io/serviceaccount/token")
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         mock_kubernetes.assert_called_with(mock_client.adapter)
         mock_kubernetes.return_value.login.assert_called_with(role="kube_role", jwt="data")
-        client.is_authenticated.assert_called_with()
         assert vault_client.kv_engine_version == 2
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -629,12 +614,11 @@ class TestVaultClient:
             session=None,
         )
         with patch("builtins.open", mock_open(read_data="data")) as mock_file:
-            client = vault_client.client
+            vault_client.client
         mock_file.assert_called_with("path")
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         mock_kubernetes.assert_called_with(mock_client.adapter)
         mock_kubernetes.return_value.login.assert_called_with(role="kube_role", jwt="data")
-        client.is_authenticated.assert_called_with()
         assert vault_client.kv_engine_version == 2
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -651,14 +635,13 @@ class TestVaultClient:
             session=None,
         )
         with patch("builtins.open", mock_open(read_data="data")) as mock_file:
-            client = vault_client.client
+            vault_client.client
         mock_file.assert_called_with("path")
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         mock_kubernetes.assert_called_with(mock_client.adapter)
         mock_kubernetes.return_value.login.assert_called_with(
             role="kube_role", jwt="data", mount_point="other"
         )
-        client.is_authenticated.assert_called_with()
         assert vault_client.kv_engine_version == 2
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -696,7 +679,6 @@ class TestVaultClient:
         assert client.auth.jwt.jwt_login.call_args_list == [
             call(role="my-role", jwt="eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.test")
         ]
-        assert client.is_authenticated.call_args_list == [call(), call()]
         assert vault_client.kv_engine_version == 2
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -717,7 +699,6 @@ class TestVaultClient:
         assert client.auth.jwt.jwt_login.call_args_list == [
             call(role="my-role", jwt="eyJhbGciOiJSUzI1NiJ9.jwt-from-file")
         ]
-        assert client.is_authenticated.call_args_list == [call(), call()]
         assert vault_client.kv_engine_version == 2
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -751,7 +732,6 @@ class TestVaultClient:
         assert client.auth.jwt.jwt_login.call_args_list == [
             call(role="my-role", jwt="eyJhbGciOiJSUzI1NiJ9.test", path="custom-jwt")
         ]
-        assert client.is_authenticated.call_args_list == [call(), call()]
         assert vault_client.kv_engine_version == 2
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -787,7 +767,6 @@ class TestVaultClient:
         client = vault_client.client
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.auth.ldap.login.assert_called_with(username="user", password="pass")
-        client.is_authenticated.assert_called_with()
         assert vault_client.kv_engine_version == 2
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -805,7 +784,6 @@ class TestVaultClient:
         client = vault_client.client
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.auth.ldap.login.assert_called_with(username="user", password="pass", mount_point="other")
-        client.is_authenticated.assert_called_with()
         assert vault_client.kv_engine_version == 2
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -836,7 +814,6 @@ class TestVaultClient:
         client = vault_client.client
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.auth.radius.configure.assert_called_with(host="radhost", secret="pass", port=None)
-        client.is_authenticated.assert_called_with()
         assert vault_client.kv_engine_version == 2
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -856,7 +833,6 @@ class TestVaultClient:
         client.auth.radius.configure.assert_called_with(
             host="radhost", secret="pass", port=None, mount_point="other"
         )
-        client.is_authenticated.assert_called_with()
         assert vault_client.kv_engine_version == 2
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -874,7 +850,6 @@ class TestVaultClient:
         client = vault_client.client
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.auth.radius.configure.assert_called_with(host="radhost", secret="pass", port=8110)
-        client.is_authenticated.assert_called_with()
         assert vault_client.kv_engine_version == 2
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -893,7 +868,6 @@ class TestVaultClient:
         )
         client = vault_client.client
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
-        client.is_authenticated.assert_called_with()
         assert client.token == "s.7AU0I51yv1Q1lxOIg1F3ZRAS"
         assert vault_client.kv_engine_version == 2
         assert vault_client.mount_point == "secret"
@@ -906,7 +880,6 @@ class TestVaultClient:
         vault_client = _VaultClient(auth_type="token", url="http://localhost:8180", session=None)
         client = vault_client.client
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
-        client.is_authenticated.assert_called_with()
         assert client.token == "s.7AU0I51yv1Q1lxOIg1F3ZRAS"
         assert vault_client.kv_engine_version == 2
         assert vault_client.mount_point == "secret"
@@ -922,7 +895,6 @@ class TestVaultClient:
         )
         client = vault_client.client
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
-        client.is_authenticated.assert_called_with()
         assert client.token == "s.7AU0I51yv1Q1lxOIg1F3ZRAS"
         assert vault_client.kv_engine_version == 2
         assert vault_client.mount_point == "secret"
@@ -938,7 +910,6 @@ class TestVaultClient:
         )
         client = vault_client.client
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
-        client.is_authenticated.assert_called_with()
         assert client.token == "s.7AU0I51yv1Q1lxOIg1F3ZRAS"
         assert vault_client.kv_engine_version == 2
         assert vault_client.mount_point == "secret"
@@ -952,7 +923,6 @@ class TestVaultClient:
         )
         client = vault_client.client
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
-        client.is_authenticated.assert_called_with()
         assert client.token == "s.7AU0I51yv1Q1lxOIg1F3ZRAS"
         assert vault_client.auth_type == "token"
         assert vault_client.kv_engine_version == 2
@@ -968,7 +938,6 @@ class TestVaultClient:
         client = vault_client.client
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.auth.userpass.login.assert_called_with(username="user", password="pass")
-        client.is_authenticated.assert_called_with()
         assert vault_client.kv_engine_version == 2
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -986,7 +955,6 @@ class TestVaultClient:
         client = vault_client.client
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.auth.userpass.login.assert_called_with(username="user", password="pass", mount_point="other")
-        client.is_authenticated.assert_called_with()
         assert vault_client.kv_engine_version == 2
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -1629,29 +1597,74 @@ class TestVaultClient:
             mount_point="secret", path="path", secret={"key": "value"}, method="post"
         )
 
-    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
-    def test_cached_property_invalidates_on_auth_failure(self, mock_hvac):
-        mock_client = mock.MagicMock()
-        mock_hvac.Client.return_value = mock_client
-
-        vault_client = _VaultClient(
+    @staticmethod
+    def _radius_client(kv_engine_version=1):
+        return _VaultClient(
             auth_type="radius",
             radius_host="radhost",
             radius_port=8110,
             radius_secret="pass",
-            kv_engine_version=1,
+            kv_engine_version=kv_engine_version,
             url="http://localhost:8180",
         )
 
-        # Assert that the original mock_client is returned
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_client_is_cached_and_never_probed(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+
+        vault_client = self._radius_client()
         assert vault_client.client == mock_client
 
-        # Prove that the mock_client is cached by changing the return
-        # value, but still receive the original mock client
-        mock_client_2 = mock.MagicMock()
-        mock_hvac.Client.return_value = mock_client_2
+        mock_hvac.Client.return_value = mock.MagicMock()
         assert vault_client.client == mock_client
-        mock_client.is_authenticated.return_value = False
-        # assert that when the client is not authenticated the cache
-        # is invalidated, therefore returning the second client
-        assert vault_client.client == mock_client_2
+
+        vault_client.get_secret(secret_path="path")
+        mock_client.is_authenticated.assert_not_called()
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_get_secret_reauthenticates_and_retries_once_when_token_rejected(self, mock_hvac):
+        rejecting_client = mock.MagicMock()
+        rejecting_client.secrets.kv.v1.read_secret.side_effect = Forbidden("permission denied")
+        fresh_client = mock.MagicMock()
+        fresh_client.secrets.kv.v1.read_secret.return_value = {"data": {"secret_key": "secret_value"}}
+        mock_hvac.Client.side_effect = [rejecting_client, fresh_client]
+
+        assert self._radius_client().get_secret(secret_path="path") == {"secret_key": "secret_value"}
+
+        assert mock_hvac.Client.call_count == 2
+        rejecting_client.secrets.kv.v1.read_secret.assert_called_once_with(path="path", mount_point="secret")
+        fresh_client.secrets.kv.v1.read_secret.assert_called_once_with(path="path", mount_point="secret")
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_get_secret_raises_vault_error_when_retry_is_also_rejected(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_client.secrets.kv.v1.read_secret.side_effect = Forbidden("permission denied")
+        mock_hvac.Client.return_value = mock_client
+
+        with pytest.raises(VaultError, match="Vault Authentication Error!"):
+            self._radius_client().get_secret(secret_path="path")
+
+        assert mock_client.secrets.kv.v1.read_secret.call_count == 2
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_create_or_update_secret_reauthenticates_and_retries_once(self, mock_hvac):
+        rejecting_client = mock.MagicMock()
+        rejecting_client.secrets.kv.v1.create_or_update_secret.side_effect = Forbidden("permission denied")
+        fresh_client = mock.MagicMock()
+        mock_hvac.Client.side_effect = [rejecting_client, fresh_client]
+
+        self._radius_client().create_or_update_secret(secret_path="path", secret={"key": "value"})
+
+        fresh_client.secrets.kv.v1.create_or_update_secret.assert_called_once_with(
+            path="path", secret={"key": "value"}, mount_point="secret", method=None
+        )
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_auth_method_producing_no_token_raises_error(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_client.token = None
+        mock_hvac.Client.return_value = mock_client
+
+        with pytest.raises(VaultError, match="Vault Authentication Error!"):
+            _ = self._radius_client().client

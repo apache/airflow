@@ -512,6 +512,32 @@ def test_start_opts_into_fork_exec(monkeypatch, mocker, platform_uses_exec, targ
     assert base_start.call_args.kwargs["use_exec"] is expected_use_exec
 
 
+@pytest.mark.parametrize("option_value", ["True", "False"])
+def test_start_ignores_execute_tasks_new_python_interpreter(mocker, option_value):
+    """
+    ``[core] execute_tasks_new_python_interpreter`` is a task-process opt-in and must not reach the
+    parsing child, which only follows the platform gate (pinned to bare fork by ``_force_bare_fork``).
+    """
+    base_start = mocker.patch(
+        "airflow.sdk.execution_time.supervisor.WatchedSubprocess.start", return_value=MagicMock()
+    )
+    mocker.patch("airflow.dag_processing.processor._pre_import_airflow_modules")
+
+    with conf_vars({("core", "execute_tasks_new_python_interpreter"): option_value}):
+        DagFileProcessorProcess.start(
+            path="some_dag.py",
+            bundle_path=pathlib.Path("/tmp/bundle"),
+            bundle_name="testing",
+            dag_file_rel_path="some_dag.py",
+            callbacks=[],
+            client=MagicMock(spec=Client),
+            target=_parse_file_entrypoint,
+            logger=MagicMock(),
+        )
+
+    assert base_start.call_args.kwargs["use_exec"] is False
+
+
 def write_dag_in_a_fn_to_file(fn: Callable[[], None], folder: pathlib.Path) -> pathlib.Path:
     # Create the dag in a fn, and use inspect.getsource to write it to a file so that
     # a) the test dag is directly viewable here in the tests
@@ -679,6 +705,48 @@ def test_parse_file_static_check_with_error():
     assert list(result.import_errors.keys()) == ["test_dag_version_inflation_check.py"]
     assert result.warnings is None
     assert "Don't use the variables as arguments" in next(iter(result.import_errors.values()))
+
+
+@conf_vars({("dag_processor", "dag_version_inflation_check_level"): "error"})
+def test_parse_file_static_check_error_still_executes_callbacks(spy_agency):
+    """Callbacks for already-scheduled runs must run even when the stability check blocks parsing."""
+    from airflow import DAG
+
+    called = False
+
+    def on_failure(context):
+        nonlocal called
+        called = True
+
+    dag = DAG(dag_id="a", on_failure_callback=on_failure)
+
+    def fake_collect_dags(self, *args, **kwargs):
+        self.dags[dag.dag_id] = dag
+
+    spy_agency.spy_on(DagBag.collect_dags, call_fake=fake_collect_dags, owner=DagBag)
+
+    requests = [
+        DagCallbackRequest(
+            filepath="test_dag_version_inflation_check.py",
+            msg="Message",
+            dag_id="a",
+            run_id="b",
+            bundle_name="testing",
+            bundle_version=None,
+        )
+    ]
+    result = _parse_file(
+        DagFileParseRequest(
+            file=f"{TEST_DAG_FOLDER}/test_dag_version_inflation_check.py",
+            bundle_path=TEST_DAG_FOLDER,
+            bundle_name="testing",
+            callback_requests=requests,
+        ),
+        log=structlog.get_logger(),
+    )
+
+    assert result is None
+    assert called is True
 
 
 def test_parse_file_static_check_with_default_warning():

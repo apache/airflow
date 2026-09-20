@@ -49,6 +49,7 @@ from airflow.providers.common.compat.sdk import (
     AirflowSkipException,
     AirflowTaskTimeout,
     TaskDeferred,
+    timezone,
 )
 from airflow.providers.google.cloud.openlineage.utils import BIGQUERY_NAMESPACE
 from airflow.providers.google.cloud.operators.bigquery import (
@@ -85,7 +86,6 @@ from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryValueCheckTrigger,
 )
 from airflow.utils.task_group import TaskGroup
-from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
@@ -102,7 +102,7 @@ TEST_GCS_CSV_DATA = ["dir1/*.csv"]
 TEST_SOURCE_CSV_FORMAT = "CSV"
 TEST_GCS_PARQUET_DATA = ["dir1/*.parquet"]
 TEST_SOURCE_PARQUET_FORMAT = "PARQUET"
-DEFAULT_DATE = datetime(2015, 1, 1)
+DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 TEST_DAG_ID = "test-bigquery-operators"
 TEST_TABLE_RESOURCES = {"tableReference": {"tableId": TEST_TABLE_ID}, "expirationTime": 1234567}
 VIEW_DEFINITION = {

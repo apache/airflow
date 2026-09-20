@@ -19,8 +19,6 @@ from __future__ import annotations
 import functools
 from unittest.mock import patch
 
-from airflow.providers.fab.www.app import purge_cached_app
-
 
 def dont_initialize_flask_app_submodules(_func=None, *, skip_all_except=None):
     if not skip_all_except:
@@ -45,10 +43,8 @@ def dont_initialize_flask_app_submodules(_func=None, *, skip_all_except=None):
                 if method not in skip_all_except:
                     patcher = patch(f"airflow.providers.fab.www.app.{method}", no_op)
                     patcher.start()
-            purge_cached_app()
             result = f(*args, **kwargs)
             patch.stopall()
-            purge_cached_app()
 
             return result
 

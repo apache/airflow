@@ -21,7 +21,7 @@ import asyncio
 import time
 from typing import Any
 
-from airflow.providers.databricks.hooks.databricks import DatabricksHook
+from airflow.providers.databricks.hooks.databricks import DatabricksHook, WarehouseState
 from airflow.providers.databricks.utils.databricks import extract_failed_task_errors_async
 from airflow.providers.databricks.utils.retry import validate_deferrable_databricks_retry_args
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -334,5 +334,125 @@ class DatabricksSQLStatementExecutionTrigger(BaseTrigger):
                         "error_message": f"Statement ID {self.statement_id} timed out after set end time {self.end_time}",
                     },
                 }
+            )
+            return
+
+
+class DatabricksWarehouseStateTrigger(BaseTrigger):
+    """
+    Poll a Databricks SQL warehouse until it reaches a target lifecycle state.
+
+    Databricks has no cancel API for warehouse start or stop, so this trigger does
+    not override ``on_kill``. Clearing a deferred wait leaves warehouse state unchanged.
+
+    :param warehouse_id: ID of the Databricks SQL warehouse.
+    :param target_state: Lifecycle state to wait for (``RUNNING`` or ``STOPPED``).
+    :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
+    :param end_time: Absolute Unix timestamp when the wait must stop. The operator
+        sets this from ``timeout`` before deferring so a triggerer restart or HA
+        rebalance does not reset the deadline.
+    :param polling_period_seconds: Controls the rate of the poll for the warehouse state.
+        By default, the trigger will poll every 30 seconds.
+    :param retry_limit: The number of times to retry the connection in case of service outages.
+    :param retry_delay: Minimum wait in seconds between retryable attempts when using the
+        default retry strategy. The wait uses exponential backoff (doubling after each
+        failure, capped at ``2 ** retry_limit`` seconds). May be a floating point number.
+    :param retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
+    :param caller: The name of the operator that is calling the hook.
+    """
+
+    def __init__(
+        self,
+        warehouse_id: str,
+        target_state: str,
+        databricks_conn_id: str,
+        end_time: float,
+        polling_period_seconds: int = 30,
+        retry_limit: int = 3,
+        retry_delay: int = 10,
+        retry_args: dict[Any, Any] | None = None,
+        caller: str = "DatabricksWarehouseStateTrigger",
+    ) -> None:
+        super().__init__()
+        # Trigger kwargs cross Airflow's serialization boundary, so fail before storing invalid
+        # trigger state or surfacing a generic serializer error without Databricks-specific guidance.
+        validate_deferrable_databricks_retry_args(retry_args, owner=caller)
+        self.warehouse_id = warehouse_id
+        self.target_state = target_state
+        self.databricks_conn_id = databricks_conn_id
+        self.end_time = end_time
+        self.polling_period_seconds = polling_period_seconds
+        self.retry_limit = retry_limit
+        self.retry_delay = retry_delay
+        self.retry_args = retry_args
+        self.caller = caller
+        self.hook = DatabricksHook(
+            databricks_conn_id,
+            retry_limit=self.retry_limit,
+            retry_delay=self.retry_delay,
+            retry_args=retry_args,
+            caller=caller,
+        )
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            "airflow.providers.databricks.triggers.databricks.DatabricksWarehouseStateTrigger",
+            {
+                "warehouse_id": self.warehouse_id,
+                "target_state": self.target_state,
+                "databricks_conn_id": self.databricks_conn_id,
+                "end_time": self.end_time,
+                "polling_period_seconds": self.polling_period_seconds,
+                "retry_limit": self.retry_limit,
+                "retry_delay": self.retry_delay,
+                "retry_args": self.retry_args,
+                "caller": self.caller,
+            },
+        )
+
+    def _build_trigger_event(
+        self, *, status: str, last_state: str, state: WarehouseState | None = None
+    ) -> TriggerEvent:
+        payload: dict[str, Any] = {
+            "status": status,
+            "warehouse_id": self.warehouse_id,
+            "target_state": self.target_state,
+            "last_state": last_state,
+        }
+        if state is not None:
+            # Same typed JSON payload as RunState / SQLStatementState triggers.
+            payload["state"] = state.to_json()
+        return TriggerEvent(payload)
+
+    async def run(self):
+        async with self.hook:
+            last_state = "unknown"
+            last_warehouse_state: WarehouseState | None = None
+            while time.time() < self.end_time:
+                warehouse_state = await self.hook.a_get_warehouse_state(self.warehouse_id)
+                last_warehouse_state = warehouse_state
+                last_state = warehouse_state.state
+                now = time.time()
+                if warehouse_state.state == self.target_state:
+                    yield self._build_trigger_event(
+                        status="success", last_state=last_state, state=warehouse_state
+                    )
+                    return
+                if warehouse_state.is_deleted:
+                    yield self._build_trigger_event(
+                        status="deleted", last_state=last_state, state=warehouse_state
+                    )
+                    return
+                if now >= self.end_time:
+                    break
+                self.log.info(
+                    "Databricks SQL warehouse %s is %s; waiting for %s.",
+                    self.warehouse_id,
+                    warehouse_state.state,
+                    self.target_state,
+                )
+                await asyncio.sleep(min(self.polling_period_seconds, self.end_time - now))
+            yield self._build_trigger_event(
+                status="timeout", last_state=last_state, state=last_warehouse_state
             )
             return

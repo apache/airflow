@@ -45,7 +45,6 @@ from airflow.providers.anthropic.hooks.anthropic import (
 
 pytest.importorskip("anthropic")
 
-import httpx
 from anthropic import BadRequestError
 from anthropic.types import BetaMonetaryAmount
 from anthropic.types.beta import BetaManagedAgentsServerToolUsage, BetaManagedAgentsSessionUsage
@@ -281,10 +280,17 @@ class TestBuildBudget:
             build_budget(amount)
 
 
+class _StubResponse:
+    """The only response attributes ``APIStatusError`` reads, so no HTTP library is needed."""
+
+    status_code = 400
+    headers: dict[str, str] = {}
+    request = None
+
+
 def _make_bad_request(message="cannot be archived while its status is running") -> BadRequestError:
     """A real SDK BadRequestError -- archive_session only interrupts on this, not on any error."""
-    request = httpx.Request("POST", "https://api.anthropic.com/v1/sessions/sess_1/archive")
-    return BadRequestError(message, response=httpx.Response(400, request=request), body=None)
+    return BadRequestError(message, response=_StubResponse(), body=None)  # type: ignore[arg-type]
 
 
 class TestArchiveSession:
@@ -679,10 +685,37 @@ class TestAnthropicHookGetConn:
     @mock.patch(f"{HOOK_PATH}.AnthropicAWS", autospec=True)
     @mock.patch.object(AnthropicHook, "get_connection")
     def test_aws_platform_without_region(self, mock_get_connection, mock_aws):
-        # No aws_region configured -> pass None so the SDK falls back to its own resolution.
+        # No aws_region configured -> pass None so the SDK can still resolve one from the
+        # environment or the AWS profile; it only fails when nothing supplies a region.
         mock_get_connection.return_value = _conn(extra={"platform": "aws"})
         AnthropicHook().get_conn()
         mock_aws.assert_called_once_with(aws_region=None)
+
+    @pytest.mark.parametrize(
+        ("platform", "client_name"),
+        [("bedrock", "AnthropicBedrock"), ("aws", "AnthropicAWS")],
+    )
+    @mock.patch.object(AnthropicHook, "get_connection")
+    def test_unresolvable_aws_region_points_at_the_connection(
+        self, mock_get_connection, platform, client_name
+    ):
+        mock_get_connection.return_value = _conn(extra={"platform": platform})
+        sdk_error = ValueError("No AWS region was provided.")
+        with mock.patch(f"{HOOK_PATH}.{client_name}", side_effect=sdk_error):
+            with pytest.raises(AnthropicError) as exc_info:
+                AnthropicHook().get_conn()
+        message = str(exc_info.value)
+        assert f"No AWS region configured for the {platform!r} platform" in message
+        assert "'aws_region'" in message
+        assert "'anthropic_default'" in message
+        assert exc_info.value.__cause__ is sdk_error
+
+    @mock.patch.object(AnthropicHook, "get_connection")
+    def test_sdk_value_error_is_not_masked_when_a_region_is_configured(self, mock_get_connection):
+        mock_get_connection.return_value = _conn(extra={"platform": "bedrock", "aws_region": "us-east-1"})
+        with mock.patch(f"{HOOK_PATH}.AnthropicBedrock", side_effect=ValueError("bad profile")):
+            with pytest.raises(ValueError, match="bad profile"):
+                AnthropicHook().get_conn()
 
     @mock.patch(f"{HOOK_PATH}.AnthropicFoundry")
     @mock.patch.object(AnthropicHook, "get_connection")
@@ -728,6 +761,69 @@ class TestAnthropicHookGetConn:
             workspace_id="wrkspc_x",
         )
         mock_anthropic.assert_called_once_with(credentials=mock_wic.return_value, base_url=None)
+
+    @pytest.mark.parametrize("service_account_id", [None, ""])
+    @mock.patch(f"{HOOK_PATH}.Anthropic")
+    @mock.patch(f"{HOOK_PATH}.IdentityTokenFile")
+    @mock.patch(f"{HOOK_PATH}.WorkloadIdentityCredentials")
+    @mock.patch.object(AnthropicHook, "get_connection")
+    def test_workload_identity_federation_service_account_is_optional(
+        self, mock_get_connection, mock_wic, mock_itf, mock_anthropic, service_account_id
+    ):
+        workload_identity = {
+            "identity_token_file": "/var/run/secrets/anthropic.com/token",
+            "federation_rule_id": "fdrl_x",
+            "organization_id": "org_x",
+        }
+        if service_account_id is not None:
+            workload_identity["service_account_id"] = service_account_id
+        mock_get_connection.return_value = _conn(
+            password=None,
+            extra={"workload_identity": workload_identity},
+        )
+
+        AnthropicHook().get_conn()
+
+        mock_wic.assert_called_once_with(
+            identity_token_provider=mock_itf.return_value,
+            federation_rule_id="fdrl_x",
+            organization_id="org_x",
+        )
+        mock_anthropic.assert_called_once_with(credentials=mock_wic.return_value, base_url=None)
+
+    @pytest.mark.parametrize(
+        ("missing_field", "missing_value"),
+        [
+            pytest.param(field, value, id=f"{field}-{'absent' if value is None else 'empty'}")
+            for field in (
+                "identity_token_file",
+                "federation_rule_id",
+                "organization_id",
+            )
+            for value in (None, "")
+        ],
+    )
+    @mock.patch.object(AnthropicHook, "get_connection")
+    def test_workload_identity_federation_requires_fields(
+        self, mock_get_connection, missing_field, missing_value
+    ):
+        workload_identity = {
+            "identity_token_file": "/var/run/secrets/anthropic.com/token",
+            "federation_rule_id": "fdrl_x",
+            "organization_id": "org_x",
+            "service_account_id": "svac_x",
+        }
+        if missing_value is None:
+            workload_identity.pop(missing_field)
+        else:
+            workload_identity[missing_field] = missing_value
+        mock_get_connection.return_value = _conn(
+            password=None,
+            extra={"workload_identity": workload_identity},
+        )
+
+        with pytest.raises(AnthropicError, match=missing_field):
+            AnthropicHook().get_conn()
 
     @mock.patch(f"{HOOK_PATH}.Anthropic")
     @mock.patch.object(AnthropicHook, "get_connection")

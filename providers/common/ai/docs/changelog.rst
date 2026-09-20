@@ -26,6 +26,66 @@ Changelog
 ---------
 
 .. note::
+  Configuring ``fallback_conn_ids`` on a connection (or the matching operator/decorator
+  argument) changes what exception a task raises once every connection in the chain fails:
+  it is ``pydantic_ai.exceptions.FallbackExceptionGroup``, not the last provider's own
+  exception. An existing ``RetryRule(exception=ModelHTTPError, ...)`` -- in
+  ``LLMRetryPolicy.fallback_rules`` or a plain ``ExceptionRetryPolicy`` -- stops matching
+  as soon as the connection gains a fallback chain, with no change to the Dag needed to
+  trigger it. Match ``pydantic_ai.exceptions.FallbackExceptionGroup`` explicitly as well,
+  or inspect its ``.exceptions`` attribute for the original per-model errors. See
+  :doc:`retry_policies`, "When the connection also carries a fallback chain".
+
+0.9.0
+.....
+
+.. note::
+  A rejected ``LLMBranchOperator`` review now skips the direct downstream tasks -- teardown tasks
+  excepted -- instead of failing the task. Set ``fail_on_reject=True`` to keep failing the task, or
+  ``ignore_downstream_trigger_rules=True`` to skip every downstream task rather than only the direct
+  ones.
+
+Features
+~~~~~~~~
+
+* ``Support bzip2 and xz compressed inputs in LLM file analysis (#70302)``
+* ``Add .md file support in LLMFileAnalysisOperator (#71611)``
+* ``Add test_connection support to LangChainHook and LlamaIndexHook (#71841)``
+* ``Add BaseManagedAgentToolset for vendor-managed AI agents (#71946)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add require_approval preflight check to @task.llm_schema_compare (#71688)``
+* ``Skip downstream tasks instead of failing when an LLM branch review is rejected (#71073, #72183)``
+* ``Fix Vertex AI hook silently discarding credentials when vertexai flag is set (#72012)``
+
+Misc
+~~~~
+
+* ``Import TaskInstanceState from airflow.sdk (#72446)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix LlamaIndexHook docs to stop claiming Ollama/vLLM support (#72013)``
+* ``Document the missing resource category in common.ai retry policy docs (#72189)``
+* ``Document LLMFileAnalysisOperator's inherited LLM and HITL parameters (#71856)``
+* ``Fix reversed credential precedence in Bedrock hook docstring (#71826)``
+* ``Correct the common-ai toolset list and document the shields extra (#71819)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add drift tripwires for common.ai Vertex model prefix (#72152)``
+   * ``Add unit tests for common AI provider exceptions (#72082)``
+   * ``Fix common.ai Vertex model example to use a valid pydantic-ai prefix (#72011)``
+   * ``Sync connection UI metadata in provider.yaml with hook definitions (#72087)``
+   * ``[main] Upgrade important CI environment (#71590)``
+
+0.8.0
+.....
+
+.. note::
     The ``query`` tool of ``SQLToolset`` and ``DataFusionToolset`` returns a different
     shape. Rows were a dict per row alongside a ``count`` of every matching row:
     ``{"rows": [{"id": 1, "name": "a"}], "count": 900}``. They are now columnar, and
@@ -36,6 +96,39 @@ Changelog
     total. The tool's own description states the new shape, so agents adapt without
     changes; update any system prompt that describes the old shape, and any code
     calling ``toolset.call_tool("query", ...)`` directly.
+
+Features
+~~~~~~~~
+
+* ``Add SandboxToolset for sandboxed agent shell and file access (#68847)``
+* ``Support require_approval in LLMSchemaCompareOperator (#71051)``
+* ``Bound SQL toolset query results by size, not just row count (#71317)``
+* ``Support custom redaction and message length cap in LLMRetryPolicy (#70830)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Let the agent retry on a rejected DataFusion query instead of failing the task (#71445)``
+
+Misc
+~~~~
+
+* ``Show which LLM providers each Common AI connection type reaches (#70497)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document the dedicated pydantic-ai vendor connection types (#71774)``
+* ``Document the common-ai MCPHook (#71817)``
+* ``Document the common-ai LangChain and LlamaIndex connection types (#71818)``
+* ``Fix and expand the common-ai provider's When to use guidance (#71820)``
+* ``Add LLMSchemaCompareOperator to the common-ai operator index table (#71738)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] CI: Upgrade important CI environment (#70501)``
+   * ``Require a lower bound on every dependency in pyproject.toml (#71378)``
+   * ``Pin providers in constraints to the versions published in PyPI (#71324)``
 
 0.7.0
 .....

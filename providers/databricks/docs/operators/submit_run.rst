@@ -46,7 +46,7 @@ execution of Databricks jobs with multiple tasks, but it's harder to detect erro
   notebook_run = DatabricksSubmitRunOperator(task_id="notebook_run", json=json)
 
 The second way to accomplish the same thing is to use the named parameters of the ``DatabricksSubmitRunOperator`` directly. Note that there is exactly
-one named parameter for each top level parameter in the ``runs/submit`` endpoint.  When using named parameters you must to specify following:
+one named parameter for each top level parameter in the ``runs/submit`` endpoint.  When using named parameters you must specify the following:
 
 * Task specification - it should be one of:
 
@@ -78,6 +78,7 @@ Currently the named parameters that ``DatabricksSubmitRunOperator`` supports are
     - ``new_cluster``
     - ``existing_cluster_id``
     - ``libraries``
+    - ``environments``
     - ``run_name``
     - ``timeout_seconds``
     - ``performance_target``
@@ -136,6 +137,22 @@ or ``tasks`` argument.
   # The submitted run's notebook_task.base_parameters becomes:
   #   {"env": "dev", "shard": "1"}
   # i.e. the same dict, copied into the task's dict-shaped parameter slot.
+
+
+OpenLineage parent context
+--------------------------
+
+Set ``openlineage_inject_parent_job_info=True`` to inject the standardized OpenLineage context into
+the dict-shaped parameter slot of each supported task. The context is passed under the
+``OPENLINEAGE_CONTEXT`` key and includes the Airflow task as a ``BATCH/AIRFLOW/TASK`` parent. The root
+job is marked as ``BATCH/AIRFLOW/DAG`` when it is the current Airflow Dag. For a root inherited
+through ``DagRun.conf``, its job type is copied from
+``conf["openlineage"]["rootParentJobType"]`` when available and otherwise omitted.
+
+For tasks with a ``new_cluster``, the operator also retains the existing injection into
+``new_cluster.spark_conf``. Tasks that only accept positional list parameters
+(``spark_jar_task``, ``spark_python_task``, or ``spark_submit_task``) receive the context only when
+their Spark configuration can be injected.
 
 
 Examples

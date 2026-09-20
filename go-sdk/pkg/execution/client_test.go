@@ -28,13 +28,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/apache/airflow/go-sdk/pkg/api"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
 // TestCoordinatorClientGetVariableEnvOverride verifies that an
 // AIRFLOW_VAR_<UPPER(key)> environment override short-circuits the comm
-// socket, matching the HTTP-backed sdk.client behaviour.
+// socket.
 func TestCoordinatorClientGetVariableEnvOverride(t *testing.T) {
 	t.Setenv("AIRFLOW_VAR_MY_KEY", "env_value")
 
@@ -75,8 +74,7 @@ func TestCoordinatorClientGetVariableNoEnvOverride(t *testing.T) {
 
 // TestCoordinatorClientErrorTranslation verifies that GetVariable,
 // GetConnection, and GetXCom translate the supervisor's *_NOT_FOUND error
-// codes into the SDK sentinel errors so call-site `errors.Is` checks behave
-// the same in coordinator and HTTP mode.
+// codes into the SDK sentinel errors used by task code.
 func TestCoordinatorClientErrorTranslation(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -161,6 +159,119 @@ func TestCoordinatorClientErrorPassThrough(t *testing.T) {
 	var apiErr *ApiError
 	require.True(t, errors.As(err, &apiErr))
 	assert.Equal(t, "API_SERVER_ERROR", apiErr.Err)
+}
+
+// TestCoordinatorClientSetVariable verifies the PutVariable frame always
+// carries description, sending null when none is given: the supervisor
+// validates PutVariable with a required description field.
+func TestCoordinatorClientSetVariable(t *testing.T) {
+	tests := []struct {
+		name            string
+		description     string
+		wantDescription any
+	}{
+		{
+			name:            "description is sent",
+			description:     "row threshold",
+			wantDescription: "row threshold",
+		},
+		{name: "empty description is sent as null", description: "", wantDescription: nil},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			responsePayload := encodeResponseFrame(t, 0, nil, nil)
+			var responseBuf bytes.Buffer
+			require.NoError(t, writeFrame(&responseBuf, responsePayload))
+
+			var requestBuf bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
+			client := NewCoordinatorClient(comm)
+
+			require.NoError(
+				t,
+				client.SetVariable(context.Background(), "my_key", "42", tc.description),
+			)
+
+			sent, err := readFrame(&requestBuf)
+			require.NoError(t, err)
+			assert.Equal(t, map[string]any{
+				"type":        "PutVariable",
+				"key":         "my_key",
+				"value":       "42",
+				"description": tc.wantDescription,
+			}, rawToMap(t, sent.Body))
+		})
+	}
+}
+
+// TestCoordinatorClientDeleteVariable verifies the DeleteVariable frame sent
+// to the supervisor.
+func TestCoordinatorClientDeleteVariable(t *testing.T) {
+	responsePayload := encodeResponseFrame(
+		t,
+		0,
+		map[string]any{"type": "OKResponse", "ok": true},
+		nil,
+	)
+	var responseBuf bytes.Buffer
+	require.NoError(t, writeFrame(&responseBuf, responsePayload))
+
+	var requestBuf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
+	client := NewCoordinatorClient(comm)
+
+	require.NoError(t, client.DeleteVariable(context.Background(), "my_key"))
+
+	sent, err := readFrame(&requestBuf)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{
+		"type": "DeleteVariable",
+		"key":  "my_key",
+	}, rawToMap(t, sent.Body))
+}
+
+// TestCoordinatorClientVariableWriteErrors verifies SetVariable and
+// DeleteVariable surface a supervisor ErrorResponse to the task.
+func TestCoordinatorClientVariableWriteErrors(t *testing.T) {
+	tests := []struct {
+		name string
+		call func(client *CoordinatorClient) error
+	}{
+		{
+			name: "SetVariable",
+			call: func(client *CoordinatorClient) error {
+				return client.SetVariable(context.Background(), "my_key", "v", "")
+			},
+		},
+		{
+			name: "DeleteVariable",
+			call: func(client *CoordinatorClient) error {
+				return client.DeleteVariable(context.Background(), "my_key")
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			responsePayload := encodeResponseFrame(t, 0, nil, map[string]any{
+				"type":   "ErrorResponse",
+				"error":  "API_SERVER_ERROR",
+				"detail": map[string]any{"status_code": 403},
+			})
+			var responseBuf bytes.Buffer
+			require.NoError(t, writeFrame(&responseBuf, responsePayload))
+
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			comm := NewCoordinatorComm(&responseBuf, io.Discard, logger)
+			client := NewCoordinatorClient(comm)
+
+			var apiErr *ApiError
+			require.ErrorAs(t, tc.call(client), &apiErr)
+			assert.Equal(t, "API_SERVER_ERROR", apiErr.Err)
+		})
+	}
 }
 
 // TestCoordinatorClientGetConnectionPreservesEmptyCredentials verifies the
@@ -255,10 +366,10 @@ func TestCoordinatorClientPushXComMapIndex(t *testing.T) {
 			comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
 			client := NewCoordinatorClient(comm)
 
-			ti := api.TaskInstance{
-				DagId:    "d",
-				RunId:    "r",
-				TaskId:   "t",
+			ti := sdk.TaskInstance{
+				DagID:    "d",
+				RunID:    "r",
+				TaskID:   "t",
 				MapIndex: tc.mapIndex,
 			}
 			require.NoError(t, client.PushXCom(context.Background(), ti, "k", "v"))

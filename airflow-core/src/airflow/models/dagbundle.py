@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from string import Formatter
 from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
@@ -33,6 +34,18 @@ if TYPE_CHECKING:
     from collections.abc import Collection
 
     from sqlalchemy.orm import Session
+
+
+def _template_field_names(url_template: str) -> set[str]:
+    """
+    Return the names a ``str.format`` call would substitute into ``url_template``.
+
+    ``{version.foo}`` and ``{version[0]}`` both resolve to the ``version`` argument, so the
+    attribute and index parts are stripped. Positional fields (``{}``, ``{0}``) are ignored.
+    Raises ``ValueError`` on a malformed template, which ``render_url`` handles alongside the
+    other ways a deployment-supplied template can be wrong.
+    """
+    return {name.split(".")[0].split("[")[0] for _, name, _, _ in Formatter().parse(url_template) if name}
 
 
 class DagBundleModel(Base, LoggingMixin):
@@ -113,12 +126,23 @@ class DagBundleModel(Base, LoggingMixin):
         if url_template is None:
             return None
 
-        params = dict(self.template_params or {})
-        params["version"] = version
-
         try:
+            # Nothing to interpolate before the first successful refresh, and formatting anyway
+            # would put the literal string "None" in the url. Parse out the field names rather
+            # than testing for a "{version" substring, which also matches an escaped
+            # "{{version}}" and an unrelated param such as "{version_label}" -- both render fine
+            # without a version, so suppressing them would drop a working link.
+            if version is None and "version" in _template_field_names(url_template):
+                return None
+
+            params = dict(self.template_params or {})
+            params["version"] = version
             return url_template.format(**params)
-        except (KeyError, ValueError) as e:
+        except Exception as e:
+            # Broad on purpose: the template is deployment-supplied and its placeholders are never
+            # validated, so besides ``KeyError``/``ValueError`` a template like ``{0}`` or
+            # ``{version.foo}`` raises ``IndexError``/``AttributeError``. Callers render this into a
+            # response field, so a malformed template degrades to "no link" instead of erroring.
             self.log.warning("Failed to render URL template for bundle %s: %s", self.name, e)
             return None
 

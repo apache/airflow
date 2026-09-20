@@ -56,6 +56,8 @@
       "successTitle": "Task Kommunikation (XCom) aktualisiert",
       "title": "Task Kommunikation (XCom) bearbeiten"
     },
+    "entry_one": "XCom-Eintrag",
+    "entry_other": "XCom-Einträge",
     "key": "Name",
     "title": "Task Kommunikation (XComs)",
     "value": "Wert"

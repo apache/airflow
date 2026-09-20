@@ -31,7 +31,7 @@ from time import sleep
 import click
 
 from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
+from airflow_breeze.commands.ci_image_commands import build_ci_image_if_needed
 from airflow_breeze.commands.common_options import (
     argument_doc_packages,
     option_airflow_extras,
@@ -80,7 +80,6 @@ from airflow_breeze.commands.common_options import (
     option_use_airflow_version,
     option_use_uv,
     option_verbose,
-    option_worker_types,
 )
 from airflow_breeze.commands.common_package_installation_options import (
     option_airflow_constraints_location,
@@ -135,6 +134,7 @@ from airflow_breeze.utils.path_utils import (
     COMMON_AI_PLUGIN_PREK_HOOK,
     EDGE_PLUGIN_PREK_HOOK,
     FAB_AUTH_MANAGER_WWW_PREK_HOOK,
+    PYCACHE_VOLUME_NAME,
     cleanup_python_generated_files,
 )
 from airflow_breeze.utils.platforms import get_normalized_platform
@@ -332,7 +332,6 @@ option_load_default_connections = click.option(
 @option_force_lowest_dependencies
 @option_forward_credentials
 @option_github_repository
-@option_worker_types
 @option_include_mypy_volume
 @option_install_airflow_with_constraints_default_true
 @option_install_selected_providers
@@ -392,7 +391,6 @@ def shell(
     force_lowest_dependencies: bool,
     forward_credentials: bool,
     github_repository: str,
-    worker_type: tuple[str, ...],
     include_mypy_volume: bool,
     install_selected_providers: str,
     install_airflow_with_constraints: bool,
@@ -469,8 +467,8 @@ def shell(
         force_lowest_dependencies=force_lowest_dependencies,
         forward_credentials=forward_credentials,
         github_repository=github_repository,
-        worker_type=worker_type,
         include_mypy_volume=include_mypy_volume,
+        include_pycache_volume=True,
         install_airflow_with_constraints=install_airflow_with_constraints,
         install_airflow_python_client=install_airflow_python_client,
         install_selected_providers=install_selected_providers,
@@ -510,7 +508,7 @@ def shell(
         warn_image_upgrade_needed=warn_image_upgrade_needed,
     )
     perform_environment_checks(quiet=shell_params.quiet)
-    rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
+    build_ci_image_if_needed(command_params=shell_params)
     result = enter_shell(shell_params=shell_params)
     fix_ownership_using_docker()
     sys.exit(result.returncode)
@@ -566,7 +564,6 @@ option_executor_start_airflow = click.option(
 @option_force_build
 @option_forward_credentials
 @option_github_repository
-@option_worker_types
 @option_installation_distribution_format
 @option_install_selected_providers
 @option_install_airflow_with_constraints_default_true
@@ -617,7 +614,6 @@ def start_airflow(
     force_build: bool,
     forward_credentials: bool,
     github_repository: str,
-    worker_type: tuple[str, ...],
     integration: tuple[str, ...],
     install_selected_providers: str,
     load_default_connections: bool,
@@ -692,10 +688,6 @@ def start_airflow(
 
     console_print(f"[info]Airflow will be using: {executor} to execute the tasks.")
 
-    if worker_type != () and executor != EDGE_EXECUTOR:
-        console_print(f"[error]Worker type {worker_type} requires executor: {EDGE_EXECUTOR}")
-        sys.exit(1)
-
     platform = get_normalized_platform(platform)
     shell_params = ShellParams(
         airflow_constraints_location=airflow_constraints_location,
@@ -721,7 +713,7 @@ def start_airflow(
         force_build=force_build,
         forward_credentials=forward_credentials,
         github_repository=github_repository,
-        worker_type=worker_type,
+        include_pycache_volume=True,
         integration=integration,
         install_selected_providers=install_selected_providers,
         install_airflow_with_constraints=install_airflow_with_constraints,
@@ -748,7 +740,7 @@ def start_airflow(
         use_distributions_from_dist=use_distributions_from_dist,
         use_uv=use_uv,
     )
-    rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
+    build_ci_image_if_needed(command_params=shell_params)
     result = enter_shell(shell_params=shell_params)
     fix_ownership_using_docker()
     if CELERY_INTEGRATION in integration and executor not in ALLOWED_CELERY_EXECUTORS:
@@ -863,14 +855,15 @@ def _build_ts_sdk_docs(generated_path: Path) -> int:
             f"node:{TYPESCRIPT_SDK_NODE_VERSION}-bookworm-slim",
             "sh",
             "-c",
-            # `npm ci` keeps the lock file authoritative; `npm run build` strips the ASF
-            # header from the landing page and then runs TypeDoc.
-            "npm ci --no-audit --no-fund && npm run build",
+            # `npm ci` keeps the lock file authoritative; `npm test` covers the postbuild
+            # checks; `npm run build` strips the ASF header from the landing page, runs
+            # TypeDoc, then checks the generated HTML is publishable.
+            "npm ci --no-audit --no-fund && npm test && npm run build",
         ],
         check=False,
     )
     if result.returncode != 0:
-        console_print("[error]TypeDoc build failed.")
+        console_print("[error]TypeScript SDK docs build failed.")
         return result.returncode
 
     _stage_sdk_docs(
@@ -919,7 +912,7 @@ def _build_python_docs(
         python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
         builder=builder,
     )
-    rebuild_or_pull_ci_image_if_needed(command_params=build_params)
+    build_ci_image_if_needed(command_params=build_params)
     if clean_build:
         directories_to_clean = ["_build", "_doctrees", "apis"]
     else:
@@ -1130,6 +1123,11 @@ def build_docs(
     is_flag=True,
 )
 @click.option(
+    "--cleanup-pycache",
+    help="Additionally cleanup the Python bytecode cache volume used by Breeze shells.",
+    is_flag=True,
+)
+@click.option(
     "-b",
     "--cleanup-build-cache",
     help="Additionally cleanup Build (pip/uv) cache.",
@@ -1156,6 +1154,7 @@ def build_docs(
 def down(
     preserve_volumes: bool,
     cleanup_mypy_cache: bool,
+    cleanup_pycache: bool,
     cleanup_build_cache: bool,
     all_projects: bool,
     project_name: str | None,
@@ -1187,6 +1186,8 @@ def down(
             if hook_dir.exists():
                 console_print(f"\n[info]Removing dedicated mypy {subdir}: {hook_dir}\n")
                 shutil.rmtree(hook_dir)
+    if cleanup_pycache:
+        run_command(["docker", "volume", "rm", "--force", PYCACHE_VOLUME_NAME])
     if cleanup_build_cache:
         command_to_execute = ["docker", "volume", "rm", "--force", "airflow-cache-volume"]
         run_command(command_to_execute)
@@ -1290,7 +1291,7 @@ def autogenerate(
     build_params = BuildCiParams(
         github_repository=github_repository, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION, builder=builder
     )
-    rebuild_or_pull_ci_image_if_needed(command_params=build_params)
+    build_ci_image_if_needed(command_params=build_params)
     shell_params = ShellParams(
         github_repository=github_repository,
         python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -1367,6 +1368,7 @@ def doctor(ctx):
 @option_forward_credentials
 @option_forward_ports
 @option_github_repository
+@option_include_mypy_volume
 @option_mysql_version
 @option_platform_single
 @option_postgres_version
@@ -1387,6 +1389,7 @@ def run(
     forward_credentials: bool,
     forward_ports: bool,
     github_repository: str,
+    include_mypy_volume: bool,
     mysql_version: str,
     platform: str | None,
     postgres_version: str,
@@ -1421,7 +1424,7 @@ def run(
     """
     import uuid
 
-    from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
+    from airflow_breeze.commands.ci_image_commands import build_ci_image_if_needed
     from airflow_breeze.params.shell_params import ShellParams
     from airflow_breeze.utils.ci_group import ci_group
     from airflow_breeze.utils.docker_command_utils import (
@@ -1454,6 +1457,7 @@ def run(
         force_build=force_build,
         forward_credentials=forward_credentials,
         github_repository=github_repository,
+        include_mypy_volume=include_mypy_volume,
         mysql_version=mysql_version,
         platform=platform,
         postgres_version=postgres_version,
@@ -1473,8 +1477,7 @@ def run(
         console_print(f"[info]Running command in Breeze: {full_command}[/]")
         console_print(f"[info]Using project name: {unique_project_name}[/]")
 
-    # Build or pull the CI image if needed
-    rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
+    build_ci_image_if_needed(command_params=shell_params)
 
     # Execute the command in the shell, cleaning up Docker resources afterward
     try:

@@ -1202,7 +1202,30 @@ class TestAssetEventOperations:
             ({"alias_name": "this_asset_alias"}),
         ],
     )
-    def test_by_name_get_success(self, request_params):
+    @pytest.mark.parametrize(
+        ("created_dagruns", "expected_created_dagruns"),
+        [
+            pytest.param([], 0, id="without-created-dagrun"),
+            pytest.param(
+                [
+                    {
+                        "dag_id": "created_dag",
+                        "run_id": "queued_run",
+                        "logical_date": "2023-01-01T00:00:00Z",
+                        "start_date": None,
+                        "end_date": None,
+                        "state": "queued",
+                        "data_interval_start": None,
+                        "data_interval_end": None,
+                        "partition_key": None,
+                    }
+                ],
+                1,
+                id="queued-created-dagrun-without-start-date",
+            ),
+        ],
+    )
+    def test_by_name_get_success(self, request_params, created_dagruns, expected_created_dagruns):
         def handle_request(request: httpx.Request) -> httpx.Response:
             params = request.url.params
             if request.url.path == "/asset-events/by-asset":
@@ -1224,7 +1247,7 @@ class TestAssetEventOperations:
                                 "uri": "s3://bucket/key",
                                 "group": "asset",
                             },
-                            "created_dagruns": [],
+                            "created_dagruns": created_dagruns,
                             "timestamp": "2023-01-01T00:00:00Z",
                         }
                     ]
@@ -1238,6 +1261,9 @@ class TestAssetEventOperations:
         assert len(result.asset_events) == 1
         assert result.asset_events[0].asset.name == "this_asset"
         assert result.asset_events[0].asset.uri == "s3://bucket/key"
+        assert len(result.asset_events[0].created_dagruns) == expected_created_dagruns
+        if expected_created_dagruns:
+            assert result.asset_events[0].created_dagruns[0].start_date is None
 
     def test_partition_key_exact_match_param_passed(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -2254,3 +2280,36 @@ class TestAssetStateOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.asset_state_store.clear(uri="s3://bucket/key")
         assert result == OKResponse(ok=True)
+
+
+class TestCallbackOperations:
+    def test_run_exchanges_token(self):
+        callback_id = uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PATCH"
+            assert request.url.path == f"/callbacks/{callback_id}/run"
+            return httpx.Response(
+                status_code=204,
+                headers={"Refreshed-API-Token": "execution-token"},
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        client.callbacks.run(callback_id)
+
+        assert client.auth is not None
+        assert client.auth.token == "execution-token"
+
+    def test_run_raises_on_conflict(self):
+        callback_id = uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                status_code=409,
+                json={"detail": {"reason": "invalid_state", "previous_state": "running"}},
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        with pytest.raises(ServerResponseError) as err:
+            client.callbacks.run(callback_id)
+        assert err.value.response.status_code == 409

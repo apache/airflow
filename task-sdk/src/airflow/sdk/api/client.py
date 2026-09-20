@@ -1097,6 +1097,17 @@ class ConnectionTestOperations:
         self.client.patch(f"connection-tests/{id}", content=body.model_dump_json())
 
 
+class CallbackOperations:
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def run(self, callback_id: uuid.UUID) -> None:
+        """Exchange the single-use callback token for an execution token."""
+        self.client.patch(f"callbacks/{callback_id}/run")
+
+
 class BearerAuth(httpx.Auth):
     def __init__(self, token: str):
         self.token: str = token
@@ -1303,6 +1314,12 @@ class Client(httpx.Client):
     def connection_tests(self) -> ConnectionTestOperations:
         """Operations related to Connection Tests."""
         return ConnectionTestOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def callbacks(self) -> CallbackOperations:
+        """Operations related to Callbacks."""
+        return CallbackOperations(self)
 
     @lru_cache()  # type: ignore[misc]
     @property

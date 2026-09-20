@@ -37,13 +37,13 @@
   "code": {
     "bundleUrl": "URL del Bundle",
     "noCode": "No se encontró código",
-    "parseDuration": "Duración del parseo:",
-    "parsedAt": "Parseado en:"
+    "parseDuration": "Duración del análisis:",
+    "parsedAt": "Analizado en:"
   },
   "deadlineAlerts": {
     "completionRule": "Debe completarse dentro de {{interval}} de {{reference}}",
-    "count_many": "{{count}} plazos",
-    "count_one": "{{count}} plazos",
+    "completionRuleDynamic": "Debe completarse dentro de un intervalo variable medido desde {{reference}}",
+    "count_one": "{{count}} plazo",
     "count_other": "{{count}} plazos",
     "referenceType": {
       "AverageRuntimeDeadline": "duración promedio de ejecución",
@@ -59,14 +59,12 @@
     "label": "Plazo",
     "met": "Cumplido",
     "missed": "Incumplido",
-    "missedCount_many": "{{count}} Plazos Incumplidos",
-    "missedCount_one": "{{count}} Plazos Incumplidos",
+    "missedCount_one": "{{count}} Plazo Incumplido",
     "missedCount_other": "{{count}} Plazos Incumplidos",
     "mixedCount": "{{missedCount}} Incumplidos, {{upcomingCount}} Próximos",
     "stillRunning": "Aún en ejecución",
     "upcoming": "Próximos",
-    "upcomingCount_many": "{{count}} Plazos Próximos",
-    "upcomingCount_one": "{{count}} Plazos Próximos",
+    "upcomingCount_one": "{{count}} Plazo Próximo",
     "upcomingCount_other": "{{count}} Plazos Próximos"
   },
   "extraLinks": "Enlaces Extra",
@@ -82,15 +80,15 @@
   "header": {
     "buttons": {
       "advanced": "Avanzado",
-      "dagDocs": "Documentacion del Dag"
+      "dagDocs": "Documentación del Dag"
     },
     "status": {
       "deactivated": "Desactivado"
     }
   },
   "logs": {
-    "allLevels": "Todos los niveles de log",
-    "allSources": "Todas las fuentes",
+    "allLevels": "Todos los Niveles de Log",
+    "allSources": "Todas las Fuentes",
     "critical": "CRÍTICO",
     "debug": "DEPURACIÓN",
     "error": "ERROR",
@@ -101,14 +99,9 @@
       "noMatches": "Sin coincidencias",
       "placeholder": "Buscar en logs..."
     },
-    "settings": "Configuración de logs",
+    "settings": "Configuración de Logs",
     "viewInExternal": "Ver logs en {{name}} (intento {{attempt}})",
     "warning": "ADVERTENCIA"
-  },
-  "navigation": {
-    "navigation": "Navegación: Shift+{{arrow}}",
-    "openGraphFilters": "Filtros de Tareas: Ctrl+Shift+F",
-    "toggleGroup": "Alternar grupo: Espacio"
   },
   "notFound": {
     "back": "Volver",
@@ -118,18 +111,14 @@
   },
   "overview": {
     "buttons": {
-      "failedRun_many": "Ejecuciones Fallidas",
       "failedRun_one": "Ejecución Fallida",
       "failedRun_other": "Ejecuciones Fallidas",
-      "failedTask_many": "Tareas Fallidas",
       "failedTask_one": "Tarea Fallida",
       "failedTask_other": "Tareas Fallidas",
-      "failedTaskInstance_many": "Instancias de Tarea Fallidas",
       "failedTaskInstance_one": "Instancia de Tarea Fallida",
       "failedTaskInstance_other": "Instancias de Tarea Fallidas"
     },
     "charts": {
-      "assetEvent_many": "Eventos de Asset Creados",
       "assetEvent_one": "Evento de Asset Creado",
       "assetEvent_other": "Eventos de Asset Creados"
     },
@@ -155,13 +144,7 @@
       "label": "Número de Ejecuciones de Dag"
     },
     "dependencies": {
-      "label": "Dependencias",
-      "options": {
-        "allDagDependencies": "Todas las Dependencias de Dag",
-        "externalConditions": "Condiciones Externas",
-        "onlyTasks": "Solo tareas"
-      },
-      "placeholder": "Dependencias"
+      "allDagDependencies": "Todas las Dependencias de Dag"
     },
     "graphDirection": {
       "label": "Dirección del Gráfico"
@@ -210,24 +193,23 @@
   "parse": {
     "toaster": {
       "error": {
-        "description": "El Dag no pudo ser reparado. Puede haber solicitudes de reparsing pendientes por procesar.",
-        "title": "El Dag no pudo ser reparado"
+        "description": "La solicitud de análisis del Dag falló. Puede haber solicitudes de análisis pendientes por procesar.",
+        "title": "El Dag no pudo ser reanalizado"
       },
       "success": {
-        "description": "El Dag debería reparsearse pronto.",
-        "title": "Solicitud de reparsing enviada exitosamente"
+        "description": "El Dag debería reanalizarse pronto.",
+        "title": "Solicitud de reanálisis enviada exitosamente"
       }
     }
   },
   "tabs": {
     "assetEvents": "Eventos de Asset",
-    "auditLog": "Auditoría de Log",
+    "auditLog": "Log de Auditoría",
     "backfills": "Backfills",
     "calendar": "Calendario",
     "code": "Código",
     "details": "Detalles",
     "logs": "Logs",
-    "mappedTaskInstances_many": "Instancias de Tarea [{{count}}]",
     "mappedTaskInstances_one": "Instancia de Tarea [{{count}}]",
     "mappedTaskInstances_other": "Instancias de Tarea [{{count}}]",
     "overview": "Resumen",
@@ -255,6 +237,8 @@
     "deleteWarning": "La tarea perderá esta memoria persistente. Si la tarea usa esta clave para hacer seguimiento de trabajo externo (p. ej., un ID de trabajo externo), no podrá reanudarlo.",
     "edit": "Editar Almacenamiento de Estado de Tarea",
     "emptyStore": "El almacenamiento de estado de tarea almacena valores que persisten entre reintentos. Los workers pueden escribir en el almacenamiento de estado de tarea mediante el Task SDK.",
+    "entry_one": "Entrada",
+    "entry_other": "Entradas",
     "expiresAt": {
       "column": "Expira en",
       "custom": "Personalizado",

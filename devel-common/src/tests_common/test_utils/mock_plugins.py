@@ -89,9 +89,11 @@ def mock_plugin_manager(plugins=None, **kwargs):
 
             plugins_manager._get_plugins.cache_clear()
             plugins_manager._get_ui_plugins.cache_clear()
+            plugins_manager.get_ui_translations.cache_clear()
             plugins_manager.get_flask_plugins.cache_clear()
             plugins_manager.get_fastapi_plugins.cache_clear()
             plugins_manager._get_extra_operators_links_plugins.cache_clear()
+            plugins_manager._get_extra_link_class_teams.cache_clear()
             plugins_manager.get_timetables_plugins.cache_clear()
             plugins_manager.integrate_macros_plugins.cache_clear()
             plugins_manager.get_priority_weight_strategy_plugins.cache_clear()
