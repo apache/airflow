@@ -447,6 +447,28 @@ class TestGKECreateClusterOperator:
     @pytest.mark.parametrize(
         "body",
         [
+            pytest.param(
+                {"name": GKE_CLUSTER_NAME, "autopilot": {"enabled": False}},
+                id="dict",
+            ),
+            pytest.param(
+                Cluster(name=GKE_CLUSTER_NAME, autopilot={"enabled": False}),
+                id="cluster",
+            ),
+        ],
+    )
+    def test_body_with_autopilot_disabled_without_node_pool_raises(self, body):
+        with pytest.raises(AirflowException):
+            GKECreateClusterOperator(
+                project_id=TEST_PROJECT_ID,
+                location=TEST_LOCATION,
+                body=body,
+                task_id=TEST_TASK_ID,
+            )
+
+    @pytest.mark.parametrize(
+        "body",
+        [
             None,
             {"missing_name": "test-name", "initial_node_count": 1},
             {
