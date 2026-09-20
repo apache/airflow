@@ -60,7 +60,7 @@ With Object Storage
 -------------------
 
 Use ``datasource_config`` to generate queries for data stored in object storage
-(e.g., S3, local filesystem) via `DataFusion <https://datafusion.apache.org/>`_.
+(e.g., S3, GCS, local filesystem) via `DataFusion <https://datafusion.apache.org/>`_.
 The operator uses :class:`~airflow.providers.common.sql.config.DataSourceConfig`
 to register the object storage source as a table so the LLM can include it in
 the schema context.

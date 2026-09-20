@@ -14,37 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-from airflow.sdk import dag, task
+from airflow.providers.apache.hive.macros.hive import closest_ds_partition, max_partition
+from airflow.providers.apache.hive.plugins.hive import HivePlugin
 
 
-@task
-def python_start():
-    return "hello from Python"
+def test_hive_plugin_registers_macros():
+    plugin = HivePlugin()
 
-
-@task.stub(queue="typescript")
-def build_message(): ...
-
-
-@task.stub(queue="typescript")
-def read_connection(): ...
-
-
-@task.stub(queue="typescript")
-def write_and_delete_variable(): ...
-
-
-@dag(dag_id="typescript_example", schedule=None, catchup=False, tags=["typescript", "example"])
-def typescript_example():
-    start = python_start()
-    message = build_message()
-    read_connection()
-    write_and_delete_variable()
-
-    start >> message
-
-
-typescript_example()
+    assert plugin.name == "hive"
+    assert plugin.macros == [max_partition, closest_ds_partition]

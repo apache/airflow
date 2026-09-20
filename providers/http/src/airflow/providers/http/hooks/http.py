@@ -517,7 +517,7 @@ class AsyncHttpSession(LoggingMixin):
             response = await self._request(
                 url,
                 params=data if self.method == "GET" else None,
-                data=data if self.method in {"POST", "PUT", "PATCH"} else None,
+                data=data if self.method in {"POST", "PUT", "PATCH", "DELETE"} else None,
                 json=json,
                 headers=merged_headers,
                 auth=self.auth,

@@ -32,7 +32,6 @@ class Constants:
     CC_OPR_EMPTY_PROFILE_ERROR_MSG = "Failed to %s the Vantage Cloud Lake Compute Cluster Instance due to an invalid compute cluster profile name."
     CC_GRP_PRP_NON_EXISTS_MSG = "Failed to %s the Vantage Cloud Lake Compute Cluster Instance because the specified compute cluster does not exist or the user lacks the necessary permissions to access the Compute Cluster Instance."
     CC_GRP_LAKE_SUPPORT_ONLY_MSG = "Failed to %s the Vantage Cloud Lake Compute Cluster Instance  because the Compute Cluster feature is supported only on the Vantage Cloud Lake system."
-    CC_OPR_TIMEOUT_ERROR = "Failed to %s the Vantage Cloud Lake Compute Cluster Instance `%s`. Please contact the administrator for assistance."
     CC_ERR_VERSION_GET = "Failed to manage the Vantage Cloud Lake Compute Cluster Instance due to an error while getting the Teradata database version."
     BTEQ_REMOTE_ERROR_MSG = (
         "Failed to establish a SSH connection to the remote machine for executing the BTEQ script."
