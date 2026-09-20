@@ -136,7 +136,7 @@ reported as such are described in "What is NOT considered a security vulnerabili
 - No `assert` in production code.
 - **Comment only when context is not readily apparent from the code.**
   Generic purpose explanation do not qualify: `# Log for debugging` above `logging.debug(...)`,
-  `# Validate for safety`, and `# Retry for reliability` and similar, provide no useful information.
+  `# Validate for safety`, `# Retry for reliability` and similar provide no useful information.
   Useful comments record a specific constraint, invariant, compatibility quirk, or tradeoff.
   Before adding a comment, identify the misunderstanding or incorrect change it would prevent.
   If removing a comment will lose non-code-related context, omit it. Do not narrate code, repeat code,
