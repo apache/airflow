@@ -384,7 +384,10 @@ class DocumentLoaderOperator(BaseOperator):
 
     def _parse_json_lines_text(self, text: str) -> list[dict[str, Any]]:
         documents: list[dict[str, Any]] = []
-        for line_number, line in enumerate(text.splitlines(), start=1):
+        # split("\n") rather than splitlines(): JSON Lines is defined with \n, while splitlines()
+        # also breaks on U+2028/U+2029/U+0085, which are legal unescaped characters inside a JSON
+        # string and would tear a valid record in half. A trailing \r from CRLF is JSON whitespace.
+        for line_number, line in enumerate(text.split("\n"), start=1):
             if not line.strip():
                 continue
             try:

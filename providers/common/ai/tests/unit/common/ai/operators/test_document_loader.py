@@ -248,6 +248,18 @@ class TestJsonLinesParser:
         with pytest.raises(ValueError, match=r"Invalid JSON on line 3, column 13"):
             op.execute(context=MagicMock())
 
+    def test_line_separator_inside_string_is_not_a_record_break(self):
+        # U+2028 is a legal unescaped character inside a JSON string, but str.splitlines()
+        # breaks on it, which would tear this record in two and shift every later line number.
+        raw = '{"a": "x\u2028y"}\n{"b": 1}\n'.encode()
+        op = DocumentLoaderOperator(task_id="test", source_bytes=raw, file_type=".jsonl")
+
+        result = op.execute(context=MagicMock())
+
+        assert len(result) == 2
+        assert result[0]["text"] == "a: x\u2028y"
+        assert result[1]["text"] == "b: 1"
+
     def test_directory_recognizes_jsonl_extension(self, tmp_path):
         (tmp_path / "items.jsonl").write_text('{"name": "kept"}\n', encoding="utf-8")
 
