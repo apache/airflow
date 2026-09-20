@@ -27,7 +27,7 @@ This quick-start guide will allow you to quickly get Airflow up and running with
 
     For that reason, we recommend using Kubernetes with the :doc:`Official Airflow Community Helm Chart<helm-chart:index>` when you are ready to run Airflow in production.
 
-Before you begin
+Before you begin.
 ================
 
 This procedure assumes familiarity with Docker and Docker Compose. If you haven't worked with these tools before, you should take a moment to run through the `Docker Quick Start <https://docs.docker.com/get-started/>`__ (especially the section on `Docker Compose <https://docs.docker.com/get-started/08_using_compose/>`__) so you are familiar with how they work.
