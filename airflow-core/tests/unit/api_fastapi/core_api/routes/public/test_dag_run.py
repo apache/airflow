@@ -1281,6 +1281,15 @@ class TestListDagRunsBatch:
         assert response.status_code == status_code
         assert set([each["dag_run_id"] for each in response.json()["dag_runs"]]) == set(expected_dag_id_list)
 
+    @conf_vars({("api", "maximum_page_limit"): "2"})
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_page_limit_is_clamped_to_maximum_page_limit(self, test_client):
+        response = test_client.post("/dags/~/dagRuns/list", json={"page_limit": 100})
+        body = response.json()
+        assert response.status_code == 200, body
+        assert body["total_entries"] == 4
+        assert len(body["dag_runs"]) == 2
+
     def test_invalid_order_by_raises_400(self, test_client):
         response = test_client.post("/dags/~/dagRuns/list", json={"order_by": "invalid"})
         assert response.status_code == 400

@@ -113,8 +113,13 @@ class LimitFilter(BaseParam[NonNegativeInt]):
         return select.limit(self.value)
 
     @classmethod
-    def depends(cls, limit: NonNegativeInt = _FALLBACK_PAGE_LIMIT) -> LimitFilter:
+    def clamp_to_maximum(cls, limit: NonNegativeInt) -> LimitFilter:
+        """Build a filter whose limit never exceeds ``[api] maximum_page_limit``."""
         return cls().set_value(min(limit, conf.getint("api", "maximum_page_limit")))
+
+    @classmethod
+    def depends(cls, limit: NonNegativeInt = _FALLBACK_PAGE_LIMIT) -> LimitFilter:
+        return cls.clamp_to_maximum(limit)
 
 
 class OffsetFilter(BaseParam[NonNegativeInt]):

@@ -978,7 +978,7 @@ def get_list_dag_runs_batch(
     state = FilterParam(DagRun.state, body.states, FilterOptionEnum.ANY_EQUAL)  # type: ignore[arg-type]
 
     offset = OffsetFilter(body.page_offset)
-    limit = LimitFilter(body.page_limit)
+    limit = LimitFilter.clamp_to_maximum(body.page_limit)
 
     order_by = SortParam(
         [

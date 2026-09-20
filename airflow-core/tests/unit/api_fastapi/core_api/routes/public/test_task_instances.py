@@ -2631,6 +2631,18 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         assert len(response.json()["task_instances"]) == expected_ti
         assert response.json()["total_entries"] == total_ti
 
+    @conf_vars({("api", "maximum_page_limit"): "2"})
+    def test_page_limit_is_clamped_to_maximum_page_limit(self, test_client, session):
+        self.create_task_instances(session)
+        response = test_client.post(
+            "/dags/~/dagRuns/~/taskInstances/list",
+            json={"dag_ids": ["example_python_operator"], "page_limit": 100},
+        )
+        body = response.json()
+        assert response.status_code == 200, body
+        assert body["total_entries"] == 14
+        assert len(body["task_instances"]) == 2
+
     def test_should_raise_400_for_no_json(self, test_client):
         response = test_client.post(
             "/dags/~/dagRuns/~/taskInstances/list",

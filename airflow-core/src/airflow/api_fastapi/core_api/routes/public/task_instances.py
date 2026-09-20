@@ -750,7 +750,7 @@ def get_task_instances_batch(
     executor = FilterParam(TI.executor, body.executor, FilterOptionEnum.ANY_EQUAL)  # type: ignore[arg-type]
 
     offset = OffsetFilter(body.page_offset)
-    limit = LimitFilter(body.page_limit)
+    limit = LimitFilter.clamp_to_maximum(body.page_limit)
 
     order_by = SortParam(
         ["id", "state", "duration", "start_date", "end_date", "map_index"],
