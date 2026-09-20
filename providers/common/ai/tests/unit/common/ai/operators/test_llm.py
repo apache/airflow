@@ -83,7 +83,15 @@ def _build_priced_response(messages: list[ModelMessage], info: AgentInfo) -> Mod
 
 class TestLLMOperator:
     def test_template_fields(self):
-        expected = {"prompt", "llm_conn_id", "model_id", "system_prompt", "agent_params", "usage_limits"}
+        expected = {
+            "prompt",
+            "llm_conn_id",
+            "model_id",
+            "fallback_conn_ids",
+            "system_prompt",
+            "agent_params",
+            "usage_limits",
+        }
         assert set(LLMOperator.template_fields) == expected
 
     @pytest.mark.parametrize(
@@ -121,7 +129,9 @@ class TestLLMOperator:
         mock_hook_cls.get_hook.return_value.create_agent.assert_called_once_with(
             output_type=str, instructions=""
         )
-        mock_hook_cls.get_hook.assert_called_once_with("my_llm", hook_params={"model_id": None})
+        mock_hook_cls.get_hook.assert_called_once_with(
+            "my_llm", hook_params={"model_id": None, "fallback_conn_ids": None}
+        )
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_forwards_usage_limits_to_run_sync(self, mock_hook_cls, make_mock_run_result):
@@ -270,12 +280,52 @@ class TestLLMOperator:
 
         assert isinstance(result, Entities)
         assert result.names == ["Alice", "Bob"]
-        mock_hook_cls.get_hook.assert_called_once_with("my_llm", hook_params={"model_id": "openai:gpt-5"})
+        mock_hook_cls.get_hook.assert_called_once_with(
+            "my_llm", hook_params={"model_id": "openai:gpt-5", "fallback_conn_ids": None}
+        )
         mock_hook_cls.get_hook.return_value.create_agent.assert_called_once_with(
             output_type=Entities,
             instructions="You are an extractor.",
             retries=3,
             model_settings={"temperature": 0.9},
+        )
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_forwards_fallback_conn_ids_to_hook(self, mock_hook_cls, make_mock_run_result):
+        """``fallback_conn_ids`` on the operator overrides the connection's own extra field."""
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = make_mock_run_result("ok")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(
+            task_id="test",
+            prompt="p",
+            llm_conn_id="my_llm",
+            fallback_conn_ids=["conn_a", "conn_b"],
+        )
+        op.execute(context=MagicMock())
+
+        mock_hook_cls.get_hook.assert_called_once_with(
+            "my_llm", hook_params={"model_id": None, "fallback_conn_ids": ["conn_a", "conn_b"]}
+        )
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_forwards_empty_fallback_conn_ids_to_hook(self, mock_hook_cls, make_mock_run_result):
+        """An explicit ``[]`` disables a chain configured on the connection, not just an override."""
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = make_mock_run_result("ok")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(
+            task_id="test",
+            prompt="p",
+            llm_conn_id="my_llm",
+            fallback_conn_ids=[],
+        )
+        op.execute(context=MagicMock())
+
+        mock_hook_cls.get_hook.assert_called_once_with(
+            "my_llm", hook_params={"model_id": None, "fallback_conn_ids": []}
         )
 
     def test_declares_output_type_for_deserialization(self):

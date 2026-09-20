@@ -78,6 +78,7 @@ Currently the named parameters that ``DatabricksSubmitRunOperator`` supports are
     - ``new_cluster``
     - ``existing_cluster_id``
     - ``libraries``
+    - ``environments``
     - ``run_name``
     - ``timeout_seconds``
     - ``performance_target``
