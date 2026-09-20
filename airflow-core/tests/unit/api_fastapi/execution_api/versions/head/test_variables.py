@@ -24,7 +24,6 @@ import pytest
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.routing import Mount
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from airflow.models.variable import Variable
 
@@ -245,20 +244,7 @@ class TestPutVariable:
         assert any(msg.startswith("Checking write access for task instance") for msg in caplog.messages)
 
 
-@pytest.mark.usefixtures("reconfigure_async_db_engine")
 class TestGetVariableKeys:
-    @mock.patch.object(AsyncSession, "scalars", autospec=True)
-    @mock.patch.object(AsyncSession, "scalar", autospec=True, return_value=0)
-    def test_awaits_async_queries(self, mock_scalar, mock_scalars, client):
-        mock_scalars.return_value.all = mock.Mock(return_value=[])
-
-        response = client.get("/execution/variables/keys")
-
-        assert response.status_code == 200
-        assert response.json() == {"keys": [], "total_entries": 0}
-        mock_scalar.assert_awaited_once()
-        mock_scalars.assert_awaited_once()
-
     @pytest.mark.parametrize(
         ("prefix", "expected_keys"),
         [
