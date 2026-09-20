@@ -159,6 +159,7 @@ See the Optional dependencies table below for the exact package each extra insta
     LlamaIndex connection <connections/llamaindex>
     Hooks <hooks/index>
     Toolsets <toolsets>
+    Sandboxed execution <sandbox>
     Operators <operators/index>
     Examples <examples>
     Retry Policies <retry_policies>
