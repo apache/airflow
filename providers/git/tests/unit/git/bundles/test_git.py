@@ -1431,7 +1431,9 @@ class TestGitDagBundle:
             _, kwargs = mock_gitRepo.clone_from.call_args
             assert kwargs["env"] == EXPECTED_ENV
 
-    def test_refresh_propagates_token_askpass_env_to_fetch_and_submodules(self, create_connection_without_db):
+    def test_refresh_propagates_token_credential_env_to_fetch_and_submodules(
+        self, create_connection_without_db
+    ):
         token = "tok$with'quote"
         conn_id = "my_git_conn_token_refresh"
         create_connection_without_db(
@@ -1459,26 +1461,19 @@ class TestGitDagBundle:
         bundle.repo.remotes.origin.refs = [origin_ref]
 
         def _assert_token_env(*_, **__):
-            assert os.environ["GIT_ASKPASS"] == bundle.hook.env["GIT_ASKPASS"]
+            assert os.environ["AIRFLOW_GIT_TOKEN"] == bundle.hook.env["AIRFLOW_GIT_TOKEN"]
+            assert os.environ["GIT_CONFIG_VALUE_0"] == bundle.hook.env["GIT_CONFIG_VALUE_0"]
             assert os.environ["GIT_TERMINAL_PROMPT"] == "0"
 
         bundle.bare_repo.remotes.origin.fetch.side_effect = _assert_token_env
         bundle.repo.remotes.origin.fetch.side_effect = _assert_token_env
         bundle.repo.git.submodule.side_effect = _assert_token_env
 
-        old_git_askpass = os.environ.get("GIT_ASKPASS")
         old_git_terminal_prompt = os.environ.get("GIT_TERMINAL_PROMPT")
-        with mock.patch.dict(
-            os.environ,
-            {"GIT_ASKPASS": "sentinel-askpass", "GIT_TERMINAL_PROMPT": "1"},
-            clear=False,
-        ):
+        with mock.patch.dict(os.environ, {"GIT_TERMINAL_PROMPT": "1"}, clear=False):
             bundle.refresh()
 
-        if old_git_askpass is None:
-            assert "GIT_ASKPASS" not in os.environ
-        else:
-            assert os.environ["GIT_ASKPASS"] == old_git_askpass
+        assert "AIRFLOW_GIT_TOKEN" not in os.environ
 
         if old_git_terminal_prompt is None:
             assert "GIT_TERMINAL_PROMPT" not in os.environ
@@ -1509,7 +1504,7 @@ class TestGitDagBundle:
         assert Repo(bundle.bare_repo_path).remotes.origin.url == str(repo_path)
 
     @mock.patch("airflow.providers.git.bundles.git.Repo")
-    def test_clone_passes_token_askpass_env_to_gitpython(self, mock_gitRepo, create_connection_without_db):
+    def test_clone_passes_token_credential_env_to_gitpython(self, mock_gitRepo, create_connection_without_db):
         conn_id = "my_git_conn_token_clone"
         create_connection_without_db(
             Connection(
@@ -1526,11 +1521,12 @@ class TestGitDagBundle:
         with bundle.hook.configure_hook_env():
             bundle._clone_bare_repo_if_required()
             _, kwargs = mock_gitRepo.clone_from.call_args
-            askpass_path = kwargs["env"]["GIT_ASKPASS"]
+            helper_path = kwargs["env"]["GIT_CONFIG_VALUE_0"]
             assert kwargs["env"]["GIT_TERMINAL_PROMPT"] == "0"
-            assert os.path.exists(askpass_path)
+            assert kwargs["env"]["AIRFLOW_GIT_TOKEN"] == ACCESS_TOKEN
+            assert os.path.exists(helper_path)
 
-        assert not os.path.exists(askpass_path)
+        assert not os.path.exists(helper_path)
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     @mock.patch("airflow.providers.git.bundles.git.shutil.rmtree")

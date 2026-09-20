@@ -293,54 +293,53 @@ class GitHook(BaseHook):
                     self.env["GIT_TERMINAL_PROMPT"] = old_terminal_prompt
                     os.environ["GIT_TERMINAL_PROMPT"] = old_terminal_prompt
 
-    def _extract_repo_host(self) -> str:
-        """Return the ``host[:port]`` of the repo url, as written."""
-        rest = str(self.repo_url).partition("://")[2]
-        return rest.partition("/")[0].rpartition("@")[2]
+    def _extract_credential_scope(self) -> str:
+        """Return the ``<scheme>://<host>[:port]`` git matches a credential config against."""
+        scheme, _, rest = str(self.repo_url).partition("://")
+        host = rest.partition("/")[0].rpartition("@")[2]
+        return f"{scheme}://{host}" if host else ""
 
     @contextlib.contextmanager
-    def _token_askpass_env(self):
-        """Hand the token to git through GIT_ASKPASS so it never reaches the repo URL."""
-        # Only http(s) consults GIT_ASKPASS, so writing the token to a temp script for an SSH
-        # connection that happens to carry one would put it on disk for nothing.
+    def _token_credential_env(self):
+        """Hand the token to git through a credential helper scoped to the repository's host."""
+        # Credential helpers only serve http(s); an SSH connection that happens to carry a
+        # password would gain nothing from one.
         if not self.auth_token or not str(self.repo_url).startswith(("http://", "https://")):
             yield
             return
 
-        host = self._extract_repo_host()
-        if not host:
+        scope = self._extract_credential_scope()
+        if not scope:
             yield
             return
 
-        with tempfile.TemporaryDirectory() as askpass_dir:
-            askpass_path = os.path.join(askpass_dir, "askpass.sh")
-            # The credential reaches the script through the environment, so it is never written to
-            # disk. git names the target in $1 as ``<scheme>://[user@]<host>[:port][/path]``, and
-            # matching it means a submodule hosted elsewhere gets nothing rather than this
-            # connection's token. Quoted expansions stay literal in a pattern, so an IPv6 host's
-            # brackets are not read as a glob character class.
-            with open(askpass_path, "w") as askpass_script:
-                askpass_script.write(
+        with tempfile.TemporaryDirectory() as helper_dir:
+            helper_path = os.path.join(helper_dir, "credential-helper.sh")
+            # git matches the configured scope against the url it parsed, then hands the helper
+            # structured fields on stdin. A submodule elsewhere never reaches this helper, and no
+            # part of the decision depends on the wording of a human-readable prompt.
+            with open(helper_path, "w") as helper_script:
+                helper_script.write(
                     """#!/bin/sh
-case "$1" in
-    *"://$AIRFLOW_GIT_HOST'"*|*"://$AIRFLOW_GIT_HOST/"*|*"@$AIRFLOW_GIT_HOST'"*|*"@$AIRFLOW_GIT_HOST/"*) ;;
-    *) exit 1 ;;
-esac
-case "$1" in
-    *Username*) printf '%s\n' "$AIRFLOW_GIT_USER" ;;
-    *Password*) printf '%s\n' "$AIRFLOW_GIT_TOKEN" ;;
-    *) exit 1 ;;
-esac
+cat > /dev/null
+[ "$1" = get ] || exit 0
+printf 'username=%s\npassword=%s\n' "$AIRFLOW_GIT_USER" "$AIRFLOW_GIT_TOKEN"
 """
                 )
             # The handle has to be closed before git runs: Linux refuses to exec a file that is
             # still open for writing, which git surfaces as "cannot exec: Text file busy".
-            os.chmod(askpass_path, stat.S_IRWXU)
+            os.chmod(helper_path, stat.S_IRWXU)
 
+            # Append to any GIT_CONFIG_* the deployment already exports rather than replacing it.
+            try:
+                index = int(os.environ.get("GIT_CONFIG_COUNT", "0"))
+            except ValueError:
+                index = 0
             values = {
-                "GIT_ASKPASS": askpass_path,
+                "GIT_CONFIG_COUNT": str(index + 1),
+                f"GIT_CONFIG_KEY_{index}": f"credential.{scope}.helper",
+                f"GIT_CONFIG_VALUE_{index}": helper_path,
                 "GIT_TERMINAL_PROMPT": "0",
-                "AIRFLOW_GIT_HOST": host,
                 "AIRFLOW_GIT_USER": self.user_name,
                 "AIRFLOW_GIT_TOKEN": self.auth_token,
             }
@@ -407,7 +406,7 @@ esac
 
         # Wraps every branch, not just the token-only one: an http(s) connection may also carry
         # SSH options, and the token used to reach git through the URL whichever branch ran.
-        with self._token_askpass_env():
+        with self._token_credential_env():
             if self.private_key:
                 with tempfile.NamedTemporaryFile(mode="w", delete=True) as tmp_keyfile:
                     tmp_keyfile.write(self.private_key)

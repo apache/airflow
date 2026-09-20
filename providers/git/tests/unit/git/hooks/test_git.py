@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import base64
 import contextlib
 import http.server
 import os
@@ -65,11 +66,16 @@ CONN_APP_INVALID_APP_ID = "git_app_invalid_app_id"
 CONN_APP_INVALID_INSTALLATION_ID = "git_app_invalid_installation_id"
 
 
-def capture_git_credential_prompts(tmp_path: pathlib.Path) -> tuple[list[str], int]:
-    """Record what the real git binary asks GIT_ASKPASS when a server demands credentials."""
+@contextlib.contextmanager
+def recording_git_server():
+    """Serve 401s on loopback, recording every credential git sends."""
+    received: list[str] = []
 
     class Unauthorized(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
+            header = self.headers.get("Authorization")
+            if header and header.startswith("Basic "):
+                received.append(base64.b64decode(header[6:]).decode())
             self.send_response(401)
             self.send_header("WWW-Authenticate", 'Basic realm="git"')
             self.send_header("Content-Length", "0")
@@ -79,25 +85,22 @@ def capture_git_credential_prompts(tmp_path: pathlib.Path) -> tuple[list[str], i
             pass
 
     server = socketserver.TCPServer(("127.0.0.1", 0), Unauthorized)
-    port = server.server_address[1]
     threading.Thread(target=server.serve_forever, daemon=True).start()
-
-    prompt_log = tmp_path / "prompts.log"
-    askpass = tmp_path / "askpass.sh"
-    askpass.write_text(f"#!/bin/sh\nprintf '%s\\n' \"$1\" >> '{prompt_log}'\necho asked\n")
-    askpass.chmod(0o700)
     try:
-        subprocess.run(
-            ["git", "-c", "credential.helper=", "ls-remote", f"http://127.0.0.1:{port}/repo.git"],
-            capture_output=True,
-            text=True,
-            check=False,
-            env={**os.environ, "GIT_ASKPASS": str(askpass), "GIT_TERMINAL_PROMPT": "0"},
-        )
+        yield server.server_address[1], received
     finally:
         server.shutdown()
         server.server_close()
-    return prompt_log.read_text().splitlines(), port
+
+
+def git_ls_remote(url: str, env: dict[str, str]) -> None:
+    subprocess.run(
+        ["git", "ls-remote", url],
+        capture_output=True,
+        text=True,
+        check=False,
+        env={**os.environ, **env},
+    )
 
 
 @pytest.fixture
@@ -552,46 +555,38 @@ class TestGitHook:
         # Both the askpass script and the temp key file should be cleaned up
         assert not os.path.exists(askpass_path)
 
-    def test_token_askpass_env_and_cleanup(self, create_connection_without_db):
+    def test_token_credential_env_and_cleanup(self, create_connection_without_db):
         token = "tok$with'quote"
         create_connection_without_db(
             Connection(
-                conn_id="git_token_askpass",
+                conn_id="git_token_credential",
                 host=AIRFLOW_HTTPS_URL,
                 password=token,
                 conn_type="git",
             )
         )
-        hook = GitHook(git_conn_id="git_token_askpass")
-        askpass_path = None
+        hook = GitHook(git_conn_id="git_token_credential")
+        helper_path = None
 
-        with mock.patch.dict(
-            os.environ,
-            {"GIT_ASKPASS": "sentinel-askpass", "GIT_TERMINAL_PROMPT": "1"},
-            clear=False,
-        ):
+        with mock.patch.dict(os.environ, {"GIT_TERMINAL_PROMPT": "1"}, clear=False):
             with hook.configure_hook_env():
-                assert os.environ["GIT_ASKPASS"] == hook.env["GIT_ASKPASS"]
+                assert hook.env["GIT_CONFIG_COUNT"] == "1"
+                assert hook.env["GIT_CONFIG_KEY_0"] == "credential.https://github.com.helper"
                 assert hook.env["GIT_TERMINAL_PROMPT"] == "0"
-                askpass_path = hook.env["GIT_ASKPASS"]
-                assert os.path.exists(askpass_path)
+                helper_path = hook.env["GIT_CONFIG_VALUE_0"]
+                assert os.path.exists(helper_path)
 
-                content = pathlib.Path(askpass_path).read_text()
-                assert "#!/bin/sh" in content
                 # The credential is passed in the environment, never written to the script
-                assert token not in content
+                assert token not in pathlib.Path(helper_path).read_text()
                 assert os.environ["AIRFLOW_GIT_TOKEN"] == token
-                assert hook.env["AIRFLOW_GIT_TOKEN"] == token
 
-            assert os.environ["GIT_ASKPASS"] == "sentinel-askpass"
             assert os.environ["GIT_TERMINAL_PROMPT"] == "1"
             assert "AIRFLOW_GIT_TOKEN" not in os.environ
-            assert "AIRFLOW_GIT_TOKEN" not in hook.env
+            assert "GIT_CONFIG_COUNT" not in hook.env
 
-        # The askpass script should be cleaned up after exiting the context
-        assert not os.path.exists(askpass_path)
+        assert not os.path.exists(helper_path)
 
-    def test_token_askpass_uses_connection_login(self, create_connection_without_db):
+    def test_token_credential_uses_connection_login(self, create_connection_without_db):
         username = "token_user"
         create_connection_without_db(
             Connection(
@@ -619,7 +614,7 @@ class TestGitHook:
             pytest.param({"ssh_port": "2222"}, id="ssh_port"),
         ],
     )
-    def test_token_askpass_env_is_set_alongside_ssh_options(self, extra, create_connection_without_db):
+    def test_token_credential_env_is_set_alongside_ssh_options(self, extra, create_connection_without_db):
         create_connection_without_db(
             Connection(
                 conn_id="git_token_with_ssh_options",
@@ -635,61 +630,34 @@ class TestGitHook:
             assert hook.env["AIRFLOW_GIT_TOKEN"] == ACCESS_TOKEN
             assert hook.env["GIT_TERMINAL_PROMPT"] == "0"
 
-    def test_git_credential_prompt_format_is_unchanged(self, tmp_path):
-        """Pin the prompt shapes the askpass host guard is written against.
+    def test_credential_helper_answers_only_the_repository_host(self, create_connection_without_db):
+        """A submodule url that impersonates the repo host in its username gets nothing.
 
-        git builds these in ``credential_describe`` (credential.c) as
-        ``<scheme>://[user@]<host>[:port]``. The guard recognises the host inside them, so if a
-        git upgrade changes the wording it stops answering — fail closed, but broken. This is the
-        test that surfaces that, rather than a bundle failing to authenticate in production.
+        git matches the configured credential scope against the url it parsed, so
+        ``http://<repo host>'@evil/x.git`` — whose host is evil — never reaches the helper.
         """
-        prompts, port = capture_git_credential_prompts(tmp_path)
+        with recording_git_server() as (repo_port, repo_received):
+            with recording_git_server() as (other_port, other_received):
+                create_connection_without_db(
+                    Connection(
+                        conn_id="git_token_credential_scope",
+                        host=f"http://127.0.0.1:{repo_port}/repo.git",
+                        login="token_user",
+                        password=ACCESS_TOKEN,
+                        conn_type="git",
+                    )
+                )
+                hook = GitHook(git_conn_id="git_token_credential_scope")
 
-        assert prompts == [
-            f"Username for 'http://127.0.0.1:{port}': ",
-            f"Password for 'http://asked@127.0.0.1:{port}': ",
-        ]
+                with hook.configure_hook_env():
+                    git_ls_remote(f"http://127.0.0.1:{repo_port}/repo.git", hook.env)
+                    git_ls_remote(f"http://127.0.0.1:{repo_port}'@127.0.0.1:{other_port}/x.git", hook.env)
+                    git_ls_remote(f"http://127.0.0.1:{other_port}/x.git", hook.env)
 
-    # The prompts below are the shapes pinned by test_git_credential_prompt_format_is_unchanged,
-    # plus the path variant git appends when credential.useHttpPath is set.
-    @pytest.mark.parametrize(
-        ("prompt", "expected"),
-        [
-            pytest.param("Username for 'https://github.com': ", "token_user", id="username"),
-            pytest.param("Password for 'https://token_user@github.com': ", ACCESS_TOKEN, id="password"),
-            pytest.param(
-                "Username for 'https://github.com/apache/airflow.git': ",
-                "token_user",
-                id="username-with-http-path",
-            ),
-            pytest.param("Username for 'https://evil.com': ", "", id="other-host"),
-            pytest.param("Password for 'https://token_user@evil.com': ", "", id="other-host-password"),
-            pytest.param("Username for 'https://github.com.evil.com': ", "", id="host-suffixed"),
-            pytest.param("Username for 'https://evil-github.com': ", "", id="host-prefixed"),
-            pytest.param("Username for 'https://github.com:8443': ", "", id="other-port"),
-            pytest.param("Enter passphrase for key: ", "", id="unrecognised-prompt"),
-        ],
-    )
-    def test_token_askpass_answers_only_its_own_host(self, prompt, expected, create_connection_without_db):
-        create_connection_without_db(
-            Connection(
-                conn_id="git_token_askpass_host",
-                host=AIRFLOW_HTTPS_URL,
-                login="token_user",
-                password=ACCESS_TOKEN,
-                conn_type="git",
-            )
-        )
-        hook = GitHook(git_conn_id="git_token_askpass_host")
+        assert repo_received == [f"token_user:{ACCESS_TOKEN}"]
+        assert ACCESS_TOKEN not in "".join(other_received)
 
-        with hook.configure_hook_env():
-            result = subprocess.run(
-                [hook.env["GIT_ASKPASS"], prompt], capture_output=True, text=True, check=False
-            )
-
-        assert result.stdout.strip() == expected
-
-    def test_token_askpass_env_skipped_for_ssh_transport(self, create_connection_without_db):
+    def test_token_credential_env_skipped_for_ssh_transport(self, create_connection_without_db):
         create_connection_without_db(
             Connection(
                 conn_id="git_ssh_with_password",
@@ -702,8 +670,8 @@ class TestGitHook:
         hook = GitHook(git_conn_id="git_ssh_with_password")
 
         with hook.configure_hook_env():
-            assert "GIT_ASKPASS" not in hook.env
-            assert "GIT_TERMINAL_PROMPT" not in hook.env
+            assert "GIT_CONFIG_COUNT" not in hook.env
+            assert "AIRFLOW_GIT_TOKEN" not in hook.env
 
     # --- GitHub App auth tests ---
 
