@@ -886,7 +886,7 @@ class AsyncKubernetesHook(KubernetesHook):
 
     @staticmethod
     def _resolve_default_kubeconfig_path() -> str | None:
-        """Return the kubeconfig loaded from the default location, if it resolves to a single file."""
+        """Return the path to the default-location kubeconfig, if it resolves to a single existing file."""
         paths = [
             os.path.expanduser(path)
             for path in async_config.KUBE_CONFIG_DEFAULT_LOCATION.split(os.pathsep)
