@@ -33,6 +33,7 @@ from asyncssh.sftp import SFTPName
 from paramiko.client import SSHClient
 from paramiko.sftp_client import SFTPClient
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.sftp.hooks.sftp import CHUNK_SIZE, SFTPHook, SFTPHookAsync, SFTPOperation
@@ -97,7 +98,7 @@ class TestSFTPHook:
         """Define default connection during tests and create directory structure."""
         temp_dir = tmp_path_factory.mktemp("sftp-temp")
         self.old_login = self.update_connection(SFTP_CONNECTION_USER)
-        self.hook = SFTPHook()
+        self.hook = SFTPHook(no_host_key_check=True)
         os.makedirs(os.path.join(temp_dir, TMP_DIR_FOR_TESTS, SUB_DIR))
 
         for file_name in [TMP_FILE_FOR_TESTS, ANOTHER_FILE_FOR_TESTS, LOG_FILE_FOR_TESTS]:
@@ -357,7 +358,7 @@ class TestSFTPHook:
         connection = Connection(login="login", host="host")
         get_connection.return_value = connection
         hook = SFTPHook()
-        assert hook.no_host_key_check is True
+        assert hook.no_host_key_check is False
 
     @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_no_host_key_check_enabled(self, get_connection):
@@ -393,10 +394,12 @@ class TestSFTPHook:
 
     @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_no_host_key_check_ignore(self, get_connection):
+        """``ignore_hostkey_verification`` is a deprecated alias for ``no_host_key_check``."""
         connection = Connection(login="login", host="host", extra='{"ignore_hostkey_verification": true}')
 
         get_connection.return_value = connection
-        hook = SFTPHook()
+        with pytest.warns(AirflowProviderDeprecationWarning, match="ignore_hostkey_verification"):
+            hook = SFTPHook()
         assert hook.no_host_key_check is True
 
     @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
@@ -730,6 +733,9 @@ class MockSSHClient:
         return MockSFTPClient()
 
 
+DEFAULT_KNOWN_HOSTS_PATH = os.path.expanduser("~/.ssh/known_hosts")
+
+
 class MockAirflowConnection:
     def __init__(self, known_hosts="~/.ssh/known_hosts"):
         self.host = "localhost"
@@ -860,6 +866,28 @@ class TestSFTPHookAsync:
     @patch("asyncssh.connect", new_callable=AsyncMock)
     @patch("airflow.providers.sftp.hooks.sftp.get_async_connection")
     @pytest.mark.asyncio
+    async def test_no_host_key_check_defaults_to_false(self, mock_get_connection, mock_connect):
+        """A connection that omits ``no_host_key_check`` keeps host key verification enabled."""
+
+        class MockAirflowConnectionWithoutHostKeyExtras:
+            host = "localhost"
+            port = 22
+            login = "username"
+            password = "password"
+            extra = "{}"
+            extra_dejson: dict = {}
+
+        mock_get_connection.return_value = MockAirflowConnectionWithoutHostKeyExtras()
+
+        hook = SFTPHookAsync()
+        await hook._get_conn()
+
+        assert hook.known_hosts != "none"
+        assert str(hook.known_hosts).endswith(".ssh/known_hosts")
+
+    @patch("asyncssh.connect", new_callable=AsyncMock)
+    @patch("airflow.providers.sftp.hooks.sftp.get_async_connection")
+    @pytest.mark.asyncio
     async def test_parse_extras_dss_host_key_raises(self, mock_get_connection, mock_connect):
         """Test that ssh-dss host_key is rejected."""
         mock_get_connection.return_value = MockAirflowConnectionWithHostKey(
@@ -924,7 +952,7 @@ class TestSFTPHookAsync:
             "username": "username",
             "password": "password",
             "client_keys": "~/keys/my_key",
-            "known_hosts": None,
+            "known_hosts": "~/.ssh/known_hosts",
             "passphrase": "mypassphrase",
         }
 
@@ -953,7 +981,6 @@ class TestSFTPHookAsync:
             "username": "username",
             "password": "password",
             "client_keys": ["test"],
-            "known_hosts": None,
             "passphrase": "mypassphrase",
         }
 
@@ -984,7 +1011,7 @@ class TestSFTPHookAsync:
                 port=22,
                 username="username",
                 password="password",
-                known_hosts=None,
+                known_hosts=DEFAULT_KNOWN_HOSTS_PATH,
             ),
         ]
 
@@ -1016,7 +1043,7 @@ class TestSFTPHookAsync:
                 port=25,
                 username="username-from-init",
                 password="password-from-init",
-                known_hosts=None,
+                known_hosts=DEFAULT_KNOWN_HOSTS_PATH,
             ),
         ]
 

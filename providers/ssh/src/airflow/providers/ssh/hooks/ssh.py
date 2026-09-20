@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import os
+import warnings
 from base64 import decodebytes
 from collections.abc import Sequence
 from functools import cached_property
@@ -31,6 +32,7 @@ import paramiko
 from paramiko.config import SSH_PORT
 from tenacity import Retrying, stop_after_attempt, wait_fixed, wait_random
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.ssh.tunnel import AsyncSSHTunnel, SSHTunnel
@@ -92,6 +94,9 @@ class SSHHook(BaseHook):
         lifetime of the transport
     :param ciphers: list of ciphers to use in order of preference
     :param auth_timeout: timeout (in seconds) for the attempt to authenticate with the remote_host
+    :param no_host_key_check: Set to ``True`` to skip host key verification. Overrides the
+        connection's ``no_host_key_check`` extra. Defaults to ``None``, meaning the value is
+        taken from the connection, or ``False`` when the connection does not set it.
     :param conn_retry_attempts: number of times to attempt the initial SSH connection before
         giving up (default 3). Raising this helps when many tasks target the same SSH server at
         once and some connections are transiently refused (e.g. ``sshd`` ``MaxStartups`` throttling).
@@ -146,6 +151,7 @@ class SSHHook(BaseHook):
         auth_timeout: int | None = None,
         host_proxy_cmd: str | None = None,
         conn_retry_attempts: int = 3,
+        no_host_key_check: bool | None = None,
     ) -> None:
         super().__init__()
         self.ssh_conn_id = ssh_conn_id
@@ -167,10 +173,15 @@ class SSHHook(BaseHook):
 
         # Default values, overridable from Connection
         self.compress = True
-        self.no_host_key_check = True
+        self.no_host_key_check = False
         self.allow_host_key_change = False
         self.host_key = None
         self.look_for_keys = True
+
+        # Captured before parsing the connection extras, which rebind the `no_host_key_check`
+        # name below. Without a separate binding the caller's value is silently discarded
+        # whenever the connection has extras that do not mention host key checking.
+        constructor_no_host_key_check = no_host_key_check
 
         # Placeholder for future cached connection
         self.client: paramiko.SSHClient | None = None
@@ -212,6 +223,15 @@ class SSHHook(BaseHook):
 
                 host_key = extra_options.get("host_key")
                 no_host_key_check = extra_options.get("no_host_key_check")
+
+                if no_host_key_check is None and "ignore_hostkey_verification" in extra_options:
+                    warnings.warn(
+                        "The `ignore_hostkey_verification` connection extra is deprecated; "
+                        "use `no_host_key_check` instead.",
+                        AirflowProviderDeprecationWarning,
+                        stacklevel=2,
+                    )
+                    no_host_key_check = extra_options["ignore_hostkey_verification"]
 
                 if no_host_key_check is not None:
                     no_host_key_check = str(no_host_key_check).lower() == "true"
@@ -261,6 +281,12 @@ class SSHHook(BaseHook):
                     decoded_host_key = decodebytes(host_key.encode("utf-8"))
                     self.host_key = key_constructor(data=decoded_host_key)
                     self.no_host_key_check = False
+
+        # An explicit constructor argument wins over the connection extra and the default.
+        # Without this there is no way to opt out of host key verification when the hook is
+        # built directly rather than from a Connection.
+        if constructor_no_host_key_check is not None:
+            self.no_host_key_check = constructor_no_host_key_check
 
         if self.cmd_timeout is NOTSET:
             self.cmd_timeout = CMD_TIMEOUT
@@ -619,7 +645,7 @@ class SSHHookAsync(BaseHook):
 
         host_key = extra_options.get("host_key")
         nhkc_raw = extra_options.get("no_host_key_check")
-        no_host_key_check = str(nhkc_raw).lower() == "true" if nhkc_raw is not None else True
+        no_host_key_check = str(nhkc_raw).lower() == "true" if nhkc_raw is not None else False
 
         if host_key is not None and no_host_key_check:
             raise ValueError("Host key check was skipped, but `host_key` value was given")

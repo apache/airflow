@@ -478,7 +478,10 @@ class SFTPHook(SSHHook):
         remote_file_chunks = [remote_file_paths[i::workers] for i in range(workers)]
         local_file_chunks = [new_local_file_paths[i::workers] for i in range(workers)]
         self.log.info("Opening %s new SFTP connections", workers)
-        conns = [SFTPHook(ssh_conn_id=self.ssh_conn_id).get_conn() for _ in range(workers)]
+        conns = [
+            SFTPHook(ssh_conn_id=self.ssh_conn_id, no_host_key_check=self.no_host_key_check).get_conn()
+            for _ in range(workers)
+        ]
         try:
             self.log.info("Retrieving files concurrently with %s threads", workers)
             with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
@@ -571,7 +574,10 @@ class SFTPHook(SSHHook):
         remote_file_chunks = [new_remote_file_paths[i::workers] for i in range(workers)]
         local_file_chunks = [local_file_paths[i::workers] for i in range(workers)]
         self.log.info("Opening %s new SFTP connections", workers)
-        conns = [SFTPHook(ssh_conn_id=self.ssh_conn_id).get_conn() for _ in range(workers)]
+        conns = [
+            SFTPHook(ssh_conn_id=self.ssh_conn_id, no_host_key_check=self.no_host_key_check).get_conn()
+            for _ in range(workers)
+        ]
         try:
             self.log.info("Storing files concurrently with %s threads", workers)
             with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
@@ -889,7 +895,7 @@ class SFTPHookAsync(BaseHook):
 
         host_key = extra_options.get("host_key")
         nhkc_raw = extra_options.get("no_host_key_check")
-        no_host_key_check = True if nhkc_raw is None else (str(nhkc_raw).lower() == "true")
+        no_host_key_check = False if nhkc_raw is None else (str(nhkc_raw).lower() == "true")
 
         if host_key is not None and no_host_key_check:
             raise ValueError("Host key check was skipped, but `host_key` value was given")

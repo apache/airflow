@@ -71,6 +71,16 @@ class TestSSHHookAsync:
         hook._parse_extras(mock_conn)
         assert hook.known_hosts == "none"
 
+    def test_parse_extras_no_host_key_check_defaults_to_false(self):
+        """A connection that omits ``no_host_key_check`` keeps host key verification enabled."""
+        hook = SSHHookAsync(ssh_conn_id="test_conn")
+        mock_conn = mock.MagicMock()
+        mock_conn.extra_dejson = {}
+        mock_conn.host = "test.host"
+
+        hook._parse_extras(mock_conn)
+        assert hook.known_hosts != "none"
+
     def test_parse_extras_host_key(self):
         """Test parsing host_key from connection extras."""
         hook = SSHHookAsync(ssh_conn_id="test_conn")
