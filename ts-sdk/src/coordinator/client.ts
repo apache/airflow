@@ -35,7 +35,7 @@ import type {
 
 /** What a supervisor "row is absent" error means for an operation: only a lookup
  *  can return `null`; for a `void` call a swallowed error would read as success. */
-type AbsentRow = "null" | "throw";
+type AbsentRowPolicy = "null" | "throw";
 
 function resolveWireMapIndex(
   requestedMapIndex: number | null | undefined,
@@ -94,7 +94,7 @@ export function createCoordinatorClient(
     expectedType: string | null,
     request: unknown,
     extract: (body: Record<string, unknown> | null) => T,
-    absent: AbsentRow,
+    absent: AbsentRowPolicy,
   ): Promise<T | null> {
     logs?.debug(`${op} request`);
     const frame = await comm.request(request);

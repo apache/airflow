@@ -268,8 +268,8 @@ The ``TaskClient`` surface
 
    A value supplied by a secrets backend (for example an ``AIRFLOW_VAR_*`` environment variable) still
    takes precedence over the stored value when the Variable is read back. Calling ``setVariable`` without
-   a description clears the description the Variable had, and ``deleteVariable`` rejects when the key
-   does not exist.
+   a description clears the description the Variable had, and ``deleteVariable`` resolves even when the
+   key does not exist.
 
 Logging
 -------

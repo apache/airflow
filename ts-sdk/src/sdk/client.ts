@@ -60,7 +60,8 @@ export interface TaskClient {
   /**
    * Delete an Airflow Variable.
    *
-   * Rejects when the key does not exist, matching Python `Variable.delete`.
+   * Resolves even when the key does not exist — the Execution API's delete
+   * route is idempotent and does not report a missing key as an error.
    */
   deleteVariable(key: string): Promise<void>;
 
