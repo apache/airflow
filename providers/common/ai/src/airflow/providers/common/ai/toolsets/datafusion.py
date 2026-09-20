@@ -99,7 +99,10 @@ class DataFusionToolset(AbstractToolset[Any]):
     :param datasource_configs: One or more DataFusion data-source configurations.
     :param allow_writes: Allow data-modifying SQL (CREATE TABLE, CREATE VIEW,
         INSERT INTO, etc.). Default ``False`` — only SELECT-family statements
-        are permitted.
+        are permitted. ``EXPLAIN`` reaches the engine only with ``allow_writes=True``,
+        and fails there: the ``max_rows`` limit wraps the plan, and DataFusion requires
+        ``EXPLAIN`` to be the root of the plan. The agent gets an error result, not the
+        plan.
     :param max_rows: Maximum number of rows returned from the ``query`` tool.
         Default ``50``. The query is limited to ``max_rows + 1`` rows, so a large
         result is never fully materialized; the extra row only signals truncation.
