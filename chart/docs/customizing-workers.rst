@@ -32,16 +32,28 @@ For example, to set resources on workers for CeleryExecutor:
          limits:
            cpu: 1
 
-Different volumes for Celery worker sets
-----------------------------------------
+Celery worker sets
+------------------
 
-``workers.celery.sets`` creates independently rendered Celery worker workloads. Each set inherits settings from
-``workers.celery`` unless it provides an override. Set ``workers.celery.enableDefault`` to ``true`` to retain the
-default worker set in addition to the named sets, or to ``false`` to create only the explicitly listed sets. Give
-each set a unique ``name`` and choose its ``queue`` intentionally. To route a task to a specialized worker set, set
-the task's Celery ``queue`` to the value configured for that set.
+Celery worker sets let one Airflow deployment run multiple groups of Celery workers with different queues and
+Kubernetes configurations. Use them when workloads need different resources, autoscaling, scheduling, persistence,
+security settings, or volumes.
 
-The following example keeps the default workers and creates a ``gpu`` worker set with its own volume:
+Each item in ``workers.celery.sets`` is rendered as a separate worker workload and Service. When enabled, its
+autoscaler, PodDisruptionBudget, NetworkPolicy, and service account are also rendered separately. Give every set a
+unique ``name``. The chart uses the name as a suffix for the set's Kubernetes resources.
+
+Named sets inherit the configuration under ``workers.celery`` and can override any setting for that set. For example,
+sets can use different ``replicas``, ``resources``, ``keda`` or ``hpa`` settings, ``nodeSelector``, ``affinity``,
+``tolerations``, persistence, service accounts, and volumes. Set ``workers.celery.enableDefault`` to ``true`` to
+create the default worker workload in addition to the named sets. Set it to ``false`` to create only the named sets.
+
+Each set listens on its configured ``queue``. To route a task to a set, assign the task to that Celery queue. A set can
+listen on multiple queues by providing a comma-separated value, such as ``high-priority,vip``. When KEDA is enabled,
+the generated scaler query counts queued and running tasks for the queues assigned to that set.
+
+The following example keeps the default workers and creates a ``gpu`` set with its own replicas, resources, scheduling,
+and volume configuration:
 
 .. code-block:: yaml
    :caption: values.yaml
@@ -55,6 +67,16 @@ The following example keeps the default workers and creates a ``gpu`` worker set
        sets:
          - name: gpu
            queue: gpu
+           replicas: 2
+           resources:
+             requests:
+               cpu: "2"
+               memory: 4Gi
+             limits:
+               cpu: "4"
+               memory: 8Gi
+           nodeSelector:
+             accelerator: nvidia
            extraVolumes:
              - name: gpu-data
                persistentVolumeClaim:
@@ -63,13 +85,13 @@ The following example keeps the default workers and creates a ``gpu`` worker set
              - name: gpu-data
                mountPath: /opt/airflow/gpu-data
 
-The ``gpu-worker-data`` PersistentVolumeClaim is not created by this configuration. It must already exist in the
-Helm release namespace and use access modes compatible with the worker workload. Every ``extraVolumeMounts`` name
-must match a volume name in the same effective worker-set configuration.
+The chart does not create the ``gpu-worker-data`` PersistentVolumeClaim. It must already exist in the Helm release
+namespace and use access modes compatible with the worker workload. Every ``extraVolumeMounts`` name must match a
+volume name in the same effective worker-set configuration.
 
-Non-empty list values supplied by a worker set, including ``extraVolumes`` and ``extraVolumeMounts``, replace the
-corresponding parent lists instead of being appended to them. Repeat any parent entries that a specialized set must
-retain.
+Non-empty list values supplied by a set, including ``extraVolumes`` and ``extraVolumeMounts``, replace the inherited
+lists instead of being appended to them. Empty lists retain the inherited values. Include every parent list entry that
+a specialized set must retain when providing a replacement list.
 
 This configuration applies only to Celery workers. For ``KubernetesExecutor`` task pod customization, use the
 ``pod_template_file`` options described in the following section.
