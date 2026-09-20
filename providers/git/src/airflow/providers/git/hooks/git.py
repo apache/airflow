@@ -29,6 +29,7 @@ import warnings
 from collections.abc import Generator
 from datetime import datetime, timedelta, timezone
 from typing import Any
+from urllib.parse import unquote
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, BaseHook
@@ -58,6 +59,9 @@ class GitHook(BaseHook):
       private key to be provided as a PEM-encoded key via either ``private_key`` (inline) or
       ``key_file`` (path to key file).
     * ``github_installation_id`` — GitHub App installation ID used for GitHub App authentication.
+
+    Token authentication over http(s) configures a credential helper through ``GIT_CONFIG_COUNT``
+    and needs git version 2.31 or higher.
     """
 
     conn_name_attr = "git_conn_id"
@@ -102,8 +106,9 @@ class GitHook(BaseHook):
         self.repo_url = repo_url or connection.host
         if isinstance(self.repo_url, str) and not self.repo_url.startswith(("git@", "https://")):
             self.repo_url = os.path.expanduser(self.repo_url)
-        self.user_name = connection.login or "user"
-        self.auth_token = connection.password
+        embedded_user, embedded_token = self._strip_embedded_credentials()
+        self.user_name = connection.login or embedded_user or "user"
+        self.auth_token = connection.password or embedded_token
 
         # SSH key authentication
         self.private_key = extra.get("private_key")
@@ -293,6 +298,21 @@ class GitHook(BaseHook):
                     self.env["GIT_TERMINAL_PROMPT"] = old_terminal_prompt
                     os.environ["GIT_TERMINAL_PROMPT"] = old_terminal_prompt
 
+    def _strip_embedded_credentials(self) -> tuple[str | None, str | None]:
+        """Take any ``user:password@`` out of the repo url and return what it held."""
+        if not isinstance(self.repo_url, str) or not self.repo_url.startswith(("http://", "https://")):
+            return None, None
+        scheme, separator, rest = self.repo_url.partition("://")
+        authority, slash, path = rest.partition("/")
+        userinfo, at_sign, host = authority.rpartition("@")
+        user, _, password = userinfo.partition(":")
+        # A bare ``user@`` holds no secret, so leave those urls exactly as the connection wrote
+        # them; anything git clones from a stripped url would lose the username for nothing.
+        if not at_sign or not password:
+            return None, None
+        self.repo_url = f"{scheme}{separator}{host}{slash}{path}"
+        return unquote(user) or None, unquote(password)
+
     def _extract_credential_scope(self) -> str:
         """Return the ``<scheme>://<host>[:port]`` git matches a credential config against."""
         scheme, _, rest = str(self.repo_url).partition("://")
@@ -300,7 +320,7 @@ class GitHook(BaseHook):
         return f"{scheme}://{host}" if host else ""
 
     @contextlib.contextmanager
-    def _token_credential_env(self):
+    def _token_credential_env(self) -> Generator[None]:
         """Hand the token to git through a credential helper scoped to the repository's host."""
         # Credential helpers only serve http(s); an SSH connection that happens to carry a
         # password would gain nothing from one.
@@ -318,16 +338,16 @@ class GitHook(BaseHook):
             # git matches the configured scope against the url it parsed, then hands the helper
             # structured fields on stdin. A submodule elsewhere never reaches this helper, and no
             # part of the decision depends on the wording of a human-readable prompt.
+            # Written and closed before git runs: Linux refuses to exec a file that is still
+            # open for writing, which git surfaces as "cannot exec: Text file busy".
             with open(helper_path, "w") as helper_script:
                 helper_script.write(
-                    """#!/bin/sh
+                    r"""#!/bin/sh
 cat > /dev/null
 [ "$1" = get ] || exit 0
 printf 'username=%s\npassword=%s\n' "$AIRFLOW_GIT_USER" "$AIRFLOW_GIT_TOKEN"
 """
                 )
-            # The handle has to be closed before git runs: Linux refuses to exec a file that is
-            # still open for writing, which git surfaces as "cannot exec: Text file busy".
             os.chmod(helper_path, stat.S_IRWXU)
 
             # Append to any GIT_CONFIG_* the deployment already exports rather than replacing it.

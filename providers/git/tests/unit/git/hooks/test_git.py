@@ -555,6 +555,76 @@ class TestGitHook:
         # Both the askpass script and the temp key file should be cleaned up
         assert not os.path.exists(askpass_path)
 
+    @pytest.mark.parametrize(
+        ("host", "expected_url", "expected_user", "expected_token"),
+        [
+            pytest.param(
+                "https://airflow_cen:CLEARTEXT_TOKEN@gitlab.example.com/pibi/dags.git",
+                "https://gitlab.example.com/pibi/dags.git",
+                "airflow_cen",
+                "CLEARTEXT_TOKEN",
+                id="user-and-password",
+            ),
+            pytest.param(
+                "https://airflow_cen:tok%40en%2F1@gitlab.example.com/pibi/dags.git",
+                "https://gitlab.example.com/pibi/dags.git",
+                "airflow_cen",
+                "tok@en/1",
+                id="percent-encoded-password",
+            ),
+            pytest.param(
+                "https://gitlab.example.com/pibi/dags.git",
+                "https://gitlab.example.com/pibi/dags.git",
+                "user",
+                None,
+                id="no-credentials",
+            ),
+            pytest.param(
+                "https://airflow_cen@gitlab.example.com/pibi/dags.git",
+                "https://airflow_cen@gitlab.example.com/pibi/dags.git",
+                "user",
+                None,
+                id="username-only-is-left-alone",
+            ),
+            pytest.param(
+                "https://gitlab.example.com/pibi/a@b/dags.git",
+                "https://gitlab.example.com/pibi/a@b/dags.git",
+                "user",
+                None,
+                id="at-sign-in-path",
+            ),
+        ],
+    )
+    def test_credentials_embedded_in_the_host_do_not_stay_in_the_url(
+        self, host, expected_url, expected_user, expected_token, create_connection_without_db
+    ):
+        create_connection_without_db(
+            Connection(conn_id="git_embedded_credentials", host=host, conn_type="git")
+        )
+
+        hook = GitHook(git_conn_id="git_embedded_credentials")
+
+        assert hook.repo_url == expected_url
+        assert hook.user_name == expected_user
+        assert hook.auth_token == expected_token
+
+    def test_connection_fields_win_over_credentials_embedded_in_the_host(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id="git_embedded_and_explicit",
+                host="https://embedded_user:embedded_token@gitlab.example.com/pibi/dags.git",
+                login="explicit_user",
+                password="explicit_token",
+                conn_type="git",
+            )
+        )
+
+        hook = GitHook(git_conn_id="git_embedded_and_explicit")
+
+        assert hook.repo_url == "https://gitlab.example.com/pibi/dags.git"
+        assert hook.user_name == "explicit_user"
+        assert hook.auth_token == "explicit_token"
+
     def test_token_credential_env_and_cleanup(self, create_connection_without_db):
         token = "tok$with'quote"
         create_connection_without_db(

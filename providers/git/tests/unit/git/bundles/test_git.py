@@ -1469,16 +1469,11 @@ class TestGitDagBundle:
         bundle.repo.remotes.origin.fetch.side_effect = _assert_token_env
         bundle.repo.git.submodule.side_effect = _assert_token_env
 
-        old_git_terminal_prompt = os.environ.get("GIT_TERMINAL_PROMPT")
         with mock.patch.dict(os.environ, {"GIT_TERMINAL_PROMPT": "1"}, clear=False):
             bundle.refresh()
 
-        assert "AIRFLOW_GIT_TOKEN" not in os.environ
-
-        if old_git_terminal_prompt is None:
-            assert "GIT_TERMINAL_PROMPT" not in os.environ
-        else:
-            assert os.environ["GIT_TERMINAL_PROMPT"] == old_git_terminal_prompt
+            assert os.environ["GIT_TERMINAL_PROMPT"] == "1"
+            assert "AIRFLOW_GIT_TOKEN" not in os.environ
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_bare_repo_remote_url_is_rewritten_when_credentials_are_stored(self, mock_githook, git_repo):
