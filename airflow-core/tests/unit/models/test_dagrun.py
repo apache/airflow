@@ -1110,9 +1110,7 @@ class TestDagRun:
 
         runs = fetch().all()
 
-    def test_get_queued_dag_runs_includes_cancelled_backfill_runs(
-        self, session, testing_dag_bundle
-    ):
+    def test_get_queued_dag_runs_includes_cancelled_backfill_runs(self, session, testing_dag_bundle):
         """Cleared queued runs from a cancelled backfill must schedule despite stale is_paused."""
         from airflow.models.backfill import Backfill, BackfillDagRun
 
