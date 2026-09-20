@@ -726,8 +726,8 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         if self.cache_prompt:
             capabilities.append(PromptCaching())
         if self.enable_tool_logging:
-            # Keep this last: capability wrappers are applied in reverse order, and logging must sit
-            # inside code mode to capture the sandboxed tool calls rather than only ``run_code``.
+            # Keep logging last because CombinedCapability applies wrappers in reverse order,
+            # placing LoggingToolset inside CodeModeToolset where code mode expects wrapped tools.
             capabilities.append(ToolLoggingCapability(logger=self.log))
         if capabilities:
             extra_kwargs["capabilities"] = capabilities
