@@ -145,9 +145,9 @@ class LazyXComSequence(Sequence[T]):
             return [XCom.deserialize_value(_XComWrapper(value)) for value in msg.root]
 
         if not isinstance(key, int):
-            if (index := getattr(key, "__index__", None)) is not None:
-                key = index()
-            raise TypeError(f"Sequence indices must be integers or slices not {type(key).__name__}")
+            if (index := getattr(key, "__index__", None)) is None:
+                raise TypeError(f"Sequence indices must be integers or slices not {type(key).__name__}")
+            key = index()
 
         source = (xcom_arg := self._xcom_arg).operator
         msg = SUPERVISOR_COMMS.send(
