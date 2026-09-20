@@ -639,8 +639,9 @@ at all.
        a package, or fix its own failing script by reading the traceback
      - ``SandboxToolset``
    * - Produce a large artifact for a downstream task
-     - Not an agent at all. Drive a backend from a ``@task``. See
-       :ref:`sandbox-limitations` for why, and the example under
+     - Today, a ``@task`` driving a backend directly, not the agent. That is a
+       missing seam in the toolset rather than a recommendation; see
+       :ref:`sandbox-limitations` for the caps, and the example under
        :ref:`Controlling what the sandbox gets <sandbox-credentials>`
 
 The clearest case for a sandbox is the last clause of that third row: an agent
@@ -713,7 +714,8 @@ When to reach for it
    * - You want
      - Use
    * - The agent to analyze data, install a package, run a script it wrote, or
-       produce a file, without any of that touching the worker
+       work on files during its run, without any of that touching the worker.
+       Files do not outlive the run; see :ref:`sandbox-limitations`
      - ``SandboxToolset``
    * - Fewer model round-trips when chaining tools you already trust
      - :ref:`code mode <code-mode>`. It is not a sandbox for your data; it
@@ -937,16 +939,19 @@ its own history describes files it wrote earlier. This is not currently rejected
 either.
 
 **The tools are text-only in both directions.** ``write_file`` takes a string and
-``read_file`` renders what it read as UTF-8 with undecodable bytes replaced, so a
-parquet, an image, or any other binary cannot survive a round trip through an
+``read_file`` renders what it read as UTF-8, replacing any byte it cannot decode, so
+a parquet, an image, or any other binary cannot survive a round trip through an
 agent at any size, well under the byte caps.
 
 **An artifact can only leave through the model's context.** ``run_command`` keeps
 50 KiB per stream and ``read_file`` transfers at most ``max_read_bytes``, 5 MiB by
 default. If the agent must produce a file for a downstream task, either have the
 sandboxed code write it to object storage itself, which needs egress to your
-bucket and credentials in the spec, or do not use an agent: drive a backend from a
-``@task``, as under :ref:`Controlling what the sandbox gets <sandbox-credentials>`.
+bucket and credentials in the spec, or take the work out of the agent for now and
+drive a backend from a ``@task``, as under
+:ref:`Controlling what the sandbox gets <sandbox-credentials>`. The toolset does not
+yet have a seam for an author to collect what the agent produced; that is a known
+gap rather than the intended design.
 
 **An agent's sandbox cannot take a credential from an Airflow connection or a
 secrets backend.** ``SandboxSpec.env`` is the only channel and it is fixed when
@@ -1072,8 +1077,8 @@ hostname in the TLS handshake, which means:
 - **The destination address is not part of the decision.** This is the part that
   surprises people: the handshake name alone decides, so a connection opened to an
   unrelated address while presenting a listed name is routed to the listed host and
-  answered by it. Dialling ``8.8.8.8:443`` with ``pypi.org`` in the handshake returns
-  pypi.org's own certificate and pypi.org's content. The allowlist is a name-routed
+  answered by it. Connecting to ``8.8.8.8:443`` with ``pypi.org`` in the handshake
+  returns the certificate and the content of ``pypi.org``. The allowlist is a name-routed
   egress proxy, not a filter on where packets may go, so do not read it as bounding
   the set of addresses the sandbox can reach.
 - **DNS resolution stays open for every hostname**, listed or not, and it resolves
@@ -1164,7 +1169,7 @@ A 200 MB parquet the agent just wrote cannot be collected this way, and raising
 the cap is a deliberate budget rather than a transport limit.
 
 **The tools are text-only in both directions.** ``write_file`` takes a string, and
-``read_file`` renders what it read as UTF-8 with undecodable bytes replaced, so a
+``read_file`` renders what it read as UTF-8, replacing any byte it cannot decode, so a
 parquet, an image, or any other binary cannot survive a round trip through an agent even
 well under the byte caps.
 
