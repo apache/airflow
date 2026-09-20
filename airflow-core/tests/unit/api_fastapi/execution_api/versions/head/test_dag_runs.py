@@ -24,6 +24,7 @@ import pytest
 import time_machine
 from fastapi import Request
 from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
@@ -518,6 +519,16 @@ class TestDagRunState:
         response = client.get("/execution/dag-runs/dag_not_found/test_run_id/state")
         assert response.status_code == 404
 
+    @mock.patch.object(AsyncSession, "scalars", autospec=True)
+    def test_awaits_async_scalars(self, mock_scalars, client):
+        mock_scalars.return_value.one = mock.Mock(return_value=DagRunState.SUCCESS)
+
+        response = client.get("/execution/dag-runs/test_dag/test_run_id/state")
+
+        assert response.status_code == 200
+        assert response.json() == {"state": "success"}
+        mock_scalars.assert_awaited_once()
+
 
 @pytest.mark.usefixtures("reconfigure_async_db_engine")
 class TestGetDagRunCount:
@@ -536,6 +547,14 @@ class TestGetDagRunCount:
         response = client.get("/execution/dag-runs/count", params={"dag_id": "test_dag"})
         assert response.status_code == 200
         assert response.json() == 1
+
+    @mock.patch.object(AsyncSession, "scalar", autospec=True, return_value=3)
+    def test_awaits_async_scalar(self, mock_scalar, client):
+        response = client.get("/execution/dag-runs/count", params={"dag_id": "test_dag"})
+
+        assert response.status_code == 200
+        assert response.json() == 3
+        mock_scalar.assert_awaited_once()
 
     def test_get_count_with_states(self, client, session, dag_maker):
         """Test counting DAG runs in specific states."""
