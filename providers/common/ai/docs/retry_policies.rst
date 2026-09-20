@@ -26,6 +26,8 @@ retry decisions. It works with any LLM provider supported by pydantic-ai
 (OpenAI, Anthropic, Bedrock, Vertex, Ollama, etc.).
 
 For the core retry policy concepts, see :doc:`apache-airflow:core-concepts/tasks`.
+If the task also needs to survive a worker crash without losing its progress,
+see :ref:`apache-airflow:concepts-resumable-tasks-retry-policies`.
 
 Setup
 -----
@@ -89,25 +91,74 @@ If the LLM call fails (provider down, timeout, bad credentials), the policy
 falls back to ``fallback_rules`` if configured, or to the task's standard
 retry behaviour.
 
+This policy decides *between* attempts. Failing over to another vendor *within*
+an attempt is a separate mechanism on the connection — see
+:doc:`provider_fallback`, which also sets out how the two layers compose.
+
+When the connection also carries a fallback chain
+--------------------------------------------------
+
+``LLMRetryPolicy`` builds its classifier hook from ``llm_conn_id`` without passing
+``fallback_conn_ids``, so if that connection's extra configures a chain (see
+:doc:`provider_fallback`), the policy inherits it silently -- editing the connection changes
+retry behaviour with no change to the Dag. Two things follow:
+
+* ``timeout`` stops bounding the whole classification call. pydantic-ai applies a
+  ``ModelSettings`` timeout to each model in the chain, not to the chain as a whole, so a
+  30-second ``timeout`` across a three-connection chain is a 90-second worst case before the
+  policy falls back to ``fallback_rules``.
+* If every connection in the chain fails, the classification call raises
+  ``pydantic_ai.exceptions.FallbackExceptionGroup``. ``evaluate()`` still degrades to
+  ``fallback_rules`` correctly -- it catches the broad ``Exception``, and an exception group is
+  one -- so the only cost here is that the classification is wasted.
+
+Separately, and regardless of this policy: if the connection **the task itself** uses to call
+the LLM (for example ``llm_conn_id`` on ``LLMOperator`` or ``AgentOperator``) carries a fallback
+chain, the exception the task raises once that chain is exhausted is
+``pydantic_ai.exceptions.FallbackExceptionGroup``, not the last provider's own exception.
+``RetryRule`` matches with ``isinstance``, so a rule written as
+``RetryRule(exception=ModelHTTPError, ...)`` -- in ``fallback_rules`` here or in a plain
+``ExceptionRetryPolicy`` -- stops matching. Match ``pydantic_ai.exceptions.FallbackExceptionGroup``
+explicitly as well; its only common ancestor with ``ModelAPIError`` is ``Exception``, too
+broad to write a rule against. The original per-model exceptions are still available on
+``FallbackExceptionGroup.exceptions``, but ``RetryRule`` only compares the top-level
+exception type, so a rule set that told 429s apart from 400s collapses into one rule once
+the chain is in play.
+
 What the model can and cannot do
 --------------------------------
 
 The model answers two questions: retry or not, and how long to wait. It is
-given no tools and there is no way to attach any, so it cannot run code, call an
-API, read a connection, or reach your data. It sees only the exception's class
-name, the exception message (after redaction and truncation), and the attempt
-count. It returns four fields: ``category``, ``should_retry``, ``suggested_delay_seconds``,
-and ``reasoning``. Of the four fields it returns, only ``should_retry`` and
-``suggested_delay_seconds`` affect the run. ``category`` and ``reasoning`` are
-recorded but nothing branches on them.
+given no tools and there is no way to attach any, so it cannot run code, call
+an API, read a connection, or reach your data. Beyond your ``instructions``,
+it sees only the exception's class name, the exception message (after
+redaction and truncation), and how many attempts are left. The prompt says
+``attempt {try_number} of {max_tries}``, so the model knows the limit, not
+just where it is right now -- that is what makes an instruction like "retry
+once, then stop" (see the Snowflake example below) actually work. It returns
+four fields: ``category``, ``should_retry``, ``suggested_delay_seconds``, and
+``reasoning``. Only ``should_retry`` and ``suggested_delay_seconds`` affect
+the run.
+
+``category`` and ``reasoning`` are only recorded on a RETRY. They are written
+to the task instance's ``retry_reason`` (truncated to 500 characters, see
+below), then cleared once the next attempt starts running. On a FAIL they are
+not written anywhere -- they only show up in the task log.
 
 Two limits are worth knowing about:
 
 * RETRY cannot give a task more attempts than ``retries`` allows. FAIL, though, ends the task
   straight away even when attempts were left, so a wrong classification costs
   the task the retries it would otherwise have had.
-* ``suggested_delay_seconds`` is used as returned, with no upper limit. If particular delays
-  matter to you, state them in ``instructions`` as the examples below do.
+* A positive ``suggested_delay_seconds`` is used as returned. There is no
+  upper limit -- a task's own ``max_retry_delay`` does not clamp it. But 0 or
+  a negative value is not used as a delay at all: it is treated the same as
+  no delay, so the task's own ``retry_delay`` / ``retry_exponential_backoff``
+  / ``max_retry_delay`` apply instead (see
+  :doc:`apache-airflow:core-concepts/tasks`). A model told to retry
+  immediately can still wait out the task's default delay. If particular
+  delays matter to you, state them in ``instructions`` as the examples below
+  do.
 
 Custom instructions
 -------------------

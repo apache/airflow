@@ -24,6 +24,9 @@ Airflow's 350+ provider hooks already have typed methods, rich docstrings,
 and managed credentials. Toolsets expose them as pydantic-ai tools so that
 LLM agents can call them during multi-turn reasoning.
 
+If you have not settled on a toolset yet, start with
+:doc:`choosing_a_toolset`, which compares the routes and what each one gives up.
+
 Six toolsets are exported directly from the ``airflow.providers.common.ai.toolsets``
 package root:
 
@@ -284,7 +287,7 @@ later request.
 Curated toolset wrapping
 :class:`~airflow.providers.common.sql.datafusion.engine.DataFusionEngine`
 with three tools — ``list_tables``, ``get_schema``, and ``query`` — for
-querying files on object stores (S3, local filesystem, Iceberg) via Apache DataFusion.
+querying files on object stores (S3, GCS, local filesystem, Iceberg) via Apache DataFusion.
 
 .. list-table::
    :header-rows: 1
@@ -678,6 +681,8 @@ toolset is only as safe as you make it. A tool that returns ``os.environ`` or
 runs shell commands hands the model whatever that tool can reach. Audit any
 custom toolset, and any MCP server you connect through ``MCPToolset``, against
 the same standard the bundled toolsets below are built to.
+
+.. _toolset-defense-layers:
 
 Defense Layers
 ^^^^^^^^^^^^^^

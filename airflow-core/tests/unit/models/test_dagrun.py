@@ -1128,20 +1128,27 @@ class TestDagRun:
         initial_task_states = {dag_task.task_id: TaskInstanceState.SUCCESS}
         dag_run = self.create_dag_run(scheduler_dag, task_states=initial_task_states, session=session)
         dag_run.update_state(session=session)
-        assert call(f"dagrun.{dag.dag_id}.first_task_scheduling_delay") not in stats_mock.mock_calls
+        assert (
+            call("dagrun.first_task_scheduling_delay", mock.ANY, tags=mock.ANY) not in stats_mock.mock_calls
+        )
 
     @pytest.mark.parametrize(
-        ("schedule", "expected"),
+        ("schedule", "export_legacy_names", "expected"),
         [
-            ("*/5 * * * *", True),
-            (None, False),
-            ("@once", False),
+            ("*/5 * * * *", True, True),
+            ("*/5 * * * *", False, True),
+            (None, True, False),
+            ("@once", True, False),
         ],
     )
-    def test_emit_scheduling_delay(self, session, schedule, expected, testing_dag_bundle):
+    def test_emit_scheduling_delay(
+        self, session, schedule, export_legacy_names, expected, testing_dag_bundle
+    ):
         """
         Tests that dag scheduling delay stat is set properly once running scheduled dag.
         dag_run.update_state() invokes the _emit_true_scheduling_delay_stats_for_finished_state method.
+        The legacy ``dagrun.<dag_id>.first_task_scheduling_delay`` name must only come from the metrics
+        registry, so the backend receives it exactly once and only when legacy names are exported.
         """
         dag = DAG(dag_id="test_emit_dag_stats", start_date=DEFAULT_DATE, schedule=schedule)
         dag_task = EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
@@ -1185,26 +1192,30 @@ class TestDagRun:
             ti.set_state(TaskInstanceState.SUCCESS, session=session)
             session.flush()
 
-            with mock.patch("airflow._shared.observability.metrics.stats.timing") as stats_mock:
+            backend = mock.MagicMock(spec=StatsLogger)
+            with (
+                mock.patch("airflow._shared.observability.metrics.stats._get_backend", return_value=backend),
+                mock.patch(
+                    "airflow._shared.observability.metrics.stats._export_legacy_names", export_legacy_names
+                ),
+            ):
                 dag_run.update_state(session=session)
 
-            metric_name = f"dagrun.{dag.dag_id}.first_task_scheduling_delay"
-
+            scheduling_delay_calls = [
+                c for c in backend.timing.call_args_list if "first_task_scheduling_delay" in c.args[0]
+            ]
             if expected:
                 true_delay = ti.start_date - dag_run.run_after
-                sched_delay_stat_call = call(metric_name, true_delay, tags=expected_stat_tags)
-                sched_delay_stat_call_with_tags = call(
-                    "dagrun.first_task_scheduling_delay", true_delay, tags=expected_stat_tags
+                legacy_call = call(
+                    f"dagrun.{dag.dag_id}.first_task_scheduling_delay",
+                    true_delay,
+                    tags={"run_type": DagRunType.SCHEDULED},
                 )
-                assert sched_delay_stat_call in stats_mock.mock_calls
-                assert sched_delay_stat_call_with_tags in stats_mock.mock_calls
+                modern_call = call("dagrun.first_task_scheduling_delay", true_delay, tags=expected_stat_tags)
+                expected_calls = [legacy_call, modern_call] if export_legacy_names else [modern_call]
+                assert scheduling_delay_calls == expected_calls
             else:
-                # Assert that we never passed the metric
-                sched_delay_stat_call = call(
-                    metric_name,
-                    mock.ANY,
-                )
-                assert sched_delay_stat_call not in stats_mock.mock_calls
+                assert scheduling_delay_calls == []
         finally:
             # Don't write anything to the DB
             session.rollback()
@@ -4734,6 +4745,69 @@ def test_get_running_dag_runs_to_examine_eager_loads_dag_tags(dag_maker, session
     assert "dag_model" not in sa_inspect(dr).unloaded
     assert "tags" not in sa_inspect(dr.dag_model).unloaded
     assert dr.stats_tags == {"dag_id": "eager_tag_dag", "run_type": dr.run_type, "env": "prod"}
+
+
+def test_get_running_dag_runs_to_examine_does_not_starve_backfill_runs(dag_maker, session, monkeypatch):
+    """A running backfill DagRun with no scheduling decision yet must not be starved out of the
+    per-loop examine batch by ordinary running DagRuns, regardless of how far back in its backfill's
+    own ordering it sits.
+
+    Regression test for the scheduler ordering backfill DagRuns strictly behind every non-backfill
+    DagRun (via `BackfillDagRun.sort_ordinal` nulls-first), which meant a backfill run could sit
+    RUNNING indefinitely without ever having its task instances scheduled once the number of
+    concurrently running non-backfill DagRuns met or exceeded `max_dagruns_per_loop_to_schedule`.
+    """
+    from airflow.models.backfill import Backfill, BackfillDagRun, ReprocessBehavior
+
+    # Cap the per-loop examine batch well below the number of ordinary running DagRuns below, so the
+    # old behavior (backfill always sorts last) would exclude the backfill DagRun from every batch.
+    examine_limit = 5
+    monkeypatch.setattr(DagRun, "DEFAULT_DAGRUNS_TO_EXAMINE", examine_limit)
+
+    # Plenty of ordinary running DagRuns, each with a real last_scheduling_decision so none of them
+    # compete on the nulls-first tier with the backfill run below.
+    for i in range(examine_limit * 2):
+        with dag_maker(f"busy_dag_{i}", schedule="@daily", session=session):
+            pass
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        dr.last_scheduling_decision = pendulum.now("UTC")
+    session.commit()
+
+    # One backfill DagRun, freshly promoted to RUNNING: no scheduling decision has happened yet, and
+    # its BackfillDagRun.sort_ordinal is deliberately large (deep in its own backfill's own ordering).
+    with dag_maker("starved_backfill_dag", schedule="@daily", session=session) as dag:
+        pass
+    backfill = Backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2021-01-01"),
+        to_date=pendulum.parse("2021-01-10"),
+        max_active_runs=10,
+        dag_run_conf={},
+        reprocess_behavior=ReprocessBehavior.NONE,
+    )
+    session.add(backfill)
+    session.flush()
+    backfill_dr = dag_maker.create_dagrun(
+        run_id="backfill__2021-01-10T00:00:00+00:00",
+        run_type=DagRunType.BACKFILL_JOB,
+        state=DagRunState.RUNNING,
+        backfill_id=backfill.id,
+    )
+    backfill_dr.last_scheduling_decision = None
+    session.add(
+        BackfillDagRun(
+            backfill_id=backfill.id,
+            dag_run_id=backfill_dr.id,
+            logical_date=backfill_dr.logical_date,
+            sort_ordinal=999,
+        )
+    )
+    session.commit()
+
+    examined_dag_ids = {
+        r.dag_id for r in DagRun.get_running_dag_runs_to_examine(session=session, eagerly_load_dag_tags=False)
+    }
+    assert "starved_backfill_dag" in examined_dag_ids
 
 
 class TestClearPartitionRuns:

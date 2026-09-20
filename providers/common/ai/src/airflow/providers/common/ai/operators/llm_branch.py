@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
@@ -31,6 +31,50 @@ from airflow.providers.standard.operators.branch import BranchMixIn
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
+
+
+def _downstream_tasks_enum(
+    task_id: str, downstream_task_ids: Iterable[str], descriptions: Mapping[str, str] | None
+) -> type[Enum]:
+    """
+    Build the enum of branch options the model chooses from.
+
+    Sorted so every worker sends the model the same option order: ``downstream_task_ids``
+    is a set, and set order follows string hashing, which differs between processes.
+
+    With ``descriptions``, the enum renders as ``anyOf`` of ``{const, description}`` instead
+    of a bare ``enum`` list. That is the one JSON Schema shape that carries a description per
+    value, and it is what both a text model's tool schema and pydantic-ai's TypeSafe adapter
+    read an option's meaning from. Validation is unchanged: the model still has to answer
+    with one of the task IDs, and the output is still an enum member.
+    """
+    task_ids = sorted(downstream_task_ids)
+    if descriptions:
+        unknown = sorted(set(descriptions) - set(task_ids))
+        if unknown:
+            raise ValueError(
+                f"branch_descriptions for {task_id!r} names {unknown}, which are not downstream "
+                f"tasks. Downstream tasks: {task_ids}."
+            )
+    enum_cls: type[Enum] = Enum("DownstreamTasks", {name: name for name in task_ids})  # type: ignore[misc]
+    if not descriptions:
+        return enum_cls
+
+    described = {name: text for name, text in descriptions.items() if text}
+
+    def json_schema(cls: type[Enum], core_schema: Any, handler: Any) -> dict[str, Any]:
+        options: list[dict[str, Any]] = []
+        for member in cls:
+            option: dict[str, Any] = {"const": member.value, "type": "string"}
+            if text := described.get(member.value):
+                option["description"] = text
+            options.append(option)
+        return {"anyOf": options, "title": cls.__name__}
+
+    # pydantic looks this hook up on the type when it builds the schema, so attaching it to the
+    # functional-API enum is the same as defining it in a class body.
+    setattr(enum_cls, "__get_pydantic_json_schema__", classmethod(json_schema))
+    return enum_cls
 
 
 class LLMBranchOperator(LLMOperator, BranchMixIn):
@@ -45,7 +89,21 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
     :param llm_conn_id: Connection ID for the LLM provider.
     :param model_id: Model identifier (e.g. ``"openai:gpt-5"``).
         Overrides the model stored in the connection's extra field.
+    :param fallback_conn_ids: Connection IDs to fail over to, in order, when
+        the primary provider is unavailable. Overrides the ``fallback_conn_ids``
+        set in the connection's extra field. ``None`` (default) reads the
+        connection's own extra field; an explicit ``[]`` disables a chain
+        configured there. See
+        :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook`
+        for how blank entries in the list are dropped.
     :param system_prompt: System-level instructions for the LLM agent.
+    :param branch_descriptions: Optional mapping of downstream task ID to a short
+        description of what choosing that branch means. Descriptions travel in the
+        output schema next to the option they describe, so the model reads "here is
+        an option, here is what it means" rather than guessing from the task ID. A
+        downstream task without an entry is presented by its ID alone, as today. A
+        key that is not a downstream task ID fails the task before the model is
+        called. Supports Jinja templating.
     :param allow_multiple_branches: When ``False`` (default) the LLM returns a
         single task ID. When ``True`` the LLM may return one or more task IDs.
     :param fail_on_reject: If ``True``, a rejected review fails the task
@@ -59,9 +117,13 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
     :param agent_params: Additional keyword arguments passed to the pydantic-ai
         ``Agent`` constructor (e.g. ``retries``, ``model_settings``, ``tools``).
 
+    ``usage_limits`` is inherited from
+    :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
+
     Human-in-the-Loop approval parameters are inherited from
     :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
-    (``require_approval``, ``approval_timeout``, ``allow_modifications``).
+    (``require_approval``, ``approval_timeout``, ``on_approval_timeout``,
+    ``allow_modifications``, ``approval_notifiers``, ``approval_assigned_users``).
     The task pauses after the LLM chooses the branch(es) and only skips the
     unselected downstream tasks once a reviewer approves. Rejecting the
     review skips the direct downstream tasks except teardowns, matching
@@ -78,11 +140,12 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
 
     inherits_from_skipmixin = True
 
-    template_fields: Sequence[str] = LLMOperator.template_fields
+    template_fields: Sequence[str] = (*LLMOperator.template_fields, "branch_descriptions")
 
     def __init__(
         self,
         *,
+        branch_descriptions: Mapping[str, str] | None = None,
         allow_multiple_branches: bool = False,
         fail_on_reject: bool = False,
         ignore_downstream_trigger_rules: bool = False,
@@ -90,6 +153,7 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
     ) -> None:
         kwargs.pop("output_type", None)
         super().__init__(**kwargs)
+        self.branch_descriptions = branch_descriptions
         self.allow_multiple_branches = allow_multiple_branches
         self.fail_on_reject = fail_on_reject
         self.ignore_downstream_trigger_rules = ignore_downstream_trigger_rules
@@ -104,11 +168,16 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
                 "LLMBranchOperator requires at least one downstream task to branch into."
             )
 
-        downstream_tasks_enum = Enum(  # type: ignore[misc]
-            "DownstreamTasks",
-            {task_id: task_id for task_id in self.downstream_task_ids},
+        downstream_tasks_enum = _downstream_tasks_enum(
+            self.task_id, self.downstream_task_ids, self.branch_descriptions
         )
-        output_type = list[downstream_tasks_enum] if self.allow_multiple_branches else downstream_tasks_enum
+        output_type: Any = (
+            list[downstream_tasks_enum] if self.allow_multiple_branches else downstream_tasks_enum  # type: ignore[valid-type]
+        )
+        if self.branch_descriptions:
+            undescribed = sorted(set(self.downstream_task_ids) - set(self.branch_descriptions))
+            if undescribed:
+                self.log.debug("Branches presented by task ID alone (no description): %s", undescribed)
 
         # Coerced first so a bad rendered value fails before the expensive setup below.
         usage_limits = coerce_usage_limits(self.usage_limits)
@@ -160,7 +229,7 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
         except HITLRejectException:
             if self.fail_on_reject:
                 raise
-            self.log.info("Rejected by %s. Skipping downstream tasks...", event.get("responded_by_user"))
+            self.log.info("Rejected by %s. Skipping downstream tasks...", self._describe_responder(event))
             task = context["task"]
             tasks = (
                 task.get_flat_relatives(upstream=False)

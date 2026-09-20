@@ -160,8 +160,10 @@ See the Optional dependencies table below for the exact package each extra insta
     Hooks <hooks/index>
     Toolsets <toolsets>
     Sandboxed execution <sandbox>
+    Choosing a toolset <choosing_a_toolset>
     Operators <operators/index>
     Examples <examples>
+    Provider fallback <provider_fallback>
     Retry Policies <retry_policies>
     Self-hosted models <self_hosted_models>
     HITL Review <hitl_review>

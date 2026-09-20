@@ -299,13 +299,19 @@ being in force.
         ),
     )
 
-**Network.** Three modes exist. ``block_network=True``, the default, is exact on
-both backends and takes name resolution down with everything else. ``allow_egress_to``
-names hosts the sandbox may reach, and both backends refuse it until you have said
-something that makes it enforceable: ``sbx`` applies it as a per-sandbox rule on
-top of a ``deny-all`` host policy, since a local rule can narrow egress and never
-widen it, and Modal matches hostnames in the TLS handshake, which is weaker than it
-sounds and has to be opted into with ``egress_enforcement="sni"`` (see
+**Network.** Three modes exist. ``block_network=True``, the default, drops all
+outbound traffic including name resolution. On Modal it maps onto the sandbox's
+own ``block_network`` flag. ``sbx`` has no per-sandbox enforcement of it at all:
+egress there is a host-level ``sbx policy``, so the backend honors the default by
+refusing to provision unless the Deployment Manager has declared
+``host_network_policy="deny-all"``, which means a bare ``SandboxSpec()`` is refused
+under the default ``host_network_policy="unknown"`` rather than silently getting
+an open sandbox. ``allow_egress_to`` names hosts the sandbox may reach, and both
+backends refuse it until you have said something that makes it enforceable:
+``sbx`` applies it as a per-sandbox rule on top of that ``deny-all`` host policy,
+since a local rule can narrow egress and never widen it, and Modal matches
+hostnames in the TLS handshake, which is weaker than it sounds and has to be
+opted into with ``egress_enforcement="sni"`` (see
 :ref:`the Modal backend <sandbox-backend-modal>` for exactly what it does and does
 not stop). ``block_network=False`` opens outbound access; on Modal the cloud
 metadata endpoint and private address ranges stay unreachable even then.
@@ -671,8 +677,10 @@ Constructor parameters:
   plus an image pull can be slow. Default ``600``.
 - ``host_network_policy``: What ``sbx policy`` is set to on this host.
   ``"unknown"`` (default) makes ``create`` refuse any spec asking for a network
-  guarantee this backend cannot make. Set ``"deny-all"`` after running
-  ``sbx policy init deny-all``, or ``"allow-all"`` to state that egress is open.
+  guarantee this backend cannot make, and since ``block_network`` defaults to
+  ``True`` that includes a bare ``SandboxSpec()``. Set ``"deny-all"`` after running
+  ``sbx policy init deny-all``, or ``"allow-all"`` to state that egress is open
+  and pass ``SandboxSpec(block_network=False)`` to match.
 
 What differs between the two
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
