@@ -14,20 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Exceptions raised by the Modal provider."""
-
 from __future__ import annotations
 
+import pytest
 
-class ModalError(Exception):
-    """
-    Base class for errors raised by the Modal provider.
-
-    Deliberately not an ``AirflowException`` subclass, matching the other AI providers: callers
-    catch provider errors through this base, and the exceptions carry no Airflow-specific
-    task-state semantics.
-    """
+from airflow.providers.modal.exceptions import ModalConnectionError, ModalError
 
 
-class ModalConnectionError(ModalError):
-    """A ``modal`` connection is misconfigured, for example only one of the two token fields is set."""
+@pytest.mark.parametrize("exc", [ModalError, ModalConnectionError])
+def test_provider_errors_share_base_and_are_not_airflow_exceptions(exc):
+    # Every provider error is catchable via the ModalError base and is deliberately
+    # NOT an AirflowException subclass, matching the other AI providers.
+    assert issubclass(exc, ModalError)
+    assert not any(base.__name__ == "AirflowException" for base in exc.__mro__)
