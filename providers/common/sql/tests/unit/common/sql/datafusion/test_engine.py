@@ -483,6 +483,30 @@ class TestDataFusionEngine:
         assert credentials == {"account": "myaccount"}
         assert extra_config == {}
 
+    @pytest.mark.parametrize(
+        "unsupported_field",
+        ["connection_string", "managed_identity_client_id", "workload_identity_tenant_id"],
+    )
+    def test_get_credentials_azure_rejects_unsupported_identity_fields(self, unsupported_field):
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.extra_dejson = {unsupported_field: "some-value"}
+        engine = DataFusionEngine()
+
+        with pytest.raises(ValueError, match=f"{unsupported_field!r} is not supported"):
+            engine._get_credentials(mock_conn)
+
+    def test_get_credentials_azure_rejects_url_form_sas_token(self):
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.login = "myaccount"
+        mock_conn.password = None
+        mock_conn.extra_dejson = {"sas_token": "https://myaccount.blob.core.windows.net/?sv=2020-08-04"}
+        engine = DataFusionEngine()
+
+        with pytest.raises(ValueError, match="URL-form `sas_token` is not supported"):
+            engine._get_credentials(mock_conn)
+
     def test_get_credentials_unknown_type(self):
         mock_conn = MagicMock()
         mock_conn.conn_type = "dummy"

@@ -206,6 +206,19 @@ class DataFusionEngine(LoggingMixin):
 
             case "wasb":
                 extra_dejson = conn.extra_dejson
+                for unsupported_field in (
+                    "connection_string",
+                    "managed_identity_client_id",
+                    "workload_identity_tenant_id",
+                ):
+                    if extra_dejson.get(unsupported_field):
+                        raise ValueError(
+                            f"Connection field {unsupported_field!r} is not supported for DataFusion "
+                            "Azure Blob Storage access; only tenant_id+login+password (service "
+                            "principal), sas_token, shared_access_key/account_key/password, or ambient "
+                            "credentials (AZURE_* environment variables, managed identity, workload "
+                            "identity, or az login) are used."
+                        )
                 credentials = {"account": conn.login}
                 tenant_id = extra_dejson.get("tenant_id")
                 sas_token = extra_dejson.get("sas_token")
@@ -215,7 +228,12 @@ class DataFusionEngine(LoggingMixin):
                     credentials.update(
                         {"client_id": conn.login, "client_secret": conn.password, "tenant_id": tenant_id}
                     )
-                elif sas_token and not sas_token.startswith("http"):
+                elif sas_token:
+                    if sas_token.startswith("http"):
+                        raise ValueError(
+                            "A URL-form `sas_token` is not supported for DataFusion Azure Blob Storage "
+                            "access; provide the SAS token as a query string instead."
+                        )
                     from urllib.parse import parse_qsl
 
                     credentials["sas_query_pairs"] = parse_qsl(sas_token.lstrip("?"))
