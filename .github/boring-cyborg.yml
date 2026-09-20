@@ -221,6 +221,9 @@ labelPRBasedOnFilePath:
   provider:microsoft-winrm:
     - providers/microsoft/winrm/**
 
+  provider:modal:
+    - providers/modal/**
+
   provider:mongo:
     - providers/mongo/**
 

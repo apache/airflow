@@ -294,6 +294,9 @@ apache-airflow = "airflow.__main__:main"
 "microsoft.winrm" = [
     "apache-airflow-providers-microsoft-winrm>=3.6.1"
 ]
+"modal" = [
+    "apache-airflow-providers-modal>=0.1.0"
+]
 "mongo" = [
     "apache-airflow-providers-mongo>=4.2.2"
 ]
@@ -482,6 +485,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-microsoft-mssql>=3.9.2",
     "apache-airflow-providers-microsoft-psrp>=3.0.0",
     "apache-airflow-providers-microsoft-winrm>=3.6.1",
+    "apache-airflow-providers-modal>=0.1.0",
     "apache-airflow-providers-mongo>=4.2.2",
     "apache-airflow-providers-mysql>=5.7.2",
     "apache-airflow-providers-neo4j>=3.8.0",
@@ -1244,6 +1248,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/microsoft/psrp/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/microsoft/winrm/src",
     "$MYPY_CONFIG_FILE_DIR/providers/microsoft/winrm/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/modal/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/modal/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/mongo/src",
     "$MYPY_CONFIG_FILE_DIR/providers/mongo/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/mysql/src",
@@ -1529,6 +1535,7 @@ apache-airflow-providers-microsoft-azure = false
 apache-airflow-providers-microsoft-mssql = false
 apache-airflow-providers-microsoft-psrp = false
 apache-airflow-providers-microsoft-winrm = false
+apache-airflow-providers-modal = false
 apache-airflow-providers-mongo = false
 apache-airflow-providers-mysql = false
 apache-airflow-providers-neo4j = false
@@ -1691,6 +1698,7 @@ apache-airflow-providers-microsoft-azure = false
 apache-airflow-providers-microsoft-mssql = false
 apache-airflow-providers-microsoft-psrp = false
 apache-airflow-providers-microsoft-winrm = false
+apache-airflow-providers-modal = false
 apache-airflow-providers-mongo = false
 apache-airflow-providers-mysql = false
 apache-airflow-providers-neo4j = false
@@ -1860,6 +1868,7 @@ apache-airflow-providers-microsoft-azure = { workspace = true }
 apache-airflow-providers-microsoft-mssql = { workspace = true }
 apache-airflow-providers-microsoft-psrp = { workspace = true }
 apache-airflow-providers-microsoft-winrm = { workspace = true }
+apache-airflow-providers-modal = { workspace = true }
 apache-airflow-providers-mongo = { workspace = true }
 apache-airflow-providers-mysql = { workspace = true }
 apache-airflow-providers-neo4j = { workspace = true }
@@ -2005,6 +2014,7 @@ members = [
     "providers/microsoft/mssql",
     "providers/microsoft/psrp",
     "providers/microsoft/winrm",
+    "providers/modal",
     "providers/mongo",
     "providers/mysql",
     "providers/neo4j",
