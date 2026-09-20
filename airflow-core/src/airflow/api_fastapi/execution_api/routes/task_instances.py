@@ -1108,8 +1108,8 @@ def ti_patch_rendered_map_index(
         ]
     ),
 )
-def get_previous_successful_dagrun(
-    task_instance_id: UUID, session: SessionDep
+async def get_previous_successful_dagrun(
+    task_instance_id: UUID, session: AsyncSessionDep
 ) -> PrevSuccessfulDagRunResponse:
     """
     Get the previous successful DagRun for a TaskInstance.
@@ -1119,12 +1119,12 @@ def get_previous_successful_dagrun(
     bind_contextvars(ti_id=str(task_instance_id))
     log.debug("Retrieving previous successful DAG run")
 
-    task_instance = session.scalar(select(TI).where(TI.id == task_instance_id))
+    task_instance = await session.scalar(select(TI).where(TI.id == task_instance_id))
     if not task_instance or not task_instance.logical_date:
         log.debug("No task instance or logical date found")
         return PrevSuccessfulDagRunResponse()
 
-    dag_run = session.scalar(
+    dag_run = await session.scalar(
         select(DR)
         .where(
             DR.dag_id == task_instance.dag_id,
@@ -1205,10 +1205,10 @@ def get_task_instance_count(
 
 
 @router.get("/previous/{dag_id}/{task_id}", status_code=status.HTTP_200_OK)
-def get_previous_task_instance(
+async def get_previous_task_instance(
     dag_id: str,
     task_id: str,
-    session: SessionDep,
+    session: AsyncSessionDep,
     logical_date: Annotated[UtcDateTime | None, Query()] = None,
     map_index: Annotated[int, Query()] = -1,
     state: Annotated[TaskInstanceState | None, Query()] = None,
@@ -1237,7 +1237,7 @@ def get_previous_task_instance(
     if state:
         query = query.where(TI.state == state)
 
-    ti = session.scalars(query.limit(1)).first()
+    ti = (await session.scalars(query.limit(1))).first()
 
     if not ti:
         return None
@@ -1306,11 +1306,15 @@ def get_task_instance_states(
 
 
 @router.get("/breadcrumbs", status_code=status.HTTP_200_OK)
-def get_task_instance_breadcrumbs(dag_id: str, run_id: str, session: SessionDep) -> TaskBreadcrumbsResponse:
-    result = session.execute(
-        select(TI.task_id, TI.map_index, TI.state, TI.operator, TI.duration)
-        .where(TI.dag_id == dag_id, TI.run_id == run_id, TI.state.in_(TerminalTIState))
-        .order_by(TI.task_id, TI.map_index)
+async def get_task_instance_breadcrumbs(
+    dag_id: str, run_id: str, session: AsyncSessionDep
+) -> TaskBreadcrumbsResponse:
+    result = (
+        await session.execute(
+            select(TI.task_id, TI.map_index, TI.state, TI.operator, TI.duration)
+            .where(TI.dag_id == dag_id, TI.run_id == run_id, TI.state.in_(TerminalTIState))
+            .order_by(TI.task_id, TI.map_index)
+        )
     ).mappings()
 
     def _iter_breadcrumbs() -> Iterator[dict[str, Any]]:

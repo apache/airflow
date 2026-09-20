@@ -3343,6 +3343,7 @@ class TestTIPutRTIF:
         }
 
 
+@pytest.mark.usefixtures("reconfigure_async_db_engine")
 class TestPreviousDagRun:
     def setup_method(self):
         clear_db_runs()
@@ -3441,6 +3442,7 @@ class TestPreviousDagRun:
         }
 
 
+@pytest.mark.usefixtures("reconfigure_async_db_engine")
 class TestGetRescheduleStartDate:
     def test_get_start_date(self, client, session, create_task_instance):
         ti = create_task_instance(
@@ -3777,6 +3779,7 @@ class TestGetCount:
         assert response.json() == expected_count
 
 
+@pytest.mark.usefixtures("reconfigure_async_db_engine")
 class TestGetPreviousTI:
     def setup_method(self):
         clear_db_runs()
@@ -4377,6 +4380,7 @@ class TestGetTaskStates:
         assert response.json() == {"task_states": {dr.run_id: expected}}
 
 
+@pytest.mark.usefixtures("reconfigure_async_db_engine")
 class TestGetTaskInstanceBreadcrumbs:
     def setup_method(self):
         clear_db_runs()

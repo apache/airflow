@@ -244,6 +244,7 @@ class TestPutVariable:
         assert any(msg.startswith("Checking write access for task instance") for msg in caplog.messages)
 
 
+@pytest.mark.usefixtures("reconfigure_async_db_engine")
 class TestGetVariableKeys:
     @pytest.mark.parametrize(
         ("prefix", "expected_keys"),

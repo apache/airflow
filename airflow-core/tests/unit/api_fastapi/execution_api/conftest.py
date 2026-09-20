@@ -34,6 +34,18 @@ def _restore_lifespan_registry():
     lifespan.registry._services = snapshot
 
 
+# The way we init async engine does not work well with FastAPI app init.
+# Creating the engine implicitly creates an event loop, which Airflow does
+# once for the entire process; creating the FastAPI app also does, but our
+# test setup does it once for each test. Re-configuring the db for each
+# test at least makes the tests run correctly.
+@pytest.fixture
+def reconfigure_async_db_engine():
+    from airflow.settings import _configure_async_session
+
+    _configure_async_session()
+
+
 def _get_execution_api_app(root_app: FastAPI) -> FastAPI:
     """Find the mounted execution API sub-app."""
     for route in root_app.routes:
