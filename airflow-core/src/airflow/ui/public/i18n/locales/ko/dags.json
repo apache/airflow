@@ -93,6 +93,24 @@
     "loading": "실행 상태 개수 로드 중...",
     "tooltip": "{{state}}: {{formattedCount}} — 클릭하여 실행 필터링"
   },
+  "schedulingActions": {
+    "cancelDrain": "일시 중지 대기 취소",
+    "drain": "실행 완료 후 일시 중지",
+    "drainPrompt": "이 Dag에 진행 중인 Dag 실행이 있습니다. 실행 완료 후 일시 중지하면 진행 중인 실행이 끝난 뒤 Dag가 일시 중지되고, 지금 일시 중지하면 진행 중인 실행을 기다리지 않고 즉시 스케줄링이 중단됩니다.",
+    "pauseNow": "지금 일시 중지"
+  },
+  "schedulingBanner": {
+    "message": "이 Dag는 일시 중지 대기 중입니다. 실행 중인 Dag 실행이 끝나면 일시 중지됩니다."
+  },
+  "schedulingState": {
+    "active": "활성",
+    "draining": "일시 중지 대기 중",
+    "drainingBadgeTooltip": "실행 중인 Dag 실행이 끝나면 이 Dag가 일시 중지됩니다.",
+    "drainingTooltip": "{{dagDisplayName}} 일시 중지 대기 중 — 실행 중인 Dag 실행이 끝나면 일시 중지됩니다. 클릭하여 재개하세요.",
+    "label": "스케줄링 상태",
+    "paused": "일시 중지됨",
+    "placeholder": "스케줄링 상태 선택…"
+  },
   "search": {
     "advanced": "고급 검색",
     "clear": "검색 지우기",
