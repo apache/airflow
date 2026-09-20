@@ -24,9 +24,11 @@ import pytest
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.routing import Mount
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from airflow.models.variable import Variable
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_variables
 
 pytestmark = pytest.mark.db_test
@@ -66,6 +68,30 @@ def access_denied(client):
 
 
 class TestGetVariable:
+    @mock.patch(
+        "airflow.api_fastapi.execution_api.routes.variables.resolve_variable",
+        new_callable=mock.AsyncMock,
+    )
+    def test_variable_get_awaits_resolver_with_team_and_session(self, resolve_variable, client):
+        from airflow.api_fastapi.execution_api.security import get_team_name_dep
+
+        exec_app = client.app.routes[-1].app
+        assert isinstance(exec_app, FastAPI)
+        exec_app.dependency_overrides[get_team_name_dep] = lambda: "analytics"
+        resolve_variable.return_value = "value"
+
+        try:
+            with conf_vars({("core", "multi_team"): "True"}):
+                response = client.get("/execution/variables/key")
+        finally:
+            exec_app.dependency_overrides.pop(get_team_name_dep)
+
+        assert response.status_code == 200
+        resolve_variable.assert_awaited_once()
+        assert resolve_variable.call_args.args == ("key",)
+        assert resolve_variable.call_args.kwargs["team_name"] == "analytics"
+        assert isinstance(resolve_variable.call_args.kwargs["session"], AsyncSession)
+
     @pytest.mark.parametrize(
         ("key", "value"),
         [

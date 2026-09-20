@@ -23,7 +23,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, status
 from sqlalchemy import func, select
 
-from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.db.common import AsyncSessionDep, SessionDep
 from airflow.api_fastapi.execution_api.datamodels.variable import (
     VariableKeysResponse,
     VariablePostBody,
@@ -31,6 +31,7 @@ from airflow.api_fastapi.execution_api.datamodels.variable import (
 )
 from airflow.api_fastapi.execution_api.security import CurrentTIToken, get_team_name_dep
 from airflow.models.variable import Variable
+from airflow.secrets.async_resolution import resolve_variable
 
 
 async def has_variable_access(
@@ -110,13 +111,14 @@ def get_variable_keys(
         status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the variable"},
     },
 )
-def get_variable(
+async def get_variable(
     variable_key: Annotated[str, Path(min_length=1)],
+    session: AsyncSessionDep,
     team_name: Annotated[str | None, Depends(get_team_name_dep)],
 ) -> VariableResponse:
     """Get an Airflow Variable."""
     try:
-        variable_value = Variable.get(variable_key, team_name=team_name)
+        variable_value = await resolve_variable(variable_key, team_name=team_name, session=session)
     except KeyError:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,

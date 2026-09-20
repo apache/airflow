@@ -21,11 +21,13 @@ import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
+from starlette.concurrency import run_in_threadpool
 
+from airflow.api_fastapi.common.db.common import AsyncSessionDep
 from airflow.api_fastapi.execution_api.datamodels.connection import ConnectionResponse
 from airflow.api_fastapi.execution_api.security import CurrentTIToken, get_team_name_dep
 from airflow.exceptions import AirflowNotFoundException
-from airflow.models.connection import Connection
+from airflow.secrets.async_resolution import resolve_connection
 
 
 async def has_connection_access(
@@ -63,13 +65,14 @@ log = logging.getLogger(__name__)
         status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the connection"},
     },
 )
-def get_connection(
+async def get_connection(
     connection_id: Annotated[str, Path(min_length=1)],
+    session: AsyncSessionDep,
     team_name: Annotated[str | None, Depends(get_team_name_dep)],
 ) -> ConnectionResponse:
     """Get an Airflow connection."""
     try:
-        connection = Connection.get_connection_from_secrets(connection_id, team_name=team_name)
+        connection = await resolve_connection(connection_id, team_name=team_name, session=session)
     except AirflowNotFoundException:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
@@ -78,4 +81,4 @@ def get_connection(
                 "message": f"Connection with ID {connection_id} not found",
             },
         )
-    return ConnectionResponse.model_validate(connection)
+    return await run_in_threadpool(ConnectionResponse.model_validate, connection)
