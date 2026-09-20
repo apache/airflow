@@ -179,6 +179,7 @@ body:
         - microsoft-mssql
         - microsoft-psrp
         - microsoft-winrm
+        - modal
         - mongo
         - mysql
         - neo4j
