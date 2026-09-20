@@ -98,9 +98,7 @@ class TestPodTemplateFile:
             "imagePullPolicy": "Always",
             "envFrom": [{"secretRef": {"name": "proxy-config"}}],
             "env": [
-                {"name": "GIT_SYNC_REV", "value": "HEAD"},
                 {"name": "GITSYNC_REF", "value": "test-branch"},
-                {"name": "GIT_SYNC_BRANCH", "value": "test-branch"},
                 {"name": "GIT_SYNC_REPO", "value": "https://github.com/apache/airflow.git"},
                 {"name": "GITSYNC_REPO", "value": "https://github.com/apache/airflow.git"},
                 {"name": "GIT_SYNC_DEPTH", "value": "1"},

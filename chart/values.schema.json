@@ -9809,9 +9809,12 @@
                             "default": "HEAD"
                         },
                         "ref": {
-                            "description": "Git revision branch, tag, or hash.",
-                            "type": "string",
-                            "default": "v2-2-stable"
+                            "description": "Git revision branch, tag, or hash (git-sync v4 only). When set, the chart sends only GITSYNC_REF and omits the deprecated GIT_SYNC_BRANCH / GIT_SYNC_REV, which would otherwise override GITSYNC_REF in git-sync v4.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
                         },
                         "depth": {
                             "description": "Repository depth.",

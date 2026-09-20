@@ -1,0 +1,11 @@
+Fix ``dags.gitSync.ref`` being silently overridden under git-sync v4
+
+In git-sync v4 the deprecated ``GIT_SYNC_BRANCH`` and ``GIT_SYNC_REV`` env vars
+override ``GITSYNC_REF``. The chart used to emit all three unconditionally, so
+setting ``dags.gitSync.ref: v1.2.3`` (to pin the sidecar to a tag) had no
+effect and the container kept tracking ``branch`` at ``rev``. The chart now
+emits ``GITSYNC_REF`` only when ``ref`` is set and, in that case, omits the
+deprecated pair. The default of ``ref`` has been changed to ``~`` so the
+default render is unchanged for existing (v3 and v4) users; only users who
+explicitly set ``ref`` see behavior change — and that behavior now matches
+what the option documents.
