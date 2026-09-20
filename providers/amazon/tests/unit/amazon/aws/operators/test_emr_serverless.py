@@ -1407,7 +1407,7 @@ class TestEmrServerlessDeleteOperator:
         mock_conn.stop_application.assert_called_once_with(applicationId=application_id)
         mock_conn.delete_application.assert_not_called()
 
-    @mock.patch.object(EmrServerlessHook, "cancel_running_jobs")
+    @mock.patch.object(EmrServerlessHook, "cancel_running_jobs", autospec=True)
     @mock.patch.object(EmrServerlessHook, "conn")
     def test_delete_application_deferrable_with_force_stop(self, mock_conn, mock_cancel_running_jobs):
         mock_cancel_running_jobs.return_value = 1

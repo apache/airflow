@@ -1825,7 +1825,8 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
         self._delete_application()
 
     def delete_stopped_application(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        # Validates the stop trigger event and raises if the application failed to stop.
+        # super(): this class overrides execute_complete to handle the delete trigger's event,
+        # while the event here comes from the stop trigger.
         super().execute_complete(context, event)
         self._delete_application()
 
