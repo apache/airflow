@@ -304,13 +304,17 @@ class _PopenActivitySubprocess(ActivitySubprocess):
             stdout_r, stdout_w = tracker.track(*socket.socketpair())
             stderr_r, stderr_w = tracker.track(*socket.socketpair())
 
-            # A language SDK runtime cannot read Airflow's config, so propagate the
-            # resolved log levels via the environment at launch. StartupDetails
-            # arrives too late, the logs might already be produced by then.
+            # A language SDK runtime cannot read Airflow's config, so pass the resolved
+            # values via the environment at launch. For the log levels this is also the
+            # only workable moment: StartupDetails arrives too late, logs might already
+            # have been produced by then.
             env = {
                 **os.environ,
                 "AIRFLOW__LOGGING__LOGGING_LEVEL": conf.get("logging", "logging_level", fallback="INFO"),
                 "AIRFLOW__LOGGING__NAMESPACE_LEVELS": conf.get("logging", "namespace_levels", fallback=""),
+                "AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS": conf.get(
+                    "state_store", "default_retention_days", fallback="30"
+                ),
             }
 
             proc = subprocess.Popen(

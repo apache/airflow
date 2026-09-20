@@ -154,6 +154,9 @@ dags:
       - "extract"
       - "transform"
       - "load"
+  task_state_dag:
+    tasks:
+      - "roundtrip_task_state"
   taskflow_binding_dag:
     tasks:
       - "make_config"

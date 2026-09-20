@@ -36,6 +36,7 @@ import (
 	"github.com/apache/airflow/go-sdk/internal/contexttest"
 	"github.com/apache/airflow/go-sdk/pkg/binding"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
+	"github.com/apache/airflow/go-sdk/sdk"
 )
 
 // assertSucceedTask asserts RunTask produced a terminal SucceedTask body.
@@ -547,6 +548,52 @@ func TestRunTaskInjectsAirflowContext(t *testing.T) {
 	assert.Equal(t, start, *dagRun.DataIntervalStart)
 	require.NotNil(t, dagRun.DataIntervalEnd)
 	assert.Equal(t, end, *dagRun.DataIntervalEnd)
+}
+
+// The task state store a handler reaches through actx.Client() must be
+// addressed to the task instance the supervisor started, not to an empty id.
+func TestRunTaskBindsTaskStateStoreClient(t *testing.T) {
+	const tiID = "0199e0e5-1b2c-7c3d-8e4f-5a6b7c8d9e0f"
+
+	var got sdk.TaskStateStoreClient
+	bundle := buildBundle(t, func(r testBundle) {
+		r.AddDag("test_dag").AddTaskWithName("statestore",
+			func(actx contexttest.Context) error {
+				got = actx.Client()
+				return actx.Client().SetTaskState(actx, "job_id", "abc123")
+			})
+	})
+
+	details := &genmodels.StartupDetails{
+		TI: genmodels.TaskInstance{
+			ID:       tiID,
+			DagID:    "test_dag",
+			TaskID:   "statestore",
+			RunID:    "run1",
+			MapIndex: ptr(-1),
+		},
+		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
+	}
+
+	responsePayload := encodeResponseFrame(t, 0, map[string]any{"type": "OKResponse"}, nil)
+	var responseBuf bytes.Buffer
+	require.NoError(t, writeFrame(&responseBuf, responsePayload))
+
+	var requestBuf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
+
+	result := RunTask(context.Background(), bundle, details, comm, logger)
+	assertSucceedTask(t, result)
+
+	require.NotNil(t, got, "the task must reach a coordinator-backed task state store")
+
+	sent, err := readFrame(&requestBuf)
+	require.NoError(t, err)
+	sentMap := rawToMap(t, sent.Body)
+	assert.Equal(t, "SetTaskStateStore", sentMap["type"])
+	assert.Equal(t, tiID, sentMap["ti_id"],
+		"the runtime must bind the store to the started task instance")
 }
 
 // Serve traps SIGINT/SIGTERM into the context it hands RunTask, so a
