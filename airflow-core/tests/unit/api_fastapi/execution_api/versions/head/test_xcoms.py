@@ -411,6 +411,20 @@ class TestXComsGetEndpoint:
 
 
 class TestXComsSetEndpoint:
+    def test_xcom_set_dag_run_not_found(self, client):
+        response = client.post(
+            "/execution/xcoms/missing_dag/missing_run/task/xcom_1",
+            json='"value1"',
+        )
+
+        assert response.status_code == 404
+        assert response.json() == {
+            "detail": {
+                "reason": "not_found",
+                "message": "DAG run not found on DAG 'missing_dag' with ID 'missing_run'",
+            }
+        }
+
     @pytest.mark.parametrize(
         ("value", "expected_value"),
         [
