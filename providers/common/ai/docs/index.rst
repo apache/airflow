@@ -117,10 +117,12 @@ Choosing extras
 
 The provider's extras split into a few groups:
 
-* **Model providers** — ``openai``, ``anthropic``, ``google``, ``bedrock``: pick the one
-  matching your ``llm_conn_id`` connection. Each extra name mirrors the identically named
+* **Model providers** — ``openai``, ``anthropic``, ``google``, ``bedrock``, ``typesafe``:
+  pick the one matching your ``llm_conn_id`` connection. ``typesafe`` differs from the rest
+  in kind: it installs a classifier model that answers typed questions and cannot write
+  text (see :doc:`classifier_models`). Each extra name mirrors the identically named
   ``pydantic-ai-slim`` optional dependency group; pydantic-ai supports more model providers
-  than these four, each under its own extra name, so check the
+  than these, each under its own extra name, so check the
   `pydantic-ai install docs <https://ai.pydantic.dev/install/#slim-install>`__ for the full list.
 * **Agent tooling** — ``mcp``, ``skills``, ``code-mode``, ``shields``: MCP servers, Agent
   Skills, code-mode tool execution, and shield capabilities (input/output guards, tool
@@ -163,6 +165,7 @@ See the Optional dependencies table below for the exact package each extra insta
     Provider fallback <provider_fallback>
     Retry Policies <retry_policies>
     Self-hosted models <self_hosted_models>
+    Classifier models <classifier_models>
     HITL Review <hitl_review>
     Observability <observability>
 
@@ -273,6 +276,7 @@ Extra           Dependencies
 ``bedrock``     ``pydantic-ai-slim[bedrock]>=2.23.0``
 ``google``      ``pydantic-ai-slim[google]>=2.23.0``
 ``openai``      ``pydantic-ai-slim[openai]>=2.23.0``
+``typesafe``    ``typesafe-sdk>=0.6.0``
 ``mcp``         ``pydantic-ai-slim[mcp]>=2.23.0``
 ``code-mode``   ``pydantic-ai-harness[codemode]>=0.3.0``
 ``shields``     ``pydantic-ai-shields>=0.3.4``
