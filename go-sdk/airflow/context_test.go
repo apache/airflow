@@ -68,14 +68,22 @@ func TestNewContextAccessors(t *testing.T) {
 func TestNewContextRejectsNilArgs(t *testing.T) {
 	logger, client, ti, dagRun := testValues()
 
+	// Keyed by the expected panic value: context.WithValue panics on a nil ctx
+	// by itself, so asserting the value is what pins the check to ours.
 	cases := map[string]func(){
-		"nil context": func() { NewContext(nil, logger, client, ti, dagRun) },
-		"nil logger":  func() { NewContext(context.Background(), nil, client, ti, dagRun) },
-		"nil client":  func() { NewContext(context.Background(), logger, nil, ti, dagRun) },
+		"airflow.NewContext: nil context.Context": func() {
+			NewContext(nil, logger, client, ti, dagRun)
+		},
+		"airflow.NewContext: nil logger": func() {
+			NewContext(context.Background(), nil, client, ti, dagRun)
+		},
+		"airflow.NewContext: nil client": func() {
+			NewContext(context.Background(), logger, nil, ti, dagRun)
+		},
 	}
-	for name, build := range cases {
-		t.Run(name, func(t *testing.T) {
-			assert.Panics(t, build)
+	for want, build := range cases {
+		t.Run(want, func(t *testing.T) {
+			assert.PanicsWithValue(t, want, build)
 		})
 	}
 }
