@@ -167,6 +167,8 @@ class TestDateTimeSensor:
         )
 
         assert op.start_from_trigger is False
+        # The class attribute must be left alone, not replaced with a copy built from the raw template.
+        assert op.start_trigger_args is DateTimeSensorAsync.start_trigger_args
 
     def test_start_trigger_args_are_not_shared_between_tasks(self):
         """Each task must carry its own trigger arguments.

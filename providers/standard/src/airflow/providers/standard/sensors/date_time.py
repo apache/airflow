@@ -89,6 +89,8 @@ class DateTimeSensorAsync(DateTimeSensor):
 
     :param target_time: datetime after which the job succeeds. (templated)
     :param start_from_trigger: Start the task directly from the triggerer without going into the worker.
+        Ignored when ``target_time`` is a Jinja template: templates are only rendered on the worker, so the
+        task defers from the worker instead.
     :param trigger_kwargs: The keyword arguments passed to the trigger when start_from_trigger is set to True
         during dynamic task mapping. This argument is not used in standard usage.
     :param end_from_trigger: End the task directly from the triggerer without going into the worker.
