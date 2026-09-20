@@ -32,12 +32,17 @@ run under a narrower token than the worker has. This provider gives Modal creden
 home every other integration has, an Airflow connection, and one hook that every Modal-facing
 piece of Airflow code resolves it through:
 
-* ``ModalHook.client`` is a ``modal.Client`` built from the connection.
-* ``ModalHook.client_kwargs`` splats ``client=`` into any Modal SDK call that reaches the API
-  (``modal.Sandbox.create``, ``modal.Sandbox.list``, ``modal.Secret.from_name``, ...).
-* ``ModalHook.lookup_app`` looks up or creates an app in the connection's environment. Sandboxes
-  inherit the environment from their app, so this is where the connection's ``environment``
-  takes effect.
+* ``ModalHook.get_function`` / ``get_cls`` return handles to deployed functions and classes;
+  call ``.remote()``, ``.spawn()`` or ``.map()`` on them as usual.
+* ``ModalHook.create_sandbox`` / ``get_sandbox`` create or reattach to a sandbox under a named
+  app.
+* ``ModalHook.lookup_app``, ``get_secret``, ``get_volume`` resolve the other named resources.
+* ``ModalHook.client`` is the underlying ``modal.Client`` for anything not covered above;
+  ``client_kwargs`` splats it into SDK calls that take only ``client=``.
+
+Every hook method applies both the connection's credentials and its ``environment``. Raw SDK
+calls made with ``client_kwargs`` carry the credentials only; see :doc:`usage` for what that
+means in practice.
 
 The hook keeps working with no connection configured: it then defers to the Modal SDK's own
 resolution, so a worker that already ran ``modal token new`` needs no Airflow setup. See
@@ -58,6 +63,7 @@ resolution, so a worker that already ran ``modal token new`` needs no Airflow se
     :caption: Guides
 
     Connection types <connections>
+    Using Modal from Airflow <usage>
 
 .. toctree::
     :hidden:

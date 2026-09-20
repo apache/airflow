@@ -265,3 +265,108 @@ class TestTestConnection:
 
         assert ok is False
         assert "Token Secret (password)" in message
+
+
+@pytest.fixture
+def env_hook(create_connection_without_db, modal_client_cls):
+    """A hook bound to a connection with explicit credentials and environment ``staging``."""
+    create_connection_without_db(
+        Connection(
+            conn_id="modal_env",
+            conn_type="modal",
+            login=TOKEN_ID,
+            password=TOKEN_SECRET,
+            extra={"environment": "staging"},
+        )
+    )
+    return ModalHook(modal_conn_id="modal_env")
+
+
+class TestResourceLookups:
+    """Every lookup must carry both the connection's client and its environment."""
+
+    def test_get_conn_returns_the_cached_client(self, env_hook, modal_client_cls):
+        assert env_hook.get_conn() is env_hook.client
+        modal_client_cls.from_credentials.assert_called_once()
+
+    def test_get_function(self, env_hook, modal_client_cls):
+        with mock.patch("airflow.providers.modal.hooks.modal.modal.Function", autospec=True) as function_cls:
+            handle = env_hook.get_function("training", "train", version=3)
+
+        function_cls.from_name.assert_called_once_with(
+            "training",
+            "train",
+            version=3,
+            environment_name="staging",
+            client=modal_client_cls.from_credentials.return_value,
+        )
+        assert handle is function_cls.from_name.return_value
+
+    def test_get_cls(self, env_hook, modal_client_cls):
+        with mock.patch("airflow.providers.modal.hooks.modal.modal.Cls", autospec=True) as cls_cls:
+            env_hook.get_cls("training", "Trainer")
+
+        cls_cls.from_name.assert_called_once_with(
+            "training",
+            "Trainer",
+            version=None,
+            environment_name="staging",
+            client=modal_client_cls.from_credentials.return_value,
+        )
+
+    def test_get_secret(self, env_hook, modal_client_cls):
+        with mock.patch("airflow.providers.modal.hooks.modal.modal.Secret", autospec=True) as secret_cls:
+            env_hook.get_secret("hf-token", required_keys=["HF_TOKEN"])
+
+        secret_cls.from_name.assert_called_once_with(
+            "hf-token",
+            environment_name="staging",
+            required_keys=["HF_TOKEN"],
+            client=modal_client_cls.from_credentials.return_value,
+        )
+
+    def test_get_volume(self, env_hook, modal_client_cls):
+        with mock.patch("airflow.providers.modal.hooks.modal.modal.Volume", autospec=True) as volume_cls:
+            env_hook.get_volume("datasets", create_if_missing=True)
+
+        volume_cls.from_name.assert_called_once_with(
+            "datasets",
+            environment_name="staging",
+            create_if_missing=True,
+            client=modal_client_cls.from_credentials.return_value,
+        )
+
+    def test_create_sandbox_resolves_app_in_environment(self, env_hook, modal_client_cls):
+        with (
+            mock.patch("airflow.providers.modal.hooks.modal.modal.App", autospec=True) as app_cls,
+            mock.patch("airflow.providers.modal.hooks.modal.modal.Sandbox", autospec=True) as sandbox_cls,
+        ):
+            sandbox = env_hook.create_sandbox(
+                "python", "-c", "print(1)", app_name="airflow-tasks", create_app_if_missing=True, gpu="A10G"
+            )
+
+        app_cls.lookup.assert_called_once_with(
+            "airflow-tasks",
+            client=modal_client_cls.from_credentials.return_value,
+            environment_name="staging",
+            create_if_missing=True,
+        )
+        sandbox_cls.create.assert_called_once_with(
+            "python",
+            "-c",
+            "print(1)",
+            app=app_cls.lookup.return_value,
+            client=modal_client_cls.from_credentials.return_value,
+            gpu="A10G",
+        )
+        # environment_name is deliberately absent: Sandbox.create(environment_name=) is deprecated.
+        assert "environment_name" not in sandbox_cls.create.call_args.kwargs
+        assert sandbox is sandbox_cls.create.return_value
+
+    def test_get_sandbox(self, env_hook, modal_client_cls):
+        with mock.patch("airflow.providers.modal.hooks.modal.modal.Sandbox", autospec=True) as sandbox_cls:
+            env_hook.get_sandbox("sb-123")
+
+        sandbox_cls.from_id.assert_called_once_with(
+            "sb-123", client=modal_client_cls.from_credentials.return_value
+        )

@@ -125,8 +125,7 @@ class ModalHook(BaseHook):
         environment = conn.extra_dejson.get("environment")
         return environment or None
 
-    def get_conn(self) -> modal.Client:
-        """Build the Modal client for this connection."""
+    def _build_client(self) -> modal.Client:
         credentials = self.credentials
         if credentials is None:
             return modal.Client.from_env()
@@ -145,31 +144,29 @@ class ModalHook(BaseHook):
         """
         pid = os.getpid()
         if self._client is None or self._client_pid != pid:
-            self._client = self.get_conn()
+            self._client = self._build_client()
             self._client_pid = pid
         return self._client
+
+    def get_conn(self) -> modal.Client:
+        """Return the Modal client for this connection (same cached object as :attr:`client`)."""
+        return self.client
 
     @property
     def client_kwargs(self) -> dict[str, Any]:
         """
-        Keyword arguments that route a Modal SDK call through this connection.
+        Keyword arguments that route a Modal SDK call through this connection's credentials.
 
-        Every Modal entry point that reaches the API (``modal.App.lookup``,
-        ``modal.Sandbox.create``, ``modal.Sandbox.list``, ``modal.Sandbox.from_id``,
-        ``modal.Secret.from_name``) accepts ``client=``; splat this into the call::
-
-            modal.Sandbox.create(app=app, image=image, **hook.client_kwargs)
-
-        The environment is deliberately not included: a sandbox takes its environment from
-        the app it belongs to, and ``Sandbox.create(environment_name=...)`` is deprecated in
-        the Modal SDK. Resolve the app with :meth:`lookup_app`, which applies the connection's
-        environment.
+        For calls that also take ``environment_name`` (``Function.from_name``, ``Cls.from_name``,
+        ``Secret.from_name``, ``Volume.from_name``, ``App.lookup``) prefer the matching hook
+        method, which applies the connection's environment as well. Use this for calls that only
+        take a client, such as ``modal.Sandbox.list(**hook.client_kwargs)``.
         """
         return {"client": self.client}
 
     def lookup_app(self, name: str, *, create_if_missing: bool = False) -> modal.App:
         """
-        Look up a Modal app by name through this connection.
+        Look up a Modal app by name in the connection's environment.
 
         :param name: App name.
         :param create_if_missing: Create the app when it does not exist yet.
@@ -180,6 +177,87 @@ class ModalHook(BaseHook):
             environment_name=self.environment_name,
             create_if_missing=create_if_missing,
         )
+
+    def get_function(self, app_name: str, name: str, *, version: int | None = None) -> modal.Function:
+        """
+        Return a handle to a deployed Modal function in the connection's environment.
+
+        Call ``.remote(...)``, ``.spawn(...)`` or ``.map(...)`` on the result as with any Modal
+        function handle.
+
+        :param app_name: Name of the deployed app.
+        :param name: Function name within the app.
+        :param version: Pin a specific deployment version; latest when omitted.
+        """
+        return modal.Function.from_name(
+            app_name, name, version=version, environment_name=self.environment_name, client=self.client
+        )
+
+    def get_cls(self, app_name: str, name: str, *, version: int | None = None) -> modal.Cls:
+        """
+        Return a handle to a deployed Modal class in the connection's environment.
+
+        :param app_name: Name of the deployed app.
+        :param name: Class name within the app.
+        :param version: Pin a specific deployment version; latest when omitted.
+        """
+        return modal.Cls.from_name(
+            app_name, name, version=version, environment_name=self.environment_name, client=self.client
+        )
+
+    def get_secret(self, name: str, *, required_keys: list[str] | None = None) -> modal.Secret:
+        """
+        Return a named Modal secret from the connection's environment.
+
+        :param name: Secret name.
+        :param required_keys: Keys the secret must contain; the SDK raises when one is missing.
+        """
+        return modal.Secret.from_name(
+            name,
+            environment_name=self.environment_name,
+            required_keys=required_keys or [],
+            client=self.client,
+        )
+
+    def get_volume(self, name: str, *, create_if_missing: bool = False) -> modal.Volume:
+        """
+        Return a named Modal volume from the connection's environment.
+
+        :param name: Volume name.
+        :param create_if_missing: Create the volume when it does not exist yet.
+        """
+        return modal.Volume.from_name(
+            name,
+            environment_name=self.environment_name,
+            create_if_missing=create_if_missing,
+            client=self.client,
+        )
+
+    def create_sandbox(
+        self, *entrypoint: str, app_name: str, create_app_if_missing: bool = False, **sandbox_kwargs: Any
+    ) -> modal.Sandbox:
+        """
+        Create a Modal sandbox under a named app, through this connection.
+
+        The app is resolved with :meth:`lookup_app`, so the sandbox lands in the connection's
+        environment (Modal derives a sandbox's environment from its app). Remaining keyword
+        arguments go to ``modal.Sandbox.create`` unchanged: ``image``, ``gpu``, ``cpu``,
+        ``memory``, ``timeout``, ``secrets``, ``volumes`` and so on.
+
+        :param entrypoint: Command to run, as separate arguments.
+        :param app_name: App the sandbox belongs to.
+        :param create_app_if_missing: Create the app when it does not exist yet.
+        """
+        app = self.lookup_app(app_name, create_if_missing=create_app_if_missing)
+        return modal.Sandbox.create(*entrypoint, app=app, client=self.client, **sandbox_kwargs)
+
+    def get_sandbox(self, sandbox_id: str) -> modal.Sandbox:
+        """
+        Reattach to an existing sandbox by id, through this connection.
+
+        :param sandbox_id: The ``sb-...`` id returned by ``Sandbox.object_id``.
+        """
+        return modal.Sandbox.from_id(sandbox_id, client=self.client)
 
     def test_connection(self) -> tuple[bool, str]:
         """
