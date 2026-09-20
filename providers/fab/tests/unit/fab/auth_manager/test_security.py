@@ -1131,6 +1131,8 @@ def test_create_dag_specific_permissions_skips_dag_with_bad_access_control(secur
         _delete_dag_permissions(bad_dag.dag_id, security_manager)
         _delete_dag_permissions(good_dag.dag_id, security_manager)
 
+
+def test_get_all_permissions(security_manager):
     with assert_queries_count(1):
         perms = security_manager.get_all_permissions()
 

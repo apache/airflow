@@ -1040,8 +1040,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                     self.sync_perm_for_dag(dag.dag_id, dag.access_control)
                 except FabException:
                     self.log.exception(
-                        "Failed to sync permissions for DAG '%s'; skipping it and continuing with "
-                        "the remaining DAGs. Fix its access_control configuration and re-run sync-perm.",
+                        "Failed to sync permissions for Dag '%s'; skipping it and continuing with "
+                        "the remaining Dags. Fix its access_control configuration and re-run sync-perm.",
                         dag.dag_id,
                     )
 
