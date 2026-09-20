@@ -63,11 +63,12 @@ func RunTask(
 
 	client := NewCoordinatorClient(comm)
 
-	// Carries the task runtime context for sdk.TIRunContext injection. The
-	// scheduling timestamps live on the nested dag_run object in the
-	// supervisor's TIRunContext schema. The base context is a placeholder;
-	// bundlev1.Execute rebuilds the value around the live task context when
-	// binding the parameter.
+	// runtimeContext carries the task instance and Dag run that binding puts
+	// on the task's airflow.Context. The scheduling timestamps live on the
+	// nested dag_run object in the supervisor's TIRunContext schema. The base
+	// context is a placeholder, because binding reads only the task instance
+	// and Dag run from this value and builds the airflow.Context around the
+	// live task context.
 	dagRun := details.TIContext.DagRun
 	runtimeContext := sdk.NewTIRunContext(
 		context.Background(),

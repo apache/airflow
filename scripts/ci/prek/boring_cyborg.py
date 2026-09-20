@@ -78,7 +78,8 @@ for p in providers_root.glob("**/provider.yaml"):
 # Check for missing translations
 EXCEPTIONS = ["en"]
 for p in AIRFLOW_ROOT_PATH.glob("airflow-core/src/airflow/ui/public/i18n/locales/*"):
-    if p.is_dir():
+    # Locale codes never start with a dot; skip tool scratch dirs (.claude, .DS_Store, ...)
+    if p.is_dir() and not p.name.startswith("."):
         lang_id = p.name
         expected_key = f"translation:{lang_id}"
         if lang_id not in EXCEPTIONS and expected_key not in cyborg_config[CONFIG_KEY]:

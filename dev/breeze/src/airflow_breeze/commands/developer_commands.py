@@ -134,6 +134,7 @@ from airflow_breeze.utils.path_utils import (
     COMMON_AI_PLUGIN_PREK_HOOK,
     EDGE_PLUGIN_PREK_HOOK,
     FAB_AUTH_MANAGER_WWW_PREK_HOOK,
+    PYCACHE_VOLUME_NAME,
     cleanup_python_generated_files,
 )
 from airflow_breeze.utils.platforms import get_normalized_platform
@@ -467,6 +468,7 @@ def shell(
         forward_credentials=forward_credentials,
         github_repository=github_repository,
         include_mypy_volume=include_mypy_volume,
+        include_pycache_volume=True,
         install_airflow_with_constraints=install_airflow_with_constraints,
         install_airflow_python_client=install_airflow_python_client,
         install_selected_providers=install_selected_providers,
@@ -711,6 +713,7 @@ def start_airflow(
         force_build=force_build,
         forward_credentials=forward_credentials,
         github_repository=github_repository,
+        include_pycache_volume=True,
         integration=integration,
         install_selected_providers=install_selected_providers,
         install_airflow_with_constraints=install_airflow_with_constraints,
@@ -1120,6 +1123,11 @@ def build_docs(
     is_flag=True,
 )
 @click.option(
+    "--cleanup-pycache",
+    help="Additionally cleanup the Python bytecode cache volume used by Breeze shells.",
+    is_flag=True,
+)
+@click.option(
     "-b",
     "--cleanup-build-cache",
     help="Additionally cleanup Build (pip/uv) cache.",
@@ -1146,6 +1154,7 @@ def build_docs(
 def down(
     preserve_volumes: bool,
     cleanup_mypy_cache: bool,
+    cleanup_pycache: bool,
     cleanup_build_cache: bool,
     all_projects: bool,
     project_name: str | None,
@@ -1177,6 +1186,8 @@ def down(
             if hook_dir.exists():
                 console_print(f"\n[info]Removing dedicated mypy {subdir}: {hook_dir}\n")
                 shutil.rmtree(hook_dir)
+    if cleanup_pycache:
+        run_command(["docker", "volume", "rm", "--force", PYCACHE_VOLUME_NAME])
     if cleanup_build_cache:
         command_to_execute = ["docker", "volume", "rm", "--force", "airflow-cache-volume"]
         run_command(command_to_execute)
@@ -1357,6 +1368,7 @@ def doctor(ctx):
 @option_forward_credentials
 @option_forward_ports
 @option_github_repository
+@option_include_mypy_volume
 @option_mysql_version
 @option_platform_single
 @option_postgres_version
@@ -1377,6 +1389,7 @@ def run(
     forward_credentials: bool,
     forward_ports: bool,
     github_repository: str,
+    include_mypy_volume: bool,
     mysql_version: str,
     platform: str | None,
     postgres_version: str,
@@ -1444,6 +1457,7 @@ def run(
         force_build=force_build,
         forward_credentials=forward_credentials,
         github_repository=github_repository,
+        include_mypy_volume=include_mypy_volume,
         mysql_version=mysql_version,
         platform=platform,
         postgres_version=postgres_version,

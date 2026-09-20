@@ -240,8 +240,7 @@ class BaseOperations:
             entry = safe_validate(self.response.content)
             offset = offset + limit
             entry_list.extend(getattr(entry, found_key))
-        obj = data_model(**{found_key: entry_list, "total_entries": total_entries})
-        return data_model.model_validate(obj.model_dump())  # type: ignore[union-attr]
+        return data_model(**{found_key: entry_list, "total_entries": total_entries})
 
 
 # Login operations
@@ -392,17 +391,17 @@ class BackfillOperations(BaseOperations):
 
     def pause(self, backfill_id: str) -> BackfillResponse | ServerResponseError:
         """Pause a backfill."""
-        self.response = self.client.post(f"backfills/{backfill_id}/pause")
+        self.response = self.client.put(f"backfills/{backfill_id}/pause")
         return BackfillResponse.model_validate_json(self.response.content)
 
     def unpause(self, backfill_id: str) -> BackfillResponse | ServerResponseError:
         """Unpause a backfill."""
-        self.response = self.client.post(f"backfills/{backfill_id}/unpause")
+        self.response = self.client.put(f"backfills/{backfill_id}/unpause")
         return BackfillResponse.model_validate_json(self.response.content)
 
     def cancel(self, backfill_id: str) -> BackfillResponse | ServerResponseError:
         """Cancel a backfill."""
-        self.response = self.client.post(f"backfills/{backfill_id}/cancel")
+        self.response = self.client.put(f"backfills/{backfill_id}/cancel")
         return BackfillResponse.model_validate_json(self.response.content)
 
 
@@ -466,7 +465,7 @@ class ConnectionsOperations(BaseOperations):
         """Update a connection."""
         self.response = self.client.patch(
             f"connections/{connection.connection_id}",
-            json=connection.model_dump(mode="json", by_alias=True),
+            json=connection.model_dump(mode="json", by_alias=True, exclude_none=True),
         )
         return ConnectionResponse.model_validate_json(self.response.content)
 
@@ -476,7 +475,8 @@ class ConnectionsOperations(BaseOperations):
     ) -> ConnectionTestResponse | ServerResponseError:
         """Test a connection."""
         self.response = self.client.post(
-            "connections/test", json=connection.model_dump(mode="json", by_alias=True)
+            "connections/test",
+            json=connection.model_dump(mode="json", by_alias=True, exclude_none=True),
         )
         return ConnectionTestResponse.model_validate_json(self.response.content)
 
@@ -688,7 +688,9 @@ class PoolsOperations(BaseOperations):
 
     def update(self, pool_body: PoolPatchBody) -> PoolResponse | ServerResponseError:
         """Update a pool."""
-        self.response = self.client.patch(f"pools/{pool_body.pool}", json=pool_body.model_dump(mode="json"))
+        self.response = self.client.patch(
+            f"pools/{pool_body.pool}", json=pool_body.model_dump(mode="json", exclude_none=True)
+        )
         return PoolResponse.model_validate_json(self.response.content)
 
 
@@ -802,7 +804,9 @@ class VariablesOperations(BaseOperations):
 
     def update(self, variable: VariableBody) -> VariableResponse | ServerResponseError:
         """Update a variable."""
-        self.response = self.client.patch(f"variables/{variable.key}", json=variable.model_dump(mode="json"))
+        self.response = self.client.patch(
+            f"variables/{variable.key}", json=variable.model_dump(mode="json", exclude_none=True)
+        )
         return VariableResponse.model_validate_json(self.response.content)
 
 

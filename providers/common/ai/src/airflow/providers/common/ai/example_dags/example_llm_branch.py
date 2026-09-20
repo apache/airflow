@@ -54,6 +54,49 @@ def example_llm_branch_operator():
 example_llm_branch_operator()
 
 
+# [START howto_operator_llm_branch_descriptions]
+@dag(tags=["example"])
+def example_llm_branch_descriptions():
+    route = LLMBranchOperator(
+        task_id="route_ticket",
+        prompt="User says: 'My password reset email never arrived.'",
+        llm_conn_id="pydanticai_default",
+        system_prompt=(
+            "Route the ticket to the team responsible for resolving it. "
+            "Use the reported problem rather than the team the user asks for."
+        ),
+        branch_descriptions={
+            "handle_auth": (
+                "Sign-in, passwords, 2FA and account lockouts. This team owns missing password-reset emails."
+            ),
+            "handle_billing": "Invoices, charges, refunds and plan changes.",
+            "handle_general": (
+                "General support triage: product questions, issues outside the other "
+                "teams' responsibilities, and tickets that need clarification."
+            ),
+        },
+    )
+
+    @task
+    def handle_billing():
+        return "Handling billing issue"
+
+    @task
+    def handle_auth():
+        return "Handling auth issue"
+
+    @task
+    def handle_general():
+        return "Handling general issue"
+
+    route >> [handle_billing(), handle_auth(), handle_general()]
+
+
+# [END howto_operator_llm_branch_descriptions]
+
+example_llm_branch_descriptions()
+
+
 # [START howto_operator_llm_branch_multi]
 @dag(tags=["example"])
 def example_llm_branch_multi():

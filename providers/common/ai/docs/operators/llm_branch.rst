@@ -42,6 +42,48 @@ execute based on the prompt:
     :start-after: [START howto_operator_llm_branch_basic]
     :end-before: [END howto_operator_llm_branch_basic]
 
+Describing the Branches
+-----------------------
+
+By default the model sees each branch as its task ID and nothing else. That is
+enough when the IDs speak for themselves and the prompt clearly fits one of
+them. It is not enough when two branches could plausibly own the same input:
+in the example above, a missing password-reset email is a sign-in problem to
+one team and an email problem to another, and nothing tells the model which
+team owns it.
+
+``branch_descriptions`` maps a downstream task ID to a short description of
+what choosing that branch means. The descriptions travel in the output schema
+next to the option they describe, so the model reads each option together
+with its meaning rather than matching prose in the system prompt back to a
+task ID by name:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_branch.py
+    :language: python
+    :start-after: [START howto_operator_llm_branch_descriptions]
+    :end-before: [END howto_operator_llm_branch_descriptions]
+
+Three fields, three roles. ``prompt`` is the thing being classified.
+``system_prompt`` is the decision to make and the rules that apply across all
+options, including how to break ties. Each ``branch_descriptions`` entry is
+what selecting that option means: its scope and its boundary cases. A rule
+that applies to one branch belongs in that branch's description; a rule that
+applies to the whole decision belongs in the system prompt. Say each thing
+once, in one place.
+
+A downstream task without an entry is presented by its ID alone, as before,
+so a partial mapping is fine. A key that is not a downstream task ID fails the
+task before the model is called, with the valid task IDs in the message; a
+misspelled key silently turning into an option with no description is
+exactly the problem this parameter exists to prevent. The mapping supports Jinja
+templating and works with ``allow_multiple_branches=True`` and with the
+``@task.llm_branch`` decorator.
+
+Descriptions explain the choices; they do not make the model more certain,
+and a text model's structured output carries no confidence to read. With a
+classifier model such as TypeSafe's, the descriptions become the criteria of
+its choice question, which is the text it weighs each option by.
+
 Multiple Branches
 -----------------
 
@@ -98,16 +140,21 @@ matching
 teardown carve-out applies only to rejection: approving branches as usual,
 so a teardown that is not among the chosen branch(es) is skipped like any
 other unselected downstream task. Set ``fail_on_reject=True`` to fail the
-task on rejection instead (generally discouraged). Letting
-``approval_timeout`` expire fails the task (``HITLTimeoutError``).
+task on rejection instead (generally discouraged), or
+``ignore_downstream_trigger_rules=True`` to skip every downstream task rather
+than only the direct ones, so a task whose trigger rule would still run it is
+skipped too. Letting ``approval_timeout`` expire fails the task
+(``HITLTimeoutError``) unless ``on_approval_timeout`` answers the review for
+you; a timeout-driven rejection then skips downstream like any other rejection.
 
 ``require_approval=True`` requires a string prompt: a decorated callable
 returning a ``Sequence[UserContent]`` raises ``TypeError`` before the LLM
 call.
 
-Apart from ``fail_on_reject``, which is specific to this operator,
-``approval_timeout`` and the rest of the approval behaviour are inherited
-from :ref:`LLMOperator <howto/operator:llm>`.
+Apart from ``fail_on_reject`` and ``ignore_downstream_trigger_rules``, which
+are specific to this operator, ``approval_timeout``, ``on_approval_timeout``,
+``approval_notifiers``, ``approval_assigned_users``, and the rest of the approval
+behaviour are inherited from :ref:`LLMOperator <howto/operator:llm>`.
 
 How It Works
 ------------
@@ -115,7 +162,11 @@ How It Works
 At execution time, the operator:
 
 1. Reads ``self.downstream_task_ids`` from the Dag topology.
-2. Creates a dynamic ``Enum`` with one member per downstream task ID.
+2. Creates a dynamic ``Enum`` with one member per downstream task ID, in sorted
+   order so every worker presents the options the same way. With
+   ``branch_descriptions``, the enum's JSON Schema is an ``anyOf`` of
+   ``{"const": <task_id>, "description": <text>}`` entries, which is the one
+   schema shape that carries a description per value.
 3. Passes that enum as ``output_type`` to ``pydantic-ai``, constraining the LLM to
    valid task IDs only.
 4. Converts the LLM's structured output to task ID string(s) and calls
@@ -129,18 +180,36 @@ Parameters
 - ``llm_conn_id``: Airflow connection ID for the LLM provider.
 - ``model_id``: Model identifier (e.g. ``"openai:gpt-5"``). Overrides the connection's extra field.
 - ``system_prompt``: System-level instructions for the agent. Supports Jinja templating.
+- ``branch_descriptions``: Optional mapping of downstream task ID to a description of
+  what choosing that branch means, sent to the model in the output schema next to the
+  option. Unlisted tasks are presented by ID alone; a key that is not a downstream task
+  ID fails the task before the model call. Supports Jinja templating. Default ``None``.
 - ``allow_multiple_branches``: When ``False`` (default) the LLM returns a single
   task ID. When ``True`` the LLM may return one or more task IDs.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai ``Agent``
   constructor (e.g. ``retries``, ``model_settings``). Supports Jinja templating.
+- ``usage_limits``: Optional pydantic-ai ``UsageLimits`` (or a templated ``dict`` of
+  the same fields) enforced on the run; the task fails when a budget is exceeded.
+  Default ``None``. See :ref:`Usage Limits <howto/operator:llm_usage_limits>`.
 - ``require_approval``: If ``True``, the task pauses after the LLM chooses the
   branch(es) and waits for human review before branching.  Default ``False``.
 - ``approval_timeout``: Maximum time to wait for a review (``timedelta``).  ``None``
   means wait indefinitely.  Default ``None``.
+- ``on_approval_timeout``: Outcome when ``approval_timeout`` expires without a
+  review: ``"fail"`` (default), ``"approve"``, or ``"reject"``.  Requires
+  ``require_approval=True`` and a positive ``approval_timeout``.
 - ``allow_modifications``: If ``True``, the reviewer can change the chosen
   branch(es) before approving.  Default ``False``.
+- ``approval_notifiers``: Notifier, or list of notifiers, called once the review
+  is open.  Default ``None``.
+- ``approval_assigned_users``: Users allowed to answer the review.  ``None``
+  (default) lets any user with the permission respond.  Needs Airflow 3.1+.
 - ``fail_on_reject``: If ``True``, a rejected review fails the task instead of
-  skipping the downstream tasks.  Generally discouraged.  Default ``False``.
+  skipping the downstream tasks.  Generally discouraged.  Only takes effect
+  with ``require_approval=True``.  Default ``False``.
+- ``ignore_downstream_trigger_rules``: If ``True``, a rejected review skips every
+  downstream task rather than only the direct ones.  Only takes effect with
+  ``require_approval=True``.  Default ``False``.
 
 Logging
 -------

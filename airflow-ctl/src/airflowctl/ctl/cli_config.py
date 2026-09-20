@@ -30,7 +30,7 @@ import sys
 from argparse import Namespace
 from collections.abc import Callable, Iterable
 from enum import Enum
-from functools import partial
+from functools import cached_property, partial
 from pathlib import Path
 from typing import Any, NamedTuple
 
@@ -104,6 +104,17 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
                 "[red]Client error, [/red] "
                 "Please check the command and its parameters. "
                 "If you need help, run the command with --help."
+            )
+        sys.exit(1)
+    # Must stay below ``ServerResponseError``, which subclasses it. Responses the client could not
+    # turn into a ``ServerResponseError`` -- a 3xx, or a 4xx/5xx whose body is not JSON -- reach us
+    # as the bare httpx error.
+    except httpx.HTTPStatusError as e:
+        rich.print(f"[red]Server response error: {e}[/red]")
+        if e.response.is_redirect:
+            rich.print(
+                "[red]The server answered with a redirect, which airflowctl does not follow. "
+                "Please check that the API URL you logged in with points at the Airflow API server.[/red]"
             )
         sys.exit(1)
 
@@ -642,7 +653,7 @@ class CommandFactory:
             "bool": bool,
             "str": str,
             "bytes": bytes,
-            "list": list,
+            "list": string_list_type,
             "dict": json_dict_type,
             "tuple": tuple,
             "set": set,
@@ -959,9 +970,15 @@ class CommandFactory:
                 )
             )
 
-    @property
+    @cached_property
     def group_commands(self) -> list[CLICommand]:
-        """List of GroupCommands generated for airflowctl."""
+        """
+        List of GroupCommands generated for airflowctl.
+
+        Cached because the builders below append to ``self.operations`` /
+        ``self.commands_map`` / ``self.group_commands_list``: recomputing would
+        duplicate every group and subcommand instead of replacing them.
+        """
         self._inspect_operations()
         self._create_args_map_from_operation()
         self._create_func_map_from_operation()
@@ -1123,6 +1140,15 @@ DAG_COMMANDS = (
             ARG_DAG_CLEAR_ONLY_FAILED,
             ARG_DAG_CLEAR_ONLY_RUNNING,
             ARG_DAG_CLEAR_YES,
+        ),
+    ),
+    ActionCommand(
+        name="drain",
+        help="Drain a Dag",
+        func=lazy_load_command("airflowctl.ctl.commands.dag_command.drain"),
+        args=(
+            ARG_DAG_ID,
+            ARG_OUTPUT,
         ),
     ),
     ActionCommand(
