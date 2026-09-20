@@ -235,11 +235,11 @@ class SFTPHook(SSHHook):
             auth_timeout=self.auth_timeout,
             host_proxy_cmd=self.host_proxy_cmd,
             conn_retry_attempts=self.conn_retry_attempts,
+            no_host_key_check=self.no_host_key_check,
         )
         # These have no constructor parameter and are only ever resolved from the
         # connection's `extra` field or left at their class default, so copy the
         # parent's already-resolved values across explicitly.
-        worker_hook.no_host_key_check = self.no_host_key_check
         worker_hook.allow_host_key_change = self.allow_host_key_change
         worker_hook.host_key = self.host_key
         worker_hook.look_for_keys = self.look_for_keys
@@ -518,6 +518,7 @@ class SFTPHook(SSHHook):
         remote_file_chunks = [remote_file_paths[i::workers] for i in range(workers)]
         local_file_chunks = [new_local_file_paths[i::workers] for i in range(workers)]
         self.log.info("Opening %s new SFTP connections", workers)
+<<<<<<< HEAD
         conns = [self._build_worker_hook().get_conn() for _ in range(workers)]
         try:
             self.log.info("Retrieving files concurrently with %s threads", workers)
@@ -611,6 +612,7 @@ class SFTPHook(SSHHook):
         remote_file_chunks = [new_remote_file_paths[i::workers] for i in range(workers)]
         local_file_chunks = [local_file_paths[i::workers] for i in range(workers)]
         self.log.info("Opening %s new SFTP connections", workers)
+<<<<<<< HEAD
         conns = [self._build_worker_hook().get_conn() for _ in range(workers)]
         try:
             self.log.info("Storing files concurrently with %s threads", workers)
@@ -931,7 +933,7 @@ class SFTPHookAsync(BaseHook):
 
         host_key = extra_options.get("host_key")
         nhkc_raw = extra_options.get("no_host_key_check")
-        no_host_key_check = True if nhkc_raw is None else (str(nhkc_raw).lower() == "true")
+        no_host_key_check = False if nhkc_raw is None else (str(nhkc_raw).lower() == "true")
 
         if host_key is not None and no_host_key_check:
             raise ValueError("Host key check was skipped, but `host_key` value was given")
