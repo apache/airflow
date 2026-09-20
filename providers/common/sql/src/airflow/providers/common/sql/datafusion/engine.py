@@ -205,15 +205,6 @@ class DataFusionEngine(LoggingMixin):
                 credentials = self._remove_none_values({"key_path": key_path, "keyfile_dict": keyfile_dict})
 
             case "wasb":
-                try:
-                    from airflow.providers.microsoft.azure.hooks.wasb import WasbHook  # noqa: F401
-                except ImportError:
-                    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
-
-                    raise AirflowOptionalProviderFeatureException(
-                        "Failed to import WasbHook. To use the Azure Blob Storage functionality, please "
-                        "install the apache-airflow-providers-microsoft-azure package."
-                    )
                 extra_dejson = conn.extra_dejson
                 credentials = {"account": conn.login}
                 tenant_id = extra_dejson.get("tenant_id")
