@@ -37,10 +37,11 @@ Pass capabilities to ``AgentOperator`` or ``@task.agent`` with ``capabilities=``
 
 Capabilities and toolsets work together: the agent gets the tools from both.
 
-When ``enable_tool_logging=True`` (the default), ``AgentOperator`` logs tool calls from the
-assembled function toolset, including factory-backed toolsets, nested capabilities, and MCP
-toolsets. Provider-native tools that execute server-side are not covered by Airflow's real-time
-tool-call logging.
+When ``enable_tool_logging=True`` (the default), ``AgentOperator`` logs calls to tools
+from the assembled function toolset. This covers tools supplied through ``toolsets=``,
+``agent_params={"tools": [...]}``, factory-backed toolsets, nested capabilities, and MCP
+toolsets. Output tools such as ``final_result`` and provider-native tools that execute
+server-side are not covered by Airflow's real-time tool-call logging.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_capabilities.py
     :language: python
