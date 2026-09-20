@@ -24,6 +24,9 @@ Airflow's 350+ provider hooks already have typed methods, rich docstrings,
 and managed credentials. Toolsets expose them as pydantic-ai tools so that
 LLM agents can call them during multi-turn reasoning.
 
+If you have not settled on a toolset yet, start with
+:doc:`choosing_a_toolset`, which compares the routes and what each one gives up.
+
 Six toolsets are exported directly from the ``airflow.providers.common.ai.toolsets``
 package root:
 
@@ -714,8 +717,10 @@ A backend that cannot enforce a field it was given **raises instead of ignoring
 it**, so a spec never gives you a false sense of a restriction being in force.
 The ``sbx`` backend applies ``allow_egress_to`` as a per-sandbox policy rule,
 but only on top of a ``deny-all`` host policy, since a local rule can narrow
-egress and never widen it. Ask for an allowlist against an open host policy and
-it refuses rather than granting nothing quietly.
+egress and never widen it; ``block_network`` has no per-sandbox enforcement at
+all. Ask for either against a host policy that is not already ``deny-all`` and
+it refuses rather than silently leaving the sandbox less restricted than the
+spec asked for.
 
 Using more than one sandbox
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -971,6 +976,8 @@ toolset is only as safe as you make it. A tool that returns ``os.environ`` or
 runs shell commands hands the model whatever that tool can reach. Audit any
 custom toolset, and any MCP server you connect through ``MCPToolset``, against
 the same standard the bundled toolsets below are built to.
+
+.. _toolset-defense-layers:
 
 Defense Layers
 ^^^^^^^^^^^^^^
