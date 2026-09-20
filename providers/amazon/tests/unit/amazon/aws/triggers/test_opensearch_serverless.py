@@ -92,7 +92,7 @@ class TestOpenSearchServerlessCollectionActiveTrigger:
                 collection_name=self.COLLECTION_NAME, collection_id=self.COLLECTION_ID
             )
 
-    @mock.patch(BASE_TRIGGER_CLASSPATH + "OpenSearchServerlessHook")
+    @mock.patch(BASE_TRIGGER_CLASSPATH + "OpenSearchServerlessHook", autospec=True)
     def test_hook_forwards_aws_configuration(self, mock_hook_class):
         trigger = OpenSearchServerlessCollectionActiveTrigger(
             collection_id=self.COLLECTION_ID,
