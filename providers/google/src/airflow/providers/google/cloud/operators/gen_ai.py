@@ -58,7 +58,7 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
 
 
-def _results_file_path(results_folder: str | None, job) -> str:
+def _build_results_file_path(results_folder: str | None, job: BatchJob) -> str:
     """
     Build the local results-file path for a batch job, refusing one that escapes ``results_folder``.
 
@@ -542,7 +542,7 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
             self._validate_results_folder()
             file_content_bytes = self.hook.download_file(file_name=job.dest.file_name)
             file_content = file_content_bytes.decode("utf-8")
-            path_to_file = _results_file_path(self.results_folder, job)
+            path_to_file = _build_results_file_path(self.results_folder, job)
             with open(path_to_file, "w") as file_with_results:
                 file_with_results.writelines(file_content.splitlines(True))
             results = path_to_file
@@ -991,7 +991,7 @@ class GenAIGeminiCreateEmbeddingsBatchJobOperator(GoogleCloudBaseOperator):
             self._validate_results_folder()
             file_content_bytes = self.hook.download_file(file_name=job.dest.file_name)
             file_content = file_content_bytes.decode("utf-8")
-            path_to_file = _results_file_path(self.results_folder, job)
+            path_to_file = _build_results_file_path(self.results_folder, job)
             with open(path_to_file, "w") as file_with_results:
                 file_with_results.writelines(file_content.splitlines(True))
             results = path_to_file
