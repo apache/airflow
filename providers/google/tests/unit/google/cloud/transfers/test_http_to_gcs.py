@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 from unittest import mock
 
 import pytest
@@ -132,7 +131,7 @@ class TestHttpToGCSOperator:
     @pytest.mark.parametrize("log_response", [True, False])
     @mock.patch("airflow.providers.google.cloud.transfers.http_to_gcs.GCSHook")
     @mock.patch("airflow.providers.google.cloud.transfers.http_to_gcs.HttpHook")
-    def test_execute_logs_response_only_when_requested(self, http_hook, gcs_hook, caplog, log_response):
+    def test_execute_logs_response_only_when_requested(self, http_hook, gcs_hook, log_response):
         http_hook.return_value.run.return_value.text = "response body"
         task = HttpToGCSOperator(
             task_id=TASK_ID,
@@ -144,7 +143,7 @@ class TestHttpToGCSOperator:
             log_response=log_response,
         )
 
-        with caplog.at_level(logging.INFO, logger=task.log.name):
+        with mock.patch.object(task.log, "info") as mock_info:
             task.execute(None)
 
-        assert ("response body" in caplog.text) is log_response
+        assert (mock.call("response body") in mock_info.call_args_list) is log_response
