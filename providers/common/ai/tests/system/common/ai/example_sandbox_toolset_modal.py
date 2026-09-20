@@ -205,6 +205,15 @@ def example_sandbox_toolset_modal():
             if "read limit" not in streaming:
                 raise RuntimeError(f"/dev/zero should be refused by the read budget: {streaming!r}")
 
+            # 12. Reading a directory is an error, not an empty file. ``stat`` succeeds on a
+            #     directory and the pipeline's status is base64's, so without the explicit
+            #     check the model was told the directory was a file with no lines.
+            if len(returns) == 14:
+                return call("read_file", "directory", path="/workspace/sub")
+            directory = str(returns[14])
+            if "is a directory" not in directory:
+                raise RuntimeError(f"Reading a directory should be refused: {directory!r}")
+
             return ModelResponse(parts=[TextPart(content="sandbox boundary e2e passed")])
 
         # The default spec denies all egress, which Modal enforces exactly.

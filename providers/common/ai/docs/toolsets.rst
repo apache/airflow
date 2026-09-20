@@ -585,6 +585,31 @@ These are the same four names and shapes that pydantic-ai's own sandbox
 capabilities use, so a model that has seen one already knows this one, and a
 vendor that has written an adapter for one is close to having written this one.
 
+Using it
+^^^^^^^^
+
+An agent investigating a revenue anomaly. The warehouse is reached through a
+``SQLToolset``, so the credential stays in the task and the model only ever sees
+rows. The arithmetic happens in a hosted sandbox with pandas baked into the image,
+so the sandbox needs no network, and a bad pivot or a runaway loop costs a small
+sandbox rather than a worker slot:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_sandbox_toolset.py
+    :language: python
+    :start-after: [START howto_sandbox_agent_investigation]
+    :end-before: [END howto_sandbox_agent_investigation]
+
+The same toolset on the local ``sbx`` backend, for developing on a laptop. Here
+the agent maps a vendor file whose columns drift onto a staging schema, writing a
+script, running it, reading the traceback and fixing it, which is the loop nobody
+can write down in advance. Swapping ``SbxSandboxBackend`` for
+``ModalSandboxBackend`` is the only change between this Dag and production:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_sandbox_toolset.py
+    :language: python
+    :start-after: [START howto_sandbox_agent_local]
+    :end-before: [END howto_sandbox_agent_local]
+
 What this is actually for
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -641,8 +666,8 @@ at all.
    * - Produce a large artifact for a downstream task
      - Today, a ``@task`` driving a backend directly, not the agent. That is a
        missing seam in the toolset rather than a recommendation; see
-       :ref:`sandbox-limitations` for the caps, and the example under
-       :ref:`Controlling what the sandbox gets <sandbox-credentials>`
+       :ref:`Getting a result out <sandbox-results>` for the example and
+       :ref:`sandbox-limitations` for the caps
 
 The clearest case for a sandbox is the last clause of that third row: an agent
 that debugs its own code. It has to run something, read the real error, and try again,
@@ -847,13 +872,27 @@ it.
 templated field, so a spec cannot carry a Jinja expression, and a connection
 lookup written beside it would run in the Dag processor on every parse rather
 than in the task. If the credential has to come from a connection or a secrets
-backend, drive a backend from a ``@task`` instead, where you are in ordinary
-Python at run time:
+backend, the job cannot be an agent's sandbox today. Drive a backend from a
+``@task`` instead, where you are in ordinary Python at run time and a connection
+lookup runs where it should:
 
-.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_sandbox_artifact.py
-    :language: python
-    :start-after: [START howto_sandbox_artifact_task]
-    :end-before: [END howto_sandbox_artifact_task]
+.. code-block:: python
+
+    @task
+    def run_with_credential():
+        from airflow.providers.common.ai.sandbox import ModalSandboxBackend, SandboxSpec
+        from airflow.providers.common.compat.sdk import BaseHook
+
+        token = BaseHook.get_connection("my_api").password  # resolved in the task, not at parse
+        backend = ModalSandboxBackend()
+        sandbox = backend.create(spec=SandboxSpec(env={"API_TOKEN": token}, block_network=False))
+        try:
+            ...  # write_file, run_command, read_file
+        finally:
+            backend.destroy(sandbox)
+
+The full shape, with input and output through object storage, is under
+:ref:`Getting a result out <sandbox-results>`.
 
 **On** ``sbx``\ **, an injected variable is written to the guest filesystem.**
 The CLI has no create-time environment flag, so the backend appends ``export``
@@ -876,6 +915,36 @@ local rule can narrow egress and never widen it. The Modal backend can only
 enforce hostnames at the TLS layer, which leaves DNS open, so it wants
 ``egress_enforcement="sni"`` to confirm that is understood. Both honor
 ``block_network=True`` exactly, and that is the default.
+
+.. _sandbox-results:
+
+Getting a result out
+^^^^^^^^^^^^^^^^^^^^
+
+An agent's result is whatever the model returns: findings, a mapping, a table
+small enough to read. That reaches XCom through ``output_type`` like any other
+agent output, and the examples above end that way. What does not come out is a
+*file* the agent built: the sandbox is destroyed when the run ends, ``read_file``
+is text-only, and everything the model reads is capped (see
+:ref:`sandbox-limitations`).
+
+When the deliverable is a file and the Dag already knows the job, do not use an
+agent for it. Drive a backend from a ``@task``: the input goes in through
+``write_file``, the output comes back through ``read_file`` with a budget the
+worker can afford rather than a model's, and it lands in object storage with only
+the location passed downstream. The sandbox needs no network and no credentials
+for this, and the task owns its teardown:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_sandbox_toolset.py
+    :language: python
+    :start-after: [START howto_sandbox_task_artifact]
+    :end-before: [END howto_sandbox_task_artifact]
+
+If the agent genuinely has to be the one producing the file, the shape that works
+is to give the sandboxed code egress to your bucket and a scoped credential in the
+spec, and have it write the object itself, passing the key back through its
+output. That is a deliberate widening of the default and worth a sentence in the
+Dag saying why.
 
 Using more than one sandbox
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -949,7 +1018,7 @@ default. If the agent must produce a file for a downstream task, either have the
 sandboxed code write it to object storage itself, which needs egress to your
 bucket and credentials in the spec, or take the work out of the agent for now and
 drive a backend from a ``@task``, as under
-:ref:`Controlling what the sandbox gets <sandbox-credentials>`. The toolset does not
+:ref:`Getting a result out <sandbox-results>`. The toolset does not
 yet have a seam for an author to collect what the agent produced; that is a known
 gap rather than the intended design.
 
