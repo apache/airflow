@@ -50,15 +50,11 @@ from airflow.providers.common.ai.observability import (
 )
 from airflow.providers.common.ai.toolsets.logging import ToolLoggingCapability
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
-<<<<<<< HEAD
 from airflow.providers.common.ai.utils.logging import (
     format_usage_for_xcom,
     log_run_summary,
     log_run_usage,
 )
-=======
-from airflow.providers.common.ai.utils.logging import log_run_summary
->>>>>>> 14728acc92e (use get_wrapper_toolset)
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
 from airflow.providers.common.ai.utils.toolset_base import ensure_masked
 from airflow.providers.common.ai.utils.toolsets import iter_toolsets
@@ -683,6 +679,8 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         if self.code_mode:
             capabilities.append(_build_code_mode())
         if self.enable_tool_logging:
+            # Keep this last: capability wrappers are applied in reverse order, and logging must sit
+            # inside code mode to capture the sandboxed tool calls rather than only ``run_code``.
             capabilities.append(ToolLoggingCapability(logger=self.log))
         if capabilities:
             extra_kwargs["capabilities"] = capabilities
