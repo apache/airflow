@@ -156,3 +156,10 @@ class TestObjectStorageProvider:
 
         with pytest.raises(ValueError, match="Unsupported storage type"):
             get_object_storage_provider("invalid")
+
+    def test_s3_provider_requires_connection_config(self):
+        """The message names the storage type rather than rendering as a tuple of format args."""
+        provider = S3ObjectStorageProvider()
+
+        with pytest.raises(ValueError, match="connection_config must be provided for s3"):
+            provider.create_object_store("s3://demo-data/path", connection_config=None)
