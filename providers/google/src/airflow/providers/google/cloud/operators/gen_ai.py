@@ -66,7 +66,10 @@ def _build_results_file_path(results_folder: str | None, job: BatchJob) -> str:
     API. ``job.name`` is already sanitized against ``/``, but ``display_name`` (used first)
     is not, so a ``..`` in it would place the file outside ``results_folder`` (CWE-22).
     """
-    file_name = job.display_name or job.name.replace("/", "-")
+    # Both are optional on BatchJob, so neither being set leaves nothing to name the file after.
+    file_name = job.display_name or (job.name or "").replace("/", "-")
+    if not file_name:
+        raise ValueError("Batch job has neither display_name nor name; cannot derive a results file name.")
     base = Path(f"{results_folder}").resolve()
     path_to_file = (base / f"{file_name}.jsonl").resolve()
     if not path_to_file.is_relative_to(base):
