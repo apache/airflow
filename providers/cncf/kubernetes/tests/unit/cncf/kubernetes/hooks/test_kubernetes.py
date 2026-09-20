@@ -21,6 +21,7 @@ import asyncio
 import json
 import os
 import socket
+import ssl
 import tempfile
 from asyncio import Future
 from unittest import mock
@@ -1059,6 +1060,35 @@ class TestAsyncKubernetesHook:
     KUBE_API = "kubernetes_asyncio.client.api.core_v1_api.CoreV1Api.{}"
     KUBE_BATCH_API = "kubernetes_asyncio.client.api.batch_v1_api.BatchV1Api.{}"
     KUBE_ASYNC_HOOK = HOOK_MODULE + ".AsyncKubernetesHook.{}"
+    SSL_CREATE = "kubernetes_asyncio.client.rest.ssl.create_default_context"
+
+    STATIC_AUTH_CONFIG_DICT = {
+        "apiVersion": "v1",
+        "kind": "Config",
+        "clusters": [{"name": "test", "cluster": {"server": "https://k8s.invalid:6443"}}],
+        "users": [{"name": "test", "user": {"token": "static-token"}}],
+        "contexts": [{"name": "test", "context": {"cluster": "test", "user": "test"}}],
+        "current-context": "test",
+    }
+
+    EXEC_AUTH_CONFIG_DICT = {
+        "apiVersion": "v1",
+        "kind": "Config",
+        "clusters": [{"name": "test", "cluster": {"server": "https://k8s.invalid:6443"}}],
+        "users": [
+            {
+                "name": "test",
+                "user": {
+                    "exec": {
+                        "apiVersion": "client.authentication.k8s.io/v1beta1",
+                        "command": "aws",
+                    }
+                },
+            }
+        ],
+        "contexts": [{"name": "test", "context": {"cluster": "test", "user": "test"}}],
+        "current-context": "test",
+    }
 
     @staticmethod
     def mock_await_result(return_value):
@@ -1085,6 +1115,17 @@ class TestAsyncKubernetesHook:
         )
         yield
         clear_test_connections()
+
+    @pytest_asyncio.fixture
+    async def hook(self):
+        hook = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_file=None,
+            cluster_context=None,
+        )
+        yield hook
+        await hook.close()
 
     @pytest.mark.asyncio
     @mock.patch(INCLUSTER_CONFIG_LOADER)
@@ -1485,7 +1526,7 @@ class TestAsyncKubernetesHook:
     @pytest.mark.asyncio
     @mock.patch(KUBE_API.format("list_namespaced_event"))
     async def test_async_get_pod_events_with_resource_version(
-        self, mock_list_namespaced_event, kube_config_loader
+        self, mock_list_namespaced_event, kube_config_loader, hook
     ):
         """Test getting pod events with resource_version parameter."""
         mock_event = mock.Mock()
@@ -1493,13 +1534,6 @@ class TestAsyncKubernetesHook:
         mock_events = mock.Mock()
         mock_events.items = [mock_event]
         mock_list_namespaced_event.return_value = self.mock_await_result(mock_events)
-
-        hook = AsyncKubernetesHook(
-            conn_id=None,
-            in_cluster=False,
-            config_file=None,
-            cluster_context=None,
-        )
 
         result = await hook.get_pod_events(name=POD_NAME, namespace=NAMESPACE, resource_version="12345")
 
@@ -1514,7 +1548,7 @@ class TestAsyncKubernetesHook:
     @pytest.mark.asyncio
     @mock.patch(KUBE_API.format("list_namespaced_event"))
     async def test_async_get_pod_events_without_resource_version(
-        self, mock_list_namespaced_event, kube_config_loader
+        self, mock_list_namespaced_event, kube_config_loader, hook
     ):
         """Test getting pod events without resource_version parameter."""
         mock_event = mock.Mock()
@@ -1522,13 +1556,6 @@ class TestAsyncKubernetesHook:
         mock_events = mock.Mock()
         mock_events.items = [mock_event]
         mock_list_namespaced_event.return_value = self.mock_await_result(mock_events)
-
-        hook = AsyncKubernetesHook(
-            conn_id=None,
-            in_cluster=False,
-            config_file=None,
-            cluster_context=None,
-        )
 
         result = await hook.get_pod_events(name=POD_NAME, namespace=NAMESPACE)
 
@@ -1543,7 +1570,7 @@ class TestAsyncKubernetesHook:
     @mock.patch("kubernetes_asyncio.watch.Watch")
     @mock.patch(KUBE_API.format("list_namespaced_event"))
     async def test_async_watch_pod_events(
-        self, mock_list_namespaced_event, mock_watch_class, mock_get_pod, kube_config_loader
+        self, mock_list_namespaced_event, mock_watch_class, mock_get_pod, kube_config_loader, hook
     ):
         """Test watching pod events using Watch API."""
         mock_event1 = mock.Mock()
@@ -1562,13 +1589,6 @@ class TestAsyncKubernetesHook:
         mock_pod = mock.MagicMock()
         mock_pod.status.phase = "Running"
         mock_get_pod.return_value = mock_pod
-
-        hook = AsyncKubernetesHook(
-            conn_id=None,
-            in_cluster=False,
-            config_file=None,
-            cluster_context=None,
-        )
 
         events = []
         async_event_generator = hook.watch_pod_events(
@@ -1592,7 +1612,7 @@ class TestAsyncKubernetesHook:
     @mock.patch("kubernetes_asyncio.watch.Watch")
     @mock.patch(KUBE_API.format("list_namespaced_event"))
     async def test_async_watch_pod_events_permission_error_fallback(
-        self, mock_list_namespaced_event, mock_watch_class, mock_get_pod, kube_config_loader
+        self, mock_list_namespaced_event, mock_watch_class, mock_get_pod, kube_config_loader, hook
     ):
         """Test fallback to polling when watch permission is denied."""
 
@@ -1616,13 +1636,6 @@ class TestAsyncKubernetesHook:
         mock_pod.status.phase = "Running"
         mock_get_pod.return_value = mock_pod
 
-        hook = AsyncKubernetesHook(
-            conn_id=None,
-            in_cluster=False,
-            config_file=None,
-            cluster_context=None,
-        )
-
         events = []
         async for event in hook.watch_pod_events(
             name=POD_NAME, namespace=NAMESPACE, resource_version="12345", timeout_seconds=30
@@ -1638,7 +1651,7 @@ class TestAsyncKubernetesHook:
     @mock.patch(KUBE_API.format("list_namespaced_event"))
     @mock.patch("asyncio.sleep", new_callable=mock.AsyncMock)
     async def test_async_watch_pod_events_polling_fallback(
-        self, mock_sleep, mock_list_namespaced_event, kube_config_loader
+        self, mock_sleep, mock_list_namespaced_event, kube_config_loader, hook
     ):
         """Test polling fallback method."""
         mock_event1 = mock.Mock()
@@ -1648,13 +1661,6 @@ class TestAsyncKubernetesHook:
         mock_events = mock.Mock()
         mock_events.items = [mock_event1, mock_event2]
         mock_list_namespaced_event.return_value = self.mock_await_result(mock_events)
-
-        hook = AsyncKubernetesHook(
-            conn_id=None,
-            in_cluster=False,
-            config_file=None,
-            cluster_context=None,
-        )
 
         events = []
         async for event in hook.watch_pod_events_polling_fallback(
@@ -1677,16 +1683,9 @@ class TestAsyncKubernetesHook:
     @mock.patch("kubernetes_asyncio.watch.Watch")
     @mock.patch(KUBE_API.format("list_namespaced_event"))
     async def test_async_watch_pod_events_uses_fallback_if_already_set(
-        self, mock_list_namespaced_event, mock_watch_class, kube_config_loader
+        self, mock_list_namespaced_event, mock_watch_class, kube_config_loader, hook
     ):
         """Test that watch uses polling fallback if flag is already set."""
-        hook = AsyncKubernetesHook(
-            conn_id=None,
-            in_cluster=False,
-            config_file=None,
-            cluster_context=None,
-        )
-
         hook._event_polling_fallback = True
 
         mock_event = mock.Mock()
@@ -1714,6 +1713,7 @@ class TestAsyncKubernetesHook:
         mock_get_pod,
         mock_watch_class,
         kube_config_loader,
+        hook,
     ):
         """
         The watch should reconnect when the watch stream ends (e.g. timeout)
@@ -1747,13 +1747,6 @@ class TestAsyncKubernetesHook:
 
         mock_watch_class.side_effect = [watch_instance1, watch_instance2]
 
-        hook = AsyncKubernetesHook(
-            conn_id=None,
-            in_cluster=False,
-            config_file=None,
-            cluster_context=None,
-        )
-
         events = []
 
         async for event in hook.watch_pod_events(
@@ -1774,6 +1767,7 @@ class TestAsyncKubernetesHook:
         mock_get_pod,
         mock_watch_class,
         kube_config_loader,
+        hook,
     ):
         """
         When the Kubernetes API reports resourceVersion too old (410),
@@ -1806,13 +1800,6 @@ class TestAsyncKubernetesHook:
 
         mock_watch_class.side_effect = [watch_instance1, watch_instance2]
 
-        hook = AsyncKubernetesHook(
-            conn_id=None,
-            in_cluster=False,
-            config_file=None,
-            cluster_context=None,
-        )
-
         events = []
         async for event in hook.watch_pod_events(
             name=POD_NAME, namespace=NAMESPACE, resource_version="1", timeout_seconds=1
@@ -1831,6 +1818,7 @@ class TestAsyncKubernetesHook:
         mock_get_pod,
         mock_watch_class,
         kube_config_loader,
+        hook,
     ):
         """
         Verify that watch_pod_events stops cleanly when the pod no longer exists (404).
@@ -1841,13 +1829,6 @@ class TestAsyncKubernetesHook:
 
         mock_watch = mock.Mock()
         mock_watch_class.return_value = mock_watch
-
-        hook = AsyncKubernetesHook(
-            conn_id=None,
-            in_cluster=False,
-            config_file=None,
-            cluster_context=None,
-        )
 
         events = []
         async for event in hook.watch_pod_events(
@@ -1869,6 +1850,7 @@ class TestAsyncKubernetesHook:
         mock_watch_class,
         pod_status,
         kube_config_loader,
+        hook,
     ):
         """
         Verify that watch_pod_events stops immediately when the pod
@@ -1882,13 +1864,6 @@ class TestAsyncKubernetesHook:
         mock_pod.status.phase = pod_status
         mock_get_pod.return_value = mock_pod
 
-        hook = AsyncKubernetesHook(
-            conn_id=None,
-            in_cluster=False,
-            config_file=None,
-            cluster_context=None,
-        )
-
         events = []
         async for event in hook.watch_pod_events(
             name=POD_NAME,
@@ -1901,15 +1876,9 @@ class TestAsyncKubernetesHook:
 
     @pytest.mark.asyncio
     @mock.patch(KUBE_API.format("read_namespaced_pod"))
-    async def test_get_pod(self, lib_method, kube_config_loader):
+    async def test_get_pod(self, lib_method, kube_config_loader, hook):
         lib_method.return_value = self.mock_await_result(None)
 
-        hook = AsyncKubernetesHook(
-            conn_id=None,
-            in_cluster=False,
-            config_file=None,
-            cluster_context=None,
-        )
         await hook.get_pod(
             name=POD_NAME,
             namespace=NAMESPACE,
@@ -1923,15 +1892,9 @@ class TestAsyncKubernetesHook:
 
     @pytest.mark.asyncio
     @mock.patch(KUBE_API.format("delete_namespaced_pod"))
-    async def test_delete_pod(self, lib_method, kube_config_loader):
+    async def test_delete_pod(self, lib_method, kube_config_loader, hook):
         lib_method.return_value = self.mock_await_result(None)
 
-        hook = AsyncKubernetesHook(
-            conn_id=None,
-            in_cluster=False,
-            config_file=None,
-            cluster_context=None,
-        )
         await hook.delete_pod(
             name=POD_NAME,
             namespace=NAMESPACE,
@@ -1941,17 +1904,10 @@ class TestAsyncKubernetesHook:
 
     @pytest.mark.asyncio
     @mock.patch(KUBE_API.format("read_namespaced_pod_log"))
-    async def test_read_logs(self, lib_method, kube_config_loader):
+    async def test_read_logs(self, lib_method, kube_config_loader, hook):
         mock_raw_resp = mock.AsyncMock()
         mock_raw_resp.read = mock.AsyncMock(return_value=b"2023-01-11 Some string logs...")
         lib_method.return_value = self.mock_await_result(mock_raw_resp)
-
-        hook = AsyncKubernetesHook(
-            conn_id=None,
-            in_cluster=False,
-            config_file=None,
-            cluster_context=None,
-        )
 
         logs = await hook.read_logs(
             name=POD_NAME,
@@ -1975,20 +1931,13 @@ class TestAsyncKubernetesHook:
 
     @pytest.mark.asyncio
     @mock.patch(KUBE_API.format("read_namespaced_pod_log"))
-    async def test_read_logs_handles_non_utf8_bytes(self, lib_method, kube_config_loader):
+    async def test_read_logs_handles_non_utf8_bytes(self, lib_method, kube_config_loader, hook):
         """Non-UTF-8 bytes in pod logs are replaced instead of raising UnicodeDecodeError."""
         raw_bytes = b"2023-01-11 valid line\n2023-01-11 broken \x80\x81 bytes"
 
         mock_raw_resp = mock.AsyncMock()
         mock_raw_resp.read = mock.AsyncMock(return_value=raw_bytes)
         lib_method.return_value = self.mock_await_result(mock_raw_resp)
-
-        hook = AsyncKubernetesHook(
-            conn_id=None,
-            in_cluster=False,
-            config_file=None,
-            cluster_context=None,
-        )
 
         logs = await hook.read_logs(
             name=POD_NAME,
@@ -2006,20 +1955,15 @@ class TestAsyncKubernetesHook:
     @pytest.mark.asyncio
     @mock.patch("asyncio.to_thread", new_callable=mock.AsyncMock)
     @mock.patch(KUBE_API.format("read_namespaced_pod_log"))
-    async def test_read_logs_decodes_off_the_event_loop(self, lib_method, mock_to_thread, kube_config_loader):
+    async def test_read_logs_decodes_off_the_event_loop(
+        self, lib_method, mock_to_thread, kube_config_loader, hook
+    ):
         """The CPU-bound decode/splitlines is offloaded to a worker thread, not run on the loop."""
         raw_bytes = b"2023-01-11 Some string logs..."
         mock_raw_resp = mock.AsyncMock()
         mock_raw_resp.read = mock.AsyncMock(return_value=raw_bytes)
         lib_method.return_value = self.mock_await_result(mock_raw_resp)
         mock_to_thread.return_value = ["decoded line"]
-
-        hook = AsyncKubernetesHook(
-            conn_id=None,
-            in_cluster=False,
-            config_file=None,
-            cluster_context=None,
-        )
 
         logs = await hook.read_logs(name=POD_NAME, namespace=NAMESPACE, container_name=CONTAINER_NAME)
 
@@ -2028,15 +1972,9 @@ class TestAsyncKubernetesHook:
 
     @pytest.mark.asyncio
     @mock.patch(KUBE_BATCH_API.format("read_namespaced_job_status"))
-    async def test_get_job_status(self, lib_method, kube_config_loader):
+    async def test_get_job_status(self, lib_method, kube_config_loader, hook):
         lib_method.return_value = self.mock_await_result(None)
 
-        hook = AsyncKubernetesHook(
-            conn_id=None,
-            in_cluster=False,
-            config_file=None,
-            cluster_context=None,
-        )
         await hook.get_job_status(
             name=JOB_NAME,
             namespace=NAMESPACE,
@@ -2250,3 +2188,50 @@ class TestAsyncKubernetesHook:
         assert hook_a.client_configuration is not hook_b.client_configuration
         assert hook_a.client_configuration.host == "https://cluster-a.example.com"
         assert hook_b.client_configuration.host == "https://cluster-b.example.com"
+
+    @pytest.mark.asyncio
+    @mock.patch(SSL_CREATE, autospec=True, side_effect=ssl.create_default_context)
+    async def test_static_auth_reuses_client_and_ssl_context(self, mock_create_ssl, hook):
+        hook.config_dict = self.STATIC_AUTH_CONFIG_DICT
+        async with hook.get_conn() as first_client:
+            pass
+
+        for _ in range(2):
+            async with hook.get_conn() as client:
+                assert client is first_client
+
+        assert not first_client.rest_client.pool_manager.closed
+        mock_create_ssl.assert_called_once()
+
+    @pytest.mark.asyncio
+    @mock.patch(SSL_CREATE, autospec=True, side_effect=ssl.create_default_context)
+    @mock.patch(HOOK_MODULE + ".async_config.load_kube_config_from_dict", autospec=True)
+    async def test_exec_auth_keeps_per_call_clients(self, mock_load_config, mock_create_ssl, hook):
+        hook.config_dict = self.EXEC_AUTH_CONFIG_DICT
+        clients = []
+        for _ in range(3):
+            async with hook.get_conn() as client:
+                clients.append(client)
+            assert client.rest_client.pool_manager.closed
+
+        assert len({id(client) for client in clients}) == 3
+        assert mock_create_ssl.call_count == 3
+        assert mock_load_config.await_count == 3
+        assert hook._cached_kube_client is None
+        assert not hook._config_loaded
+
+    @pytest.mark.asyncio
+    async def test_close_releases_cached_client_and_is_idempotent(self, hook):
+        hook.config_dict = self.STATIC_AUTH_CONFIG_DICT
+        async with hook.get_conn() as cached:
+            pass
+
+        await hook.close()
+        assert hook._cached_kube_client is None
+        assert cached.rest_client.pool_manager.closed
+
+        await hook.close()
+
+        async with hook.get_conn() as reopened:
+            assert reopened is not cached
+            assert not reopened.rest_client.pool_manager.closed
