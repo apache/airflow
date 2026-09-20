@@ -1552,13 +1552,36 @@ def _run_task_and_map_outcome(
         assert isinstance(ti.task, BaseOperator)
 
     parent_pid = os.getpid()
+    # Whether the task's own body is on the stack. A SIGTERM is only allowed to
+    # interrupt the task while this is true: the supervisor also sends SIGTERM once a
+    # task has already reported success and is in `task_success_overtime`, and turning
+    # that into a failure would lose a result the server has already accepted.
+    in_task_body = False
+    # Set once the interrupt is in flight, so a second SIGTERM arriving while the first
+    # is still unwinding does not run `on_kill` twice or replace the exception that is
+    # already propagating with an identical one.
+    terminating = False
 
     def _on_term(signum, frame):
+        nonlocal terminating
         pid = os.getpid()
         if pid != parent_pid:
             return
+        if terminating:
+            return
 
-        ti.task.on_kill()
+        if in_task_body:
+            terminating = True
+
+        try:
+            ti.task.on_kill()
+        finally:
+            if terminating:
+                # Airflow 2 raised this right after `on_kill` so that a terminated task
+                # could not be committed as successful. The port in #50141 dropped the
+                # raise and kept the handler, so `execute()` simply resumed and the task
+                # finished normally even though `on_kill` had already destroyed its work.
+                raise AirflowTaskTerminated(f"Task received SIGTERM signal {signum}")
 
     signal.signal(signal.SIGTERM, _on_term)
 
@@ -1588,7 +1611,16 @@ def _run_task_and_map_outcome(
                 return state, msg, error
 
             try:
-                result = _execute_task(context=context, ti=ti, log=log)
+                in_task_body = True
+                try:
+                    result = _execute_task(context=context, ti=ti, log=log)
+                finally:
+                    # `finally` rather than a reset on each branch below, so that the
+                    # ones that raise a `BaseException` -- `AirflowTaskTimeout`,
+                    # `SystemExit` -- also leave the window. A SIGTERM that arrives
+                    # while one of those is being handled belongs to the outcome that
+                    # is already in flight.
+                    in_task_body = False
                 log.info("::group::Post Execute")
             except Exception:
                 import jinja2

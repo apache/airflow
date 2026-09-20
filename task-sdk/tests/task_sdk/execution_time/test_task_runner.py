@@ -22,6 +22,7 @@ import contextvars
 import functools
 import json
 import os
+import signal
 import textwrap
 import time
 from collections.abc import Iterable
@@ -6827,3 +6828,200 @@ def test_stats_tags_with_standalone_and_key_value_tags(create_runtime_ti):
         "task_id": "t",
         "run_type": "manual",
     }
+
+
+class TestSigtermTerminatesTask:
+    """
+    A SIGTERM must not leave a task that was killed mid-execute committed as successful.
+
+    Regression tests for #73006. `_on_term` calls `on_kill()` and, before this was
+    fixed, returned, so `execute()` resumed from where the signal interrupted it and ran
+    to completion. Any operator whose `on_kill` destroys the work it is waiting on --
+    `KubernetesPodOperator` deletes its pod -- then returned normally and the task
+    instance was committed `success`.
+
+    `run()` works on its own copy of the task, so the assertions read `ti.task` rather
+    than the object each test builds.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _restore_sigterm_handler(self):
+        """`run()` installs its own handler in this process, so put the old one back."""
+        previous = signal.getsignal(signal.SIGTERM)
+        yield
+        signal.signal(signal.SIGTERM, previous)
+
+    def test_sigterm_during_execute_fails_the_task(self, create_runtime_ti, mock_supervisor_comms):
+        """The task fails with `AirflowTaskTerminated` and `execute` does not reach its end."""
+
+        class KilledOperator(BaseOperator):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.killed = False
+                self.reached_end_of_execute = False
+
+            def execute(self, context):
+                os.kill(os.getpid(), signal.SIGTERM)
+                # Python runs the handler at the next bytecode boundary. Before the fix
+                # the handler returned and this line ran, which is what committed the
+                # task successful after its work had already been destroyed.
+                self.reached_end_of_execute = True
+
+            def on_kill(self):
+                self.killed = True
+
+        ti = create_runtime_ti(task=KilledOperator(task_id="killed"))
+
+        state, _, error = run(ti, ti.get_template_context(), log=mock.MagicMock())
+
+        assert ti.task.killed is True
+        assert ti.task.reached_end_of_execute is False
+        assert state == TaskInstanceState.FAILED
+        assert isinstance(error, AirflowTaskTerminated)
+
+    def test_pod_operator_shape_is_not_committed_successful(self, create_runtime_ti, mock_supervisor_comms):
+        """
+        The `KubernetesPodOperator` shape from the issue.
+
+        `on_kill` tears the pod down and sets a flag, and the operator's own cleanup then
+        declines to raise because that flag is set (the `_killed` guard from #36749).
+        Nothing in the operator fails the task, so the interrupt has to come from the
+        runner.
+        """
+
+        class PodOperatorShape(BaseOperator):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self._killed = False
+                self.pod_deleted = False
+
+            def execute(self, context):
+                os.kill(os.getpid(), signal.SIGTERM)
+                self.cleanup()
+                return "xcom-value"
+
+            def cleanup(self):
+                if self._killed:
+                    return
+                # The operator's own failure raise, which the guard above skips.
+                raise RuntimeError("pod did not reach Succeeded")
+
+            def on_kill(self):
+                self._killed = True
+                self.pod_deleted = True
+
+        ti = create_runtime_ti(task=PodOperatorShape(task_id="pod"))
+
+        state, _, error = run(ti, ti.get_template_context(), log=mock.MagicMock())
+
+        assert ti.task.pod_deleted is True
+        assert state == TaskInstanceState.FAILED
+        assert isinstance(error, AirflowTaskTerminated)
+
+    def test_on_kill_runs_once_when_a_second_sigterm_arrives(self, create_runtime_ti, mock_supervisor_comms):
+        """
+        A SIGTERM that lands while the first one is still unwinding is ignored.
+
+        Without the guard an `on_kill` that is itself interrupted re-enters the handler,
+        so `on_kill` runs hundreds of times before the stack unwinds.
+        """
+
+        class ResignallingOperator(BaseOperator):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.on_kill_calls = 0
+
+            def execute(self, context):
+                os.kill(os.getpid(), signal.SIGTERM)
+
+            def on_kill(self):
+                self.on_kill_calls += 1
+                # A supervisor escalating its kill sends another SIGTERM while `on_kill`
+                # is still running.
+                os.kill(os.getpid(), signal.SIGTERM)
+
+        ti = create_runtime_ti(task=ResignallingOperator(task_id="resignalled"))
+
+        state, _, error = run(ti, ti.get_template_context(), log=mock.MagicMock())
+
+        assert ti.task.on_kill_calls == 1
+        assert state == TaskInstanceState.FAILED
+        assert isinstance(error, AirflowTaskTerminated)
+
+    def test_failing_on_kill_still_terminates_the_task(self, create_runtime_ti, mock_supervisor_comms):
+        """An `on_kill` that raises must not mask the termination."""
+
+        class BrokenOnKillOperator(BaseOperator):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.reached_end_of_execute = False
+
+            def execute(self, context):
+                os.kill(os.getpid(), signal.SIGTERM)
+                self.reached_end_of_execute = True
+
+            def on_kill(self):
+                raise RuntimeError("could not reach the cluster to delete the pod")
+
+        ti = create_runtime_ti(task=BrokenOnKillOperator(task_id="broken_on_kill"))
+
+        state, _, error = run(ti, ti.get_template_context(), log=mock.MagicMock())
+
+        assert ti.task.reached_end_of_execute is False
+        assert state == TaskInstanceState.FAILED
+        assert isinstance(error, AirflowTaskTerminated)
+
+    def test_sigterm_after_execute_returns_keeps_the_task_successful(
+        self, create_runtime_ti, mock_supervisor_comms, monkeypatch
+    ):
+        """
+        The supervisor's `task_success_overtime` kill arrives after the task has finished.
+
+        The result is already there, so `on_kill` still runs but the task stays
+        successful rather than being turned into a failure.
+        """
+        real_push = task_runner._push_xcom_if_needed
+        killed = {}
+
+        def push_then_signal(result, ti, log):
+            os.kill(os.getpid(), signal.SIGTERM)
+            return real_push(result, ti, log)
+
+        monkeypatch.setattr(task_runner, "_push_xcom_if_needed", push_then_signal)
+
+        class FinishedOperator(BaseOperator):
+            def execute(self, context):
+                return "done"
+
+            def on_kill(self):
+                killed["called"] = True
+
+        ti = create_runtime_ti(task=FinishedOperator(task_id="finished"))
+
+        state, _, error = run(ti, ti.get_template_context(), log=mock.MagicMock())
+
+        assert killed.get("called") is True
+        assert error is None
+        assert state == TaskInstanceState.SUCCESS
+
+    def test_task_without_sigterm_is_unaffected(self, create_runtime_ti, mock_supervisor_comms):
+        """The control: no signal, so nothing changes."""
+
+        class QuietOperator(BaseOperator):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.killed = False
+
+            def execute(self, context):
+                return "done"
+
+            def on_kill(self):
+                self.killed = True
+
+        ti = create_runtime_ti(task=QuietOperator(task_id="quiet"))
+
+        state, _, error = run(ti, ti.get_template_context(), log=mock.MagicMock())
+
+        assert ti.task.killed is False
+        assert error is None
+        assert state == TaskInstanceState.SUCCESS
