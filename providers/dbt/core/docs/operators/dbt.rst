@@ -41,17 +41,12 @@ One image for every adapter (recommended)
 -----------------------------------------
 
 The recommended way to run this operator is with a single **generic** runner
-image and to install dbt at run time from the dbt project's own lockfile. The
-image bakes in only the tooling that the lifecycle script needs — ``python`` +
-``uv`` + ``git`` + ``aws``/``gsutil`` + ``bash`` + ``curl`` + ``tar`` — and
-**no dbt and no adapter**. Two parameters wire it up:
-
-* ``install_command="uv sync --frozen"`` — run once in the project directory,
-  after the clone and before dbt, to install dbt Core, the warehouse adapter
-  and any Python packages exactly as pinned in the project's ``uv.lock``.
-* ``command_prefix="uv run"`` — prepended to ``dbt deps`` and to every dbt
-  command so they execute inside the virtual environment that ``uv sync``
-  created.
+image. The image bakes in only the tooling the lifecycle script needs —
+``python`` + ``uv`` + ``git`` + ``aws``/``gsutil`` + ``bash`` + ``curl`` +
+``tar`` — and **no dbt and no adapter**. A ``uv sync`` step in ``steps``
+installs dbt Core, the warehouse adapter, and project packages from the
+project's ``uv.lock`` at run time, and ``command_prefix="uv run"`` routes
+``dbt deps`` and every subsequent command through that environment.
 
 Because dbt and the adapter come from each project's lockfile at run time, the
 **same image serves every warehouse** (Snowflake, BigQuery, Redshift,
@@ -67,7 +62,9 @@ updating its own ``uv.lock``.
         task_id="run_dbt",
         # Generic base image: python + uv + git + aws/gsutil. No dbt, no adapter.
         image="example.com/dbt-runner:latest",
-        dbt_commands=[
+        steps=[
+            # Install dbt + adapter + packages from the project's uv.lock.
+            "uv sync --frozen",
             "dbt build --select tag:hourly",
             "dbt test --select tag:hourly",
         ],
@@ -75,9 +72,7 @@ updating its own ``uv.lock``.
         git_repo_url="github.com/acme/dbt-project.git",
         git_branch="main",
         git_conn_id="acme_git",
-        # Install dbt + adapter + packages from the project's uv.lock at run time,
-        # then invoke dbt through that environment.
-        install_command="uv sync --frozen",
+        # "uv run" routes dbt deps and every step through the uv-managed venv.
         command_prefix="uv run",
         # profiles.yml env_var() lookups (DBT_HOST/DBT_USER/... ).
         warehouse_conn_id="snowflake_default",
@@ -91,9 +86,9 @@ updating its own ``uv.lock``.
 
     The other supported model is a **baked-adapter** image: dbt Core and one
     warehouse adapter are installed into the image and are on ``PATH``. In that
-    case omit both ``install_command`` and ``command_prefix`` — dbt runs
-    directly. This trades the "one image for every adapter" benefit for not
-    resolving dependencies on each run. The two models are compared in
+    case omit ``command_prefix`` and start ``steps`` directly with dbt commands.
+    This trades the "one image for every adapter" benefit for not installing
+    dependencies on each run. The two models are compared in
     :doc:`the package overview </index>`.
 
 Example
@@ -112,42 +107,32 @@ runs the dbt commands, and uploads ``target/`` to S3 on success and failure:
 Parameters
 ----------
 
-``dbt_commands`` (required)
-    The dbt CLI commands to run, in order, for example
-    ``["dbt build --select tag:hourly", "dbt test"]``. Each command runs inside
-    the pod; the first command to exit non-zero stops the run and fails the
-    task. When ``command_prefix`` is set it is prepended to each command. Must
-    be a non-empty list.
+``steps`` (required)
+    Ordered shell commands executed sequentially inside the pod, for example
+    ``["dbt build --select tag:hourly", "dbt test"]``. Any shell command is
+    valid — a leading ``"uv sync --frozen"`` installs the project's
+    dependencies at run time. The first command to exit non-zero stops the run
+    and fails the task. When ``command_prefix`` is set it is prepended to
+    ``dbt deps`` and every step. Must be a non-empty list.
 
 ``image`` (required)
     The runner image. With the recommended **generic** model the image needs
     only ``python`` + ``uv`` + ``git`` + ``bash`` + the object-storage CLI used
-    for upload (``aws`` for S3 or ``gsutil`` for GCS); dbt and the adapter are
-    installed at run time via ``install_command``. With the **baked-adapter**
-    model the image must additionally contain dbt and the relevant adapter on
-    ``PATH``.
+    for upload (``aws`` for S3 or ``gsutil`` for GCS). With the **baked-adapter**
+    model dbt and the warehouse adapter must additionally be on ``PATH``.
 
 ``project_dir``
     Path to the dbt project inside the pod (default ``/dbt``). When a repo is
     cloned it is cloned to this path; otherwise the project must already exist
-    here in the image. ``install_command`` runs in this directory.
-
-``install_command``
-    Shell command run once in ``project_dir`` **after** the clone and
-    **before** ``dbt deps`` and the dbt commands, for example
-    ``"uv sync --frozen"``. Use it to install the project's own dependencies
-    (dbt Core, the warehouse adapter and any Python packages) at run time so a
-    single generic image can serve every adapter. If omitted, dbt and the
-    adapter must already be present in the image.
+    here in the image.
 
 ``command_prefix``
-    A prefix prepended to ``dbt deps`` and to every command in ``dbt_commands``,
-    for example ``"uv run"`` when ``install_command`` installed dbt into a
-    project virtual environment. Default is empty, which assumes ``dbt`` is on
-    ``PATH`` (the baked-adapter model).
+    A prefix prepended to ``dbt deps`` and to every step in ``steps``, for
+    example ``"uv run"`` to run commands through a ``uv``-managed virtual
+    environment. Default is empty, which assumes executables are on ``PATH``.
 
 ``install_deps``
-    Run ``dbt deps`` before the commands (default ``True``). It is invoked as
+    Run ``dbt deps`` before the steps (default ``True``). It is invoked as
     ``<command_prefix> dbt deps``.
 
 Cloning the project — ``git_repo_url`` / ``git_branch`` / ``git_conn_id``

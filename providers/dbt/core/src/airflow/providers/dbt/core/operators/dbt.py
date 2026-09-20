@@ -20,26 +20,26 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import re
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlparse
 
-from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters import convert_env_vars
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
-
 from airflow.providers.dbt.core.version_compat import BaseHook
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
-_ENTRYPOINT_SCRIPT = open(os.path.join(os.path.dirname(__file__), "run.sh")).read()
+_ENTRYPOINT_SCRIPT = (Path(__file__).parent / "run.sh").read_text()
 
 
 class DbtKubernetesRunOperator(KubernetesPodOperator):
-    """Run ordered dbt commands in a single Kubernetes pod.
+    """
+    Run ordered dbt commands in a single Kubernetes pod.
 
     Lifecycle (each phase is a collapsible log group):
     clone → dbt deps → steps → upload artifacts
@@ -122,13 +122,9 @@ class DbtKubernetesRunOperator(KubernetesPodOperator):
         if not steps:
             raise ValueError("steps must be a non-empty list of shell commands")
         if (artifact_dest or git_cache_dest) and not artifact_conn_id:
-            raise ValueError(
-                "artifact_conn_id is required when artifact_dest or git_cache_dest is set."
-            )
+            raise ValueError("artifact_conn_id is required when artifact_dest or git_cache_dest is set.")
         if (git_cache_dest or git_conn_id) and not git_repo_url:
-            raise ValueError(
-                "git_repo_url is required when git_cache_dest or git_conn_id is set."
-            )
+            raise ValueError("git_repo_url is required when git_cache_dest or git_conn_id is set.")
         self.steps = steps
         self.project_dir = project_dir
         self.install_deps = install_deps
@@ -143,16 +139,18 @@ class DbtKubernetesRunOperator(KubernetesPodOperator):
         self._user_env_vars = list(self.env_vars or [])
 
     def execute(self, context: Context) -> Any:
-        script_env: dict[str, str] = {
+        _raw_env: dict[str, str | None] = {
             "DBT_PROJECT_DIR": self.project_dir,
             "DBT_STEPS": "\n".join(self.steps),
             "INSTALL_DEPS": "1" if self.install_deps else "",
             "CMD_PREFIX": self.command_prefix,
             "GIT_REPO_URL": self.git_repo_url,
             "GIT_BRANCH": self.git_branch if self.git_repo_url else None,
-            "GIT_CACHE_DEST": self._git_cache_path(context) if (self.git_cache_dest and self.git_repo_url) else None,
+            "GIT_CACHE_DEST": self._git_cache_path(context)
+            if (self.git_cache_dest and self.git_repo_url)
+            else None,
         }
-        script_env = {k: v for k, v in script_env.items() if v is not None}
+        script_env: dict[str, str] = {k: v for k, v in _raw_env.items() if v is not None}
         if self.git_conn_id and self.git_repo_url:
             script_env["GIT_TOKEN"] = BaseHook.get_connection(self.git_conn_id).password or ""
         if self.warehouse_conn_id:
@@ -168,7 +166,7 @@ class DbtKubernetesRunOperator(KubernetesPodOperator):
         return super().execute(context)
 
     def _build_artifact_path(self, context: Context) -> str:
-        base = self.artifact_dest.rstrip("/")
+        base = cast("str", self.artifact_dest).rstrip("/")
         dag_run = context["dag_run"]
         ti = context["ti"]
         task = context["task"]
@@ -177,12 +175,13 @@ class DbtKubernetesRunOperator(KubernetesPodOperator):
         return f"{base}/{dag_run.dag_id}/{leaf}/{dag_run.run_id}/attempt_{ti.try_number}"
 
     def _git_cache_path(self, context: Context) -> str:
-        url = self.git_repo_url.removesuffix(".git")
+        git_repo_url = cast("str", self.git_repo_url)
+        url = git_repo_url.removesuffix(".git")
         repo_path = url.split("/", 1)[-1] if "/" in url else url
         slug = re.sub(r"[^a-z0-9]+", "-", f"{repo_path}/{self.git_branch}".lower()).strip("-")
-        short_hash = hashlib.sha256(f"{self.git_repo_url}:{self.git_branch}".encode()).hexdigest()[:8]
+        short_hash = hashlib.sha256(f"{git_repo_url}:{self.git_branch}".encode()).hexdigest()[:8]
         dag_id = context["dag_run"].dag_id
-        return f"{self.git_cache_dest.rstrip('/')}/{dag_id}/{slug[:60]}-{short_hash}/repo.tar.gz"
+        return f"{cast('str', self.git_cache_dest).rstrip('/')}/{dag_id}/{slug[:60]}-{short_hash}/repo.tar.gz"
 
     def _warehouse_profile_env(self) -> dict[str, str]:
         conn = BaseHook.get_connection(self.warehouse_conn_id)
@@ -216,17 +215,15 @@ class DbtKubernetesRunOperator(KubernetesPodOperator):
             except ImportError as e:
                 raise AirflowOptionalProviderFeatureException(e)
             extra = BaseHook.get_connection(self.artifact_conn_id).extra_dejson
-            keyfile = extra.get("keyfile_dict") or extra.get(
-                "extra__google_cloud_platform__keyfile_dict"
-            )
+            keyfile = extra.get("keyfile_dict") or extra.get("extra__google_cloud_platform__keyfile_dict")
             if not keyfile:
-                raise AirflowException(
+                raise ValueError(
                     "GCS requires the connection to define a service-account "
                     "'keyfile_dict' (JSON) so credentials can be passed into the pod."
                 )
             if isinstance(keyfile, dict):
                 keyfile = json.dumps(keyfile)
             return {"GOOGLE_APPLICATION_CREDENTIALS_JSON": keyfile}
-        raise AirflowException(
+        raise ValueError(
             f"artifact_dest / git_cache_dest must start with s3:// or gs:// (got scheme {scheme!r})"
         )

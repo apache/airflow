@@ -137,11 +137,11 @@ with DAG(
 ) as dag:
     start = EmptyOperator(task_id="start")
 
-    # [START howto_operator_dbt_kubernetes_pre_processing]
     with TaskGroup(group_id="pre_processing") as pre_processing:
         # Seeds and view models run before the incremental models in the
         # hourly phase can reference them.  git_cache_dest keeps the clone
         # available even if the git server is temporarily unreachable.
+        # [START howto_operator_dbt_kubernetes]
         pre_processing_dbt = DbtKubernetesRunOperator(
             task_id="dbt_seeds_and_views",
             steps=[
@@ -157,9 +157,8 @@ with DAG(
             git_cache_dest=GIT_CACHE_BASE,
             **_K8S_KWARGS,
         )
-    # [END howto_operator_dbt_kubernetes_pre_processing]
+        # [END howto_operator_dbt_kubernetes]
 
-    # [START howto_operator_dbt_kubernetes_hourly]
     with TaskGroup(group_id="hourly_processing") as hourly_processing:
         # Wait a small offset after the hour boundary before trying to read
         # upstream data (common when source pipelines land a few minutes late).
@@ -194,7 +193,6 @@ with DAG(
         )
 
         wait_for_offset >> await_data >> hourly_dbt
-    # [END howto_operator_dbt_kubernetes_hourly]
 
     end = EmptyOperator(task_id="end")
 

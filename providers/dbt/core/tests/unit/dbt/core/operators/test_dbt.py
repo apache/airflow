@@ -31,7 +31,8 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.models.connection import Connection
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.dbt.core.operators import dbt as dbt_module
 from airflow.providers.dbt.core.operators.dbt import DbtKubernetesRunOperator
@@ -57,7 +58,7 @@ def _make_operator(**kwargs) -> DbtKubernetesRunOperator:
 
 def _make_conn(**attrs) -> mock.MagicMock:
     """A stand-in for an Airflow Connection with the attributes the operator reads."""
-    conn = mock.MagicMock(name="Connection")
+    conn = mock.MagicMock(spec=Connection)
     for attr in ("host", "login", "password", "schema", "port"):
         setattr(conn, attr, attrs.get(attr))
     conn.extra_dejson = attrs.get("extra_dejson", {})
@@ -82,22 +83,22 @@ def _make_context(
     The operator reads ``context["dag_run"].dag_id`` / ``.run_id``,
     ``context["ti"].try_number`` and ``context["task"].task_id`` /
     ``.task_group.group_id``. When ``group_id`` is ``None`` the task is not in a
-    task group (``task.task_group is None``); otherwise it belongs to a group
-    whose ``group_id`` is the given string.
+    task group; otherwise it belongs to a group whose ``group_id`` is the given
+    string.
     """
-    dag_run = mock.MagicMock(name="DagRun")
+    dag_run = mock.MagicMock(spec_set=["dag_id", "run_id"])
     dag_run.dag_id = dag_id
     dag_run.run_id = run_id
 
-    ti = mock.MagicMock(name="TaskInstance")
+    ti = mock.MagicMock(spec_set=["try_number"])
     ti.try_number = try_number
 
-    task = mock.MagicMock(name="Task")
+    task = mock.MagicMock(spec_set=["task_id", "task_group"])
     task.task_id = task_id
     if group_id is None:
         task.task_group = None
     else:
-        task_group = mock.MagicMock(name="TaskGroup")
+        task_group = mock.MagicMock(spec_set=["group_id"])
         task_group.group_id = group_id
         task.task_group = task_group
 
@@ -115,9 +116,7 @@ def _run_execute(op: DbtKubernetesRunOperator, context: dict | None = None):
     """
     if context is None:
         context = _make_context()
-    with mock.patch.object(
-        KubernetesPodOperator, "execute", return_value="POD_RESULT"
-    ) as super_execute:
+    with mock.patch.object(KubernetesPodOperator, "execute", return_value="POD_RESULT") as super_execute:
         result = op.execute(context=context)
     return result, super_execute
 
@@ -130,15 +129,30 @@ def test_execute_assembles_bash_cmds_and_script_arguments():
 
     result, super_execute = _run_execute(op)
 
-    # super().execute() is called exactly once and its return value passes through.
     super_execute.assert_called_once()
     assert result == "POD_RESULT"
-    # The pod runs the bundled run.sh via bash -c.
     assert op.cmds == ["bash", "-c"]
     assert op.arguments == [dbt_module._ENTRYPOINT_SCRIPT]
     assert len(op.arguments) == 1
-    # Sanity: the shipped script is the real lifecycle script.
     assert "trap _upload_artifacts EXIT" in op.arguments[0]
+
+
+def test_volume_mount_prepends_bin_dir_to_path():
+    from kubernetes.client import models as k8s
+
+    vol = k8s.V1Volume(name="aws-cli", empty_dir=k8s.V1EmptyDirVolumeSource())
+    mount = k8s.V1VolumeMount(name="aws-cli", mount_path="/aws-cli")
+    op = DbtKubernetesRunOperator(
+        task_id="run_dbt",
+        image=IMAGE,
+        steps=["dbt build"],
+        volumes=[vol],
+        volume_mounts=[mount],
+    )
+
+    # PATH prepend is the first line; the entrypoint script follows.
+    assert op.arguments[0].startswith('export PATH="/aws-cli/bin:')
+    assert dbt_module._ENTRYPOINT_SCRIPT in op.arguments[0]
 
 
 # --------------------------------------------------------------------------- #
@@ -163,9 +177,8 @@ def test_install_deps_false_sets_empty_flag():
     op = _make_operator(install_deps=False)
 
     _run_execute(op)
-    env = _env_dict(op)
 
-    assert env["INSTALL_DEPS"] == ""
+    assert _env_dict(op)["INSTALL_DEPS"] == ""
 
 
 def test_default_project_dir():
@@ -184,7 +197,6 @@ def test_user_env_vars_preserved_before_script_env():
     _run_execute(op)
     env = _env_dict(op)
 
-    # User-supplied env survives alongside the injected script env.
     assert env["EXTRA_ENV"] == "keep-me"
     assert env["DBT_STEPS"] == "dbt build"
 
@@ -193,13 +205,11 @@ def test_user_env_vars_preserved_before_script_env():
 # (b2) command_prefix -> CMD_PREFIX
 # --------------------------------------------------------------------------- #
 def test_command_prefix_sets_cmd_prefix_env():
-    # e.g. "uv run" so dbt deps and every dbt command run through the uv venv.
     op = _make_operator(command_prefix="uv run")
 
     _run_execute(op)
-    env = _env_dict(op)
 
-    assert env["CMD_PREFIX"] == "uv run"
+    assert _env_dict(op)["CMD_PREFIX"] == "uv run"
 
 
 def test_command_prefix_defaults_to_empty_string():
@@ -208,7 +218,6 @@ def test_command_prefix_defaults_to_empty_string():
     _run_execute(op)
     env = _env_dict(op)
 
-    # CMD_PREFIX is always injected; default "" means dbt is invoked directly.
     assert "CMD_PREFIX" in env
     assert env["CMD_PREFIX"] == ""
 
@@ -240,7 +249,7 @@ def test_git_repo_without_conn_has_no_token():
     env = _env_dict(op)
 
     assert env["GIT_REPO_URL"] == "github.com/acme/dbt-project.git"
-    assert env["GIT_BRANCH"] == "main"  # default branch
+    assert env["GIT_BRANCH"] == "main"
     assert "GIT_TOKEN" not in env
 
 
@@ -275,12 +284,11 @@ def test_warehouse_conn_maps_to_dbt_profile_env():
     assert env["DBT_USER"] == "dbt_user"
     assert env["DBT_PASSWORD"] == "wh_pw"
     assert env["DBT_SCHEMA"] == "analytics"
-    assert env["DBT_PORT"] == "5439"  # port is stringified
+    assert env["DBT_PORT"] == "5439"
     get_conn.assert_called_once_with("snowflake_default")
 
 
 def test_warehouse_conn_omits_empty_fields():
-    # Only host provided; login/password/schema/port empty -> those keys dropped.
     conn = _make_conn(host="warehouse.example.com")
     with mock.patch.object(dbt_module.BaseHook, "get_connection", return_value=conn):
         op = _make_operator(warehouse_conn_id="snowflake_default")
@@ -296,7 +304,10 @@ def test_warehouse_conn_omits_empty_fields():
 # (e) artifact_dest scheme routing
 # --------------------------------------------------------------------------- #
 def test_artifact_s3_resolves_aws_credentials():
-    creds = mock.MagicMock(access_key="AKIAEXAMPLE", secret_key="secretkey", token="sessiontoken")
+    creds = mock.MagicMock(spec_set=["access_key", "secret_key", "token"])
+    creds.access_key = "AKIAEXAMPLE"
+    creds.secret_key = "secretkey"
+    creds.token = "sessiontoken"
     with mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook") as s3_hook:
         s3_hook.return_value.get_credentials.return_value = creds
         op = _make_operator(
@@ -306,12 +317,7 @@ def test_artifact_s3_resolves_aws_credentials():
         _run_execute(op)
 
     env = _env_dict(op)
-    # artifact_dest is a BASE prefix; the operator appends the per-run layout
-    # <dag_id>/<task-or-group>/<run_id>/attempt_<try> from the execute context.
-    assert (
-        env["ARTIFACT_DEST"]
-        == "s3://my-bucket/dbt/artifacts/my_dag/run_dbt/run_1/attempt_1"
-    )
+    assert env["ARTIFACT_DEST"] == "s3://my-bucket/dbt/artifacts/my_dag/run_dbt/run_1/attempt_1"
     assert env["AWS_ACCESS_KEY_ID"] == "AKIAEXAMPLE"
     assert env["AWS_SECRET_ACCESS_KEY"] == "secretkey"
     assert env["AWS_SESSION_TOKEN"] == "sessiontoken"
@@ -319,7 +325,10 @@ def test_artifact_s3_resolves_aws_credentials():
 
 
 def test_artifact_s3_without_session_token():
-    creds = mock.MagicMock(access_key="AKIAEXAMPLE", secret_key="secretkey", token=None)
+    creds = mock.MagicMock(spec_set=["access_key", "secret_key", "token"])
+    creds.access_key = "AKIAEXAMPLE"
+    creds.secret_key = "secretkey"
+    creds.token = None
     with mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook") as s3_hook:
         s3_hook.return_value.get_credentials.return_value = creds
         op = _make_operator(
@@ -334,7 +343,6 @@ def test_artifact_s3_without_session_token():
 
 
 def test_artifact_dest_without_conn_id_raises():
-    # artifact_conn_id is required when artifact_dest is set (no ambient IAM support).
     with pytest.raises(ValueError, match="artifact_conn_id"):
         _make_operator(artifact_dest="s3://my-bucket/dbt/artifacts")
 
@@ -353,10 +361,7 @@ def test_artifact_gcs_resolves_keyfile_dict():
         _run_execute(op)
 
     env = _env_dict(op)
-    assert (
-        env["ARTIFACT_DEST"]
-        == "gs://my-bucket/dbt/artifacts/my_dag/run_dbt/run_1/attempt_1"
-    )
+    assert env["ARTIFACT_DEST"] == "gs://my-bucket/dbt/artifacts/my_dag/run_dbt/run_1/attempt_1"
     assert json.loads(env["GOOGLE_APPLICATION_CREDENTIALS_JSON"]) == keyfile
 
 
@@ -373,7 +378,6 @@ def test_artifact_gcs_accepts_json_string_keyfile():
         )
         _run_execute(op)
 
-    # A string keyfile is passed straight through unchanged.
     assert _env_dict(op)["GOOGLE_APPLICATION_CREDENTIALS_JSON"] == keyfile_str
 
 
@@ -403,7 +407,7 @@ def test_artifact_gcs_missing_keyfile_raises():
             artifact_dest="gs://my-bucket/dbt/artifacts",
             artifact_conn_id="google_cloud_default",
         )
-        with pytest.raises(AirflowException, match="keyfile_dict"):
+        with pytest.raises(ValueError, match="keyfile_dict"):
             op.execute(context=_make_context())
 
 
@@ -412,7 +416,7 @@ def test_artifact_unknown_scheme_raises():
         artifact_dest="ftp://my-bucket/dbt/artifacts",
         artifact_conn_id="some_conn",
     )
-    with pytest.raises(AirflowException, match="s3:// or gs://"):
+    with pytest.raises(ValueError, match="s3:// or gs://"):
         op.execute(context=_make_context())
 
 
@@ -421,7 +425,6 @@ def test_artifact_s3_missing_amazon_provider_raises_optional_feature():
         artifact_dest="s3://my-bucket/dbt/artifacts",
         artifact_conn_id="aws_default",
     )
-    # Simulate the amazon provider not being installed: importing the hook fails.
     with mock.patch.dict(sys.modules, {"airflow.providers.amazon.aws.hooks.s3": None}):
         with pytest.raises(AirflowOptionalProviderFeatureException):
             op.execute(context=_make_context())
@@ -440,18 +443,30 @@ def test_artifact_gcs_missing_google_provider_raises_optional_feature():
 # --------------------------------------------------------------------------- #
 # (e2) _artifact_dest per-run layout
 # --------------------------------------------------------------------------- #
-def test_artifact_dest_layout_uses_task_id_when_not_in_group():
-    creds = mock.MagicMock(access_key="AK", secret_key="SK", token=None)
+def _s3_op_with_creds(**kwargs):
+    """Helper: operator with mocked S3 creds so artifact path tests don't need real AWS."""
+    creds = mock.MagicMock(spec_set=["access_key", "secret_key", "token"])
+    creds.access_key = "AK"
+    creds.secret_key = "SK"
+    creds.token = None
+    kwargs.setdefault("artifact_dest", "s3://my-dbt-artifacts")
+    kwargs.setdefault("artifact_conn_id", "aws_default")
     with mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook") as s3_hook:
         s3_hook.return_value.get_credentials.return_value = creds
-        op = _make_operator(artifact_dest="s3://my-dbt-artifacts", artifact_conn_id="aws_default")
-        ctx = _make_context(
-            dag_id="analytics",
-            run_id="scheduled__2024-06-01",
-            try_number=1,
-            task_id="hourly_build",
-            group_id=None,  # not inside a task group -> fall back to task_id
-        )
+        op = _make_operator(**kwargs)
+    return op, s3_hook
+
+
+def test_artifact_dest_layout_uses_task_id_when_not_in_group():
+    op, s3_hook = _s3_op_with_creds()
+    ctx = _make_context(
+        dag_id="analytics",
+        run_id="scheduled__2024-06-01",
+        try_number=1,
+        task_id="hourly_build",
+        group_id=None,
+    )
+    with mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook", s3_hook):
         _run_execute(op, context=ctx)
 
     assert (
@@ -461,20 +476,17 @@ def test_artifact_dest_layout_uses_task_id_when_not_in_group():
 
 
 def test_artifact_dest_layout_uses_group_id_when_in_group():
-    creds = mock.MagicMock(access_key="AK", secret_key="SK", token=None)
-    with mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook") as s3_hook:
-        s3_hook.return_value.get_credentials.return_value = creds
-        op = _make_operator(artifact_dest="s3://my-dbt-artifacts", artifact_conn_id="aws_default")
-        ctx = _make_context(
-            dag_id="analytics",
-            run_id="scheduled__2024-06-01",
-            try_number=3,  # a retry: attempt number reflects try_number
-            task_id="hourly_build",
-            group_id="dbt_group",  # inside a task group -> use group_id
-        )
+    op, s3_hook = _s3_op_with_creds()
+    ctx = _make_context(
+        dag_id="analytics",
+        run_id="scheduled__2024-06-01",
+        try_number=3,
+        task_id="hourly_build",
+        group_id="dbt_group",
+    )
+    with mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook", s3_hook):
         _run_execute(op, context=ctx)
 
-    # Uses the task group's group_id (not task_id), the run_id, and try_number.
     assert (
         _env_dict(op)["ARTIFACT_DEST"]
         == "s3://my-dbt-artifacts/analytics/dbt_group/scheduled__2024-06-01/attempt_3"
@@ -482,15 +494,34 @@ def test_artifact_dest_layout_uses_group_id_when_in_group():
 
 
 def test_artifact_dest_base_trailing_slash_is_normalized():
-    creds = mock.MagicMock(access_key="AK", secret_key="SK", token=None)
-    with mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook") as s3_hook:
-        s3_hook.return_value.get_credentials.return_value = creds
-        op = _make_operator(artifact_dest="s3://my-dbt-artifacts/", artifact_conn_id="aws_default")
-        ctx = _make_context(dag_id="d", run_id="r", try_number=2, task_id="t", group_id=None)
+    op, s3_hook = _s3_op_with_creds(artifact_dest="s3://my-dbt-artifacts/")
+    ctx = _make_context(dag_id="d", run_id="r", try_number=2, task_id="t", group_id=None)
+    with mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook", s3_hook):
         _run_execute(op, context=ctx)
 
-    # The trailing slash on the base does not produce a doubled separator.
     assert _env_dict(op)["ARTIFACT_DEST"] == "s3://my-dbt-artifacts/d/t/r/attempt_2"
+
+
+# --------------------------------------------------------------------------- #
+# (e3) _git_cache_path format
+# --------------------------------------------------------------------------- #
+def test_git_cache_path_format_and_uniqueness():
+    op, s3_hook = _s3_op_with_creds(
+        git_repo_url="github.com/acme/dbt-project.git",
+        git_branch="main",
+        git_cache_dest="s3://my-cache",
+    )
+    ctx = _make_context(dag_id="sales_hourly")
+    with mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook", s3_hook):
+        _run_execute(op, context=ctx)
+
+    env = _env_dict(op)
+    cache_path = env["GIT_CACHE_DEST"]
+    # Structure: s3://my-cache/<dag_id>/<slug>-<8-char-hash>/repo.tar.gz
+    assert cache_path.startswith("s3://my-cache/sales_hourly/")
+    assert cache_path.endswith("/repo.tar.gz")
+    # slug is derived from repo path + branch
+    assert "acme-dbt-project-main" in cache_path
 
 
 # --------------------------------------------------------------------------- #
@@ -499,3 +530,24 @@ def test_artifact_dest_base_trailing_slash_is_normalized():
 def test_empty_steps_raises_value_error():
     with pytest.raises(ValueError, match="steps"):
         DbtKubernetesRunOperator(task_id="run_dbt", image=IMAGE, steps=[])
+
+
+def test_git_cache_dest_without_git_repo_url_raises():
+    with pytest.raises(ValueError, match="git_repo_url"):
+        DbtKubernetesRunOperator(
+            task_id="run_dbt",
+            image=IMAGE,
+            steps=["dbt build"],
+            git_cache_dest="s3://my-cache",
+            artifact_conn_id="aws_default",
+        )
+
+
+def test_git_conn_id_without_git_repo_url_raises():
+    with pytest.raises(ValueError, match="git_repo_url"):
+        DbtKubernetesRunOperator(
+            task_id="run_dbt",
+            image=IMAGE,
+            steps=["dbt build"],
+            git_conn_id="my_git_conn",
+        )
