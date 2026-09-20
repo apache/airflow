@@ -459,8 +459,9 @@ so renaming one in an IDE never rebinds an input.
 
 A primitive parameter cannot hold ``null``, so the task fails with ``MissingXComException`` when its
 binding resolves to nothing; declare a boxed type (``Long``, ``Double``, …) to receive ``null``
-instead.  Declaring more data parameters than the call site bound also fails the task, rather than
-running it with missing inputs.
+instead.  The method must declare exactly as many data parameters as the call site bound: positions
+carry the whole meaning of a flat binding, so any other count has already shifted them, and the task
+fails rather than running on arguments it has mistaken for others.
 
 A parameter whose type has type arguments keeps them: declare ``List<Double>`` and every element
 arrives as a ``Double``, whatever the wire values were.  Nothing extra is needed at the call site —
@@ -729,11 +730,12 @@ represented as Java objects when read back via ``getXCom``.
 
 .. note::
 
-   ``char`` and ``Character`` are not supported.  JSON has no single-character type, so a
-   character value is stored as a JSON string (or a number) and is read back as one of the
-   Java types in the table above.  Declaring ``char`` or ``Character`` as a data parameter
-   compiles, but binding a value to it fails at runtime with a ``ClassCastException``.  Use
-   ``String`` instead.
+   Avoid ``char`` and ``Character``.  JSON has no single-character type, so the value arrives
+   as a string or a number and the SDK narrows it: a one-character string or an integer code
+   point binds, an empty string binds as ``null``, and anything longer fails at runtime with
+   an ``IllegalArgumentException``.  Whether a value binds therefore depends on its length
+   rather than on the stub signature, which no compile-time check can catch.  Use ``String``
+   instead.
 
 .. note::
 

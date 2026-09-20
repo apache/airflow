@@ -110,7 +110,7 @@ class BuilderTest {
            public static final class T3 implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
-               TaskArgs args = TaskArgs.of(context, client);
+               TaskArgs args = TaskArgs.of(context, client, 1);
                int value = args.require(0, Integer.class);
                new TestExample().t3(context, value);
              }
@@ -167,7 +167,7 @@ class BuilderTest {
            public static final class T implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
-               TaskArgs args = TaskArgs.of(context, client);
+               TaskArgs args = TaskArgs.of(context, client, 3);
                long first = args.require(0, Long.class);
                String second = args.get(1, String.class);
                Integer third = args.get(2, Integer.class);
@@ -230,7 +230,7 @@ class BuilderTest {
            public static final class T implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
-               TaskArgs args = TaskArgs.of(context, client);
+               TaskArgs args = TaskArgs.of(context, client, 5);
                boolean flag = args.require(0, Boolean.class);
                float fraction = args.require(1, Float.class);
                Double boxed = args.get(2, Double.class);
@@ -296,7 +296,7 @@ class BuilderTest {
            public static final class Score implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
-               TestExample.ScoreInput input = ArgValues.bindInput(context, client, TestExample.ScoreInput.class);
+               TestExample.ScoreInput input = ArgValues.bindInput(client, TestExample.ScoreInput.class);
                client.setXCom(new TestExample().score(client, input));
              }
            }
@@ -349,7 +349,7 @@ class BuilderTest {
            public static final class T implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
-               TaskArgs args_ = TaskArgs.of(context, client);
+               TaskArgs args_ = TaskArgs.of(context, client, 2);
                String args = args_.get(0, String.class);
                int other = args_.require(1, Integer.class);
                new TestExample().t(args, other);
@@ -358,6 +358,139 @@ class BuilderTest {
          }
         """,
       )
+  }
+
+  @Test
+  @DisplayName("keep generated locals from clashing with the injected client and context")
+  fun generateBuilderAvoidsClashWithInjectedParamNames() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.TaskInput;
+        @Builder.Dag
+        public class TestExample {
+          public static class ScoreInput implements TaskInput {
+            public double threshold;
+          }
+
+          @Builder.Task
+          public void flat(String client, int context) {}
+
+          @Builder.Task
+          public void named(ScoreInput context) {}
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+    assertThat(compilation)
+      .generatedSourceFile("org.apache.airflow.example.TestExampleBuilder")
+      .hasSourceEquivalentTo(
+        "org.apache.airflow.example.TestExampleBuilder",
+        """
+         package org.apache.airflow.example;
+
+         import java.lang.Exception;
+         import java.lang.Integer;
+         import java.lang.Override;
+         import java.lang.String;
+         import org.apache.airflow.sdk.Client;
+         import org.apache.airflow.sdk.Context;
+         import org.apache.airflow.sdk.DagDef;
+         import org.apache.airflow.sdk.Task;
+         import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.internal.ArgValues;
+         import org.apache.airflow.sdk.internal.TaskArgs;
+
+         public final class TestExampleBuilder {
+           public static DagDef build() {
+             var dag = new DagDef("TestExample");
+             dag.addTask(new TaskDef("flat", Flat.class));
+             dag.addTask(new TaskDef("named", Named.class));
+             return dag;
+           }
+           public static final class Flat implements Task {
+             @Override
+             public void execute(Context context, Client client) throws Exception {
+               TaskArgs args = TaskArgs.of(context, client, 2);
+               String client_ = args.get(0, String.class);
+               int context_ = args.require(1, Integer.class);
+               new TestExample().flat(client_, context_);
+             }
+           }
+           public static final class Named implements Task {
+             @Override
+             public void execute(Context context, Client client) throws Exception {
+               TestExample.ScoreInput context_ = ArgValues.bindInput(client, TestExample.ScoreInput.class);
+               new TestExample().named(context_);
+             }
+           }
+         }
+        """,
+      )
+  }
+
+  @Test
+  @DisplayName("reject a TaskInput whose inherited field cannot be assigned")
+  fun rejectTaskInputWithNonPublicInheritedField() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.TaskInput;
+        @Builder.Dag
+        public class TestExample {
+          public static class BaseInput {
+            private String secret;
+          }
+
+          public static class ScoreInput extends BaseInput implements TaskInput {
+            public double threshold;
+          }
+
+          @Builder.Task
+          public void t(ScoreInput input) {}
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "TaskInput field ScoreInput.secret must be public and non-final",
+    )
+  }
+
+  @Test
+  @DisplayName("reject a TaskInput whose inherited field folds onto a declared one")
+  fun rejectTaskInputWithCollidingInheritedField() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.TaskInput;
+        @Builder.Dag
+        public class TestExample {
+          public static class BaseInput {
+            public String regionCode;
+          }
+
+          public static class ScoreInput extends BaseInput implements TaskInput {
+            public String region_code;
+          }
+
+          @Builder.Task
+          public void t(ScoreInput input) {}
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "TaskInput fields ScoreInput.region_code and ScoreInput.regionCode claim argument names that " +
+        "differ only in case or underscores",
+    )
   }
 
   @Test

@@ -36,7 +36,7 @@ import org.apache.airflow.sdk.MissingXComException
  * declares an [org.apache.airflow.sdk.TaskInput] instead.
  *
  * ```java
- * TaskArgs args = TaskArgs.of(context, client);
+ * TaskArgs args = TaskArgs.of(context, client, 2);
  * long rows = args.require(0, Long.class);
  * List<String> regions = args.get(1, new TypeRef<List<String>>() {});
  * ```
@@ -46,50 +46,61 @@ class TaskArgs private constructor(
   private val client: Client,
 ) {
   companion object {
-    /** Opens a positional view over the arguments bound for this run. */
+    /**
+     * Opens a positional view over the arguments bound for this run, for a
+     * task method declaring [declared] data parameters.
+     *
+     * The two counts must match exactly. Positions carry the whole meaning of
+     * a flat binding, so a call site that bound a different number of
+     * arguments than the method takes has already shifted them: too few leaves
+     * a parameter unbound, and too many means the extras — or the ones ahead
+     * of them — are not the arguments the method believes it is reading.
+     *
+     * @throws IllegalStateException if the call site bound a different number
+     *    of arguments than the task declares.
+     */
     @JvmStatic
     fun of(
       context: Context,
       client: Client,
-    ): TaskArgs = TaskArgs(context, client)
+      declared: Int,
+    ): TaskArgs {
+      val bound = client.argBindings.size
+      check(bound == declared) {
+        "Task '${context.ti.taskId}' declares $declared data parameter(s) " +
+          "but the stub call bound $bound argument(s)"
+      }
+      return TaskArgs(context, client)
+    }
   }
-
-  /** How many arguments the `@task.stub` call site bound. */
-  fun size(): Int = client.argBindings.size
 
   /**
    * Resolves the argument bound at [position] into [type], passing null
    * through.
    *
-   * @throws IllegalStateException if the call site bound no argument at
-   *    [position].
    * @throws org.apache.airflow.sdk.ApiError if the underlying XCom read fails.
    */
   fun <T : Any> get(
     position: Int,
     type: Class<T>,
-  ): T? = type.cast(ArgValues.valueAt(context, client, position, type))
+  ): T? = type.cast(ArgValues.valueAt(client, position, type))
 
   /**
    * Resolves the argument bound at [position] into the generic [type], passing
    * null through.
    *
-   * @throws IllegalStateException if the call site bound no argument at
-   *    [position].
    * @throws org.apache.airflow.sdk.ApiError if the underlying XCom read fails.
    */
   @Suppress("UNCHECKED_CAST")
   fun <T : Any> get(
     position: Int,
     type: TypeRef<T>,
-  ): T? = ArgValues.valueAt(context, client, position, type.type) as T?
+  ): T? = ArgValues.valueAt(client, position, type.type) as T?
 
   /**
    * Resolves the argument bound at [position] into [type], which must not be
    * null.
    *
-   * @throws IllegalStateException if the call site bound no argument at
-   *    [position].
    * @throws MissingXComException if the binding resolves to nothing — a null
    *    literal, or an upstream that pushed no XCom.
    * @throws org.apache.airflow.sdk.ApiError if the underlying XCom read fails.
@@ -103,8 +114,6 @@ class TaskArgs private constructor(
    * Resolves the argument bound at [position] into the generic [type], which
    * must not be null.
    *
-   * @throws IllegalStateException if the call site bound no argument at
-   *    [position].
    * @throws MissingXComException if the binding resolves to nothing — a null
    *    literal, or an upstream that pushed no XCom.
    * @throws org.apache.airflow.sdk.ApiError if the underlying XCom read fails.
@@ -115,7 +124,6 @@ class TaskArgs private constructor(
   ): T = get(position, type) ?: throw missingAt(position)
 
   // The stub signature's own parameter name is the clearest label for a failure
-  // here: it is what the Dag author has to change. Nothing bound at this
-  // position fails earlier with the arity mismatch instead.
+  // here: it is what the Dag author has to change.
   private fun missingAt(at: Int) = ArgValues.missing(client.argBindings[at], context.ti.taskId)
 }

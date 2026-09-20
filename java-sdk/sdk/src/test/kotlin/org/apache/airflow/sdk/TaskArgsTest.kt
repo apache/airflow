@@ -23,6 +23,7 @@ package org.apache.airflow.sdk
 
 import org.apache.airflow.sdk.internal.TaskArgs
 import org.apache.airflow.sdk.internal.TypeRef
+import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -35,9 +36,10 @@ private abstract class NamesRef : TypeRef<List<String>>()
 private fun argsWith(
   bindings: List<Map<String, Any?>>?,
   xcoms: Map<String, Any?> = emptyMap(),
+  declared: Int = bindings?.size ?: 0,
 ): Pair<TaskArgs, FakeXComTransport> {
   val (client, transport) = clientWith(bindings, xcoms)
-  return TaskArgs.of(taskContext(), client) to transport
+  return TaskArgs.of(taskContext(), client, declared) to transport
 }
 
 internal class TaskArgsTest {
@@ -74,17 +76,14 @@ internal class TaskArgsTest {
         ),
       )
 
-    assertEquals(2, args.size())
     assertEquals(2L, args.get(0, java.lang.Long::class.java))
     assertEquals(1L, args.get(1, java.lang.Long::class.java))
   }
 
   @Test
-  @DisplayName("Should report no arguments when the supervisor sent no bindings")
-  fun shouldReportNoArguments() {
-    val (args, _) = argsWith(null)
-
-    assertEquals(0, args.size())
+  @DisplayName("Should open a task declaring no data parameters when the supervisor sent no bindings")
+  fun shouldAcceptNoArguments() {
+    assertDoesNotThrow { argsWith(null) }
   }
 
   @Test
@@ -126,25 +125,52 @@ internal class TaskArgsTest {
   }
 
   @Test
+  @DisplayName("Should fail when an element index points past the end of a list XCom")
+  fun shouldRejectElementIndexOutOfBounds() {
+    val (args, _) =
+      argsWith(
+        listOf(mapOf("kind" to "xcom", "name" to "x", "task_id" to "upstream", "element_index" to 3L)),
+        xcoms = mapOf("upstream" to listOf("a", "b")),
+      )
+
+    val error = assertThrows(IllegalStateException::class.java) { args.get(0, String::class.java) }
+
+    assertEquals(
+      "Argument 'x' binds element 3 of task 'upstream', but its XCom holds only 2 element(s)",
+      error.message,
+    )
+  }
+
+  @Test
+  @DisplayName("Should pass null through an element index when the upstream pushed nothing")
+  fun shouldPassNullThroughElementIndex() {
+    val (args, _) =
+      argsWith(
+        listOf(mapOf("kind" to "xcom", "name" to "x", "task_id" to "upstream", "element_index" to 1L)),
+      )
+
+    assertNull(args.get(0, String::class.java))
+  }
+
+  @Test
   @DisplayName("Should fail on an unsupported binding kind")
   fun shouldRejectUnknownBindingKind() {
-    val (args, _) = argsWith(listOf(mapOf("kind" to "mystery", "name" to "x")))
-
-    assertThrows(IllegalStateException::class.java) { args.get(0, String::class.java) }
+    assertThrows(IllegalStateException::class.java) {
+      argsWith(listOf(mapOf("kind" to "mystery", "name" to "x")))
+    }
   }
 
   @Test
   @DisplayName("Should fail on duplicate binding names")
   fun shouldRejectDuplicateBindingNames() {
-    val (args, _) =
+    assertThrows(IllegalStateException::class.java) {
       argsWith(
         listOf(
           mapOf("kind" to "literal", "name" to "x", "value" to 1L),
           mapOf("kind" to "literal", "name" to "x", "value" to 2L),
         ),
       )
-
-    assertThrows(IllegalStateException::class.java) { args.get(0, String::class.java) }
+    }
   }
 
   @Test
@@ -182,14 +208,35 @@ internal class TaskArgsTest {
   }
 
   @Test
-  @DisplayName("Should fail fast when the stub call bound fewer arguments than declared")
-  fun shouldFailOnArityMismatch() {
-    val (args, _) = argsWith(listOf(mapOf("kind" to "literal", "name" to "only", "value" to 1L)))
-
-    val error = assertThrows(IllegalStateException::class.java) { args.get(1, Integer::class.java) }
+  @DisplayName("Should fail fast when the stub call bound fewer arguments than the task declares")
+  fun shouldFailWhenFewerArgumentsBoundThanDeclared() {
+    val error =
+      assertThrows(IllegalStateException::class.java) {
+        argsWith(listOf(mapOf("kind" to "literal", "name" to "only", "value" to 1L)), declared = 2)
+      }
 
     assertEquals(
-      "Task 't' declares a data parameter at position 1 but the stub call bound only 1 argument(s)",
+      "Task 't' declares 2 data parameter(s) but the stub call bound 1 argument(s)",
+      error.message,
+    )
+  }
+
+  @Test
+  @DisplayName("Should fail fast when the stub call bound more arguments than the task declares")
+  fun shouldFailWhenMoreArgumentsBoundThanDeclared() {
+    val error =
+      assertThrows(IllegalStateException::class.java) {
+        argsWith(
+          listOf(
+            mapOf("kind" to "literal", "name" to "kept", "value" to 1L),
+            mapOf("kind" to "literal", "name" to "dropped", "value" to 2L),
+          ),
+          declared = 1,
+        )
+      }
+
+    assertEquals(
+      "Task 't' declares 1 data parameter(s) but the stub call bound 2 argument(s)",
       error.message,
     )
   }

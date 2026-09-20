@@ -159,27 +159,35 @@ class BuilderProcessor : AbstractProcessor() {
           when {
             isType(type, CLIENT_TYPE) -> "client"
             isType(type, CONTEXT_TYPE) -> "context"
-            else -> dataByName.getValue(param.simpleName.toString()).name
+            else -> dataByName.getValue(param.simpleName.toString()).local
           }
         }
       }
 
-    val argsLocal = generateSequence("args") { "${it}_" }.first { name -> dataParams.none { it.name == name } }
-    if (dataParams.any { !it.isTaskInput }) {
-      executeSpec.addStatement($$"$T $L = $T.of(context, client)", TASK_ARGS_TYPE, argsLocal, TASK_ARGS_TYPE)
+    val taken = dataParams.mapTo(mutableSetOf()) { it.local }
+    val argsLocal = generateSequence("args") { "${it}_" }.first { it !in taken }
+    val flatParams = dataParams.filterNot { it.isTaskInput }
+    if (flatParams.isNotEmpty()) {
+      executeSpec.addStatement(
+        $$"$T $L = $T.of(context, client, $L)",
+        TASK_ARGS_TYPE,
+        argsLocal,
+        TASK_ARGS_TYPE,
+        flatParams.size,
+      )
     }
     dataParams.forEach { param ->
       val paramType = TypeName.get(param.type)
       if (param.isTaskInput) {
         executeSpec.addStatement(
-          $$"$T $L = $T.bindInput(context, client, $T.class)",
+          $$"$T $L = $T.bindInput(client, $T.class)",
           paramType,
-          param.name,
+          param.local,
           ARG_VALUES_TYPE,
           paramType,
         )
       } else {
-        executeSpec.addStatement($$"$T $L = $L", paramType, param.name, positionalAccess(argsLocal, param))
+        executeSpec.addStatement($$"$T $L = $L", paramType, param.local, positionalAccess(argsLocal, param))
       }
     }
 
@@ -209,16 +217,25 @@ class BuilderProcessor : AbstractProcessor() {
    * not inject — in declaration order. A parameter's index in the returned
    * list is the position it binds at: Java parameter names are not API, so
    * renaming one must never rebind an input.
+   *
+   * Each gets the local the generated body reads it into, which is its own
+   * name unless that is one the body already uses: `execute`'s injected
+   * `context` and `client` are in scope for the whole method, so a data
+   * parameter sharing a name with one binds through a suffixed local instead.
    */
   private fun collectDataParams(method: ExecutableElement): List<DataParam> {
     val params = mutableListOf<DataParam>()
+    val taken = mutableSetOf("context", "client")
     with(processingEnv) {
       for (param in method.parameters) {
         val type = param.asType()
         if (isType(type, CLIENT_TYPE) || isType(type, CONTEXT_TYPE)) continue
         val declaresTaskInput = isTaskInput(type)
         if (declaresTaskInput) validateTaskInput(method, param)
-        params += DataParam(type, param.simpleName.toString(), params.size, declaresTaskInput)
+        val name = param.simpleName.toString()
+        val local = generateSequence(name) { "${it}_" }.first { it !in taken }
+        taken += local
+        params += DataParam(type, name, local, params.size, declaresTaskInput)
       }
     }
     val inputs = params.filter { it.isTaskInput }
@@ -264,33 +281,50 @@ class BuilderProcessor : AbstractProcessor() {
       "TaskInput class ${inputType.simpleName} needs a public no-argument constructor"
     }
     val claimed = mutableMapOf<String, String>()
-    inputType.enclosedElements
-      .filterIsInstance<VariableElement>()
-      .filter { it.kind == ElementKind.FIELD && Modifier.STATIC !in it.modifiers }
-      .forEach { field ->
-        require(Modifier.PUBLIC in field.modifiers && Modifier.FINAL !in field.modifiers) {
-          "TaskInput field ${inputType.simpleName}.${field.simpleName} must be public and non-final " +
-            "so the SDK can assign its binding"
-        }
-        val argName = field.getAnnotation(ArgName::class.java)?.value ?: field.simpleName.toString()
-        val previous = claimed.put(foldArgName(argName), field.simpleName.toString())
-        require(previous == null) {
-          "TaskInput fields ${inputType.simpleName}.$previous and ${inputType.simpleName}.${field.simpleName} " +
-            "claim argument names that differ only in case or underscores, which the fold cannot tell " +
-            "apart; rename one of them"
-        }
+    instanceFields(inputType).forEach { field ->
+      require(Modifier.PUBLIC in field.modifiers && Modifier.FINAL !in field.modifiers) {
+        "TaskInput field ${inputType.simpleName}.${field.simpleName} must be public and non-final " +
+          "so the SDK can assign its binding"
       }
+      val argName = field.getAnnotation(ArgName::class.java)?.value ?: field.simpleName.toString()
+      val previous = claimed.put(foldArgName(argName), field.simpleName.toString())
+      require(previous == null) {
+        "TaskInput fields ${inputType.simpleName}.$previous and ${inputType.simpleName}.${field.simpleName} " +
+          "claim argument names that differ only in case or underscores, which the fold cannot tell " +
+          "apart; rename one of them"
+      }
+    }
+  }
+
+  /**
+   * Every instance field [ArgValues.bindInput] will reach, subclass first —
+   * the same walk up the superclass chain the runtime makes. Declared members
+   * alone would miss an inherited field, and a private one would then surface
+   * mid-run as the very failure the build-time check exists to prevent.
+   */
+  private fun ProcessingEnvironment.instanceFields(inputType: TypeElement): List<VariableElement> {
+    val fields = mutableListOf<VariableElement>()
+    var current: TypeElement? = inputType
+    while (current != null && !current.qualifiedName.contentEquals("java.lang.Object")) {
+      fields +=
+        current.enclosedElements
+          .filterIsInstance<VariableElement>()
+          .filter { it.kind == ElementKind.FIELD && Modifier.STATIC !in it.modifiers }
+      current = typeUtils.asElement(current.superclass) as? TypeElement
+    }
+    return fields
   }
 }
 
 /**
- * One data parameter of a task method, positioned among its peers.
- * [isTaskInput] marks a [TaskInput] parameter, which binds by field name
- * instead.
+ * One data parameter of a task method, positioned among its peers, read into
+ * [local] by the generated body. [isTaskInput] marks a [TaskInput] parameter,
+ * which binds by field name instead.
  */
 private class DataParam(
   val type: TypeMirror,
   val name: String,
+  val local: String,
   val position: Int,
   val isTaskInput: Boolean,
 )

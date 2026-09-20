@@ -23,10 +23,12 @@ import org.apache.airflow.sdk.ArgName
 import org.apache.airflow.sdk.InputTask
 import org.apache.airflow.sdk.Task
 import org.apache.airflow.sdk.TaskInput
+import java.lang.reflect.Constructor
 import java.lang.reflect.Field
 import java.lang.reflect.Modifier
 import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Type
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Resolves the [TaskInput] type argument that [taskClass] bound to
@@ -64,11 +66,20 @@ internal fun validateTaskInput(definition: Class<out Task>) {
  * Every field of a [TaskInput] that binds an argument: each public non-final
  * instance field, its own and inherited.
  *
+ * Memoized, since the answer is fixed by the class: a worker binds the same
+ * input once per task instance it runs, and reflecting over the whole
+ * hierarchy each time buys nothing.
+ *
  * @throws IllegalArgumentException if any instance field cannot be assigned,
  *    which would leave an argument silently unbound, or if two fields claim
  *    argument names that [foldArgName] cannot tell apart.
  */
-internal fun bindableFields(inputType: Class<*>): List<Field> {
+internal fun bindableFields(inputType: Class<*>): List<Field> =
+  bindableFieldsByType.computeIfAbsent(inputType) { collectBindableFields(it) }
+
+private val bindableFieldsByType = ConcurrentHashMap<Class<*>, List<Field>>()
+
+private fun collectBindableFields(inputType: Class<*>): List<Field> {
   val fields = mutableListOf<Field>()
   var current: Class<*>? = inputType
   while (current != null && current != Any::class.java) {
@@ -79,6 +90,9 @@ internal fun bindableFields(inputType: Class<*>): List<Field> {
           "TaskInput field ${inputType.simpleName}.${field.name} must be public and non-final " +
             "so the SDK can assign its binding"
         }
+        // The declaring class may be package-private even though the field is
+        // public, which reflection from the SDK needs opening.
+        field.isAccessible = true
         fields += field
       }
     current = current.superclass
@@ -121,19 +135,22 @@ private fun requireDistinctArgNames(
 }
 
 /** Instantiates a [TaskInput] for the SDK to populate. */
-internal fun <I : TaskInput> newInput(inputType: Class<I>): I {
-  requirePublicNoArgConstructor(inputType)
-  // The class may be package-private even though its constructor and fields
-  // are public, which reflection from the SDK needs opening.
-  return inputType.getDeclaredConstructor().also { it.isAccessible = true }.newInstance()
-}
+@Suppress("UNCHECKED_CAST")
+internal fun <I : TaskInput> newInput(inputType: Class<I>): I = requirePublicNoArgConstructor(inputType).newInstance() as I
 
-private fun requirePublicNoArgConstructor(inputType: Class<*>) {
-  val constructor = inputType.declaredConstructors.firstOrNull { it.parameterCount == 0 }
-  require(constructor != null && Modifier.isPublic(constructor.modifiers)) {
-    "TaskInput class ${inputType.simpleName} needs a public no-argument constructor"
+/** Memoized alongside [bindableFields], and for the same reason. */
+private val constructorsByType = ConcurrentHashMap<Class<*>, Constructor<*>>()
+
+private fun requirePublicNoArgConstructor(inputType: Class<*>): Constructor<*> =
+  constructorsByType.computeIfAbsent(inputType) {
+    val constructor = it.declaredConstructors.firstOrNull { c -> c.parameterCount == 0 }
+    require(constructor != null && Modifier.isPublic(constructor.modifiers)) {
+      "TaskInput class ${it.simpleName} needs a public no-argument constructor"
+    }
+    // The class may be package-private even though its constructor is public,
+    // which reflection from the SDK needs opening.
+    constructor.also { c -> c.isAccessible = true }
   }
-}
 
 /**
  * Walks [type]'s supertypes for the [InputTask] type argument. A type variable

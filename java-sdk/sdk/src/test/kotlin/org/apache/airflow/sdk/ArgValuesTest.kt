@@ -55,7 +55,7 @@ private fun bind(
   xcoms: Map<String, Any?> = emptyMap(),
 ): ScoreInput {
   val (client, _) = clientWith(bindings, xcoms)
-  return ArgValues.bindInput(taskContext(), client, ScoreInput::class.java)
+  return ArgValues.bindInput(client, ScoreInput::class.java)
 }
 
 class FoldedInput : TaskInput {
@@ -83,7 +83,7 @@ private class CollidingInputTask : InputTask<CollidingInput> {
 
 private fun bindFolded(bindings: List<Map<String, Any?>>): FoldedInput {
   val (client, _) = clientWith(bindings)
-  return ArgValues.bindInput(taskContext(), client, FoldedInput::class.java)
+  return ArgValues.bindInput(client, FoldedInput::class.java)
 }
 
 internal class ArgValuesTest {

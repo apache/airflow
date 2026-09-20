@@ -192,17 +192,27 @@ class Client internal constructor(
       is ArgBinding.Literal -> binding.value
       is ArgBinding.XCom -> {
         val value = getXCom(taskId = binding.taskId, mapIndex = binding.mapIndex.takeIf { it >= 0 })
-        when {
-          binding.elementIndex == null -> value
-          value is List<*> -> value[binding.elementIndex]
-          else ->
-            error(
-              "Argument '${binding.name}' binds element ${binding.elementIndex} of task '${binding.taskId}', " +
-                "but its XCom is not a list",
-            )
-        }
+        binding.elementIndex?.let { elementOf(value, it, binding) } ?: value
       }
     }
+
+  /**
+   * Reads the element a binding indexes out of an upstream's list XCom. An
+   * upstream that pushed nothing resolves to null like any other unpushed
+   * binding, so whether a parameter can be null stays the parameter's own
+   * question rather than the call site's.
+   */
+  private fun elementOf(
+    value: Any?,
+    index: Int,
+    binding: ArgBinding.XCom,
+  ): Any? {
+    if (value == null) return null
+    val bound = "Argument '${binding.name}' binds element $index of task '${binding.taskId}'"
+    check(value is List<*>) { "$bound, but its XCom is not a list" }
+    check(index in value.indices) { "$bound, but its XCom holds only ${value.size} element(s)" }
+    return value[index]
+  }
 }
 
 /**

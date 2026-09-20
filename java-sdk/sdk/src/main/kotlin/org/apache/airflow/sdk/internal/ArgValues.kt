@@ -24,7 +24,6 @@ package org.apache.airflow.sdk.internal
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.json.JsonMapper
 import org.apache.airflow.sdk.Client
-import org.apache.airflow.sdk.Context
 import org.apache.airflow.sdk.MissingXComException
 import org.apache.airflow.sdk.TaskInput
 import org.apache.airflow.sdk.execution.ArgBinding
@@ -61,41 +60,30 @@ object ArgValues {
    */
   @JvmStatic
   fun <I : TaskInput> bindInput(
-    context: Context,
     client: Client,
     type: Class<I>,
   ): I {
     val input = newInput(type)
     val arguments = ArgIndex(client.argBindings)
-    bindableFields(type).forEach { field ->
-      field.isAccessible = true
-      field.set(input, resolveField(client, arguments, field))
-    }
+    bindableFields(type).forEach { field -> field.set(input, resolveField(client, arguments, field)) }
     return input
   }
 
   /**
    * Resolves the data parameter at [position] into [type], passing null
    * through. Backs [TaskArgs]; a parameter that cannot be null goes through
-   * [TaskArgs.require], which turns null into [missing].
+   * [TaskArgs.require], which turns null into [missing]. [TaskArgs.of] has
+   * already matched the declared parameters against the bindings, so a
+   * position always names one.
    *
    * @param position Zero-based index among the task's data parameters, in
    *    declaration order.
-   * @throws IllegalStateException if the call site bound no argument there.
    */
   internal fun valueAt(
-    context: Context,
     client: Client,
     position: Int,
     type: Type,
-  ): Any? {
-    val bindings = client.argBindings
-    check(position < bindings.size) {
-      "Task '${context.ti.taskId}' declares a data parameter at position $position " +
-        "but the stub call bound only ${bindings.size} argument(s)"
-    }
-    return decode(client.resolveBinding(bindings[position]), type)
-  }
+  ): Any? = decode(client.resolveBinding(client.argBindings[position]), type)
 
   /**
    * Builds the failure for a binding that resolved to nothing where a value is
