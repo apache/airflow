@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import json
+import os
 from unittest.mock import patch
 
 import pytest
@@ -23,6 +25,7 @@ import pytest
 from airflow.providers.common.sql.config import ConnectionConfig, StorageType
 from airflow.providers.common.sql.datafusion.exceptions import ObjectStoreCreationException
 from airflow.providers.common.sql.datafusion.object_storage_provider import (
+    GCSObjectStorageProvider,
     LocalObjectStorageProvider,
     S3ObjectStorageProvider,
     get_object_storage_provider,
@@ -58,6 +61,86 @@ class TestObjectStorageProvider:
             with pytest.raises(ObjectStoreCreationException, match="Failed to create S3 object store"):
                 provider.create_object_store("s3://demo-data/path", connection_config)
 
+    @patch("airflow.providers.common.sql.datafusion.object_storage_provider.GoogleCloud")
+    def test_gcs_provider_success_with_key_path(self, mock_gcs, tmp_path):
+        key_path = tmp_path / "key.json"
+        key_path.write_text("{}")
+        provider = GCSObjectStorageProvider()
+        connection_config = ConnectionConfig(
+            conn_id="google_cloud_default",
+            credentials={"key_path": str(key_path)},
+        )
+
+        store = provider.create_object_store("gs://demo-data/path", connection_config)
+
+        mock_gcs.assert_called_once_with(bucket_name="demo-data", service_account_path=str(key_path))
+        assert store == mock_gcs.return_value
+        assert provider.get_storage_type == StorageType.GCS
+        assert provider.get_scheme() == "gs://"
+
+    @patch("airflow.providers.common.sql.datafusion.object_storage_provider.GoogleCloud")
+    def test_gcs_provider_success_with_keyfile_dict(self, mock_gcs):
+        provider = GCSObjectStorageProvider()
+        keyfile_dict = {"type": "service_account", "private_key": "fake"}
+        connection_config = ConnectionConfig(
+            conn_id="google_cloud_default",
+            credentials={"keyfile_dict": keyfile_dict},
+        )
+
+        provider.create_object_store("gs://demo-data/path", connection_config)
+
+        mock_gcs.assert_called_once()
+        temp_path = mock_gcs.call_args.kwargs["service_account_path"]
+        assert not os.path.exists(temp_path), "temp key file should be deleted after use"
+
+    @patch("airflow.providers.common.sql.datafusion.object_storage_provider.GoogleCloud")
+    def test_gcs_provider_writes_keyfile_dict_content_before_cleanup(self, mock_gcs):
+        written_content = {}
+
+        def _capture_path(*, bucket_name, service_account_path):
+            with open(service_account_path) as f:
+                written_content["data"] = json.load(f)
+
+        mock_gcs.side_effect = _capture_path
+        provider = GCSObjectStorageProvider()
+        keyfile_dict = {"type": "service_account", "private_key": "fake"}
+        connection_config = ConnectionConfig(
+            conn_id="google_cloud_default",
+            credentials={"keyfile_dict": keyfile_dict},
+        )
+
+        provider.create_object_store("gs://demo-data/path", connection_config)
+
+        assert written_content["data"] == keyfile_dict
+
+    def test_gcs_provider_failure(self):
+        provider = GCSObjectStorageProvider()
+        connection_config = ConnectionConfig(conn_id="google_cloud_default")
+
+        with patch(
+            "airflow.providers.common.sql.datafusion.object_storage_provider.GoogleCloud",
+            side_effect=Exception("Error"),
+        ):
+            with pytest.raises(ObjectStoreCreationException, match="Failed to create GCS object store"):
+                provider.create_object_store("gs://demo-data/path", connection_config)
+
+    def test_gcs_provider_missing_key_file_raises_clear_error(self):
+        """Uses the real GoogleCloud binding, not a mock, since it's the one that panics."""
+        provider = GCSObjectStorageProvider()
+        connection_config = ConnectionConfig(
+            conn_id="google_cloud_default",
+            credentials={"key_path": "/nonexistent/key.json"},
+        )
+
+        with pytest.raises(ObjectStoreCreationException, match="Failed to create GCS object store"):
+            provider.create_object_store("gs://demo-data/path", connection_config)
+
+    def test_gcs_provider_requires_connection_config(self):
+        provider = GCSObjectStorageProvider()
+
+        with pytest.raises(ValueError, match="connection_config must be provided for gcs"):
+            provider.create_object_store("gs://demo-data/path")
+
     @patch("airflow.providers.common.sql.datafusion.object_storage_provider.LocalFileSystem")
     def test_local_provider(self, mock_local):
         provider = LocalObjectStorageProvider()
@@ -68,6 +151,7 @@ class TestObjectStorageProvider:
 
     def test_get_object_storage_provider(self):
         assert isinstance(get_object_storage_provider(StorageType.S3), S3ObjectStorageProvider)
+        assert isinstance(get_object_storage_provider(StorageType.GCS), GCSObjectStorageProvider)
         assert isinstance(get_object_storage_provider(StorageType.LOCAL), LocalObjectStorageProvider)
 
         with pytest.raises(ValueError, match="Unsupported storage type"):

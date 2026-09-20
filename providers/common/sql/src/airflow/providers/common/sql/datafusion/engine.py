@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING, Any
 
 from datafusion import SessionContext
@@ -168,6 +169,26 @@ class DataFusionEngine(LoggingMixin):
                 )
                 credentials = self._remove_none_values(credentials)
                 extra_config = _fetch_extra_configs(["region", "endpoint"])
+
+            case "google_cloud_platform":
+                extra_dejson = conn.extra_dejson
+                for unsupported_field in ("key_secret_name", "credential_config_file", "impersonation_chain"):
+                    if extra_dejson.get(unsupported_field):
+                        raise ValueError(
+                            f"Connection field {unsupported_field!r} is not supported for DataFusion "
+                            "GCS access; only key_path, keyfile_dict, GOOGLE_APPLICATION_CREDENTIALS, or "
+                            "ambient credentials (gcloud ADC file / metadata server) are used."
+                        )
+                key_path = extra_dejson.get("key_path") or None
+                keyfile_dict = extra_dejson.get("keyfile_dict") or None
+                if key_path and keyfile_dict:
+                    raise ValueError(
+                        "The `keyfile_dict` and `key_path` fields are mutually exclusive. "
+                        "Please provide only one value."
+                    )
+                if not key_path and not keyfile_dict:
+                    key_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+                credentials = self._remove_none_values({"key_path": key_path, "keyfile_dict": keyfile_dict})
 
             case _:
                 raise ValueError(f"Unknown connection type {conn.conn_type}")
