@@ -919,6 +919,7 @@ jdk
 jenkins
 JenkinsRequest
 Jetson
+Jev
 Jiajie
 Jinja
 jinja
@@ -1350,6 +1351,7 @@ protobuf
 provisioner
 proxied
 proxies
+proxying
 psql
 psrp
 psycopg
