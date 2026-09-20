@@ -247,57 +247,6 @@ class GitHook(BaseHook):
             )
             self.user_name, self.auth_token, self.github_app_token_exp = self._get_github_app_token()
 
-    @contextlib.contextmanager
-    def _github_app_askpass_env(self) -> Generator[None]:
-        if not self.auth_token:
-            yield
-            return
-
-        token = shlex.quote(self.auth_token)
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=True) as askpass_script:
-            askpass_script.write(
-                "#!/bin/sh\n"
-                'case "$1" in\n'
-                "  *Username*) echo x-access-token;;\n"
-                f"  *Password*) echo {token};;\n"
-                f"  *) echo {token};;\n"
-                "esac\n"
-            )
-            askpass_script.flush()
-            os.chmod(askpass_script.name, stat.S_IRWXU)
-
-            old_askpass = os.environ.get("GIT_ASKPASS")
-            old_lc_all = os.environ.get("LC_ALL")
-            old_terminal_prompt = os.environ.get("GIT_TERMINAL_PROMPT")
-            try:
-                os.environ["GIT_ASKPASS"] = askpass_script.name
-                os.environ["GIT_TERMINAL_PROMPT"] = "0"
-                self.env["GIT_ASKPASS"] = askpass_script.name
-                self.env["LC_ALL"] = "C"
-                self.env["GIT_TERMINAL_PROMPT"] = "0"
-                yield
-            finally:
-                if old_askpass is None:
-                    self.env.pop("GIT_ASKPASS", None)
-                    os.environ.pop("GIT_ASKPASS", None)
-                else:
-                    self.env["GIT_ASKPASS"] = old_askpass
-                    os.environ["GIT_ASKPASS"] = old_askpass
-
-                if old_lc_all is None:
-                    self.env.pop("LC_ALL", None)
-                    os.environ.pop("LC_ALL", None)
-                else:
-                    self.env["LC_ALL"] = old_lc_all
-                    os.environ["LC_ALL"] = old_lc_all
-
-                if old_terminal_prompt is None:
-                    self.env.pop("GIT_TERMINAL_PROMPT", None)
-                    os.environ.pop("GIT_TERMINAL_PROMPT", None)
-                else:
-                    self.env["GIT_TERMINAL_PROMPT"] = old_terminal_prompt
-                    os.environ["GIT_TERMINAL_PROMPT"] = old_terminal_prompt
-
     def _strip_embedded_credentials(self) -> tuple[str | None, str | None]:
         """Take any ``user:password@`` out of the repo url and return what it held."""
         if not isinstance(self.repo_url, str) or not self.repo_url.startswith(("http://", "https://")):
@@ -420,7 +369,7 @@ printf 'username=%s\npassword=%s\n' "$AIRFLOW_GIT_USER" "$AIRFLOW_GIT_TOKEN"
     def configure_hook_env(self):
         if self.github_app_id is not None and self.github_installation_id is not None:
             self._ensure_github_app_token()
-            with self._github_app_askpass_env():
+            with self._token_credential_env():
                 yield
             return
 

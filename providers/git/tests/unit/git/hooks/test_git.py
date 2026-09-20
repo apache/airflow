@@ -877,6 +877,31 @@ class TestGitHook:
         assert hook.github_app_id == app_id
         assert hook.github_installation_id == installation_id
 
+    def test_github_app_token_is_scoped_to_the_repository_host(self, monkeypatch):
+        """The installation token goes through the same host-scoped helper as a connection token."""
+        from datetime import datetime, timedelta, timezone
+
+        monkeypatch.setattr(
+            "airflow.providers.git.hooks.git.GitHook._get_github_app_token",
+            lambda self: (
+                "x-access-token",
+                "ghs_installation_token",
+                datetime.now(timezone.utc) + timedelta(hours=1),
+            ),
+        )
+        with pytest.warns(AirflowProviderDeprecationWarning, match="accept-new"):
+            hook = GitHook(git_conn_id=CONN_APP_INLINE_KEY)
+
+        with hook.configure_hook_env():
+            assert hook.env["GIT_CONFIG_KEY_0"] == "credential.https://github.com.helper"
+            assert hook.env["AIRFLOW_GIT_USER"] == "x-access-token"
+            assert hook.env["AIRFLOW_GIT_TOKEN"] == "ghs_installation_token"
+            # Nothing sensitive reaches the script, and no prompt-matching remains
+            assert "ghs_installation_token" not in pathlib.Path(hook.env["GIT_CONFIG_VALUE_0"]).read_text()
+            assert "GIT_ASKPASS" not in hook.env
+
+        assert "AIRFLOW_GIT_TOKEN" not in os.environ
+
     def test_github_app_token_refresh_near_expiry(self, monkeypatch):
         """Token is refreshed when near expiry during configure_hook_env."""
         from datetime import datetime, timedelta, timezone
