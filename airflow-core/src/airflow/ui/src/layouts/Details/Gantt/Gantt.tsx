@@ -177,7 +177,7 @@ export const Gantt = ({
 
   if (usesSharedScroll) {
     return (
-      <Flex flex={1} flexDirection="column" maxW="100%" minW={0} overflow="clip" pt={0}>
+      <Flex flex={1} flexDirection="column" maxW="100%" minW={0} overflowX="clip" overflowY="visible" pt={0}>
         {timeline}
       </Flex>
     );
