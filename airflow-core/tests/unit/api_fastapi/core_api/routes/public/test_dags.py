@@ -1223,6 +1223,19 @@ class TestFavoriteDag(TestDagEndpoint):
 
         response = test_client.post(f"/dags/{DAG1_ID}/favorite")
         assert response.status_code == 409
+        assert response.json()["detail"] == "Dag is already marked as favorite"
+
+    def test_favorite_dag_existence_check_is_bounded(self, test_client):
+        """The existing-favorite existence probe must ask the DB for one row."""
+        with capture_orm_selects("dag_favorite") as statements:
+            response = test_client.post(f"/dags/{DAG1_ID}/favorite")
+
+        assert response.status_code == 204
+        assert statements, "expected the endpoint to query the dag_favorite table"
+        for sql in statements:
+            assert re.search(r"\bLIMIT 1\b", sql), (
+                f"favorite existence check is not bounded to one row: {sql}"
+            )
 
 
 class TestUnfavoriteDag(TestDagEndpoint):
@@ -1263,6 +1276,7 @@ class TestUnfavoriteDag(TestDagEndpoint):
     def test_unfavoriting_dag_that_is_not_favorite_returns_409(self, test_client):
         response = test_client.post(f"/dags/{DAG1_ID}/unfavorite")
         assert response.status_code == 409
+        assert response.json()["detail"] == "Dag is not marked as favorite"
 
     def test_unfavorite_dag_existence_check_is_bounded(self, test_client, session):
         """The existing-favorite existence probe must ask the DB for one row."""
