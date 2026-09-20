@@ -22,11 +22,17 @@ from typing import TYPE_CHECKING
 import pytest
 
 from airflow.sdk import TaskInstanceState
+from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.definitions.decorators import task
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
+
+
+class ConditionTestOperator(BaseOperator):
+    def execute(self, context: Context) -> str:
+        return "done"
 
 
 def test_skip_if(run_task):
@@ -66,6 +72,61 @@ def test_run_if(run_task):
     assert run_task.state == TaskInstanceState.SUCCESS
 
     run_task(do_not_run)
+    assert run_task.state == TaskInstanceState.SKIPPED
+
+
+def test_skip_if_with_base_operator(run_task):
+    with DAG(dag_id="test_skip_if_with_base_operator", schedule=None) as dag:
+        task.skip_if(lambda context: context["task_instance"].task_id == "do_skip")(
+            ConditionTestOperator(task_id="do_skip")
+        )
+        task.skip_if(lambda context: context["task_instance"].task_id == "do_skip")(
+            ConditionTestOperator(task_id="do_not_skip")
+        )
+
+    do_skip = dag.get_task("do_skip")
+    do_not_skip = dag.get_task("do_not_skip")
+
+    run_task(do_skip)
+    assert run_task.state == TaskInstanceState.SKIPPED
+
+    run_task(do_not_skip)
+    assert run_task.state == TaskInstanceState.SUCCESS
+
+
+def test_run_if_with_base_operator(run_task):
+    with DAG(dag_id="test_run_if_with_base_operator", schedule=None) as dag:
+        task.run_if(lambda context: context["task_instance"].task_id == "do_run")(
+            ConditionTestOperator(task_id="do_run")
+        )
+        task.run_if(lambda context: context["task_instance"].task_id == "do_run")(
+            ConditionTestOperator(task_id="do_not_run")
+        )
+
+    do_run = dag.get_task("do_run")
+    do_not_run = dag.get_task("do_not_run")
+
+    run_task(do_run)
+    assert run_task.state == TaskInstanceState.SUCCESS
+
+    run_task(do_not_run)
+    assert run_task.state == TaskInstanceState.SKIPPED
+
+
+def test_skip_if_with_base_operator_and_other_pre_execute(run_task):
+    def setup_conf(context: Context) -> None:
+        if typing.TYPE_CHECKING:
+            assert context["dag_run"].conf
+        context["dag_run"].conf = {"some_key": "some_value"}
+
+    with DAG(dag_id="test_skip_if_with_base_operator_and_other_pre_execute", schedule=None) as dag:
+        task.skip_if(lambda context: context["dag_run"].conf.get("some_key") == "some_value")(
+            ConditionTestOperator(task_id="do_skip", pre_execute=setup_conf)
+        )
+
+    t = dag.get_task("do_skip")
+    run_task(t)
+
     assert run_task.state == TaskInstanceState.SKIPPED
 
 
