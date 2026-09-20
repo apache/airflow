@@ -51,6 +51,12 @@ class DataFusionEngine(LoggingMixin):
         if not isinstance(datasource_config, DataSourceConfig):
             raise ValueError("datasource_config must be of type DataSourceConfig")
 
+        if not datasource_config.is_table_provider and datasource_config.storage_type is None:
+            raise ValueError(
+                f"DataSourceConfig for table {datasource_config.table_name!r} has no uri or format; "
+                "DataFusionEngine only registers object-store or catalog-managed sources."
+            )
+
         if not datasource_config.is_table_provider:
             if datasource_config.storage_type == StorageType.LOCAL:
                 connection_config = None

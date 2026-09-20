@@ -71,6 +71,13 @@ class TestDataFusionEngine:
         with pytest.raises(ValueError, match="datasource_config must be of type DataSourceConfig"):
             engine.register_datasource("invalid")
 
+    def test_register_datasource_rejects_plain_database_table(self):
+        engine = DataFusionEngine()
+        datasource_config = DataSourceConfig(conn_id="postgres_default", table_name="test_table")
+
+        with pytest.raises(ValueError, match="has no uri or format"):
+            engine.register_datasource(datasource_config)
+
     @pytest.mark.parametrize(
         ("storage_type", "format", "scheme"),
         [
