@@ -17,9 +17,14 @@
  * under the License.
  */
 
-import { Bundle, Dag, getClient } from "apache-airflow-ts-sdk";
+// The bundle entry point: one bundle, two Python-owned Dags.
+//
+// Both Dags in `dags/` are declared in Python with `@task.stub` tasks routed to the Node
+// coordinator, so this side only supplies the task bodies.
 
-const dag = new Dag("typescript_example");
+import { Bundle, getClient, getContext, TaskHandler } from "apache-airflow-ts-sdk";
+
+import { buildSummaryMessage, report, summarize } from "./taskflow.js";
 
 export async function buildMessage() {
   const client = getClient();
@@ -38,6 +43,20 @@ export async function buildMessage() {
   };
 }
 
+/** Records the run that last wrote it, so a later run can see it changed. */
+const LAST_RUN_VARIABLE = "typescript_example_last_run";
+/** Written and deleted within the same task, to show both write directions. */
+const SCRATCH_VARIABLE = "typescript_example_scratch";
+
+export async function writeAndDeleteVariable() {
+  const client = getClient();
+  const { runId } = getContext();
+
+  await client.setVariable(LAST_RUN_VARIABLE, runId, "Run id of the last typescript_example run");
+  await client.setVariable(SCRATCH_VARIABLE, runId);
+  await client.deleteVariable(SCRATCH_VARIABLE);
+}
+
 export async function readConnection() {
   const connection = await getClient().getConnection("typescript_example_http");
 
@@ -50,9 +69,16 @@ export async function readConnection() {
   };
 }
 
-dag.task("build_message", buildMessage);
-dag.task("read_connection", readConnection);
-
+// One register call lists everything this bundle provides.
+// `build_message` appears under both Dags: two different handlers, told apart by the dag_id each
+// is bound to and never by the task_id alone.
 const bundle = new Bundle();
-bundle.register(dag);
+bundle.register(
+  new TaskHandler("typescript_example", "build_message", buildMessage),
+  new TaskHandler("typescript_example", "read_connection", readConnection),
+  new TaskHandler("typescript_example", "write_and_delete_variable", writeAndDeleteVariable),
+  new TaskHandler("typescript_taskflow_example", "summarize", summarize),
+  new TaskHandler("typescript_taskflow_example", "report", report),
+  new TaskHandler("typescript_taskflow_example", "build_message", buildSummaryMessage),
+);
 await bundle.serve();

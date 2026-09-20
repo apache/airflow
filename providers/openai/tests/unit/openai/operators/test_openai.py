@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
 from fractions import Fraction
 from unittest import mock
@@ -24,8 +25,9 @@ from unittest.mock import Mock
 import jinja2
 import pytest
 from openai.types.batch import Batch
-from openai.types.responses import Response
+from openai.types.responses import Response, ResponseUsage
 from openai.types.responses.response import IncompleteDetails
+from openai.types.responses.response_usage import InputTokensDetails, OutputTokensDetails
 
 from airflow.providers.common.compat.sdk import DAG, BaseOperator, Context, TaskDeferred, XComArg
 from airflow.providers.openai.exceptions import OpenAIBatchJobException, OpenAITriggerEventError
@@ -85,22 +87,47 @@ def test_execute_with_invalid_input(invalid_input):
         operator.execute(context)
 
 
-def test_openai_response_operator_execute():
+def _build_execute_context(try_number: int = 1) -> Context:
+    # OpenAIResponseOperator.execute pushes to XCom through context["ti"], so a test that lets
+    # execute run to completion has to put a task instance in the context.
+    context = Context()
+    context["ti"] = Mock()
+    context["ti"].try_number = try_number
+    return context
+
+
+@pytest.mark.parametrize(
+    ("do_xcom_push", "expected_push_count"),
+    [
+        pytest.param(True, 2, id="enabled"),
+        pytest.param(False, 0, id="disabled"),
+    ],
+)
+def test_openai_response_operator_execute_xcom_push(do_xcom_push, expected_push_count):
     operator = OpenAIResponseOperator(
         task_id=TASK_ID,
         conn_id=CONN_ID,
         input_text="Write a haiku.",
         model="test_model",
+        do_xcom_push=do_xcom_push,
         response_kwargs={"instructions": "Be concise.", "previous_response_id": "resp_prev"},
     )
     mock_hook_instance = Mock(spec=OpenAIHook)
-    mock_hook_instance.create_response.return_value = Mock(
-        spec=Response, output_text="haiku text", id="resp_123", status="completed"
+    usage = ResponseUsage(
+        input_tokens=5,
+        input_tokens_details=InputTokensDetails(cached_tokens=1, cache_write_tokens=0),
+        output_tokens=7,
+        output_tokens_details=OutputTokensDetails(reasoning_tokens=2),
+        total_tokens=12,
     )
+    mock_hook_instance.create_response.return_value = _build_completed_response(usage=usage)
     operator.hook = mock_hook_instance
 
-    result = operator.execute(Context())
+    context = _build_execute_context()
+    result = operator.execute(context)
 
+    # Backward compat: the return value is still the aggregated output text, unchanged
+    # by the new XCom pushes below.
     assert result == "haiku text"
     mock_hook_instance.create_response.assert_called_once_with(
         input="Write a haiku.",
@@ -108,11 +135,167 @@ def test_openai_response_operator_execute():
         instructions="Be concise.",
         previous_response_id="resp_prev",
     )
+    # Pins the exact number of pushes so a stray extra key regresses this test instead of
+    # slipping through assert_any_call, which only checks presence, not exhaustiveness.
+    assert context["ti"].xcom_push.call_count == expected_push_count
+    if do_xcom_push:
+        context["ti"].xcom_push.assert_any_call(key="response_id", value="resp_123")
+        context["ti"].xcom_push.assert_any_call(
+            key="usage",
+            value={
+                "input_tokens": 5,
+                "input_tokens_details": {"cache_write_tokens": 0, "cached_tokens": 1},
+                "output_tokens": 7,
+                "output_tokens_details": {"reasoning_tokens": 2},
+                "total_tokens": 12,
+                "try_number": 1,
+            },
+        )
+
+
+def test_openai_response_operator_execute_records_try_number():
+    # Uses a non-default try_number so this test only passes if the "try_number" value in the
+    # pushed usage dict is actually read from context["ti"].try_number at execute time, not a
+    # value that happens to coincide with _build_execute_context()'s default of 1.
+    operator = OpenAIResponseOperator(
+        task_id=TASK_ID,
+        conn_id=CONN_ID,
+        input_text="Write a haiku.",
+        model="test_model",
+    )
+    mock_hook_instance = Mock(spec=OpenAIHook)
+    usage = ResponseUsage(
+        input_tokens=5,
+        input_tokens_details=InputTokensDetails(cached_tokens=1, cache_write_tokens=0),
+        output_tokens=7,
+        output_tokens_details=OutputTokensDetails(reasoning_tokens=2),
+        total_tokens=12,
+    )
+    mock_response = Mock(
+        spec=Response, output_text="haiku text", id="resp_123", status="completed", usage=usage
+    )
+    mock_hook_instance.create_response.return_value = mock_response
+    operator.hook = mock_hook_instance
+
+    context = _build_execute_context(try_number=3)
+    operator.execute(context)
+
+    context["ti"].xcom_push.assert_any_call(
+        key="usage",
+        value={
+            "input_tokens": 5,
+            "input_tokens_details": {"cache_write_tokens": 0, "cached_tokens": 1},
+            "output_tokens": 7,
+            "output_tokens_details": {"reasoning_tokens": 2},
+            "total_tokens": 12,
+            "try_number": 3,
+        },
+    )
+
+
+def test_openai_response_operator_execute_without_usage():
+    operator = OpenAIResponseOperator(
+        task_id=TASK_ID, conn_id=CONN_ID, input_text="Write a haiku.", model="test_model"
+    )
+    mock_hook_instance = Mock(spec=OpenAIHook)
+    mock_response = Mock(
+        spec=Response, output_text="haiku text", id="resp_123", status="completed", usage=None
+    )
+    mock_hook_instance.create_response.return_value = mock_response
+    operator.hook = mock_hook_instance
+
+    context = _build_execute_context()
+    result = operator.execute(context)
+
+    assert result == "haiku text"
+    context["ti"].xcom_push.assert_any_call(key="usage", value=None)
+
+
+@pytest.mark.parametrize(
+    ("response_kwargs", "extra_params", "expected_response_kwargs"),
+    [
+        pytest.param(
+            {"previous_response_id": "{{ params.previous_response_id }}"},
+            {"previous_response_id": "resp_prev_123"},
+            {"previous_response_id": "resp_prev_123"},
+            id="flat-string",
+        ),
+        pytest.param(
+            {"instructions": "{% raw %}{{ not_a_variable }}{% endraw %}"},
+            {},
+            {"instructions": "{{ not_a_variable }}"},
+            id="raw-escape",
+        ),
+        pytest.param(
+            {
+                "tools": [{"type": "function", "parameters": {"k": "{{ params.input_text }}"}}],
+                "max_retries": 3,
+            },
+            {},
+            {
+                "tools": [{"type": "function", "parameters": {"k": "Write a haiku."}}],
+                "max_retries": 3,
+            },
+            id="nested-tool-schema",
+        ),
+    ],
+)
+def test_openai_response_operator_templates_input_text_and_response_kwargs(
+    response_kwargs, extra_params, expected_response_kwargs
+):
+    with DAG(dag_id="test_openai_response_template_fields", schedule=None, start_date=datetime(2021, 1, 1)):
+        operator = OpenAIResponseOperator(
+            task_id=TASK_ID,
+            conn_id=CONN_ID,
+            input_text="{{ params.input_text }}",
+            response_kwargs=response_kwargs,
+        )
+
+    operator.render_template_fields({"params": {"input_text": "Write a haiku.", **extra_params}})
+
+    assert operator.input_text == "Write a haiku."
+    assert operator.response_kwargs == expected_response_kwargs
+    # The nested tool-schema case must not stringify the non-template int leaf.
+    if "max_retries" in expected_response_kwargs:
+        assert isinstance(operator.response_kwargs["max_retries"], int)
 
 
 def _build_completed_response(**overrides):
-    defaults = {"output_text": "haiku text", "id": "resp_123", "status": "completed"}
+    # execute() reads response.usage; Mock(spec=Response) does not synthesise pydantic
+    # fields, so it has to be set explicitly even when a test does not care about usage.
+    defaults = {"output_text": "haiku text", "id": "resp_123", "status": "completed", "usage": None}
     return Mock(spec=Response, **{**defaults, **overrides})
+
+
+def test_openai_response_operator_resolves_xcom_arg_nested_in_response_kwargs():
+    with DAG("test_dag", schedule=None) as dag:
+        upstream = BaseOperator(task_id="upstream")
+
+    operator = OpenAIResponseOperator(
+        task_id=TASK_ID,
+        conn_id=CONN_ID,
+        input_text="Write a haiku.",
+        response_kwargs={"previous_response_id": XComArg(upstream, key="response_id")},
+        dag=dag,
+    )
+
+    # Construction must not fail or eagerly resolve the XComArg.
+    assert isinstance(operator.response_kwargs["previous_response_id"], XComArg)
+
+    mock_ti = Mock()
+    mock_ti.xcom_pull.return_value = "resp_123"
+    operator.render_template_fields(Context(ti=mock_ti, expanded_ti_count=None))
+
+    assert operator.response_kwargs["previous_response_id"] == "resp_123"
+
+    mock_hook_instance = Mock(spec=OpenAIHook)
+    mock_hook_instance.create_response.return_value = _build_completed_response()
+    operator.hook = mock_hook_instance
+
+    operator.execute(_build_execute_context())
+
+    call_kwargs = mock_hook_instance.create_response.call_args.kwargs
+    assert call_kwargs["previous_response_id"] == "resp_123"
 
 
 class TestOpenAIResponseOperatorTokenCeilings:
@@ -140,7 +323,7 @@ class TestOpenAIResponseOperatorTokenCeilings:
         mock_hook_instance.create_response.return_value = _build_completed_response()
         operator.hook = mock_hook_instance
 
-        operator.execute(Context())
+        operator.execute(_build_execute_context())
 
         mock_hook_instance.create_response.assert_called_once_with(
             input="Write a haiku.", model="gpt-4o-mini", **expected_extra
@@ -165,7 +348,7 @@ class TestOpenAIResponseOperatorTokenCeilings:
         operator.hook = mock_hook_instance
 
         with pytest.raises(ValueError, match=param_name):
-            operator.execute(Context())
+            operator.execute(_build_execute_context())
 
         mock_hook_instance.create_response.assert_not_called()
 
@@ -249,7 +432,7 @@ class TestOpenAIResponseOperatorTokenCeilings:
         mock_hook_instance.create_response.return_value = _build_completed_response()
         operator.hook = mock_hook_instance
 
-        operator.execute(Context())
+        operator.execute(_build_execute_context())
 
         call_kwargs = mock_hook_instance.create_response.call_args.kwargs
         assert param_name not in call_kwargs
@@ -275,7 +458,7 @@ class TestOpenAIResponseOperatorTokenCeilings:
         mock_hook_instance.create_response.return_value = _build_completed_response()
         operator.hook = mock_hook_instance
 
-        operator.execute(Context())
+        operator.execute(_build_execute_context())
 
         call_kwargs = mock_hook_instance.create_response.call_args.kwargs
         for key, expected in (
@@ -312,7 +495,7 @@ class TestOpenAIResponseOperatorTokenCeilings:
         operator.hook = mock_hook_instance
 
         with pytest.raises(ValueError, match=param_name):
-            operator.execute(Context())
+            operator.execute(_build_execute_context())
 
         mock_hook_instance.create_response.assert_not_called()
 
@@ -337,7 +520,88 @@ class TestOpenAIResponseOperatorTokenCeilings:
         operator.hook = mock_hook_instance
 
         with pytest.raises(ValueError, match=param_name):
-            operator.execute(Context())
+            operator.execute(_build_execute_context())
+
+        mock_hook_instance.create_response.assert_not_called()
+
+    def test_native_response_kwargs_valid_ceiling_forwarded_as_int(self):
+        operator = OpenAIResponseOperator(
+            task_id=TASK_ID,
+            conn_id=CONN_ID,
+            input_text="Write a haiku.",
+            response_kwargs={"max_output_tokens": "500"},
+        )
+        operator.render_template_fields(Context(params={}))
+
+        mock_hook_instance = Mock(spec=OpenAIHook)
+        mock_hook_instance.create_response.return_value = _build_completed_response()
+        operator.hook = mock_hook_instance
+
+        operator.execute(_build_execute_context())
+
+        call_kwargs = mock_hook_instance.create_response.call_args.kwargs
+        assert call_kwargs["max_output_tokens"] == 500
+        assert isinstance(call_kwargs["max_output_tokens"], int)
+
+    @pytest.mark.parametrize(
+        "invalid_value",
+        [
+            pytest.param(0, id="zero"),
+            pytest.param(-1, id="negative"),
+            pytest.param(10.5, id="float"),
+            pytest.param(True, id="bool-true"),
+            pytest.param(False, id="bool-false"),
+        ],
+    )
+    @pytest.mark.parametrize("param_name", ["max_output_tokens", "max_tool_calls"])
+    def test_native_response_kwargs_invalid_literal_ceiling_raises_at_construction(
+        self, param_name, invalid_value
+    ):
+        with pytest.raises(ValueError, match=param_name):
+            OpenAIResponseOperator(
+                task_id=TASK_ID,
+                conn_id=CONN_ID,
+                input_text="Write a haiku.",
+                response_kwargs={param_name: invalid_value},
+            )
+
+    @pytest.mark.parametrize(
+        "blank_value", [pytest.param("", id="empty"), pytest.param("   ", id="whitespace")]
+    )
+    @pytest.mark.parametrize("param_name", ["max_output_tokens", "max_tool_calls"])
+    def test_native_response_kwargs_blank_ceiling_is_popped(self, param_name, blank_value):
+        operator = OpenAIResponseOperator(
+            task_id=TASK_ID,
+            conn_id=CONN_ID,
+            input_text="Write a haiku.",
+            response_kwargs={param_name: blank_value},
+        )
+        mock_hook_instance = Mock(spec=OpenAIHook)
+        mock_hook_instance.create_response.return_value = _build_completed_response()
+        operator.hook = mock_hook_instance
+
+        operator.execute(_build_execute_context())
+
+        call_kwargs = mock_hook_instance.create_response.call_args.kwargs
+        assert param_name not in call_kwargs
+
+    @pytest.mark.parametrize("param_name", ["max_output_tokens", "max_tool_calls"])
+    def test_native_response_kwargs_none_value_raises(self, param_name):
+        # Unlike the operator-argument path (a literal None argument means "not supplied" --
+        # filtered out of _supplied_ceilings by the "is not None" check in __init__), a None
+        # value that is a *present key* in response_kwargs must still raise: the dict key's
+        # existence, not the value, is what "supplied" means for the native path.
+        operator = OpenAIResponseOperator(
+            task_id=TASK_ID,
+            conn_id=CONN_ID,
+            input_text="Write a haiku.",
+            response_kwargs={param_name: None},
+        )
+        mock_hook_instance = Mock(spec=OpenAIHook)
+        operator.hook = mock_hook_instance
+
+        with pytest.raises(ValueError, match=param_name):
+            operator.execute(_build_execute_context())
 
         mock_hook_instance.create_response.assert_not_called()
 
@@ -373,7 +637,7 @@ class TestOpenAIResponseOperatorTokenCeilings:
         mock_hook_instance.create_response.return_value = _build_completed_response()
         operator.hook = mock_hook_instance
 
-        operator.execute(Context())
+        operator.execute(_build_execute_context())
 
         call_kwargs = mock_hook_instance.create_response.call_args.kwargs
         assert "max_output_tokens" not in call_kwargs
@@ -417,7 +681,7 @@ class TestOpenAIResponseOperatorTokenCeilings:
         operator.hook = mock_hook_instance
 
         with caplog.at_level("WARNING"):
-            result = operator.execute(Context())
+            result = operator.execute(_build_execute_context())
 
         assert result == output_text
         assert any(
@@ -441,7 +705,7 @@ class TestOpenAIResponseOperatorTokenCeilings:
         operator.hook = mock_hook_instance
 
         with caplog.at_level("WARNING"):
-            result = operator.execute(Context())
+            result = operator.execute(_build_execute_context())
 
         assert result == ""
         assert any("may be truncated or empty" in message for message in caplog.messages)
@@ -457,7 +721,7 @@ class TestOpenAIResponseOperatorTokenCeilings:
         operator.hook = mock_hook_instance
 
         with caplog.at_level("WARNING"):
-            operator.execute(Context())
+            operator.execute(_build_execute_context())
 
         assert any(
             "ended with status failed" in message and "may be empty" in message for message in caplog.messages

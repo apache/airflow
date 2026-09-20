@@ -17,12 +17,15 @@
  * under the License.
  */
 
-import { Bundle, Dag } from "../../../src/index.js";
+import { Bundle, Dag, TaskHandler } from "../../../src/index.js";
 
-const fixtureDag = new Dag("fixture_dag");
-fixtureDag.task("extract", async () => "extracted");
-fixtureDag.task("transform", async () => "transformed");
+// A mixed bundle: task handlers for a Python-owned Dag, plus a natively
+// declared one, so packing covers both paths into the manifest.
 const otherDag = new Dag("other_dag");
 otherDag.task("solo", async () => undefined);
 
-await new Bundle(fixtureDag, otherDag).serve();
+await new Bundle(
+  new TaskHandler("fixture_dag", "extract", async () => "extracted"),
+  new TaskHandler("fixture_dag", "transform", async () => "transformed"),
+  otherDag,
+).serve();

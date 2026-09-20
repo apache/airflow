@@ -89,8 +89,8 @@ export const taskInstanceRoutes = [
   { element: <Events />, path: TaskInstanceTab.Events },
   {
     children: [
-      { element: <TaskStateStore />, path: TaskInstanceTab.TaskStateStore },
       { element: <XCom />, path: TaskInstanceTab.XCom },
+      { element: <TaskStateStore />, path: TaskInstanceTab.TaskStateStore },
     ],
     element: <StorageLayout />,
   },

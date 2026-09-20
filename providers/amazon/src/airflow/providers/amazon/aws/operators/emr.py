@@ -1646,6 +1646,9 @@ class EmrServerlessStopApplicationOperator(AwsBaseOperator[EmrServerlessHook]):
     template_fields: Sequence[str] = aws_template_fields(
         "application_id",
     )
+    # Method the task resumes at once the application has stopped in deferrable mode.
+    # Subclasses can override it to run further steps after the stop.
+    stop_complete_method_name: str = "execute_complete"
 
     def __init__(
         self,
@@ -1710,7 +1713,7 @@ class EmrServerlessStopApplicationOperator(AwsBaseOperator[EmrServerlessHook]):
                     waiter_max_attempts=self.waiter_max_attempts,
                 ),
                 timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
-                method_name="execute_complete",
+                method_name=self.stop_complete_method_name,
             )
         if self.wait_for_completion:
             waiter = self.hook.get_waiter("serverless_app_stopped")
@@ -1740,7 +1743,7 @@ class EmrServerlessStopApplicationOperator(AwsBaseOperator[EmrServerlessHook]):
                 waiter_max_attempts=self.waiter_max_attempts,
             ),
             timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
-            method_name="execute_complete",
+            method_name=self.stop_complete_method_name,
         )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
@@ -1786,6 +1789,7 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
     template_fields: Sequence[str] = aws_template_fields(
         "application_id",
     )
+    stop_complete_method_name = "delete_stopped_application"
 
     def __init__(
         self,
@@ -1815,9 +1819,18 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
         self.wait_for_delete_completion = False if deferrable else wait_for_completion
 
     def execute(self, context: Context) -> None:
-        # super stops the app (or makes sure it's already stopped)
+        # super stops the app (or makes sure it's already stopped). In deferrable mode it defers
+        # instead of returning, and the task resumes in ``delete_stopped_application``.
         super().execute(context)
+        self._delete_application()
 
+    def delete_stopped_application(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        # super(): this class overrides execute_complete to handle the delete trigger's event,
+        # while the event here comes from the stop trigger.
+        super().execute_complete(context, event)
+        self._delete_application()
+
+    def _delete_application(self) -> None:
         self.log.info("Now deleting application: %s", self.application_id)
         response = self.hook.conn.delete_application(applicationId=self.application_id)
 

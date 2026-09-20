@@ -25,6 +25,17 @@
 Changelog
 ---------
 
+.. note::
+  Configuring ``fallback_conn_ids`` on a connection (or the matching operator/decorator
+  argument) changes what exception a task raises once every connection in the chain fails:
+  it is ``pydantic_ai.exceptions.FallbackExceptionGroup``, not the last provider's own
+  exception. An existing ``RetryRule(exception=ModelHTTPError, ...)`` -- in
+  ``LLMRetryPolicy.fallback_rules`` or a plain ``ExceptionRetryPolicy`` -- stops matching
+  as soon as the connection gains a fallback chain, with no change to the Dag needed to
+  trigger it. Match ``pydantic_ai.exceptions.FallbackExceptionGroup`` explicitly as well,
+  or inspect its ``.exceptions`` attribute for the original per-model errors. See
+  :doc:`retry_policies`, "When the connection also carries a fallback chain".
+
 0.9.0
 .....
 

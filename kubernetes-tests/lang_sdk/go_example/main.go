@@ -24,13 +24,12 @@ package main
 
 import (
 	"log"
-	"log/slog"
 	"runtime"
 	"time"
 
+	"github.com/apache/airflow/go-sdk/airflow"
 	v1 "github.com/apache/airflow/go-sdk/bundle/bundlev1"
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1/bundlev1server"
-	"github.com/apache/airflow/go-sdk/sdk"
 )
 
 // Must match the dag_id of the Python stub Dag and the Java bundle.
@@ -57,8 +56,8 @@ func main() {
 
 // goExtract returns a map pushed as the task's XCom, mirroring the reference
 // example's extract task so the Python downstream can read it.
-func goExtract(ctx sdk.TIRunContext, log *slog.Logger) (any, error) {
-	log.InfoContext(ctx, "go_extract running")
+func goExtract(actx airflow.Context) (any, error) {
+	actx.Logger().InfoContext(actx, "go_extract running")
 	return map[string]any{
 		"go_version": runtime.Version(),
 		"timestamp":  time.Now().UnixNano(),
@@ -67,11 +66,11 @@ func goExtract(ctx sdk.TIRunContext, log *slog.Logger) (any, error) {
 
 // goTransform reads the my_variable Airflow variable through the coordinator,
 // exercising a GetVariable round-trip over the Execution API.
-func goTransform(ctx sdk.TIRunContext, client sdk.VariableClient, log *slog.Logger) error {
-	val, err := client.GetVariable(ctx, "my_variable")
+func goTransform(actx airflow.Context) error {
+	val, err := actx.Client().GetVariable(actx, "my_variable")
 	if err != nil {
 		return err
 	}
-	log.InfoContext(ctx, "go_transform obtained variable", "my_variable", val)
+	actx.Logger().InfoContext(actx, "go_transform obtained variable", "my_variable", val)
 	return nil
 }

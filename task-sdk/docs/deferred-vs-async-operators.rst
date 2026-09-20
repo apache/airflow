@@ -65,7 +65,7 @@ When to Use Deferred Operators
 Prefer a deferred operator when:
 
 - There is an existing deferrable operator that covers your use case (e.g., HttpOperator deferrable mode).
-- The task waits for a single or limited external events.
+- The task waits for a single external event or a limited number of events.
 - You want to free worker resources while waiting for triggers.
 - You don't need to loop over the same operator multiple times (e.g. multiplexing).
 

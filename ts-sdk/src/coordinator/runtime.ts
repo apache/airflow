@@ -23,10 +23,10 @@
 //
 //     node my-bundle.mjs --comm=host:port --logs=host:port
 //
-// where `my-bundle.mjs` is a user-bundled Node script that imports
-// the SDK, creates `Dag` objects, attaches a handler per task with
-// `dag.task(...)`, registers them on a `Bundle`, then awaits `bundle.serve()`.
-// Each handler runs inside a task scope, which is what `getContext()` and
+// where `my-bundle.mjs` is a user-bundled Node script that imports the SDK,
+// registers what it provides on a `Bundle` (a `TaskHandler` per Python-owned
+// task, a `Dag` per natively declared one), then awaits `bundle.serve()`. Each
+// handler runs inside a task scope, which is what `getContext()` and
 // `getClient()` read.
 //
 // Lifecycle:
@@ -36,6 +36,7 @@
 //        - DagFileParseRequest → respond with DagFileParsingResult, exit
 //        - StartupDetails      → run task, respond Succeed or Fail, exit
 //
+import { resolveArgs, type BoundArgs } from "./arg-binding.js";
 import { createCoordinatorClient } from "./client.js";
 import { CommChannel } from "./comm-channel.js";
 import { LogChannel } from "./log-channel.js";
@@ -53,6 +54,7 @@ import {
   type RuntimeTaskState,
   type StartupDetails,
 } from "./protocol.js";
+import { getArgNames } from "../sdk/arg-names.js";
 import { listBundleTasks, type Bundle } from "../sdk/bundle.js";
 import { runInTaskScope, type TaskContext } from "../sdk/task.js";
 import type { JsonValue } from "../sdk/client-types.js";
@@ -307,15 +309,33 @@ async function handleTask(
 
   const ctx = buildContext(details, signal);
   const client = createCoordinatorClient(comm, ctx, clientLogs);
+
+  let bound: BoundArgs;
+  try {
+    bound = await resolveArgs(details.ti_context?.arg_bindings, {
+      client,
+      signal: ctx.signal,
+      logs,
+      argNames: getArgNames(handler),
+    });
+  } catch (err) {
+    // Before the handler ran, so nothing it might have written is at stake.
+    const message = (err as Error).message ?? String(err);
+    logs.error("Cannot bind this task's call arguments", {
+      task_id: ctx.taskId,
+      error: message,
+    });
+    return buildFailureResponse(details, message);
+  }
   // Startup-details fields already logged above (`Received task
   // startup details`); this line just marks the handler-call boundary.
-  logs.debug("Dispatching to handler", { task_id: ctx.taskId });
+  logs.debug("Dispatching to handler", { task_id: ctx.taskId, bound_args: bound.names });
 
   try {
     // The scope is installed around the call, not awaited inside it: the store
     // follows the handler across every `await` it makes, so `getContext()` and
     // `getClient()` work at any depth without the handler being handed either.
-    const result = await runInTaskScope({ ctx, client }, () => handler());
+    const result = await runInTaskScope({ ctx, client }, () => handler(bound.args as never));
     if (result !== undefined) {
       await client.setXCom({ key: "return_value", value: result as JsonValue });
     }
@@ -335,6 +355,10 @@ async function handleTask(
       task_id: ctx.taskId,
       error: message,
       stack: (err as Error).stack ?? null,
+      // A handler that destructured a bound argument under a name nothing
+      // folds to gets no error of its own, so a failing task says what its
+      // call actually delivered.
+      bound_args: bound.names,
     });
     return buildFailureResponse(details, message);
   }
