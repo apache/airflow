@@ -82,22 +82,4 @@ URI form:
 
     export AIRFLOW_CONN_MODAL_DEFAULT='modal://ak-...:as-...@?environment=main'
 
-Using the hook from a task:
-
-.. code-block:: python
-
-    import modal
-
-    from airflow.providers.modal.hooks.modal import ModalHook
-
-    hook = ModalHook(modal_conn_id="modal_default")
-    app = hook.lookup_app("airflow-tasks", create_if_missing=True)
-    sandbox = modal.Sandbox.create(
-        "python",
-        "-c",
-        "print('hello from Modal')",
-        app=app,
-        image=modal.Image.debian_slim(),
-        **hook.client_kwargs,
-    )
-    sandbox.wait()
+For invoking deployed functions and running sandboxes through the hook, see :doc:`usage`.
