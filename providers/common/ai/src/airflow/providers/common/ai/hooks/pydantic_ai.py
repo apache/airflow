@@ -142,10 +142,6 @@ class PydanticAIHook(BaseHook):
         Overrides the model stored in the connection's extra field. Whichever of
         the two configures the primary's model is forwarded (only while still
         bare) down the fallback chain -- see :meth:`_resolve_fallback_models`.
-    :param embed_conn_id: Optional separate Airflow connection ID for the embedding provider.
-        Falls back to ``llm_conn_id`` when not provided.
-    :param embed_model_id: Embedding model identifier in ``provider:model`` format.
-        Overrides the embedding model stored in the connection's extra field.
     :param fallback_conn_ids: Connection IDs to fail over to, in order, when the
         primary provider is unavailable.  Overrides the ``fallback_conn_ids``
         list stored in the connection's extra field; pass an empty list to
@@ -155,6 +151,10 @@ class PydanticAIHook(BaseHook):
         ``[]``.  Each entry may point at any ``pydanticai*`` connection type, so
         the chain can span providers (for example OpenAI, then Bedrock).  See
         :meth:`get_conn` for the failover semantics and their cost.
+    :param embed_conn_id: Optional separate Airflow connection ID for the embedding provider.
+        Falls back to ``llm_conn_id`` when not provided.
+    :param embed_model_id: Embedding model identifier in ``provider:model`` format.
+        Overrides the embedding model stored in the connection's extra field.
     """
 
     conn_name_attr = "llm_conn_id"
@@ -171,8 +171,8 @@ class PydanticAIHook(BaseHook):
         model_id: str | None = None,
         fallback_conn_ids: list[str] | None = None,
         *,
-        embed_model_id: str | None = None,
         embed_conn_id: str | None = None,
+        embed_model_id: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -189,8 +189,6 @@ class PydanticAIHook(BaseHook):
         self.fallback_conn_ids = fallback_conn_ids
         self._model: Model | None = None
         self._embedder: Embedder | None = None
-        self._conn: Connection | None = None
-        self._conn_extra_dejson: dict[str, Any] = {}
         self._embedder_kwargs: dict[str, Any] | None = None
         self._connections: dict[str, Connection] = {}
         self._connection_extra_dejson: dict[str, dict[str, Any]] = {}
@@ -240,23 +238,14 @@ class PydanticAIHook(BaseHook):
             kwargs["base_url"] = base_url
         return kwargs
 
-    def _get_conn_and_extra(self) -> tuple[Connection, dict[str, Any]]:
+    def _get_conn_and_extra(self, conn_id) -> tuple[Connection, dict[str, Any]]:
         """Return this hook's connection and its deserialized extra, fetching at most once."""
-        if self._conn is None:
-            self._conn = self._get_cached_connection(self.llm_conn_id)
-            self._conn_extra_dejson = self._get_cached_connection_extra_dejson(self.llm_conn_id)
-        return self._conn, self._conn_extra_dejson
-
-    def _get_cached_connection(self, conn_id: str) -> Connection:
         if conn_id not in self._connections:
-            self._connections[conn_id] = self.get_connection(conn_id)
-        return self._connections[conn_id]
-
-    def _get_cached_connection_extra_dejson(self, conn_id: str) -> dict[str, Any]:
-        if conn_id not in self._connection_extra_dejson:
-            conn = self._get_cached_connection(conn_id)
-            self._connection_extra_dejson[conn_id] = conn.extra_dejson
-        return self._connection_extra_dejson[conn_id]
+            conn = self.get_connection(conn_id)
+            extra = conn.extra_dejson
+            self._connections[conn_id] = conn
+            self._connection_extra_dejson[conn_id] = extra
+        return self._connections[conn_id], self._connection_extra_dejson[conn_id]
 
     def _seed_connection(self, conn: Connection) -> None:
         """
@@ -268,24 +257,19 @@ class PydanticAIHook(BaseHook):
         would fetch that same connection a second time the first time it runs, doubling the
         Execution API round trips a fallback chain costs.
         """
-        self._conn = conn
-        self._conn_extra_dejson = conn.extra_dejson
         self._connections[conn.conn_id] = conn
         self._connection_extra_dejson[conn.conn_id] = conn.extra_dejson
-
-    def _warn_if_vertexai_field_ignored(self, extra: dict[str, Any]) -> None:
-        if extra.get("vertexai") is not None:
-            self.log.warning(
-                "The 'vertexai' connection field is ignored; Vertex AI vs. Generative Language "
-                "API mode is now selected via the model prefix ('google-cloud:' vs. 'google:')."
-            )
 
     def _get_provider_kwargs_for_model(
         self, conn: Connection, model_name: str, extra: dict[str, Any]
     ) -> dict[str, Any]:
         provider_name, _ = parse_model_id(model_name)
         provider_config = _PROVIDER_CONNECTION_CONFIGS.get(provider_name)
-        self._warn_if_vertexai_field_ignored(extra)
+        if extra.get("vertexai") is not None:
+            self.log.warning(
+                "The 'vertexai' connection field is ignored; Vertex AI vs. Generative Language "
+                "API mode is now selected via the model prefix ('google-cloud:' vs. 'google:')."
+            )
         if provider_config is None:
             return PydanticAIHook._get_provider_kwargs(conn.password, conn.host, extra)
         if provider_config.replacement_fields:
@@ -470,7 +454,7 @@ class PydanticAIHook(BaseHook):
         """Return the model name this connection configures, hook argument winning over the extra."""
         if self.model_id:
             return self.model_id
-        _, extra = self._get_conn_and_extra()
+        _, extra = self._get_conn_and_extra(self.llm_conn_id)
         return extra.get("model")
 
     def _resolve_own_model(
@@ -496,7 +480,7 @@ class PydanticAIHook(BaseHook):
         :param forwarded_model_provider: The primary connection's :attr:`model_provider`;
             see *forwarded_model_id* above for how it gates forwarding.
         """
-        conn, extra = self._get_conn_and_extra()
+        conn, extra = self._get_conn_and_extra(self.llm_conn_id)
 
         model_name: str | KnownModelName | None = self._get_configured_model_name()
         forwarded = False
@@ -535,7 +519,7 @@ class PydanticAIHook(BaseHook):
         if self.fallback_conn_ids is not None:
             raw: Any = self.fallback_conn_ids
         else:
-            _, extra = self._get_conn_and_extra()
+            _, extra = self._get_conn_and_extra(self.llm_conn_id)
             raw = extra.get(FALLBACK_CONN_IDS_EXTRA_KEY)
             if raw is None:
                 raw = []
@@ -632,8 +616,7 @@ class PydanticAIHook(BaseHook):
         if self._embedder is not None and embedder_kwargs == self._embedder_kwargs:
             return self._embedder
 
-        conn = self._get_cached_connection(self.embed_conn_id)
-        extra = self._get_cached_connection_extra_dejson(self.embed_conn_id)
+        conn, extra = self._get_conn_and_extra(self.embed_conn_id)
 
         embed_model_name: str = self.embed_model_id or extra.get("embed_model", "")
         if not embed_model_name:
@@ -666,7 +649,7 @@ class PydanticAIHook(BaseHook):
             return self.get_conn()
 
         try:
-            extra = self._get_cached_connection_extra_dejson(self.llm_conn_id)
+            _, extra = self._get_conn_and_extra(self.llm_conn_id)
         except AirflowNotFoundException:
             if self.llm_conn_id == self.default_conn_name and self.embed_conn_id != self.llm_conn_id:
                 return None
@@ -688,7 +671,8 @@ class PydanticAIHook(BaseHook):
         if self.embed_model_id:
             return self.get_embedder()
 
-        if self._get_cached_connection_extra_dejson(self.embed_conn_id).get("embed_model"):
+        _, extra = self._get_conn_and_extra(self.embed_conn_id)
+        if extra.get("embed_model"):
             return self.get_embedder()
 
         return None
@@ -788,12 +772,10 @@ class PydanticAIHook(BaseHook):
         """
         Test connection by resolving the configured model.
 
-        A success here can come from this connection's own credentials, or -- when a
-        provider class rejects them with a ``TypeError`` -- from a silent retry against
-        the standard environment variables, which ignores those credentials entirely.
-        See :doc:`/provider_fallback`'s *Verifying a chain* section for how to tell the
-        two apart. Does NOT make an LLM API call — that would be expensive and fail for
-        reasons unrelated to connectivity (quotas, billing, rate limits).
+        When a provider rejects the fields mapped from a connection, resolution fails
+        with a ``TypeError`` that identifies the provider, connection, supplied keyword
+        arguments, and original error. The hook does not discard explicit connection
+        fields and retry with environment-variable credentials.
 
         Every connection in ``fallback_conn_ids`` is resolved too, so a
         misconfigured fallback is reported here rather than discovered during
