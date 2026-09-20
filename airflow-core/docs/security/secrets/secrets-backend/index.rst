@@ -161,6 +161,70 @@ section of ``airflow.cfg``.
 Additional arguments to your SecretsBackend can be configured in ``airflow.cfg`` by supplying a JSON string to ``backend_kwargs``, which will be passed to the ``__init__`` of your SecretsBackend.
 See :ref:`Configuration <secrets_backend_configuration>` for more details, and :ref:`SSM Parameter Store <ssm_parameter_store_secrets>` for an example.
 
+Async server-side reads
+^^^^^^^^^^^^^^^^^^^^^^^
+
+The Execution API awaits ``airflow.secrets.async_resolution.resolve_variable`` and
+``airflow.secrets.async_resolution.resolve_connection`` when it serves Variable and Connection
+values. These functions use the same configured backend chain and search order described above;
+there is no separate async backend configuration.
+
+An existing backend does not need to change. Airflow runs its synchronous ``get_variable`` and
+``get_connection`` methods in a bounded worker thread, including connection deserialization and
+client cleanup. The async resolver also moves backend loading, initialized secret-cache access, and
+masking away from the API event loop. The Connection route similarly moves response materialization
+off the event loop.
+
+A backend can optionally implement ``aget_variable`` and ``aget_connection`` for native async
+reads. The method arguments and return values match their synchronous counterparts. In particular,
+``aget_connection`` must return the core :py:class:`airflow.models.connection.Connection` type or
+``None``. For example:
+
+.. code-block:: python
+
+    from airflow.models.connection import Connection
+    from airflow.secrets import BaseSecretsBackend
+
+
+    class NativeSecretsBackend(BaseSecretsBackend):
+        def __init__(self, variable_values=None, connection_uris=None):
+            self.variable_values = variable_values or {}
+            self.connection_uris = connection_uris or {}
+
+        async def aget_variable(self, key: str, team_name: str | None = None) -> str | None:
+            return self.variable_values.get((team_name, key))
+
+        async def aget_connection(self, conn_id: str, team_name: str | None = None) -> Connection | None:
+            uri = self.connection_uris.get((team_name, conn_id))
+            return Connection(conn_id=conn_id, uri=uri) if uri is not None else None
+
+The dictionaries make the example directly usable in resolver tests. A production implementation
+can replace their lookups with awaited client calls. Create, use, and close that async client in the
+event loop that owns it. Do not create a loop-bound client in a synchronous backend constructor or
+share it with the fallback worker thread. The native
+metastore implementation can use a borrowed async SQLAlchemy session supplied by the Execution API;
+when called without one, it opens and closes its own session. A borrowed session is never passed to
+a synchronous backend, committed, or closed by the resolver.
+
+When both methods exist at the same override level, the async method is preferred. If a subclass
+overrides only a synchronous lookup while inheriting an async implementation, the subclass's
+synchronous override retains precedence and runs in the worker thread. This keeps existing custom
+backends working when a parent class gains an async capability.
+
+Cancellation stops backend traversal and cache updates. A synchronous call already running in a
+worker thread cannot be forcibly stopped, so its local work may finish after the request is
+cancelled; its result is discarded. Exceptions from an async method follow the existing backend
+fall-through policy and do not cause Airflow to retry that same backend synchronously. Access denial
+remains terminal.
+
+Native async clients for provider secrets services are separate follow-up work. This core support
+does not make unchanged provider clients native async. It is also separate from the SDK Variable
+API work in `PR #72329 <https://github.com/apache/airflow/pull/72329>`_; task processes continue to
+read secrets through the Execution API boundary.
+
+To roll back request handling, restore the two Execution API GET routes to their synchronous model
+lookups. The capability is additive and requires no metadata migration or configuration change.
+
 
 Adapt to non-Airflow compatible secret formats for connections
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
