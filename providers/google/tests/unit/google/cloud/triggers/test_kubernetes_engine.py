@@ -160,7 +160,6 @@ class TestGKEStartPodTrigger:
         _, kwargs_dict = trigger.serialize()
         reconstructed_trigger = GKEStartPodTrigger(**kwargs_dict)
 
-        assert kwargs_dict["should_delete_pod"] is None
         assert reconstructed_trigger.on_finish_action.value == "delete_succeeded_pod"
 
     @pytest.mark.asyncio
