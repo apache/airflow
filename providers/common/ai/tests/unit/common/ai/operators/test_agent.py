@@ -685,6 +685,7 @@ class TestAgentOperatorExecute:
 
         create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
         assert create_call[1]["toolsets"] == [mock_toolset]
+        assert "capabilities" not in create_call[1]
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_tool_logging_wraps_assembled_capability_toolsets(self, mock_hook_cls, make_mock_run_result):

@@ -23,10 +23,16 @@ Tool call logging: ``LoggingToolset``
 in real time. ``AgentOperator`` applies it automatically (see
 ``enable_tool_logging``) through
 :class:`~airflow.providers.common.ai.toolsets.logging.ToolLoggingCapability`.
-Applying the wrapper as a capability means logging covers the complete toolset
-that pydantic-ai assembles, including factory-backed toolsets, nested
-capabilities, and MCP tools. Provider-native tools that execute server-side are
-not covered by Airflow's real-time tool-call logging.
+Applying the wrapper as a capability means logging covers the assembled
+function toolset, including tools supplied directly to the agent,
+factory-backed toolsets, nested capabilities, and MCP tools. Output tools such
+as ``final_result`` and provider-native tools that execute server-side are not
+covered by Airflow's real-time tool-call logging.
+
+``AgentOperator`` adds ``ToolLoggingCapability`` automatically when
+``enable_tool_logging=True``. Do not also add it to ``capabilities=`` or calls
+will be logged twice. To supply your own instance, set
+``enable_tool_logging=False`` first.
 
 You can also use ``LoggingToolset`` directly with any pydantic-ai ``Agent``:
 

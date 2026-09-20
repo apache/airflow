@@ -20,6 +20,13 @@ import logging
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from pydantic_ai.exceptions import (
+    ApprovalRequired,
+    CallDeferred,
+    ModelRetry,
+    SkipToolExecution,
+    SkipToolValidation,
+)
 from pydantic_ai.toolsets import FunctionToolset
 
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset, ToolLoggingCapability
@@ -89,8 +96,41 @@ class TestLoggingToolset:
             with pytest.raises(RuntimeError, match="boom"):
                 await logging_toolset.call_tool("bad_tool", {}, ctx, tool)
 
-        assert any("Tool bad_tool failed after" in r.message for r in caplog.records)
-        assert any("::endgroup::" in r.message for r in caplog.records)
+        end_group_index = next(
+            i for i, record in enumerate(caplog.records) if record.message == "::endgroup::"
+        )
+        failure_index = next(
+            i for i, record in enumerate(caplog.records) if "Tool bad_tool failed after" in record.message
+        )
+        assert end_group_index < failure_index
+        assert caplog.records[failure_index].levelno == logging.ERROR
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "signal",
+        [
+            ModelRetry("retry"),
+            ApprovalRequired(),
+            CallDeferred(),
+            SkipToolExecution("result"),
+            SkipToolValidation({"value": 1}),
+        ],
+        ids=lambda signal: type(signal).__name__,
+    )
+    async def test_logs_control_flow_at_info(self, logging_toolset, wrapped_toolset, logger, caplog, signal):
+        wrapped_toolset.call_tool = AsyncMock(side_effect=signal)
+
+        with caplog.at_level(logging.INFO, logger="test.logging_toolset"):
+            with pytest.raises(type(signal)):
+                await logging_toolset.call_tool("retrying_tool", {}, MagicMock(), MagicMock())
+
+        assert any(
+            record.message.startswith(f"Tool retrying_tool requested {type(signal).__name__} after")
+            and record.levelno == logging.INFO
+            for record in caplog.records
+        )
+        assert not any(record.levelno >= logging.ERROR for record in caplog.records)
+        assert caplog.records[-1].message == "::endgroup::"
 
     @pytest.mark.asyncio
     async def test_delegates_get_tools(self, logging_toolset, wrapped_toolset):
