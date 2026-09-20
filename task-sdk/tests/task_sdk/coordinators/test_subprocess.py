@@ -866,6 +866,7 @@ class TestPopenActivitySubprocessStart:
                 {("api", "base_url"): None},
                 {
                     "AIRFLOW__API__BASE_URL": "/",
+                    "AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS": "30",
                     "AIRFLOW__OPERATORS__DEFAULT_DEFERRABLE": "False",
                     "AIRFLOW__TRIGGERER__QUEUES_ENABLED": "False",
                 },
@@ -876,11 +877,13 @@ class TestPopenActivitySubprocessStart:
                     ("api", "base_url"): "https://airflow.example.com/sub/",
                     ("operators", "default_deferrable"): "true",
                     ("triggerer", "queues_enabled"): "1",
+                    ("state_store", "default_retention_days"): "7",
                 },
                 {
                     "AIRFLOW__API__BASE_URL": "https://airflow.example.com/sub/",
                     "AIRFLOW__OPERATORS__DEFAULT_DEFERRABLE": "True",
                     "AIRFLOW__TRIGGERER__QUEUES_ENABLED": "True",
+                    "AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS": "7",
                 },
                 id="set",
             ),

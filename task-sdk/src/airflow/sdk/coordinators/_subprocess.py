@@ -193,6 +193,7 @@ def _build_runtime_env() -> dict[str, str]:
         "AIRFLOW__API__BASE_URL": conf.get("api", "base_url", fallback="/"),
         "AIRFLOW__OPERATORS__DEFAULT_DEFERRABLE": str(conf.getboolean("operators", "default_deferrable")),
         "AIRFLOW__TRIGGERER__QUEUES_ENABLED": str(conf.getboolean("triggerer", "queues_enabled")),
+        "AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS": conf.get("state_store", "default_retention_days"),
     }
 
 
