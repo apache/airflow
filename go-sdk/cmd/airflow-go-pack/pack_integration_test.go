@@ -166,6 +166,9 @@ dags:
       - "via_flat_map"
       - "via_struct_map"
       - "via_plain_map"
+  variable_write_dag:
+    tasks:
+      - "write_and_delete_variable"
 `
 	assert.Equal(t, expectedManifest, string(metadata))
 

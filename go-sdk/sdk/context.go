@@ -44,11 +44,14 @@ import (
 // pass it straight to client calls, select on ctx.Done(), or hand it to
 // downstream helpers that take a context.Context.
 //
-// It is an interface rather than a struct holding a context.Context, which
-// the context package advises against (https://pkg.go.dev/context#hdr-Contexts_and_structs):
-// the runtime constructs a fresh value around the live task context for each
-// invocation, and task code cannot end up with a half-initialised value. Build
-// one in tests with NewTIRunContext.
+// It is an interface, and only this package implements it.
+// Build one in tests with NewTIRunContext.
+//
+// The context package's advice against storing a Context in a struct
+// (https://pkg.go.dev/context#hdr-Contexts_and_structs) is about domain types that would
+// carry a request-scoped context in a field, not about a purpose-built context type.
+// That is why [github.com/apache/airflow/go-sdk/airflow.Context], the value a task handler
+// takes first, is a struct embedding context.Context.
 type TIRunContext interface {
 	context.Context
 

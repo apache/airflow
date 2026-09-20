@@ -24,7 +24,7 @@
 
 import { Bundle, getClient, TaskHandler } from "apache-airflow-ts-sdk";
 
-import { buildSummaryMessage, summarize } from "./taskflow.js";
+import { buildSummaryMessage, report, summarize } from "./taskflow.js";
 
 export async function buildMessage() {
   const client = getClient();
@@ -63,6 +63,7 @@ bundle.register(
   new TaskHandler("typescript_example", "build_message", buildMessage),
   new TaskHandler("typescript_example", "read_connection", readConnection),
   new TaskHandler("typescript_taskflow_example", "summarize", summarize),
+  new TaskHandler("typescript_taskflow_example", "report", report),
   new TaskHandler("typescript_taskflow_example", "build_message", buildSummaryMessage),
 );
 await bundle.serve();

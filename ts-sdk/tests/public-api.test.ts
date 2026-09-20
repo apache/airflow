@@ -20,6 +20,7 @@
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { AIRFLOW_METADATA_FLAG } from "../src/coordinator/manifest.js";
 import type {
+  ArgNameMap,
   ConnectionResult,
   DagSpec,
   GetXComOpts,
@@ -43,6 +44,7 @@ import {
   SUPERVISOR_API_VERSION,
   TaskHandler,
   VariableNotFoundError,
+  withArgNames,
 } from "../src/index.js";
 
 describe("public API", () => {
@@ -164,9 +166,17 @@ describe("public API", () => {
     // Identity and a body, and no more: no schedule, no task order, no dag_id
     // of its own to declare.
     expectTypeOf<keyof TaskHandler>().toEqualTypeOf<"dagId" | "taskId">();
-    expectTypeOf<ConstructorParameters<typeof TaskHandler>>().toEqualTypeOf<
-      [string, string, TaskFunction<unknown>]
-    >();
+    expectTypeOf<TaskHandler["dagId"]>().toEqualTypeOf<string>();
+    expectTypeOf<TaskHandler["taskId"]>().toEqualTypeOf<string>();
+
+    // The handler's own parameter type is inferred, so a typed handler needs
+    // no type argument written out at the registration site.
+    const typed = new TaskHandler(
+      "py_etl",
+      "report",
+      async ({ regionCode }: { regionCode: string }) => regionCode.toUpperCase(),
+    );
+    expectTypeOf(typed).toEqualTypeOf<TaskHandler<{ regionCode: string }, string>>();
   });
 
   it("does not let a task handler be wired the way a native task is", () => {
@@ -187,6 +197,34 @@ describe("public API", () => {
     void rejectsFactoryMisuse;
   });
 
+  it("exports withArgNames for a name the Python side never used", () => {
+    interface ReportArgs {
+      label: string;
+      threshold: number;
+    }
+    const report = withArgNames({ label: "run_label" }, async ({ label }: ReportArgs) => label);
+
+    // Wrapping keeps the handler's own type, so the result registers like any
+    // other handler and nothing at the registration site has to change.
+    expectTypeOf(report).toEqualTypeOf<TaskFunction<ReportArgs, string>>();
+    expect(
+      new Bundle(new TaskHandler("etl", "report", report)).getTaskHandler("etl", "report"),
+    ).toBe(report);
+    expectTypeOf<ArgNameMap<ReportArgs>>().toEqualTypeOf<{
+      readonly label?: string;
+      readonly threshold?: string;
+    }>();
+
+    const rejectsUnknownKeys = () => {
+      // @ts-expect-error "labl" is not a parameter of ReportArgs; "label" is.
+      withArgNames({ labl: "run_label" }, async ({ label }: ReportArgs) => label);
+    };
+    void rejectsUnknownKeys;
+    // Reading the renames back is the runtime's business, not an author's.
+    expectTypeOf<typeof sdk>().not.toHaveProperty("getArgNames");
+    expect("getArgNames" in sdk).toBe(false);
+  });
+
   describe("the task-handler getters", () => {
     it("throw outside a handler, naming the accessor", () => {
       // The full scope behaviour is covered in tests/sdk/task-scope.test.ts;
@@ -196,9 +234,13 @@ describe("public API", () => {
     });
 
     it("are the only way a handler reaches the runtime", () => {
-      // A handler is a plain function of its own data, so the SDK hands it no
-      // parameter at all and the scope is not something an author installs.
-      expectTypeOf<TaskFunction>().toEqualTypeOf<() => unknown | Promise<unknown>>();
+      // A handler is a plain function of its own data: the parameter carries
+      // the Dag's arguments and nothing else, and the scope is not something
+      // an author installs.
+      expectTypeOf<TaskFunction>().toEqualTypeOf<(args: void) => unknown | Promise<unknown>>();
+      expectTypeOf<TaskFunction<{ regionCode: string }, number>>().toEqualTypeOf<
+        (args: { regionCode: string }) => number | Promise<number>
+      >();
       expectTypeOf<typeof getContext>().toEqualTypeOf<() => TaskContext>();
       expectTypeOf<typeof getClient>().toEqualTypeOf<() => TaskClient>();
       for (const name of ["TaskHandlerArgs", "runInTaskScope", "TaskScope"]) {
@@ -226,7 +268,7 @@ describe("public API", () => {
     expectTypeOf<Bundle["serve"]>().toEqualTypeOf<() => Promise<void>>();
     expectTypeOf<Bundle["register"]>().toEqualTypeOf<(...items: Registerable[]) => void>();
     expectTypeOf<ConstructorParameters<typeof Bundle>>().toEqualTypeOf<Registerable[]>();
-    expectTypeOf<Registerable>().toEqualTypeOf<Dag | TaskHandler>();
+    expectTypeOf<Registerable>().toEqualTypeOf<Dag | TaskHandler<never, unknown>>();
     for (const name of ["serveDags", "DagRegistry"]) {
       expect(name in sdk).toBe(false);
     }
@@ -247,9 +289,9 @@ describe("public API", () => {
     }>();
     expectTypeOf<ConstructorParameters<typeof Dag>>().toEqualTypeOf<[string, DagSpec?]>();
     expectTypeOf<Dag["task"]>().toEqualTypeOf<
-      <TReturn = unknown>(
+      <TArgs = void, TReturn = unknown>(
         taskId: string,
-        handler: TaskFunction<TReturn>,
+        handler: TaskFunction<TArgs, TReturn>,
         options?: TaskOptions,
       ) => TaskRef
     >();

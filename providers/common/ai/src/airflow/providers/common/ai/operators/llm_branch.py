@@ -45,6 +45,13 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
     :param llm_conn_id: Connection ID for the LLM provider.
     :param model_id: Model identifier (e.g. ``"openai:gpt-5"``).
         Overrides the model stored in the connection's extra field.
+    :param fallback_conn_ids: Connection IDs to fail over to, in order, when
+        the primary provider is unavailable. Overrides the ``fallback_conn_ids``
+        set in the connection's extra field. ``None`` (default) reads the
+        connection's own extra field; an explicit ``[]`` disables a chain
+        configured there. See
+        :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook`
+        for how blank entries in the list are dropped.
     :param system_prompt: System-level instructions for the LLM agent.
     :param allow_multiple_branches: When ``False`` (default) the LLM returns a
         single task ID. When ``True`` the LLM may return one or more task IDs.
@@ -59,10 +66,13 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
     :param agent_params: Additional keyword arguments passed to the pydantic-ai
         ``Agent`` constructor (e.g. ``retries``, ``model_settings``, ``tools``).
 
+    ``usage_limits`` is inherited from
+    :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
+
     Human-in-the-Loop approval parameters are inherited from
     :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
     (``require_approval``, ``approval_timeout``, ``on_approval_timeout``,
-    ``allow_modifications``).
+    ``allow_modifications``, ``approval_notifiers``, ``approval_assigned_users``).
     The task pauses after the LLM chooses the branch(es) and only skips the
     unselected downstream tasks once a reviewer approves. Rejecting the
     review skips the direct downstream tasks except teardowns, matching
@@ -105,9 +115,11 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
                 "LLMBranchOperator requires at least one downstream task to branch into."
             )
 
+        # Sorted so every worker sends the model the same option order. downstream_task_ids
+        # is a set, and set order follows string hashing, which differs between processes.
         downstream_tasks_enum = Enum(  # type: ignore[misc]
             "DownstreamTasks",
-            {task_id: task_id for task_id in self.downstream_task_ids},
+            {task_id: task_id for task_id in sorted(self.downstream_task_ids)},
         )
         output_type = list[downstream_tasks_enum] if self.allow_multiple_branches else downstream_tasks_enum
 

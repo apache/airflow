@@ -30,8 +30,8 @@ export const StorageLayout = () => {
     <>
       <NavTabs
         tabs={[
-          { icon: <MdOutlineStorage />, label: translate("tabs.taskStateStore"), value: "task-state-store" },
           { icon: <MdSyncAlt />, label: translate("tabs.xcom"), value: "xcom" },
+          { icon: <MdOutlineStorage />, label: translate("tabs.taskStateStore"), value: "task-state-store" },
         ]}
       />
       <Outlet />

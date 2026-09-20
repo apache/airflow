@@ -131,10 +131,26 @@ export function getClient(): TaskClient {
 /**
  * Function signature for a TypeScript task handler.
  *
- * A handler takes no SDK-supplied parameter: {@link getContext} and
- * {@link getClient} supply the runtime's side of the call.
+ * `TArgs` describes what the Dag's call site passes. {@link getContext} and
+ * {@link getClient} reach the runtime from inside the call, so neither is a
+ * parameter.
+ *
+ * ```ts
+ * interface TransformArgs {
+ *   regionCode: string;
+ *   threshold: number;
+ * }
+ *
+ * async function transform({ regionCode, threshold }: TransformArgs) {
+ *   // ...
+ * }
+ * ```
+ *
+ * A handler that takes no arguments declares no parameter.
  *
  * Non-`undefined` return values are automatically pushed to XCom under the
  * `"return_value"` key, matching Python `@task` behavior.
  */
-export type TaskFunction<TReturn = unknown> = () => TReturn | Promise<TReturn>;
+export type TaskFunction<TArgs = void, TReturn = unknown> = (
+  args: TArgs,
+) => TReturn | Promise<TReturn>;
