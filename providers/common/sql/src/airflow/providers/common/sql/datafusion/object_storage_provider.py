@@ -38,7 +38,7 @@ class S3ObjectStorageProvider(ObjectStorageProvider):
     def create_object_store(self, path: str, connection_config: ConnectionConfig | None = None):
         """Create an S3 object store using DataFusion's AmazonS3."""
         if connection_config is None:
-            raise ValueError(f"connection_config must be provided for {self.get_storage_type}")
+            raise ValueError(f"connection_config must be provided for {self.get_storage_type.value}")
 
         try:
             credentials = connection_config.credentials
@@ -68,7 +68,7 @@ class GCSObjectStorageProvider(ObjectStorageProvider):
     def create_object_store(self, path: str, connection_config: ConnectionConfig | None = None):
         """Create a GCS object store using DataFusion's GoogleCloud."""
         if connection_config is None:
-            raise ValueError(f"connection_config must be provided for {self.get_storage_type}")
+            raise ValueError(f"connection_config must be provided for {self.get_storage_type.value}")
 
         credentials = connection_config.credentials
         key_path = credentials.get("key_path")
