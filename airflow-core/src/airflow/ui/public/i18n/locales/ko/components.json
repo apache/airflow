@@ -110,6 +110,10 @@
     "taskGroup": "태스크 그룹",
     "zoomToTask": "선택된 태스크로 확대"
   },
+  "jsonPreview": {
+    "items_one": "1개 항목",
+    "items_other": "{{count}}개 항목"
+  },
   "limitedList": "+{{count}}개 더 보기",
   "limitedList.allItems": "모든 {{count}}개 항목:",
   "limitedList.allTags_one": "모든 태그 (1)",

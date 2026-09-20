@@ -536,6 +536,43 @@ class TestCliConfigMethods:
 
         assert ctx.value.code == 1
 
+    @pytest.mark.parametrize(
+        ("response", "hint_expected"),
+        [
+            pytest.param(
+                httpx.Response(302, headers={"location": "https://sso.example.com/login"}),
+                True,
+                id="redirect",
+            ),
+            pytest.param(
+                httpx.Response(502, headers={"content-type": "text/html"}, content=b"<html>nope</html>"),
+                False,
+                id="non-json-server-error",
+            ),
+            pytest.param(
+                httpx.Response(401, headers={"content-type": "text/html"}, content=b"<html>nope</html>"),
+                False,
+                id="non-json-client-error",
+            ),
+        ],
+    )
+    def test_safe_call_command_exits_non_zero_for_bare_http_status_error(
+        self, response, hint_expected, capsys
+    ):
+        response.request = httpx.Request("GET", "http://localhost:8080/api/v2/dags")
+
+        def raise_error(_args):
+            response.raise_for_status()
+
+        with pytest.raises(SystemExit) as ctx:
+            safe_call_command(raise_error, args=argparse.Namespace())
+
+        assert ctx.value.code == 1
+        # Rich hard-wraps at the console width, so normalise before matching on a phrase.
+        out = " ".join(capsys.readouterr().out.split())
+        assert "Server response error:" in out
+        assert ("does not follow" in out) is hint_expected
+
     def test_add_to_parser_drops_type_for_boolean_optional_action(self):
         """Test add_to_parser removes type for BooleanOptionalAction."""
         parser = argparse.ArgumentParser()

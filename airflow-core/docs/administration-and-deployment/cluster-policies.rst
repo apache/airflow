@@ -66,7 +66,7 @@ cluster policy's value will take precedence.
 
 .. _administration-and-deployment:cluster-policies-define:
 
-How do define a policy function
+How to define a policy function
 -------------------------------
 
 There are two ways to configure cluster policies:
@@ -165,7 +165,7 @@ Here's an example of enforcing a maximum timeout policy on every task:
         :start-after: [START example_task_cluster_policy]
         :end-before: [END example_task_cluster_policy]
 
-You could also implement to protect against common errors, rather than as technical security controls. For example, don't run tasks without Airflow owners:
+You could also implement cluster policies to protect against common errors, rather than as technical security controls. For example, don't run tasks without Airflow owners:
 
 .. literalinclude:: /../tests/unit/cluster_policies/__init__.py
         :language: python

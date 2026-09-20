@@ -19,7 +19,7 @@
 
 import { describe, it, expect } from "vitest";
 import { Dag, getDagTaskRecords, type TaskRef } from "../../src/sdk/dag.js";
-import { DagRegistry } from "../../src/sdk/registry.js";
+import { Bundle } from "../../src/sdk/bundle.js";
 
 describe("Dag", () => {
   it("returns a frozen TaskRef handle with the Dag and task identity", () => {
@@ -115,7 +115,7 @@ describe("Dag", () => {
     expect(dag.spec).toEqual(dagSpec);
     expect(Object.isFrozen(dag.spec)).toBe(true);
     const record = getDagTaskRecords(dag).get("my_task");
-    expect(record?.handler).toBe(handler);
+    expect(record?.fn).toBe(handler);
     expect(record?.spec).toEqual(taskSpec);
     expect(Object.isFrozen(record!.spec)).toBe(true);
   });
@@ -202,19 +202,19 @@ describe("Dag", () => {
     firstDag.task("extract", first);
     secondDag.task("extract", second);
 
-    const registry = new DagRegistry();
-    registry.register(firstDag, secondDag);
-    expect(registry.getTaskHandler("first_dag", "extract")).toBe(first);
-    expect(registry.getTaskHandler("second_dag", "extract")).toBe(second);
+    const bundle = new Bundle();
+    bundle.register(firstDag, secondDag);
+    expect(bundle.getTaskHandler("first_dag", "extract")).toBe(first);
+    expect(bundle.getTaskHandler("second_dag", "extract")).toBe(second);
   });
 
   it("accepts a Unicode dagId that Python's word-character rule allows", () => {
     const handler = async () => undefined;
     const dag = new Dag("café_dag");
     dag.task("任務", handler);
-    const registry = new DagRegistry();
-    registry.register(dag);
-    expect(registry.getTaskHandler("café_dag", "任務")).toBe(handler);
+    const bundle = new Bundle();
+    bundle.register(dag);
+    expect(bundle.getTaskHandler("café_dag", "任務")).toBe(handler);
   });
 
   it("rejects non-function handlers", () => {
@@ -227,11 +227,11 @@ describe("Dag", () => {
   it("treats a dotted TaskGroup taskId as a single taskId (group.task)", () => {
     const dag = new Dag("example_dag");
     dag.task("transforms.normalize", async () => "ok");
-    const registry = new DagRegistry();
-    registry.register(dag);
-    expect(registry.getTaskHandler("example_dag", "transforms.normalize")).toBeDefined();
+    const bundle = new Bundle();
+    bundle.register(dag);
+    expect(bundle.getTaskHandler("example_dag", "transforms.normalize")).toBeDefined();
     // Should NOT accidentally match the prefix alone
-    expect(registry.getTaskHandler("example_dag", "transforms")).toBeUndefined();
-    expect(registry.getTaskHandler("example_dag", "normalize")).toBeUndefined();
+    expect(bundle.getTaskHandler("example_dag", "transforms")).toBeUndefined();
+    expect(bundle.getTaskHandler("example_dag", "normalize")).toBeUndefined();
   });
 });

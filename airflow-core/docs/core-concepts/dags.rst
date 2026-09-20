@@ -699,7 +699,7 @@ This is especially useful if your tasks are built dynamically from configuration
 
         t = EmptyOperator(task_id="foo")
         t.doc_md = """\
-        #Title"
+        # Title
         Here's a [url](www.airbnb.com)
         """
 
@@ -865,7 +865,7 @@ Here's a simple example using the existing email Notifier:
 .. code-block:: python
 
     from datetime import timedelta
-    from airflow import DAG
+    from airflow.sdk import DAG
     from airflow.providers.smtp.notifications.smtp import SmtpNotifier
     from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 

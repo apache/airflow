@@ -27,6 +27,12 @@
 Changelog
 ---------
 
+.. warning::
+  ``EdgeExecutor`` now counts the tasks and callbacks it has queued against ``[core] parallelism``, as the
+  other executors do. Until now that limit had no effect on Edge. If a scheduler keeps more than
+  ``parallelism`` (default 32) workloads in flight on Edge, raise ``[core] parallelism``. Otherwise the
+  scheduler leaves the rest in ``scheduled`` state until slots free up.
+
 4.3.2
 .....
 

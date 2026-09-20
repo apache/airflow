@@ -29,6 +29,10 @@ from pydantic import BaseModel
 
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
+from airflow.providers.common.ai.observability import (
+    build_run_identity_attributes,
+    stamp_identity_on_agent_spans,
+)
 from airflow.providers.common.ai.utils.logging import log_run_summary, wrap_toolsets_for_logging
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
@@ -126,10 +130,24 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
     and run the agent. The agent reasons about the prompt, calls tools in a
     multi-turn loop, and returns a final answer.
 
+    Alongside the returned agent output, the run's ``run_id`` and token ``usage``
+    are pushed to XCom under the ``run_id`` and ``usage`` keys, so a downstream
+    task can reference the run and its cost. The ``run_id`` also ties the task to
+    its GenAI trace (see the provider's observability docs). With
+    ``enable_hitl_review``, these reflect the initial model run, not the
+    human-feedback regenerations.
+
     :param prompt: The prompt to send to the agent.
     :param llm_conn_id: Connection ID for the LLM provider.
     :param model_id: Model identifier (e.g. ``"openai:gpt-5"``).
         Overrides the model stored in the connection's extra field.
+    :param fallback_conn_ids: Connection IDs to fail over to, in order, when
+        the primary provider is unavailable. Overrides the ``fallback_conn_ids``
+        set in the connection's extra field. ``None`` (default) reads the
+        connection's own extra field; an explicit ``[]`` disables a chain
+        configured there. See
+        :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook`
+        for how blank entries in the list are dropped.
     :param system_prompt: System-level instructions for the agent.
     :param output_type: Expected output type. Default ``str``. Set to a Pydantic
         ``BaseModel`` subclass for structured output; the model instance is
@@ -244,6 +262,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         "prompt",
         "llm_conn_id",
         "model_id",
+        "fallback_conn_ids",
         "system_prompt",
         "agent_params",
         "message_history",
@@ -258,6 +277,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         prompt: str,
         llm_conn_id: str,
         model_id: str | None = None,
+        fallback_conn_ids: list[str] | None = None,
         system_prompt: str = "",
         output_type: type = str,
         toolsets: list[AbstractToolset] | None = None,
@@ -280,6 +300,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         self.prompt = prompt
         self.llm_conn_id = llm_conn_id
         self.model_id = model_id
+        self.fallback_conn_ids = fallback_conn_ids
         self.system_prompt = system_prompt
         self.output_type = output_type
         self.serialize_output = serialize_output
@@ -339,6 +360,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         """Return PydanticAIHook for the configured LLM connection."""
         hook_params = {
             "model_id": self.model_id,
+            "fallback_conn_ids": self.fallback_conn_ids,
         }
         return PydanticAIHook.get_hook(self.llm_conn_id, hook_params=hook_params)
 
@@ -470,7 +492,14 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
 
         agent = self._build_agent()
 
-        run_kwargs: dict[str, Any] = {"usage_limits": usage_limits}
+        ti = context["task_instance"]
+        self._run_identity_attrs = build_run_identity_attributes(ti)
+        stamp_identity_on_agent_spans(agent, self._run_identity_attrs)
+
+        # The task-instance id is non-nullable and regenerated on each retry, so it
+        # is a unique, reverse-resolvable join key. It lands on result.run_id, the
+        # run's messages, and the ``gen_ai.agent.call.id`` span attribute.
+        run_kwargs: dict[str, Any] = {"usage_limits": usage_limits, "run_id": str(ti.id)}
         history = self._resolve_message_history()
         if history is not None:
             run_kwargs["message_history"] = history
@@ -492,6 +521,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
             result = agent.run_sync(self.prompt, **run_kwargs)
 
         log_run_summary(self.log, result)
+        self._emit_run_metadata(context, result)
 
         if self._durable_counter is not None:
             c = self._durable_counter
@@ -535,10 +565,10 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
             output = output.model_dump()
 
         # Clean up the durable cache only after the run and every post-run step
-        # that can still fail (the message-history XCom push above and output
-        # serialization) has succeeded. Cleaning up earlier and then raising
-        # would leave the Airflow retry with an empty cache, re-executing every
-        # already-completed model and tool step.
+        # that can still fail (the run-metadata and message-history XCom pushes
+        # above and output serialization) has succeeded. Cleaning up earlier and
+        # then raising would leave the Airflow retry with an empty cache,
+        # re-executing every already-completed model and tool step.
         if self._durable_storage is not None:
             self._durable_storage.cleanup()
         return output
@@ -573,10 +603,33 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         transcript = ModelMessagesTypeAdapter.dump_json(result.all_messages()).decode()
         context["task_instance"].xcom_push(key="message_history", value=transcript)
 
+    def _emit_run_metadata(self, context: Context, result: Any) -> None:
+        """Expose the pydantic-ai run id and token usage on XCom for downstream tasks."""
+        if not self.do_xcom_push:
+            return
+        usage = result.usage
+        ti = context["task_instance"]
+        ti.xcom_push(key="run_id", value=result.run_id)
+        ti.xcom_push(
+            key="usage",
+            value={
+                "requests": usage.requests,
+                "input_tokens": usage.input_tokens,
+                "output_tokens": usage.output_tokens,
+                "total_tokens": usage.total_tokens,
+                "tool_calls": usage.tool_calls,
+                # Decimal | None, stringified so XCom serialization stays lossless.
+                "cost": str(usage.cost) if usage.cost is not None else None,
+            },
+        )
+
     def regenerate_with_feedback(self, *, feedback: str, message_history: Any) -> tuple[str, Any]:
         """Re-run the agent with *feedback* appended to the conversation history."""
         usage_limits = coerce_usage_limits(self.usage_limits)
         agent = self._build_agent()
+        identity = getattr(self, "_run_identity_attrs", None)
+        if identity:
+            stamp_identity_on_agent_spans(agent, identity)
         messages = message_history or []
         result = agent.run_sync(
             feedback,
