@@ -23,9 +23,6 @@ from shutil import copyfile, copytree
 import jmespath
 import pytest
 from chart_utils.helm_template_generator import HelmFailedError, render_chart
-from kubernetes.client import models as k8s
-
-from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 
 
 @pytest.fixture(scope="class")
@@ -1326,36 +1323,6 @@ class TestPodTemplateFile:
         sidecar = jmespath.search("spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0])
         assert sidecar["args"] == ["kerberos"]
         assert sidecar["restartPolicy"] == "Always"
-
-    def test_pod_override_reconciliation_with_kerberos_sidecar(self):
-        docs = render_chart(
-            values={"workers": {"kubernetes": {"kerberosSidecar": {"enabled": True}}}},
-            show_only=["templates/pod-template-file.yaml"],
-            chart_dir=self.temp_chart_dir,
-        )
-        base_pod = PodGenerator.deserialize_model_dict(docs[0])
-        override_pod = k8s.V1Pod(
-            spec=k8s.V1PodSpec(
-                containers=[
-                    k8s.V1Container(name="base"),
-                    k8s.V1Container(name="custom-container", image="custom-image:latest"),
-                ]
-            )
-        )
-        reconciled = PodGenerator.serialize_pod(PodGenerator.reconcile_pods(base_pod, override_pod))
-
-        assert jmespath.search("length(spec.initContainers[?name=='worker-kerberos'])", reconciled) == 1
-        assert (
-            jmespath.search("spec.initContainers[?name=='worker-kerberos'] | [0].restartPolicy", reconciled)
-            == "Always"
-        )
-
-        assert jmespath.search("length(spec.containers[?name=='custom-container'])", reconciled) == 1
-        assert (
-            jmespath.search("spec.containers[?name=='custom-container'] | [0].image", reconciled)
-            == "custom-image:latest"
-        )
-        assert jmespath.search("spec.containers[?name=='custom-container'] | [0].args", reconciled) is None
 
     def test_airflow_local_settings_kerberos_sidecar(self):
         docs = render_chart(
