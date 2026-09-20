@@ -279,6 +279,9 @@ The ``TaskClient`` surface
 * ``getVariable(key)`` returns the Variable as a string, or ``null`` when it is missing;
   ``getVariableOrThrow(key)`` throws ``VariableNotFoundError`` instead, matching Python ``Variable.get``
   with no default.
+* ``setVariable(key, value, description?)`` stores a Variable, replacing any existing value, and
+  ``deleteVariable(key)`` removes one. Values are stored as strings, so serialize structured data (for
+  example with ``JSON.stringify``) before storing it.
 * ``getConnection(connId)`` returns a ``ConnectionResult`` with fields ``id`` and ``type``, plus the
   optional fields ``host``, ``schema``, ``login``, ``password``, ``port``, and ``extra`` (each may be
   missing or ``null``), or ``null`` when the connection does not exist;
@@ -288,6 +291,13 @@ The ``TaskClient`` surface
   (``dagId``, ``runId``, ``taskId``, ``mapIndex``) default to the current task; pass ``taskId`` to read an
   upstream task's XCom. See :ref:`typescript-sdk/types` for how the stored JSON maps to JavaScript types.
 * ``setXCom({key, value, ...})`` publishes an XCom value.
+
+.. note::
+
+   A value supplied by a secrets backend (for example an ``AIRFLOW_VAR_*`` environment variable) still
+   takes precedence over the stored value when the Variable is read back. Calling ``setVariable`` without
+   a description clears the description the Variable had, and ``deleteVariable`` resolves even when the
+   key does not exist.
 
 Logging
 -------
