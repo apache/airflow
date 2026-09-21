@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from pathlib import Path
 from typing import Literal
 
 import pytest
@@ -48,6 +49,7 @@ from task_sdk.execution_time.schema._mock_version_bundle import (
     _SupervisorResponse,
 )
 
+from airflow.dag_processing.processor import DagFileParseRequest
 from airflow.sdk.execution_time.schema import (
     SchemaVersionMigrator,
     get_schema_version_migrator,
@@ -474,10 +476,6 @@ class TestRealBundleArgBindingsDowngrade:
 
 class TestRealBundleDagFileParseRequestDowngrade:
     def test_downgrade_strips_bundle_import_root_for_previous_version(self):
-        from pathlib import Path
-
-        from airflow.dag_processing.processor import DagFileParseRequest
-
         request = DagFileParseRequest(
             file="/bundle/dags/example.py",
             bundle_path=Path("/bundle/dags"),

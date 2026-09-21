@@ -33,6 +33,7 @@ Example of using the GitDagBundle:
          "classpath": "airflow.providers.git.bundles.git.GitDagBundle",
          "kwargs": {
              "subdir": "dags",
+             "import_root": ".",
              "tracking_ref": "main",
              "refresh_interval": 3600,
              "submodules": false,
@@ -67,10 +68,13 @@ reloads the configuration. If ``[dag_processor] disable_bundle_versioning`` (or 
 ``disable_bundle_versioning`` Dag parameter) is set, workers also resolve code from their own
 ``tracking_ref`` rather than a recorded bundle version, so they need the updated configuration too.
 
-When ``subdir`` is set, Airflow discovers Dags only in that directory while keeping the repository
-root available for Python imports. For example, a Dag under ``dags/`` can import a shared package
-stored under ``shared/`` in the same repository. Both the ``subdir`` and repository root remain on
-``sys.path`` for compatibility with imports relative to the Dag directory.
+When ``subdir`` is set, Airflow discovers Dags only in that directory. By default, it also uses
+``subdir`` as the Python import root, preserving the behavior of existing configurations. Set
+``import_root`` to a repository-relative directory to select a different import root; ``.`` selects
+the repository root. For example, a Dag under ``dags/`` can then import a shared package stored under
+``shared/`` in the same repository. Airflow adds only the selected import root to ``sys.path``, so
+imports must be relative to that root. If you enable sparse checkout, include every directory that
+contains imported code in ``sparse_dirs``.
 
 .. note::
 

@@ -26,7 +26,7 @@ Features
 ~~~~~~~~
 
 * ``Add GitHub App authentication for git Dag bundles (#64422)``
-* ``Allow Git Dag bundles with a subdir to import from the repository root``
+* ``Allow Git Dag bundles to select a Python import root (#73388)``
 
 
 .. Below changes are excluded from the changelog. Move them to

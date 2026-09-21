@@ -442,10 +442,11 @@ In addition to the abstract methods, you may choose to override the following me
     This property controls the directory Airflow adds to ``sys.path`` when it loads code from the
     bundle. It defaults to ``path``. Override it when ``path`` should restrict Dag discovery to a
     subdirectory but imports must resolve from a broader directory in the same bundle version.
-    Airflow adds both ``path`` and ``import_root`` to ``sys.path`` so imports relative to the Dag
-    discovery directory continue to work. The import root is propagated to Dag parsing, task
-    execution, and callback execution. It must point into the same initialized bundle checkout as
-    ``path`` so every execution context resolves code from the selected bundle version.
+    Airflow adds only ``import_root`` to ``sys.path``. When a bundle does not override this property,
+    the default preserves the existing behavior of adding ``path``. The import root is propagated to
+    Dag parsing, task execution, and callback execution. It must point into the same initialized
+    bundle checkout as ``path`` so every execution context resolves code from the selected bundle
+    version.
 
 **view_url**
     This method should return a URL as a string to view the bundle on an external system (e.g., a Git repository's web interface).

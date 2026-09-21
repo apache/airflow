@@ -1377,8 +1377,8 @@ class TestCaptureWithReraise:
 class TestBundlePathSysPath:
     """Tests for bundle path handling in BundleDagBag."""
 
-    def test_imports_from_bundle_import_root(self, tmp_path, monkeypatch):
-        """The import root can be broader than the directory scanned for Dags."""
+    def test_uses_only_bundle_import_root(self, tmp_path, monkeypatch):
+        """The import root replaces the discovery directory on sys.path."""
         repository_root = tmp_path / "repository"
         bundle_path = repository_root / "dags"
         package_path = repository_root / "company_shared"
@@ -1410,7 +1410,7 @@ class TestBundlePathSysPath:
 
             assert not dagbag.import_errors
             assert dagbag.get_dag("test_import_root").description == "imported from repository root"
-            assert sys.path.count(str(bundle_path)) == 1
+            assert str(bundle_path) not in sys.path
             assert sys.path.count(str(repository_root)) == 1
         finally:
             sys.modules.pop("company_shared.engine", None)

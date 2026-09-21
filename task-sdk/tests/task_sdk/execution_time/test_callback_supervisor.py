@@ -534,10 +534,10 @@ class TestCallbackSubprocessStart:
             log=ANY,
         )
 
-    def test_callback_supervisor_with_bundle_info_should_adjust_sys_path(
+    def test_callback_supervisor_with_bundle_info_should_add_only_import_root(
         self, base_start_kwargs, mock_bundle_setup
     ):
-        """Test that the bundle discovery path and import root are added to sys.path."""
+        """Test that only the bundle import root is added to sys.path."""
         with patch("sys.path", new_callable=list) as mock_sys_path:
             bundle_info = BundleInfo(name="test-bundle", version="1.0")
             adjusted_kwargs = {**base_start_kwargs, "bundle_info": bundle_info}
@@ -545,7 +545,7 @@ class TestCallbackSubprocessStart:
             CallbackSubprocess.start(**adjusted_kwargs)
             self.mock_super_start.call_args.kwargs["target"]()
 
-            assert mock_sys_path.count(str(mock_bundle_setup["bundle_path"])) == 1
+            assert str(mock_bundle_setup["bundle_path"]) not in mock_sys_path
             assert mock_sys_path.count(str(mock_bundle_setup["bundle_import_root"])) == 1
 
     def test_callback_supervisor_should_exit_on_error(self, base_start_kwargs):

@@ -145,6 +145,15 @@ class TestGitDagBundle:
         bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
         assert bundle.repo_url == bundle.hook.repo_url
 
+    @pytest.mark.parametrize("import_root", ["/absolute/path", "../shared", "dags/../shared"])
+    def test_rejects_import_root_outside_repository(self, import_root):
+        with pytest.raises(ValueError, match="import_root must be a relative path"):
+            GitDagBundle(
+                name="test",
+                tracking_ref=GIT_DEFAULT_BRANCH,
+                import_root=import_root,
+            )
+
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_get_current_version(self, mock_githook, git_repo):
         repo_path, repo = git_repo
@@ -935,8 +944,18 @@ class TestGitDagBundle:
 
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert str(bundle.path).endswith(subdir)
-        assert bundle.import_root == bundle.repo_path
+        assert bundle.import_root == bundle.path
         assert {"some_new_file.py"} == files_in_repo
+
+    def test_import_root_can_select_repository_root(self):
+        bundle = GitDagBundle(
+            name="test",
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            subdir="dags",
+            import_root=".",
+        )
+
+        assert bundle.import_root == bundle.repo_path
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_sparse_checkout(self, mock_githook, git_repo):
