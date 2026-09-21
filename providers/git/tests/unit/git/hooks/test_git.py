@@ -640,10 +640,13 @@ class TestGitHook:
 
         with mock.patch.dict(os.environ, {"GIT_TERMINAL_PROMPT": "1"}, clear=False):
             with hook.configure_hook_env():
-                assert hook.env["GIT_CONFIG_COUNT"] == "1"
+                assert hook.env["GIT_CONFIG_COUNT"] == "2"
+                # Entry order is load-bearing: reset (index 0) must precede the helper (index 1).
                 assert hook.env["GIT_CONFIG_KEY_0"] == "credential.https://github.com.helper"
+                assert hook.env["GIT_CONFIG_VALUE_0"] == ""
+                assert hook.env["GIT_CONFIG_KEY_1"] == "credential.https://github.com.helper"
                 assert hook.env["GIT_TERMINAL_PROMPT"] == "0"
-                helper_path = hook.env["GIT_CONFIG_VALUE_0"]
+                helper_path = hook.env["GIT_CONFIG_VALUE_1"]
                 assert os.path.exists(helper_path)
 
                 # The credential is passed in the environment, never written to the script
@@ -894,10 +897,12 @@ class TestGitHook:
 
         with hook.configure_hook_env():
             assert hook.env["GIT_CONFIG_KEY_0"] == "credential.https://github.com.helper"
+            assert hook.env["GIT_CONFIG_VALUE_0"] == ""
+            assert hook.env["GIT_CONFIG_KEY_1"] == "credential.https://github.com.helper"
             assert hook.env["AIRFLOW_GIT_USER"] == "x-access-token"
             assert hook.env["AIRFLOW_GIT_TOKEN"] == "ghs_installation_token"
             # Nothing sensitive reaches the script, and no prompt-matching remains
-            assert "ghs_installation_token" not in pathlib.Path(hook.env["GIT_CONFIG_VALUE_0"]).read_text()
+            assert "ghs_installation_token" not in pathlib.Path(hook.env["GIT_CONFIG_VALUE_1"]).read_text()
             assert "GIT_ASKPASS" not in hook.env
 
         assert "AIRFLOW_GIT_TOKEN" not in os.environ

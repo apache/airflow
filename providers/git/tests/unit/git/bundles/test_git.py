@@ -1516,7 +1516,8 @@ class TestGitDagBundle:
         with bundle.hook.configure_hook_env():
             bundle._clone_bare_repo_if_required()
             _, kwargs = mock_gitRepo.clone_from.call_args
-            helper_path = kwargs["env"]["GIT_CONFIG_VALUE_0"]
+            assert kwargs["env"]["GIT_CONFIG_VALUE_0"] == ""
+            helper_path = kwargs["env"]["GIT_CONFIG_VALUE_1"]
             assert kwargs["env"]["GIT_TERMINAL_PROMPT"] == "0"
             assert kwargs["env"]["AIRFLOW_GIT_TOKEN"] == ACCESS_TOKEN
             assert os.path.exists(helper_path)

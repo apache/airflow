@@ -304,10 +304,16 @@ printf 'username=%s\npassword=%s\n' "$AIRFLOW_GIT_USER" "$AIRFLOW_GIT_TOKEN"
                 index = int(os.environ.get("GIT_CONFIG_COUNT", "0"))
             except ValueError:
                 index = 0
+            # System/global config loads before env-supplied config, so a deployment-wide
+            # `credential.helper` would otherwise answer `get` first and our token would never
+            # be used. git also invokes every helper on `approve`, so a `store` helper would
+            # persist it to ~/.git-credentials. Reset the scope to empty first (git help credentials).
             values = {
-                "GIT_CONFIG_COUNT": str(index + 1),
+                "GIT_CONFIG_COUNT": str(index + 2),
                 f"GIT_CONFIG_KEY_{index}": f"credential.{scope}.helper",
-                f"GIT_CONFIG_VALUE_{index}": helper_path,
+                f"GIT_CONFIG_VALUE_{index}": "",
+                f"GIT_CONFIG_KEY_{index + 1}": f"credential.{scope}.helper",
+                f"GIT_CONFIG_VALUE_{index + 1}": helper_path,
                 "GIT_TERMINAL_PROMPT": "0",
                 "AIRFLOW_GIT_USER": self.user_name,
                 "AIRFLOW_GIT_TOKEN": self.auth_token,
