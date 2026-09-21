@@ -219,10 +219,11 @@ def find_waiter_triggers() -> list[type[AwsBaseWaiterTrigger]]:
     ids=lambda cls: cls.__name__,
 )
 def test_waiter_trigger_can_build_a_hook(trigger_class):
-    """Every waiter trigger must declare ``aws_hook_class`` or provide its own ``hook()``."""
-    assert hasattr(trigger_class, "aws_hook_class") or trigger_class.hook is not AwsBaseWaiterTrigger.hook, (
-        f"{trigger_class.__name__} sets neither aws_hook_class nor hook(); "
-        f"building its hook would fail at runtime."
+    """The hook a trigger names must accept what ``_hook_parameters`` will pass it."""
+    if trigger_class.hook is not AwsBaseWaiterTrigger.hook:
+        pytest.skip(f"{trigger_class.__name__} builds its hook by hand")
+    inspect.signature(trigger_class.aws_hook_class).bind_partial(
+        aws_conn_id=None, region_name=None, verify=None, config=None
     )
 
 
