@@ -123,9 +123,12 @@ class MockExecutor(BaseExecutor):
         self.sync()
 
     def change_state(self, key, state, info=None, remove_running=False, workload_run_id=None):
-        super().change_state(
-            key, state, info=info, remove_running=remove_running, workload_run_id=workload_run_id
-        )
+        try:
+            super().change_state(
+                key, state, info=info, remove_running=remove_running, workload_run_id=workload_run_id
+            )
+        except TypeError:
+            super().change_state(key, state, info=info, remove_running=remove_running)
         # The normal event buffer is cleared after reading, we want to keep
         # a list of all events for testing
         self.sorted_tasks.append((key, (state, info, workload_run_id)))
