@@ -218,7 +218,7 @@ def team_sync(args, *, session=NEW_SESSION):
 
     dag_bundle_teams = {
         bundle.team_name
-        for bundle in DagBundlesManager().get_all_bundle_configurations()
+        for bundle in DagBundlesManager().get_active_bundle_metadata()
         if bundle.team_name is not None
     }
     existing_teams = Team.get_all_team_names(session=session)
@@ -311,7 +311,7 @@ def team_verify(args, *, session=NEW_SESSION):
 
     existing_teams = {team.name for team in teams}
 
-    for bundle in DagBundlesManager().get_all_bundle_configurations():
+    for bundle in DagBundlesManager().get_active_bundle_metadata():
         if bundle.team_name and bundle.team_name not in existing_teams:
             issues.append(f"DAG bundle '{bundle.name}' references unknown team '{bundle.team_name}'.")
 

@@ -32,8 +32,8 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True)
-class DagBundleConfiguration:
-    """Configuration used by Airflow to manage a Dag bundle."""
+class DagBundleMetadata:
+    """Metadata used by Airflow to manage a Dag bundle."""
 
     name: str
     team_name: str | None = None
@@ -41,17 +41,17 @@ class DagBundleConfiguration:
 
 class DagBundleProvider(ABC):
     """
-    Provide Dag bundle configurations and Dag bundles.
+    Provide active Dag bundle metadata and construct Dag bundles.
 
-    The configuration list is the complete set of active bundles. A bundle name
+    The metadata list is the complete set of active bundles. A bundle name
     may remain resolvable through ``get_bundle`` after it leaves that list because
     retained Dag runs can still need an older version. A name must continue to
     identify the same bundle implementation; use a new name for a different one.
     """
 
     @abstractmethod
-    def get_all_bundle_configurations(self) -> Sequence[DagBundleConfiguration]:
-        """Return the complete set of active Dag bundle configurations."""
+    def get_active_bundle_metadata(self) -> Sequence[DagBundleMetadata]:
+        """Return metadata for the complete set of active Dag bundles."""
 
     @abstractmethod
     def get_bundle(
@@ -149,9 +149,9 @@ class ConfigDagBundleProvider(DagBundleProvider):
                 team_name=bundle_config.team_name,
             )
 
-    def get_all_bundle_configurations(self) -> Sequence[DagBundleConfiguration]:
+    def get_active_bundle_metadata(self) -> Sequence[DagBundleMetadata]:
         return [
-            DagBundleConfiguration(name=name, team_name=config.team_name)
+            DagBundleMetadata(name=name, team_name=config.team_name)
             for name, config in self._bundle_config.items()
         ]
 
