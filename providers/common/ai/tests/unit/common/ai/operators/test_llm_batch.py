@@ -16,14 +16,18 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import json
+import time
 from collections.abc import Iterator
+from datetime import datetime
 from types import SimpleNamespace
 from unittest import mock
 
 import pytest
 from pydantic import BaseModel
 
+from airflow.providers.common.ai.batch import dispatch, state as state_module
 from airflow.providers.common.ai.batch.base import (
     BatchAdapter,
     BatchState,
@@ -31,21 +35,34 @@ from airflow.providers.common.ai.batch.base import (
     RawResultItem,
     SubmitResult,
 )
+from airflow.providers.common.ai.batch.output_schema import build_output_spec
 from airflow.providers.common.ai.exceptions import (
+    LLMBatchCancelledError,
+    LLMBatchInputError,
+    LLMBatchJobError,
+    LLMBatchOrphanedIntentError,
+    LLMBatchOrphanLookupError,
     LLMBatchPartialFailureError,
     LLMBatchStaleStateError,
+    LLMBatchStateReadError,
+    LLMBatchTimeoutError,
 )
+from airflow.providers.common.ai.operators import llm_batch as llm_batch_module
 from airflow.providers.common.ai.operators.llm_batch import LLMBatchOperator
 from airflow.providers.common.compat.sdk import TaskDeferred
-from airflow.sdk import ObjectStoragePath
+from airflow.sdk import Connection, ObjectStoragePath
 
 
 class Diagnosis(BaseModel):
     age: int
 
 
+class _NotFound(Exception):
+    status_code = 404
+
+
 class _FakeAdapter(BatchAdapter):
-    """Records calls and serves canned results -- no network, no SDK."""
+    """Records calls and serves canned results; no network, no SDK."""
 
     name = "openai"
     max_requests = 100_000
@@ -55,13 +72,14 @@ class _FakeAdapter(BatchAdapter):
     def __init__(self):
         self.submit_calls: list[dict] = []
         self.cancel_calls: list[str] = []
+        self.close_calls = 0
         self.get_batch_status = "in_progress"
         self.get_batch_counts: dict[str, int] | None = None
+        self.get_batch_error: Exception | None = None
         self.results: list[RawResultItem] = []
         self.orphan_recovery_batch_id: str | None = None
-        # N1: when set, find_orphaned_batch only "recovers" a call whose input_fingerprint
-        # matches this value -- None means "match anything" (most tests don't care).
         self.orphan_recovery_fingerprint: str | None = None
+        self.orphan_lookup_error: Exception | None = None
         self.find_orphaned_batch_calls: list[dict] = []
         self._next_id = 1
 
@@ -74,6 +92,7 @@ class _FakeAdapter(BatchAdapter):
         self.submit_calls.append(
             {
                 "requests": list(requests),
+                "model": model,
                 "idempotency_key": idempotency_key,
                 "input_fingerprint": input_fingerprint,
             }
@@ -81,6 +100,8 @@ class _FakeAdapter(BatchAdapter):
         return SubmitResult(batch_id=batch_id, provider_input_ref=None)
 
     def get_batch(self, batch_id):
+        if self.get_batch_error is not None:
+            raise self.get_batch_error
         return BatchState(status=self.get_batch_status, counts=self.get_batch_counts, error_message=None)
 
     def cancel_batch(self, batch_id):
@@ -107,12 +128,30 @@ class _FakeAdapter(BatchAdapter):
                 "not_before": not_before,
             }
         )
+        if self.orphan_lookup_error is not None:
+            raise self.orphan_lookup_error
         if (
             self.orphan_recovery_fingerprint is not None
             and input_fingerprint != self.orphan_recovery_fingerprint
         ):
             return None
         return self.orphan_recovery_batch_id
+
+    def close(self) -> None:
+        self.close_calls += 1
+
+
+def _success_item(index: int, raw: str, *, prefix: str = "k" * 16) -> RawResultItem:
+    return RawResultItem(
+        custom_id=f"{prefix}-{index}",
+        index=index,
+        provider_status="success",
+        model="gpt-5",
+        usage={"input_tokens": 1, "output_tokens": 1},
+        finish_reason="stop",
+        error=None,
+        raw=raw,
+    )
 
 
 @pytest.fixture
@@ -125,173 +164,286 @@ def result_path(tmp_path):
     return f"file://{tmp_path.as_posix()}"
 
 
-def _context(*, dag_id="dag", task_id="t", run_id="run_1", map_index=-1):
+def _context(*, dag_id="dag", task_id="t", run_id="run_1", map_index=-1, pushed: list | None = None):
     ti = SimpleNamespace(
-        dag_id=dag_id, task_id=task_id, run_id=run_id, map_index=map_index, xcom_push=lambda **kw: None
+        dag_id=dag_id,
+        task_id=task_id,
+        run_id=run_id,
+        map_index=map_index,
+        xcom_push=lambda **kw: pushed.append(kw) if pushed is not None else None,
     )
     return {"task_instance": ti, "ti": ti}
 
 
-def _patched(fake_adapter):
-    """Patch connection lookup (real conn_type -> real dispatch decision) and adapter construction."""
-    return (
-        mock.patch(
-            "airflow.providers.common.ai.operators.llm_batch.BaseHook.get_connection",
-            return_value=SimpleNamespace(conn_type="pydanticai", password=None, host=None),
-        ),
-        mock.patch("airflow.providers.common.ai.batch.dispatch.build_adapter", return_value=fake_adapter),
+def _connection(*, conn_type: str = "pydanticai", extra: dict | None = None) -> Connection:
+    return Connection(
+        conn_id="c", conn_type=conn_type, password=None, host=None, extra=json.dumps(extra) if extra else None
     )
+
+
+@contextlib.contextmanager
+def _running(fake_adapter: _FakeAdapter, *, conn: Connection | None = None):
+    """Patch the connection lookup and both adapter constructors so the real dispatch decision runs against the fake."""
+    with (
+        mock.patch.object(
+            llm_batch_module.BaseHook, "get_connection", autospec=True, return_value=conn or _connection()
+        ),
+        mock.patch.object(
+            dispatch, "build_adapter_from_connection", autospec=True, return_value=fake_adapter
+        ),
+        mock.patch.object(
+            dispatch, "build_adapter", autospec=True, return_value=fake_adapter
+        ) as build_adapter,
+    ):
+        yield build_adapter
 
 
 def _make_operator(
     task_id="batch_task", requests=None, result_path=None, deferrable=False, llm_conn_id="my_openai", **kwargs
 ):
+    kwargs.setdefault("model_id", "openai:gpt-5")
     return LLMBatchOperator(
         task_id=task_id,
         requests=requests or ["hello"],
         result_path=result_path,
         llm_conn_id=llm_conn_id,
-        model_id="openai:gpt-5",
         deferrable=deferrable,
         **kwargs,
     )
 
 
-class TestReattachDoesNotResubmit:
-    """Step 9 acceptance (a): retry with the state file intact must not call adapter.submit again."""
+def _state_files(result_path: str) -> list:
+    state_dir = ObjectStoragePath(result_path) / "_airflow_batch_state"
+    return list(state_dir.iterdir()) if state_dir.exists() else []
 
+
+def _expected_fingerprint(requests, *, llm_conn_id="my_openai", model_id="openai:gpt-5", output_type=str):
+    normalized = [{"prompt": r} if isinstance(r, str) else r for r in requests]
+    spec = build_output_spec(output_type)
+    output_schema = spec.json_schema if spec.is_structured else "str"
+    return state_module.compute_fingerprint(
+        requests=normalized,
+        llm_conn_id=llm_conn_id,
+        model_id=model_id,
+        system_prompt="",
+        max_tokens=1024,
+        request_params=None,
+        output_schema=output_schema,
+    )
+
+
+def _write_intent(result_path: str, ctx, *, fingerprint: str, intent_at="2020-01-01T00:00:00+00:00") -> None:
+    key, _ = LLMBatchOperator._identity(ctx)
+    state_module.write_intent(
+        ObjectStoragePath(result_path),
+        key=key,
+        input_fingerprint=fingerprint,
+        output_schema_digest="x",
+        intent_at=intent_at,
+    )
+
+
+class TestConstructorValidation:
+    @pytest.mark.parametrize(
+        ("kwargs", "match"),
+        [
+            ({"poll_interval": 10}, "poll_interval must be at least 30"),
+            ({"timeout": 0}, "timeout must be a positive"),
+            ({"on_stale_state": "resubmit"}, "on_stale_state must be one of"),
+            ({"on_orphaned_intent": "whatever"}, "on_orphaned_intent must be one of"),
+        ],
+    )
+    def test_invalid_arguments_fail_at_parse_time(self, kwargs, match):
+        with pytest.raises(ValueError, match=match):
+            _make_operator(result_path="file:///tmp/x", **kwargs)
+
+
+class TestNormalizeRequests:
+    def test_strings_and_dicts_are_accepted(self):
+        assert LLMBatchOperator._normalize_requests(["a", {"prompt": "b", "params": {"x": 1}}]) == [
+            {"prompt": "a"},
+            {"prompt": "b", "params": {"x": 1}},
+        ]
+
+    def test_a_bare_string_is_rejected_instead_of_iterated_per_character(self):
+        with pytest.raises(LLMBatchInputError, match="must return the whole list"):
+            LLMBatchOperator._normalize_requests("summarize this")
+
+    @pytest.mark.parametrize("bad_item", [42, None, ["nested"], {"prompt": 42}, {"text": "no prompt key"}])
+    def test_an_item_that_is_not_a_prompt_is_rejected_with_its_index(self, bad_item):
+        with pytest.raises(LLMBatchInputError, match="Request 1 must be a string or a dict"):
+            LLMBatchOperator._normalize_requests(["ok", bad_item])
+
+    def test_empty_list_is_rejected(self):
+        with pytest.raises(LLMBatchInputError, match="at least one request"):
+            LLMBatchOperator._normalize_requests([])
+
+
+class TestModelFromConnection:
+    def test_model_id_falls_back_to_the_connection_model_field(self, fake_adapter, result_path):
+        ctx = _context()
+        conn = _connection(extra={"model": "openai:gpt-5-mini"})
+        with _running(fake_adapter, conn=conn):
+            op = _make_operator(result_path=result_path, deferrable=True, model_id=None)
+            with pytest.raises(TaskDeferred):
+                op.execute(ctx)
+
+        assert fake_adapter.submit_calls[0]["model"] == "gpt-5-mini"
+
+
+class TestReattachDoesNotResubmit:
     def test_second_execute_with_same_identity_and_input_skips_submit(self, fake_adapter, result_path):
         ctx = _context()
-        conn_patch, adapter_patch = _patched(fake_adapter)
-        with conn_patch, adapter_patch:
+        with _running(fake_adapter):
             op1 = _make_operator(result_path=result_path, deferrable=True)
             with pytest.raises(TaskDeferred):
                 op1.execute(ctx)
             assert len(fake_adapter.submit_calls) == 1
 
-            # A fresh operator instance, same task/run/map identity, same input: a retry.
             op2 = _make_operator(result_path=result_path, deferrable=True)
             with pytest.raises(TaskDeferred):
                 op2.execute(ctx)
-            assert len(fake_adapter.submit_calls) == 1  # still 1 -- no resubmit
+            assert len(fake_adapter.submit_calls) == 1
+
+    def test_adapter_is_closed_after_a_deferral_and_after_a_sync_run(self, fake_adapter, result_path):
+        ctx = _context()
+        with _running(fake_adapter):
+            with pytest.raises(TaskDeferred):
+                _make_operator(result_path=result_path, deferrable=True).execute(ctx)
+            assert fake_adapter.close_calls == 1
+
+            fake_adapter.get_batch_status = "completed"
+            fake_adapter.results = [_success_item(0, "hi")]
+            _make_operator(result_path=result_path, deferrable=False).execute(ctx)
+        # execute() closes its adapter, and _land() closes the one it builds for the download.
+        assert fake_adapter.close_calls == 3
+
+
+class TestIntentIsRecordedBeforeSubmit:
+    def test_a_submit_that_raises_leaves_an_intent_record_with_no_batch_id(self, fake_adapter, result_path):
+        ctx = _context()
+
+        def _boom(*args, **kwargs):
+            raise ConnectionError("socket closed mid-request")
+
+        fake_adapter.submit = _boom
+        with _running(fake_adapter):
+            op = _make_operator(result_path=result_path, deferrable=True)
+            with pytest.raises(ConnectionError):
+                op.execute(ctx)
+
+        key, _ = LLMBatchOperator._identity(ctx)
+        record = state_module.read_state(ObjectStoragePath(result_path), key)
+        assert record is not None
+        assert record.batch_id is None
+        assert record.input_fingerprint == _expected_fingerprint(["hello"])
+        assert record.intent_at is not None
 
 
 class TestFingerprintMismatchTriggersCancelAndResubmit:
-    """Step 9 acceptance (b)."""
-
     def test_changed_prompt_cancels_old_batch_and_submits_new_one(self, fake_adapter, result_path):
         ctx = _context()
-        conn_patch, adapter_patch = _patched(fake_adapter)
-        with conn_patch, adapter_patch:
-            op1 = _make_operator(requests=["hello"], result_path=result_path, deferrable=True)
+        with _running(fake_adapter):
             with pytest.raises(TaskDeferred):
-                op1.execute(ctx)
-            first_batch_id = fake_adapter.submit_calls[0]["idempotency_key"]  # noqa: F841 (documents intent)
+                _make_operator(requests=["hello"], result_path=result_path, deferrable=True).execute(ctx)
             assert len(fake_adapter.submit_calls) == 1
 
-            op2 = _make_operator(requests=["goodbye"], result_path=result_path, deferrable=True)
             with pytest.raises(TaskDeferred):
-                op2.execute(ctx)
+                _make_operator(requests=["goodbye"], result_path=result_path, deferrable=True).execute(ctx)
             assert len(fake_adapter.submit_calls) == 2
             assert fake_adapter.cancel_calls == ["batch_1"]
 
     def test_on_stale_state_fail_raises_instead_of_resubmitting(self, fake_adapter, result_path):
         ctx = _context()
-        conn_patch, adapter_patch = _patched(fake_adapter)
-        with conn_patch, adapter_patch:
-            op1 = _make_operator(requests=["hello"], result_path=result_path, deferrable=True)
+        with _running(fake_adapter):
             with pytest.raises(TaskDeferred):
-                op1.execute(ctx)
+                _make_operator(requests=["hello"], result_path=result_path, deferrable=True).execute(ctx)
 
             op2 = _make_operator(
                 requests=["goodbye"], result_path=result_path, deferrable=True, on_stale_state="fail"
             )
-            with pytest.raises(LLMBatchStaleStateError):
+            with pytest.raises(LLMBatchStaleStateError, match="prompts or other request content changed"):
                 op2.execute(ctx)
-            assert len(fake_adapter.submit_calls) == 1  # rejected, not resubmitted
+            assert len(fake_adapter.submit_calls) == 1
+
+    def test_stale_batch_is_cancelled_through_the_connection_that_owns_it(self, fake_adapter, result_path):
+        ctx = _context()
+        with _running(fake_adapter) as build_adapter:
+            with pytest.raises(TaskDeferred):
+                _make_operator(result_path=result_path, deferrable=True, llm_conn_id="account_a").execute(ctx)
+
+            with pytest.raises(TaskDeferred):
+                _make_operator(result_path=result_path, deferrable=True, llm_conn_id="account_b").execute(ctx)
+
+        build_adapter.assert_any_call("openai", llm_conn_id="account_a")
+        assert fake_adapter.cancel_calls == ["batch_1"]
+        assert len(fake_adapter.submit_calls) == 2
 
 
 class TestOutputTypeChangeDoesNotReattach:
-    """Step 9 acceptance (c): prompt unchanged, output_type schema changed -> must not reattach."""
-
     def test_output_type_change_with_identical_prompt_forces_resubmit(self, fake_adapter, result_path):
         ctx = _context()
-        conn_patch, adapter_patch = _patched(fake_adapter)
-        with conn_patch, adapter_patch:
-            op1 = _make_operator(
-                requests=["hello"], result_path=result_path, deferrable=True, output_type=str
-            )
+        with _running(fake_adapter):
             with pytest.raises(TaskDeferred):
-                op1.execute(ctx)
+                _make_operator(
+                    requests=["hello"], result_path=result_path, deferrable=True, output_type=str
+                ).execute(ctx)
             assert len(fake_adapter.submit_calls) == 1
 
-            op2 = _make_operator(
-                requests=["hello"], result_path=result_path, deferrable=True, output_type=Diagnosis
-            )
             with pytest.raises(TaskDeferred):
-                op2.execute(ctx)
+                _make_operator(
+                    requests=["hello"], result_path=result_path, deferrable=True, output_type=Diagnosis
+                ).execute(ctx)
             assert len(fake_adapter.submit_calls) == 2
 
 
 class TestEndToEndStructuredBatch:
-    """Step 9 acceptance (d)."""
-
     def test_success_and_invalid_output_rows_land_and_counts_reconcile(self, fake_adapter, result_path):
         fake_adapter.get_batch_status = "completed"
         ctx = _context()
-        conn_patch, adapter_patch = _patched(fake_adapter)
-        with conn_patch, adapter_patch:
+        real_submit = fake_adapter.submit
+
+        def _submit_then_seed(requests, *, idempotency_key, **kwargs):
+            fake_adapter.results = [
+                _success_item(0, '{"age": 30}', prefix=idempotency_key),
+                _success_item(1, '{"age": "not-a-number"}', prefix=idempotency_key),
+            ]
+            return real_submit(requests, idempotency_key=idempotency_key, **kwargs)
+
+        fake_adapter.submit = _submit_then_seed
+        with _running(fake_adapter):
             op = _make_operator(
                 requests=["a", "b"], result_path=result_path, deferrable=False, output_type=Diagnosis
             )
-            # submit() runs before results exist -- register them once we know the custom_id prefix.
-            manifest = None
-
-            def _submit_then_seed(
-                requests, *, model, idempotency_key, input_fingerprint, output_spec, **kwargs
-            ):
-                fake_adapter.results = [
-                    RawResultItem(
-                        custom_id=f"{idempotency_key}-0",
-                        index=0,
-                        provider_status="success",
-                        model="gpt-5",
-                        usage={"input_tokens": 1, "output_tokens": 1},
-                        finish_reason="stop",
-                        error=None,
-                        raw='{"age": 30}',
-                    ),
-                    RawResultItem(
-                        custom_id=f"{idempotency_key}-1",
-                        index=1,
-                        provider_status="success",
-                        model="gpt-5",
-                        usage={"input_tokens": 1, "output_tokens": 1},
-                        finish_reason="stop",
-                        error=None,
-                        raw='{"age": "not-a-number"}',
-                    ),
-                ]
-                return SubmitResult(batch_id="batch_x", provider_input_ref=None)
-
-            fake_adapter.submit = _submit_then_seed
             manifest = op.execute(ctx)
 
         assert manifest["request_count"] == 2
         assert manifest["counts"]["succeeded"] == 1
         assert manifest["counts"]["invalid_output"] == 1
         assert manifest["request_count"] == sum(manifest["counts"].values())
+        assert manifest["terminal_reason"] == "partial"
 
-        result_uri = ObjectStoragePath(manifest["result_uri"])
-        rows = [json.loads(line) for line in result_uri.read_text().splitlines()]
-        statuses = {row["status"] for row in rows}
-        assert statuses == {"success", "invalid_output"}
+        rows = [
+            json.loads(line) for line in ObjectStoragePath(manifest["result_uri"]).read_text().splitlines()
+        ]
+        assert {row["status"] for row in rows} == {"success", "invalid_output"}
+        assert len(_state_files(result_path)) == 1, "state is kept so a clear re-lands the same results"
 
-        # The state file must be gone once the manifest has landed (§5.3/§8 invariant).
-        state_dir = ObjectStoragePath(result_path) / "_airflow_batch_state"
-        assert not list(state_dir.iterdir())
+    def test_clearing_a_finished_task_relands_without_resubmitting(self, fake_adapter, result_path):
+        fake_adapter.get_batch_status = "completed"
+        fake_adapter.results = [_success_item(0, "hi")]
+        ctx = _context()
+        with _running(fake_adapter):
+            first = _make_operator(result_path=result_path, deferrable=False).execute(ctx)
+            second = _make_operator(result_path=result_path, deferrable=False).execute(ctx)
 
-    def test_fail_on_partial_error_raises_after_landing_results(self, fake_adapter, result_path):
+        assert len(fake_adapter.submit_calls) == 1
+        assert second["batch_id"] == first["batch_id"]
+        assert second["counts"] == first["counts"]
+
+    def test_fail_on_partial_error_raises_after_landing_results_and_a_retry_reattaches(
+        self, fake_adapter, result_path
+    ):
         fake_adapter.get_batch_status = "completed"
         fake_adapter.results = [
             RawResultItem(
@@ -311,52 +463,28 @@ class TestEndToEndStructuredBatch:
             )
         ]
         ctx = _context()
-        conn_patch, adapter_patch = _patched(fake_adapter)
-        with conn_patch, adapter_patch:
+        with _running(fake_adapter):
             op = _make_operator(
                 requests=["a"], result_path=result_path, deferrable=False, fail_on_partial_error=True
             )
-            with pytest.raises(LLMBatchPartialFailureError):
+            with pytest.raises(LLMBatchPartialFailureError, match="errored=1"):
                 op.execute(ctx)
 
-        # Results must have landed even though the task raises.
-        jsonl_files = list(ObjectStoragePath(result_path).glob("*.jsonl"))
-        assert len(jsonl_files) == 1
+            assert len(list(ObjectStoragePath(result_path).glob("*.jsonl"))) == 1
+            assert _state_files(result_path), "state is kept so a retry re-attaches"
 
-        # M1: state must NOT be deleted -- a retry needs to re-attach to this same batch and
-        # reach the same conclusion, not pay for a brand new submission.
-        state_dir = ObjectStoragePath(result_path) / "_airflow_batch_state"
-        assert list(state_dir.iterdir()), "state file was deleted despite fail_on_partial_error raising"
-
-        # And the retry must actually do that: re-attach (no new submit call) and raise the
-        # same conclusion again, rather than resubmitting.
-        submit_calls_before_retry = len(fake_adapter.submit_calls)
-        with conn_patch, adapter_patch:
             op_retry = _make_operator(
                 requests=["a"], result_path=result_path, deferrable=False, fail_on_partial_error=True
             )
             with pytest.raises(LLMBatchPartialFailureError):
-                op_retry.execute(_context())
-        assert len(fake_adapter.submit_calls) == submit_calls_before_retry  # no new submit -- reattached
+                op_retry.execute(ctx)
+        assert len(fake_adapter.submit_calls) == 1
 
     def test_fail_on_partial_error_triggers_on_invalid_output_alone(self, fake_adapter, result_path):
-        """S2: invalid_output>0 with errored=0 must trigger fail_on_partial_error on its own."""
         fake_adapter.get_batch_status = "completed"
-        fake_adapter.results = [
-            RawResultItem(
-                custom_id="k" * 16 + "-0",
-                index=0,
-                provider_status="success",
-                model="gpt-5",
-                usage={"input_tokens": 1, "output_tokens": 1},
-                finish_reason="stop",
-                error=None,
-                raw='{"age": "not-a-number"}',
-            )
-        ]
+        fake_adapter.results = [_success_item(0, '{"age": "not-a-number"}')]
         ctx = _context()
-        conn_patch, adapter_patch = _patched(fake_adapter)
-        with conn_patch, adapter_patch:
+        with _running(fake_adapter):
             op = _make_operator(
                 requests=["a"],
                 result_path=result_path,
@@ -364,421 +492,365 @@ class TestEndToEndStructuredBatch:
                 fail_on_partial_error=True,
                 output_type=Diagnosis,
             )
-            with pytest.raises(LLMBatchPartialFailureError, match="1 output-validation failure"):
+            with pytest.raises(LLMBatchPartialFailureError, match="invalid_output=1"):
+                op.execute(ctx)
+
+    def test_missing_alone_triggers_fail_on_partial_error(self, fake_adapter, result_path):
+        fake_adapter.get_batch_status = "completed"
+        fake_adapter.results = []
+        ctx = _context()
+        with _running(fake_adapter):
+            op = _make_operator(
+                requests=["a", "b"], result_path=result_path, deferrable=False, fail_on_partial_error=True
+            )
+            with pytest.raises(LLMBatchPartialFailureError, match="missing=2"):
                 op.execute(ctx)
 
 
 class TestStateReadFailurePropagates:
-    """M2: a corrupt/unreadable state file must fail the task (retryable), never read as 'no state'."""
-
     def test_corrupt_state_file_raises_instead_of_resubmitting(self, fake_adapter, result_path):
-        from airflow.providers.common.ai.exceptions import LLMBatchStateReadError
-
         ctx = _context()
-        conn_patch, adapter_patch = _patched(fake_adapter)
-        with conn_patch, adapter_patch:
-            op1 = _make_operator(result_path=result_path, deferrable=True)
+        with _running(fake_adapter):
             with pytest.raises(TaskDeferred):
-                op1.execute(ctx)
+                _make_operator(result_path=result_path, deferrable=True).execute(ctx)
             assert len(fake_adapter.submit_calls) == 1
 
-            # Corrupt the state file a previous attempt wrote.
-            state_dir = ObjectStoragePath(result_path) / "_airflow_batch_state"
-            state_file = next(iter(state_dir.iterdir()))
-            state_file.write_text("{not valid json")
+            next(iter(_state_files(result_path))).write_text("{not valid json")
 
-            op2 = _make_operator(result_path=result_path, deferrable=True)
             with pytest.raises(LLMBatchStateReadError):
-                op2.execute(ctx)
-        assert len(fake_adapter.submit_calls) == 1  # must not have resubmitted
-
-
-def _expected_fingerprint(requests, *, llm_conn_id="my_openai", model_id="openai:gpt-5", output_type=str):
-    """Compute the same fingerprint ``LLMBatchOperator.execute()`` would, for tests that need to
-    seed a Phase A record with a fingerprint that will (or, deliberately, will not) match."""
-    from airflow.providers.common.ai.batch import state as state_module
-    from airflow.providers.common.ai.batch.output_schema import build_output_spec
-
-    normalized = [{"prompt": r} if isinstance(r, str) else r for r in requests]
-    spec = build_output_spec(output_type)
-    output_schema = spec.json_schema if spec.is_structured else "str"
-    return state_module.compute_fingerprint(
-        requests=normalized,
-        llm_conn_id=llm_conn_id,
-        model_id=model_id,
-        system_prompt="",
-        max_tokens=1024,
-        request_params=None,
-        output_schema=output_schema,
-    )
+                _make_operator(result_path=result_path, deferrable=True).execute(ctx)
+        assert len(fake_adapter.submit_calls) == 1
 
 
 class TestOrphanRecovery:
-    """M3: a Phase A orphan (no batch id recorded) tries provider-side recovery before resubmitting."""
-
     def test_recovered_orphan_reattaches_without_resubmitting(self, fake_adapter, result_path):
-        from airflow.providers.common.ai.batch import state as state_module
-
-        result_path_osp = ObjectStoragePath(result_path)
         ctx = _context()
-        key, _ = LLMBatchOperator._identity(ctx)
         fingerprint = _expected_fingerprint(["hello"])
-        # Simulate a Phase A intent record left behind by a crash between submit and recording
-        # the response -- batch_id is null. N1: the fingerprint here matches what execute() will
-        # actually compute for these requests -- this test is the "recovery succeeds when content
-        # is unchanged" case, not the mismatched one (see TestOrphanFingerprintMismatch below).
-        state_module.write_intent(
-            result_path_osp,
-            key=key,
-            input_fingerprint=fingerprint,
-            output_schema_digest="x",
-            intent_at="2020-01-01T00:00:00+00:00",
-        )
+        _write_intent(result_path, ctx, fingerprint=fingerprint)
         fake_adapter.orphan_recovery_batch_id = "recovered_batch_123"
         fake_adapter.orphan_recovery_fingerprint = fingerprint
-        fake_adapter.get_batch_status = "in_progress"
 
-        conn_patch, adapter_patch = _patched(fake_adapter)
-        with conn_patch, adapter_patch:
-            op = _make_operator(result_path=result_path, deferrable=True)
+        with _running(fake_adapter):
             with pytest.raises(TaskDeferred) as exc_info:
-                op.execute(ctx)
+                _make_operator(result_path=result_path, deferrable=True).execute(ctx)
 
-        assert len(fake_adapter.submit_calls) == 0  # recovered, never resubmitted
+        assert fake_adapter.submit_calls == []
         assert exc_info.value.trigger.batch_id == "recovered_batch_123"
-        # N1: the operator must pass the *current* fingerprint through, not skip the check.
         assert fake_adapter.find_orphaned_batch_calls[0]["input_fingerprint"] == fingerprint
 
     def test_recovered_orphan_anchors_end_time_to_intent_at_not_now(self, fake_adapter, result_path):
-        """
-        R3-3: a recovered orphan's Phase A record never has ``submitted_at`` set (only Phase B
-        sets it) -- falling back to "now" would anchor the C5 timeout budget to recovery time
-        instead of the batch's real (approximate) submit time. ``intent_at`` is the best
-        available stand-in.
-        """
-        from datetime import datetime
-
-        from airflow.providers.common.ai.batch import state as state_module
-
-        result_path_osp = ObjectStoragePath(result_path)
         ctx = _context()
-        key, _ = LLMBatchOperator._identity(ctx)
         fingerprint = _expected_fingerprint(["hello"])
         intent_at = "2020-01-01T00:00:00+00:00"
-        state_module.write_intent(
-            result_path_osp,
-            key=key,
-            input_fingerprint=fingerprint,
-            output_schema_digest="x",
-            intent_at=intent_at,
-        )
+        _write_intent(result_path, ctx, fingerprint=fingerprint, intent_at=intent_at)
         fake_adapter.orphan_recovery_batch_id = "recovered_batch_123"
         fake_adapter.orphan_recovery_fingerprint = fingerprint
-        fake_adapter.get_batch_status = "in_progress"
+        intent_epoch = datetime.fromisoformat(intent_at).timestamp()
 
-        conn_patch, adapter_patch = _patched(fake_adapter)
-        with conn_patch, adapter_patch:
-            op = _make_operator(result_path=result_path, deferrable=True, timeout=1000)
+        with (
+            _running(fake_adapter),
+            mock.patch.object(llm_batch_module.time, "time", autospec=True, return_value=intent_epoch + 5),
+        ):
             with pytest.raises(TaskDeferred) as exc_info:
-                op.execute(ctx)
+                _make_operator(result_path=result_path, deferrable=True, timeout=1000).execute(ctx)
 
-        expected_end_time = datetime.fromisoformat(intent_at).timestamp() + 1000
-        assert exc_info.value.trigger.end_time == pytest.approx(expected_end_time, abs=2)
+        assert exc_info.value.trigger.end_time == pytest.approx(intent_epoch + 1000, abs=2)
 
     def test_no_orphan_found_submits_a_new_batch(self, fake_adapter, result_path):
-        from airflow.providers.common.ai.batch import state as state_module
-
-        result_path_osp = ObjectStoragePath(result_path)
         ctx = _context()
-        key, _ = LLMBatchOperator._identity(ctx)
-        state_module.write_intent(
-            result_path_osp,
-            key=key,
-            input_fingerprint=_expected_fingerprint(["hello"]),
-            output_schema_digest="x",
-            intent_at="2020-01-01T00:00:00+00:00",
-        )
-        fake_adapter.orphan_recovery_batch_id = None  # nothing found
+        _write_intent(result_path, ctx, fingerprint=_expected_fingerprint(["hello"]))
+        fake_adapter.orphan_recovery_batch_id = None
 
-        conn_patch, adapter_patch = _patched(fake_adapter)
-        with conn_patch, adapter_patch:
-            op = _make_operator(result_path=result_path, deferrable=True)
+        with _running(fake_adapter):
             with pytest.raises(TaskDeferred):
-                op.execute(ctx)
+                _make_operator(result_path=result_path, deferrable=True).execute(ctx)
         assert len(fake_adapter.submit_calls) == 1
 
-
-class TestOrphanFingerprintMismatch:
-    """
-    N1: a candidate batch on the provider side must not be recovered just because the
-    idempotency_key matches -- the key is stable across a ``clear`` even when the prompts
-    changed, so matching on it alone risks silently attaching a different, older submission's
-    results. Only a matching input_fingerprint makes recovery safe.
-    """
-
     def test_fingerprint_mismatch_falls_back_to_a_fresh_submit(self, fake_adapter, result_path):
-        from airflow.providers.common.ai.batch import state as state_module
-
-        result_path_osp = ObjectStoragePath(result_path)
         ctx = _context()
-        key, _ = LLMBatchOperator._identity(ctx)
-        state_module.write_intent(
-            result_path_osp,
-            key=key,
-            input_fingerprint="whatever-was-recorded-before",
-            output_schema_digest="x",
-            intent_at="2020-01-01T00:00:00+00:00",
-        )
+        _write_intent(result_path, ctx, fingerprint="whatever-was-recorded-before")
         fake_adapter.orphan_recovery_batch_id = "recovered_batch_123"
-        # Simulates: the batch actually on the provider (if any) was submitted under different
-        # content than what this attempt is about to submit -- the real adapter's own metadata
-        # match would reject it; here the fake enforces that same contract explicitly.
         fake_adapter.orphan_recovery_fingerprint = "some-completely-different-fingerprint"
 
-        conn_patch, adapter_patch = _patched(fake_adapter)
-        with conn_patch, adapter_patch:
-            op = _make_operator(result_path=result_path, deferrable=True)
+        with _running(fake_adapter):
             with pytest.raises(TaskDeferred):
-                op.execute(ctx)
+                _make_operator(result_path=result_path, deferrable=True).execute(ctx)
 
-        # Not recovered -- a fresh batch was submitted instead of silently attaching to a
-        # mismatched candidate.
         assert len(fake_adapter.submit_calls) == 1
         assert fake_adapter.submit_calls[0]["input_fingerprint"] == _expected_fingerprint(["hello"])
 
-
-class TestOnOrphanedIntent:
-    """R3-6: when no orphan is found, on_orphaned_intent controls resubmit vs. fail."""
-
-    def _write_unrecoverable_intent(self, result_path):
-        from airflow.providers.common.ai.batch import state as state_module
-
+    def test_on_orphaned_intent_fail_raises_instead_of_resubmitting(self, fake_adapter, result_path):
         ctx = _context()
-        key, _ = LLMBatchOperator._identity(ctx)
-        state_module.write_intent(
-            ObjectStoragePath(result_path),
-            key=key,
-            input_fingerprint=_expected_fingerprint(["hello"]),
-            output_schema_digest="x",
-            intent_at="2020-01-01T00:00:00+00:00",
-        )
-        return ctx
+        _write_intent(result_path, ctx, fingerprint=_expected_fingerprint(["hello"]))
+        fake_adapter.orphan_recovery_batch_id = None
 
-    def test_default_resubmit_submits_a_new_batch(self, fake_adapter, result_path):
-        ctx = self._write_unrecoverable_intent(result_path)
-        fake_adapter.orphan_recovery_batch_id = None  # nothing found
-
-        conn_patch, adapter_patch = _patched(fake_adapter)
-        with conn_patch, adapter_patch:
-            op = _make_operator(result_path=result_path, deferrable=True)  # default: "resubmit"
-            with pytest.raises(TaskDeferred):
-                op.execute(ctx)
-        assert len(fake_adapter.submit_calls) == 1
-
-    def test_fail_raises_instead_of_resubmitting(self, fake_adapter, result_path):
-        from airflow.providers.common.ai.exceptions import LLMBatchOrphanedIntentError
-
-        ctx = self._write_unrecoverable_intent(result_path)
-        fake_adapter.orphan_recovery_batch_id = None  # nothing found
-
-        conn_patch, adapter_patch = _patched(fake_adapter)
-        with conn_patch, adapter_patch:
+        with _running(fake_adapter):
             op = _make_operator(result_path=result_path, deferrable=True, on_orphaned_intent="fail")
             with pytest.raises(LLMBatchOrphanedIntentError):
                 op.execute(ctx)
-        assert len(fake_adapter.submit_calls) == 0  # rejected, not resubmitted
+        assert fake_adapter.submit_calls == []
+
+    def test_a_failed_lookup_is_unknown_not_absent_and_never_resubmits(self, fake_adapter, result_path):
+        ctx = _context()
+        _write_intent(result_path, ctx, fingerprint=_expected_fingerprint(["hello"]))
+        fake_adapter.orphan_lookup_error = ConnectionError("provider unreachable")
+
+        with _running(fake_adapter):
+            op = _make_operator(result_path=result_path, deferrable=True)
+            with pytest.raises(LLMBatchOrphanLookupError, match="provider unreachable"):
+                op.execute(ctx)
+        assert fake_adapter.submit_calls == []
+        assert _state_files(result_path), "the intent record stays so the retry checks again"
 
 
-class TestCancelledRoutesThroughFinalizeLikeExpired:
-    """
-    N-M4: a cancelled batch is handled exactly like an expired one -- fetched/validated/landed
-    via ``_finalize``, not treated as an immediate dead end that unconditionally clears state and
-    raises. Whether the task then fails is ``fail_on_partial_error``'s job.
-    """
-
-    def test_cancelled_status_produces_a_manifest_and_clears_state_like_success(
+class TestCancelledBatch:
+    def test_cancelled_with_lost_requests_lands_partials_raises_and_clears_state(
         self, fake_adapter, result_path
     ):
         fake_adapter.get_batch_status = "cancelled"
         fake_adapter.get_batch_counts = {"succeeded": 1, "errored": 0, "expired": 0, "cancelled": 1}
-        fake_adapter.results = [
-            RawResultItem(
-                custom_id="k-0",
-                index=0,
-                provider_status="success",
-                model="gpt-5",
-                usage={"input_tokens": 1, "output_tokens": 1},
-                finish_reason="stop",
-                error=None,
-                raw="hello",
-            )
-        ]
+        fake_adapter.results = [_success_item(0, "hello", prefix="k")]
         ctx = _context()
-        conn_patch, adapter_patch = _patched(fake_adapter)
-        with conn_patch, adapter_patch:
+        with _running(fake_adapter):
             op = _make_operator(requests=["a", "b"], result_path=result_path, deferrable=False)
-            manifest = op.execute(ctx)
+            with pytest.raises(
+                LLMBatchCancelledError, match="cancelled before 1 of 2 requests completed"
+            ) as exc_info:
+                op.execute(ctx)
+
+        _, key16 = LLMBatchOperator._identity(ctx)
+        result_file = ObjectStoragePath(result_path) / f"{key16}.jsonl"
+        assert str(result_file) in str(exc_info.value)
+        rows = [json.loads(line) for line in result_file.read_text().splitlines()]
+        # The provider wrote no line for the cancelled request, so its row is "missing"; the
+        # manifest relabels it from the job-level counts, which is what the error message reports.
+        assert sorted(row["status"] for row in rows) == ["missing", "success"]
+        assert _state_files(result_path) == [], "a cancelled batch is not something to re-attach to"
+
+    def test_retry_after_our_own_timeout_cancel_submits_a_fresh_batch(self, fake_adapter, result_path):
+        ctx = _context()
+        with _running(fake_adapter), mock.patch.object(llm_batch_module.time, "sleep", autospec=True):
+            # Attempt 1: still in progress at the deadline -> cancel_on_timeout cancels it.
+            with mock.patch.object(
+                llm_batch_module.time, "time", autospec=True, return_value=time.time() + 10_000
+            ):
+                op1 = _make_operator(result_path=result_path, deferrable=False, timeout=60)
+                with pytest.raises(LLMBatchTimeoutError, match="timeout=60s.*was cancelled") as exc_info:
+                    op1.execute(ctx)
+            assert fake_adapter.cancel_calls == ["batch_1"]
+            assert "cancel_on_timeout=True" in str(exc_info.value)
+            assert _state_files(result_path), "the timeout itself keeps the state"
+
+            # Attempt 2: re-attaches, finds the cancelled batch, lands nothing, clears the state.
+            fake_adapter.get_batch_status = "cancelled"
+            fake_adapter.get_batch_counts = {"succeeded": 0, "errored": 0, "expired": 0, "cancelled": 1}
+            with pytest.raises(LLMBatchCancelledError):
+                _make_operator(result_path=result_path, deferrable=False, timeout=60).execute(ctx)
+            assert _state_files(result_path) == []
+            assert len(fake_adapter.submit_calls) == 1
+
+            # Attempt 3: submits fresh instead of re-landing the cancelled batch as a success.
+            fake_adapter.get_batch_status = "in_progress"
+            with pytest.raises(TaskDeferred):
+                _make_operator(result_path=result_path, deferrable=True, timeout=60).execute(ctx)
+            assert len(fake_adapter.submit_calls) == 2
+
+    def test_cancelled_after_everything_completed_is_a_success(self, fake_adapter, result_path):
+        fake_adapter.get_batch_status = "cancelled"
+        fake_adapter.get_batch_counts = {"succeeded": 1, "errored": 0, "expired": 0, "cancelled": 0}
+        fake_adapter.results = [_success_item(0, "hello", prefix="k")]
+        ctx = _context()
+        with _running(fake_adapter):
+            manifest = _make_operator(requests=["a"], result_path=result_path, deferrable=False).execute(ctx)
 
         assert manifest["counts"]["succeeded"] == 1
-        assert manifest["counts"]["cancelled"] == 1
-        assert manifest["terminal_reason"] == "cancelled"
-        assert manifest["request_count"] == sum(manifest["counts"].values())
-        # Results were actually landed, not discarded.
-        result_uri = ObjectStoragePath(manifest["result_uri"])
-        assert result_uri.read_text().strip() != ""
-        # fail_on_partial_error defaults to False -- state clears like any other finalized batch.
-        state_dir = ObjectStoragePath(result_path) / "_airflow_batch_state"
-        assert not list(state_dir.iterdir())
+        assert manifest["terminal_reason"] == "succeeded"
+        assert _state_files(result_path)
 
-    def test_cancelled_status_with_fail_on_partial_error_raises_but_keeps_state(
-        self, fake_adapter, result_path
-    ):
-        fake_adapter.get_batch_status = "cancelled"
-        fake_adapter.get_batch_counts = {"succeeded": 0, "errored": 0, "expired": 0, "cancelled": 1}
-        fake_adapter.results = []  # the one request never completed
+
+class TestFailedBatch:
+    def test_failed_clears_state_so_a_retry_resubmits(self, fake_adapter, result_path):
+        fake_adapter.get_batch_status = "failed"
         ctx = _context()
-        conn_patch, adapter_patch = _patched(fake_adapter)
-        with conn_patch, adapter_patch:
-            op = _make_operator(
-                requests=["a"], result_path=result_path, deferrable=False, fail_on_partial_error=True
-            )
-            with pytest.raises(LLMBatchPartialFailureError, match="1 cancelled request"):
+        with _running(fake_adapter):
+            with pytest.raises(LLMBatchJobError, match="recorded state was cleared"):
+                _make_operator(result_path=result_path, deferrable=False).execute(ctx)
+            assert _state_files(result_path) == []
+
+            with pytest.raises(LLMBatchJobError):
+                _make_operator(result_path=result_path, deferrable=False).execute(ctx)
+        assert len(fake_adapter.submit_calls) == 2
+
+
+class TestPollingGivesUp:
+    def test_persistent_poll_failures_inside_the_budget_keep_the_state(self, fake_adapter, result_path):
+        fake_adapter.get_batch_error = RuntimeError("Connection reset by peer")
+        ctx = _context()
+        with (
+            _running(fake_adapter),
+            mock.patch.object(llm_batch_module.time, "sleep", autospec=True) as sleep,
+        ):
+            # The first get_batch on a fresh submit is the poll; re-attach never happens here.
+            op = _make_operator(result_path=result_path, deferrable=False)
+            with pytest.raises(
+                LLMBatchJobError, match="Gave up polling batch batch_1 after 5 consecutive failures"
+            ):
                 op.execute(ctx)
 
-        state_dir = ObjectStoragePath(result_path) / "_airflow_batch_state"
-        assert list(state_dir.iterdir()), "state must be kept so a retry re-attaches to the same batch"
+        assert sleep.call_count == 4
+        assert fake_adapter.cancel_calls == []
+        assert _state_files(result_path), "the batch's fate is unknown, so a retry re-attaches"
 
-
-class TestFailOnPartialErrorIncludesMissing:
-    """
-    N3: ``missing`` (no per-item or job-level signal explains it at all) must also trigger
-    ``fail_on_partial_error`` -- an expired-at-5%-completion batch must not report bare success
-    just because none of the uncompleted requests individually came back "errored".
-    """
-
-    def test_missing_alone_triggers_fail_on_partial_error(self, fake_adapter, result_path):
-        fake_adapter.get_batch_status = "completed"
-        fake_adapter.results = []  # both requests are unaccounted for -- pure "missing"
+    def test_timeout_without_cancel_says_the_batch_is_still_running(self, fake_adapter, result_path):
         ctx = _context()
-        conn_patch, adapter_patch = _patched(fake_adapter)
-        with conn_patch, adapter_patch:
+        with (
+            _running(fake_adapter),
+            mock.patch.object(llm_batch_module.time, "sleep", autospec=True),
+            mock.patch.object(
+                llm_batch_module.time, "time", autospec=True, return_value=time.time() + 10_000
+            ),
+        ):
             op = _make_operator(
-                requests=["a", "b"], result_path=result_path, deferrable=False, fail_on_partial_error=True
+                result_path=result_path, deferrable=False, timeout=60, cancel_on_timeout=False
             )
-            with pytest.raises(LLMBatchPartialFailureError, match=r"2 request\(s\) with no recorded outcome"):
+            with pytest.raises(LLMBatchTimeoutError, match="left running \\(cancel_on_timeout=False\\)"):
                 op.execute(ctx)
+        assert fake_adapter.cancel_calls == []
 
 
-class TestPollTimeoutAnchoredToSubmittedAt:
-    """
-    C5: the poll timeout is "seconds from submission" (per the class/``timeout`` docstring), not
-    "seconds from whenever this particular execute() attempt happens to run" -- a resumed
-    reattach (a retry, or a still-running batch) must not silently get a fresh full budget.
-    """
-
-    def test_reattach_to_a_still_running_batch_anchors_end_time_to_recorded_submitted_at(
-        self, fake_adapter, result_path
-    ):
-        from datetime import datetime
-
-        from airflow.providers.common.ai.batch import state as state_module
-
+class TestReattachTimeoutBudget:
+    def test_retry_inside_the_budget_keeps_the_original_deadline(self, fake_adapter, result_path):
         ctx = _context()
-        conn_patch, adapter_patch = _patched(fake_adapter)
-        with conn_patch, adapter_patch:
-            op1 = _make_operator(result_path=result_path, deferrable=True, timeout=1000)
+        with _running(fake_adapter):
             with pytest.raises(TaskDeferred):
-                op1.execute(ctx)
+                _make_operator(result_path=result_path, deferrable=True, timeout=1000).execute(ctx)
 
             key, _ = LLMBatchOperator._identity(ctx)
             record = state_module.read_state(ObjectStoragePath(result_path), key)
-            expected_end_time = datetime.fromisoformat(record.submitted_at).timestamp() + 1000
+            submitted_epoch = datetime.fromisoformat(record.submitted_at).timestamp()
 
-            # Retry, resuming a still-in_progress batch -- "now" is mocked to a value wildly
-            # different from the real submitted_at, so a bug that recomputes
-            # end_time = time.time() + timeout would produce a wildly different end_time too.
-            op2 = _make_operator(result_path=result_path, deferrable=True, timeout=1000)
-            with mock.patch("airflow.providers.common.ai.operators.llm_batch.time.time", return_value=0.0):
+            with mock.patch.object(
+                llm_batch_module.time, "time", autospec=True, return_value=submitted_epoch + 100
+            ):
                 with pytest.raises(TaskDeferred) as exc_info:
-                    op2.execute(ctx)
+                    _make_operator(result_path=result_path, deferrable=True, timeout=1000).execute(ctx)
 
-        assert exc_info.value.trigger.end_time == pytest.approx(expected_end_time, abs=2)
+        assert exc_info.value.trigger.end_time == pytest.approx(submitted_epoch + 1000, abs=2)
+
+    def test_retry_after_the_budget_elapsed_gets_a_fresh_one(self, fake_adapter, result_path):
+        ctx = _context()
+        with _running(fake_adapter):
+            with pytest.raises(TaskDeferred):
+                _make_operator(result_path=result_path, deferrable=True, timeout=1000).execute(ctx)
+
+            later = time.time() + 50_000
+            with mock.patch.object(llm_batch_module.time, "time", autospec=True, return_value=later):
+                with pytest.raises(TaskDeferred) as exc_info:
+                    _make_operator(
+                        result_path=result_path, deferrable=True, timeout=1000, cancel_on_timeout=False
+                    ).execute(ctx)
+
+        assert exc_info.value.trigger.end_time == pytest.approx(later + 1000, abs=2)
+        assert len(fake_adapter.submit_calls) == 1
 
 
 class TestExpiredRoutesThroughFinalize:
-    """M5/M8: an 'expired' terminal status must still fetch/validate/merge/land results, and the
-    trigger/poll-reported counts (M8) must reach the manifest, not be discarded."""
-
     def test_expired_status_produces_a_manifest_with_expired_counts(self, fake_adapter, result_path):
         fake_adapter.get_batch_status = "expired"
         fake_adapter.get_batch_counts = {"succeeded": 1, "errored": 0, "expired": 1, "cancelled": 0}
-        fake_adapter.results = [
-            RawResultItem(
-                custom_id="k-0",
-                index=0,
-                provider_status="success",
-                model="gpt-5",
-                usage={"input_tokens": 1, "output_tokens": 1},
-                finish_reason="stop",
-                error=None,
-                raw="hello",
-            )
-        ]
+        fake_adapter.results = [_success_item(0, "hello", prefix="k")]
         ctx = _context()
-        conn_patch, adapter_patch = _patched(fake_adapter)
-        with conn_patch, adapter_patch:
-            op = _make_operator(requests=["a", "b"], result_path=result_path, deferrable=False)
-            manifest = op.execute(ctx)
+        with _running(fake_adapter):
+            manifest = _make_operator(requests=["a", "b"], result_path=result_path, deferrable=False).execute(
+                ctx
+            )
 
         assert manifest["counts"]["succeeded"] == 1
         assert manifest["counts"]["expired"] == 1
         assert manifest["terminal_reason"] == "expired"
         assert manifest["request_count"] == sum(manifest["counts"].values())
-        # Results were actually landed, not discarded.
-        result_uri = ObjectStoragePath(manifest["result_uri"])
-        assert result_uri.read_text().strip() != ""
+        assert ObjectStoragePath(manifest["result_uri"]).read_text().strip() != ""
 
 
-class TestLlmConnIdChangeForcesResubmit:
-    """M6: switching llm_conn_id must never silently re-attach to a batch billed to another account."""
-
-    def test_different_llm_conn_id_with_identical_everything_else_forces_resubmit(
-        self, fake_adapter, result_path
-    ):
+class TestBatchForgottenByProvider:
+    def test_not_found_on_reattach_submits_a_new_batch(self, fake_adapter, result_path):
         ctx = _context()
-        conn_patch, adapter_patch = _patched(fake_adapter)
-        with conn_patch, adapter_patch:
-            op1 = _make_operator(
-                requests=["hello"], result_path=result_path, deferrable=True, llm_conn_id="account_a"
-            )
+        with _running(fake_adapter):
             with pytest.raises(TaskDeferred):
-                op1.execute(ctx)
-            assert len(fake_adapter.submit_calls) == 1
+                _make_operator(result_path=result_path, deferrable=True).execute(ctx)
 
-            op2 = _make_operator(
-                requests=["hello"], result_path=result_path, deferrable=True, llm_conn_id="account_b"
-            )
+            fake_adapter.get_batch_error = _NotFound("no such batch")
+            real_submit = fake_adapter.submit
+
+            def _submit_and_recover(*args, **kwargs):
+                fake_adapter.get_batch_error = None
+                return real_submit(*args, **kwargs)
+
+            fake_adapter.submit = _submit_and_recover
+            with pytest.raises(TaskDeferred) as exc_info:
+                _make_operator(result_path=result_path, deferrable=True).execute(ctx)
+
+        assert len(fake_adapter.submit_calls) == 2
+        assert exc_info.value.trigger.batch_id == "batch_2"
+
+
+class TestExecuteComplete:
+    def test_trigger_event_round_trips_into_a_landed_manifest(self, fake_adapter, result_path):
+        ctx = _context()
+        with _running(fake_adapter):
+            with pytest.raises(TaskDeferred) as exc_info:
+                _make_operator(result_path=result_path, deferrable=True).execute(ctx)
+            trigger = exc_info.value.trigger
+
+            fake_adapter.results = [_success_item(0, "hello", prefix="k")]
+            event = {"status": "success", "batch_id": trigger.batch_id, "counts": None, "message": "done"}
+            manifest = _make_operator(result_path=result_path, deferrable=True).execute_complete(ctx, event)
+
+        assert manifest["batch_id"] == "batch_1"
+        assert manifest["counts"]["succeeded"] == 1
+
+    def test_timeout_event_raises_the_trigger_message(self, fake_adapter, result_path):
+        ctx = _context()
+        with _running(fake_adapter):
             with pytest.raises(TaskDeferred):
-                op2.execute(ctx)
-            assert len(fake_adapter.submit_calls) == 2
+                _make_operator(result_path=result_path, deferrable=True).execute(ctx)
+            event = {"status": "timeout", "batch_id": "batch_1", "counts": None, "message": "deadline passed"}
+            with pytest.raises(LLMBatchTimeoutError, match="deadline passed"):
+                _make_operator(result_path=result_path, deferrable=True).execute_complete(ctx, event)
+        assert _state_files(result_path)
 
 
-class TestDoXcomPushGuard:
-    """S3: the observability-only batch_id XCom push must honor do_xcom_push=False."""
+class TestOnKill:
+    def test_cancels_the_batch_when_one_was_submitted(self, fake_adapter, result_path):
+        with _running(fake_adapter):
+            op = _make_operator(result_path=result_path)
+            op.batch_id = "batch_1"
+            op.on_kill()
+        assert fake_adapter.cancel_calls == ["batch_1"]
+        assert fake_adapter.close_calls == 1
 
-    def test_do_xcom_push_false_skips_the_batch_id_push(self, fake_adapter, result_path):
-        pushed = []
-        ti = SimpleNamespace(
-            dag_id="dag",
-            task_id="t",
-            run_id="run_1",
-            map_index=-1,
-            xcom_push=lambda **kw: pushed.append(kw),
-        )
-        ctx = {"task_instance": ti, "ti": ti}
-        conn_patch, adapter_patch = _patched(fake_adapter)
-        with conn_patch, adapter_patch:
-            op = _make_operator(result_path=result_path, deferrable=True, do_xcom_push=False)
+    def test_is_a_no_op_without_a_batch_or_with_cancel_on_kill_false(self, fake_adapter, result_path):
+        with _running(fake_adapter):
+            _make_operator(result_path=result_path).on_kill()
+            op = _make_operator(result_path=result_path, cancel_on_kill=False)
+            op.batch_id = "batch_1"
+            op.on_kill()
+        assert fake_adapter.cancel_calls == []
+
+
+class TestBatchIdXcom:
+    def test_batch_id_is_pushed_for_observability(self, fake_adapter, result_path):
+        pushed: list = []
+        with _running(fake_adapter):
             with pytest.raises(TaskDeferred):
-                op.execute(ctx)
+                _make_operator(result_path=result_path, deferrable=True).execute(_context(pushed=pushed))
+        assert pushed == [{"key": "batch_id", "value": "batch_1"}]
+
+    def test_do_xcom_push_false_skips_the_push(self, fake_adapter, result_path):
+        pushed: list = []
+        with _running(fake_adapter):
+            with pytest.raises(TaskDeferred):
+                _make_operator(result_path=result_path, deferrable=True, do_xcom_push=False).execute(
+                    _context(pushed=pushed)
+                )
         assert pushed == []

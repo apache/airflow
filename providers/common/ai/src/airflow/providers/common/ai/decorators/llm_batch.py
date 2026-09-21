@@ -18,9 +18,8 @@
 TaskFlow decorator for ``@task.llm_batch``.
 
 The user writes a function that **returns the batch's inputs** (a
-``list[str]`` or ``list[BatchRequest]``), not a single prompt -- this is the
-one piece of ``@task.llm``'s shape that does not carry over, since a batch
-submits many requests at once.
+``list[str]`` or ``list[BatchRequest]``), not a single prompt: a batch submits
+many requests at once.
 """
 
 from __future__ import annotations
@@ -51,37 +50,29 @@ class _LLMBatchDecoratedOperator(DecoratedOperator, LLMBatchOperator):
     ``llm_conn_id``, ``model_id``, ``output_type``, ...) are passed through to
     :class:`~airflow.providers.common.ai.operators.llm_batch.LLMBatchOperator`.
 
-    ``python_callable`` **must be deterministic across attempts** (A5): its return value feeds
-    directly into the input fingerprint that decides whether a retry re-attaches to the batch
-    already submitted, or is treated as stale content and triggers a cancel-and-resubmit (see
-    ``LLMBatchOperator.on_stale_state``). A callable that embeds something that changes between
-    attempts (e.g. ``datetime.now()``) will look like "the input changed" on every single retry,
-    paying for a brand new batch each time instead of reattaching to the one still running or
-    already completed.
+    ``python_callable`` must be deterministic across attempts: its return
+    value feeds the input fingerprint that decides whether a retry re-attaches
+    to the batch already submitted or treats the input as changed and pays
+    for a new one. A callable that embeds ``datetime.now()`` looks like new
+    input on every retry.
 
-    ``result_path`` is also templated (A6) and is part of *where* state/results are read from,
-    not part of the fingerprint -- if a Jinja expression in it resolves to a different value on a
-    retry (e.g. it embeds ``{{ ts }}``), the retry looks for its recorded state at a location the
-    previous attempt never wrote to, silently defeating the whole reattach mechanism (it will
-    look exactly like "no recorded batch", not like an error). Keep it stable across attempts of
-    the same task instance -- run-level values (``{{ run_id }}``, ``{{ ds }}``) are fine;
-    attempt-level ones (``{{ ts }}``, anything involving ``try_number``) are not.
-
-    Like :class:`~airflow.providers.common.ai.decorators.llm._LLMDecoratedOperator`, the
-    callable's return value is assigned to a template field (``requests``) and then run through
-    :meth:`~airflow.sdk.bases.operator.BaseOperator.render_template_fields` a second time (B8) --
-    this is the existing, established pattern for TaskFlow LLM decorators in this provider, not a
-    defect specific to batch: it is what lets a returned string embed further Jinja (e.g.
-    ``"{{ ds }}: summarize this"``) without the user needing to render it themselves.
+    Unlike ``@task.llm``, the returned prompts are **not** rendered as Jinja
+    templates. Batch inputs are typically bulk text the Dag author did not
+    write, where a stray ``{{`` or ``{%`` would either fail the whole batch or
+    resolve ``var``/``conn`` accessors against Airflow secrets. Anything
+    dynamic belongs in the callable, which receives the task context. The
+    operator's other template fields (``result_path``, ``system_prompt``,
+    ``model_id``, ``llm_conn_id``) are rendered as usual.
 
     :param python_callable: A reference to a callable that returns the batch's inputs.
     :param op_args: Positional arguments for the callable.
     :param op_kwargs: Keyword arguments for the callable.
     """
 
-    template_fields: Sequence[str] = (
-        *DecoratedOperator.template_fields,
-        *LLMBatchOperator.template_fields,
+    template_fields: Sequence[str] = tuple(
+        field
+        for field in (*DecoratedOperator.template_fields, *LLMBatchOperator.template_fields)
+        if field != "requests"
     )
     template_fields_renderers: ClassVar[dict[str, str]] = {
         **DecoratedOperator.template_fields_renderers,
@@ -108,10 +99,7 @@ class _LLMBatchDecoratedOperator(DecoratedOperator, LLMBatchOperator):
     def execute(self, context: Context) -> Any:
         context_merge(context, self.op_kwargs)
         kwargs = determine_kwargs(self.python_callable, self.op_args, context)
-
         self.requests = self.python_callable(*self.op_args, **kwargs)
-
-        self.render_template_fields(context)
         return LLMBatchOperator.execute(self, context)
 
 
@@ -122,7 +110,7 @@ def llm_batch_task(
     """
     Wrap a function that returns a batch's inputs into an ``@task.llm_batch`` task.
 
-    The function body constructs the list of inputs (can use Airflow
+    The function body constructs the list of inputs (it can use Airflow
     context, XCom, etc.). Results are written to ``result_path`` as JSONL;
     the XCom value is a manifest describing where to find them (see
     :class:`~airflow.providers.common.ai.operators.llm_batch.LLMBatchOperator`).
@@ -130,9 +118,9 @@ def llm_batch_task(
     Usage::
 
         @task.llm_batch(
-            llm_conn_id="openai_default",
+            llm_conn_id="pydanticai_default",
             model_id="openai:gpt-5",
-            result_path="s3://bucket/prefix",
+            result_path="s3://bucket/prefix/{{ run_id }}",
         )
         def build_prompts(rows: list[str]) -> list[str]:
             return [f"Summarize: {row}" for row in rows]
@@ -140,9 +128,9 @@ def llm_batch_task(
     With structured output::
 
         @task.llm_batch(
-            llm_conn_id="openai_default",
+            llm_conn_id="pydanticai_default",
             model_id="openai:gpt-5",
-            result_path="s3://bucket/prefix",
+            result_path="s3://bucket/prefix/{{ run_id }}",
             output_type=Diagnosis,
         )
         def build_prompts(rows: list[str]) -> list[str]:

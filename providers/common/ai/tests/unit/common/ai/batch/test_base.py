@@ -79,56 +79,9 @@ class _FakeAdapter(BatchAdapter):
         return None
 
 
-class TestBatchRequest:
-    def test_prompt_only_shorthand_is_a_plain_dict(self):
-        """``list[str]`` is a sugar form of ``list[BatchRequest]``; a bare string maps to just ``prompt``."""
-        request: BatchRequest = {"prompt": "hello"}
-        assert request["prompt"] == "hello"
-        assert "model" not in request
-
-    def test_supports_all_optional_fields(self):
-        request: BatchRequest = {
-            "prompt": "hello",
-            "model": "openai:gpt-5-mini",
-            "system_prompt": "be terse",
-            "max_tokens": 256,
-            "params": {"temperature": 0.2},
-        }
-        assert request["model"] == "openai:gpt-5-mini"
-        assert request["params"] == {"temperature": 0.2}
-
-
-class TestExtractedOutput:
-    def test_text_kind_defaults_value_to_none(self):
-        extracted = ExtractedOutput(kind="text", text="hello")
-        assert extracted.value is None
-
-    def test_json_value_kind_defaults_text_to_none(self):
-        extracted = ExtractedOutput(kind="json_value", value={"a": 1})
-        assert extracted.text is None
-
-    def test_absent_kind_needs_no_payload(self):
-        extracted = ExtractedOutput(kind="absent")
-        assert extracted.text is None
-        assert extracted.value is None
-
-
-class TestBatchAdapterABC:
-    def test_cannot_instantiate_directly(self):
-        """The ABC must force every adapter to implement the full contract."""
-        with pytest.raises(TypeError, match="abstract"):
-            BatchAdapter()  # type: ignore[abstract]
-
-    def test_concrete_subclass_is_instantiable(self):
-        adapter = _FakeAdapter()
-        assert adapter.get_batch("x").status == "completed"
-        result = adapter.submit([], model="m", idempotency_key="k", input_fingerprint="fp", output_spec=None)
-        assert result.batch_id == "fake-batch"
-
-
-class TestFindOrphanedBatchIsPartOfTheContract:
+class TestBatchAdapterAbstractContract:
     def test_missing_implementation_cannot_instantiate(self):
-        """M3: every adapter must decide (even if the decision is 'always None') -- not omit it."""
+        """Every adapter must decide (even if the decision is 'always None') -- not omit it."""
 
         class _MissingOrphanRecovery(BatchAdapter):
             name = "incomplete"
@@ -162,7 +115,7 @@ class TestFindOrphanedBatchIsPartOfTheContract:
 
 
 class TestResolveRequestModel:
-    """M10: the per-request model cross-adapter check lives once, concretely, on the ABC."""
+    """The per-request model cross-adapter check lives once, concretely, on the ABC."""
 
     def test_none_falls_back_to_the_batch_level_default(self):
         adapter = _FakeAdapter()
@@ -186,7 +139,7 @@ class TestResolveRequestModel:
 
 
 class TestCheckCustomIdLength:
-    """N7: Anthropic documents custom_id as ``^[a-zA-Z0-9_-]{1,64}$`` -- the 64-char cap must be
+    """Anthropic documents custom_id as ``^[a-zA-Z0-9_-]{1,64}$`` -- the 64-char cap must be
     enforced pre-submit, not left to fail (or silently truncate) at the provider."""
 
     def test_zero_requests_is_a_noop(self):

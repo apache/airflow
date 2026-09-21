@@ -53,14 +53,12 @@ STATUS_EXPIRED = "expired"
 STATUS_CANCELLED = "cancelled"
 STATUS_MISSING = "missing"
 
-#: The per-item statuses this module ever writes to a JSONL row. ``expired``/``cancelled`` are
-#: per-item statuses (N2) for a provider that reports them at that granularity (Anthropic does);
-#: a provider that only reports them at the job level (OpenAI -- an expired/cancelled item is
-#: simply absent from the result stream, indistinguishable from any other never-processed index)
-#: still lands those requests in ``STATUS_MISSING`` here, and :func:`assemble_manifest` re-labels
-#: the unexplained portion of ``missing`` from the job-level terminal event's own counts (M5/M8).
-#: A batch that timed out (our own wall-clock budget, batch still ``in_progress``) fails the task
-#: before any results are streamed at all and never reaches this module at all.
+#: The per-item statuses this module ever writes to a JSONL row. ``expired``/``cancelled`` come
+#: from the provider's own per-item signal (Anthropic result types, OpenAI ``batch_expired``
+#: error-file lines). A request the provider never reported at all lands in ``STATUS_MISSING``,
+#: and :func:`assemble_manifest` re-labels the unexplained portion of ``missing`` from the
+#: job-level terminal event's counts. A batch that timed out on our own clock fails the task
+#: before any results are streamed and never reaches this module.
 _MERGE_STATUS_KEYS = (
     STATUS_SUCCESS,
     STATUS_ERROR,
@@ -151,7 +149,7 @@ def build_result_row(raw: RawResultItem, adapter: BatchAdapter, spec: OutputSpec
 
     Non-success outcomes (``raw.provider_status in ("errored", "expired", "cancelled")``) never go
     through output validation -- there is nothing to validate, the request itself never produced
-    usable output (N2: ``"expired"``/``"cancelled"`` are their own per-item statuses, not folded
+    usable output (``"expired"``/``"cancelled"`` are their own per-item statuses, not folded
     into ``"errored"`` -- a provider that reports them at item granularity is telling you *why*
     that item has no output, and collapsing that into a generic provider error would make it
     indistinguishable from an actual API failure like rate limiting). Only a successful provider
@@ -160,7 +158,7 @@ def build_result_row(raw: RawResultItem, adapter: BatchAdapter, spec: OutputSpec
     is expected batch data, not a reason to abort the merge.
     """
     # RawResultItem.provider_status uses "errored" (base.py); the JSONL row status vocabulary
-    # (§6) uses "error" -- translate, don't compare the two vocabularies directly.
+    # uses "error"; translate rather than compare the two vocabularies directly.
     row_status = _PROVIDER_STATUS_TO_ROW_STATUS.get(raw.provider_status)
     if row_status is not None:
         return _row_for_provider_terminal(raw, status=row_status)
@@ -175,7 +173,7 @@ def build_result_row(raw: RawResultItem, adapter: BatchAdapter, spec: OutputSpec
 @dataclass(frozen=True)
 class MergeDiagnostics:
     """
-    Anomalies encountered while merging (M7), surfaced separately from ``counts``.
+    Anomalies encountered while merging, surfaced separately from ``counts``.
 
     Never inflates the officially reconciled ``counts`` -- visible instead of silently dropped
     or silently double-counted.
@@ -204,7 +202,7 @@ def stream_results_to_jsonl(
     arrive -- not after collecting them all -- so the memory bound holds for
     the invalid-output case too.
 
-    Two defensive checks (M7) keep a single anomalous item from corrupting the whole batch's
+    Two defensive checks keep a single anomalous item from corrupting the whole batch's
     accounting or making the manifest impossible to ever produce:
 
     - An index the adapter yields **twice** is written once (the first occurrence); the repeat
@@ -255,7 +253,7 @@ def stream_results_to_jsonl(
             seen.add(raw.index)
             counts[row["status"]] += 1
 
-        for index in sorted(set(range(request_count)) - seen):
+        for index in missing_indexes(seen, request_count):
             row = _row_for_missing(index, custom_id_prefix=custom_id_prefix)
             fh.write(json.dumps(row) + "\n")
             counts[STATUS_MISSING] += 1
@@ -295,28 +293,24 @@ def assemble_manifest(
     """
     Assemble the XCom manifest (the sole XCom payload of ``@task.llm_batch`` -- results never are).
 
-    ``merge_counts`` is the per-item breakdown from :func:`stream_results_to_jsonl` -- now
-    including ``"expired"``/``"cancelled"`` when a provider reports those at item granularity
-    (N2; Anthropic does). ``extra_counts`` carries the job-level ``{"expired", "cancelled"}``
-    counts the trigger/operator reports for this batch's terminal event (M8) -- for a provider
-    that has *no* per-item signal for these (OpenAI: an expired/cancelled item is simply absent
-    from the result stream), this is the only source of that information. ``None``/absent keys
-    default to ``0``.
+    ``merge_counts`` is the per-item breakdown from :func:`stream_results_to_jsonl`, including
+    ``"expired"``/``"cancelled"`` rows the provider reported per item. ``extra_counts`` carries
+    the job-level ``{"expired", "cancelled"}`` counts from the batch's terminal event; it is the
+    only source of that information for requests the provider never wrote a result line for.
+    ``None``/absent keys default to ``0``.
 
-    M5: an ``expired`` or ``cancelled`` terminal event still reaches this function (unlike a
-    plain "timeout", which fails the task before any results are fetched) precisely so partial,
+    An ``expired`` or ``cancelled`` terminal event still reaches this function (unlike a plain
+    ``timeout``, which fails the task before any results are fetched) so that partial,
     already-billed results are not discarded.
 
-    The two sources are combined without double-counting (N2): per-item counts
-    (``merge_counts["expired"]``/``["cancelled"]``) are taken as-is; ``extra_counts`` only tops up
-    whatever ``merge_counts["missing"]`` still has left *after* subtracting whatever the job-level
-    figure already agrees was accounted for per-item. For OpenAI (no per-item signal, so
-    ``merge_counts["expired"] == 0`` always) this reduces to the original "relabel from missing"
-    behavior; for Anthropic (which does report per-item) it does not double-add on top of counts
-    that already made it into a distinct row status via :func:`build_result_row`. Any part of
-    ``extra_counts`` that ``merge_counts["missing"]`` cannot cover is dropped rather than allowed
-    to break reconciliation -- the provider's self-reported figure and our own row-level count are
-    not required to agree bit-for-bit, only to never overcount past ``request_count``.
+    The two sources are combined without double-counting: per-item counts are taken as-is, and
+    ``extra_counts`` only re-labels whatever ``merge_counts["missing"]`` still has left after
+    subtracting what the job-level figure already agrees was accounted for per item. Any part
+    of ``extra_counts`` that ``missing`` cannot cover is dropped rather than allowed to overcount
+    past ``request_count``.
+
+    ``terminal_reason`` is ``"expired"`` if any request expired, else ``"cancelled"`` if any was
+    cancelled, else ``"succeeded"`` when every request succeeded and ``"partial"`` otherwise.
 
     :raises ValueError: the counts do not reconcile against
         ``request_count`` -- every request must land in exactly one bucket.
@@ -381,5 +375,5 @@ def assemble_manifest(
 
 
 def missing_indexes(seen: Iterable[int], request_count: int) -> list[int]:
-    """Return the sorted indexes in ``range(request_count)`` absent from ``seen``. Exposed for testing."""
+    """Return the sorted indexes in ``range(request_count)`` absent from ``seen``."""
     return sorted(set(range(request_count)) - set(seen))

@@ -101,7 +101,7 @@ def _errored_item(index: int) -> RawResultItem:
 
 
 def _expired_item(index: int) -> RawResultItem:
-    """N2: a provider (Anthropic) reporting per-item expiry -- not the same as 'errored'."""
+    """A provider (Anthropic) reporting per-item expiry -- not the same as 'errored'."""
     return RawResultItem(
         custom_id=f"abc1234567890123-{index}",
         index=index,
@@ -120,7 +120,7 @@ def _expired_item(index: int) -> RawResultItem:
 
 
 def _cancelled_item(index: int) -> RawResultItem:
-    """N2: a provider (Anthropic) reporting per-item cancellation -- not the same as 'errored'."""
+    """A provider (Anthropic) reporting per-item cancellation -- not the same as 'errored'."""
     return RawResultItem(
         custom_id=f"abc1234567890123-{index}",
         index=index,
@@ -154,7 +154,7 @@ def _read_jsonl(path: ObjectStoragePath) -> list[dict[str, Any]]:
 
 class TestStreamResultsToJsonlMissingRows:
     def test_missing_index_gets_exactly_one_missing_row(self, destination, str_output_spec):
-        """§6 acceptance (a): the output stream skips index 7 -- it must land as exactly one 'missing' row."""
+        """The output stream skips index 7 -- it must land as exactly one 'missing' row."""
         items = [_success_item(i, f"text-{i}") for i in range(10) if i != 7]
         adapter = _FakeAdapter(items)
 
@@ -176,7 +176,7 @@ class TestStreamResultsToJsonlMissingRows:
 
 
 class TestStreamResultsToJsonlAnomalies:
-    """M7: a duplicate or out-of-range index must never inflate ``counts`` past ``request_count``."""
+    """A duplicate or out-of-range index must never inflate ``counts`` past ``request_count``."""
 
     def test_duplicate_index_is_written_once_and_counted_once(self, destination, str_output_spec):
         items = [_success_item(0, "first"), _success_item(0, "duplicate-should-be-dropped")]
@@ -219,7 +219,7 @@ class TestStreamResultsToJsonlAnomalies:
         assert diagnostics.out_of_range_result_count == 1
 
     def test_anomalies_never_prevent_the_manifest_from_being_produced(self, destination, str_output_spec):
-        """The whole point of M7: dirty data must not make assemble_manifest raise on every retry."""
+        """Dirty data must not make assemble_manifest raise on every retry."""
         items = [
             _success_item(0, "ok"),
             _success_item(0, "dup"),  # duplicate
@@ -255,7 +255,7 @@ class TestStreamResultsToJsonlAnomalies:
 
 class TestStreamResultsToJsonlReconciliation:
     def test_four_status_mix_reconciles_against_request_count(self, destination):
-        """§7 acceptance (b): request_count == sum(counts.values()) even with all four statuses present."""
+        """request_count == sum(counts.values()) even with all four statuses present."""
 
         # Use a structured spec so one item can fail output validation (invalid_output).
         class DiagnosisModel(BaseModel):
@@ -343,9 +343,15 @@ class TestStreamResultsToJsonlRowContent:
         assert row["usage"] == {"input_tokens": 10, "output_tokens": 5}
         assert row["finish_reason"] == "stop"
 
-    def test_expired_item_gets_its_own_row_status_not_error(self, destination, str_output_spec):
-        """N2: a per-item 'expired' result must not be folded into 'error'."""
-        adapter = _FakeAdapter([_expired_item(0)])
+    @pytest.mark.parametrize(
+        ("item_factory", "expected_status"),
+        [(_expired_item, "expired"), (_cancelled_item, "cancelled")],
+    )
+    def test_expired_or_cancelled_item_gets_its_own_row_status_not_error(
+        self, destination, str_output_spec, item_factory, expected_status
+    ):
+        """A per-item 'expired'/'cancelled' result must not be folded into 'error'."""
+        adapter = _FakeAdapter([item_factory(0)])
         counts, _ = stream_results_to_jsonl(
             adapter=adapter,
             batch_id="b",
@@ -355,29 +361,10 @@ class TestStreamResultsToJsonlRowContent:
             destination=destination,
         )
         row = _read_jsonl(destination)[0]
-        assert row["status"] == "expired"
+        assert row["status"] == expected_status
         assert row["output"] is None
-        assert row["error"]["type"] == "expired"
-        assert counts["expired"] == 1
-        assert counts["error"] == 0
-        assert counts["missing"] == 0
-
-    def test_cancelled_item_gets_its_own_row_status_not_error(self, destination, str_output_spec):
-        """N2: a per-item 'cancelled' result must not be folded into 'error'."""
-        adapter = _FakeAdapter([_cancelled_item(0)])
-        counts, _ = stream_results_to_jsonl(
-            adapter=adapter,
-            batch_id="b",
-            output_spec=str_output_spec,
-            request_count=1,
-            custom_id_prefix="p",
-            destination=destination,
-        )
-        row = _read_jsonl(destination)[0]
-        assert row["status"] == "cancelled"
-        assert row["output"] is None
-        assert row["error"]["type"] == "cancelled"
-        assert counts["cancelled"] == 1
+        assert row["error"]["type"] == expected_status
+        assert counts[expected_status] == 1
         assert counts["error"] == 0
         assert counts["missing"] == 0
 
@@ -386,7 +373,7 @@ class TestStreamResultsToJsonlRowContent:
         [_success_item, _errored_item, _expired_item, _cancelled_item],
     )
     def test_every_row_status_has_the_same_keys(self, destination, str_output_spec, item_factory):
-        """B9: every row must carry the same key set (in particular ``raw_output``), regardless
+        """Every row must carry the same key set (in particular ``raw_output``), regardless
         of status -- a downstream reader must not need a status-specific key lookup."""
         item = item_factory(0) if item_factory is not _success_item else item_factory(0, "x")
         adapter = _FakeAdapter([item])
@@ -413,7 +400,7 @@ class TestStreamResultsToJsonlRowContent:
 
 
 class TestCustomIdCharset:
-    """N4/N9: every custom_id this module produces must stay within Anthropic's documented
+    """Every custom_id this module produces must stay within Anthropic's documented
     ``^[a-zA-Z0-9_-]{1,64}$`` -- in particular, never contain ``:`` (the old, wrong separator)."""
 
     _ALLOWED = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
@@ -483,7 +470,7 @@ class TestAssembleManifestInvariant:
 
 class TestAssembleManifestExpiredRelabeling:
     """
-    M5/M8: an ``expired``/``cancelled`` terminal event still routes through here (never
+    An ``expired``/``cancelled`` terminal event still routes through here (never
     discarded), and the un-processed portion already counted once as ``missing`` gets
     re-labeled from ``extra_counts`` -- never added on top, which would double-count and
     break reconciliation.
@@ -536,6 +523,28 @@ class TestAssembleManifestExpiredRelabeling:
         )
         assert manifest["request_count"] == sum(manifest["counts"].values())
         assert manifest["counts"]["expired"] == 1
+        assert manifest["counts"]["missing"] == 0
+
+    def test_cancelled_extra_counts_larger_than_missing_does_not_overcount(self, str_output_spec):
+        """The cancelled-side twin of ``test_extra_counts_larger_than_missing_does_not_overcount``:
+        an implausible provider self-report of cancellations must be clamped by our own gap."""
+        merge_counts = {"success": 0, "error": 0, "invalid_output": 0, "missing": 4}
+        manifest = assemble_manifest(
+            batch_id="b",
+            adapter_name="fake",
+            llm_conn_id="conn",
+            model_id="fake:model",
+            output_spec=str_output_spec,
+            result_uri="file:///tmp/x.jsonl",
+            request_count=4,
+            merge_counts=merge_counts,
+            extra_counts={"cancelled": 999},  # implausible, must be clamped by our own gap
+            custom_id_prefix="p",
+            submitted_at="t0",
+            completed_at="t1",
+        )
+        assert manifest["request_count"] == sum(manifest["counts"].values())
+        assert manifest["counts"]["cancelled"] == 4
         assert manifest["counts"]["missing"] == 0
 
     def test_cancelled_takes_the_remainder_after_expired(self, str_output_spec):

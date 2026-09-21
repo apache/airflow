@@ -15,135 +15,148 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Two-layer dispatch from a connection to a :class:`~airflow.providers.common.ai.batch.base.BatchAdapter`.
+Dispatch from a connection and a ``model_id`` to a :class:`~airflow.providers.common.ai.batch.base.BatchAdapter`.
 
-``conn_type`` decides auth; the ``model_id`` prefix (e.g. ``"openai:gpt-5"``)
-decides request shape. This is a separate decision from
+The ``model_id`` prefix (``"openai"`` in ``"openai:gpt-5"``) selects the adapter,
+because the prefix decides the request shape and the batch API being called.
+The connection type is then checked against the adapter's
+:attr:`~airflow.providers.common.ai.batch.base.BatchAdapter.conn_types`, since
+the adapter has to know how to turn that connection's fields into credentials.
+This is a separate decision from
 :func:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook.infer_model`
-(the sync ``Agent`` path) because that helper has no notion of "does this
-provider have a batch API".
+(the synchronous ``Agent`` path), which has no notion of "does this provider
+have a batch API".
 
-This module must not import a provider SDK, directly or transitively --
-adapter classes are imported lazily, only once a request is actually
-dispatched to a supported provider (see :func:`import_adapter_class`), so
-importing this module never requires ``openai``/``anthropic`` to be
-installed.
+Adapters are imported lazily, only once a request is dispatched to them, so
+importing this module never requires ``openai``/``anthropic`` to be installed.
+Another package can add an adapter in two ways: call :func:`register_adapter`
+at import time, or declare an entry point in the
+``airflow.providers.common.ai.batch_adapters`` group whose name is the model
+prefix and whose value is ``module:Class``.
 """
 
 from __future__ import annotations
 
 import importlib
+from importlib.metadata import entry_points
 from typing import TYPE_CHECKING
 
 from airflow.providers.common.ai.exceptions import (
     BatchProviderNotYetSupportedError,
     UnsupportedBatchProviderError,
 )
+from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
     from airflow.providers.common.ai.batch.base import BatchAdapter
+    from airflow.sdk import Connection
 
-CONN_TYPE_PYDANTIC_AI = "pydanticai"
+ENTRY_POINT_GROUP = "airflow.providers.common.ai.batch_adapters"
 
-#: adapter name -> (module path, class name). Resolved lazily by
-#: :func:`import_adapter_class`, never imported at module scope.
+#: adapter name -> (module path, class name), resolved lazily by :func:`import_adapter_class`.
 _ADAPTER_MODULES: dict[str, tuple[str, str]] = {
     "openai": ("airflow.providers.common.ai.batch.openai", "OpenAIBatchAdapter"),
     "anthropic": ("airflow.providers.common.ai.batch.anthropic", "AnthropicBatchAdapter"),
 }
 
-#: conn_type -> "known, not built yet" message. Kept separate from the
-#: catch-all ``UnsupportedBatchProviderError`` below so the two failure modes
-#: give the user different (correct) information: "this path is known but not
-#: built yet" vs. "this path does not exist".
-_NOT_YET_SUPPORTED: dict[str, str] = {
-    "pydanticai_azure": (
-        "Azure OpenAI batch is not supported yet by @task.llm_batch (connection type "
-        "'pydanticai_azure'). Azure's batch API is deployment-scoped and uses a different "
-        "client than the public OpenAI endpoint, so it needs its own adapter; support is "
-        "planned as a follow-up. For now, use a 'pydanticai' connection pointing at the "
-        "public OpenAI endpoint, or the LiteLLM gateway passthrough described in the "
-        "provider docs."
-    ),
-    "pydanticai_bedrock": (
-        "Amazon Bedrock batch is not supported yet by @task.llm_batch (connection type "
-        "'pydanticai_bedrock'). Bedrock batch inference is an S3 + boto3 workflow rather "
-        "than an HTTP JSONL API, so it needs its own adapter; support is planned as a "
-        "follow-up. For now, use a 'pydanticai' connection pointing at the public OpenAI or "
-        "Anthropic endpoint, or the LiteLLM gateway passthrough described in the provider "
-        "docs."
-    ),
-    "pydanticai_vertex": (
-        "Vertex AI batch is not supported yet by @task.llm_batch (connection type "
-        "'pydanticai_vertex'). Vertex batch prediction is a GCS + client-library workflow "
-        "rather than an HTTP JSONL API, so it needs its own adapter; support is planned as "
-        "a follow-up. For now, use a 'pydanticai' connection pointing at the public OpenAI "
-        "or Anthropic endpoint, or the LiteLLM gateway passthrough described in the "
-        "provider docs."
-    ),
-}
+#: Adapter classes registered at runtime through :func:`register_adapter`.
+_REGISTERED_ADAPTERS: dict[str, type[BatchAdapter]] = {}
 
 
-def resolve_adapter_name(conn_type: str, model_id: str | None) -> str:
+def register_adapter(adapter_cls: type[BatchAdapter]) -> None:
     """
-    Return the adapter name (``"openai"`` / ``"anthropic"``) for a connection/model pair.
+    Register an adapter class for its own :attr:`~airflow.providers.common.ai.batch.base.BatchAdapter.name` prefix.
 
-    :raises BatchProviderNotYetSupportedError: ``conn_type`` is a known
-        pydantic-ai connection type whose batch adapter is not built yet
-        (Azure, Bedrock, Vertex).
-    :raises UnsupportedBatchProviderError: ``conn_type`` is not recognized at
-        all, ``model_id`` has no ``"<provider>:"`` prefix, or the prefix
-        names a provider with no batch API.
+    Intended for other provider packages that ship a batch engine (Bedrock,
+    Vertex, Azure OpenAI). A registration overrides a built-in or entry-point
+    adapter with the same prefix.
     """
-    if conn_type in _NOT_YET_SUPPORTED:
-        raise BatchProviderNotYetSupportedError(_NOT_YET_SUPPORTED[conn_type])
-    if conn_type != CONN_TYPE_PYDANTIC_AI:
-        raise UnsupportedBatchProviderError(
-            f"@task.llm_batch does not recognize connection type {conn_type!r}. Batch is "
-            "only available for 'pydanticai' connections pointing at an OpenAI or Anthropic "
-            "model (model_id prefixes 'openai:' / 'anthropic:')."
-        )
-    if not model_id or ":" not in model_id:
-        raise UnsupportedBatchProviderError(
-            "model_id must be written as '<provider>:<model>' (e.g. 'openai:gpt-5') to "
-            f"select a batch adapter; got {model_id!r}."
-        )
-    prefix, _, _ = model_id.partition(":")
-    if prefix not in _ADAPTER_MODULES:
-        raise UnsupportedBatchProviderError(
-            f"{prefix!r} has no batch API. @task.llm_batch only supports the 'openai' and "
-            "'anthropic' model_id prefixes; use @task.llm for a synchronous call instead."
-        )
-    return prefix
+    _REGISTERED_ADAPTERS[adapter_cls.name] = adapter_cls
+
+
+def _entry_point_adapter(name: str) -> type[BatchAdapter] | None:
+    for ep in entry_points(group=ENTRY_POINT_GROUP):
+        if ep.name == name:
+            return ep.load()
+    return None
 
 
 def import_adapter_class(name: str) -> type[BatchAdapter]:
-    """Import and return the adapter class for an already-resolved adapter name."""
-    module_path, class_name = _ADAPTER_MODULES[name]
-    module = importlib.import_module(module_path)
-    return getattr(module, class_name)
+    """Return the adapter class for an already-resolved adapter name."""
+    if name in _REGISTERED_ADAPTERS:
+        return _REGISTERED_ADAPTERS[name]
+    if name in _ADAPTER_MODULES:
+        module_path, class_name = _ADAPTER_MODULES[name]
+        return getattr(importlib.import_module(module_path), class_name)
+    adapter_cls = _entry_point_adapter(name)
+    if adapter_cls is None:
+        raise UnsupportedBatchProviderError(
+            f"{name!r} has no batch adapter. @task.llm_batch ships adapters for the "
+            f"{sorted(_ADAPTER_MODULES)} model_id prefixes; use @task.llm for a synchronous call instead."
+        )
+    return adapter_cls
 
 
-def get_adapter_class(conn_type: str, model_id: str | None) -> type[BatchAdapter]:
-    """Resolve a connection/model pair straight to an adapter class. See :func:`resolve_adapter_name`."""
-    return import_adapter_class(resolve_adapter_name(conn_type, model_id))
+def split_model_id(model_id: str | None) -> tuple[str, str]:
+    """
+    Split ``"<provider>:<model>"`` into its two parts, rejecting a missing or empty half.
+
+    :raises UnsupportedBatchProviderError: ``model_id`` is ``None``, has no
+        ``":"``, or has an empty prefix or model name.
+    """
+    if not model_id or ":" not in model_id:
+        raise UnsupportedBatchProviderError(
+            "model_id must be written as '<provider>:<model>' (e.g. 'openai:gpt-5') to "
+            f"select a batch adapter; got {model_id!r}. Set it on the operator or in the "
+            "connection's Model field."
+        )
+    prefix, _, bare = model_id.strip().partition(":")
+    if not prefix or not bare:
+        raise UnsupportedBatchProviderError(
+            f"model_id {model_id!r} must have both a provider prefix and a model name (e.g. 'openai:gpt-5')."
+        )
+    return prefix, bare
+
+
+def get_adapter_class(conn_type: str | None, model_id: str | None) -> type[BatchAdapter]:
+    """
+    Resolve a connection type and ``model_id`` to an adapter class.
+
+    :raises UnsupportedBatchProviderError: no adapter serves the ``model_id``
+        prefix, or ``model_id`` is malformed.
+    :raises BatchProviderNotYetSupportedError: an adapter exists but does not
+        accept this connection type (e.g. ``pydanticai_azure`` today).
+    """
+    prefix, _ = split_model_id(model_id)
+    adapter_cls = import_adapter_class(prefix)
+    if conn_type not in adapter_cls.conn_types:
+        raise BatchProviderNotYetSupportedError(
+            f"The {prefix!r} batch adapter does not support connection type {conn_type!r}; it "
+            f"accepts {sorted(adapter_cls.conn_types)}. Azure OpenAI, Bedrock and Vertex batch "
+            "need their own adapters (deployment-scoped or object-storage based APIs). Until "
+            "one exists, point a 'pydanticai' connection at the public endpoint, or route "
+            "through an OpenAI-compatible gateway that exposes /v1/files and /v1/batches."
+        )
+    return adapter_cls
+
+
+def resolve_adapter_name(conn_type: str | None, model_id: str | None) -> str:
+    """Return the adapter name for a connection/model pair. See :func:`get_adapter_class`."""
+    return get_adapter_class(conn_type, model_id).name
+
+
+def build_adapter_from_connection(name: str, conn: Connection) -> BatchAdapter:
+    """
+    Instantiate an already-resolved adapter from a fetched connection.
+
+    Uses the connection's ``password``/``host`` fields as ``api_key``/``base_url``,
+    the same fields :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook`
+    reads for the synchronous ``@task.llm`` path.
+    """
+    adapter_cls = import_adapter_class(name)
+    return adapter_cls(api_key=conn.password or None, base_url=conn.host or None)
 
 
 def build_adapter(name: str, *, llm_conn_id: str) -> BatchAdapter:
-    """
-    Instantiate an already-resolved adapter, authenticated from an Airflow connection.
-
-    Both the operator (which resolves ``name`` itself, at submit time) and the
-    trigger (which only carries the already-resolved ``name`` in its
-    serialized state, per §4) need this same "conn_id -> live adapter"
-    step, so it lives here rather than being duplicated in both.
-
-    Uses the connection's ``password``/``host`` fields as ``api_key``/
-    ``base_url`` -- the same fields :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook`
-    reads for the synchronous ``@task.llm`` path.
-    """
-    from airflow.providers.common.compat.sdk import BaseHook
-
-    conn = BaseHook.get_connection(llm_conn_id)
-    adapter_cls = import_adapter_class(name)
-    return adapter_cls(api_key=conn.password or None, base_url=conn.host or None)
+    """Fetch ``llm_conn_id`` and instantiate the adapter; the trigger's entry point, which only carries the id."""
+    return build_adapter_from_connection(name, BaseHook.get_connection(llm_conn_id))

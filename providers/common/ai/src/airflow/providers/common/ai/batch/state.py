@@ -133,8 +133,9 @@ def compute_fingerprint(
     the results of -- a batch submitted under a completely different
     account than the one the current run is configured to use.
     """
+    # The on-disk record version is deliberately not part of the material: bumping it must not
+    # make every in-flight batch look stale and get cancelled and resubmitted.
     material = {
-        "schema_version": SCHEMA_VERSION,
         "requests": requests,
         "llm_conn_id": llm_conn_id,
         "model_id": model_id,
@@ -153,8 +154,8 @@ class BatchStateRecord:
 
     Written in two phases (see :func:`write_intent` / :func:`write_submitted`)
     so a crash between "submit request sent" and "submit response received"
-    leaves a trace, even though it cannot recover the orphaned batch id (see
-    Risk R1 in the plan -- out of scope for v1).
+    leaves a trace the next attempt can act on (see
+    :meth:`~airflow.providers.common.ai.batch.base.BatchAdapter.find_orphaned_batch`).
 
     Re-attach eligibility is decided by comparing ``input_fingerprint``, never
     ``output_type_ref`` -- the ref is a human-readable label only and can
@@ -165,10 +166,8 @@ class BatchStateRecord:
     key: str
     input_fingerprint: str
     output_schema_digest: str
-    #: When the Phase A intent record was written (N1) -- lets orphan recovery reject a
-    #: same-key/same-fingerprint candidate that was actually created *before* this attempt even
-    #: started (a genuine earlier submission of identical content), instead of just taking
-    #: whatever the provider's unordered listing happens to return first.
+    #: When the intent record was written. Orphan recovery uses it to reject a same-key,
+    #: same-fingerprint candidate created before this attempt started.
     intent_at: str | None
     adapter: str | None
     llm_conn_id: str | None
@@ -184,8 +183,16 @@ class BatchStateRecord:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> BatchStateRecord:
+        if not isinstance(data, dict):
+            raise TypeError(f"state record must be a JSON object; got {type(data).__name__}")
+        version = data["schema_version"]
+        if version != SCHEMA_VERSION:
+            raise ValueError(
+                f"state record was written with schema version {version}; this provider reads version "
+                f"{SCHEMA_VERSION}"
+            )
         return cls(
-            schema_version=data["schema_version"],
+            schema_version=version,
             key=data["key"],
             input_fingerprint=data["input_fingerprint"],
             output_schema_digest=data["output_schema_digest"],
@@ -222,11 +229,10 @@ def write_intent(
     """
     Phase A: record intent to submit, before any network call.
 
-    ``batch_id`` is ``null`` -- this record exists purely so a crash between
-    "submit sent" and "submit response received" leaves a trace (see the
-    module docstring and Risk R1). Overwritten by :func:`write_submitted` once
-    the provider responds. ``intent_at`` feeds orphan recovery's ``not_before``
-    check (N1) -- see :meth:`~airflow.providers.common.ai.batch.base.BatchAdapter.find_orphaned_batch`.
+    ``batch_id`` is ``null``; this record exists so a crash between "submit
+    sent" and "submit response received" leaves a trace. Overwritten by
+    :func:`write_submitted` once the provider responds. ``intent_at`` feeds
+    orphan recovery's ``not_before`` check.
     """
     _write(
         result_path,
@@ -291,18 +297,13 @@ def read_state(result_path: ObjectStoragePath, key: str) -> BatchStateRecord | N
     """
     Return the recorded state for ``key``, or ``None`` if no record exists.
 
-    Only a genuine not-found (``FileNotFoundError``) reads as "no recorded
-    batch" -- that is the one condition safe to treat as "go ahead and submit
-    a new batch". Any other failure -- a transient object-storage error, or a
-    state file that exists but is corrupt/malformed -- raises
+    Only a genuine not-found reads as "no recorded batch". Any other failure
+    (a transient object-storage error, a corrupt file, a record written by a
+    different schema version) raises
     :class:`~airflow.providers.common.ai.exceptions.LLMBatchStateReadError`
-    instead of degrading to ``None``. "Could not read the state" and
-    "confirmed there is no state" are different facts; conflating them would
-    turn a passing I/O blip, or a torn write, into a duplicate, billable
-    submission the next time this runs. A ``JSONDecodeError`` is the most
-    dangerous case of all: it means the file **exists** (a batch was very
-    likely submitted), just unparsable -- silently reading that as "no
-    batch" is exactly the bug this function exists to prevent.
+    instead of degrading to ``None``, because "could not read the state" and
+    "there is no state" are different facts and conflating them turns an I/O
+    blip into a duplicate, billable submission.
     """
     path = _state_path(result_path, key)
     try:
@@ -317,7 +318,7 @@ def read_state(result_path: ObjectStoragePath, key: str) -> BatchStateRecord | N
 
     try:
         return BatchStateRecord.from_dict(json.loads(raw))
-    except (json.JSONDecodeError, KeyError, ValueError) as e:
+    except (json.JSONDecodeError, KeyError, ValueError, TypeError) as e:
         raise LLMBatchStateReadError(
             f"Batch state file for key {key!r} at {path} exists but is corrupt or malformed "
             f"({e}). This must not be treated as 'no recorded batch' -- a batch may already be "
@@ -327,13 +328,12 @@ def read_state(result_path: ObjectStoragePath, key: str) -> BatchStateRecord | N
 
 def delete_state(result_path: ObjectStoragePath, key: str) -> None:
     """
-    Delete the recorded state for ``key``.
+    Delete the recorded state for ``key`` so the next attempt submits a fresh batch.
 
-    Must only be called once a manifest has been successfully written --
-    every "the batch is still alive" code path (in progress, deferred again,
-    timed out but not cancelled, ...) must leave the state file in place so a
-    later retry or manual clear can still re-attach.
+    Only two outcomes call this: a provider-side ``failed`` (nothing ran) and a
+    cancellation that lost requests. Every path where the batch is still alive
+    or its results are still worth re-landing leaves the file in place.
     """
     path = _state_path(result_path, key)
-    with contextlib.suppress(FileNotFoundError, OSError):
+    with contextlib.suppress(OSError):
         path.unlink()

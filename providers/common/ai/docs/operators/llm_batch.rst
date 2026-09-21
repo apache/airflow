@@ -21,10 +21,10 @@
 =====================
 
 Use :class:`~airflow.providers.common.ai.operators.llm_batch.LLMBatchOperator` to run many
-prompts through a provider's **batch API** instead of one synchronous call per prompt --
+prompts through a provider's **batch API** instead of one synchronous call per prompt:
 roughly half the per-token cost of :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`,
-in exchange for up to a 24-hour turnaround. Routes to OpenAI or Anthropic based on
-``llm_conn_id``'s connection type and ``model_id``'s ``"<provider>:<model>"`` prefix.
+in exchange for up to a 24-hour turnaround. The ``"<provider>:<model>"`` prefix of ``model_id``
+selects the OpenAI or Anthropic adapter; ``llm_conn_id`` must be a ``pydanticai`` connection.
 
 .. seealso::
     :ref:`Connection configuration <howto/connection:pydanticai>`
@@ -34,30 +34,78 @@ Results never go to XCom
 
 This is the most important way ``LLMBatchOperator`` differs from ``LLMOperator``: results are
 written as JSONL to ``result_path`` (an object storage directory), and the XCom value is a small
-manifest describing where to find them and how many requests landed in each outcome bucket
-(``succeeded``, ``errored``, ``invalid_output``, ``expired``, ``cancelled``, ``missing``). A batch
-can have up to 100,000 results -- far too much to push through XCom.
+manifest describing where to find them and how many requests landed in each outcome bucket. A
+batch can have up to 100,000 results, far too much to push through XCom.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_batch.py
     :language: python
     :start-after: [START howto_operator_llm_batch_basic]
     :end-before: [END howto_operator_llm_batch_basic]
 
+The manifest
+^^^^^^^^^^^^
+
+The XCom value is a JSON object with a stable shape (``schema_version: 1``):
+
+.. list-table::
+   :header-rows: 1
+   :widths: 25 75
+
+   * - Key
+     - Meaning
+   * - ``result_uri``
+     - The JSONL file, ``{result_path}/{custom_id_prefix}.jsonl``.
+   * - ``request_count``
+     - How many requests were submitted. Always equals the sum of ``counts``.
+   * - ``counts``
+     - ``succeeded``, ``errored`` (the provider rejected the request), ``invalid_output``
+       (the model answered but not in the requested schema), ``expired``, ``cancelled`` and
+       ``missing`` (the provider never reported an outcome for the request).
+   * - ``terminal_reason``
+     - ``succeeded`` when every request succeeded, ``expired`` if any request expired,
+       ``cancelled`` if any was cancelled, otherwise ``partial``.
+   * - ``rejoin_key`` / ``ordered``
+     - Always ``"index"`` and ``false``: rows arrive in provider order, and each row's
+       ``index`` is the position of its input in ``requests``.
+   * - ``batch_id``, ``adapter``, ``llm_conn_id``, ``model_id``, ``output_type_ref``,
+       ``structured``, ``submitted_at``, ``completed_at``
+     - Provenance for the run.
+   * - ``duplicate_result_count``, ``out_of_range_result_count``
+     - Anomalies the provider stream contained and the merge dropped. Normally zero.
+
+The result rows
+^^^^^^^^^^^^^^^
+
+Every request gets exactly one JSONL row with the same keys:
+
+.. code-block:: json
+
+    {"custom_id": "3f9c...-0", "index": 0, "status": "success",
+     "output": {"label": "positive", "confidence": 0.93}, "raw_output": null, "error": null,
+     "model": "gpt-5", "usage": {"input_tokens": 41, "output_tokens": 12}, "finish_reason": "stop"}
+
+``status`` is one of ``success``, ``error``, ``invalid_output``, ``expired``, ``cancelled`` or
+``missing``. ``output`` is set only for ``success``; ``raw_output`` preserves what the model
+returned when validation failed; ``error`` carries the provider's type, message and code for
+provider-side failures. The manifest's ``counts`` keys use the past tense (``succeeded``,
+``errored``) while row statuses use the bare word; the other buckets spell the same.
+
 Structured output
 ------------------
 
 Set ``output_type`` to a Pydantic ``BaseModel`` subclass (or another type ``TypeAdapter``
-supports). OpenAI requests use ``response_format``; Anthropic requests use a single forced
-tool call. Both translations happen per-adapter; the batch surface itself only deals in
-``output_type`` and JSON Schema.
+supports, such as ``int`` or ``list[str]``). OpenAI requests use ``response_format``; Anthropic
+requests use a single forced tool call. Both providers require the schema root to be an object,
+so a non-object ``output_type`` is wrapped as ``{"response": ...}`` on the way out and unwrapped
+again before validation; the JSONL ``output`` holds the plain value.
 
-A model occasionally returns something that does not match the schema even when asked nicely.
-That is not treated as a task failure -- the corresponding JSONL row gets
-``status: "invalid_output"`` with the original text preserved in ``raw_output``, and the
-manifest's ``counts.invalid_output`` is a separate number from ``counts.errored`` (a
-provider-side failure, e.g. rate limiting) precisely so you can tell "the model produced
-output that doesn't match the schema" apart from "the request never even succeeded", and fix
-the right thing (the schema/prompt vs. the request rate).
+A model occasionally returns something that does not match the schema. That is not a task
+failure: the row gets ``status: "invalid_output"`` with the original text preserved in
+``raw_output``, and ``counts.invalid_output`` is separate from ``counts.errored`` so you can tell
+"the model produced output that doesn't match the schema" apart from "the request never even
+succeeded". A response with no content at all (a refusal, or a reasoning model that spent its
+whole ``max_tokens`` budget before producing visible output) is also ``invalid_output``, for
+``output_type=str`` too.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_batch.py
     :language: python
@@ -77,96 +125,138 @@ list of ``{"prompt": ..., "model": ..., ...}`` dicts) instead of a single prompt
 
 The decorated callable **must be deterministic across attempts**: its return value feeds the
 fingerprint that decides whether a retry re-attaches to the batch already submitted. A callable
-that embeds something that changes between attempts (e.g. a wall-clock timestamp) looks like
-"the input changed" on every retry, paying for a brand new batch each time instead of
-re-attaching. ``result_path`` is templated too, but is not part of that fingerprint -- keep it
-stable across attempts of the same task instance (run-level template values like ``{{ run_id }}``
-are fine; attempt-level ones are not), or a retry will look for its recorded state at a location
-the previous attempt never wrote to.
+that embeds something that changes between attempts (a wall-clock timestamp, say) looks like
+"the input changed" on every retry and pays for a new batch each time.
 
-Per-request model override
-----------------------------
+Unlike ``@task.llm``, the returned prompts are **not** rendered as Jinja templates. Batch inputs
+are usually bulk text the Dag author did not write, where a stray ``{{`` or ``{%`` would either
+fail the whole batch or resolve ``var``/``conn`` accessors against Airflow secrets. Put anything
+dynamic in the callable, which receives the task context. ``result_path`` and the other operator
+parameters are templated as usual; keep ``result_path`` stable across attempts of the same task
+instance (``{{ run_id }}`` is fine, ``{{ ts }}`` is not), or a retry looks for its recorded state
+at a location the previous attempt never wrote to.
 
-A request may override the batch-level ``model_id`` with its own ``"model"`` key, written the
-same way ``model_id`` itself is: ``"<provider>:<model>"`` (e.g. ``"anthropic:claude-3-opus"``), not
-a bare model name -- a bare name is rejected before any network call. Anthropic allows a
-different model per request within the same batch; OpenAI requires every request in a batch to
-resolve to the same model and rejects a batch that mixes more than one::
+Per-request overrides
+-----------------------
 
-    {"prompt": "...", "model": "anthropic:claude-3-opus"}
+A request dict may carry ``system_prompt``, ``max_tokens``, ``params`` (extra body parameters)
+and ``model``. ``model`` is written the same way ``model_id`` is, ``"<provider>:<model>"``, and
+must name the same provider as the batch. Anthropic allows a different model per request;
+OpenAI requires every request in a batch to resolve to the same model and the operator rejects a
+mixed batch before submitting it::
+
+    {"prompt": "...", "model": "anthropic:claude-opus-5"}
+
+``request_params`` and a request's ``params`` cannot override the keys the operator manages
+(the model, the messages, the token cap and the structured-output directive).
 
 Retries re-attach instead of re-submitting
 --------------------------------------------
 
 A retry (or a manual **clear**) of this task computes the same identity key as the attempt
-before it -- based on the Dag, task, run, and map index, never the try number -- and looks for
-a recorded batch under ``{result_path}/_airflow_batch_state/``. If the input (prompts, model,
-``output_type`` schema, ...) still matches, the task re-attaches to the existing batch instead
-of submitting (and paying for) a new one. This is what makes ``retries`` safe to use here, unlike
-the vendor ``AnthropicBatchOperator`` / ``OpenAITriggerBatchOperator``, whose docs recommend
-``retries=0``.
+before it, based on the Dag, task, run and map index and never the try number, and looks for a
+recorded batch under ``{result_path}/_airflow_batch_state/``. If the input (prompts, model,
+``output_type`` schema, connection) still matches, the task re-attaches to the existing batch
+instead of submitting a new one. This is what makes ``retries`` safe to use here, whereas the
+Anthropic provider's ``AnthropicBatchOperator`` recommends ``retries=0``.
 
-Clearing a task from the UI keeps the same run and map index, so it re-attaches too -- to force
-a fresh submission, delete the state file for that task instance.
+The recorded state is kept after a successful landing, so clearing a finished task re-lands the
+same results at no cost. To force a fresh submission, delete the state file for that task
+instance.
 
 **Changing the input is a new batch.** Editing the prompts, the model, or the ``output_type``
 schema (even just a field description) and clearing the task is treated as a different batch,
-never silently re-attached to results produced under the old input -- ``on_stale_state``
-controls what happens: ``"cancel_and_resubmit"`` (default) cancels the stale batch and submits a
-fresh one; ``"fail"`` raises instead.
+never silently re-attached to results produced under the old input. ``on_stale_state`` controls
+what happens: ``"cancel_and_resubmit"`` (default) cancels the stale batch through the connection
+that submitted it and submits a fresh one; ``"fail"`` raises instead.
 
-A **cancelled** batch (whether cancelled by ``cancel_on_kill``/``cancel_on_timeout`` or out of
-band) is not treated as a dead end: it may already have partial, billed results, so it is
-fetched, validated, and landed exactly like a **completed** or **expired** one.
-``fail_on_partial_error`` decides whether that outcome fails the task.
+What each outcome does to the recorded state
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. _howto/operator:llm_batch:orphan_recovery_and_duplicate_billing:
+.. list-table::
+   :header-rows: 1
+   :widths: 22 48 30
 
-Recovering from a crash between submit and recording it (and the Anthropic gap)
------------------------------------------------------------------------------------
+   * - Outcome
+     - Task result
+     - Next attempt
+   * - ``completed`` / ``expired``
+     - Results landed; succeeds unless ``fail_on_partial_error`` says otherwise.
+     - Re-lands the same results, no new submission.
+   * - ``cancelled`` with lost requests
+     - Whatever finished is landed, then ``LLMBatchCancelledError``. State is cleared.
+     - Submits a fresh batch.
+   * - ``failed`` (OpenAI rejected the input before running it)
+     - ``LLMBatchJobError``. State is cleared; nothing was billed.
+     - Submits a fresh batch.
+   * - ``timeout`` (our own budget ran out)
+     - ``LLMBatchTimeoutError`` naming the budget, the deadline and whether the batch was
+       cancelled. State is kept.
+     - Re-attaches: finds the cancelled batch (then follows the ``cancelled`` row) or, with
+       ``cancel_on_timeout=False``, keeps waiting with a fresh ``timeout``.
+   * - polling gave up (five consecutive status-check failures)
+     - ``LLMBatchJobError``. State is kept; the batch's fate is unknown.
+     - Re-attaches and polls again.
 
-If Airflow crashes after a batch has been submitted to the provider but before the response
-confirming it was recorded, the next attempt tries to recover that orphaned batch from the
-provider itself (by the recorded idempotency key **and** a fingerprint of the exact input, so it
-can never recover a different, unrelated submission) instead of blindly submitting again. For
-OpenAI, this works: the adapter records both values in the batch's own ``metadata`` at submit
-time, and can look them back up.
+Recovering from a crash between submit and recording it
+---------------------------------------------------------
 
-**For Anthropic, this recovery is not possible** -- the SDK's batch-create call has no
-``metadata`` parameter, and there is no way to list or search batches by the identifiers this
-operator writes into ``custom_id``. A crash in that narrow window, for an Anthropic batch,
-means the next attempt cannot tell "the original submit never reached the provider" apart from
-"it succeeded, but recovery is impossible" -- ``on_orphaned_intent`` controls what happens next:
+The operator records its intent to submit before the paid call, so a crash after the provider
+accepted the batch but before the response was recorded leaves a trace. The next attempt asks
+the provider for a matching batch, by the recorded identity key **and** a fingerprint of the
+exact input, so it can never recover an unrelated submission. For OpenAI this works: the adapter
+records both values in the batch's own ``metadata`` at submit time. If that lookup itself fails
+(the provider is unreachable), the attempt raises ``LLMBatchOrphanLookupError`` rather than
+guess; the retry checks again.
 
-- ``"resubmit"`` (default) submits a new batch, same as if no crash had happened. If the
-  original request actually reached the provider, this pays for both batches.
-- ``"fail"`` raises instead of resubmitting, for callers who would rather stop and investigate
-  (e.g. check the provider's own batch listing out of band) than risk a duplicate, billable
-  submission.
-
-Unlike ``on_stale_state``, there is no old batch id available to cancel as a loss-limiting step
-here -- the crash happened before that id was ever recorded. The crash window itself (between the
-provider accepting the request and this operator's own process durably recording that fact) is
-inherently narrow and infrequent, but if you run Anthropic batches at a volume where even a rare
-duplicate is unacceptable, ``on_orphaned_intent="fail"`` combined with out-of-band reconciliation
-is the safer choice.
+**Anthropic offers no such lookup.** The SDK's batch-create call has no ``metadata`` parameter
+and batches cannot be listed by ``custom_id``, so an Anthropic orphan falls through to
+``on_orphaned_intent``: ``"resubmit"`` (default) submits a new batch, which pays for both if the
+original request did reach the provider; ``"fail"`` raises so you can reconcile against the
+provider's own batch listing first.
 
 ``cancel_on_kill`` and ``cancel_on_timeout``
 ----------------------------------------------
 
-``cancel_on_kill`` cancels the batch if the task is killed. In deferrable mode this only takes
-effect on **Airflow 3.3+** -- older triggerers have no way to call a trigger's ``on_kill``, so a
-killed deferred task's batch is not cancelled automatically on those versions.
+``cancel_on_kill`` cancels the batch if the task is killed. In deferrable mode this runs from the
+trigger's ``on_kill``, which only **Airflow 3.3+** calls; on those versions clearing, marking
+success or marking failed on a deferred task from the UI counts as a kill, so the batch is
+cancelled and the next attempt submits a fresh one rather than re-attaching. On Airflow 3.0 to
+3.2 a killed deferred task's batch keeps running and a clear re-attaches to it. Set
+``cancel_on_kill=False`` if you want clear-to-re-attach on 3.3+ as well.
 
 ``cancel_on_timeout=False`` lets a batch keep running (and billing) past this task's own
-``timeout`` -- the task still fails, but a later retry re-attaches to the batch and its eventual
-results instead of paying for a second submission.
+``timeout``: the task fails, and a later retry re-attaches to it and waits again. A retry that
+runs after the original budget has elapsed gets a fresh ``timeout`` measured from the retry, so
+``retries`` and ``retry_delay`` bound the total wait.
 
-LiteLLM gateway passthrough
------------------------------
+Reaching the batch API through a gateway
+------------------------------------------
 
-If your organization already routes LLM traffic through a `LiteLLM
-<https://docs.litellm.ai/>`__ gateway, pointing a ``pydanticai`` connection at it and calling
-``LLMOperator`` today is a working alternative to waiting for a specific provider's batch
-adapter here (e.g. Azure OpenAI, not yet supported -- see the connection type's error message
-for the current status).
+The OpenAI adapter reads ``base_url`` from the connection's host, so a ``pydanticai`` connection
+pointed at an OpenAI-compatible gateway that exposes ``/v1/files`` and ``/v1/batches`` (LiteLLM
+does, and routes to Azure OpenAI, Vertex and Bedrock batch behind it) runs the whole batch
+through that gateway with ``model_id="openai:<gateway-model-name>"``. That is the path to take
+today for a provider ``@task.llm_batch`` has no adapter for yet; the error message for a
+``pydanticai_azure``, ``pydanticai_bedrock`` or ``pydanticai_vertex`` connection says so.
+
+``LLMBatchOperator`` or the vendor batch operators?
+-----------------------------------------------------
+
+``OpenAITriggerBatchOperator`` and ``AnthropicBatchOperator`` submit and poll the same provider
+batch APIs. Reach for them when you need the vendor's native request bodies (multi-turn
+conversations, images, tools, non-chat endpoints such as embeddings) or a fire-and-forget submit
+with a separate sensor. Reach for ``LLMBatchOperator`` when the job is "many prompts, one
+optional output schema": it owns JSONL construction and upload, chunk-size validation,
+retry-safe re-attachment, provider-neutral structured output, and results landed on object
+storage with a reconciled manifest.
+
+Adding an adapter
+------------------
+
+Another provider package can add a batch engine without changes here: subclass
+:class:`~airflow.providers.common.ai.batch.base.BatchAdapter`, set its ``name`` to the model
+prefix it serves and ``conn_types`` to the connection types it can authenticate from, and either
+call :func:`~airflow.providers.common.ai.batch.dispatch.register_adapter` at import time or
+declare an entry point in the ``airflow.providers.common.ai.batch_adapters`` group whose name
+is the prefix and whose value is ``module:Class``.

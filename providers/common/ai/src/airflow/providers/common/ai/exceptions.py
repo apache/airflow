@@ -104,7 +104,7 @@ class LLMBatchTimeoutError(LLMBatchJobError):
 
 class LLMBatchOrphanedIntentError(LLMBatchJobError):
     """
-    Raised when a Phase A intent record has no matching batch and ``on_orphaned_intent="fail"``.
+    Raised when an intent record has no matching batch and ``on_orphaned_intent="fail"``.
 
     A previous attempt crashed between submitting the batch and recording that it succeeded;
     provider-side recovery (:meth:`~airflow.providers.common.ai.batch.base.BatchAdapter.find_orphaned_batch`)
@@ -115,7 +115,32 @@ class LLMBatchOrphanedIntentError(LLMBatchJobError):
 
 
 class LLMBatchPartialFailureError(LLMBatchJobError):
-    """Raised when ``fail_on_partial_error=True`` and any request errored or failed output validation."""
+    """
+    Raised when ``fail_on_partial_error=True`` and any request did not produce a valid result.
+
+    Covers provider-side errors, output-validation failures, expired, cancelled and missing
+    requests alike; the manifest's ``counts`` says which.
+    """
+
+
+class LLMBatchCancelledError(LLMBatchJobError):
+    """
+    Raised when the batch was cancelled (by ``cancel_on_kill``/``cancel_on_timeout`` or out of band).
+
+    Whatever finished before the cancel is fetched and landed first, so the results file is
+    complete for the requests that did run. The recorded state is deleted, so the next attempt
+    submits a fresh batch instead of re-attaching to the cancelled one.
+    """
+
+
+class LLMBatchOrphanLookupError(LLMBatchJobError):
+    """
+    Raised when checking the provider for an orphaned batch failed.
+
+    A previous attempt wrote an intent record but no batch id, and the lookup that would tell
+    "the submit never reached the provider" apart from "it did, and is billing" raised. Neither
+    answer is known, so the operator refuses to resubmit; the error is retryable.
+    """
 
 
 class LLMBatchStateReadError(LLMBatchJobError):

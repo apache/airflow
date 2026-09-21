@@ -22,6 +22,7 @@ from unittest import mock
 
 import pytest
 
+from airflow.providers.common.ai.batch import dispatch
 from airflow.providers.common.ai.batch.base import (
     BatchAdapter,
     BatchState,
@@ -30,7 +31,10 @@ from airflow.providers.common.ai.batch.base import (
     SubmitResult,
 )
 from airflow.providers.common.ai.decorators.llm_batch import _LLMBatchDecoratedOperator
+from airflow.providers.common.ai.exceptions import LLMBatchInputError
+from airflow.providers.common.ai.operators import llm_batch as llm_batch_module
 from airflow.providers.common.compat.sdk import TaskDeferred
+from airflow.sdk import DAG, Connection
 
 
 class _FakeAdapter(BatchAdapter):
@@ -70,44 +74,89 @@ class _FakeAdapter(BatchAdapter):
         return None
 
 
-def _context():
+def _context(**extra):
     ti = SimpleNamespace(dag_id="dag", task_id="t", run_id="run_1", map_index=-1, xcom_push=lambda **kw: None)
-    return {"task_instance": ti, "ti": ti}
+    return {"task_instance": ti, "ti": ti, "run_id": "run_1", **extra}
+
+
+def _patches(fake_adapter):
+    conn = Connection(conn_id="c", conn_type="pydanticai", password=None, host=None)
+    return (
+        mock.patch.object(llm_batch_module.BaseHook, "get_connection", autospec=True, return_value=conn),
+        mock.patch.object(
+            dispatch, "build_adapter_from_connection", autospec=True, return_value=fake_adapter
+        ),
+    )
+
+
+def _make(python_callable, tmp_path, **kwargs):
+    kwargs.setdefault("result_path", f"file://{tmp_path.as_posix()}")
+    return _LLMBatchDecoratedOperator(
+        task_id="batch_task",
+        python_callable=python_callable,
+        op_args=(),
+        op_kwargs={},
+        llm_conn_id="my_openai",
+        model_id="openai:gpt-5",
+        deferrable=True,
+        **kwargs,
+    )
 
 
 class TestLLMBatchDecoratedOperator:
-    def test_custom_operator_name(self):
-        assert _LLMBatchDecoratedOperator.custom_operator_name == "@task.llm_batch"
-
     def test_execute_calls_callable_and_normalizes_requests(self, tmp_path):
-        """The callable's return value becomes ``requests``; a bare ``list[str]`` is accepted."""
         fake_adapter = _FakeAdapter()
 
         def build_prompts():
             return ["Summarize A", "Summarize B"]
 
-        op = _LLMBatchDecoratedOperator(
-            task_id="batch_task",
-            python_callable=build_prompts,
-            op_args=(),
-            op_kwargs={},
-            result_path=f"file://{tmp_path.as_posix()}",
-            llm_conn_id="my_openai",
-            model_id="openai:gpt-5",
-            deferrable=True,
-        )
-
-        with (
-            mock.patch(
-                "airflow.providers.common.ai.operators.llm_batch.BaseHook.get_connection",
-                return_value=SimpleNamespace(conn_type="pydanticai", password=None, host=None),
-            ),
-            mock.patch("airflow.providers.common.ai.batch.dispatch.build_adapter", return_value=fake_adapter),
-            pytest.raises(TaskDeferred),
-        ):
+        op = _make(build_prompts, tmp_path)
+        conn_patch, adapter_patch = _patches(fake_adapter)
+        with conn_patch, adapter_patch, pytest.raises(TaskDeferred):
             op.execute(_context())
 
         assert fake_adapter.submit_calls[0]["requests"] == [
             {"prompt": "Summarize A"},
             {"prompt": "Summarize B"},
         ]
+
+    def test_returned_prompts_are_not_rendered_as_jinja(self, tmp_path):
+        """Bulk third-party text may contain ``{{``/``{%``; it must reach the provider verbatim."""
+        fake_adapter = _FakeAdapter()
+
+        def build_prompts():
+            return ["Ticket: see {{ var.value.secret }}", "Template snippet: {% if x %}"]
+
+        op = _make(build_prompts, tmp_path)
+        conn_patch, adapter_patch = _patches(fake_adapter)
+        with conn_patch, adapter_patch, pytest.raises(TaskDeferred):
+            op.execute(_context())
+
+        assert [r["prompt"] for r in fake_adapter.submit_calls[0]["requests"]] == [
+            "Ticket: see {{ var.value.secret }}",
+            "Template snippet: {% if x %}",
+        ]
+
+    def test_other_template_fields_are_still_rendered(self, tmp_path):
+        fake_adapter = _FakeAdapter()
+        with DAG(dag_id="dag"):
+            op = _make(lambda: ["a"], tmp_path, result_path=f"file://{tmp_path.as_posix()}/{{{{ run_id }}}}")
+        op.render_template_fields(_context())
+        assert op.result_path.endswith("/run_1")
+
+        conn_patch, adapter_patch = _patches(fake_adapter)
+        with conn_patch, adapter_patch, pytest.raises(TaskDeferred):
+            op.execute(_context())
+        assert (tmp_path / "run_1" / "_airflow_batch_state").exists()
+
+    def test_requests_is_not_a_template_field(self):
+        assert "requests" not in _LLMBatchDecoratedOperator.template_fields
+        assert "result_path" in _LLMBatchDecoratedOperator.template_fields
+
+    def test_a_callable_returning_a_single_string_is_rejected(self, tmp_path):
+        fake_adapter = _FakeAdapter()
+        op = _make(lambda: "just one prompt", tmp_path)
+        conn_patch, adapter_patch = _patches(fake_adapter)
+        with conn_patch, adapter_patch, pytest.raises(LLMBatchInputError, match="must return the whole list"):
+            op.execute(_context())
+        assert fake_adapter.submit_calls == []

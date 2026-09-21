@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import threading
 from datetime import datetime, timezone
 from enum import Enum
@@ -62,15 +63,52 @@ class TestBuildOutputSpecStructuredTypes:
         assert spec.json_schema["properties"].keys() == {"name", "age"}
         assert spec.schema_name == "Diagnosis"
 
-    def test_int_produces_schema(self):
-        spec = build_output_spec(int)
+    @pytest.mark.parametrize(
+        ("output_type", "inner_type"),
+        [(int, "integer"), (list[str], "array"), (str | None, None)],
+    )
+    def test_non_object_roots_are_wrapped_in_an_object_both_providers_accept(self, output_type, inner_type):
+        spec = build_output_spec(output_type)
         assert spec.is_structured is True
-        assert spec.json_schema["type"] == "integer"
+        assert spec.wrapped is True
+        assert spec.json_schema["type"] == "object"
+        assert spec.json_schema["required"] == ["response"]
+        inner = spec.json_schema["properties"]["response"]
+        if inner_type is not None:
+            assert inner["type"] == inner_type
+        else:
+            assert "anyOf" in inner
 
-    def test_list_of_str_produces_schema(self):
-        spec = build_output_spec(list[str])
-        assert spec.is_structured is True
-        assert spec.json_schema["type"] == "array"
+    def test_object_roots_are_not_wrapped(self):
+        spec = build_output_spec(Diagnosis)
+        assert spec.wrapped is False
+        assert spec.json_schema["type"] == "object"
+        assert "age" in spec.json_schema["properties"]
+
+    @pytest.mark.parametrize(
+        ("output_type", "payload", "expected"),
+        [
+            (int, '{"response": 42}', 42),
+            (list[str], '{"response": ["a", "b"]}', ["a", "b"]),
+            (str | None, '{"response": null}', None),
+        ],
+    )
+    def test_wrapped_output_is_unwrapped_on_validation(self, output_type, payload, expected):
+        spec = build_output_spec(output_type)
+        outcome = validate_extracted_output(ExtractedOutput(kind="json_text", text=payload), spec)
+        assert outcome.ok is True
+        assert outcome.value == expected
+
+    def test_wrapped_output_without_the_response_key_is_invalid(self):
+        spec = build_output_spec(int)
+        outcome = validate_extracted_output(ExtractedOutput(kind="json_value", value={"answer": 1}), spec)
+        assert outcome.ok is False
+        assert "response" in outcome.error_message
+
+    def test_unstructured_null_text_is_invalid_output_not_success(self):
+        outcome = validate_extracted_output(ExtractedOutput(kind="absent"), build_output_spec(str))
+        assert outcome.ok is False
+        assert "no text content" in outcome.error_message
 
 
 class TestBuildOutputSpecUnrepresentableType:
@@ -105,12 +143,10 @@ class TestValidateExtractedOutputStructuredSuccess:
 
     def test_datetime_and_enum_fields_serialize_with_mode_json(self):
         """
-        §6: dumping with ``mode="json"`` is not optional -- without it, ``datetime``/``Enum``
+        Dumping with ``mode="json"`` is not optional -- without it, ``datetime``/``Enum``
         fields are Python objects and a downstream ``json.dumps`` on the JSONL row would raise,
         the kind of failure that only surfaces after 100k requests have already run.
         """
-        import json
-
         spec = build_output_spec(Event)
         extracted = ExtractedOutput(
             kind="json_value",
@@ -123,7 +159,12 @@ class TestValidateExtractedOutputStructuredSuccess:
 
 
 class TestValidateExtractedOutputFourFailureModes:
-    """§10.4 / Step 5 acceptance (c): absent, malformed JSON, schema mismatch, unrepresentable output_type."""
+    """
+    The four failure modes for ``validate_extracted_output``: absent output, malformed JSON,
+    and schema mismatch, covered below; the fourth -- an unrepresentable ``output_type`` -- is
+    covered separately by ``TestBuildOutputSpecUnrepresentableType``, since it fails at
+    spec-build time, before validation is ever reached.
+    """
 
     def test_absent_kind_fails(self):
         spec = build_output_spec(Diagnosis)
@@ -147,11 +188,6 @@ class TestValidateExtractedOutputFourFailureModes:
         assert outcome.raw_text == bad_json
         assert outcome.error_message is not None
 
-    def test_unrepresentable_output_type_fails_at_spec_build_time(self):
-        """The fourth failure mode is not a ``ValidationOutcome`` at all -- it never gets that far."""
-        with pytest.raises(LLMBatchOutputTypeError):
-            build_output_spec(threading.Lock)
-
     def test_error_message_is_truncated(self):
         class ManyFields(BaseModel):
             a: int
@@ -169,8 +205,8 @@ class TestValidateExtractedOutputFourFailureModes:
 
 class TestNotRehydratePydanticOutput:
     """
-    Step 5 acceptance (d) / plan "發現 D": a regression guard proving this module's failure
-    semantics are the opposite of ``rehydrate_pydantic_output``.
+    A regression guard proving this module's failure semantics are the opposite of
+    ``rehydrate_pydantic_output``.
 
     ``rehydrate_pydantic_output`` silently downgrades a validation failure to
     the raw string -- correct for the HITL round trip, wrong for batch, where

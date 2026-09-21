@@ -17,12 +17,11 @@
 """
 OpenAI batch adapter.
 
-Talks to the ``openai`` SDK directly (D1: common.ai does not depend on
-``apache-airflow-providers-openai`` -- that provider's hook has no
-``list_batches``/file-download methods and reuse would buy a hard dependency
-without buying the capabilities this needs). The SDK import is deferred to
-:meth:`OpenAIBatchAdapter.__init__` so importing this module never requires
-``openai`` to be installed; see :func:`_build_client`.
+Talks to the ``openai`` SDK directly rather than through
+``apache-airflow-providers-openai``: that provider's hook has no batch listing
+or file-download methods, so reusing it would add a hard dependency without
+the capabilities this needs. The SDK import is deferred to
+:func:`_build_client` so importing this module never requires ``openai``.
 """
 
 from __future__ import annotations
@@ -38,15 +37,13 @@ import structlog
 from airflow.providers.common.ai.batch.base import (
     BatchAdapter,
     BatchState,
+    BatchStatus,
     ExtractedOutput,
     RawResultItem,
     SubmitResult,
 )
-from airflow.providers.common.ai.exceptions import (
-    LLMBatchLimitExceededError,
-    LLMBatchModelMismatchError,
-    UnsupportedBatchProviderError,
-)
+from airflow.providers.common.ai.exceptions import LLMBatchLimitExceededError, LLMBatchModelMismatchError
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
 log = structlog.get_logger(logger_name="task")
 
@@ -56,31 +53,19 @@ if TYPE_CHECKING:
 
 _ENDPOINT = "/v1/chat/completions"
 
-#: Cap on how many batches ``find_orphaned_batch`` scans looking for a metadata match -- OpenAI's
-#: list API has no server-side metadata filter (checked against the installed SDK's
-#: ``Batches.list`` signature: only ``after``/``limit`` cursor params), so this is O(scanned
-#: batches) client-side, not O(1). Default list ordering is not verified here (not documented in
-#: the installed SDK's docstring); the cap exists purely to bound worst-case cost against an
-#: account with a very long batch history, not because recency is assumed.
+#: Cap on how many batches ``find_orphaned_batch`` scans looking for a metadata match. OpenAI's
+#: list API has no server-side metadata filter, so the scan is client-side; the cap bounds the
+#: worst case against an account with a very long batch history.
 _ORPHAN_SCAN_LIMIT = 500
 
-#: R3-1: OpenAI's ``Batch.created_at`` is whole seconds (checked against the installed SDK's
-#: ``openai/types/batch.py`` -- ``created_at: int``), while ``not_before`` (the Phase A intent
-#: record's write time) carries microsecond precision. Comparing them directly means a batch
-#: created in the same second as (but a few hundred microseconds before) the intent write would
-#: fail ``created_at < not_before_epoch`` and get silently excluded -- the exact orphan this
-#: recovery exists to find, missed roughly half the time purely from truncation, not from it
-#: actually being a different, older batch. Subtracting this slack does not reopen N1: the
-#: identity guarantee against recovering an unrelated older batch is the idempotency_key +
-#: input_fingerprint match above, not this timestamp filter -- ``not_before`` only trims how far
-#: back the scan bothers looking among already-key-and-fingerprint-matched candidates.
+#: ``Batch.created_at`` is whole seconds while the intent record's write time carries
+#: microseconds, so a batch created in the same second as the intent write could otherwise be
+#: excluded by the ``not_before`` filter. The identity guarantee is the key plus fingerprint
+#: match; ``not_before`` only trims how far back the scan looks.
 _CLOCK_SKEW_SLACK_SECONDS = 300
 
 #: OpenAI's batch-job statuses collapsed to the small set ``BatchState`` uses.
-#: "validating"/"finalizing"/"cancelling" are all still-running from the
-#: caller's point of view -- only "completed"/"failed"/"expired"/"cancelled"
-#: are terminal.
-_STATUS_MAP: dict[str, str] = {
+_STATUS_MAP: dict[str, BatchStatus] = {
     "validating": "in_progress",
     "in_progress": "in_progress",
     "finalizing": "in_progress",
@@ -91,12 +76,19 @@ _STATUS_MAP: dict[str, str] = {
     "cancelled": "cancelled",
 }
 
+#: Error-file ``error.code`` values OpenAI writes for requests it never ran, mapped to the
+#: per-item status they mean. Anything else in the error file is a real per-request failure.
+_ERROR_CODE_TO_PROVIDER_STATUS: dict[str, str] = {
+    "batch_expired": "expired",
+    "batch_cancelled": "cancelled",
+}
+
 
 def _build_client(api_key: str | None, base_url: str | None) -> Any:
     try:
         from openai import OpenAI
     except ImportError as e:
-        raise UnsupportedBatchProviderError(
+        raise AirflowOptionalProviderFeatureException(
             "OpenAI batch requires the openai SDK. Install with: "
             "pip install 'apache-airflow-providers-common-ai[openai]'"
         ) from e
@@ -114,11 +106,11 @@ class OpenAIBatchAdapter(BatchAdapter):
 
     :param api_key: Passed straight to the ``openai.OpenAI`` client. ``None``
         falls back to the SDK's own env-var resolution (``OPENAI_API_KEY``).
-    :param base_url: Passed straight to the ``openai.OpenAI`` client.
+    :param base_url: Passed straight to the ``openai.OpenAI`` client. Pointing
+        it at an OpenAI-compatible gateway that exposes ``/v1/files`` and
+        ``/v1/batches`` routes the batch through that gateway.
     :param client: Inject a pre-built client (or a test double) instead of
-        constructing one from ``api_key``/``base_url``. Not part of the
-        public ``@task.llm_batch`` surface -- only the operator and tests
-        use this.
+        constructing one from ``api_key``/``base_url``.
     """
 
     name = "openai"
@@ -135,7 +127,7 @@ class OpenAIBatchAdapter(BatchAdapter):
     ) -> None:
         self._client = client if client is not None else _build_client(api_key, base_url)
 
-    def _build_lines(
+    def _iter_lines(
         self,
         requests: list[BatchRequest],
         *,
@@ -145,50 +137,45 @@ class OpenAIBatchAdapter(BatchAdapter):
         system_prompt: str,
         max_tokens: int,
         request_params: dict[str, Any] | None,
-    ) -> list[dict[str, Any]]:
-        lines = []
+    ) -> Iterator[dict[str, Any]]:
+        """Yield one JSONL line per request; a generator so validation and submit never hold every line at once."""
         for index, request in enumerate(requests):
             messages = []
             effective_system_prompt = request.get("system_prompt") or system_prompt
             if effective_system_prompt:
                 messages.append({"role": "system", "content": effective_system_prompt})
             messages.append({"role": "user", "content": request["prompt"]})
-            # D3/M10: a per-request model override must resolve to *this* adapter (raises
-            # LLMBatchModelMismatchError otherwise) -- never passed through unresolved.
             resolved_model = self.resolve_request_model(
                 request.get("model"), default_bare_model=model, request_index=index
             )
+            # User params first, then the keys this adapter manages, so a stray "model" or
+            # "messages" in request_params cannot bypass the model check or replace the prompt.
+            # ``max_completion_tokens`` is the cap every current chat model accepts; ``max_tokens``
+            # is deprecated and rejected by reasoning models such as gpt-5.
             body: dict[str, Any] = {
-                "model": resolved_model,
-                "messages": messages,
-                "max_tokens": request.get("max_tokens") or max_tokens,
                 **(request_params or {}),
                 **(request.get("params") or {}),
+                "model": resolved_model,
+                "messages": messages,
+                "max_completion_tokens": request.get("max_tokens") or max_tokens,
                 **directive,
             }
-            lines.append(
-                {
-                    # M9: not ":" -- Anthropic's documented custom_id character set is
-                    # ^[a-zA-Z0-9_-]{1,64}$ (could not independently verify from the installed
-                    # SDK, which does not encode the server-side regex; treated as authoritative
-                    # per the review finding rather than risk it). "-" keeps both adapters using
-                    # the same separator and format.
-                    "custom_id": f"{idempotency_key}-{index}",
-                    "method": "POST",
-                    "url": _ENDPOINT,
-                    "body": body,
-                }
-            )
-        return lines
+            body.pop("max_tokens", None)
+            yield {
+                # "-" rather than ":" so both adapters share a separator that fits Anthropic's
+                # ``^[a-zA-Z0-9_-]{1,64}$`` custom_id rule.
+                "custom_id": f"{idempotency_key}-{index}",
+                "method": "POST",
+                "url": _ENDPOINT,
+                "body": body,
+            }
 
     def build_output_directive(self, spec: OutputSpec) -> dict[str, Any]:
         if not spec.is_structured:
             return {}
-        # v1 fixes strict=False deliberately (Non-goal 8 / plan §10.2): opting in would
-        # require rewriting the user's schema to satisfy OpenAI's strict-mode constraints
-        # (all properties required, additionalProperties: false), changing its declared
-        # semantics, and it has no Anthropic equivalent -- keeping it off keeps both
-        # providers exercising the same invalid_output path in the same proportion.
+        # strict=False: strict mode requires rewriting the user's schema (every property
+        # required, additionalProperties false), changing its meaning, and has no Anthropic
+        # equivalent. Schema mismatches land as invalid_output rows on both providers alike.
         return {
             "response_format": {
                 "type": "json_schema",
@@ -221,9 +208,8 @@ class OpenAIBatchAdapter(BatchAdapter):
                 f"so each instance submits at most {self.max_requests} requests."
             )
 
-        # M10: resolve (and reject a foreign-provider override) before checking uniformity --
-        # otherwise two requests that both (wrongly) name the same *other* provider's model
-        # would pass the uniformity check and get silently submitted to OpenAI under that name.
+        # Resolve (and reject a foreign-provider override) before checking uniformity, so two
+        # requests naming the same other provider's model cannot pass as "uniform".
         distinct_models = {
             self.resolve_request_model(r.get("model"), default_bare_model=model, request_index=i)
             for i, r in enumerate(requests)
@@ -238,7 +224,7 @@ class OpenAIBatchAdapter(BatchAdapter):
         directive = self.build_output_directive(output_spec)
         directive_bytes = len(json.dumps(directive))
         total_bytes = 0
-        lines = self._build_lines(
+        lines = self._iter_lines(
             requests,
             model=model,
             idempotency_key="0" * 16,
@@ -248,7 +234,7 @@ class OpenAIBatchAdapter(BatchAdapter):
             request_params=request_params,
         )
         for index, line in enumerate(lines):
-            total_bytes += len(json.dumps(line).encode())
+            total_bytes += len(json.dumps(line).encode()) + 1
             if total_bytes > self.max_payload_bytes:
                 raise LLMBatchLimitExceededError(
                     f"OpenAI batch accepts a payload of at most {self.max_payload_bytes} bytes; "
@@ -272,7 +258,7 @@ class OpenAIBatchAdapter(BatchAdapter):
         **kwargs: Any,
     ) -> SubmitResult:
         directive = self.build_output_directive(output_spec)
-        lines = self._build_lines(
+        lines = self._iter_lines(
             requests,
             model=model,
             idempotency_key=idempotency_key,
@@ -281,18 +267,18 @@ class OpenAIBatchAdapter(BatchAdapter):
             max_tokens=max_tokens,
             request_params=request_params,
         )
-        jsonl_bytes = ("\n".join(json.dumps(line) for line in lines) + "\n").encode()
+        # Encode each line once, straight into the upload buffer: no intermediate list of dicts
+        # and no intermediate str of the whole file.
+        jsonl_bytes = b"".join(json.dumps(line).encode() + b"\n" for line in lines)
         uploaded = self._client.files.create(file=(f"{idempotency_key}.jsonl", jsonl_bytes), purpose="batch")
         batch = self._client.batches.create(
             input_file_id=uploaded.id,
             endpoint=_ENDPOINT,
             completion_window=completion_window,
-            # N1: fingerprint alongside the key -- find_orphaned_batch must be able to tell "this
-            # task instance" (idempotency_key, stable across a clear) apart from "this exact
-            # input" (input_fingerprint). Truncated to 16 hex chars: OpenAI metadata values cap at
-            # 512 characters (checked against ``hooks/openai.py:619``'s ``create_batch`` docstring),
-            # so the full 64-char sha256 digest would fit, but 16 is already a vanishingly small
-            # collision risk for a courtesy cross-check and keeps the metadata payload small.
+            # Both values let find_orphaned_batch tell "this task instance" (idempotency_key,
+            # stable across a clear) apart from "this exact input" (input_fingerprint). The
+            # fingerprint is truncated to 16 hex characters; OpenAI caps metadata values at 512
+            # characters, so the full digest would fit, but 16 is ample for a cross-check.
             metadata={"idempotency_key": idempotency_key, "input_fingerprint": input_fingerprint[:16]},
         )
         return SubmitResult(batch_id=batch.id, provider_input_ref=uploaded.id)
@@ -300,17 +286,12 @@ class OpenAIBatchAdapter(BatchAdapter):
     def get_batch(self, batch_id: str) -> BatchState:
         batch = self._client.batches.retrieve(batch_id)
         counts = None
-        request_counts = getattr(batch, "request_counts", None)
+        request_counts = batch.request_counts
         if request_counts is not None:
-            # OpenAI's own breakdown is {completed, failed, total} -- progress counters, not a
-            # success/error split (per-item outcome is only knowable from output_file_id/
-            # error_file_id, which the trigger deliberately never downloads, per §4).
-            # "completed"/"failed" map straight across. "expired"/"cancelled" have no dedicated
-            # OpenAI-side per-item counter (N2) -- once the job itself has reached one of those
-            # terminal statuses, whatever wasn't completed or failed was never processed, so the
-            # remainder (total - completed - failed) is attributed to whichever terminal status
-            # the job itself reached. Do not attribute it to both: only one of "expired"/
-            # "cancelled" is ever nonzero for a given batch, matching ``batch.status``.
+            # OpenAI's breakdown is {completed, failed, total}: progress counters, not a
+            # success/error split. Once the job has expired or been cancelled, whatever was
+            # neither completed nor failed was never processed, so the remainder is attributed
+            # to the job's own terminal status.
             remainder = max(request_counts.total - request_counts.completed - request_counts.failed, 0)
             counts = {
                 "succeeded": request_counts.completed,
@@ -321,7 +302,7 @@ class OpenAIBatchAdapter(BatchAdapter):
         return BatchState(
             status=_STATUS_MAP.get(batch.status, "in_progress"),
             counts=counts,
-            error_message=str(batch.errors) if getattr(batch, "errors", None) else None,
+            error_message=_format_batch_errors(batch.errors),
         )
 
     def cancel_batch(self, batch_id: str) -> None:
@@ -331,77 +312,74 @@ class OpenAIBatchAdapter(BatchAdapter):
         self, idempotency_key: str, input_fingerprint: str, not_before: str
     ) -> str | None:
         """
-        Look for a matching batch, created at or after ``not_before`` minus a clock-skew slack.
+        Look for a batch whose metadata carries both identifiers, created at or after ``not_before``.
 
-        (N1, R3-1 -- see ``_CLOCK_SKEW_SLACK_SECONDS``.) Recovery for a Phase A orphan (M3): the
-        OpenAI adapter's own ``submit()`` sets
-        ``metadata={"idempotency_key": ..., "input_fingerprint": ...}`` (see :meth:`submit`), so
-        a batch that was submitted but whose response never made it back can still be found and
-        re-attached to, instead of blindly resubmitted -- and, critically, *not* an older batch
-        for the same task instance whose content has since changed (idempotency_key is stable
-        across a ``clear`` with different prompts; input_fingerprint is not). No server-side
-        metadata filter exists (see ``_ORPHAN_SCAN_LIMIT``), so this walks up to that many batches
-        client-side; among every match, the most recently created one wins, since listing order
-        is not guaranteed to be recency-first.
+        :meth:`submit` records ``idempotency_key`` and ``input_fingerprint`` in
+        the batch's metadata, so a batch whose submit response never made it
+        back can be found and re-attached to. No server-side metadata filter
+        exists, so this walks up to ``_ORPHAN_SCAN_LIMIT`` batches client-side;
+        among every match the most recently created one wins.
         """
         not_before_epoch = (
             math.floor(datetime.fromisoformat(not_before).timestamp()) - _CLOCK_SKEW_SLACK_SECONDS
             if not_before
             else 0.0
         )
-        best: Any = None
+        best = None
         scanned = 0
         for batch in self._client.batches.list(limit=100):
             if scanned >= _ORPHAN_SCAN_LIMIT:
+                log.warning(
+                    "Stopped scanning for an orphaned batch after the scan limit; a matching batch may exist",
+                    scan_limit=_ORPHAN_SCAN_LIMIT,
+                    idempotency_key=idempotency_key,
+                )
                 break
             scanned += 1
-            metadata = getattr(batch, "metadata", None) or {}
+            metadata = batch.metadata or {}
             if metadata.get("idempotency_key") != idempotency_key:
                 continue
             if metadata.get("input_fingerprint") != input_fingerprint[:16]:
                 continue
-            created_at = getattr(batch, "created_at", 0) or 0
-            if created_at < not_before_epoch:
+            if batch.created_at < not_before_epoch:
                 continue
-            if best is None or created_at > getattr(best, "created_at", 0):
+            if best is None or batch.created_at > best.created_at:
                 best = batch
         return best.id if best is not None else None
 
     def iter_results(self, batch_id: str) -> Iterator[RawResultItem]:
         batch = self._client.batches.retrieve(batch_id)
-        return self._iter_result_files(
-            getattr(batch, "output_file_id", None), getattr(batch, "error_file_id", None)
-        )
+        return self._iter_result_files(batch_id, batch.output_file_id, batch.error_file_id)
 
     def _iter_result_files(
-        self, output_file_id: str | None, error_file_id: str | None
+        self, batch_id: str, output_file_id: str | None, error_file_id: str | None
     ) -> Iterator[RawResultItem]:
-        # Stream the output file, then the error file, one at a time -- the memory bound
-        # (§6) means never holding both files' parsed contents at once.
+        # Stream the output file, then the error file, so both files' contents are never resident.
         if output_file_id:
-            yield from self._iter_file_lines(output_file_id)
+            yield from self._iter_file_lines(batch_id, output_file_id)
         if error_file_id:
-            yield from self._iter_file_lines(error_file_id)
+            yield from self._iter_file_lines(batch_id, error_file_id)
 
-    def _iter_file_lines(self, file_id: str) -> Iterator[RawResultItem]:
-        response = self._client.files.content(file_id)
-        for line in response.iter_lines():
-            if not line:
-                continue
-            payload = json.loads(line)
-            try:
-                yield self._parse_result_line(payload)
-            except (KeyError, IndexError, ValueError) as e:
-                # A malformed custom_id must not abort the whole stream (M7): one bad line
-                # would otherwise make this batch's manifest impossible to ever produce, even
-                # on retry -- the provider will return the same malformed line every time.
-                # results.py's reconciliation counts this index as "missing" once it is absent
-                # from `seen`, same as if the provider had dropped the row entirely.
-                log.warning(
-                    "Skipping unparsable result line for batch",
-                    custom_id=payload.get("custom_id"),
-                    error=str(e),
-                )
+    def _iter_file_lines(self, batch_id: str, file_id: str) -> Iterator[RawResultItem]:
+        # ``with_streaming_response`` is what makes the SDK stream the body; a plain
+        # ``files.content()`` reads the whole file into memory before ``iter_lines`` runs.
+        with self._client.files.with_streaming_response.content(file_id) as response:
+            for line in response.iter_lines():
+                if not line:
+                    continue
+                try:
+                    yield self._parse_result_line(json.loads(line))
+                except (KeyError, IndexError, ValueError, AttributeError, TypeError) as e:
+                    # One malformed line must not abort the whole stream: the provider returns
+                    # the same line on every retry, so the manifest could never be produced.
+                    # results.py counts the index as "missing" once it is absent from ``seen``.
+                    log.warning(
+                        "Skipping unparsable result line for batch",
+                        batch_id=batch_id,
+                        file_id=file_id,
+                        line=line[:200],
+                        error=str(e),
+                    )
 
     @staticmethod
     def _parse_result_line(payload: dict[str, Any]) -> RawResultItem:
@@ -412,18 +390,29 @@ class OpenAIBatchAdapter(BatchAdapter):
         body = response.get("body") or {}
 
         if error is not None or response.get("status_code") != 200:
-            message = error.get("message") if isinstance(error, dict) else str(error or response)
+            error_dict: dict[str, Any] = error if isinstance(error, dict) else {}
+            raw_body_error = body.get("error")
+            body_error: dict[str, Any] = raw_body_error if isinstance(raw_body_error, dict) else {}
+            message = (
+                error_dict.get("message")
+                or body_error.get("message")
+                or (str(error) if error is not None else f"HTTP {response.get('status_code')}")
+            )
+            code = error_dict.get("code") or body_error.get("code")
+            provider_status = _ERROR_CODE_TO_PROVIDER_STATUS.get(str(code), "errored")
             return RawResultItem(
                 custom_id=custom_id,
                 index=index,
-                provider_status="errored",
+                provider_status=provider_status,  # type: ignore[arg-type]
                 model=body.get("model"),
                 usage=None,
                 finish_reason=None,
                 error={
-                    "type": "provider_error",
+                    "type": "provider_error" if provider_status == "errored" else provider_status,
                     "message": message,
-                    "provider_code": str(response.get("status_code")) if response else None,
+                    "provider_code": str(code)
+                    if code is not None
+                    else str(response.get("status_code") or "") or None,
                     "stage": "provider",
                 },
                 raw=None,
@@ -447,8 +436,20 @@ class OpenAIBatchAdapter(BatchAdapter):
         )
 
     def extract_output(self, raw: RawResultItem, spec: OutputSpec) -> ExtractedOutput:
+        if raw.raw is None:
+            # A refusal, or a reasoning model that spent its whole token budget before emitting
+            # visible output. Either way there is no content to hand back as a success.
+            return ExtractedOutput(kind="absent")
         if not spec.is_structured:
             return ExtractedOutput(kind="text", text=raw.raw)
-        if raw.raw is None:
-            return ExtractedOutput(kind="absent")
         return ExtractedOutput(kind="json_text", text=raw.raw)
+
+
+def _format_batch_errors(errors: Any) -> str | None:
+    """Render OpenAI's ``Batch.errors`` as ``code: message`` pairs instead of a pydantic repr."""
+    data = getattr(errors, "data", None) or []
+    rendered = "; ".join(
+        f"{getattr(e, 'code', None) or 'error'}: {getattr(e, 'message', None) or ''}".rstrip(": ")
+        for e in data
+    )
+    return rendered or None

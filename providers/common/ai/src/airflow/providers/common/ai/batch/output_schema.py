@@ -70,7 +70,11 @@ class OutputSpec:
     is_structured: bool
     json_schema: dict[str, Any]
     schema_name: str
-    type_adapter: TypeAdapter
+    type_adapter: TypeAdapter[Any]
+    #: ``True`` when ``output_type``'s own schema has a non-object root (``int``, ``list[str]``,
+    #: ``str | None``) and was wrapped as ``{"response": <schema>}``. Both providers require an
+    #: object root for structured output; :func:`validate_extracted_output` unwraps it again.
+    wrapped: bool = False
 
 
 def _normalize_schema_name(name: str) -> str:
@@ -110,7 +114,7 @@ def build_output_spec(output_type: type) -> OutputSpec:
         )
 
     try:
-        type_adapter = TypeAdapter(output_type)
+        type_adapter: TypeAdapter[Any] = TypeAdapter(output_type)
         if isinstance(output_type, type) and issubclass(output_type, BaseModel):
             json_schema = output_type.model_json_schema()
         else:
@@ -122,6 +126,13 @@ def build_output_spec(output_type: type) -> OutputSpec:
             "(int, list[str], ...)."
         ) from e
 
+    wrapped = json_schema.get("type") != "object"
+    if wrapped:
+        json_schema = {
+            "type": "object",
+            "properties": {"response": json_schema},
+            "required": ["response"],
+        }
     schema_name = _normalize_schema_name(getattr(output_type, "__name__", ""))
     return OutputSpec(
         output_type=output_type,
@@ -129,6 +140,7 @@ def build_output_spec(output_type: type) -> OutputSpec:
         json_schema=json_schema,
         schema_name=schema_name,
         type_adapter=type_adapter,
+        wrapped=wrapped,
     )
 
 
@@ -168,6 +180,15 @@ def validate_extracted_output(extracted: ExtractedOutput, spec: OutputSpec) -> V
     text passes through unchanged with no validation at all.
     """
     if not spec.is_structured:
+        if extracted.kind == "absent" or extracted.text is None:
+            return ValidationOutcome(
+                ok=False,
+                raw_text=extracted.text,
+                error_message=(
+                    "The model returned no text content (a refusal, or the output token budget was "
+                    "spent before any visible output)."
+                ),
+            )
         return ValidationOutcome(ok=True, value=extracted.text)
 
     if extracted.kind == "absent":
@@ -178,10 +199,12 @@ def validate_extracted_output(extracted: ExtractedOutput, spec: OutputSpec) -> V
         )
 
     try:
-        if extracted.kind == "json_text":
-            validated = spec.type_adapter.validate_json(extracted.text or "")
-        else:
-            validated = spec.type_adapter.validate_python(extracted.value)
+        value = json.loads(extracted.text or "") if extracted.kind == "json_text" else extracted.value
+        if spec.wrapped:
+            if not isinstance(value, dict) or "response" not in value:
+                raise ValueError("expected an object with a 'response' key")
+            value = value["response"]
+        validated = spec.type_adapter.validate_python(value)
     except (ValidationError, json.JSONDecodeError, ValueError, TypeError) as e:
         raw_text = extracted.text if extracted.kind == "json_text" else _dump_raw_value(extracted.value)
         return ValidationOutcome(ok=False, raw_text=raw_text, error_message=_truncate_error(str(e)))

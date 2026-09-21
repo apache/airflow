@@ -17,16 +17,13 @@
 """
 Anthropic batch adapter (Message Batches API).
 
-Talks to the ``anthropic`` SDK directly (D1, same reasoning as
-``batch/openai.py``). The SDK import is deferred to
-:meth:`AnthropicBatchAdapter.__init__`.
+Talks to the ``anthropic`` SDK directly, for the same reason ``batch/openai.py``
+does. The SDK import is deferred to :func:`_build_client`.
 
-R8 (checked against ``anthropic`` 1.5.0's actual
-``messages.batches.create`` signature -- ``requests``, ``user_profile_id``,
-``workspace_id`` only): **the SDK has no batch-level ``metadata`` parameter.**
-Unlike OpenAI, there is nowhere to put the idempotency key except the
-``custom_id`` prefix every request already carries (§5.4) -- this is not a
-gap, ``custom_id`` already covers the recognition need.
+The SDK's ``messages.batches.create`` has no batch-level ``metadata``
+parameter, so the idempotency key lives only in each request's ``custom_id``
+prefix. That is enough to recognise results, but not to find an orphaned
+batch: see :meth:`AnthropicBatchAdapter.find_orphaned_batch`.
 """
 
 from __future__ import annotations
@@ -40,11 +37,13 @@ import structlog
 from airflow.providers.common.ai.batch.base import (
     BatchAdapter,
     BatchState,
+    BatchStatus,
     ExtractedOutput,
     RawResultItem,
     SubmitResult,
 )
-from airflow.providers.common.ai.exceptions import LLMBatchLimitExceededError, UnsupportedBatchProviderError
+from airflow.providers.common.ai.exceptions import LLMBatchLimitExceededError
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
 log = structlog.get_logger(logger_name="task")
 
@@ -52,32 +51,25 @@ if TYPE_CHECKING:
     from airflow.providers.common.ai.batch.base import BatchRequest
     from airflow.providers.common.ai.batch.output_schema import OutputSpec
 
-#: Anthropic's Message Batches API only ever reports "in_progress"/"canceling"/"ended"
-#: at the job level (checked against the SDK's ``MessageBatch.processing_status`` type) --
-#: unlike OpenAI, there is no separate "failed"/"expired" job status, and "ended" alone does
-#: not distinguish a normal completion from a cancelled one (B4) -- see ``_batch_status``.
-_STATUS_MAP: dict[str, str] = {
+#: Anthropic only reports "in_progress"/"canceling"/"ended" at the job level: there is no
+#: separate "failed" or "expired" job status, and "ended" alone does not say whether the batch
+#: was cancelled. See ``_batch_status``.
+_STATUS_MAP: dict[str, BatchStatus] = {
     "in_progress": "in_progress",
     "canceling": "in_progress",
     "ended": "completed",
 }
 
 
-def _batch_status(batch: Any) -> str:
+def _batch_status(batch: Any) -> BatchStatus:
     """
-    Resolve ``batch.processing_status`` to this adapter's status vocabulary (B4).
+    Resolve ``batch.processing_status`` to this adapter's status vocabulary.
 
-    Anthropic's own ``processing_status`` conflates "completed normally" and "completed after
-    being cancelled" into the same ``"ended"`` value -- the only signal that a batch now sitting
-    at ``"ended"`` was actually cancelled is ``cancel_initiated_at`` being set (a real
-    ``MessageBatch`` field: ``id/archived_at/cancel_initiated_at/created_at/ended_at/expires_at/
-    processing_status/request_counts/results_url/type``). Without this check, a cancelled
-    Anthropic batch would be reported as ``"completed"`` and its manifest would say
-    ``terminal_reason: "partial"`` instead of ``"cancelled"`` -- the same outcome reported two
-    different ways depending on which provider ran it, exactly what §8's status matrix exists to
-    avoid.
+    A batch at ``"ended"`` with ``cancel_initiated_at`` set finished because it
+    was cancelled; without the check it would be reported as ``"completed"``
+    and its manifest would say ``partial`` instead of ``cancelled``.
     """
-    if batch.processing_status == "ended" and getattr(batch, "cancel_initiated_at", None) is not None:
+    if batch.processing_status == "ended" and batch.cancel_initiated_at is not None:
         return "cancelled"
     return _STATUS_MAP.get(batch.processing_status, "in_progress")
 
@@ -86,7 +78,7 @@ def _build_client(api_key: str | None, base_url: str | None) -> Any:
     try:
         from anthropic import Anthropic
     except ImportError as e:
-        raise UnsupportedBatchProviderError(
+        raise AirflowOptionalProviderFeatureException(
             "Anthropic batch requires the anthropic SDK. Install with: "
             "pip install 'apache-airflow-providers-common-ai[anthropic]'"
         ) from e
@@ -107,20 +99,14 @@ class AnthropicBatchAdapter(BatchAdapter):
         (``ANTHROPIC_API_KEY``).
     :param base_url: Passed straight to the ``anthropic.Anthropic`` client.
     :param client: Inject a pre-built client (or a test double) instead of
-        constructing one from ``api_key``/``base_url``. Not part of the
-        public ``@task.llm_batch`` surface -- only the operator and tests
-        use this.
+        constructing one from ``api_key``/``base_url``.
     """
 
     name = "anthropic"
+    #: Anthropic's documented limit: 100,000 requests or 256 MB, whichever is reached first.
     max_requests = 100_000
-    #: N7: unconfirmed. The plan's source for this figure could not be re-located on Anthropic's
-    #: current public docs page for the Message Batches API during this round's review; treated
-    #: as a conservative placeholder, not a verified limit. Do not cite this number as
-    #: authoritative without re-checking against Anthropic's docs first.
     max_payload_bytes = 256_000_000
-    #: D3: Anthropic has no batch-level "one model per batch" requirement -- a
-    #: per-request ``model`` override just goes into that request's own ``params``.
+    #: Each request carries its own full Messages params, model included.
     allows_per_request_model = True
 
     def __init__(
@@ -144,25 +130,24 @@ class AnthropicBatchAdapter(BatchAdapter):
         directive: dict[str, Any],
     ) -> dict[str, Any]:
         effective_system_prompt = request.get("system_prompt") or system_prompt
-        # D3/M10: unlike OpenAI, Anthropic allows each request its own model -- but it must
-        # still resolve to *this* adapter (raises LLMBatchModelMismatchError otherwise), and
-        # the resolved value must be the bare model name, never the "anthropic:" prefixed form.
         resolved_model = self.resolve_request_model(
             request.get("model"), default_bare_model=model, request_index=request_index
         )
+        # User params first, then the keys this adapter manages, so a stray "model" or
+        # "messages" in request_params cannot bypass the model check or replace the prompt.
         params: dict[str, Any] = {
+            **(request_params or {}),
+            **(request.get("params") or {}),
             "model": resolved_model,
             "max_tokens": request.get("max_tokens") or max_tokens,
             "messages": [{"role": "user", "content": request["prompt"]}],
-            **(request_params or {}),
-            **(request.get("params") or {}),
             **directive,
         }
         if effective_system_prompt:
             params["system"] = effective_system_prompt
         return params
 
-    def _build_requests(
+    def _iter_requests(
         self,
         requests: list[BatchRequest],
         *,
@@ -172,14 +157,10 @@ class AnthropicBatchAdapter(BatchAdapter):
         system_prompt: str,
         max_tokens: int,
         request_params: dict[str, Any] | None,
-    ) -> list[dict[str, Any]]:
-        return [
-            {
-                # M9: not ":" -- Anthropic's "Create a Message Batch" API docs (custom_id:
-                # pattern ^[a-zA-Z0-9_-]{1,64}$, minLength 1, maxLength 64; verified 2026-09-11)
-                # exclude it; the installed SDK itself does not encode this regex, so the docs
-                # page is the source of truth here, not the SDK. "-" keeps both adapters
-                # consistent (R3-5).
+    ) -> Iterator[dict[str, Any]]:
+        for index, request in enumerate(requests):
+            yield {
+                # "-" rather than ":" to fit Anthropic's ``^[a-zA-Z0-9_-]{1,64}$`` custom_id rule.
                 "custom_id": f"{idempotency_key}-{index}",
                 "params": self._build_params(
                     request,
@@ -191,16 +172,12 @@ class AnthropicBatchAdapter(BatchAdapter):
                     directive=directive,
                 ),
             }
-            for index, request in enumerate(requests)
-        ]
 
     def build_output_directive(self, spec: OutputSpec) -> dict[str, Any]:
         if not spec.is_structured:
             return {}
-        # Single tool + forced tool_choice (§10.3): not giving the model a choice turns
-        # "produce structured output" from something it can decline into a hard format
-        # constraint. tool_choice="auto" or multiple tools would only raise the invalid_output
-        # rate without buying anything.
+        # A single tool with a forced tool_choice turns "produce structured output" from
+        # something the model can decline into a hard format constraint.
         return {
             "tools": [
                 {
@@ -235,7 +212,7 @@ class AnthropicBatchAdapter(BatchAdapter):
 
         directive = self.build_output_directive(output_spec)
         directive_bytes = len(json.dumps(directive))
-        built = self._build_requests(
+        built = self._iter_requests(
             requests,
             model=model,
             idempotency_key="0" * 16,
@@ -269,39 +246,33 @@ class AnthropicBatchAdapter(BatchAdapter):
         **kwargs: Any,
     ) -> SubmitResult:
         directive = self.build_output_directive(output_spec)
-        built = self._build_requests(
-            requests,
-            model=model,
-            idempotency_key=idempotency_key,
-            directive=directive,
-            system_prompt=system_prompt,
-            max_tokens=max_tokens,
-            request_params=request_params,
+        built = list(
+            self._iter_requests(
+                requests,
+                model=model,
+                idempotency_key=idempotency_key,
+                directive=directive,
+                system_prompt=system_prompt,
+                max_tokens=max_tokens,
+                request_params=request_params,
+            )
         )
         batch = self._client.messages.batches.create(requests=built)
-        # No provider-side upload step for Anthropic -- requests go inline in the create
-        # call, so there is no file id to track for cleanup.
+        # Requests go inline in the create call; there is no uploaded file to track.
         return SubmitResult(batch_id=batch.id, provider_input_ref=None)
 
     def get_batch(self, batch_id: str) -> BatchState:
         batch = self._client.messages.batches.retrieve(batch_id)
-        counts = None
-        request_counts = getattr(batch, "request_counts", None)
-        if request_counts is not None:
-            # Normalized to the {succeeded, errored, expired, cancelled} shape the trigger's
-            # TriggerEvent uses regardless of adapter (§4); "processing" is dropped since a
-            # get_batch() call only reaches here once the job itself has ended.
-            counts = {
-                "succeeded": request_counts.succeeded,
-                "errored": request_counts.errored,
-                "expired": request_counts.expired,
-                "cancelled": request_counts.canceled,
-            }
-        return BatchState(
-            status=_batch_status(batch),
-            counts=counts,
-            error_message=None,
-        )
+        request_counts = batch.request_counts
+        # Normalized to the {succeeded, errored, expired, cancelled} shape the trigger event
+        # uses regardless of adapter; "processing" is what is left over while in progress.
+        counts = {
+            "succeeded": request_counts.succeeded,
+            "errored": request_counts.errored,
+            "expired": request_counts.expired,
+            "cancelled": request_counts.canceled,
+        }
+        return BatchState(status=_batch_status(batch), counts=counts, error_message=None)
 
     def cancel_batch(self, batch_id: str) -> None:
         self._client.messages.batches.cancel(batch_id)
@@ -310,25 +281,20 @@ class AnthropicBatchAdapter(BatchAdapter):
         self, idempotency_key: str, input_fingerprint: str, not_before: str
     ) -> str | None:
         """
-        Return ``None`` unconditionally -- Anthropic gives no way to recover a Phase A orphan (M3).
+        Return ``None`` unconditionally: this adapter does not recover orphaned batches.
 
-        Confirmed against the installed SDK: ``messages.batches.create()`` has no batch-level
-        ``metadata`` parameter (R8), and ``messages.batches.list()`` has no way to filter or
-        search by ``custom_id`` either. There is therefore no query that can distinguish "the
-        batch this orphaned intent record was trying to submit" from any other batch on the
-        account -- ``not_before`` (N1) would narrow candidates the same way OpenAI's adapter
-        does, but there is nothing to narrow: with zero identifying signal, adding a time filter
-        cannot turn "no way to find it" into "found it". This is a real, documented gap (unlike
-        OpenAI's adapter, which recovers via ``metadata``): a crash between "submit sent" and
-        "submit response received" for an Anthropic batch cannot be automatically reconciled,
-        and will result in a duplicate submission on the next attempt. Tracked as an accepted
-        limitation, not silently papered over with a lookup that cannot actually work.
+        The SDK's batch-create call has no ``metadata`` parameter and the list
+        endpoint cannot filter by ``custom_id``. A batch could in principle be
+        identified by listing recent batches and reading the ``custom_id``
+        prefix of an ended batch's first result, but that scan costs a result
+        download per candidate and cannot see a batch that is still running, so
+        it is not implemented. A crash between "submit sent" and "response
+        recorded" therefore falls through to ``on_orphaned_intent``.
         """
         return None
 
     def iter_results(self, batch_id: str) -> Iterator[RawResultItem]:
-        # Return (not yield) so a bad batch_id raises immediately at call time (§3),
-        # matching AnthropicHook.stream_batch_results' own convention.
+        # Return (not yield) so a bad batch_id raises at call time rather than on first iteration.
         return self._iter_results(batch_id)
 
     def _iter_results(self, batch_id: str) -> Iterator[RawResultItem]:
@@ -336,20 +302,18 @@ class AnthropicBatchAdapter(BatchAdapter):
             try:
                 yield self._parse_result_item(item)
             except (AttributeError, IndexError, ValueError) as e:
-                # A malformed custom_id must not abort the whole stream (M7): one bad item
-                # would otherwise make this batch's manifest impossible to ever produce, even
-                # on retry -- the provider returns the same malformed item every time.
+                # One malformed item must not abort the whole stream; results.py counts the
+                # index as "missing" once it is absent from ``seen``.
                 log.warning(
                     "Skipping unparsable result item for batch",
+                    batch_id=batch_id,
                     custom_id=getattr(item, "custom_id", None),
                     error=str(e),
                 )
 
-    #: Anthropic's per-item ``result.type`` ("errored"/"canceled"/"expired") -> this module's
-    #: ``RawResultItem.provider_status`` vocabulary (N2). "canceled" (Anthropic's spelling, one
-    #: "l") is normalized to "cancelled" (this codebase's spelling elsewhere) for the internal
-    #: value; the original provider spelling is preserved in the row's ``error.type`` field so
-    #: nothing about the provider's own wording is lost, only normalized for internal dispatch.
+    #: Anthropic's per-item ``result.type`` -> ``RawResultItem.provider_status``. "canceled"
+    #: (Anthropic's spelling) is normalized to "cancelled"; the original spelling is kept in the
+    #: row's ``error.type``.
     _RESULT_TYPE_TO_PROVIDER_STATUS: dict[str, str] = {
         "errored": "errored",
         "canceled": "cancelled",
@@ -363,22 +327,27 @@ class AnthropicBatchAdapter(BatchAdapter):
         result = item.result
 
         if result.type != "succeeded":
-            # N2: "canceled"/"expired" get their own provider_status, not folded into "errored" --
-            # a batch that was cancelled or hit its SLA still billed for, and reported, these
-            # items distinctly from an actual provider-side failure (rate limit, bad request).
-            # Collapsing them into "errored" is exactly the defect this fix addresses: it made
-            # `merge_counts["missing"]` structurally unable to ever be nonzero for Anthropic,
-            # which made the expired/cancelled relabeling in assemble_manifest permanently inert.
             provider_status = cls._RESULT_TYPE_TO_PROVIDER_STATUS.get(result.type, "errored")
-            message = getattr(getattr(result, "error", None), "message", None) or f"batch item {result.type}"
+            # An errored result carries ``error: ErrorResponse``, whose own ``error`` field is the
+            # typed error object with ``type`` and ``message``. Expired and canceled results carry
+            # no error object at all.
+            error_response = getattr(result, "error", None)
+            error_object = getattr(error_response, "error", None)
+            message = getattr(error_object, "message", None) or f"batch item {result.type}"
+            provider_code = getattr(error_object, "type", None)
             return RawResultItem(
                 custom_id=custom_id,
                 index=index,
-                provider_status=provider_status,
+                provider_status=provider_status,  # type: ignore[arg-type]
                 model=None,
                 usage=None,
                 finish_reason=None,
-                error={"type": result.type, "message": message, "provider_code": None, "stage": "provider"},
+                error={
+                    "type": result.type,
+                    "message": message,
+                    "provider_code": provider_code,
+                    "stage": "provider",
+                },
                 raw=None,
             )
 
@@ -396,19 +365,17 @@ class AnthropicBatchAdapter(BatchAdapter):
         )
 
     def extract_output(self, raw: RawResultItem, spec: OutputSpec) -> ExtractedOutput:
+        blocks = raw.raw or []
         if not spec.is_structured:
-            text = "".join(block.text for block in raw.raw if getattr(block, "type", None) == "text")
-            return ExtractedOutput(kind="text", text=text)
+            text = "".join(block.text for block in blocks if block.type == "text")
+            return ExtractedOutput(kind="text", text=text or None)
 
         text_parts = []
-        for block in raw.raw or []:
-            if (
-                getattr(block, "type", None) == "tool_use"
-                and getattr(block, "name", None) == spec.schema_name
-            ):
+        for block in blocks:
+            if block.type == "tool_use" and block.name == spec.schema_name:
                 return ExtractedOutput(kind="json_value", value=block.input)
-            if getattr(block, "type", None) == "text":
+            if block.type == "text":
                 text_parts.append(block.text)
-        # Forced tool_choice still permits the model to answer in plain text (§10.3) --
-        # keep any text content so it lands in raw_output for diagnostics.
+        # A forced tool_choice still permits the model to answer in plain text; keep it for
+        # diagnostics in the row's raw_output.
         return ExtractedOutput(kind="absent", text="".join(text_parts) or None)

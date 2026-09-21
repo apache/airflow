@@ -14,3 +14,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+Batch execution for ``@task.llm_batch``.
+
+The stable surface for other packages is :class:`BatchAdapter` (the contract a
+provider batch engine implements), :class:`BatchRequest` (one input item) and
+:func:`register_adapter` (how another provider package plugs its adapter in).
+"""
+
+from __future__ import annotations
+
+from airflow.providers.common.ai.batch.base import BatchAdapter, BatchRequest
+from airflow.providers.common.ai.batch.dispatch import register_adapter
+
+__all__ = ["BatchAdapter", "BatchRequest", "register_adapter"]
