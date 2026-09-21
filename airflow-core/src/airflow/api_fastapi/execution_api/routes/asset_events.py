@@ -29,6 +29,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryAssetEventPartitionKeyRegex,
 )
 from airflow.api_fastapi.common.types import UtcDateTime
+from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.execution_api.datamodels.asset import AssetResponse
 from airflow.api_fastapi.execution_api.datamodels.asset_event import (
     AssetEventResponse,
@@ -95,7 +96,7 @@ def _parse_extra_params(extra: list[str] | None) -> dict[str, str]:
     for item in extra or []:
         if "=" not in item:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=HTTP_422_UNPROCESSABLE_CONTENT,
                 detail={
                     "reason": "Invalid parameter",
                     "message": f"Invalid extra parameter format: {item!r}. Expected 'key=value'.",

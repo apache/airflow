@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import warnings
 from datetime import datetime
 
 import pytest
@@ -116,6 +117,22 @@ class TestGetAssetEventByAsset:
 
         assert response.status_code == 200
         assert response.json()["asset_events"][0]["created_dagruns"][0]["start_date"] is None
+
+    def test_get_by_asset_with_malformed_extra_returns_422(self, client):
+        # Scoped to UserWarning (StarletteDeprecationWarning's base) so the project's
+        # error-level filters for SAWarning stay in force for the request.
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always", UserWarning)
+            response = client.get(
+                "/execution/asset-events/by-asset",
+                params={"name": "test_get_asset_by_name", "uri": None, "extra": "foo"},
+            )
+        assert response.status_code == 422
+        assert response.json()["detail"]["message"] == (
+            "Invalid extra parameter format: 'foo'. Expected 'key=value'."
+        )
+        # The status constant must come from api_fastapi.compat, not the Starlette alias it wraps.
+        assert not [w for w in caught if "HTTP_422_UNPROCESSABLE_ENTITY" in str(w.message)]
 
     @pytest.mark.parametrize(
         ("uri", "name"),

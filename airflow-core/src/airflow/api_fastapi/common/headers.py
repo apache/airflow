@@ -64,7 +64,7 @@ def header_accept_json_or_ndjson_depends(
         return Mimetype.ANY
     if accept.startswith(Mimetype.JSON):
         return Mimetype.JSON
-    if accept.startswith(Mimetype.NDJSON) or accept.startswith(Mimetype.ANY):
+    if accept.startswith(Mimetype.NDJSON):
         return Mimetype.NDJSON
 
     raise HTTPException(
