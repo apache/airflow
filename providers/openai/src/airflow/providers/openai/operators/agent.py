@@ -90,7 +90,10 @@ class OpenAIAgentSessionOperator(BaseOperator):
         reserved = {"input", "environment", "agent_id", "stream"} & self.session_kwargs.keys()
         if reserved:
             raise ValueError(f"Reserved session_kwargs: {sorted(reserved)}")
-        if not self.agent_id and not self.session_kwargs.get("agent", {}).get("model"):
+        agent = self.session_kwargs.get("agent")
+        if agent is not None and not isinstance(agent, dict):
+            raise ValueError("session_kwargs['agent'] must be a dict of SDK agent fields")
+        if not self.agent_id and not (agent or {}).get("model"):
             raise ValueError("Supply agent_id or session_kwargs['agent']['model']")
         if not self.input:
             raise ValueError("input must not be empty")

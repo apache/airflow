@@ -32,6 +32,7 @@ from airflow.providers.openai.triggers.agent import OpenAIAgentSessionTrigger
 httpx2 = pytest.importorskip("httpx2")
 AgentSession = pytest.importorskip("openai.types.beta.agent_session").AgentSession
 Turn = pytest.importorskip("openai.types.beta.agents.sessions.turn").Turn
+SessionTurnError = pytest.importorskip("openai.types.beta.session_turn_error").SessionTurnError
 
 
 @pytest.fixture
@@ -204,6 +205,36 @@ def test_reserved_kwargs_rejected_before_creation(operator, reserved):
     with pytest.raises(ValueError, match="Reserved"):
         operator.execute({})
     operator.hook.create_agent_session.assert_not_called()
+
+
+@pytest.mark.parametrize("agent", [None, "gpt-6-astra", ["gpt-6-astra"]])
+def test_non_dict_agent_rejected_with_value_error(operator, agent):
+    operator.agent_id = None
+    operator.session_kwargs = {"agent": agent}
+    with pytest.raises(ValueError, match="agent"):
+        operator.execute({})
+    operator.hook.create_agent_session.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("status", "error", "expected"),
+    [
+        ("cancelled", None, "Agent turn turn cancelled"),
+        (
+            "failed",
+            SessionTurnError.model_construct(code="usage_limit_exceeded", message="Add credits."),
+            "Agent turn turn failed (usage_limit_exceeded): Add credits.",
+        ),
+    ],
+)
+def test_failed_turn_message_formats_error(hook, status, error, expected):
+    hook.conn.beta.agents.sessions.retrieve.return_value = AgentSession.model_construct(
+        status="idle", required_actions=[], error=None
+    )
+    hook.conn.beta.agents.sessions.turns.list.return_value.data = [
+        Turn.model_construct(id="turn", status=status, error=error, usage=None)
+    ]
+    assert hook.poll_agent_session("session")["message"] == expected
 
 
 def test_real_sdk_request_and_response_contract():

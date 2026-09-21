@@ -768,11 +768,10 @@ class OpenAIHook(BaseHook):
             if turn.status == "completed":
                 return {**result, "status": "success"}
             if turn.status in {"failed", "cancelled"}:
-                return {
-                    **result,
-                    "status": "error",
-                    "message": f"Agent turn {turn.id} {turn.status}: {turn.error}",
-                }
+                message = f"Agent turn {turn.id} {turn.status}"
+                if turn.error is not None:
+                    message += f" ({turn.error.code}): {turn.error.message}"
+                return {**result, "status": "error", "message": message}
         if session.status == "failed":
             return {**result, "status": "error", "message": f"Agent session failed: {session.error}"}
         if any(action.type == "function_call" for action in session.required_actions):
