@@ -551,6 +551,10 @@ source code so it stays up to date as endpoints are added or changed.
      - ``View.PROVIDERS``
      - ``PROVIDERS``
    * - ``GET``
+     - ``/api/v2/providers/{provider_name}``
+     - ``View.PROVIDERS``
+     - ``PROVIDERS``
+   * - ``GET``
      - ``/api/v2/variables``
      - ``Variable``
      - ``GET``
