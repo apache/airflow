@@ -985,20 +985,21 @@ class DagFileProcessorManager(LoggingMixin):
     def _reconcile_bundle_configurations(self, known_files: dict[str, set[DagFileInfo]]) -> None:
         dag_bundle_manager = self._get_dag_bundles_manager()
         try:
-            dag_bundle_manager.refresh_bundle_configurations()
+            bundle_configurations = dag_bundle_manager.get_all_bundle_configurations()
         except Exception:
-            self.log.exception("Error refreshing Dag bundle configuration")
+            self.log.exception("Error reading Dag bundle configuration")
+            return
 
         try:
             dag_bundle_manager.sync_bundles_to_db(
-                deactivate_missing=self._can_deactivate_missing_bundles(dag_bundle_manager)
+                bundle_configurations=bundle_configurations,
+                deactivate_missing=self._can_deactivate_missing_bundles(dag_bundle_manager),
             )
         except Exception:
             self.log.exception("Error reconciling Dag bundle configuration")
         else:
             self._bundle_name_to_team_name.clear()
 
-        bundle_configurations = dag_bundle_manager.get_all_bundle_configurations()
         if self.bundle_names_to_parse:
             bundle_configurations = tuple(
                 configuration

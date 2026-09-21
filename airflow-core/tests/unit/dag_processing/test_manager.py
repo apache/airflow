@@ -354,12 +354,16 @@ class TestDagFileProcessorManager:
         manager = DagFileProcessorManager(max_runs=1)
         manager._bundle_name_to_team_name = {"existing": "old-team"}
         bundle_manager = MagicMock(spec=DagBundlesManager)
+        bundle_configurations = ()
+        bundle_manager.get_all_bundle_configurations.return_value = bundle_configurations
         manager._dag_bundles_manager = bundle_manager
 
         manager._reconcile_bundle_configurations(known_files={})
 
         assert manager._bundle_name_to_team_name == {}
-        bundle_manager.sync_bundles_to_db.assert_called_once_with(deactivate_missing=True)
+        bundle_manager.sync_bundles_to_db.assert_called_once_with(
+            bundle_configurations=bundle_configurations, deactivate_missing=True
+        )
 
     def test_reconcile_complete_provider_when_filtered(self):
         manager = DagFileProcessorManager(max_runs=1, bundle_names_to_parse=["owned"])
@@ -367,10 +371,11 @@ class TestDagFileProcessorManager:
         owned_bundle.name = "owned"
         bundle_manager = MagicMock(spec=DagBundlesManager)
         bundle_manager.provides_complete_configuration = True
-        bundle_manager.get_all_bundle_configurations.return_value = (
+        bundle_configurations = (
             DagBundleConfiguration(name="owned"),
             DagBundleConfiguration(name="other"),
         )
+        bundle_manager.get_all_bundle_configurations.return_value = bundle_configurations
         bundle_manager.get_bundle.return_value = owned_bundle
         manager._dag_bundles_manager = bundle_manager
 
@@ -378,24 +383,24 @@ class TestDagFileProcessorManager:
 
         assert manager._dag_bundles == [owned_bundle]
         bundle_manager.get_bundle.assert_called_once_with("owned")
-        bundle_manager.sync_bundles_to_db.assert_called_once_with(deactivate_missing=True)
+        bundle_manager.sync_bundles_to_db.assert_called_once_with(
+            bundle_configurations=bundle_configurations, deactivate_missing=True
+        )
 
-    def test_reconcile_last_valid_configuration_after_provider_error(self):
+    def test_reconcile_keeps_loaded_bundles_after_provider_error(self):
         manager = DagFileProcessorManager(max_runs=1)
         existing_bundle = MagicMock(spec=BaseDagBundle)
         existing_bundle.name = "existing"
-        existing_configuration = DagBundleConfiguration(name="existing")
         manager._dag_bundles = [existing_bundle]
 
         bundle_manager = MagicMock(spec=DagBundlesManager)
-        bundle_manager.refresh_bundle_configurations.side_effect = RuntimeError("source unavailable")
-        bundle_manager.get_all_bundle_configurations.return_value = (existing_configuration,)
+        bundle_manager.get_all_bundle_configurations.side_effect = RuntimeError("source unavailable")
         manager._dag_bundles_manager = bundle_manager
 
         manager._reconcile_bundle_configurations(known_files={})
 
         assert manager._dag_bundles == [existing_bundle]
-        bundle_manager.sync_bundles_to_db.assert_called_once_with(deactivate_missing=True)
+        bundle_manager.sync_bundles_to_db.assert_not_called()
 
     def test_reconcile_adds_and_removes_bundles_without_reloading_existing(self):
         manager = DagFileProcessorManager(max_runs=1)
@@ -415,11 +420,12 @@ class TestDagFileProcessorManager:
         manager._force_refresh_bundles = {"removed"}
 
         bundle_manager = MagicMock(spec=DagBundlesManager)
-        bundle_manager.get_all_bundle_configurations.return_value = (
+        bundle_configurations = (
             retained_configuration,
             DagBundleConfiguration(name="updated", team_name="new-team"),
             DagBundleConfiguration(name="added"),
         )
+        bundle_manager.get_all_bundle_configurations.return_value = bundle_configurations
         bundle_manager.get_bundle.return_value = added_bundle
         manager._dag_bundles_manager = bundle_manager
 
@@ -438,7 +444,9 @@ class TestDagFileProcessorManager:
         assert known_files == {"retained": set()}
         handle_removed_files.assert_called_once_with(known_files=known_files)
         bundle_manager.get_bundle.assert_called_once_with("added")
-        bundle_manager.sync_bundles_to_db.assert_called_once_with(deactivate_missing=True)
+        bundle_manager.sync_bundles_to_db.assert_called_once_with(
+            bundle_configurations=bundle_configurations, deactivate_missing=True
+        )
 
     def test_reconcile_retries_failed_bundle_addition(self):
         manager = DagFileProcessorManager(max_runs=1)

@@ -43,7 +43,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Sequence
 
     from sqlalchemy.engine import CursorResult
     from sqlalchemy.orm import Session
@@ -249,7 +249,13 @@ class DagBundlesManager(LoggingMixin):
         return {metadata.name: metadata.team_name for metadata in self._get_provider_bundle_metadata()}
 
     @provide_session
-    def sync_bundles_to_db(self, *, deactivate_missing: bool = True, session: Session = NEW_SESSION) -> None:
+    def sync_bundles_to_db(
+        self,
+        *,
+        bundle_metadata: Sequence[DagBundleMetadata] | None = None,
+        deactivate_missing: bool = True,
+        session: Session = NEW_SESSION,
+    ) -> None:
         """
         Persist the configured DAG bundles into ``DagBundleModel`` rows.
 
@@ -269,7 +275,9 @@ class DagBundlesManager(LoggingMixin):
         """
         self.log.debug("Syncing DAG bundles to the database")
 
-        bundle_metadata = {metadata.name: metadata for metadata in self.get_active_bundle_metadata()}
+        if bundle_metadata is None:
+            bundle_metadata = self.get_active_bundle_metadata()
+        bundle_metadata_by_name = {metadata.name: metadata for metadata in bundle_metadata}
 
         def _extract_and_sign_template(bundle_name: str) -> tuple[str | None, dict]:
             bundle_instance = self.get_bundle(name)
@@ -295,7 +303,7 @@ class DagBundlesManager(LoggingMixin):
             for bundle in stored.values()
         }
 
-        for name, metadata in bundle_metadata.items():
+        for name, metadata in bundle_metadata_by_name.items():
             team: Team | None = None
             if metadata.team_name:
                 team = session.scalars(select(Team).where(Team.name == metadata.team_name)).one_or_none()
@@ -603,8 +611,8 @@ class DagBundlesManager(LoggingMixin):
         return self._bundle_provider.get_bundle(name=name, version=version, version_data=version_data)
 
     @property
-    def provides_complete_configuration(self) -> bool:
-        return self._bundle_provider.provides_complete_configuration
+    def provides_complete_bundle_list(self) -> bool:
+        return self._bundle_provider.provides_complete_bundle_list
 
     def get_all_dag_bundles(self) -> Iterable[BaseDagBundle]:
         """
