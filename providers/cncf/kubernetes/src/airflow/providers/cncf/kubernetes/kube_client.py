@@ -272,8 +272,6 @@ async def get_async_kube_client(
         ):
             return async_client_factory()
         if conf.get("kubernetes_executor", "client_factory", fallback=None, **team_kwargs):
-            # Building a default client here would silently issue concurrent pod creations with
-            # different credentials than the factory-built sync client, so fail loudly instead.
             raise ValueError(
                 "client_factory is set but async_client_factory is not. Concurrent pod creation "
                 "uses a separate kubernetes_asyncio client that would not carry the factory's "
