@@ -15,10 +15,18 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Package bundlev1 defines the interfaces and types need to be an Airflow Dag Bundle
-//
-// The main entry point should call [bundlev1server/Serve].
-package bundlev1
+// Command foreignitem tries to register a type that package airflow did not define.
+// It must not compile. TestRegistraterableRejectsForeignTypes builds it and expects that failure.
+package main
 
-// We call this package `.../bundle/bundlev1` (duplicating "bundle") so that the uses of it in code are by
-// default clear (bundlev1.BundleMetadata), otherwise `v1` is likely too ambigiuous
+import "github.com/apache/airflow/go-sdk/airflow"
+
+type foreignItem struct{}
+
+// An unexported method name belongs to the package that declares it, so this method is not
+// the registraterable method of airflow.Registraterable even though it is spelled the same.
+func (foreignItem) registraterable() {}
+
+func main() {
+	airflow.Bundle().Register(foreignItem{})
+}

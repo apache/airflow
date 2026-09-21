@@ -15,32 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package bundlev1server
-
-import (
-	"testing"
-
-	"github.com/stretchr/testify/assert"
-)
-
-func TestDecideMode(t *testing.T) {
-	tests := []struct {
-		name     string
-		metadata bool
-		comm     string
-		logs     string
-		want     serveMode
-	}{
-		{name: "metadata", metadata: true, want: modeAirflowMetadata},
-		{name: "coordinator", comm: "127.0.0.1:1", logs: "127.0.0.1:2", want: modeCoordinator},
-		{name: "no flags", want: modeCoordinatorUsageError},
-		{name: "comm only", comm: "127.0.0.1:1", want: modeCoordinatorUsageError},
-		{name: "logs only", logs: "127.0.0.1:2", want: modeCoordinatorUsageError},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, decideMode(tt.metadata, tt.comm, tt.logs))
-		})
-	}
-}
+// Package bundlev1 defines what the coordinator runtime needs from a bundle:
+// the tasks it looks up and runs, and the Dag and task ids it lists in the manifest.
+//
+// Package airflow builds both from the task handlers a bundle registers.
+package bundlev1

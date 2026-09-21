@@ -31,16 +31,36 @@ import (
 )
 
 // Task is one registered task that the coordinator runtime can execute. Bundle
-// authors do not implement this directly; Dag.AddTask wraps a plain Go
+// authors do not implement this directly. airflow.TaskHandler wraps a plain Go
 // function into a Task.
 type Task interface {
 	Execute(ctx context.Context, logger *slog.Logger, args []binding.Arg) error
 }
 
-// Bundle is the execution-time view of a registry. It looks up a task by
-// dag_id and task_id.
+// Bundle looks up a registered task by dag_id and task_id. The coordinator
+// runtime uses Bundle to find the task the supervisor asked for.
 type Bundle interface {
 	LookupTask(dagId, taskId string) (Task, bool)
+}
+
+// TaskInfo describes a registered task by its user-visible id.
+type TaskInfo struct {
+	ID string
+}
+
+// DagInfo describes a registered dag together with its tasks in
+// registration order.
+type DagInfo struct {
+	DagID string
+	Tasks []TaskInfo
+}
+
+// EnumerableBundle lists the registered Dags and their tasks in registration
+// order. DumpAirflowMetadata in pkg/execution builds the --airflow-metadata
+// manifest from that list, which is how airflow-go-pack reads a bundle's Dag and
+// task ids without running a task.
+type EnumerableBundle interface {
+	OrderedDags() []DagInfo
 }
 
 type taskFunction struct {
