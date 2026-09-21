@@ -78,6 +78,8 @@ from airflow.sdk import (
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference, VariableInterval
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
+from airflow.serialization.encoders import encode_deadline_alert
+from airflow.serialization.enums import DagAttributeTypes, Encoding
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.settings import get_policy_plugin_manager
 from airflow.task.trigger_rule import TriggerRule
@@ -1473,6 +1475,37 @@ class TestDagRun:
         assert mock_get_by_id.call_count == len(deadline_ids)
         for deadline_id in deadline_ids:
             mock_get_by_id.assert_any_call(deadline_id, session=session)
+        mock_prune.assert_called_once_with(session=session, conditions={DagRun.id: dag_run.id})
+        assert dag_run.state == DagRunState.SUCCESS
+
+    @mock.patch.object(Deadline, "prune_deadlines")
+    @mock.patch.object(DeadlineAlertModel, "get_by_id")
+    def test_dagrun_success_prunes_serialized_deadlines(
+        self, mock_get_by_id, mock_prune, session, deadline_test_dag
+    ):
+        """dag.test() round-trips the DAG in memory, so dag.deadline holds encoded
+        deadline alerts instead of deadline_alert ids, and there are no rows to fetch."""
+        alert = DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+            interval=datetime.timedelta(hours=1),
+            callback=AsyncCallback(empty_callback_for_deadline),
+        )
+
+        scheduler_dag = deadline_test_dag()
+        scheduler_dag.deadline = [
+            {Encoding.TYPE: DagAttributeTypes.DEADLINE_ALERT, Encoding.VAR: encode_deadline_alert(alert)}
+        ]
+
+        dag_run = self.create_dag_run(
+            dag=scheduler_dag,
+            task_states={"task_1": TaskInstanceState.SUCCESS, "task_2": TaskInstanceState.SUCCESS},
+            session=session,
+        )
+        dag_run.dag = scheduler_dag
+
+        dag_run.update_state(session=session)
+
+        mock_get_by_id.assert_not_called()
         mock_prune.assert_called_once_with(session=session, conditions={DagRun.id: dag_run.id})
         assert dag_run.state == DagRunState.SUCCESS
 

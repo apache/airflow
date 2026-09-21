@@ -92,6 +92,7 @@ from airflow.models.taskinstance import TaskInstance as TI, _add_and_prime_mappe
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
+from airflow.serialization.decoders import decode_deadline_alert
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.ti_deps.dep_context import DepContext
@@ -1367,14 +1368,18 @@ class DagRun(Base, LoggingMixin):
 
             if dag.deadline:
                 # The dagrun has succeeded.  If there were any Deadlines for it which were not breached, they are no longer needed.
-                deadline_alerts = [
-                    DeadlineAlertModel.get_by_id(alert_id, session=session) for alert_id in dag.deadline
-                ]
+                # Entries are deadline_alert ids for DAGs loaded from the database, but encoded deadline
+                # alerts after the in-memory round trip in dag.test(), where there are no rows to look up.
+                deadline_refs = []
+                for entry in dag.deadline:
+                    if isinstance(entry, str):
+                        deadline_refs.append(
+                            DeadlineAlertModel.get_by_id(entry, session=session).reference_class
+                        )
+                    else:
+                        deadline_refs.append(type(decode_deadline_alert(entry).reference))
 
-                if any(
-                    deadline_alert.reference_class in SerializedReferenceModels.TYPES.DAGRUN
-                    for deadline_alert in deadline_alerts
-                ):
+                if any(ref in SerializedReferenceModels.TYPES.DAGRUN for ref in deadline_refs):
                     Deadline.prune_deadlines(session=session, conditions={DagRun.id: self.id})
 
         # if *all tasks* are deadlocked, the run failed
