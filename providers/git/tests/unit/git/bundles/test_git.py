@@ -1498,6 +1498,117 @@ class TestGitDagBundle:
         assert ACCESS_TOKEN not in bare_config.read_text()
         assert Repo(bundle.bare_repo_path).remotes.origin.url == str(repo_path)
 
+    @pytest.mark.parametrize("prune_dotgit_folder", [True, False])
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_version_pinned_bundle_remote_url_is_rewritten_when_credentials_are_stored(
+        self, mock_githook, prune_dotgit_folder, git_repo
+    ):
+        """A version-pinned bundle taking either _initialize() fast path never reaches
+        _clone_bare_repo_if_required(), but must still have its bare repo's origin rewritten.
+        """
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = str(repo_path)
+        version = repo.head.commit.hexsha
+        bundle_kwargs = {
+            "name": "test",
+            "git_conn_id": CONN_HTTPS,
+            "version": version,
+            "tracking_ref": GIT_DEFAULT_BRANCH,
+            "prune_dotgit_folder": prune_dotgit_folder,
+        }
+
+        bundle = GitDagBundle(**bundle_kwargs)
+        bundle.initialize()
+
+        bare_config = bundle.bare_repo_path / "config"
+        stale_repo = Repo(bundle.bare_repo_path)
+        stale_repo.remotes.origin.set_url(f"https://user:{ACCESS_TOKEN}@github.com/apache/airflow.git")
+        stale_repo.close()
+        assert ACCESS_TOKEN in bare_config.read_text()
+
+        upgraded = GitDagBundle(**bundle_kwargs)
+        with mock.patch.object(GitDagBundle, "_clone_bare_repo_if_required") as mock_clone:
+            upgraded.initialize()
+            mock_clone.assert_not_called()
+
+        assert ACCESS_TOKEN not in bare_config.read_text()
+        assert Repo(bundle.bare_repo_path).remotes.origin.url == str(repo_path)
+
+    @pytest.mark.parametrize("prune_dotgit_folder", [True, False])
+    @pytest.mark.parametrize(
+        "break_bare_repo",
+        [
+            # A git killed mid-write leaves this behind, and every later config write fails on it.
+            pytest.param(lambda path: (path / "config.lock").touch(), id="config-locked"),
+            # An unclean shutdown can leave the config zero-filled, which git cannot parse at all.
+            pytest.param(lambda path: (path / "config").write_bytes(b"\x00" * 64), id="config-corrupt"),
+        ],
+    )
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_initialize_survives_a_bare_repo_that_cannot_be_rewritten(
+        self, mock_githook, break_bare_repo, prune_dotgit_folder, git_repo, caplog
+    ):
+        """A bundle servable from disk must not fail just because the credential scrub could not run."""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = str(repo_path)
+        version = repo.head.commit.hexsha
+        bundle_kwargs = {
+            "name": "test",
+            "git_conn_id": CONN_HTTPS,
+            "version": version,
+            "tracking_ref": GIT_DEFAULT_BRANCH,
+            "prune_dotgit_folder": prune_dotgit_folder,
+        }
+
+        bundle = GitDagBundle(**bundle_kwargs)
+        bundle.initialize()
+        if prune_dotgit_folder:
+            assert bundle._is_pruned_worktree() is True
+        else:
+            assert bundle._local_repo_has_version() is True
+
+        stale_repo = Repo(bundle.bare_repo_path)
+        stale_repo.remotes.origin.set_url(f"https://user:{ACCESS_TOKEN}@github.com/apache/airflow.git")
+        stale_repo.close()
+        break_bare_repo(bundle.bare_repo_path)
+
+        upgraded = GitDagBundle(**bundle_kwargs)
+        upgraded.initialize()
+
+        assert upgraded.path.exists()
+        assert (
+            "Could not rewrite the bare repository origin, a credential may remain in "
+            "cleartext in the bundle's bare/config"
+        ) in caplog
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_clone_path_recovers_when_the_origin_rewrite_fails(self, mock_githook, git_repo):
+        """On the clone path a failed rewrite must drop the bare repo and re-clone it.
+
+        ``_fetch_bare_repo`` is patched out so a fetch can never supply the recovery: without
+        it, the still-credentialed stale origin would be fetched over the real network before
+        the rewrite failure is even reached, leaving it ambiguous which one triggered the
+        cleanup-and-retry.
+        """
+        repo_path, _ = git_repo
+        mock_githook.return_value.repo_url = str(repo_path)
+
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
+        bundle.initialize()
+
+        bare_config = bundle.bare_repo_path / "config"
+        stale_repo = Repo(bundle.bare_repo_path)
+        stale_repo.remotes.origin.set_url(f"https://user:{ACCESS_TOKEN}@github.com/apache/airflow.git")
+        stale_repo.close()
+        (bundle.bare_repo_path / "config.lock").touch()
+        assert ACCESS_TOKEN in bare_config.read_text()
+
+        upgraded = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
+        with mock.patch.object(GitDagBundle, "_fetch_bare_repo"):
+            upgraded._clone_bare_repo_if_required()
+
+        assert ACCESS_TOKEN not in bare_config.read_text()
+
     @mock.patch("airflow.providers.git.bundles.git.Repo")
     def test_clone_passes_token_credential_env_to_gitpython(self, mock_gitRepo, create_connection_without_db):
         conn_id = "my_git_conn_token_clone"

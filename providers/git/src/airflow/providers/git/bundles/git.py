@@ -161,6 +161,7 @@ class GitDagBundle(BaseDagBundle):
                     repo_path=self.repo_path,
                     version=self.version,
                 )
+                self._sync_bare_repo_remote_url()
                 return
             if self._local_repo_has_version():
                 self._log.debug(
@@ -193,6 +194,7 @@ class GitDagBundle(BaseDagBundle):
                         # HEAD hexsha rather than the raw self.version (which may be a
                         # tag or short SHA).
                         self.repo = repo
+                    self._sync_bare_repo_remote_url()
                     return
 
             cm = self.hook.configure_hook_env() if self.hook else nullcontext()
@@ -304,7 +306,9 @@ class GitDagBundle(BaseDagBundle):
                     env=self.hook.env if self.hook else None,
                 )
             self.bare_repo = Repo(self.bare_repo_path)
-            self._sync_bare_repo_remote_url()
+            # Not the best-effort wrapper: a GitCommandError from the rewrite must reach the
+            # handler below, which drops the bare repo and re-clones it credential-free.
+            self._rewrite_bare_repo_origin(self.bare_repo)
 
             # Fetch to ensure we have latest refs and validate repo integrity
             self._fetch_bare_repo()
@@ -319,14 +323,42 @@ class GitDagBundle(BaseDagBundle):
             raise
 
     def _sync_bare_repo_remote_url(self) -> None:
-        """Re-point the bare repo's origin at the current repo url."""
-        if "origin" not in self.bare_repo.remotes:
+        """
+        Re-point the bare repo's origin at the current repo url.
+
+        Called standalone from the ``_initialize`` fast paths that skip cloning and never
+        reach ``_clone_bare_repo_if_required``, so a bundle that takes one would otherwise
+        keep a credentialed origin url in ``bare/config`` forever. This is best-effort: a
+        bundle that can still be served from disk must not fail to initialize because its
+        bare repo is unreadable.
+        """
+        try:
+            if not self.bare_repo_path.exists():
+                return
+            bare_repo = Repo(self.bare_repo_path)
+            try:
+                self._rewrite_bare_repo_origin(bare_repo)
+            finally:
+                bare_repo.close()
+        except Exception as e:
+            # Deliberately broad: opening the repo raises anything from ``configparser`` on a
+            # truncated config to ``GitError`` on an unsafe remote url, and the fast paths this
+            # runs ahead of never needed the bare repo at all.
+            self._log.warning(
+                "Could not rewrite the bare repository origin, a credential may remain in "
+                "cleartext in the bundle's bare/config",
+                bare_repo_path=self.bare_repo_path,
+                exc=e,
+            )
+
+    def _rewrite_bare_repo_origin(self, bare_repo: Repo) -> None:
+        if "origin" not in bare_repo.remotes:
             return
-        origin = self.bare_repo.remotes.origin
+        origin = bare_repo.remotes.origin
         repo_url = str(self.repo_url)
-        # Bundles cloned before credentials moved to GIT_ASKPASS embedded ``user:token`` here, so
-        # the token sits in cleartext in ``<bundle>/bare/config`` where any Dag author on the Dag
-        # processor can read it. Rewriting origin is what removes it from those bundles.
+        # Bundles cloned before credentials moved to a credential helper embedded ``user:token``
+        # here, so the token sits in cleartext in ``<bundle>/bare/config`` where any Dag author
+        # on the Dag processor can read it. Rewriting origin is what removes it from those bundles.
         if origin.url != repo_url:
             self._log.info("Updating bare repository remote url", bare_repo_path=self.bare_repo_path)
             origin.set_url(repo_url)
