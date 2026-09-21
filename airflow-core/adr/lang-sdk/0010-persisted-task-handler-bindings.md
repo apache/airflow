@@ -27,39 +27,62 @@ Proposed
 
 A mixed-language Dag is authored in Python with `@task.stub` tasks whose bodies live in a Lang-SDK
 artifact — a packed Go binary, a JAR, a minified `.min.mjs`. Nothing in the Dag says *which* artifact.
-Today the link is rediscovered on every single task execution, by scanning a filesystem root:
+Nothing is recorded about that artifact when the Dag is processed, so the link has to be
+rediscovered on every single task execution by scanning a filesystem root:
 
 ```
-ExecutableCoordinator._build_execute_task_command(what=ti)
-  └── _Bundle.find(executables_root, what.dag_id)
-        └── walk every executable file under the root
-              read its trailer, verify SHA-256 over the binary region
-              parse its metadata, test `dag_id in metadata["dags"]`
+DAG PROCESSING                                   stores nothing about the artifact
+  DagFileProcessorProcess(etl.py)
+    └── PythonDagImporter → Dags with @task.stub tasks
+          └── persist DagModel, SerializedDagModel, DagVersion, DagCode
+                ┌──────────────────────────────────────────────────────────┐
+                │  no artifact path recorded                               │
+                │  no artifact bundle recorded                             │
+                │  the parse never even looks at the Lang-SDK artifact     │
+                └──────────────────────────────────────────────────────────┘
+
+TASK EXECUTION                                   must therefore search, every time
+  ExecutableCoordinator._build_execute_task_command(what=ti)
+    └── _Bundle.find(executables_root, what.dag_id)
+          └── walk every executable file under the root
+                read its trailer, verify SHA-256 over the binary region
+                parse its metadata, test `dag_id in metadata["dags"]`
 ```
 
-Three problems compound here.
+Two problems compound here.
 
-**The scan is per task.** Every task execution re-walks the root and re-hashes candidates to answer a
-question whose answer changed only when someone deployed.
+**The scan is per task.** Because Dag processing records nothing, every task execution re-walks the
+root and re-hashes candidates to answer a question whose answer changed only when someone deployed.
 
-**The index it scans is wrong by construction.** `dags: {dag_id: {tasks: [...]}}` is written at pack
-time by executing the freshly built artifact and recording what `RegisterDags` produced
-([`collectManifest`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/pkg/execution/metadata.go#L83-L115)). When Dag ids come from data the artifact reads at
-runtime — the "dynamic Dag rendering" case, where dag ids are generated from an external YAML — the
-build environment has different data, or none. Today that is not merely inaccurate: an empty `dags`
-is a fatal pack error ([`empty-dags check`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/cmd/airflow-go-pack/pack.go#L166-L168)), so the case cannot be packed at
-all.
-
-**Two runtimes route on it; the third cannot route at all.** `ExecutableCoordinator` selects by
-`dag_id` through [`_dag_ids`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/executable/coordinator.py#L249-L254), [`_Bundle.find`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/executable/coordinator.py#L296-L322), and `NodeCoordinator` does the same through the `task_handlers` mapping
+**The index it scans is frozen at compile time, so dynamic Dag generation cannot work at all.** The
+`dags: {dag_id: {tasks: [...]}}` mapping is written when the artifact is packed, by executing the
+freshly built artifact and recording what `RegisterDags` produced
+([`collectManifest`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/pkg/execution/metadata.go#L83-L115)). Those identifiers are then fixed
+for the life of the artifact. Two coordinators route on them —
+`ExecutableCoordinator` through [`_dag_ids`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/executable/coordinator.py#L249-L254)
+and [`_Bundle.find`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/executable/coordinator.py#L296-L322),
+`NodeCoordinator` through the `task_handlers` mapping
 ([`_build_execute_task_command`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/node/coordinator.py#L125-L127),
-[`_parse_bundle_metadata`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/node/_bundle_reader.py#L379-L383)). Both therefore route on data
-that dynamic rendering invalidates. `JavaCoordinator` has no inventory at all: it matches on
-`Main-Class`, accepts `what` and never reads `what.dag_id`
-([`_build_execute_task_command`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/java/coordinator.py#L207-L215)), and its own docstring concedes
-that with several executable JARs present "it may be nondeterministic which one ends up being
-executed" ([`JavaCoordinator`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/java/coordinator.py#L180-L183)). The Gradle plugin writes two Airflow manifest attributes and no inventory
-([`Main-Class`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/java-sdk/plugin/src/main/kotlin/org/apache/airflow/sdk/plugin/AirflowSdkPlugin.kt#L113), [`Airflow-Supervisor-Schema-Version`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/java-sdk/plugin/src/main/kotlin/org/apache/airflow/sdk/plugin/AirflowSdkPlugin.kt#L194-L195)).
+[`_parse_bundle_metadata`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/node/_bundle_reader.py#L379-L383)) —
+so a Dag id the artifact only decides on at runtime can never be matched.
+
+That is the case where Dag ids are generated from data the artifact reads when it starts: an external
+YAML listing them, say. The build environment holds different data, or none. And the failure is not a
+silent mismatch at execution time — it is earlier and harder: an empty inventory is a fatal pack
+error ([`empty-dags check`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/cmd/airflow-go-pack/pack.go#L166-L168)), so such an artifact
+cannot be packed in the first place.
+
+`JavaCoordinator` sidesteps the inventory only by having none: it matches on `Main-Class`, accepts
+`what` and never reads `what.dag_id`
+([`_build_execute_task_command`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/java/coordinator.py#L207-L215)),
+with its own docstring conceding that with several executable JARs present "it may be
+nondeterministic which one ends up being executed"
+([`JavaCoordinator`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/java/coordinator.py#L180-L183)). The
+Gradle plugin writes two Airflow manifest attributes and no inventory
+([`Main-Class`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/java-sdk/plugin/src/main/kotlin/org/apache/airflow/sdk/plugin/AirflowSdkPlugin.kt#L113),
+[`Airflow-Supervisor-Schema-Version`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/java-sdk/plugin/src/main/kotlin/org/apache/airflow/sdk/plugin/AirflowSdkPlugin.kt#L194-L195)).
+So no coordinator can route a runtime-generated Dag id today: two consult a frozen index, and the
+third does not route at all.
 
 Separately, `[sdk] coordinators` locates artifacts through filesystem roots — `jars_root`,
 `executables_root`, `bundles_root` ([ADR-0005](0005-coordinator-packaging.md)) — which are
@@ -83,6 +106,21 @@ Dag importer, and are not yet recorded in an ADR.
 `DagBundle`:
 
 ```ini
+[dag_processor]
+# The artifact bundle is an ordinary DagBundle, registered like any other.
+dag_bundle_config_list = [
+    {
+        "name": "dags-folder",
+        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+        "kwargs": {}
+    },
+    {
+        "name": "java-task-handlers",
+        "classpath": "airflow.providers.amazon.aws.bundles.s3.S3DagBundle",
+        "kwargs": {"bucket_name": "artifacts", "prefix": "java", "aws_conn_id": "aws_default"}
+    }
+]
+
 [sdk]
 coordinators = {
     "jdk-17": {
@@ -95,6 +133,27 @@ coordinators = {
 }
 queue_to_coordinator = {"java": "jdk-17"}
 ```
+
+```
+@task.stub(queue="java")        the Dag author picks a queue
+        │
+        ▼  [sdk] queue_to_coordinator
+   "jdk-17"                     the coordinator instance
+        │
+        ▼  [sdk] coordinators → kwargs.task_handler_bundle_name
+   "java-task-handlers"         the bundle name
+        │
+        ▼  [dag_processor] dag_bundle_config_list
+   S3DagBundle(bucket=artifacts, prefix=java)
+        │
+        ▼  DagBundlesManager().get_bundle(name).initialize()
+   bundle.path / <artifact_rel_path>
+```
+
+The Python Dag file and the artifact sit in different bundles — `dags-folder` and
+`java-task-handlers` above — and that is the expected layout, not a workaround. Binaries and JARs do
+not belong in the bundle holding `.py` files. Both are registered with the Dag processor, because
+registration is what makes `get_bundle(name)` resolvable on the worker.
 
 The name is `task_handler_bundle_name`, not `..._bundle_path`: the point of routing through a bundle
 is that `DagBundlesManager` owns download, refresh and versioning. A path would keep the unversioned
@@ -231,9 +290,18 @@ class TaskHandlerDeclaration(BaseModel):
 
 class TaskHandlerParam(BaseModel):
     name: str
-    value_schema: ArgValueSchema | None = None
+    value_schema: ArgValueSchema | None = None  # an open-vocabulary JSON Schema fragment
     required: bool  # the handler declares no default
 ```
+
+`ArgValueSchema` is [ADR-0007](0007-taskflow-across-language-boundary.md)'s shipped type, reused here
+so both sides of a comparison are the same type. Despite the name it carries **JSON Schema**: a
+pydantic-generated fragment that ships verbatim and that runtimes are required to treat as
+open-vocabulary
+([`_infer_value_schema`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/airflow-core/src/airflow/serialization/stub_arg_bindings.py#L95-L140)).
+The name is not changed here: the type is already code-generated into all three SDKs
+([`ArgValueSchema`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/execution_time/schema/schema.json#L4600-L4606)),
+so renaming it is a supervisor-schema change belonging to ADR-0007, not to this one.
 
 A `dag_id` the artifact registers nothing for is **omitted** from `task_handlers` rather than returned
 empty, so a probe that matches nothing is distinguishable from a probe that matched a Dag with zero
