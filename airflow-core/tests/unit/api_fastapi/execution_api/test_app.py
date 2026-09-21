@@ -323,7 +323,10 @@ class TestTraceContextPropagation:
         # where AsyncExitStack unwinds the generator in the correct asyncio context.
         with (
             mock.patch.object(otel_propagate, "extract", wraps=real_extract) as extract_spy,
-            mock.patch("airflow.models.variable.Variable.get", side_effect=RuntimeError("boom")),
+            mock.patch(
+                "airflow.api_fastapi.execution_api.routes.variables.resolve_variable",
+                side_effect=RuntimeError("boom"),
+            ),
             TestClient(app, raise_server_exceptions=False) as test_client,
         ):
             response = test_client.get("/variables/k", headers={"Authorization": "Bearer fake"})
