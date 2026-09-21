@@ -19,7 +19,7 @@ from __future__ import annotations
 import sys
 from datetime import timedelta
 from decimal import Decimal
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from pydantic import BaseModel
@@ -224,7 +224,9 @@ class TestAgentOperatorExecute:
         )
         op.execute(context=_make_context())
 
-        mock_agent.run_sync.assert_called_once_with("run", usage_limits=limits, run_id="ti-1")
+        mock_agent.run_sync.assert_called_once_with(
+            "run", usage_limits=limits, run_id="ti-1", cancellation_token=ANY
+        )
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_coerces_usage_limits_dict_before_run_sync(self, mock_hook_cls, make_mock_run_result):
@@ -351,6 +353,7 @@ class TestAgentOperatorExecute:
             "Add detail",
             message_history=[],
             usage_limits=limits,
+            cancellation_token=ANY,
         )
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
@@ -390,7 +393,9 @@ class TestAgentOperatorExecute:
         mock_hook_cls.get_hook.return_value.create_agent.assert_called_once_with(
             output_type=str, instructions="You are helpful."
         )
-        mock_agent.run_sync.assert_called_once_with("What is the answer?", usage_limits=None, run_id="ti-1")
+        mock_agent.run_sync.assert_called_once_with(
+            "What is the answer?", usage_limits=None, run_id="ti-1", cancellation_token=ANY
+        )
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_passes_toolsets_in_agent_kwargs(self, mock_hook_cls, make_mock_run_result):
@@ -814,6 +819,7 @@ class TestAgentOperatorRegenerateWithFeedback:
             "Add more detail",
             message_history=msg_history,
             usage_limits=None,
+            cancellation_token=ANY,
         )
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
@@ -920,7 +926,9 @@ class TestAgentOperatorDurable:
         op.execute(context=_make_context())
 
         # run_sync called directly, no override
-        mock_agent.run_sync.assert_called_once_with("test", usage_limits=None, run_id="ti-1")
+        mock_agent.run_sync.assert_called_once_with(
+            "test", usage_limits=None, run_id="ti-1", cancellation_token=ANY
+        )
 
     def test_build_durable_capabilities_wraps_toolset_capability(self):
         """A ``Toolset`` capability's inner toolset is wrapped with CachingToolset;
@@ -1177,6 +1185,46 @@ class TestAgentOperatorMessageHistory:
 
         passed = mock_agent.run_sync.call_args.kwargs["message_history"]
         assert len(passed) == 2
+
+
+class TestAgentOperatorCancellation:
+    """A killed task cancels the run (RunCancelled) and unwinds cleanly."""
+
+    @pytest.mark.parametrize(
+        ("message_history", "expects_transcript"),
+        [
+            pytest.param([], True, id="session-emits-partial-transcript"),
+            pytest.param(None, False, id="single-turn-emits-nothing"),
+        ],
+    )
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_run_cancelled_emits_message_history_then_reraises(
+        self, mock_hook_cls, message_history, expects_transcript
+    ):
+        """RunCancelled propagates. A message_history session first emits its partial transcript."""
+        from pydantic_ai import RunCancelled
+
+        partial_history = _sample_history()
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.side_effect = RunCancelled("killed", messages=partial_history)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = AgentOperator(task_id="t", prompt="run", llm_conn_id="c", message_history=message_history)
+        context = _make_context()
+        with pytest.raises(RunCancelled):
+            op.execute(context=context)
+
+        history_pushes = [
+            c.kwargs["value"]
+            for c in context["task_instance"].xcom_push.call_args_list
+            if c.kwargs["key"] == "message_history"
+        ]
+        if expects_transcript:
+            # The pushed value is the cancelled run's own partial transcript, not just any push.
+            expected = ModelMessagesTypeAdapter.dump_json(partial_history).decode()
+            assert history_pushes == [expected]
+        else:
+            assert history_pushes == []
 
 
 class TestAgentOperatorHITLArgumentChecks:

@@ -29,6 +29,7 @@ from pydantic import BaseModel
 from pydantic_ai.capabilities import Toolset
 
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
+from airflow.providers.common.ai.mixins.cancellable_run import CancellableAgentRunMixin
 from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
 from airflow.providers.common.ai.observability import (
     build_run_identity_attributes,
@@ -125,7 +126,10 @@ def _build_code_mode() -> Any:
     return CodeMode()
 
 
-class AgentOperator(BaseOperator, HITLReviewMixin):
+# CancellableAgentRunMixin must precede BaseOperator so its on_kill overrides BaseOperator's
+# no-op. The other mixins only add methods, so they can trail BaseOperator. See the MRO guard
+# test in tests/unit/common/ai/mixins/test_cancellable_run.py.
+class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
     """
     Run a pydantic-ai Agent with tools and multi-turn reasoning.
 
@@ -555,19 +559,29 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
 
         storage = self._durable_storage
         counter = self._durable_counter
-        if self.durable and storage is not None and counter is not None:
-            from pydantic_ai.models import infer_model
+        # A killed run raises RunCancelled (see run_agent_sync). Emit the partial
+        # transcript for a message_history session before re-raising. The durable
+        # cache cleanup below is skipped on the raise, preserving it for the retry.
+        from pydantic_ai import RunCancelled
 
-            from airflow.providers.common.ai.durable.caching_model import CachingModel
+        try:
+            if self.durable and storage is not None and counter is not None:
+                from pydantic_ai.models import infer_model
 
-            if agent.model is None:
-                raise ValueError("Agent model must be set when durable=True")
-            resolved_model = infer_model(agent.model)
-            caching_model = CachingModel(resolved_model, storage=storage, counter=counter)
-            with agent.override(model=caching_model):
-                result = agent.run_sync(self.prompt, **run_kwargs)
-        else:
-            result = agent.run_sync(self.prompt, **run_kwargs)
+                from airflow.providers.common.ai.durable.caching_model import CachingModel
+
+                if agent.model is None:
+                    raise ValueError("Agent model must be set when durable=True")
+                resolved_model = infer_model(agent.model)
+                caching_model = CachingModel(resolved_model, storage=storage, counter=counter)
+                with agent.override(model=caching_model):
+                    result = self.run_agent_sync(agent, self.prompt, **run_kwargs)
+            else:
+                result = self.run_agent_sync(agent, self.prompt, **run_kwargs)
+        except RunCancelled as cancelled:
+            if self.message_history is not None:
+                self._emit_message_history(context, cancelled)
+            raise
 
         log_run_summary(self.log, result)
         self._emit_run_metadata(context, result)
@@ -645,7 +659,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         return ModelMessagesTypeAdapter.validate_python(raw)
 
     def _emit_message_history(self, context: Context, result: Any) -> None:
-        """Push the full post-run transcript to XCom for the next turn to resume."""
+        """Push the post-run transcript (partial if cancelled) to XCom for the next turn to resume."""
         # Lazy import: see _resolve_message_history.
         from pydantic_ai.messages import ModelMessagesTypeAdapter
 
@@ -680,7 +694,8 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         if identity:
             stamp_identity_on_agent_spans(agent, identity)
         messages = message_history or []
-        result = agent.run_sync(
+        result = self.run_agent_sync(
+            agent,
             feedback,
             message_history=messages,
             usage_limits=usage_limits,
