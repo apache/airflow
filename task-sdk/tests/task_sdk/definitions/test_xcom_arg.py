@@ -533,6 +533,17 @@ def _fail_sync_resolve(*args, **kwargs):
     pytest.fail("synchronous resolve() must not be used on the async path")
 
 
+class AsyncOnlyValues:
+    """A resolved value that can only be iterated asynchronously, like an XComIterable on the loop."""
+
+    def __init__(self, values):
+        self.values = values
+
+    async def __aiter__(self):
+        for value in self.values:
+            yield value
+
+
 class TestXComArg:
     @pytest.mark.parametrize(
         ("actual", "expected"),
@@ -569,27 +580,64 @@ class TestXComArg:
         assert result == [1, 2, 10, 20]
 
     @pytest.mark.asyncio
-    async def test_map_xcomarg_aresolve(self):
+    @pytest.mark.parametrize(
+        ("actual", "expected"),
+        [
+            ([1, 2, 3], [1, 2, 3]),  # list
+            ((1, 2), [1, 2]),  # tuple
+            ("abc", ["abc"]),  # string, not expanded
+            ({"a": 1}, [{"a": 1}]),  # dict, not expanded
+            (42, [42]),  # scalar
+            ((x for x in [4, 5]), [4, 5]),  # generator
+            (AsyncOnlyValues([6, 7]), [6, 7]),  # async iterable
+        ],
+    )
+    async def test_plain_xcomarg_aiter_values(self, actual, expected):
+        xcom_arg = make_xcom_arg(actual)
+        xcom_arg.resolve = _fail_sync_resolve
+        result = [item async for item in xcom_arg.aiter_values({})]
+        assert result == expected
+
+    @pytest.mark.asyncio
+    async def test_plain_xcomarg_aiter_values_advances_plain_iterators_off_the_loop_thread(self):
+        """A plain iterator may block on ``next()`` (a synchronous XCom read), so it is advanced in a worker."""
+        threads: list[threading.Thread] = []
+
+        def values():
+            for value in [1, 2]:
+                threads.append(threading.current_thread())
+                yield value
+
+        xcom_arg = make_xcom_arg(values())
+        assert [item async for item in xcom_arg.aiter_values({})] == [1, 2]
+        assert threads
+        assert all(thread is not threading.current_thread() for thread in threads)
+
+    @pytest.mark.asyncio
+    async def test_map_xcomarg_aresolve_and_aiter_values(self):
         base = make_xcom_arg([1, 2, 3])
         base.resolve = _fail_sync_resolve
         mapped = base.map(lambda x: x * 10)
         assert list(await mapped.aresolve({})) == [10, 20, 30]
+        assert [item async for item in mapped.aiter_values({})] == [10, 20, 30]
 
     @pytest.mark.asyncio
-    async def test_zip_xcomarg_aresolve(self):
+    async def test_zip_xcomarg_aresolve_and_aiter_values(self):
         a = make_xcom_arg([1, 2])
         b = make_xcom_arg([10, 20])
         a.resolve = b.resolve = _fail_sync_resolve
         zipped = a.zip(b)
         assert list(await zipped.aresolve({})) == [(1, 10), (2, 20)]
+        assert [item async for item in zipped.aiter_values({})] == [(1, 10), (2, 20)]
 
     @pytest.mark.asyncio
-    async def test_concat_xcomarg_aresolve(self):
+    async def test_concat_xcomarg_aresolve_and_aiter_values(self):
         a = make_xcom_arg([1, 2])
         b = make_xcom_arg([10, 20])
         a.resolve = b.resolve = _fail_sync_resolve
         concatenated = a.concat(b)
         assert list(await concatenated.aresolve({})) == [1, 2, 10, 20]
+        assert [item async for item in concatenated.aiter_values({})] == [1, 2, 10, 20]
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(

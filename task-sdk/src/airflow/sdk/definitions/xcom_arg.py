@@ -21,7 +21,7 @@ import asyncio
 import contextlib
 import inspect
 import itertools
-from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence, Sized
+from collections.abc import AsyncIterator, Callable, Iterable, Iterator, Mapping, Sequence, Sized
 from functools import singledispatch
 from typing import TYPE_CHECKING, Any, overload
 
@@ -104,6 +104,20 @@ class XComArg(ResolveMixin, DependencyMixin):
             yield resolved
         elif isinstance(resolved, Iterable):
             yield from resolved
+        else:
+            yield resolved
+
+    async def aiter_values(self, context: Mapping[str, Any]) -> AsyncIterator[Any]:
+        """Async twin of :meth:`iter_values`; see ``ExpandInput.aiter_values``."""
+        from airflow.sdk.definitions._internal.expandinput import aiterate
+
+        resolved = await self.aresolve(context)
+
+        if isinstance(resolved, (str, bytes, dict)):
+            yield resolved
+        elif isinstance(resolved, Iterable) or hasattr(resolved, "__aiter__"):
+            async for item in aiterate(resolved):
+                yield item
         else:
             yield resolved
 

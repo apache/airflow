@@ -17,8 +17,19 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence, Sized
+from collections import deque
+from collections.abc import (
+    AsyncIterable,
+    AsyncIterator,
+    Callable,
+    Iterable,
+    Iterator,
+    Mapping,
+    Sequence,
+    Sized,
+)
 from typing import TYPE_CHECKING, Any, ClassVar, Union
 
 import attrs
@@ -38,6 +49,32 @@ OperatorExpandArgument = Union["MappedArgument", "XComArg", Sequence, dict[str, 
 # The single argument of expand_kwargs() can be an XComArg, or a list with each
 # element being either an XComArg or a dict.
 OperatorExpandKwargsArgument = Union["XComArg", Sequence[Union["XComArg", Mapping[str, Any]]]]
+
+
+async def aiterate(iterable: Any) -> AsyncIterator[Any]:
+    """
+    Iterate ``iterable`` from a coroutine without a blocking SDK call on the loop thread.
+
+    An async iterable (``XComIterable``, ``LazyXComSequence``) is consumed with ``async for``, so
+    its reads go through ``asend``. In-memory containers are iterated in place. Anything else may
+    fetch on ``next()`` through a synchronous supervisor call, so each ``next()`` runs in a worker
+    thread: from there a blocking send waits for in-flight ``asend`` calls instead of deadlocking
+    with them (see ``AsyncAwareExecutor.map``).
+    """
+    if hasattr(iterable, "__aiter__"):
+        async for item in iterable:
+            yield item
+        return
+
+    if isinstance(iterable, (list, tuple, set, frozenset, range, deque)):
+        for item in iterable:
+            yield item
+        return
+
+    iterator = iter(iterable)
+    sentinel = object()
+    while (item := await asyncio.to_thread(next, iterator, sentinel)) is not sentinel:
+        yield item
 
 
 class _NotFullyPopulated(RuntimeError):
@@ -89,6 +126,18 @@ def count(expand_input: ExpandInput, iterable: Iterable[Any]) -> Iterable[Any]:
     expand_input._length = counter
 
 
+async def async_count(expand_input: ExpandInput, iterable: AsyncIterable[Any]) -> AsyncIterator[Any]:
+    """Async twin of :func:`count`."""
+    expand_input._length = None
+    counter = 0
+
+    async for item in iterable:
+        counter += 1
+        yield item
+
+    expand_input._length = counter
+
+
 @attrs.define(slots=False)
 class ExpandInput(ABC, ResolveMixin):
     EXPAND_INPUT_TYPE: ClassVar[str]
@@ -103,6 +152,15 @@ class ExpandInput(ABC, ResolveMixin):
         ...
 
     def iter_values(self, context: Mapping[str, Any]) -> Iterable[Any]:
+        raise NotImplementedError()
+
+    def aiter_values(self, context: Mapping[str, Any]) -> AsyncIterator[Any]:
+        """
+        Async twin of :meth:`iter_values`, for consumers running on an event loop.
+
+        Implementations must not make a blocking supervisor call on the loop thread: XComArg
+        sources are resolved with ``XComArg.aresolve`` and read through :func:`aiterate`.
+        """
         raise NotImplementedError()
 
     def resolve(self, context: Mapping[str, Any]) -> Any:
@@ -133,6 +191,13 @@ class DecoratedExpandInput(ExpandInput):
             self,
             map(lambda value: {"op_kwargs": value}, self.delegate.iter_values(context)),
         )
+
+    def aiter_values(self, context: Mapping[str, Any]) -> AsyncIterator[dict]:
+        async def values() -> AsyncIterator[dict]:
+            async for value in self.delegate.aiter_values(context):
+                yield {"op_kwargs": value}
+
+        return async_count(self, values())
 
     def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         return self.delegate.resolve(context)
@@ -176,6 +241,18 @@ class BatchedExpandInput(DecoratedExpandInput):
                 if index % self.size == map_index
             ),
         )
+
+    def aiter_values(self, context: Mapping[str, Any]) -> AsyncIterator[dict]:
+        map_index = context["ti"].map_index
+
+        async def values() -> AsyncIterator[dict]:
+            index = 0
+            async for item in self.delegate.aiter_values(context):
+                if index % self.size == map_index:
+                    yield item
+                index += 1
+
+        return async_count(self, values())
 
 
 @attrs.define(kw_only=True)
@@ -325,6 +402,43 @@ class DictOfListsExpandInput(ExpandInput):
         factories = [_make_factory(self.value[k]) for k in keys]
         return count(self, (dict(zip(keys, combo)) for combo in _lazy_product(*factories)))
 
+    def aiter_values(self, context: Mapping[str, Any]) -> AsyncIterator[Any]:
+        """Async twin of :meth:`iter_values`: the same lazy product, with sources read on the loop."""
+        from airflow.sdk.definitions.xcom_arg import XComArg
+
+        def _to_iterable(v: Any) -> Any:
+            if isinstance(v, Mapping):
+                return list(v.items())
+            if hasattr(v, "__aiter__") or (hasattr(v, "__iter__") and not isinstance(v, (str, bytes))):
+                return v
+            return (v,)
+
+        def _make_factory(v: Any) -> Callable[[], AsyncIterator[Any]]:
+            async def factory() -> AsyncIterator[Any]:
+                resolved = await v.aresolve(context) if isinstance(v, XComArg) else v
+                async for item in aiterate(_to_iterable(resolved)):
+                    yield item
+
+            return factory
+
+        async def _alazy_product(*factories: Callable[[], AsyncIterator[Any]]) -> AsyncIterator[tuple]:
+            if not factories:
+                yield ()
+                return
+            first_factory, *rest_factories = factories
+            async for item in first_factory():
+                async for tail in _alazy_product(*rest_factories):
+                    yield (item, *tail)
+
+        keys = list(self.value)
+        factories = [_make_factory(self.value[k]) for k in keys]
+
+        async def combos() -> AsyncIterator[dict]:
+            async for combo in _alazy_product(*factories):
+                yield dict(zip(keys, combo))
+
+        return async_count(self, combos())
+
     def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         map_index: int | None = context["ti"].map_index
         if map_index is None or map_index < 0:
@@ -392,6 +506,23 @@ class ListOfDictsExpandInput(ExpandInput):
                         yield item
 
         return count(self, iterate())
+
+    def aiter_values(self, context: Mapping[str, Any]) -> AsyncIterator[Any]:
+        """Async twin of :meth:`iter_values`, with XComArg sources read on the loop."""
+
+        async def values() -> AsyncIterator[Any]:
+            if isinstance(self.value, XComArg):
+                async for item in aiterate(await self.value.aresolve(context)):
+                    yield item
+            else:
+                for item in self.value:
+                    if isinstance(item, XComArg):
+                        async for sub in aiterate(await item.aresolve(context)):
+                            yield sub
+                    else:
+                        yield item
+
+        return async_count(self, values())
 
     def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         map_index = context["ti"].map_index
