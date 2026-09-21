@@ -22,7 +22,7 @@ does. The SDK import is deferred to :func:`_build_client`.
 
 The SDK's ``messages.batches.create`` has no batch-level ``metadata``
 parameter, so the idempotency key lives only in each request's ``custom_id``
-prefix. That is enough to recognise results, but not to find an orphaned
+prefix. That is enough to recognize results, but not to find an orphaned
 batch: see :meth:`AnthropicBatchAdapter.find_orphaned_batch`.
 """
 

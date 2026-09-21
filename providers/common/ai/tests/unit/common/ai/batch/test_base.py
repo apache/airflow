@@ -42,7 +42,13 @@ class _FakeAdapter(BatchAdapter):
     max_payload_bytes = 1_000
 
     def validate_requests(
-        self, requests: list[BatchRequest], *, model: str, output_spec: Any, idempotency_key: str
+        self,
+        requests: list[BatchRequest],
+        *,
+        model: str,
+        output_spec: Any,
+        idempotency_key: str,
+        **kwargs: Any,
     ) -> None:
         pass
 

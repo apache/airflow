@@ -46,7 +46,7 @@ class _FakeAdapter(BatchAdapter):
     def __init__(self, items: list[RawResultItem]):
         self._items = items
 
-    def validate_requests(self, requests, *, model, output_spec, idempotency_key) -> None:
+    def validate_requests(self, requests, *, model, output_spec, idempotency_key, **kwargs) -> None:
         pass
 
     def submit(self, requests, *, model, idempotency_key, input_fingerprint, output_spec, **kwargs):

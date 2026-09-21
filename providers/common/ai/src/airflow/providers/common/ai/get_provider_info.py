@@ -33,6 +33,7 @@ def get_provider_info():
                 "how-to-guide": [
                     "/docs/apache-airflow-providers-common-ai/operators/agent.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm.rst",
+                    "/docs/apache-airflow-providers-common-ai/operators/llm_batch.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm_file_analysis.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm_branch.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm_sql.rst",

@@ -306,7 +306,7 @@ def assemble_manifest(
     The two sources are combined without double-counting: per-item counts are taken as-is, and
     ``extra_counts`` only re-labels whatever ``merge_counts["missing"]`` still has left after
     subtracting what the job-level figure already agrees was accounted for per item. Any part
-    of ``extra_counts`` that ``missing`` cannot cover is dropped rather than allowed to overcount
+    of ``extra_counts`` that ``missing`` cannot cover is dropped rather than allowed to inflate the total
     past ``request_count``.
 
     ``terminal_reason`` is ``"expired"`` if any request expired, else ``"cancelled"`` if any was

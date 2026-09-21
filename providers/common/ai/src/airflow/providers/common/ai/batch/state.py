@@ -74,7 +74,7 @@ def key16(key: str) -> str:
     """
     Return the short form of an identity key, used as the ``custom_id`` prefix and result filename stem.
 
-    16 hex characters is 64 bits of the full sha256 -- collision risk across the
+    16 hex characters is 64 bits of the full SHA-256 digest -- collision risk across the
     (at most tens of thousands of requests in) a single batch, or across the
     handful of concurrent task instances writing under the same ``result_path``,
     is astronomically below the odds of a provider-side outage; a shorter,

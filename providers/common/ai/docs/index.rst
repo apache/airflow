@@ -69,7 +69,7 @@ Use it when a Dag needs:
 * **Generation, classification, summarization, or structured extraction** —
   :doc:`LLMOperator and @task.llm <operators/llm>`, with Pydantic-typed output pushed to XCom.
 * **Many prompts at half the price** — :doc:`LLMBatchOperator and @task.llm_batch <operators/llm_batch>`
-  submit prompts as one provider batch job (OpenAI or Anthropic), poll deferrably for up to 24
+  submit prompts as one provider batch job (OpenAI or Anthropic), poll in deferrable mode for up to 24
   hours, re-attach on retry instead of paying twice, and land results as JSONL on object storage.
 * **Branching on a model's decision** — :doc:`LLMBranchOperator <operators/llm_branch>`.
 * **Agents with tools** — :doc:`AgentOperator <operators/agent>` runs a multi-turn agent loop
