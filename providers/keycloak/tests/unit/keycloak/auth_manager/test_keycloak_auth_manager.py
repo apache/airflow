@@ -650,6 +650,16 @@ class TestKeycloakAuthManager:
         assert "Keycloak authorization resource is missing; denying access" in caplog.text
         assert "Resource with id [Dag:team-a] does not exist." in caplog.text
 
+    def test_is_authorized_invalid_grant(self, auth_manager, user):
+        resp = Mock()
+        resp.status_code = 400
+        resp.text = '{"error": "invalid_grant", "error_description": "Invalid bearer token"}'
+        auth_manager.http_session.post = Mock(return_value=resp)
+
+        result = auth_manager.is_authorized_dag(method="GET", details=DagDetails(id="dag_0"), user=user)
+
+        assert result is False
+
     @pytest.mark.parametrize(
         "function",
         [
@@ -1101,6 +1111,16 @@ class TestKeycloakAuthManager:
         auth_manager.http_session.post.assert_called_once_with(
             token_url, data=payload, headers=headers, timeout=5
         )
+
+    def test_filter_authorized_menu_items_invalid_grant(self, auth_manager, user):
+        resp = Mock()
+        resp.status_code = 400
+        resp.text = '{"error": "invalid_grant", "error_description": "Invalid bearer token"}'
+        auth_manager.http_session.post = Mock(return_value=resp)
+
+        result = auth_manager.filter_authorized_menu_items([MenuItem.ASSETS, MenuItem.CONNECTIONS], user=user)
+
+        assert result == []
 
     def test_get_cli_commands_return_cli_commands(self, auth_manager):
         assert len(auth_manager.get_cli_commands()) == 1

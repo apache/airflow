@@ -144,5 +144,5 @@ class FileSensor(BaseSensorOperator):
 
     def execute_complete(self, context: Context, event: bool | None = None) -> None:
         if not event:
-            raise AirflowException("%s task failed as %s not found.", self.task_id, self.filepath)
+            raise AirflowException(f"{self.task_id} task failed as {self.filepath} not found.")
         self.log.info("%s completed successfully as %s found.", self.task_id, self.filepath)

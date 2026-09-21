@@ -437,10 +437,18 @@ mode:
   expose a hook method that returns the processed result (``HookToolset``). The
   tool runs in the full worker environment with all its dependencies, and code
   mode just orchestrates it.
-- **Use a container-based execution environment** (e.g. Docker or E2B via
-  pydantic-ai-harness) instead of the in-process Monty sandbox. These support
-  third-party packages but pay a per-run container cost and a larger security
-  surface, so reach for them only when inline library code is genuinely required.
+- **Give the agent a real environment**, with
+  :class:`~airflow.providers.common.ai.toolsets.sandbox.SandboxToolset`. It hands
+  the model a shell and a filesystem in a disposable sandbox off the worker, so
+  third-party packages, a real interpreter and installed binaries are all
+  available. It costs a sandbox per run and a second or so to provision, against
+  well under a millisecond for Monty, so reach for it when inline library code is
+  genuinely required rather than by default. See :doc:`../toolsets` for the
+  backends and their limitations.
+
+The two are not exclusive: ``code_mode=True`` and a ``SandboxToolset`` can be
+enabled together, and the file tools fold into ``run_code`` while ``run_command``
+stays a tool of its own.
 
 Requires the ``code-mode`` extra::
 

@@ -52,7 +52,7 @@ To set up ``dag.test``, add these two lines to the bottom of your Dag file:
 and that's it! You can add optional arguments to fine tune the testing but otherwise you can run or debug Dags as
 needed. Here are some examples of arguments:
 
-* ``execution_date`` if you want to test argument-specific Dag runs
+* ``logical_date`` if you want to test argument-specific Dag runs
 * ``use_executor`` if you want to test the Dag using an executor. By default ``dag.test`` runs the Dag without an
   executor, it just runs all the tasks locally.
   By providing this argument, the Dag is executed using the executor configured in the Airflow environment.

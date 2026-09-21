@@ -161,6 +161,9 @@ Parameters
   Pydantic instance flows through XCom unchanged. Set to ``True`` when a
   downstream consumer needs the dict shape.
 
+``decision_policy`` is not supported here: the operator runs its own ``execute``
+without the confidence gate and rejects a policy with a bar at construction.
+
 This operator also inherits ``LLMOperator``'s HITL review parameters --
 ``require_approval``, ``approval_timeout``, ``on_approval_timeout``,
 ``allow_modifications``, ``approval_notifiers``, and ``approval_assigned_users`` --
