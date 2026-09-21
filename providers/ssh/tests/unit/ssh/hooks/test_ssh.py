@@ -731,6 +731,21 @@ class TestSSHHook:
         hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_EXTRA, no_host_key_check=False)
         assert hook.no_host_key_check is False
 
+    def test_constructor_no_host_key_check_false_resolves_conflicting_extras(self):
+        """An explicit ``False`` makes a connection setting both ``host_key`` and the skip flag usable."""
+        hook = SSHHook(
+            ssh_conn_id=self.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_TRUE, no_host_key_check=False
+        )
+        assert hook.no_host_key_check is False
+        assert hook.host_key is not None
+
+    def test_constructor_no_host_key_check_true_rejects_connection_host_key(self):
+        """Skipping the check is rejected whichever source asks for it while a host key is configured."""
+        with pytest.raises(ValueError, match="Must check host key when provided"):
+            SSHHook(
+                ssh_conn_id=self.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE, no_host_key_check=True
+            )
+
     @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
     def test_no_host_key_check_defaults_to_false(self, ssh_client):
         """A connection that does not set ``no_host_key_check`` still verifies the host key."""
