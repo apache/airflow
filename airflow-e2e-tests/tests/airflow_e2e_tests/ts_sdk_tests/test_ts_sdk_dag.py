@@ -21,17 +21,16 @@ Run with::
     E2E_TEST_MODE=ts_sdk uv run --project airflow-e2e-tests pytest \\
         tests/airflow_e2e_tests/ts_sdk_tests/ -xvs
 
-Two Dags mix Python tasks with ``@task.stub`` TypeScript tasks whose handlers live in the single
-``airflow-ts-pack`` bundle built by ``conftest._setup_ts_sdk_integration``.
-Each is triggered once via a module-scoped fixture.
+Two Dags mix Python tasks with ``@task.stub`` TypeScript tasks, both served by the single
+``airflow-ts-pack`` bundle, and each is triggered once via a module-scoped fixture.
 
-``typescript_example`` confirms that ``NodeCoordinator`` launches the bundle on the volume-provided
-Node runtime, that Variable/Connection reads and Python <-> TypeScript XCom round-trips work through
-the Task Execution API, and that coordinator-channel logs reach the task-log store.
+``typescript_example`` covers the runtime: Variable reads and writes, Connection reads,
+Python <-> TypeScript XCom round-trips, and task logs reaching the log store.
 
-``typescript_taskflow_example`` confirms that one bundle provides for two ``dag_id``s: its
-``build_message`` shares a ``task_id`` with a task in ``typescript_example``, so a bundle that keyed
-dispatch on the task ID alone would run the wrong handler for one of them.
+``typescript_taskflow_example`` covers TaskFlow arguments, including an upstream output pulled before
+the handler runs and a ``withArgNames`` rename on its ``report`` task, and shares a ``build_message``
+task ID with ``typescript_example`` so that dispatch keying on the task ID alone would run the wrong
+handler.
 """
 
 from __future__ import annotations
@@ -39,8 +38,10 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from http import HTTPStatus
 
 import pytest
+import requests
 
 from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
 
@@ -53,6 +54,11 @@ _LOG_FETCH_TIMEOUT = 120
 
 _DAG_ID = "typescript_example"
 _TASKFLOW_DAG_ID = "typescript_taskflow_example"
+
+# Written by `write_and_delete_variable`; see ts-sdk/example/src/main.ts.
+_LAST_RUN_VARIABLE = "typescript_example_last_run"
+_LAST_RUN_DESCRIPTION = "Run id of the last typescript_example run"
+_SCRATCH_VARIABLE = "typescript_example_scratch"
 
 
 @dataclass
@@ -114,6 +120,7 @@ def test_task_states(completed_run: _CompletedRun):
         "python_start": "success",
         "build_message": "success",
         "read_connection": "success",
+        "write_and_delete_variable": "success",
     }
     for task_id, want in expected.items():
         assert completed_run.ti_states.get(task_id) == want, (
@@ -145,6 +152,27 @@ def test_read_connection_xcom(completed_run: _CompletedRun):
     }, f"unexpected 'read_connection' return_value: {value!r}"
 
 
+def test_variable_written_by_typescript_task_is_readable(completed_run: _CompletedRun):
+    """``setVariable`` stores this run's id and the description alongside it."""
+    variable = completed_run.client.get_variable(_LAST_RUN_VARIABLE)
+    assert variable.get("value") == completed_run.run_id, (
+        f"{_LAST_RUN_VARIABLE} should hold this run's id {completed_run.run_id!r}, got {variable!r}"
+    )
+    assert variable.get("description") == _LAST_RUN_DESCRIPTION, (
+        f"{_LAST_RUN_VARIABLE} should carry the description set from TypeScript, got {variable!r}"
+    )
+
+
+def test_scratch_variable_deleted_by_typescript_task_is_gone(completed_run: _CompletedRun):
+    """A Variable written and then deleted from TypeScript no longer exists."""
+    with pytest.raises(requests.HTTPError) as excinfo:
+        completed_run.client.get_variable(_SCRATCH_VARIABLE)
+    assert excinfo.value.response.status_code == HTTPStatus.NOT_FOUND, (
+        f"{_SCRATCH_VARIABLE} should have been deleted by the TypeScript task, "
+        f"got HTTP {excinfo.value.response.status_code}"
+    )
+
+
 def test_coordinator_logs_reach_task_log_store(completed_run: _CompletedRun):
     assert "[ts-sdk.runtime] Coordinator runtime started" in completed_run.logs("build_message")
 
@@ -155,19 +183,63 @@ def test_second_dag_from_the_same_bundle_succeeded(completed_taskflow_run: _Comp
         f"expected the run to succeed; got {completed_taskflow_run.state!r}. "
         f"task states: {completed_taskflow_run.ti_states}"
     )
-    expected = {"make_totals": "success", "summarize": "success", "build_message": "success"}
+    expected = {
+        "make_totals": "success",
+        "summarize": "success",
+        "report": "success",
+        "build_message": "success",
+    }
     for task_id, want in expected.items():
         assert completed_taskflow_run.ti_states.get(task_id) == want, (
             f"{task_id!r} expected {want!r}. all task states: {completed_taskflow_run.ti_states}"
         )
 
 
-def test_summarize_xcom(completed_taskflow_run: _CompletedRun):
-    """``summarize`` reads ``make_totals``'s output and averages it."""
+def test_summarize_binds_its_call_arguments(completed_taskflow_run: _CompletedRun):
+    """Every argument ``summarize(make_totals(), "uk", "GBP", 280.0)`` passes.
+
+    ``region_code`` and ``dry_run`` are snake_case in the ``@task.stub``
+    signature and camelCase in the handler, with nothing declared on either
+    side: folding is what carries them across. ``dry_run`` is left out of the
+    call, so it arrives from the stub's default. ``totals`` takes
+    ``make_totals``'s output, so the runtime resolves that task's
+    ``return_value`` XCom before the handler is called. ``averageOrder`` below
+    is computed from it, and the handler never reads an XCom itself.
+
+    A handler that received none of them would see ``undefined`` for each and
+    return nulls and ``NaN`` here rather than failing, which is why the whole
+    returned object is asserted.
+    """
     assert completed_taskflow_run.xcom("make_totals") == {"orders": 12, "revenue": 3402.0}
     value = completed_taskflow_run.xcom("summarize")
-    assert value == {"orders": 12, "averageOrder": 283.5, "currency": "GBP"}, (
-        f"unexpected 'summarize' return_value: {value!r}"
+    assert value == {
+        "regionCode": "uk",
+        "orders": 12,
+        "averageOrder": 283.5,
+        "currency": "GBP",
+        "passed": True,
+        "dryRun": False,
+    }, f"unexpected 'summarize' return_value: {value!r}"
+    # Written only when `dryRun` is false, so this also proves the defaulted
+    # boolean arrived as `false` rather than as `undefined`.
+    assert completed_taskflow_run.xcom("summarize", key="summary_line") == "uk: 12 orders"
+
+
+def test_report_binds_an_explicitly_renamed_argument(completed_taskflow_run: _CompletedRun):
+    """``report(summary, "nightly")`` reaches a handler that renamed one argument.
+
+    Python names it ``run_label``; the handler destructures ``label``, a word
+    the ``@task.stub`` signature never uses, so folding could not connect the
+    two and the binding is stated with ``withArgNames``. The handler throws
+    unless ``label`` is exactly ``"nightly"``, so a rename that did not take
+    effect fails this task rather than returning a null.
+
+    ``summary`` is not renamed: folding already covers it, which is the point
+    that keeps ``withArgNames`` rare.
+    """
+    value = completed_taskflow_run.xcom("report")
+    assert value == {"label": "nightly", "regionCode": "uk", "healthy": True}, (
+        f"unexpected 'report' return_value: {value!r}"
     )
 
 
@@ -188,5 +260,5 @@ def test_same_task_id_under_two_dags_runs_its_own_handler(
     )
     assert taskflow_value == {
         "dagId": _TASKFLOW_DAG_ID,
-        "message": "12 orders averaging 283.5 GBP",
+        "message": "uk: 12 orders averaging 283.5 GBP",
     }, f"unexpected 'typescript_taskflow_example.build_message' return_value: {taskflow_value!r}"

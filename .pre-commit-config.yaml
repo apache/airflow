@@ -821,10 +821,6 @@ repos:
           ^generated/PYPI_README\.md$|
           ^airflow-core/src/airflow/ui/public/i18n/README\.md$|
           ^airflow-core/docs/.*commits\.rst$|
-          ^airflow-core/newsfragments/41368\.significant\.rst$|
-          ^airflow-core/newsfragments/41761.significant\.rst$|
-          ^airflow-core/newsfragments/43349\.significant\.rst$|
-          ^airflow-core/newsfragments/60921\.significant\.rst$|
           ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/pnpm-lock\.yaml$|
           ^airflow-core/src/airflow/api_fastapi/gunicorn_config\.py$|
           ^airflow-core/src/airflow/cli/commands/api_server_command\.py$|

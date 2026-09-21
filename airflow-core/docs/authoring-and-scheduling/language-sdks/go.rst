@@ -232,8 +232,8 @@ The ``sdk.Client`` surface
 
 ``sdk.Client`` composes three smaller interfaces, so a task can depend on just one:
 
-* ``VariableClient`` - ``GetVariable`` (returns the Variable as a string) and ``UnmarshalJSONVariable``
-  (decodes a JSON Variable into a pointer you provide).
+* ``VariableClient`` - ``GetVariable`` (returns the Variable as a string), ``UnmarshalJSONVariable``
+  (decodes a JSON Variable into a pointer you provide), ``SetVariable``, and ``DeleteVariable``.
 * ``ConnectionClient`` - ``GetConnection``, returning a ``Connection`` with fields ``ID``, ``Type``,
   ``Host``, ``Port``, ``Login``, ``Password``, ``Path``, ``Extra`` (a ``map[string]any``), plus a
   ``GetURI()`` helper.
@@ -241,6 +241,24 @@ The ``sdk.Client`` surface
 
 ``GetXCom`` returns the stored value as an ``any``; see :ref:`go-sdk/types` for how the stored JSON maps to
 Go types.
+
+``SetVariable`` stores the value as a string, so encode structured data (for example with ``json.Marshal``)
+before storing it.
+
+.. code-block:: go
+
+    if err := client.SetVariable(ctx, "process_threshold", "42", "Rows above this count take the slow path"); err != nil {
+        return err
+    }
+    if err := client.DeleteVariable(ctx, "legacy_threshold"); err != nil {
+        return err
+    }
+
+.. note::
+
+  A value supplied by a secrets backend (for example an ``AIRFLOW_VAR_*`` environment variable) still takes
+  precedence over the stored value when the Variable is read back. Calling ``SetVariable`` with an empty
+  description clears any existing description.
 
 Not-found lookups return sentinel errors - ``VariableNotFound``, ``ConnectionNotFound``, ``XComNotFound`` -
 so you can branch on a missing value with ``errors.Is`` rather than parsing an error string.
