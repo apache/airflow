@@ -156,6 +156,8 @@ Tasks page in the core docs for usage and design rationale.
 
 .. autoapiclass:: airflow.sdk.ExceptionRetryPolicy
 
+.. autoapiclass:: airflow.sdk.ChainRetryPolicy
+
 .. autoapiclass:: airflow.sdk.RetryRule
 
 .. autoapiclass:: airflow.sdk.RetryDecision
