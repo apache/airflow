@@ -65,7 +65,7 @@ When to Use Deferred Operators
 Prefer a deferred operator when:
 
 - There is an existing deferrable operator that covers your use case (e.g., HttpOperator deferrable mode).
-- The task waits for a single or limited external events.
+- The task waits for a single external event or a limited number of events.
 - You want to free worker resources while waiting for triggers.
 - You don't need to loop over the same operator multiple times (e.g. multiplexing).
 
@@ -234,7 +234,7 @@ This allows multiple paginated requests to be performed efficiently within a sin
 
        @task
        async def get_users():
-           hook = KiotaRequestAdapterHook.get_hook(conn_id="msgraph_default")
+           hook = await KiotaRequestAdapterHook.aget_hook(conn_id="msgraph_default")
 
            return await hook.paginated_run(url="users")
 

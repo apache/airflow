@@ -262,7 +262,11 @@ class TestPowerBITrigger:
         mock_get_refresh_details_by_refresh_id.side_effect = PowerBIDatasetRefreshException("Test exception")
         mock_trigger_dataset_refresh.return_value = DATASET_REFRESH_ID
 
-        task = [i async for i in powerbi_trigger.run()]
+        # Skip the exponential backoff between the retried status fetches.
+        with mock.patch(
+            "airflow.providers.microsoft.azure.triggers.powerbi.asyncio.sleep", new=mock.AsyncMock()
+        ):
+            task = [i async for i in powerbi_trigger.run()]
         response = TriggerEvent(
             {
                 "status": "error",

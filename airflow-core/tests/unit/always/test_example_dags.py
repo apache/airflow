@@ -65,23 +65,9 @@ IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING: tuple[str, ...] = (
 )
 
 IGNORE_EXAMPLE_DAGS: tuple[str, ...] = (
-    # These example dags require suspended providers, eg: google dataflow dependent on the Apache Beam provider,
-    # but it's in the suspended list, we can't import the dag
     # Ray uses pydantic v1 internally, which fails to infer types in Python 3.14.
     # TODO: remove once ray releases a version with Python 3.14 support.
     "providers/google/tests/system/google/cloud/ray/example_ray_job.py",
-    "providers/google/tests/system/google/cloud/dataflow/example_dataflow_go.py",
-    "providers/google/tests/system/google/cloud/dataflow/example_dataflow_java_streaming.py",
-    "providers/google/tests/system/google/cloud/dataflow/example_dataflow_native_java.py",
-    "providers/google/tests/system/google/cloud/dataflow/example_dataflow_native_python.py",
-    "providers/google/tests/system/google/cloud/dataflow/example_dataflow_native_python_async.py",
-    "providers/google/tests/system/google/cloud/dataflow/example_dataflow_pipeline.py",
-    "providers/google/tests/system/google/cloud/dataflow/example_dataflow_pipeline_streaming.py",
-    "providers/google/tests/system/google/cloud/dataflow/example_dataflow_sensors_deferrable.py",
-    "providers/google/tests/system/google/cloud/dataflow/example_dataflow_streaming_python.py",
-    "providers/google/tests/system/google/cloud/dataflow/example_dataflow_template.py",
-    "providers/google/tests/system/google/cloud/dataflow/example_dataflow_yaml.py",
-    "providers/google/tests/system/google/cloud/gcs/example_firestore.py",
 )
 
 LONGER_IMPORT_TIMEOUTS: dict[str, float] = {

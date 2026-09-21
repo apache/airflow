@@ -549,6 +549,50 @@ def _sync_k8s_schemas_to_airflow_site(airflow_site: Path, force: bool, command_e
     run_command(cmd, check=False, env=command_env)
 
 
+def remove_backport_labels(*, branch_name: str, command_env: dict[str, str]) -> None:
+    """Drop any ``backport-to-*`` label boring-cyborg put on the upgrade PR.
+
+    The CI environment is upgraded on each maintenance branch by that branch's own scheduled
+    run, so backporting main's upgrade would race it with a change that conflicts on the very
+    files it regenerates. boring-cyborg labels by path and cannot tell this PR apart from a
+    hand-written one touching ``dev/`` or ``.github/``, so the label is removed here instead.
+
+    Labelling happens on a webhook and may land after this runs; ``upgrade-check.yml`` sweeps
+    again once the PR has settled, so a miss here is not the last word.
+    """
+    labels_result = run_command(
+        [
+            "gh",
+            "pr",
+            "view",
+            branch_name,
+            "--repo",
+            "apache/airflow",
+            "--json",
+            "labels",
+            "--jq",
+            '[.labels[].name | select(startswith("backport-to-"))] | join(",")',
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=command_env,
+    )
+    if labels_result.returncode != 0:
+        console_print("[warning]Could not read PR labels - leaving any backport labels in place.[/]")
+        return
+    labels = [label for label in labels_result.stdout.strip().split(",") if label]
+    if not labels:
+        return
+    remove_cmd = ["gh", "pr", "edit", branch_name, "--repo", "apache/airflow"]
+    for label in labels:
+        remove_cmd.extend(["--remove-label", label])
+    if run_command(remove_cmd, capture_output=True, text=True, check=False, env=command_env).returncode:
+        console_print(f"[warning]Could not remove backport labels: {', '.join(labels)}[/]")
+    else:
+        console_print(f"[success]Removed backport labels: {', '.join(labels)}.[/]")
+
+
 @ci_group.command(
     name="upgrade",
     help="Perform important upgrade steps of the CI environment. And create a PR",
@@ -1018,6 +1062,8 @@ def upgrade(
                     sys.exit(1)
             else:
                 console_print(f"[success]PR created successfully: {pr_result.stdout.strip()}.[/]")
+
+        remove_backport_labels(branch_name=branch_name, command_env=command_env)
 
         # Switch back to appropriate branch and delete the temporary branch
         console_print(f"[info]Cleaning up temporary branch {branch_name}...[/]")

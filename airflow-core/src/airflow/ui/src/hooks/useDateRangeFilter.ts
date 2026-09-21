@@ -189,7 +189,10 @@ export const useDateRangeFilter = ({ onChange, translate, value }: UseDateRangeF
       const startDateTime = combineDateAndTime(inputs.start, inputs.startTime, {
         timezone: selectedTimezone,
       });
-      const endDateTime = combineDateAndTime(inputs.end, inputs.endTime, { timezone: selectedTimezone });
+      const endDateTime = combineDateAndTime(inputs.end, inputs.endTime, {
+        endOfDay: true,
+        timezone: selectedTimezone,
+      });
 
       if (Boolean(startDateTime) && Boolean(endDateTime) && !validateDateRange(startDateTime, endDateTime)) {
         errors.push({
@@ -276,7 +279,10 @@ export const useDateRangeFilter = ({ onChange, translate, value }: UseDateRangeF
         const timeStr = field === "start" ? newInputs.startTime : newInputs.endTime;
 
         if (dayjs(dateStr, DATE_INPUT_FORMAT, true).isValid()) {
-          const combinedDateTime = combineDateAndTime(dateStr, timeStr, { timezone: selectedTimezone });
+          const combinedDateTime = combineDateAndTime(dateStr, timeStr, {
+            endOfDay: field === "end",
+            timezone: selectedTimezone,
+          });
 
           if (Boolean(combinedDateTime)) {
             onChange({

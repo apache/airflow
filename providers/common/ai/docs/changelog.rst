@@ -25,6 +25,100 @@
 Changelog
 ---------
 
+.. note::
+  ``LLMRetryPolicy`` now asks the model only which category a failure is; whether that
+  category is retried, and after how long, comes from the policy's ``categories`` table
+  (``ErrorCategory(description, retry, delay, min_confidence)``), not from the model.
+  ``ErrorClassification`` and its ``should_retry``, ``suggested_delay_seconds`` and
+  ``reasoning`` fields are removed, so a Dag file that imports the class fails to parse,
+  and with it every Dag in that file. The new public names are ``ErrorCategory`` and
+  ``DEFAULT_CATEGORIES``.
+
+  A policy built with only ``llm_conn_id`` classifies into the same seven categories with
+  the same retry/fail split and the same 60s/10s/30s delays. The delays are now fixed by
+  the table rather than chosen by the model, so an error the model previously answered
+  with its own delay now waits the category's. Custom ``instructions`` that named a delay,
+  said "do NOT retry", or introduced category names outside the seven still parse but no
+  longer steer anything: the model is constrained to ``categories``, so a name of your own
+  is either mapped onto the nearest default or rejected by the schema and sent to the
+  fallback path. The 0.9.0 guide's Snowflake example asked for ``rate_limit`` after 120s
+  and now gets the default 60s. Move each such rule into an ``ErrorCategory`` entry and
+  keep ``instructions`` for teaching the model your error strings; passing custom
+  ``instructions`` without ``categories`` now raises a ``UserWarning`` at Dag parse time
+  saying so.
+
+  The ``retry_reason`` written on a retry is now a generated line
+  (``category=... confidence=... threshold=... action=... delay=...``) rather than the
+  model's prose, and a decision that came from ``fallback_rules`` has its reason prefixed
+  with ``LLM classification not applied (<why>);``. See :doc:`retry_policies`.
+
+.. note::
+  Configuring ``fallback_conn_ids`` on a connection (or the matching operator/decorator
+  argument) changes what exception a task raises once every connection in the chain fails:
+  it is ``pydantic_ai.exceptions.FallbackExceptionGroup``, not the last provider's own
+  exception. An existing ``RetryRule(exception=ModelHTTPError, ...)`` -- in
+  ``LLMRetryPolicy.fallback_rules`` or a plain ``ExceptionRetryPolicy`` -- stops matching
+  as soon as the connection gains a fallback chain, with no change to the Dag needed to
+  trigger it. Match ``pydantic_ai.exceptions.FallbackExceptionGroup`` explicitly as well,
+  or inspect its ``.exceptions`` attribute for the original per-model errors. See
+  :doc:`retry_policies`, "When the connection also carries a fallback chain".
+
+.. note::
+  ``SQLToolset`` now rejects ``allowed_tables=None`` and ``allowed_tables=[]`` with
+  ``ValueError``. Up to 0.9.0 both were accepted and exposed every table in the schema, so
+  a Dag that builds the list dynamically (a ``Variable.get`` with a ``None`` default, a
+  config file, a filtered comprehension) silently handed the agent the whole schema
+  whenever the lookup came back empty. Such a Dag now fails at import instead. Exposing
+  every table is still the default, but only by omitting the argument: no value you can
+  pass requests it, so a runtime lookup can never widen the allow-list by accident. Dags
+  that passed ``allowed_tables=None`` explicitly should drop the argument.
+
+0.9.0
+.....
+
+.. note::
+  A rejected ``LLMBranchOperator`` review now skips the direct downstream tasks -- teardown tasks
+  excepted -- instead of failing the task. Set ``fail_on_reject=True`` to keep failing the task, or
+  ``ignore_downstream_trigger_rules=True`` to skip every downstream task rather than only the direct
+  ones.
+
+Features
+~~~~~~~~
+
+* ``Support bzip2 and xz compressed inputs in LLM file analysis (#70302)``
+* ``Add .md file support in LLMFileAnalysisOperator (#71611)``
+* ``Add test_connection support to LangChainHook and LlamaIndexHook (#71841)``
+* ``Add BaseManagedAgentToolset for vendor-managed AI agents (#71946)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add require_approval preflight check to @task.llm_schema_compare (#71688)``
+* ``Skip downstream tasks instead of failing when an LLM branch review is rejected (#71073, #72183)``
+* ``Fix Vertex AI hook silently discarding credentials when vertexai flag is set (#72012)``
+
+Misc
+~~~~
+
+* ``Import TaskInstanceState from airflow.sdk (#72446)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix LlamaIndexHook docs to stop claiming Ollama/vLLM support (#72013)``
+* ``Document the missing resource category in common.ai retry policy docs (#72189)``
+* ``Document LLMFileAnalysisOperator's inherited LLM and HITL parameters (#71856)``
+* ``Fix reversed credential precedence in Bedrock hook docstring (#71826)``
+* ``Correct the common-ai toolset list and document the shields extra (#71819)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add drift tripwires for common.ai Vertex model prefix (#72152)``
+   * ``Add unit tests for common AI provider exceptions (#72082)``
+   * ``Fix common.ai Vertex model example to use a valid pydantic-ai prefix (#72011)``
+   * ``Sync connection UI metadata in provider.yaml with hook definitions (#72087)``
+   * ``[main] Upgrade important CI environment (#71590)``
+
 0.8.0
 .....
 
