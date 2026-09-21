@@ -26,7 +26,7 @@ from unittest import mock
 import pytest
 from asyncssh.sftp import SFTPAttrs, SFTPName
 
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, timezone as airflow_timezone
 from airflow.providers.sftp.triggers.sftp import SFTPTrigger
 from airflow.triggers.base import TriggerEvent
 
@@ -37,6 +37,25 @@ except ImportError:
     WARNING_CATEGORY = DeprecationWarning
 else:
     WARNING_CATEGORY = DeprecatedImportWarning
+
+
+@pytest.fixture
+def default_timezone(request):
+    airflow_timezone.initialize(request.param)
+    yield request.param
+    airflow_timezone.initialize("UTC")
+
+
+async def _first_event_or_none(trigger: SFTPTrigger) -> TriggerEvent | None:
+    """Return the trigger's first event, or ``None`` if it sleeps (no file was sensed)."""
+    with mock.patch("airflow.providers.sftp.triggers.sftp.asyncio.sleep", side_effect=asyncio.CancelledError):
+        generator = trigger.run()
+        try:
+            return await anext(generator)
+        except asyncio.CancelledError:
+            return None
+        finally:
+            await generator.aclose()
 
 
 class TestSFTPTrigger:
@@ -67,6 +86,59 @@ class TestSFTPTrigger:
             "newer_than": None,
             "poke_interval": 5.0,
         }
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("default_timezone", ["UTC", "America/New_York"], indirect=True)
+    @pytest.mark.parametrize(
+        ("newer_than", "expected_sensed"),
+        [
+            # 20240101120000 is 2024-01-01 12:00:00 UTC.
+            (datetime.datetime(2024, 1, 1, 10, 0, tzinfo=datetime.timezone.utc), True),
+            (datetime.datetime(2024, 1, 1, 12, 0, tzinfo=datetime.timezone.utc), True),
+            (datetime.datetime(2024, 1, 1, 14, 0, tzinfo=datetime.timezone.utc), False),
+        ],
+    )
+    @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync.get_mod_time")
+    async def test_newer_than_without_file_pattern_is_timezone_independent(
+        self, mock_mod_time, default_timezone, newer_than, expected_sensed
+    ):
+        """The single-file comparison must not depend on ``core.default_timezone``."""
+        mock_mod_time.return_value = "20240101120000"
+        trigger = SFTPTrigger(path="test/path/test.txt", sftp_conn_id="sftp_default", newer_than=newer_than)
+
+        event = await _first_event_or_none(trigger)
+
+        if expected_sensed:
+            assert event == TriggerEvent({"status": "success", "message": "Sensed file: test/path/test.txt"})
+        else:
+            assert event is None
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("default_timezone", ["UTC", "America/New_York"], indirect=True)
+    @pytest.mark.parametrize(
+        ("newer_than", "expected_sensed"),
+        [
+            (datetime.datetime(2024, 1, 1, 10, 0, tzinfo=datetime.timezone.utc), True),
+            (datetime.datetime(2024, 1, 1, 12, 0, tzinfo=datetime.timezone.utc), True),
+            (datetime.datetime(2024, 1, 1, 14, 0, tzinfo=datetime.timezone.utc), False),
+        ],
+    )
+    @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync.get_files_and_attrs_by_pattern")
+    async def test_newer_than_with_file_pattern_is_timezone_independent(
+        self, mock_get_files_by_pattern, default_timezone, newer_than, expected_sensed
+    ):
+        """The file-pattern comparison must not depend on ``core.default_timezone``."""
+        mock_get_files_by_pattern.return_value = [SFTPName("file.txt", attrs=SFTPAttrs(mtime=1704110400))]
+        trigger = SFTPTrigger(
+            path="test/path/", sftp_conn_id="sftp_default", file_pattern="*.txt", newer_than=newer_than
+        )
+
+        event = await _first_event_or_none(trigger)
+
+        if expected_sensed:
+            assert event == TriggerEvent({"status": "success", "message": "Sensed 1 files: ['file.txt']"})
+        else:
+            assert event is None
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(

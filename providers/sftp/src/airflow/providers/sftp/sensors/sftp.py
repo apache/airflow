@@ -125,7 +125,7 @@ class SFTPSensor(BaseSensorOperator):
 
                 if isinstance(self.newer_than, str):
                     self.newer_than = timezone.parse(self.newer_than)
-                _mod_time = timezone.convert_to_utc(datetime.strptime(mod_time, "%Y%m%d%H%M%S"))
+                _mod_time = datetime.strptime(mod_time, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc)
                 _newer_than = timezone.convert_to_utc(self.newer_than)
                 if _newer_than <= _mod_time:
                     files_found.append(actual_file_present)
