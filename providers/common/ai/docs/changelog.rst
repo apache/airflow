@@ -25,6 +25,73 @@
 Changelog
 ---------
 
+.. note::
+  Configuring ``fallback_conn_ids`` on a connection (or the matching operator/decorator
+  argument) changes what exception a task raises once every connection in the chain fails:
+  it is ``pydantic_ai.exceptions.FallbackExceptionGroup``, not the last provider's own
+  exception. An existing ``RetryRule(exception=ModelHTTPError, ...)`` -- in
+  ``LLMRetryPolicy.fallback_rules`` or a plain ``ExceptionRetryPolicy`` -- stops matching
+  as soon as the connection gains a fallback chain, with no change to the Dag needed to
+  trigger it. Match ``pydantic_ai.exceptions.FallbackExceptionGroup`` explicitly as well,
+  or inspect its ``.exceptions`` attribute for the original per-model errors. See
+  :doc:`retry_policies`, "When the connection also carries a fallback chain".
+
+.. note::
+  ``SQLToolset`` now rejects ``allowed_tables=None`` and ``allowed_tables=[]`` with
+  ``ValueError``. Up to 0.9.0 both were accepted and exposed every table in the schema, so
+  a Dag that builds the list dynamically (a ``Variable.get`` with a ``None`` default, a
+  config file, a filtered comprehension) silently handed the agent the whole schema
+  whenever the lookup came back empty. Such a Dag now fails at import instead. Exposing
+  every table is still the default, but only by omitting the argument: no value you can
+  pass requests it, so a runtime lookup can never widen the allow-list by accident. Dags
+  that passed ``allowed_tables=None`` explicitly should drop the argument.
+
+0.9.0
+.....
+
+.. note::
+  A rejected ``LLMBranchOperator`` review now skips the direct downstream tasks -- teardown tasks
+  excepted -- instead of failing the task. Set ``fail_on_reject=True`` to keep failing the task, or
+  ``ignore_downstream_trigger_rules=True`` to skip every downstream task rather than only the direct
+  ones.
+
+Features
+~~~~~~~~
+
+* ``Support bzip2 and xz compressed inputs in LLM file analysis (#70302)``
+* ``Add .md file support in LLMFileAnalysisOperator (#71611)``
+* ``Add test_connection support to LangChainHook and LlamaIndexHook (#71841)``
+* ``Add BaseManagedAgentToolset for vendor-managed AI agents (#71946)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add require_approval preflight check to @task.llm_schema_compare (#71688)``
+* ``Skip downstream tasks instead of failing when an LLM branch review is rejected (#71073, #72183)``
+* ``Fix Vertex AI hook silently discarding credentials when vertexai flag is set (#72012)``
+
+Misc
+~~~~
+
+* ``Import TaskInstanceState from airflow.sdk (#72446)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix LlamaIndexHook docs to stop claiming Ollama/vLLM support (#72013)``
+* ``Document the missing resource category in common.ai retry policy docs (#72189)``
+* ``Document LLMFileAnalysisOperator's inherited LLM and HITL parameters (#71856)``
+* ``Fix reversed credential precedence in Bedrock hook docstring (#71826)``
+* ``Correct the common-ai toolset list and document the shields extra (#71819)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add drift tripwires for common.ai Vertex model prefix (#72152)``
+   * ``Add unit tests for common AI provider exceptions (#72082)``
+   * ``Fix common.ai Vertex model example to use a valid pydantic-ai prefix (#72011)``
+   * ``Sync connection UI metadata in provider.yaml with hook definitions (#72087)``
+   * ``[main] Upgrade important CI environment (#71590)``
+
 0.8.0
 .....
 

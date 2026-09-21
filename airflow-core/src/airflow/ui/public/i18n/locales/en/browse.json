@@ -10,6 +10,22 @@
       "eventType": "Event Type"
     }
   },
+  "dagBundles": {
+    "active": "Active",
+    "bundle_one": "Dag Bundle",
+    "bundle_other": "Dag Bundles",
+    "columns": {
+      "active": "Active",
+      "importErrors": "Import Errors",
+      "lastRefreshed": "Last Refreshed",
+      "name": "Name",
+      "version": "Version"
+    },
+    "inactive": "Inactive",
+    "neverRefreshed": "Never",
+    "notRefreshedYet": "Not refreshed yet",
+    "notVersioned": "Not versioned"
+  },
   "deadlines": {
     "columns": {
       "alertName": "Alert Name",

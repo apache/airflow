@@ -27,7 +27,7 @@ permissions:
   issues: write
 jobs:
   stale:
-    runs-on: ["ubuntu-22.04"]
+    runs-on: ["ubuntu-slim"]
     steps:
       # Handle all PRs (45-day stale) and pending-response issues (14-day stale)
       - uses: actions/stale@4391f3da665fdf50b6810c1a66712fb9ba21aa93  # v11.0.0

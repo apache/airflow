@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-beam``
 
-Release: ``6.2.3``
+Release: ``6.2.4``
 
 
 `Apache Beam <https://beam.apache.org/>`__.
@@ -36,7 +36,7 @@ This is a provider package for ``apache.beam`` provider. All classes for this pr
 are in ``airflow.providers.apache.beam`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-beam/6.2.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-beam/6.2.4/>`_.
 
 Installation
 ------------
@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-apache-beam``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13
+The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 
 Requirements
 ------------
@@ -64,8 +64,8 @@ PIP package                                 Version required
 ``numpy``                                   ``>=2.4.3; python_version >= "3.14"``
 ==========================================  ==================================================================
 
-Cross provider package dependencies
------------------------------------
+Optional cross provider package dependencies
+--------------------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
 You need to install the specified providers in order to use them.
@@ -74,15 +74,14 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-apache-beam[common.compat]
+    pip install apache-airflow-providers-apache-beam[google]
 
 
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-`apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_                ``google``
-==================================================================================================================  =================
+====================================================================================================  ==========
+Dependent package                                                                                     Extra
+====================================================================================================  ==========
+`apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_  ``google``
+====================================================================================================  ==========
 
 Optional dependencies
 ----------------------
@@ -90,8 +89,8 @@ Optional dependencies
 ==========  ============================
 Extra       Dependencies
 ==========  ============================
-``google``  ``apache-beam[gcp]>=2.69.0``
+``google``  ``apache-beam[gcp]>=2.76.0``
 ==========  ============================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-beam/6.2.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-beam/6.2.4/changelog.html>`_.

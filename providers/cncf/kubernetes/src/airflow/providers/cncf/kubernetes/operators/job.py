@@ -238,7 +238,11 @@ class KubernetesJobOperator(KubernetesPodOperator):
                             pod=pod, container_name=self.base_container_name
                         )
                         self.pod_manager.await_xcom_sidecar_container_start(pod=pod)
-                        xcom_result.append(self.extract_xcom(pod=pod))
+                        # `wait_until_job_complete` below polls without a timeout, and the
+                        # Job can never reach a terminal state while the xcom sidecar is
+                        # still looping. So unlike KubernetesPodOperator, this path must
+                        # fail loudly when the sidecar cannot be killed rather than hang.
+                        xcom_result.append(self.extract_xcom(pod=pod, ignore_kill_failure=False))
                 self.job = self.hook.wait_until_job_complete(
                     job_name=self.job.metadata.name,
                     namespace=self.job.metadata.namespace,
