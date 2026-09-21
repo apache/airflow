@@ -429,6 +429,21 @@ export interface ConditionElse {
   else(taskRef: TaskRef): void;
 }
 
+/**
+ * What `dag.switch(decider)` returns: name each task the decider chooses
+ * between.
+ *
+ * ```ts
+ * dag.switch(picked).case(publishDaily).case(publishWeekly);
+ * ```
+ *
+ * Chainable, so the cases read as a list. There is no default case, and a
+ * branch with no case at all is rejected when the Dag is read.
+ */
+export interface Branch {
+  case(taskRef: TaskRef): Branch;
+}
+
 /** Per-task record a Dag retains: the reference, the handler, and its spec. */
 export interface TaskRecord {
   readonly task: TaskRef;
@@ -716,6 +731,72 @@ export class Dag {
       return result;
     };
     this.#tasks.set(taskId, { ...record, canSkipDownstream: true, fn: wrapped });
+  }
+
+  /**
+   * Make an existing task a multi-way branch, and name the tasks it chooses
+   * between — TypeScript's `switch`/`case`.
+   *
+   * ```ts
+   * const decider = dag.task("pick_path", async ({ rows }: { rows: number }) =>
+   *   rows > 1000 ? handleLong : handleShort,
+   * );
+   * const picked = decider({ rows: extracted });
+   *
+   * dag.switch(picked).case(handleLong).case(handleShort);
+   * ```
+   *
+   * The decider is an ordinary task whose handler returns one of the case
+   * references the Dag already handed back, so the compiler checks the
+   * candidate exists and renaming a handler cannot silently rewire a Dag. The
+   * task's own value on the wire is the chosen task's id, which is what a
+   * downstream task reads back from its XCom.
+   *
+   * **There is no default case.** A decider that returns a reference outside
+   * the declared cases fails the task, the way Python's `skip_all_except`
+   * raises on a task id the Dag does not hold.
+   *
+   * **Exactly one case is selected.** Python's branch callable may return a
+   * list of task ids; a single-reference return cannot express that, and no
+   * Lang SDK offers it for now. A Dag that needs several paths together puts
+   * them behind one task, or gates each with its own condition.
+   */
+  switch(decider: TaskRef<TaskRef>): Branch {
+    const taskId = this.#beginBranch(decider, "dag.switch");
+    const candidates: TaskRef[] = [];
+    this.#branches.set(taskId, candidates);
+    this.#wrapDecider(taskId, async (chosen: unknown) => {
+      const known = candidates.map((ref) => ref.taskId);
+      if (!candidates.includes(chosen as TaskRef)) {
+        throw new Error(
+          `Task "${taskId}" of Dag "${this.dagId}" chose ` +
+            `${isTaskRef(chosen) ? `"${chosen.taskId}"` : describeValue(chosen)}, ` +
+            `which is not one of its cases: ${known.join(", ")}`,
+        );
+      }
+      const picked = (chosen as TaskRef).taskId;
+      // The task_id is what a branch puts on the wire, so it is also what a
+      // downstream task reads back from this one's XCom.
+      return { skip: known.filter((id) => id !== picked), result: picked };
+    });
+
+    const branch: Branch = {
+      case: (taskRef) => {
+        this.#validateOwnNode(taskRef, `a case of "${taskId}"`);
+        // Two cases naming one task cannot be told apart by a decision, and one
+        // of them would always be skipped alongside itself.
+        if (candidates.some((candidate) => candidate.taskId === taskRef.taskId)) {
+          throw new Error(
+            `Dag "${this.dagId}" branch "${taskId}" lists "${taskRef.taskId}" twice; ` +
+              "each case names a different task",
+          );
+        }
+        candidates.push(taskRef);
+        decider.before(taskRef);
+        return branch;
+      },
+    };
+    return branch;
   }
 
   /**
@@ -1078,6 +1159,14 @@ export class Dag {
         throw new Error(
           `Condition "${taskId}" of Dag "${this.dagId}" names no branch, so it decides nothing; ` +
             "give it one with dag.if(condition).then(task)",
+        );
+      }
+    }
+    for (const [taskId, cases] of this.#branches) {
+      if (cases.length === 0) {
+        throw new Error(
+          `Branch "${taskId}" of Dag "${this.dagId}" has no cases, so it decides nothing; ` +
+            "give it the tasks to choose between with dag.switch(decider).case(task)",
         );
       }
     }

@@ -175,6 +175,35 @@ A one-sided `if` is a branch with one candidate — it skips `then` and follows 
 `ShortCircuitOperator`, which would also skip the whole downstream closure and ignore trigger rules.
 A guarded task takes no argument for the control edge: a condition's boolean is a signal, not data.
 
+### Multi-way branching: `switch` and `case`
+
+`dag.switch(decider)` follows
+[`airflow-core/adr/lang-sdk/0008`](../../airflow-core/adr/lang-sdk/0008-control-flow-constructs.md)
+decision 2 without divergence: a case **is** the reference the SDK handed back, not a label kept in
+step with one. The decider is one too.
+
+```ts
+const decider = dag.task("pick_path", async ({ rows }: { rows: number }) =>
+  rows > 1000 ? handleLong : handleShort,
+);
+const picked = decider({ rows: extracted });
+
+dag.switch(picked).case(handleLong).case(handleShort);
+```
+
+An earlier draft selected a case by a string label the author writes, on the grounds that a handler's
+function name does not survive bundling. That concern does not apply: a `TaskRef` carries the task's
+own id, which the SDK fixed when the task was declared and esbuild never touches. Selecting by
+reference keeps the compiler checking that a candidate exists, which a label cannot.
+
+The cases chain, as they do in Go. `case` reads the candidate list when the task runs rather than
+when it is declared, which is what lets the chain follow the `dag.switch(...)` call; and unlike a
+condition's `then`, `case` is not a thenable trap, so nothing has to be guarded here.
+
+**No default case**, per decision 3, and **exactly one case is selected**, the limitation that ADR
+records for every Lang SDK. A branch with no case at all decides nothing, and is rejected when the
+Dag is read.
+
 ## Consequences
 
 - One authoring surface (`dag.task()` plus its factory) covers the graph and each task's arguments,

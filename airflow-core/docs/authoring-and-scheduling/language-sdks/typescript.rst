@@ -403,6 +403,31 @@ The side not taken is skipped when the run reaches it, and stays skipped if you 
 the branches named here are skipped, so a task that several branches converge on still runs — unlike
 Python's ``@task.branch``, which skips every immediate downstream it did not follow.
 
+Multi-way branching
+~~~~~~~~~~~~~~~~~~~
+
+``dag.switch`` is the multi-way form: a task whose handler returns one of the cases it is given.
+
+.. code-block:: typescript
+
+    const decider = dag.task("pick_path", async ({ rows }: { rows: number }) =>
+      rows > 1000 ? handleLong : handleShort,
+    );
+    const picked = decider({ rows: extracted });
+
+    dag.switch(picked).case(handleLong).case(handleShort);
+
+A case is the task reference itself, so the compiler checks the candidate exists and renaming a
+handler cannot silently rewire a Dag. The task's own value is the chosen task's id, which a
+downstream task can read from its XCom.
+
+There is no default case. A decider that returns anything outside its cases fails the task, naming
+what it chose and what it could have chosen.
+
+Exactly one case is selected. Python's branch callable may return a list of task ids, and no language
+SDK offers that yet: put the paths that run together behind one task, or gate each with its own
+condition.
+
 ``new Dag`` and ``dag.task`` both take a trailing spec of Airflow options:
 ``{ schedule: "@daily", tags: ["etl"] }`` for the Dag, ``{ retries: 2, retryDelay: 30 }`` for a task.
 
