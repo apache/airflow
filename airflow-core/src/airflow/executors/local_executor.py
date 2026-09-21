@@ -248,7 +248,14 @@ class LocalExecutor(BaseExecutor):
     def _read_results(self):
         try:
             while not self.result_queue.empty():
-                key, state, exc, workload_run_id = self.result_queue.get()
+                result = self.result_queue.get()
+                # Support legacy 3-tuples (key, state, exc) and current 4-tuples
+                # (key, state, exc, workload_run_id) from workers / tests.
+                if len(result) == 3:
+                    key, state, _exc = result
+                    workload_run_id = None
+                else:
+                    key, state, _exc, workload_run_id = result
                 self.change_state(key, state, workload_run_id=workload_run_id)
         except (OSError, EOFError):
             self.log.exception("Error reading from result queue")

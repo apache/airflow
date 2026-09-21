@@ -227,7 +227,7 @@ class CeleryExecutor(BaseExecutor):
             self.workload_publish_retries.pop(key, None)
             if isinstance(result, ExceptionWithTraceback):
                 self.log.error("%s: %s\n%s\n", CELERY_SEND_ERR_MSG_HEADER, result.exception, result.traceback)
-                self.record_event(key, TaskInstanceState.FAILED, None)
+                self._emit_task_event(key, TaskInstanceState.FAILED, None)
             elif result is not None:
                 result.backend = cached_celery_backend
                 self.running.add(key)
@@ -236,9 +236,21 @@ class CeleryExecutor(BaseExecutor):
                 # Store the Celery task_id (workload execution ID) in the event buffer. This will get "overwritten" if the task
                 # has another event, but that is fine, because the only other events are success/failed at
                 # which point we don't need the ID anymore anyway.
-                self.record_event(
+                self._emit_task_event(
                     key, TaskInstanceState.QUEUED, result.task_id, consume_run_id=False
                 )
+
+    def _emit_task_event(self, key, state, info=None, *, consume_run_id: bool | None = None) -> None:
+        """Write an executor event; compatible with cores that lack ``record_event``."""
+        record_event = getattr(self, "record_event", None)
+        if callable(record_event):
+            if consume_run_id is None:
+                record_event(key, state, info)
+            else:
+                record_event(key, state, info, consume_run_id=consume_run_id)
+            return
+        # Older BaseExecutor: event buffer is a plain (state, info) tuple.
+        self.event_buffer[key] = (state, info)
 
     def _send_workloads_to_celery(self, workload_tuples_to_send: Sequence[WorkloadInCelery]):
         from airflow.providers.celery.executors.celery_executor_utils import send_workload_to_executor
@@ -294,9 +306,13 @@ class CeleryExecutor(BaseExecutor):
         remove_running=True,
         workload_run_id: str | None = None,
     ) -> None:
-        super().change_state(
-            key, state, info, remove_running=remove_running, workload_run_id=workload_run_id
-        )
+        try:
+            super().change_state(
+                key, state, info, remove_running=remove_running, workload_run_id=workload_run_id
+            )
+        except TypeError:
+            # Older BaseExecutor.change_state has no workload_run_id kwarg (provider compat matrix).
+            super().change_state(key, state, info, remove_running=remove_running)
         self.workloads.pop(key, None)
 
     def update_task_state(self, key: TaskInstanceKey, state: str, info: Any) -> None:
