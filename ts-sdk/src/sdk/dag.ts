@@ -30,6 +30,7 @@ import {
 } from "../generated/dag-schema-fields.js";
 import { argListValues, isArgList, type ArgList } from "./arg-list.js";
 import { brand, DUPLICATE_COPY_HINT, hasBrand } from "./brand.js";
+import { findTaskCycle, type TaskEdge } from "./cycle.js";
 import type { JsonValue } from "./client-types.js";
 import type { TaskFunction } from "./task.js";
 
@@ -891,9 +892,66 @@ export class Dag {
         );
       }
     }
-    // Last, so a Dag that failed the check reports that same failure again
+    const cycle = findTaskCycle(this.#tasks.keys(), this.#taskEdges());
+    if (cycle) {
+      throw new Error(
+        `Dag "${this.dagId}" has a cycle: ${cycle.join(" >> ")}. An edge drawn with ` +
+          "before() or after() runs in one direction, so a Dag cannot come back to a task it " +
+          "has already run.",
+      );
+    }
+    // Last, so a Dag that failed a check reports that same failure again
     // rather than reporting itself as already read.
     this.#finalized = true;
+  }
+
+  /**
+   * Every edge of this Dag, between task IDs.
+   *
+   * Both kinds are flattened onto the same graph: the wiring a factory call
+   * recorded, and the order-only edges, with a group endpoint standing for
+   * every task the group holds. A cycle can run through one of each, so
+   * searching either kind alone would miss it.
+   */
+  *#taskEdges(): Generator<TaskEdge> {
+    for (const [downstream, inputs] of this.#inputs) {
+      for (const value of Object.values(inputs)) {
+        if (isTaskRef(value)) yield { upstream: value.taskId, downstream };
+      }
+    }
+    for (const { upstream, downstream } of this.#orderEdges.values()) {
+      for (const from of this.#tasksOf(upstream)) {
+        for (const to of this.#tasksOf(downstream)) {
+          yield { upstream: from, downstream: to };
+        }
+      }
+    }
+  }
+
+  /**
+   * The tasks an edge endpoint stands for: the task itself, or every task a
+   * group holds, nested groups included.
+   *
+   * An empty group stands for no task, so an edge to one constrains nothing —
+   * which is also why it cannot put a Dag in a cycle.
+   */
+  #tasksOf(nodeId: string): readonly string[] {
+    const group = this.#groups.get(nodeId);
+    if (group === undefined) return [nodeId];
+    const tasks: string[] = [];
+    // Breadth-first over the group tree, the queue growing as children are
+    // found. It terminates because a child group is only ever created after
+    // its parent, so the tree cannot close on itself.
+    const pending = [group];
+    for (let i = 0; i < pending.length; i += 1) {
+      const current = pending[i]!;
+      tasks.push(...current.taskIds);
+      for (const childId of current.childGroupIds) {
+        const child = this.#groups.get(childId);
+        if (child) pending.push(child);
+      }
+    }
+    return tasks;
   }
 }
 

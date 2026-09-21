@@ -344,6 +344,8 @@ Tasks and groups share one id namespace, as they do in Python, so a Dag cannot h
 group called ``staging``. A ``.`` is what separates a group from what it holds, so it cannot appear in
 an id of either.
 
+.. warning:: A cycle is not allowed. The Dag is rejected when it is read, naming the tasks on the cycle.
+
 ``new Dag`` and ``dag.task`` both take a trailing spec of Airflow options:
 ``{ schedule: "@daily", tags: ["etl"] }`` for the Dag, ``{ retries: 2, retryDelay: 30 }`` for a task.
 

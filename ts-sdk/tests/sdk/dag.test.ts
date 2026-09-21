@@ -981,6 +981,151 @@ describe("Dag", () => {
     });
   });
 
+  describe("cycle detection", () => {
+    it("rejects a cycle drawn with before and after, naming the tasks on it", () => {
+      const dag = new Dag("cyclic");
+      const a = dag.task("a", async () => undefined)();
+      const b = dag.task("b", async () => undefined)();
+      a.before(b);
+      b.before(a);
+
+      expect(() => finalizeDag(dag)).toThrowError(/Dag "cyclic" has a cycle: a >> b >> a/);
+    });
+
+    it("rejects a cycle that runs through both a wired and an order-only edge", () => {
+      // Neither kind forms one alone: the wiring is written first and cannot
+      // point backwards, and there is a single order-only edge.
+      const dag = new Dag("mixed_cycle");
+      const extract = dag.task("extract", async () => 1);
+      const transform = dag.task("transform", async (_: { extracted: number }) => undefined);
+      const extracted = extract();
+      const transformed = transform({ extracted });
+      extracted.after(transformed);
+
+      expect(() => finalizeDag(dag)).toThrowError(
+        /Dag "mixed_cycle" has a cycle: extract >> transform >> extract/,
+      );
+    });
+
+    it("explains that an edge runs in one direction", () => {
+      const dag = new Dag("cyclic");
+      const a = dag.task("a", async () => undefined)();
+      const b = dag.task("b", async () => undefined)();
+      a.before(b).after(b);
+
+      expect(() => finalizeDag(dag)).toThrowError(
+        /a Dag cannot come back to a task it has already run/,
+      );
+    });
+
+    it("surfaces the cycle when a bundle reports what it provides", () => {
+      const dag = new Dag("cyclic");
+      const a = dag.task("a", async () => undefined)();
+      const b = dag.task("b", async () => undefined)();
+      a.before(b);
+      b.before(a);
+
+      expect(() => finalizeBundleDags(new Bundle(dag))).toThrowError(/has a cycle/);
+    });
+
+    it("reports the same cycle on a second read", () => {
+      const dag = new Dag("cyclic");
+      const a = dag.task("a", async () => undefined)();
+      const b = dag.task("b", async () => undefined)();
+      a.before(b);
+      b.before(a);
+
+      expect(() => finalizeDag(dag)).toThrowError(/has a cycle/);
+      expect(() => finalizeDag(dag)).toThrowError(/has a cycle/);
+    });
+
+    it("reports an uncalled task before looking for a cycle", () => {
+      // The simpler fault first: a task with no place in the Dag has no edges
+      // to be on a cycle with.
+      const dag = new Dag("both_wrong");
+      const a = dag.task("a", async () => undefined)();
+      const b = dag.task("b", async () => undefined)();
+      dag.task("orphan", async () => undefined);
+      a.before(b);
+      b.before(a);
+
+      expect(() => finalizeDag(dag)).toThrowError(/Task "orphan" .* is never called/);
+    });
+
+    describe("through groups", () => {
+      it("catches a cycle formed only by group edges", () => {
+        const dag = new Dag("group_cycle");
+        const first = dag.taskGroup("first");
+        first.task("a", async () => undefined)();
+        const second = dag.taskGroup("second");
+        second.task("b", async () => undefined)();
+
+        first.before(second);
+        second.before(first);
+
+        expect(() => finalizeDag(dag)).toThrowError(
+          /Dag "group_cycle" has a cycle: first\.a >> second\.b >> first\.a/,
+        );
+      });
+
+      it("catches a cycle between a group and a task outside it", () => {
+        const dag = new Dag("group_task_cycle");
+        const staging = dag.taskGroup("staging");
+        staging.task("stage", async () => undefined)();
+        const loaded = dag.task("load", async () => undefined)();
+
+        staging.before(loaded);
+        loaded.before(staging);
+
+        expect(() => finalizeDag(dag)).toThrowError(
+          /has a cycle: staging\.stage >> load >> staging\.stage/,
+        );
+      });
+
+      it("sees a task held by a nested group", () => {
+        const dag = new Dag("nested_cycle");
+        const outer = dag.taskGroup("outer");
+        outer.taskGroup("inner").task("deep", async () => undefined)();
+        const loaded = dag.task("load", async () => undefined)();
+
+        outer.before(loaded);
+        loaded.before(outer);
+
+        expect(() => finalizeDag(dag)).toThrowError(
+          /has a cycle: outer\.inner\.deep >> load >> outer\.inner\.deep/,
+        );
+      });
+
+      it("accepts an acyclic Dag whose groups carry edges", () => {
+        const dag = new Dag("acyclic_groups");
+        const staging = dag.taskGroup("staging");
+        const staged = staging.task("stage", async () => undefined)();
+        const checked = staging.task("check", async () => undefined)();
+        staged.before(checked);
+        const loaded = dag.task("load", async () => undefined)();
+        const notified = dag.task("notify", async () => undefined)();
+
+        // Both group members feed load, and both are already ordered against
+        // each other; a group edge must not be read as making that a cycle.
+        staging.before(loaded);
+        loaded.before(notified);
+
+        expect(() => finalizeDag(dag)).not.toThrow();
+      });
+
+      it("accepts an edge to an empty group, which stands for no task", () => {
+        const dag = new Dag("empty_group");
+        const loaded = dag.task("load", async () => undefined)();
+        const empty = dag.taskGroup("empty");
+
+        loaded.before(empty);
+        empty.before(loaded);
+
+        expect(() => finalizeDag(dag)).not.toThrow();
+      });
+    });
+  });
+
   it("exposes its task IDs in attachment order", () => {
     const dag = new Dag("ordered_dag");
     expect(dag.taskIds).toEqual([]);
