@@ -22,8 +22,10 @@ import contextlib
 import http.server
 import os
 import pathlib
+import shlex
 import socketserver
 import subprocess
+import tempfile
 import threading
 import warnings
 from unittest import mock
@@ -91,6 +93,12 @@ def recording_git_server():
     finally:
         server.shutdown()
         server.server_close()
+
+
+def helper_path_from(config_value: str) -> str:
+    """Undo the ``!<quoted path>`` form git needs, the way a shell would."""
+    assert config_value.startswith("!")
+    return shlex.split(config_value[1:])[0]
 
 
 def git_ls_remote(url: str, env: dict[str, str]) -> None:
@@ -646,7 +654,7 @@ class TestGitHook:
                 assert hook.env["GIT_CONFIG_VALUE_0"] == ""
                 assert hook.env["GIT_CONFIG_KEY_1"] == "credential.https://github.com.helper"
                 assert hook.env["GIT_TERMINAL_PROMPT"] == "0"
-                helper_path = hook.env["GIT_CONFIG_VALUE_1"]
+                helper_path = helper_path_from(hook.env["GIT_CONFIG_VALUE_1"])
                 assert os.path.exists(helper_path)
 
                 # The credential is passed in the environment, never written to the script
@@ -729,6 +737,32 @@ class TestGitHook:
 
         assert repo_received == [f"token_user:{ACCESS_TOKEN}"]
         assert ACCESS_TOKEN not in "".join(other_received)
+
+    def test_credential_helper_survives_a_temp_dir_containing_spaces(
+        self, create_connection_without_db, monkeypatch, tmp_path
+    ):
+        """git runs the helper value through a shell, so an unquoted path would split on space."""
+        spaced_tmp = tmp_path / "tmp dir with spaces"
+        spaced_tmp.mkdir()
+        # gettempdir() caches its answer, so TMPDIR alone would not be read by this point
+        monkeypatch.setattr(tempfile, "tempdir", str(spaced_tmp))
+
+        with recording_git_server() as (port, received):
+            create_connection_without_db(
+                Connection(
+                    conn_id="git_spaced_tmpdir",
+                    host=f"http://127.0.0.1:{port}/repo.git",
+                    login="token_user",
+                    password=ACCESS_TOKEN,
+                    conn_type="git",
+                )
+            )
+            hook = GitHook(git_conn_id="git_spaced_tmpdir")
+
+            with hook.configure_hook_env():
+                git_ls_remote(f"http://127.0.0.1:{port}/repo.git", hook.env)
+
+        assert received == [f"token_user:{ACCESS_TOKEN}"]
 
     def test_token_credential_env_skipped_for_ssh_transport(self, create_connection_without_db):
         create_connection_without_db(
@@ -902,7 +936,8 @@ class TestGitHook:
             assert hook.env["AIRFLOW_GIT_USER"] == "x-access-token"
             assert hook.env["AIRFLOW_GIT_TOKEN"] == "ghs_installation_token"
             # Nothing sensitive reaches the script, and no prompt-matching remains
-            assert "ghs_installation_token" not in pathlib.Path(hook.env["GIT_CONFIG_VALUE_1"]).read_text()
+            helper_path = helper_path_from(hook.env["GIT_CONFIG_VALUE_1"])
+            assert "ghs_installation_token" not in pathlib.Path(helper_path).read_text()
             assert "GIT_ASKPASS" not in hook.env
 
         assert "AIRFLOW_GIT_TOKEN" not in os.environ

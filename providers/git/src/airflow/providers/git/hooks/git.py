@@ -313,7 +313,9 @@ printf 'username=%s\npassword=%s\n' "$AIRFLOW_GIT_USER" "$AIRFLOW_GIT_TOKEN"
                 f"GIT_CONFIG_KEY_{index}": f"credential.{scope}.helper",
                 f"GIT_CONFIG_VALUE_{index}": "",
                 f"GIT_CONFIG_KEY_{index + 1}": f"credential.{scope}.helper",
-                f"GIT_CONFIG_VALUE_{index + 1}": helper_path,
+                # git runs the value through a shell, so a temp dir containing a space would
+                # split into two words. ``!`` marks it as a command so the quoting survives.
+                f"GIT_CONFIG_VALUE_{index + 1}": "!" + shlex.quote(helper_path),
                 "GIT_TERMINAL_PROMPT": "0",
                 "AIRFLOW_GIT_USER": self.user_name,
                 "AIRFLOW_GIT_TOKEN": self.auth_token,
