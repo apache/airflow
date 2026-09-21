@@ -556,6 +556,78 @@ def test_run_workload_passes_team_name_to_connection_test_supervisor(mock_superv
     )
 
 
+@mock.patch("airflow.sdk.execution_time.supervisor.supervise_task")
+@pytest.mark.parametrize(
+    ("config_overrides", "expected"),
+    [
+        pytest.param({}, False, id="unset-defaults-to-false"),
+        pytest.param({("logging", "task_logs_to_stdout"): "True"}, True, id="logging-conf-true"),
+        pytest.param({("logging", "task_logs_to_stdout"): "False"}, False, id="logging-conf-false"),
+    ],
+)
+def test_run_workload_defaults_subprocess_logs_to_stdout_from_logging_conf(
+    mock_supervise_task, config_overrides, expected
+):
+    """When the caller omits subprocess_logs_to_stdout, it falls back to [logging] task_logs_to_stdout."""
+    mock_supervise_task.return_value = 0
+    wl = workloads.ExecuteTask(
+        ti=workloads.TaskInstance(
+            id="00000000-0000-0000-0000-000000000001",
+            dag_version_id="00000000-0000-0000-0000-000000000002",
+            task_id="test_task",
+            dag_id="test_dag",
+            run_id="test_run",
+            try_number=1,
+            map_index=-1,
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
+        ),
+        dag_rel_path="test_dag.py",
+        bundle_info=BundleInfo(name="test-bundle", version=None),
+        token="test-token",
+        log_path="test.log",
+    )
+
+    with conf_vars(config_overrides):
+        BaseExecutor.run_workload(wl, server="http://localhost:8080/execution/")
+
+    assert mock_supervise_task.call_args.kwargs["subprocess_logs_to_stdout"] is expected
+
+
+def test_run_workload_explicit_subprocess_logs_to_stdout_overrides_logging_conf():
+    """An explicit subprocess_logs_to_stdout argument is not overridden by [logging] task_logs_to_stdout."""
+    wl = workloads.ExecuteTask(
+        ti=workloads.TaskInstance(
+            id="00000000-0000-0000-0000-000000000001",
+            dag_version_id="00000000-0000-0000-0000-000000000002",
+            task_id="test_task",
+            dag_id="test_dag",
+            run_id="test_run",
+            try_number=1,
+            map_index=-1,
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
+        ),
+        dag_rel_path="test_dag.py",
+        bundle_info=BundleInfo(name="test-bundle", version=None),
+        token="test-token",
+        log_path="test.log",
+    )
+
+    with (
+        conf_vars({("logging", "task_logs_to_stdout"): "True"}),
+        mock.patch("airflow.sdk.execution_time.supervisor.supervise_task") as mock_supervise_task,
+    ):
+        mock_supervise_task.return_value = 0
+        BaseExecutor.run_workload(
+            wl, server="http://localhost:8080/execution/", subprocess_logs_to_stdout=False
+        )
+
+    assert mock_supervise_task.call_args.kwargs["subprocess_logs_to_stdout"] is False
+
+
 def test_trigger_connection_tests_skipped_when_not_supported():
     """trigger_connection_tests is a no-op when supports_connection_test is False."""
     executor = BaseExecutor()
