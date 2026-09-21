@@ -48,3 +48,24 @@ It allows you to send and receive messages using SQS queues in your Airflow work
 
 For a complete example, see:
 :mod:`tests.system.amazon.aws.example_dag_sqs_message_queue_trigger`
+
+
+Amazon Kinesis Data Streams Provider
+------------------------------------
+
+Implemented by :class:`~airflow.providers.amazon.aws.queues.kinesis.KinesisMessageQueueProvider`
+
+The Amazon Kinesis Data Streams Provider is a :class:`~airflow.providers.common.messaging.providers.base_provider.BaseMessageQueueProvider` that uses
+Amazon Kinesis Data Streams as the underlying messaging system.
+It enables event-driven scheduling with :class:`~airflow.providers.common.messaging.triggers.msg_queue.MessageQueueTrigger` using ``scheme="kinesis"``.
+
+.. include:: /../src/airflow/providers/amazon/aws/queues/kinesis.py
+    :start-after: [START kinesis_message_queue_provider_description]
+    :end-before: [END kinesis_message_queue_provider_description]
+
+Delivery semantics and considerations:
+
+* **Record payload**: Record data in the trigger event payload (``message_batch``) is base64-encoded and must be decoded by consuming tasks.
+* **Shard iterator type**: When no checkpoint exists, ``LATEST`` only sees records that arrive after the watcher starts polling. If the watcher is down or new shards are discovered, earlier records may be skipped. Use ``TRIM_HORIZON`` to process from the oldest available record.
+* **Checkpointing**: Checkpointing shard progress is supported when a single asset is watched in an Airflow runtime providing an asset state store.
+* **Best-effort delivery**: Delivery is best-effort. In the event of triggerer restarts or transient failures, records may be re-delivered or missed around failure windows. It does not provide exactly-once guarantees.

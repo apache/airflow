@@ -1584,5 +1584,8 @@ def get_provider_info():
         ],
         "auth-managers": ["airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager"],
         "cli": ["airflow.providers.amazon.aws.cli.definition.get_aws_cli_commands"],
-        "queues": ["airflow.providers.amazon.aws.queues.sqs.SqsMessageQueueProvider"],
+        "queues": [
+            "airflow.providers.amazon.aws.queues.kinesis.KinesisMessageQueueProvider",
+            "airflow.providers.amazon.aws.queues.sqs.SqsMessageQueueProvider",
+        ],
     }
