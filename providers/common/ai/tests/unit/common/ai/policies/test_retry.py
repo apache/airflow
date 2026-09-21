@@ -234,14 +234,14 @@ class TestClassifierRetryPolicyConstruction:
         policy = ClassifierRetryPolicy(
             llm_conn_id="jev",
             min_confidence=0.8,
-            on_uncertain=LLMRetryPolicy(llm_conn_id="text", timeout=7.0),
+            fallback_policy=LLMRetryPolicy(llm_conn_id="text", timeout=7.0),
         )
 
         copied = copy.deepcopy(policy)
 
-        assert isinstance(copied.on_uncertain, LLMRetryPolicy)
-        assert copied.on_uncertain is not policy.on_uncertain
-        assert copied.on_uncertain.timeout == 7.0
+        assert isinstance(copied.fallback_policy, LLMRetryPolicy)
+        assert copied.fallback_policy is not policy.fallback_policy
+        assert copied.fallback_policy.timeout == 7.0
 
     @patch(HOOK, autospec=True)
     def test_caller_mapping_is_copied(self, mock_hook_cls):
@@ -912,7 +912,7 @@ class TestOnUncertain:
         return ClassifierRetryPolicy(
             llm_conn_id="jev",
             min_confidence=bar,
-            on_uncertain=LLMRetryPolicy(llm_conn_id="text"),
+            fallback_policy=LLMRetryPolicy(llm_conn_id="text"),
             fallback_rules=rules,
         )
 
@@ -930,9 +930,9 @@ class TestOnUncertain:
         assert decision.action == RetryAction.FAIL
         assert decision.reason == "escalated (model_error); auth: expired key"
 
-    def test_on_uncertain_must_be_a_retry_policy(self):
-        with pytest.raises(TypeError, match="on_uncertain must be a RetryPolicy"):
-            ClassifierRetryPolicy(llm_conn_id="jev", min_confidence=0.5, on_uncertain="llm")  # type: ignore[arg-type]
+    def test_fallback_policy_must_be_a_retry_policy(self):
+        with pytest.raises(TypeError, match="fallback_policy must be a RetryPolicy"):
+            ClassifierRetryPolicy(llm_conn_id="jev", min_confidence=0.5, fallback_policy="llm")  # type: ignore[arg-type]
 
     @patch(HOOK, autospec=True)
     def test_confident_classifier_answer_never_consults_the_llm(self, mock_hook_cls):
@@ -999,7 +999,7 @@ class TestOnUncertain:
         inner = MagicMock(spec=LLMRetryPolicy)
         inner.evaluate.return_value = RetryDecision.fail(reason="inner rule")
         policy = ClassifierRetryPolicy(
-            llm_conn_id="nonexistent", min_confidence=0.8, on_uncertain=inner, fallback_rules=self.RULES
+            llm_conn_id="nonexistent", min_confidence=0.8, fallback_policy=inner, fallback_rules=self.RULES
         )
 
         decision = policy.evaluate(RuntimeError("?"), try_number=1, max_tries=3)
@@ -1012,7 +1012,7 @@ class TestOnUncertain:
         """An ExceptionRetryPolicy with default=RETRY returns RETRY and no reason when nothing matches."""
         inner = MagicMock(spec=LLMRetryPolicy)
         inner.evaluate.return_value = RetryDecision.retry(delay=timedelta(seconds=9))
-        policy = ClassifierRetryPolicy(llm_conn_id="nonexistent", min_confidence=0.8, on_uncertain=inner)
+        policy = ClassifierRetryPolicy(llm_conn_id="nonexistent", min_confidence=0.8, fallback_policy=inner)
 
         decision = policy.evaluate(RuntimeError("?"), try_number=1, max_tries=3)
 
@@ -1034,12 +1034,12 @@ class TestOnUncertain:
             ),
         ],
     )
-    def test_any_default_from_on_uncertain_lets_the_outer_rules_run(self, inner_decision, caplog):
+    def test_any_default_from_fallback_policy_lets_the_outer_rules_run(self, inner_decision, caplog):
         """Only RETRY or FAIL ends the chain; the reason text on a DEFAULT does not make it a decision."""
         inner = MagicMock(spec=LLMRetryPolicy)
         inner.evaluate.return_value = inner_decision
         policy = ClassifierRetryPolicy(
-            llm_conn_id="nonexistent", min_confidence=0.8, on_uncertain=inner, fallback_rules=self.RULES
+            llm_conn_id="nonexistent", min_confidence=0.8, fallback_policy=inner, fallback_rules=self.RULES
         )
 
         with caplog.at_level(logging.INFO, logger="airflow.providers.common.ai.policies.retry"):
@@ -1050,7 +1050,7 @@ class TestOnUncertain:
         assert decision.reason == "classifier answer not applied (model_error); rule"
         assert "decided nothing" in caplog.text
 
-    def test_on_uncertain_raising_falls_to_the_outer_rules(self, caplog):
+    def test_fallback_policy_raising_falls_to_the_outer_rules(self, caplog):
         """A third-party policy that blows up must not take the classifier's rules floor with it."""
 
         class Boom(RetryPolicy):
@@ -1058,7 +1058,7 @@ class TestOnUncertain:
                 raise RuntimeError("policy bug")
 
         policy = ClassifierRetryPolicy(
-            llm_conn_id="nonexistent", min_confidence=0.8, on_uncertain=Boom(), fallback_rules=self.RULES
+            llm_conn_id="nonexistent", min_confidence=0.8, fallback_policy=Boom(), fallback_rules=self.RULES
         )
 
         with caplog.at_level(logging.ERROR, logger="airflow.providers.common.ai.policies.retry"):
@@ -1066,17 +1066,17 @@ class TestOnUncertain:
 
         assert decision.action == RetryAction.RETRY
         assert decision.reason == "classifier answer not applied (model_error); rule"
-        assert "on_uncertain policy failed" in caplog.text
+        assert "fallback_policy failed" in caplog.text
 
     @patch(HOOK, autospec=True)
     def test_nested_classifiers_both_down_still_reach_the_outer_fail_rule(self, mock_hook_cls):
-        """A ClassifierRetryPolicy as on_uncertain falls back with a DEFAULT of its own; the outer rules must still run."""
+        """A ClassifierRetryPolicy as fallback_policy falls back with a DEFAULT of its own; the outer rules must still run."""
         mock_hook_cls.return_value.create_agent.return_value.run_sync.side_effect = TimeoutError("down")
         inner = ClassifierRetryPolicy(llm_conn_id="jev_b", min_confidence=0.5)
         policy = ClassifierRetryPolicy(
             llm_conn_id="jev_a",
             min_confidence=0.8,
-            on_uncertain=inner,
+            fallback_policy=inner,
             fallback_rules=[
                 RetryRule(exception=PermissionError, action=RetryAction.FAIL, reason="never retry 403")
             ],
@@ -1120,7 +1120,7 @@ class TestLLMRetryPolicy:
             12.0,
         )
 
-    @pytest.mark.parametrize("kwarg", ["categories", "min_confidence", "on_uncertain"])
+    @pytest.mark.parametrize("kwarg", ["categories", "min_confidence", "fallback_policy"])
     def test_has_no_classifier_arguments(self, kwarg):
         """Those belong to ClassifierRetryPolicy; a text-model user never sees them."""
         with pytest.raises(TypeError, match="unexpected keyword argument"):

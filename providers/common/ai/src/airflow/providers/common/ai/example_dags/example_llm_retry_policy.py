@@ -141,7 +141,7 @@ try:
         llm_conn_id="jev_default",
         min_confidence=0.8,
         categories=snowflake_policy.categories,
-        on_uncertain=LLMRetryPolicy(llm_conn_id="pydanticai_default", timeout=30.0),
+        fallback_policy=LLMRetryPolicy(llm_conn_id="pydanticai_default", timeout=30.0),
         fallback_rules=[
             RetryRule(exception=ConnectionError, action=RetryAction.RETRY, retry_delay=timedelta(seconds=30)),
         ],

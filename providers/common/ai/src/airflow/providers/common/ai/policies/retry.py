@@ -28,7 +28,7 @@ Model-backed retry policies, one per layer of a ladder from hardcoded to reasoni
 * **LLM.** :class:`LLMRetryPolicy`: a text model classifies the failure, decides whether to
   retry and how long to wait from ``instructions``, and explains itself.
 
-They chain: ``ClassifierRetryPolicy(..., on_uncertain=LLMRetryPolicy(...))`` consults the
+They chain: ``ClassifierRetryPolicy(..., fallback_policy=LLMRetryPolicy(...))`` consults the
 LLM when the classifier is unsure or unreachable, and whatever no layer decides falls to the
 rules.
 
@@ -345,7 +345,7 @@ class LLMRetryPolicy(_ModelRetryPolicy):
     to retry, how long to wait, and why, all steered by ``instructions``. This is
     the reasoning layer; for a cheap typed decision from a classifier model such as
     TypeSafe's Jev, use :class:`ClassifierRetryPolicy`, which can name this policy as
-    its ``on_uncertain``.
+    its ``fallback_policy``.
 
     When the LLM call itself fails, the policy falls back to ``fallback_rules``
     (if provided) or returns DEFAULT to use the task's standard retry logic.
@@ -436,7 +436,7 @@ class ClassifierRetryPolicy(_ModelRetryPolicy):
     milliseconds and with a confidence; a text model answers it too.
 
     When the model call fails, or the answer is under its confidence bar, the policy
-    consults ``on_uncertain`` if set, then ``fallback_rules``, then returns DEFAULT to use
+    consults ``fallback_policy`` if set, then ``fallback_rules``, then returns DEFAULT to use
     the task's standard retry logic.
 
     :param llm_conn_id: Airflow connection ID for the model.
@@ -447,7 +447,7 @@ class ClassifierRetryPolicy(_ModelRetryPolicy):
         themselves, and what each one means, are ``categories``.
     :param fallback_rules: Optional list of
         :class:`~airflow.sdk.definitions.retry_policy.RetryRule` applied when the model
-        call fails or the answer is under its confidence bar and ``on_uncertain`` decided
+        call fails or the answer is under its confidence bar and ``fallback_policy`` decided
         nothing. Provides a deterministic safety net.
     :param timeout: Maximum seconds to wait for the model response before
         falling back.  Defaults to 30s.
@@ -460,11 +460,11 @@ class ClassifierRetryPolicy(_ModelRetryPolicy):
         policy to act on it. ``None`` (default) is no bar: the answer is acted on whatever
         the confidence. Confidence comes from models that report one, such as a classifier
         model, in ``provider_details``. Under the bar, or when a bar is set and the model
-        reported no confidence, the answer is discarded and ``on_uncertain``, then
+        reported no confidence, the answer is discarded and ``fallback_policy``, then
         ``fallback_rules``, then the task's own retry behaviour apply, so swapping the
         connection to a text model does not silently switch off a control the author set.
         A category's own ``min_confidence`` overrides this one for that category.
-    :param on_uncertain: A policy to consult when the answer is under its bar, reports no
+    :param fallback_policy: A policy to consult when the answer is under its bar, reports no
         confidence, or the model call fails; typically an :class:`LLMRetryPolicy` on a text
         model, so the classifier handles the clear cases and a reasoning model the rest.
         Its RETRY or FAIL is used, with the reason prefixed by why the classifier's answer
@@ -488,7 +488,7 @@ class ClassifierRetryPolicy(_ModelRetryPolicy):
         *,
         categories: Mapping[str, ErrorCategory] | None = None,
         min_confidence: float | None = None,
-        on_uncertain: RetryPolicy | None = None,
+        fallback_policy: RetryPolicy | None = None,
         redactor: Callable[[str], str] | None = None,
         redact_exception: bool = True,
         max_exception_length: int = 4096,
@@ -507,9 +507,9 @@ class ClassifierRetryPolicy(_ModelRetryPolicy):
         self.categories: dict[str, ErrorCategory] = self._validate_categories(
             DEFAULT_CATEGORIES if categories is None else categories
         )
-        if on_uncertain is not None and not isinstance(on_uncertain, RetryPolicy):
-            raise TypeError(f"on_uncertain must be a RetryPolicy, got {type(on_uncertain).__name__}.")
-        self.on_uncertain = on_uncertain
+        if fallback_policy is not None and not isinstance(fallback_policy, RetryPolicy):
+            raise TypeError(f"fallback_policy must be a RetryPolicy, got {type(fallback_policy).__name__}.")
+        self.fallback_policy = fallback_policy
 
     def _validate_categories(self, categories: Mapping[str, ErrorCategory]) -> dict[str, ErrorCategory]:
         if not isinstance(categories, Mapping):
@@ -562,9 +562,9 @@ class ClassifierRetryPolicy(_ModelRetryPolicy):
             outcome = "model_error"
         if isinstance(outcome, RetryDecision):
             return outcome
-        if self.on_uncertain is not None:
+        if self.fallback_policy is not None:
             escalated = self._escalate(
-                self.on_uncertain, exception, try_number, max_tries, context, why=outcome
+                self.fallback_policy, exception, try_number, max_tries, context, why=outcome
             )
             if escalated is not None:
                 return escalated
@@ -581,7 +581,7 @@ class ClassifierRetryPolicy(_ModelRetryPolicy):
         why: str,
     ) -> RetryDecision | None:
         """
-        Consult ``on_uncertain`` and return its RETRY or FAIL, or None when it decided nothing.
+        Consult ``fallback_policy`` and return its RETRY or FAIL, or None when it decided nothing.
 
         Only RETRY and FAIL are decisions. DEFAULT means the policy had nothing to add to the
         task's own settings, whatever reason it attached (its own fallback message, or a matched
@@ -593,7 +593,7 @@ class ClassifierRetryPolicy(_ModelRetryPolicy):
         try:
             decision = policy.evaluate(exception, try_number, max_tries, context)
         except Exception:
-            log.exception("on_uncertain policy failed, using fallback rules")
+            log.exception("fallback_policy failed, using fallback rules")
             return None
         if decision.action is RetryAction.DEFAULT:
             log.info(

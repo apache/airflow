@@ -55,7 +55,7 @@ fully model-driven, with the SDK's ``ExceptionRetryPolicy`` as the bottom rung:
 
 Each class has only the arguments its layer needs. ``LLMRetryPolicy`` is the
 policy this guide has always described and is unchanged. The layers chain:
-``on_uncertain`` on a ``ClassifierRetryPolicy`` names the policy to consult when
+``fallback_policy`` on a ``ClassifierRetryPolicy`` names the policy to consult when
 the classifier is unsure or unreachable, typically an ``LLMRetryPolicy`` on a
 text model, so the cheap typed model handles the clear cases and the reasoning
 model the rest, and the rules catch what neither decides. See
@@ -140,7 +140,7 @@ If the model call fails (provider down, timeout, bad credentials), the policy
 falls back to ``fallback_rules`` if configured, or to the task's standard
 retry behaviour. ``ClassifierRetryPolicy`` does the same when the model cannot
 produce one of the categories even after pydantic-ai re-prompts it, or when
-its answer is under the confidence bar, after consulting ``on_uncertain`` if
+its answer is under the confidence bar, after consulting ``fallback_policy`` if
 set; its fallback decision's reason then starts with
 ``classifier answer not applied (model_error)``, ``(below_threshold)`` or
 ``(missing_confidence)`` so a ``retry_reason`` read later is not mistaken for a
@@ -320,7 +320,7 @@ Escalating to an LLM
 --------------------
 
 A classifier is cheap and fast, and a text model can reason about a failure it
-has never seen a category for. ``on_uncertain`` puts one behind the other.
+has never seen a category for. ``fallback_policy`` puts one behind the other.
 ``snowflake_policy`` is the classifier policy from the previous section; the
 chain reuses its category table:
 
@@ -334,22 +334,22 @@ The order of events on a failure:
 1. The classifier names a category. At or above the bar, its category's action
    and delay apply and the text model is never called.
 2. Under the bar, with no confidence reported, or if the classifier call fails,
-   the ``on_uncertain`` policy runs. A text-model ``LLMRetryPolicy`` there
+   the ``fallback_policy`` policy runs. A text-model ``LLMRetryPolicy`` there
    classifies the failure with its own instructions and chooses retry and delay
    itself. Its decision is used, with the reason prefixed by why the classifier's
    answer was not: ``escalated (below_threshold); rate_limit: 429 with a
    Retry-After header``.
 3. If that policy returns DEFAULT, whatever reason it attached, it decided
    nothing: the outer ``fallback_rules`` apply, then the task's own retry
-   behaviour. Only a RETRY or FAIL from ``on_uncertain`` ends the chain, so an
+   behaviour. Only a RETRY or FAIL from ``fallback_policy`` ends the chain, so an
    outer rule such as ``PermissionError -> FAIL`` still holds when both models
    are unreachable.
 
-``on_uncertain`` accepts any ``RetryPolicy``. An ``ExceptionRetryPolicy`` works
+``fallback_policy`` accepts any ``RetryPolicy``. An ``ExceptionRetryPolicy`` works
 there too; its ``default`` is what it returns when none of its rules match, so
 ``default=RetryAction.FAIL`` fails every unsure classification and the outer
 rules never run. Without ``min_confidence`` the classifier's answer is always
-acted on, and ``on_uncertain`` is consulted only when the classifier call itself
+acted on, and ``fallback_policy`` is consulted only when the classifier call itself
 fails. Both model calls run on the worker at failure time, so a task that
 escalates pays for two before its retry is scheduled; ``timeout`` on each policy
 bounds that.
@@ -504,7 +504,7 @@ Parameters
 ----------
 
 Both policies share every parameter below except ``categories``,
-``min_confidence`` and ``on_uncertain``, which exist only on
+``min_confidence`` and ``fallback_policy``, which exist only on
 ``ClassifierRetryPolicy``.
 
 .. list-table::
@@ -529,7 +529,7 @@ Both policies share every parameter below except ``categories``,
      - None
      - List of ``RetryRule`` objects used when the model call fails or, on
        ``ClassifierRetryPolicy``, when the answer is under its confidence bar and
-       ``on_uncertain`` decided nothing.
+       ``fallback_policy`` decided nothing.
    * - ``timeout``
      - 30.0
      - Max seconds to wait for the LLM response before falling back.
@@ -545,10 +545,10 @@ Both policies share every parameter below except ``categories``,
      - ``ClassifierRetryPolicy`` only. The confidence, from 0 to 1, the model's
        answer needs for the policy to act on it. Under the bar, or with a bar
        set and no confidence reported, the answer is discarded and
-       ``on_uncertain`` if set, else ``fallback_rules`` then the task's own
+       ``fallback_policy`` if set, else ``fallback_rules`` then the task's own
        retry behaviour, apply. A category's own ``min_confidence`` overrides it
        for that category.
-   * - ``on_uncertain``
+   * - ``fallback_policy``
      - None
      - ``ClassifierRetryPolicy`` only. A ``RetryPolicy`` to consult when the
        classifier is under its bar, reports no confidence, or cannot be

@@ -116,7 +116,7 @@ Where it fits in this provider
      - Yes
      - The model names one of the policy's ``categories`` and nothing else; retry or
        fail, the delay and the confidence bar come from each category's entry in the
-       worker. Set ``min_confidence`` and an unsure answer goes to ``on_uncertain``
+       worker. Set ``min_confidence`` and an unsure answer goes to ``fallback_policy``
        (typically an ``LLMRetryPolicy`` on a text model), then ``fallback_rules``, then
        the task's own retry behaviour, instead of ending the task on the model's say-so.
        ``LLMRetryPolicy`` itself asks for free text, which a classifier model refuses.
@@ -143,7 +143,7 @@ and :class:`~airflow.providers.common.ai.operators.llm.LLMOperator` take a
 the task, before anything downstream runs on it, and record the confidence, the
 probabilities and the bar in the ``decision`` XCom (see :doc:`operators/llm_branch`).
 :doc:`ClassifierRetryPolicy <retry_policies>` takes the same ``min_confidence`` and hands an
-unsure answer to ``on_uncertain``, then its deterministic fallback rules. In the branch operator and the retry policy, a
+unsure answer to ``fallback_policy``, then its deterministic fallback rules. In the branch operator and the retry policy, a
 per-option bar lets the choice whose wrong pick costs most demand more certainty than the rest.
 
 Outside those, read it yourself. ``AgentOperator`` carries it inside the ``message_history``
