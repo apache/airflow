@@ -257,7 +257,7 @@ def _recalculate_dagrun_queued_at_deadlines(dagrun: DagRun, *, session: Session)
         )
         interval = decoded_alert.interval
         if not isinstance(interval, timedelta):
-            interval = interval.resolve()
+            interval = interval.resolve(session=session)
 
         new_deadline_time = decoded_alert.reference.evaluate_with(
             session=session,
