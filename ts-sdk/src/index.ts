@@ -28,6 +28,7 @@ export { SUPERVISOR_API_VERSION } from "./coordinator/index.js";
 export type { ArgList } from "./sdk/arg-list.js";
 export type { ArgNameMap } from "./sdk/arg-names.js";
 export type { Registerable } from "./sdk/bundle.js";
+export type { TriggerDagRunOptions, TriggerDagRunSpec } from "./sdk/operators.js";
 export type {
   Branch,
   Condition,

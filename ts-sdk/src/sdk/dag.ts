@@ -32,6 +32,13 @@ import { argListValues, isArgList, type ArgList } from "./arg-list.js";
 import { brand, DUPLICATE_COPY_HINT, hasBrand } from "./brand.js";
 import { findTaskCycle, type TaskEdge } from "./cycle.js";
 import type { JsonValue } from "./client-types.js";
+import {
+  isOperatorRef,
+  triggerDagRun,
+  type OperatorRef,
+  type TriggerDagRunOptions,
+  type TriggerDagRunSpec,
+} from "./operators.js";
 import { getClient, type TaskFunction } from "./task.js";
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
@@ -227,6 +234,10 @@ export interface TaskGroupRef extends Node {
     handler: (args: TArgs) => TReturn | Promise<TReturn>,
     options?: TaskOptions,
   ): TaskFactory<TArgs, TReturn>;
+  /** Declare a task in this group that serializes as a Python operator. */
+  task(taskId: string, operator: OperatorRef, options?: TaskOptions): TaskFactory;
+  /** Trigger another Dag's run from this group; its id carries the group prefix. */
+  triggerDagRun(spec: TriggerDagRunSpec, taskSpec?: TaskSpec): TaskRef;
   /** Nest a group inside this one. */
   taskGroup(groupId: string): TaskGroupRef;
   before(...downstream: readonly Node[]): TaskGroupRef;
@@ -444,10 +455,16 @@ export interface Branch {
   case(taskRef: TaskRef): Branch;
 }
 
-/** Per-task record a Dag retains: the reference, the handler, and its spec. */
+/** Per-task record a Dag retains: the reference, what runs it, and its spec.
+ *
+ *  Exactly one of `fn` and `operator` is set. A task with a TypeScript body
+ *  has a handler this runtime dispatches; one declared from an
+ *  {@link OperatorRef} has none, because a Python worker runs it. */
 export interface TaskRecord {
   readonly task: TaskRef;
-  readonly fn: TaskFunction;
+  readonly fn?: TaskFunction;
+  /** The Python operator this task serializes as, when it has no body here. */
+  readonly operator?: OperatorRef;
   readonly spec: TaskSpec;
   /**
    * Whether this task decides which of its downstream tasks to skip.
@@ -585,6 +602,14 @@ export class Dag {
     options?: TaskOptions,
   ): TaskFactory<TArgs, TReturn>;
   /**
+   * Declare a task that serializes as a Python operator and carries no
+   * TypeScript body, such as `triggerDagRun(...)`.
+   *
+   * It takes no arguments from the Dag — its configuration is the operator's
+   * own — so the factory is called with none. It carries edges like any task.
+   */
+  task(taskId: string, operator: OperatorRef, options?: TaskOptions): TaskFactory<[]>;
+  /**
    * Declare a task whose id is the handler's function name.
    *
    * `airflow-ts-pack` keeps handler names intact, so minification cannot change
@@ -596,8 +621,8 @@ export class Dag {
     options?: TaskOptions,
   ): TaskFactory<TArgs, TReturn>;
   task<TArgs extends object | void = void, TReturn = unknown>(
-    taskIdOrHandler: string | ((args: TArgs) => TReturn | Promise<TReturn>),
-    handlerOrOptions?: ((args: TArgs) => TReturn | Promise<TReturn>) | TaskOptions,
+    taskIdOrHandler: string | ((args: TArgs) => TReturn | Promise<TReturn>) | OperatorRef,
+    handlerOrOptions?: ((args: TArgs) => TReturn | Promise<TReturn>) | OperatorRef | TaskOptions,
     maybeOptions?: TaskOptions,
   ): TaskFactory<TArgs, TReturn> {
     return this.#addTask(undefined, taskIdOrHandler, handlerOrOptions, maybeOptions);
@@ -695,6 +720,14 @@ export class Dag {
     }
     this.#validateOwnNode(condition, `the condition given to ${verb}`);
     const taskId = condition.taskId;
+    // A task declared from an operator runs in Python and has no handler here,
+    // so there is nothing to read a decision from and nothing to send the skip.
+    if (this.#tasks.get(taskId)!.fn === undefined) {
+      throw new Error(
+        `Task "${taskId}" of Dag "${this.dagId}" is a Python operator, so it cannot decide a ` +
+          `branch; give ${verb}(...) a task with a TypeScript handler`,
+      );
+    }
     if (this.#conditions.has(taskId) || this.#branches.has(taskId)) {
       throw new Error(
         `Task "${taskId}" of Dag "${this.dagId}" already decides a branch; ` +
@@ -717,7 +750,7 @@ export class Dag {
     decide: (returned: unknown) => Promise<{ skip: string[]; result: unknown }>,
   ): void {
     const record = this.#tasks.get(taskId)!;
-    const inner = record.fn;
+    const inner = record.fn!;
     const wrapped: TaskFunction = async (args) => {
       const { skip, result } = await decide(await inner(args as never));
       if (skip.length > 0) {
@@ -800,6 +833,57 @@ export class Dag {
   }
 
   /**
+   * Trigger another Dag's run, as a task of this Dag.
+   *
+   * ```ts
+   * const trigger = dag.triggerDagRun({
+   *   taskId: "trigger_downstream",
+   *   dagId: "downstream_etl",
+   *   waitForCompletion: true,
+   * });
+   * trigger.after(loaded);
+   * ```
+   *
+   * The task wraps no TypeScript function: it serializes as
+   * `TriggerDagRunOperator` and a **Python** worker runs it, which is why the
+   * SDK needs no deferral mechanism of its own to offer `waitForCompletion`,
+   * `deferrable`, `pokeInterval` and the state options. Because it runs in
+   * Python it inherits no queue from this Dag, so the deployment needs the
+   * standard provider installed and a Python worker able to pick it up.
+   *
+   * There is nothing to call: a task with no TypeScript arguments has nothing
+   * for a factory call to supply, so this returns the reference directly.
+   *
+   * Templated arguments pass through untouched: `{{ ds }}` in a `conf` value is
+   * rendered server-side, where rendering already happens.
+   */
+  triggerDagRun(spec: TriggerDagRunSpec, taskSpec: TaskSpec = {}): TaskRef {
+    return this.#addTriggerDagRun(undefined, spec, taskSpec);
+  }
+
+  #addTriggerDagRun(
+    groupId: string | undefined,
+    spec: TriggerDagRunSpec,
+    taskSpec: TaskSpec,
+  ): TaskRef {
+    const { taskId, ...options } = isPlainRecord(spec)
+      ? (spec as TriggerDagRunSpec & { taskId?: unknown })
+      : ({} as TriggerDagRunSpec & { taskId?: unknown });
+    if (typeof taskId !== "string" || taskId.length === 0) {
+      throw new Error(
+        `A triggerDagRun task of Dag "${this.dagId}" has no taskId; name it with ` +
+          'dag.triggerDagRun({ taskId: "trigger_downstream", dagId: "..." })',
+      );
+    }
+    return this.#addTask(
+      groupId,
+      taskId,
+      triggerDagRun(options as TriggerDagRunOptions),
+      taskSpec,
+    )();
+  }
+
+  /**
    * Declare a task group of this Dag.
    *
    * The group prefixes the id of every task declared in it, and stands at
@@ -811,14 +895,14 @@ export class Dag {
 
   #addTask<TArgs extends object | void, TReturn>(
     groupId: string | undefined,
-    taskIdOrHandler: string | ((args: TArgs) => TReturn | Promise<TReturn>),
-    handlerOrOptions?: ((args: TArgs) => TReturn | Promise<TReturn>) | TaskOptions,
+    taskIdOrHandler: string | ((args: TArgs) => TReturn | Promise<TReturn>) | OperatorRef,
+    handlerOrOptions?: ((args: TArgs) => TReturn | Promise<TReturn>) | OperatorRef | TaskOptions,
     maybeOptions?: TaskOptions,
   ): TaskFactory<TArgs, TReturn> {
     const idGiven = typeof taskIdOrHandler === "string";
-    const handler = (idGiven ? handlerOrOptions : taskIdOrHandler) as (
-      args: TArgs,
-    ) => TReturn | Promise<TReturn>;
+    const body = idGiven ? handlerOrOptions : taskIdOrHandler;
+    const operator = isOperatorRef(body) ? body : undefined;
+    const handler = body as (args: TArgs) => TReturn | Promise<TReturn>;
     const given = idGiven ? maybeOptions : (handlerOrOptions as TaskOptions | undefined);
     // Defaulted only when absent: an explicit `null` is a bad spec, not an
     // omitted one, and #taskSpecOf is what reports it.
@@ -829,14 +913,14 @@ export class Dag {
     // wins and the spec's is dropped without a word.
     if (idGiven && specTaskId !== undefined) {
       throw new Error(
-        `Task "${taskIdOrHandler}" of Dag "${this.dagId}" also carries taskId "${specTaskId}" in ` +
-          "its spec; give the id once, either positionally or in the spec",
+        `Task "${taskIdOrHandler as string}" of Dag "${this.dagId}" also carries taskId ` +
+          `"${specTaskId}" in its spec; give the id once, either positionally or in the spec`,
       );
     }
     const defaulted = idGiven ? undefined : (specTaskId ?? readFunctionName(handler));
     // Python's prefix_group_id: a task's id carries the ids of every group it
     // sits in, so the same handler name is reusable across groups.
-    const declared = idGiven ? taskIdOrHandler : defaulted;
+    const declared = idGiven ? (taskIdOrHandler as string) : defaulted;
     if (declared === undefined) {
       throw new Error(
         `A task of Dag "${this.dagId}" has no id: its handler has no name to take one from. ` +
@@ -863,12 +947,15 @@ export class Dag {
       );
     }
     const taskId = prefixWithGroup(groupId, declared);
-    if (typeof handler !== "function") {
-      throw new Error(`handler for Dag "${this.dagId}" task "${taskId}" must be a function`);
+    if (operator === undefined && typeof handler !== "function") {
+      throw new Error(
+        `handler for Dag "${this.dagId}" task "${taskId}" must be a function, or an operator ` +
+          "such as dag.triggerDagRun(...)",
+      );
     }
     // TypeScript already says so, but a plain-JavaScript author lands here
     // with the argument list Python would take.
-    if (handler.length > 1) {
+    if (operator === undefined && handler.length > 1) {
       throw new Error(
         `Handler for Dag "${this.dagId}" task "${taskId}" declares ${handler.length} parameters; ` +
           "a handler takes one object of named arguments — async ({ rows, region }) => ...",
@@ -890,7 +977,7 @@ export class Dag {
       task,
       // The runtime dispatches every handler through one instantiation, as it
       // does a registered TaskHandler.
-      fn: handler as unknown as TaskFunction,
+      ...(operator ? { operator } : { fn: handler as unknown as TaskFunction }),
       spec: freezeSpec(spec, () => `The spec for Dag "${this.dagId}" task "${taskId}"`),
     });
     return ((inputs?: unknown) => {
@@ -964,10 +1051,13 @@ export class Dag {
       dagId: this.dagId,
       groupId,
       task: <TArgs extends object | void, TReturn>(
-        taskIdOrHandler: string | ((args: TArgs) => TReturn | Promise<TReturn>),
-        handlerOrOptions?: ((args: TArgs) => TReturn | Promise<TReturn>) | TaskOptions,
+        taskIdOrHandler: string | ((args: TArgs) => TReturn | Promise<TReturn>) | OperatorRef,
+        handlerOrOptions?:
+          ((args: TArgs) => TReturn | Promise<TReturn>) | OperatorRef | TaskOptions,
         maybeOptions?: TaskOptions,
       ) => this.#addTask<TArgs, TReturn>(groupId, taskIdOrHandler, handlerOrOptions, maybeOptions),
+      triggerDagRun: (spec: TriggerDagRunSpec, taskSpec: TaskSpec = {}) =>
+        this.#addTriggerDagRun(groupId, spec, taskSpec),
       taskGroup: (childId: string) => this.#addGroup(groupId, childId),
       before: (...downstream) => {
         for (const other of downstream) this.#addOrderEdge(group, other, "before");

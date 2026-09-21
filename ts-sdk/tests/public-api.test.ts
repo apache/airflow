@@ -328,7 +328,7 @@ describe("public API", () => {
     // A group is a scope and an edge endpoint, and nests the same way at
     // every depth.
     expectTypeOf<Extract<keyof TaskGroupRef, string>>().toEqualTypeOf<
-      "dagId" | "groupId" | "task" | "taskGroup" | "before" | "after"
+      "dagId" | "groupId" | "task" | "taskGroup" | "triggerDagRun" | "before" | "after"
     >();
     expectTypeOf<TaskGroupRef["groupId"]>().toEqualTypeOf<string>();
     expectTypeOf<TaskGroupRef["taskGroup"]>().toEqualTypeOf<(groupId: string) => TaskGroupRef>();

@@ -428,6 +428,33 @@ Exactly one case is selected. Python's branch callable may return a list of task
 SDK offers that yet: put the paths that run together behind one task, or gate each with its own
 condition.
 
+Triggering another Dag
+~~~~~~~~~~~~~~~~~~~~~~
+
+``dag.triggerDagRun`` starts another Dag's run, as a task of this one:
+
+.. code-block:: typescript
+
+    const trigger = dag.triggerDagRun({
+      taskId: "trigger_downstream",
+      dagId: "downstream_etl",
+      waitForCompletion: true,
+    });
+
+    trigger.after(loaded);
+
+There is nothing to call: the task takes no TypeScript arguments, so it hands back the reference
+directly. A second options object carries the task's own spec, as ``dag.task`` takes one.
+
+The task runs on a **Python** worker rather than in this runtime, which is why the SDK needs no
+deferral mechanism of its own to offer ``waitForCompletion``, ``deferrable``, ``pokeInterval`` and the
+state options. It therefore inherits no queue from the Dag: the deployment needs the standard
+provider installed and a Python worker able to pick the task up, and you can name that worker's queue
+in the task spec.
+
+Templated arguments pass through untouched, so ``{{ ds }}`` in a ``conf`` value is rendered
+server-side where rendering already happens.
+
 ``new Dag`` and ``dag.task`` both take a trailing spec of Airflow options:
 ``{ schedule: "@daily", tags: ["etl"] }`` for the Dag, ``{ retries: 2, retryDelay: 30 }`` for a task.
 
