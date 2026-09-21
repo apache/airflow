@@ -1899,7 +1899,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 # Record the current attempt and prepare the TI for its next try.
                 # Covers every path eligible for retry reaching handle_failure():
                 # - RUNNING: task raised an exception during execution (normal failure)
-                # - QUEUED/SCHEDULED/DEFERRED: executor killed the task externally before
+                # - QUEUED/SCHEDULED: executor killed the task externally before
                 #   it could start (e.g. pod OOMKilled in KubernetesExecutor)
                 # RESTARTING is excluded: the task was cleared via the UI/API while running;
                 # prepare_db_for_next_try() was already called during that clear operation.
