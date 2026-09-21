@@ -244,13 +244,18 @@ class OperatorPartial:
         operator = self._batch(size=0).iterate_kwargs(kwargs, strict=strict)
         return cast("IterableOperator", operator)
 
-    def batch(self, size: int) -> BatchedOperator:
-        """Return a BatchedOperator that maps over ``size`` task instances."""
-        if size < 2:
-            raise ValueError(f"batch size must be at least 2, got {size}")
-        return self._batch(size=size)
+    def batch(self, size: int | XComArg) -> BatchedOperator:
+        """
+        Return a BatchedOperator that maps over ``size`` task instances.
 
-    def _batch(self, size: int) -> BatchedOperator:
+        ``size`` may be an ``XComArg`` (the return value of a plain, non-mapped task): the number
+        of task instances is then decided at run time, once that upstream has run.
+        """
+        from airflow.sdk.definitions.batchedoperator import validate_batch_size
+
+        return self._batch(size=validate_batch_size(size))
+
+    def _batch(self, size: int | XComArg) -> BatchedOperator:
         # ``size=0`` is the internal "no batching" sentinel every non-batched path funnels through.
         from airflow.sdk.definitions.batchedoperator import BatchedOperator
 
@@ -347,6 +352,11 @@ class MappedOperator(AbstractOperator):
             for k, v in self.partial_kwargs.items():
                 if k in self.template_fields:
                     XComArg.apply_upstream_relationship(self, v)
+            # A runtime batch size (.batch(size=<XComArg>)) is an ordinary upstream edge, not a
+            # mapped dependency: the task must wait for the upstream to push its integer, but the
+            # upstream must not tag that push with a mapped length (see
+            # MappedIterableOperator.iter_mapped_dependencies).
+            XComArg.apply_upstream_relationship(self, self.partial_kwargs.get("batch_size"))
 
     @methodtools.lru_cache(maxsize=None)
     @classmethod
@@ -716,7 +726,7 @@ class MappedOperator(AbstractOperator):
         self.partial_kwargs["render_template_as_native_obj"] = value
 
     @property
-    def batch_size(self) -> int:
+    def batch_size(self) -> int | XComArg:
         return self.partial_kwargs.get("batch_size", 0)
 
     def get_dag(self) -> DAG | None:

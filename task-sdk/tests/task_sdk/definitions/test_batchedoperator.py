@@ -287,3 +287,129 @@ def test_batch_rejects_sizes_below_two(size):
     with DAG(dag_id="test_batch_size_rejected"):
         with pytest.raises(ValueError, match=f"batch size must be at least 2, got {size}"):
             EmptyOperator.partial(task_id="test_task").batch(size=size)
+
+
+class TestRuntimeBatchSize:
+    """``.batch(size=<XComArg>)``: the instance count comes from an upstream task's return value."""
+
+    @staticmethod
+    def _dag(size_value: Any = 3) -> DAG:
+        with DAG(dag_id="runtime_batch_size") as dag:
+
+            @dag.task
+            def get_size():
+                return size_value
+
+            @dag.task
+            def get_ids() -> list[str]:
+                return [str(i) for i in range(10)]
+
+            @dag.task
+            def get_relations(object_id: str):
+                return object_id
+
+            get_relations.batch(size=get_size()).iterate(object_id=get_ids())
+        return dag
+
+    def test_wiring(self):
+        from airflow.sdk.definitions.iterableoperator import MappedIterableOperator, is_batch_size_source
+        from airflow.sdk.definitions.xcom_arg import XComArg
+
+        dag = self._dag()
+        batched = dag.task_dict["get_relations"]
+        assert isinstance(batched, MappedIterableOperator)
+        assert isinstance(batched.batch_size, XComArg)
+        assert isinstance(batched.partial_kwargs["batch_size"], XComArg)
+        # The size task is an ordinary upstream, never a mapped dependency: neither upstream may be
+        # length-tagged as a list, the size task is tagged with its integer instead.
+        assert batched.upstream_task_ids == {"get_size", "get_ids"}
+        assert list(batched.iter_mapped_dependencies()) == []
+        assert is_batch_size_source(dag.task_dict["get_size"])
+        assert not is_batch_size_source(dag.task_dict["get_ids"])
+
+    def test_rejects_sizes_the_scheduler_cannot_look_up(self):
+        from airflow.sdk.definitions.xcom_arg import XComArg
+
+        with DAG(dag_id="runtime_batch_size_validation") as dag:
+
+            @dag.task
+            def get_size():
+                return 3
+
+            @dag.task
+            def per_item(x):
+                return x
+
+            @dag.task
+            def work(value):
+                return value
+
+            size = get_size()
+            with pytest.raises(TypeError, match="must be a plain XComArg, not MapXComArg"):
+                work.batch(size=size.map(lambda v: v))
+            with pytest.raises(
+                ValueError, match="must be the return value of 'get_size', not its 'other' XCom"
+            ):
+                work.batch(size=XComArg(size.operator, key="other"))
+            with pytest.raises(ValueError, match="cannot come from mapped task 'per_item'"):
+                work.batch(size=per_item.expand(x=[1, 2]))
+
+    def test_resolved_before_unmap(self):
+        from airflow.sdk.definitions._internal.expandinput import BatchedExpandInput
+        from airflow.sdk.definitions.xcom_arg import PlainXComArg, XComArg
+
+        batched = self._dag().task_dict["get_relations"]
+        with pytest.raises(RuntimeError, match="not resolved yet"):
+            batched.unmap({})
+
+        context = {"ti": mock.Mock(map_index=1)}
+        with mock.patch.object(PlainXComArg, "resolve", return_value=3):
+            batched._resolve_batch_size(context)
+        assert batched.batch_size == 3
+        # partial_kwargs is what gets serialized and keeps the reference.
+        assert isinstance(batched.partial_kwargs["batch_size"], XComArg)
+
+        expand_input = batched.unmap({}).expand_input
+        assert isinstance(expand_input, BatchedExpandInput)
+        assert expand_input.size == 3
+
+    @pytest.mark.parametrize("value", ["three", 1, 0, -1, None])
+    def test_resolving_an_unusable_size_fails(self, value):
+        from airflow.sdk.definitions.xcom_arg import PlainXComArg
+
+        batched = self._dag().task_dict["get_relations"]
+        with mock.patch.object(PlainXComArg, "resolve", return_value=value):
+            with pytest.raises(ValueError, match="must be an integer of at least 2"):
+                batched._resolve_batch_size({"ti": mock.Mock(map_index=0)})
+
+    @staticmethod
+    def _pushes(mock_supervisor_comms) -> list[SetXCom]:
+        return [
+            msg
+            for call in [*mock_supervisor_comms.send.mock_calls, *mock_supervisor_comms.asend.mock_calls]
+            if isinstance(msg := (call.kwargs.get("msg") or call.args[0]), SetXCom)
+        ]
+
+    def test_size_upstream_is_tagged_with_its_value_and_input_is_not(
+        self, run_ti: RunTI, mock_supervisor_comms
+    ):
+        """The scheduler only reads metadata, so the size reaches it as the mapped_length of the size
+        task's push (a task_map row), while the input list stays untagged as for any batched iterate."""
+        dag = self._dag()
+
+        assert run_ti(dag, "get_size", -1) == TaskInstanceState.SUCCESS
+        assert [(push.task_id, push.mapped_length) for push in self._pushes(mock_supervisor_comms)] == [
+            ("get_size", 3)
+        ]
+        assert run_ti(dag, "get_ids", -1) == TaskInstanceState.SUCCESS
+        assert [(push.task_id, push.mapped_length) for push in self._pushes(mock_supervisor_comms)] == [
+            ("get_ids", None)
+        ]
+
+    @pytest.mark.parametrize("value", ["three", 1, 0, -1, None])
+    def test_size_upstream_fails_on_an_unusable_value(self, value, run_ti: RunTI, mock_supervisor_comms):
+        """0 leaves nothing to run and 1 is what .iterate() already is: both mean the size task is wrong."""
+        dag = self._dag(size_value=value)
+
+        assert run_ti(dag, "get_size", -1) == TaskInstanceState.FAILED
+        assert not self._pushes(mock_supervisor_comms)

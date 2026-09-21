@@ -219,6 +219,9 @@ class BatchedExpandInput(DecoratedExpandInput):
     need ``ceil(N / size)`` task instances, which is unknowable until the iterable — potentially an
     unbounded or paginated stream — has been fully drained. See
     :ref:`sdk-dynamic-task-mapping-vs-iteration` for the full rationale.
+
+    A runtime batch size (``.batch(size=<XComArg>)``) is resolved by ``MappedIterableOperator``
+    before this class is built, so ``size`` is always the int the scheduler expanded the task to.
     """
 
     EXPAND_INPUT_TYPE: ClassVar[str] = "batched"

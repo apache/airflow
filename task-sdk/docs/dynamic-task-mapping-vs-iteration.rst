@@ -411,6 +411,19 @@ underlying iterable but only keeps the items routed to it round-robin (item
 ``i`` goes to task instance ``i % 17``), then iterates over those ~1,000 files
 using a shared event loop for concurrent I/O.
 
+``size`` may also be an ``XComArg`` — the return value of a plain, non-mapped
+upstream task — when the right number of task instances is only known at run
+time, e.g. ``.batch(size=count_batches()).iterate(url=urls)``. The upstream
+becomes an ordinary dependency of the batched task. The scheduler never reads
+the XCom value: the worker pushes the integer as the ``mapped_length`` of that
+push, which lands in the ``task_map`` table exactly like a mapped task's
+length, and the scheduler creates that many task instances from it; every task
+instance then resolves the same XCom to pick its round-robin share. The value
+must be an integer of at least 2 (``0`` leaves nothing to run and ``1`` is what
+``.iterate()`` already is) and at most ``core.max_map_length``, or the upstream
+task fails at push time; ``.map()``/``.zip()`` results, pushed keys and mapped
+upstreams are rejected at parse time.
+
 .. note::
 
    ``size`` is the number of task instances to create, **not** a chunk length —

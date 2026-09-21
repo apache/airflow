@@ -40,6 +40,7 @@ from airflow.sdk.bases.operator import (
     get_merged_defaults,
     parse_retries,
 )
+from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.contextmanager import (
     DagContext,
     TaskGroupContext,
@@ -61,7 +62,7 @@ from airflow.sdk.definitions.mappedoperator import (
     prevent_duplicates,
     validate_mapping_kwargs,
 )
-from airflow.sdk.definitions.xcom_arg import XComArg
+from airflow.sdk.definitions.xcom_arg import PlainXComArg, XComArg
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.iterableoperator import IterableOperator, MappedIterableOperator
@@ -69,6 +70,30 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.param import ParamsDict
 
 T = TypeVar("T", bound=OperatorPartial | _TaskDecorator)
+
+
+def validate_batch_size(size: int | XComArg) -> int | XComArg:
+    """
+    Validate the ``size`` handed to ``.batch()`` at DAG-definition time.
+
+    A literal size must be at least 2 (``.iterate()`` covers a single task instance). A runtime
+    size must be the return value of a plain, non-mapped task: the scheduler learns it from the
+    ``task_map`` row that the return value's push leaves behind (never from the XCom itself), so
+    a ``.map()``/``.filter()`` result, a pushed key or a mapped upstream cannot provide one.
+    """
+    if isinstance(size, PlainXComArg):
+        if size.operator.is_mapped:
+            raise ValueError(f"batch size cannot come from mapped task {size.operator.task_id!r}")
+        if size.key != BaseXCom.XCOM_RETURN_KEY:
+            raise ValueError(
+                f"batch size must be the return value of {size.operator.task_id!r}, not its {size.key!r} XCom"
+            )
+        return size
+    if isinstance(size, XComArg):
+        raise TypeError(f"batch size must be a plain XComArg, not {type(size).__name__}")
+    if size < 2:
+        raise ValueError(f"batch size must be at least 2, got {size}")
+    return size
 
 
 @attrs.define(kw_only=True, repr=False)
@@ -87,11 +112,13 @@ class BatchableOperator(Generic[T], metaclass=ABCMeta):
         See :class:`~airflow.sdk.definitions._internal.expandinput.BatchedExpandInput` for why
         round-robin is used instead of contiguous chunking. Exactly ``size`` task instances are
         always created; if the input yields fewer than ``size`` items, the surplus instances run
-        with no items and succeed immediately.
+        with no items and succeed immediately. May be an ``XComArg`` whose integer value is only
+        known at run time: the scheduler then creates that many task instances and each of them
+        resolves the same XCom to pick its share.
     """
 
     operator_partial: T
-    size: int
+    size: int | XComArg
 
     @property
     def operator_class(self) -> type[BaseOperator]:
@@ -227,7 +254,7 @@ class BatchedOperator(BatchableOperator[OperatorPartial]):
         self._expand_called = True
         operator = self._expand(expand_input, strict=strict, register_with_dag=False)
 
-        if self.size > 1:
+        if isinstance(self.size, XComArg) or self.size > 1:
             return MappedIterableOperator(
                 mapped_operator=operator,
                 expand_input=expand_input,
@@ -412,7 +439,7 @@ class DecoratedBatchedOperator(BatchableOperator[_TaskDecorator]):
 
         operator = self._expand(expand_input, strict=strict, register_with_dag=False)
 
-        if self.size > 1:
+        if isinstance(self.size, XComArg) or self.size > 1:
             return MappedIterableOperator(
                 mapped_operator=operator,
                 expand_input=DecoratedExpandInput(expand_input),

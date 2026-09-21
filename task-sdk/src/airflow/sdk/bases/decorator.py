@@ -647,13 +647,18 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
     def iterate_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg:
         return self._batch(size=0).iterate_kwargs(kwargs, strict=strict)
 
-    def batch(self, size: int) -> DecoratedBatchedOperator:
-        """Return a DecoratedBatchedOperator that maps over ``size`` task instances."""
-        if size < 2:
-            raise ValueError(f"batch size must be at least 2, got {size}")
-        return self._batch(size=size)
+    def batch(self, size: int | XComArg) -> DecoratedBatchedOperator:
+        """
+        Return a DecoratedBatchedOperator that maps over ``size`` task instances.
 
-    def _batch(self, size: int) -> DecoratedBatchedOperator:
+        ``size`` may be an ``XComArg`` (the return value of a plain, non-mapped task): the number
+        of task instances is then decided at run time, once that upstream has run.
+        """
+        from airflow.sdk.definitions.batchedoperator import validate_batch_size
+
+        return self._batch(size=validate_batch_size(size))
+
+    def _batch(self, size: int | XComArg) -> DecoratedBatchedOperator:
         # ``size=0`` is the internal "no batching" sentinel every non-batched path funnels through.
         from airflow.sdk.definitions.batchedoperator import DecoratedBatchedOperator
 
