@@ -68,6 +68,7 @@ from airflow.api_fastapi.core_api.services.ui.task_group import (
     get_task_group_children_getter,
     task_group_to_dict_grid,
 )
+from airflow.configuration import conf
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun, DagRunNote
 from airflow.models.deadline import Deadline
@@ -498,7 +499,7 @@ def _build_ti_summaries(
 def get_grid_ti_summaries_stream(
     dag_id: str,
     dag_bag: DagBagDep,
-    run_ids: Annotated[list[str] | None, Query()] = None,
+    run_ids: Annotated[list[str] | None, Query(max_length=conf.getint("api", "maximum_page_limit"))] = None,
 ) -> StreamingResponse:
     """
     Stream TI summaries for multiple Dag runs as NDJSON (one JSON line per run).

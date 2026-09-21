@@ -2029,6 +2029,7 @@ paths:
           - type: array
             items:
               type: string
+            maxItems: 100
           - type: 'null'
           title: Run Ids
       responses:

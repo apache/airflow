@@ -27,6 +27,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
+from airflow.configuration import conf
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
@@ -1267,6 +1268,14 @@ class TestGetGridDataEndpoint:
         response = test_client.get(f"/grid/ti_summaries/{DAG_ID}")
         assert response.status_code == 200
         assert self._parse_ndjson(response) == []
+
+    def test_grid_ti_summaries_stream_rejects_too_many_run_ids(self, test_client):
+        # The grid never asks for more runs than the runs endpoint can return, and that one
+        # clamps its limit to maximum_page_limit. A direct call with a longer list is rejected
+        # so the number of per-run sessions and serdag deserializations stays bounded.
+        too_many = [f"run_{idx}" for idx in range(conf.getint("api", "maximum_page_limit") + 1)]
+        response = test_client.get(f"/grid/ti_summaries/{DAG_ID}", params={"run_ids": too_many})
+        assert response.status_code == 422
 
     def test_grid_ti_summaries_stream_deduplicates_serdag_loads(self, session, test_client):
         """Serialized Dag is loaded once even when multiple runs share the same version."""
