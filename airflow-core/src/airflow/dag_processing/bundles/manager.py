@@ -16,8 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import importlib
+import logging
+import os
 import warnings
 from collections import defaultdict
+from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -26,6 +30,7 @@ from sqlalchemy import and_, delete, exists, or_, select, update
 
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: TC001
+from airflow.dag_processing.bundles.local import LocalDagBundle
 from airflow.dag_processing.bundles.provider import (
     DagBundleConfiguration,
     DagBundleProvider,
@@ -33,6 +38,7 @@ from airflow.dag_processing.bundles.provider import (
 from airflow.exceptions import AirflowConfigException
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import Team
+from airflow.providers_manager import ProvidersManager
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 
@@ -42,8 +48,46 @@ if TYPE_CHECKING:
     from sqlalchemy.engine import CursorResult
     from sqlalchemy.orm import Session
 
+log = logging.getLogger(__name__)
+
+_example_dag_bundle_name = "example_dags"
+
 # Chunk size for the one-time startup repair of unconfigured bundles.
 _REASSIGN_BATCH_SIZE = 1000
+
+
+def _discover_example_dag_bundle_paths() -> dict[str, str]:
+    """Return the example Dag bundle names and paths available in this installation."""
+    from airflow import example_dags
+
+    bundle_paths = {_example_dag_bundle_name: next(iter(example_dags.__path__))}
+    seen: set[str] = set()
+
+    for package_name in ProvidersManager().providers:
+        # Heuristic: derive the import path from the canonical
+        # ``apache-airflow-providers-*`` distribution name. Tracked as a follow-up
+        # to record the provider module path on ``ProviderInfo`` (see
+        # https://github.com/apache/airflow/issues/66305).
+        if package_name.startswith("apache-airflow-providers-"):
+            suffix = package_name[len("apache-airflow-providers-") :]
+            module_name = "airflow.providers." + suffix.replace("-", ".")
+        else:
+            module_name = package_name.replace("-", "_")
+        try:
+            module = importlib.import_module(module_name)
+            module_paths = list(getattr(module, "__path__", []))
+        except Exception:
+            log.exception("Could not load provider module %s for example Dag discovery", module_name)
+            continue
+
+        for module_path in module_paths:
+            example_dag_folder = os.path.join(module_path, "example_dags")
+            if not os.path.isdir(example_dag_folder) or example_dag_folder in seen:
+                continue
+            seen.add(example_dag_folder)
+            bundle_paths[f"{package_name}-example-dags"] = example_dag_folder
+
+    return bundle_paths
 
 
 def _guess_best_bundle_for_fileloc(
@@ -143,8 +187,12 @@ class DagBundlesManager(LoggingMixin):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._bundle_provider = self._load_bundle_provider()
-        self._bundle_config: dict[str, DagBundleConfiguration] = {}
-        self.refresh_bundle_configurations()
+
+    @cached_property
+    def _example_dag_bundle_paths(self) -> dict[str, str]:
+        if not conf.getboolean("core", "LOAD_EXAMPLES"):
+            return {}
+        return _discover_example_dag_bundle_paths()
 
     @staticmethod
     def _load_bundle_provider() -> DagBundleProvider:
@@ -164,21 +212,19 @@ class DagBundlesManager(LoggingMixin):
                 "`dag_processor` key `dag_bundle_provider`."
             ) from e
 
-    def refresh_bundle_configurations(self) -> None:
-        """
-        Refresh the active Dag bundle configurations from the provider.
-
-        :meta private:
-        """
-        if self._bundle_config:
-            return
-
+    def get_all_bundle_configurations(self) -> tuple[DagBundleConfiguration, ...]:
+        """Get all active Dag bundle configurations."""
         bundle_configurations: dict[str, DagBundleConfiguration] = {}
         for bundle_config in self._bundle_provider.get_all_bundle_configurations():
             if not isinstance(bundle_config, DagBundleConfiguration):
                 raise AirflowConfigException(
                     "Dag bundle providers must return DagBundleConfiguration objects from "
                     "get_all_bundle_configurations()."
+                )
+            if bundle_config.name == _example_dag_bundle_name:
+                raise AirflowConfigException(
+                    f"Bundle name '{_example_dag_bundle_name}' is a reserved name. Please choose another name for your bundle."
+                    " Example Dags can be enabled with the '[core] load_examples' config."
                 )
             if bundle_config.name in bundle_configurations:
                 raise AirflowConfigException(
@@ -190,10 +236,13 @@ class DagBundlesManager(LoggingMixin):
                     "To enable multi-team, update section `core` key `multi_team` in your config."
                 )
             bundle_configurations[bundle_config.name] = bundle_config
-        if not bundle_configurations:
-            return
-        self._bundle_config = bundle_configurations
-        self.log.info("DAG bundles loaded: %s", ", ".join(self._bundle_config.keys()))
+
+        for name in self._example_dag_bundle_paths:
+            if name in bundle_configurations:
+                raise AirflowConfigException(f"Bundle name '{name}' is reserved for example Dags.")
+            bundle_configurations[name] = DagBundleConfiguration(name=name)
+
+        return tuple(bundle_configurations.values())
 
     @provide_session
     def sync_bundles_to_db(self, *, deactivate_missing: bool = True, session: Session = NEW_SESSION) -> None:
@@ -215,6 +264,8 @@ class DagBundlesManager(LoggingMixin):
             the processors repeatedly deactivate each other and never converge.
         """
         self.log.debug("Syncing DAG bundles to the database")
+
+        bundle_configurations = {config.name: config for config in self.get_all_bundle_configurations()}
 
         def _extract_and_sign_template(bundle_name: str) -> tuple[str | None, dict]:
             bundle_instance = self.get_bundle(name)
@@ -240,7 +291,7 @@ class DagBundlesManager(LoggingMixin):
             for bundle in stored.values()
         }
 
-        for name, config in self._bundle_config.items():
+        for name, config in bundle_configurations.items():
             team: Team | None = None
             if config.team_name:
                 team = session.scalars(select(Team).where(Team.name == config.team_name)).one_or_none()
@@ -540,18 +591,16 @@ class DagBundlesManager(LoggingMixin):
 
         :return: The DAG bundle.
         """
+        if path := self._example_dag_bundle_paths.get(name):
+            return LocalDagBundle(name=name, path=path, version=version, version_data=version_data)
         return self._bundle_provider.get_bundle(name=name, version=version, version_data=version_data)
 
     def get_bundle_configuration(self, name: str) -> DagBundleConfiguration:
         """Get the active configuration for a Dag bundle."""
-        try:
-            return self._bundle_config[name]
-        except KeyError:
-            raise ValueError(f"Requested bundle '{name}' is not configured.") from None
-
-    def get_all_bundle_configurations(self) -> tuple[DagBundleConfiguration, ...]:
-        """Get all active Dag bundle configurations."""
-        return tuple(self._bundle_config.values())
+        for configuration in self.get_all_bundle_configurations():
+            if configuration.name == name:
+                return configuration
+        raise ValueError(f"Requested bundle '{name}' is not configured.")
 
     def get_all_dag_bundles(self) -> Iterable[BaseDagBundle]:
         """
@@ -559,11 +608,11 @@ class DagBundlesManager(LoggingMixin):
 
         :return: list of DAG bundles.
         """
-        for name in self._bundle_config:
+        for configuration in self.get_all_bundle_configurations():
             try:
-                yield self.get_bundle(name=name)
+                yield self.get_bundle(name=configuration.name)
             except Exception as e:
-                self.log.exception("Error creating bundle '%s': %s", name, e)
+                self.log.exception("Error creating bundle '%s': %s", configuration.name, e)
                 # Skip this bundle and continue with others
                 continue
 
@@ -573,7 +622,7 @@ class DagBundlesManager(LoggingMixin):
 
         :return: sorted list of bundle names.
         """
-        return sorted(self._bundle_config.keys())
+        return sorted(configuration.name for configuration in self.get_all_bundle_configurations())
 
     def view_url(self, name: str, version: str | None = None) -> str | None:
         warnings.warn(

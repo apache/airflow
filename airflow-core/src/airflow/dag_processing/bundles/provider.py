@@ -16,9 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import importlib
-import logging
-import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -29,14 +26,9 @@ from airflow._shared.module_loading import import_string
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: TC001
 from airflow.exceptions import AirflowConfigException
-from airflow.providers_manager import ProvidersManager
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-
-log = logging.getLogger(__name__)
-
-_example_dag_bundle_name = "example_dags"
 
 
 @dataclass(frozen=True)
@@ -49,7 +41,7 @@ class DagBundleConfiguration:
 
 class DagBundleProvider(ABC):
     """
-    Provide Dag bundle configurations and construct Dag bundles.
+    Provide Dag bundle configurations and Dag bundles.
 
     The configuration list is the complete set of active bundles. A bundle name
     may remain resolvable through ``get_bundle`` after it leaves that list because
@@ -68,7 +60,7 @@ class DagBundleProvider(ABC):
         version: str | None = None,
         version_data: dict[str, Any] | None = None,
     ) -> BaseDagBundle:
-        """Construct a Dag bundle by name and optional version information."""
+        """Return a Dag bundle by name and optional version information."""
 
 
 class _ExternalBundleConfig(BaseModel):
@@ -110,9 +102,9 @@ def _parse_bundle_config(config_list) -> list[_ExternalBundleConfig]:
         except ValidationError as e:
             raise _bundle_item_exc(f"Item {item} failed validation: {e}")
 
-        if cfg.name == _example_dag_bundle_name:
+        if cfg.name == "example_dags":
             raise AirflowConfigException(
-                f"Bundle name '{_example_dag_bundle_name}' is a reserved name. Please choose another name for your bundle."
+                "Bundle name 'example_dags' is a reserved name. Please choose another name for your bundle."
                 " Example Dags can be enabled with the '[core] load_examples' config."
             )
 
@@ -120,76 +112,6 @@ def _parse_bundle_config(config_list) -> list[_ExternalBundleConfig]:
     if len(bundles.keys()) != len(config_list):
         raise _bundle_item_exc("One or more bundle names appeared multiple times")
     return list(bundles.values())
-
-
-def _add_example_dag_bundle(bundle_config_list: list[_ExternalBundleConfig]):
-    from airflow import example_dags
-
-    example_dag_folder = next(iter(example_dags.__path__))
-    bundle_config_list.append(
-        _ExternalBundleConfig(
-            name=_example_dag_bundle_name,
-            classpath="airflow.dag_processing.bundles.local.LocalDagBundle",
-            kwargs={
-                "path": example_dag_folder,
-            },
-        )
-    )
-
-
-def _add_provider_example_dags_to_bundle(bundle_config_list: list[_ExternalBundleConfig]):
-    """
-    Add an ``example_dags`` folder of every installed provider as a bundle.
-
-    Provider locations are resolved through ``ProvidersManager`` instead of
-    walking ``airflow.providers.__path__`` so that:
-
-    - nested providers (e.g. ``apache-airflow-providers-common-sql`` whose
-      module path is ``airflow.providers.common.sql``) are discovered;
-    - providers installed outside the ``airflow.providers`` namespace package
-      are discovered via their entry point.
-    """
-    # Dedup on the resolved on-disk folder rather than the bundle name: distributions
-    # under ``airflow.providers.common.*`` use ``pkgutil.extend_path``, so when several
-    # ``common-*`` packages are installed ``airflow.providers.common.__path__`` has
-    # multiple entries and the inner loop iterates more than once. Path-based dedup
-    # only skips when the same folder is seen twice; distinct folders are preserved.
-    seen: set[str] = set()
-
-    for package_name in ProvidersManager().providers:
-        # Heuristic: derive the import path from the canonical
-        # ``apache-airflow-providers-*`` distribution name. Tracked as a follow-up
-        # to record the provider module path on ``ProviderInfo`` (see
-        # https://github.com/apache/airflow/issues/66305).
-        if package_name.startswith("apache-airflow-providers-"):
-            suffix = package_name[len("apache-airflow-providers-") :]
-            module_name = "airflow.providers." + suffix.replace("-", ".")
-        else:
-            module_name = package_name.replace("-", "_")
-        try:
-            module = importlib.import_module(module_name)
-            module_paths = list(getattr(module, "__path__", []))
-        except Exception:
-            log.exception("Could not load provider module %s for example Dag discovery", module_name)
-            continue
-
-        for module_path in module_paths:
-            example_dag_folder = os.path.join(module_path, "example_dags")
-            if not os.path.isdir(example_dag_folder):
-                continue
-            if example_dag_folder in seen:
-                continue
-            seen.add(example_dag_folder)
-            bundle_name = f"{package_name}-example-dags"
-            bundle_config_list.append(
-                _ExternalBundleConfig(
-                    name=bundle_name,
-                    classpath="airflow.dag_processing.bundles.local.LocalDagBundle",
-                    kwargs={
-                        "path": example_dag_folder,
-                    },
-                )
-            )
 
 
 class ConfigDagBundleProvider(DagBundleProvider):
@@ -219,10 +141,6 @@ class ConfigDagBundleProvider(DagBundleProvider):
                 f"must be list but got {config_list.__class__}"
             )
         bundle_config_list = _parse_bundle_config(config_list)
-        if conf.getboolean("core", "LOAD_EXAMPLES"):
-            _add_example_dag_bundle(bundle_config_list)
-            _add_provider_example_dags_to_bundle(bundle_config_list)
-
         for bundle_config in bundle_config_list:
             class_ = import_string(bundle_config.classpath)
             self._bundle_config[bundle_config.name] = _InternalBundleConfig(
