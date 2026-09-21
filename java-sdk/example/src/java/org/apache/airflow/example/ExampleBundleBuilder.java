@@ -19,22 +19,17 @@
 
 package org.apache.airflow.example;
 
-import java.util.List;
 import org.apache.airflow.sdk.*;
-import org.jetbrains.annotations.NotNull;
 
-public class ExampleBundleBuilder implements BundleBuilder {
-  @NotNull
-  @Override
-  public Iterable<DagDef> getDags() {
-    return List.of(
-        InterfaceExampleBuilder.build(),
-        AnnotationExampleBuilder.build(),
-        XComCastingExampleBuilder.build());
+public class ExampleBundleBuilder {
+  public static Bundle build() {
+    return new Bundle()
+        .register(InterfaceExampleBuilder.build())
+        .register(AnnotationExample.class)
+        .register(XComCastingExample.class);
   }
 
   public static void main(String[] args) {
-    var bundle = new ExampleBundleBuilder().build();
-    Server.create(args).serve(bundle);
+    Server.create(args).serve(build());
   }
 }

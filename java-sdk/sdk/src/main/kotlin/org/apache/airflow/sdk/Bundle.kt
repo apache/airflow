@@ -31,17 +31,72 @@ package org.apache.airflow.sdk
 class Bundle(
   dags: Iterable<DagDef>,
 ) {
-  internal val dags: Map<String, DagDef> = dags.associateByDagId()
-}
+  internal val dags = linkedMapOf<String, DagDef>()
 
-private fun Iterable<DagDef>.associateByDagId(): Map<String, DagDef> {
-  val dagMap = linkedMapOf<String, DagDef>()
-  for (dag in this) {
-    require(dagMap.putIfAbsent(dag.id, dag) == null) {
+  /** Creates an empty bundle to [register] into. */
+  constructor() : this(emptyList())
+
+  init {
+    dags.forEach { register(it) }
+  }
+
+  /**
+   * Registers a Dag.
+   *
+   * @return This bundle, for chaining.
+   * @throws IllegalArgumentException if another Dag shares its ID.
+   */
+  fun register(dag: DagDef): Bundle {
+    require(dags.putIfAbsent(dag.id, dag) == null) {
       "Dags in bundle have duplicate ID: ${dag.id}"
     }
+    return this
   }
-  return dagMap
+
+  /**
+   * Registers every task handler a class holds, from the ids each
+   * [Builder.TaskHandler] names.
+   *
+   * @param handlerClass A class with [Builder.TaskHandler] methods.
+   * @return This bundle, for chaining.
+   * @throws IllegalArgumentException if the class has no generated
+   *    registrar, because annotation processing did not run over it.
+   */
+  fun register(handlerClass: Class<*>): Bundle {
+    val registrar =
+      try {
+        Class.forName("${handlerClass.name}Handlers", true, handlerClass.classLoader)
+      } catch (e: ClassNotFoundException) {
+        throw IllegalArgumentException(
+          "No generated registrar for ${handlerClass.name}; does it declare @Builder.TaskHandler " +
+            "methods, and is airflow-sdk-processor on the annotationProcessor path?",
+          e,
+        )
+      }
+    registrar.getMethod("registerInto", Bundle::class.java).invoke(null, this)
+    return this
+  }
+
+  /**
+   * Registers one task implementation against a Dag the Python file owns, for
+   * a task with no annotation to read the ids from.
+   *
+   * The Dag is created on first use: a stub-backed Dag exists only so the
+   * runtime can find the task, and its graph lives in the Python Dag file.
+   *
+   * @param dagId Dag ID as declared in the Python Dag file.
+   * @param taskId Task ID as declared by the `@task.stub` function.
+   * @param definition Class that implements [Task].
+   * @return This bundle, for chaining.
+   */
+  fun register(
+    dagId: String,
+    taskId: String,
+    definition: Class<out Task>,
+  ): Bundle {
+    dags.getOrPut(dagId) { DagDef(dagId) }.addTask(taskId, definition)
+    return this
+  }
 }
 
 /**

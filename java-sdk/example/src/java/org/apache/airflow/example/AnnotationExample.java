@@ -31,11 +31,10 @@ import org.apache.airflow.sdk.*;
 // data parameter below receives whatever the @task.stub call site bound at its
 // position, so this class registers task implementations only.
 @SuppressWarnings("DuplicatedCode")
-@Builder.Dag(id = "java_annotation_example")
 public class AnnotationExample {
   private static final System.Logger log = System.getLogger(AnnotationExample.class.getName());
 
-  @Builder.Task(id = "extract")
+  @Builder.TaskHandler(dag = "java_annotation_example", task = "extract")
   public long extractValue(Client client) throws InterruptedException {
     log.log(INFO, "Hello from task");
 
@@ -54,7 +53,7 @@ public class AnnotationExample {
     return new Date().getTime();
   }
 
-  @Builder.Task(id = "transform")
+  @Builder.TaskHandler(dag = "java_annotation_example", task = "transform")
   public long transformValue(Client client, long extracted) {
     log.log(INFO, "Got XCom from extract: {0}", extracted);
 
@@ -70,7 +69,7 @@ public class AnnotationExample {
   // the task UP_FOR_RETRY -- which only works because the Java SDK now returns
   // RetryTask (instead of a terminal FAILED) when ti_context.should_retry is
   // set. The retry then runs this task again and it returns normally.
-  @Builder.Task
+  @Builder.TaskHandler(dag = "java_annotation_example")
   public void load(Context context, long transformed) {
     log.log(INFO, "Got XCom from transform: {0}", transformed);
     if (context.ti.tryNumber == 1) {
@@ -87,7 +86,7 @@ public class AnnotationExample {
     public long transformed;
   }
 
-  @Builder.Task(id = "report")
+  @Builder.TaskHandler(dag = "java_annotation_example", task = "report")
   public void report(ReportInput input) {
     log.log(INFO, "Report {0} for transformed value {1}", input.runLabel, input.transformed);
     if (!"nightly".equals(input.runLabel)) {
@@ -96,7 +95,7 @@ public class AnnotationExample {
   }
 
   // Verify one supervisor channel can handle client calls across threads.
-  @Builder.Task(id = "concurrent")
+  @Builder.TaskHandler(dag = "java_annotation_example", task = "concurrent")
   public void concurrentClientCalls(Client client) throws Exception {
     var pool = Executors.newFixedThreadPool(8);
     try {

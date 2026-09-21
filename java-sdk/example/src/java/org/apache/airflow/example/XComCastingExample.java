@@ -27,24 +27,23 @@ import org.apache.airflow.sdk.*;
 // Stub-backed tasks wired by the Python Dag file: each parameter receives the
 // value the stub call bound at its position, widening or narrowing to the
 // declared type at run time.
-@Builder.Dag(id = "java_xcom_casting_example")
 public class XComCastingExample {
   private static final System.Logger log = System.getLogger(XComCastingExample.class.getName());
 
-  @Builder.Task(id = "produce_number")
+  @Builder.TaskHandler(dag = "java_xcom_casting_example", task = "produce_number")
   public int produceNumber() {
     log.log(INFO, "Producing int 7");
     return 7;
   }
 
   // Any primitive numeric type (byte, short, int, long, float, double) and its boxed form works the same way.
-  @Builder.Task(id = "widen_to_long")
+  @Builder.TaskHandler(dag = "java_xcom_casting_example", task = "widen_to_long")
   public long widenToLong(long value) {
     log.log(INFO, "Got long {0}", value);
     return value + 1;
   }
 
-  @Builder.Task(id = "widen_to_double")
+  @Builder.TaskHandler(dag = "java_xcom_casting_example", task = "widen_to_double")
   public void widenToDouble(double value) {
     log.log(INFO, "Got double {0}", value);
     if (value != 8.0) {
@@ -52,12 +51,12 @@ public class XComCastingExample {
     }
   }
 
-  @Builder.Task(id = "produce_nothing")
+  @Builder.TaskHandler(dag = "java_xcom_casting_example", task = "produce_nothing")
   public void produceNothing() {
     // Pushes no return_value XCom.
   }
 
-  @Builder.Task(id = "consume_nullable")
+  @Builder.TaskHandler(dag = "java_xcom_casting_example", task = "consume_nullable")
   public void consumeNullable(Integer value) {
     log.log(INFO, "Got nullable int {0}", value);
     if (value != null) {
@@ -65,13 +64,13 @@ public class XComCastingExample {
     }
   }
 
-  @Builder.Task(id = "produce_fraction")
+  @Builder.TaskHandler(dag = "java_xcom_casting_example", task = "produce_fraction")
   public double produceFraction() {
     log.log(INFO, "Producing double 1.5");
     return 1.5;
   }
 
-  @Builder.Task(id = "consume_float")
+  @Builder.TaskHandler(dag = "java_xcom_casting_example", task = "consume_float")
   public void consumeFloat(float value) {
     log.log(INFO, "Got float {0}", value);
     if (value != 1.5f) {
@@ -82,7 +81,7 @@ public class XComCastingExample {
   // A parameter with type arguments keeps its element type. Reading an element
   // is what would fail if it did not: the wire integers decode to Long unless
   // the declared List<Double> survives the binding.
-  @Builder.Task(id = "consume_double_list")
+  @Builder.TaskHandler(dag = "java_xcom_casting_example", task = "consume_double_list")
   public void consumeDoubleList(List<Double> values) {
     log.log(INFO, "Got list {0}", values);
     double total = values.get(0) + values.get(1);

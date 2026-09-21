@@ -78,4 +78,32 @@ class Builder internal constructor() {
   annotation class Task(
     val id: String = "",
   )
+
+  /**
+   * Marks a method as the Java body of a task the Python Dag file declares
+   * with `@task.stub`.
+   *
+   * This is not [Task] under another name. Python declares the task and Java
+   * supplies only its body, so the handler names the pair it binds to rather
+   * than an id it owns — Python owns both, and the processor generates the
+   * registration from them:
+   *
+   * ```java
+   * @Builder.TaskHandler(dag = "etl", task = "score")
+   * public long score(Client client, long rows, double threshold) { ... }
+   * ```
+   *
+   * Register every handler a class holds with [Bundle.register]; there is no
+   * [Dag] annotation on this surface, because the Dag is the Python file's.
+   *
+   * @param dag Dag ID as declared in the Python Dag file.
+   * @param task Task ID as declared by the `@task.stub` function. Empty
+   *    derives it from the annotated method's name.
+   */
+  @Target(AnnotationTarget.FUNCTION)
+  @MustBeDocumented
+  annotation class TaskHandler(
+    val dag: String,
+    val task: String = "",
+  )
 }

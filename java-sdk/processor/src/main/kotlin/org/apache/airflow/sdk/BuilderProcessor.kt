@@ -69,7 +69,10 @@ import javax.tools.Diagnostic
  * [TaskInput] fields through [ArgValues], by argument name. Non-`void` return values are
  * forwarded to `client.setXCom`.
  */
-@SupportedAnnotationTypes("org.apache.airflow.sdk.Builder.Dag")
+@SupportedAnnotationTypes(
+  "org.apache.airflow.sdk.Builder.Dag",
+  "org.apache.airflow.sdk.Builder.TaskHandler",
+)
 @SupportedSourceVersion(SourceVersion.RELEASE_11)
 class BuilderProcessor : AbstractProcessor() {
   override fun process(
@@ -77,6 +80,20 @@ class BuilderProcessor : AbstractProcessor() {
     roundEnv: RoundEnvironment,
   ): Boolean {
     if (annotations.isEmpty()) return false
+    roundEnv
+      .getElementsAnnotatedWith(Builder.TaskHandler::class.java)
+      .mapNotNull { it.enclosingElement as? TypeElement }
+      .distinct()
+      .forEach { el ->
+        with(processingEnv) {
+          runCatching {
+            JavaFile
+              .builder(elementUtils.getPackageOf(el).qualifiedName.toString(), buildHandlers(el))
+              .build()
+              .writeTo(filer)
+          }.onFailure { e -> messager.printMessage(Diagnostic.Kind.ERROR, e.message ?: "Unknown error", el) }
+        }
+      }
     roundEnv.getElementsAnnotatedWith(Builder.Dag::class.java).filterIsInstance<TypeElement>().forEach { el ->
       with(processingEnv) {
         runCatching {
@@ -96,6 +113,50 @@ class BuilderProcessor : AbstractProcessor() {
       }
     }
     return true
+  }
+
+  /**
+   * Generates the registrar for a class of [Builder.TaskHandler] methods: one
+   * [Task] implementation per handler, and a `registerInto` that binds each to
+   * the Dag and task the annotation names.
+   *
+   * There is no Dag to build here — the Python Dag file owns it — so this is a
+   * registrar rather than a builder.
+   */
+  private fun buildHandlers(el: TypeElement): TypeSpec {
+    val registrar =
+      TypeSpec
+        .classBuilder("${el.simpleName}Handlers")
+        .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+        .addJavadoc(
+          "Registers {@link \$T}'s task handlers against the Dags the Python file owns.\n",
+          ClassName.get(el),
+        )
+    val registerInto =
+      MethodSpec
+        .methodBuilder("registerInto")
+        .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+        .addParameter(BUNDLE_TYPE, "bundle")
+
+    for (inner in el.enclosedElements) {
+      if (inner !is ExecutableElement) continue
+      val handler = inner.getAnnotation(Builder.TaskHandler::class.java) ?: continue
+      if (inner.isVarArgs) {
+        throw IllegalArgumentException("Cannot create task from vararg function ${inner.simpleName}")
+      }
+      require(handler.dag.isNotBlank()) {
+        "@Builder.TaskHandler on '${inner.simpleName}' must name the Dag the Python file declares"
+      }
+      val innerName = inner.simpleName.toString().replaceFirstChar(Char::uppercase)
+      registrar.addType(buildTask(innerName, inner, el))
+      registerInto.addStatement(
+        $$"bundle.register($S, $S, $L.class)",
+        handler.dag,
+        handler.task.ifBlank { inner.simpleName },
+        innerName,
+      )
+    }
+    return registrar.addMethod(registerInto.build()).build()
   }
 
   private fun buildDag(el: TypeElement): TypeSpec {
@@ -331,6 +392,7 @@ private class DataParam(
 
 private val DAG_DEF_TYPE = ClassName.get(DagDef::class.java)
 private val TASK_DEF_TYPE = ClassName.get(TaskDef::class.java)
+private val BUNDLE_TYPE = ClassName.get(Bundle::class.java)
 private val CLIENT_TYPE = ClassName.get(Client::class.java)
 private val CONTEXT_TYPE = ClassName.get(Context::class.java)
 private val TASK_INPUT_TYPE = ClassName.get(TaskInput::class.java)

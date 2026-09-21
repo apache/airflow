@@ -702,4 +702,89 @@ class BuilderTest {
       "Cannot create task from vararg function t1",
     )
   }
+
+  @Test
+  @DisplayName("generate a registrar binding each handler to the ids its annotation names")
+  fun generateHandlerRegistrar() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Client;
+        public class TestExample {
+          @Builder.TaskHandler(dag = "etl", task = "score")
+          public long score(Client client, long rows) { return rows; }
+
+          @Builder.TaskHandler(dag = "etl")
+          public void audit() {}
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+    assertThat(compilation)
+      .generatedSourceFile("org.apache.airflow.example.TestExampleHandlers")
+      .hasSourceEquivalentTo(
+        "org.apache.airflow.example.TestExampleHandlers",
+        """
+         package org.apache.airflow.example;
+
+         import java.lang.Exception;
+         import java.lang.Long;
+         import java.lang.Override;
+         import org.apache.airflow.sdk.Bundle;
+         import org.apache.airflow.sdk.Client;
+         import org.apache.airflow.sdk.Context;
+         import org.apache.airflow.sdk.Task;
+         import org.apache.airflow.sdk.internal.TaskArgs;
+
+         /**
+          * Registers {@link TestExample}'s task handlers against the Dags the Python file owns.
+          */
+         public final class TestExampleHandlers {
+           public static void registerInto(Bundle bundle) {
+             bundle.register("etl", "score", Score.class);
+             bundle.register("etl", "audit", Audit.class);
+           }
+
+           public static final class Score implements Task {
+             @Override
+             public void execute(Context context, Client client) throws Exception {
+               TaskArgs args = TaskArgs.of(context, client, 1);
+               long rows = args.require(0, Long.class);
+               client.setXCom(new TestExample().score(client, rows));
+             }
+           }
+
+           public static final class Audit implements Task {
+             @Override
+             public void execute(Context context, Client client) throws Exception {
+               new TestExample().audit();
+             }
+           }
+         }
+        """,
+      )
+  }
+
+  @Test
+  @DisplayName("reject a handler that names no Dag")
+  fun rejectHandlerWithoutDag() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        public class TestExample {
+          @Builder.TaskHandler(dag = "")
+          public void t() {}
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "@Builder.TaskHandler on 't' must name the Dag the Python file declares",
+    )
+  }
 }
