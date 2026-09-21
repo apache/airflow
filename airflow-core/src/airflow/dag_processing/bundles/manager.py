@@ -206,11 +206,11 @@ class DagBundlesManager(LoggingMixin):
     def get_configured_bundle_metadata(self) -> tuple[DagBundleMetadata, ...]:
         """Get validated metadata returned by the configured Dag bundle provider."""
         bundle_metadata: dict[str, DagBundleMetadata] = {}
-        for metadata in self._bundle_provider.get_active_bundle_metadata():
+        for metadata in self._bundle_provider.get_configured_bundle_metadata():
             if not isinstance(metadata, DagBundleMetadata):
                 raise AirflowConfigException(
                     "Dag bundle providers must return DagBundleMetadata objects from "
-                    "get_active_bundle_metadata()."
+                    "get_configured_bundle_metadata()."
                 )
             if metadata.name == _example_dag_bundle_name:
                 raise AirflowConfigException(
@@ -234,6 +234,7 @@ class DagBundlesManager(LoggingMixin):
         """Get metadata for all active Dag bundles, including example bundles."""
         bundle_metadata = {metadata.name: metadata for metadata in self.get_configured_bundle_metadata()}
 
+        # Airflow owns example Dag bundles; configured providers do not need to include them.
         for name in self._example_dag_bundle_paths:
             if name in bundle_metadata:
                 raise AirflowConfigException(f"Bundle name '{name}' is reserved for example Dags.")
