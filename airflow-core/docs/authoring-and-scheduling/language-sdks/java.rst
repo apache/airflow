@@ -566,6 +566,36 @@ Edges are checked when the Dag is registered with a ``Bundle``: an upstream that
 Dag, or to no Dag, and a cycle anywhere in the graph both fail there rather than at the first task
 run.
 
+.. _java-sdk/task-state-store:
+
+Task state store
+~~~~~~~~~~~~~~~~
+
+``client.taskStateStore`` gives a task key-value state that is scoped to the task instance and survives
+retries and later runs (see :doc:`/core-concepts/task-and-asset-state-store`). Use it to remember things
+like an external job ID so a retried task can resume instead of starting over:
+
+.. code-block:: java
+
+    @Builder.Task(id = "submit")
+    public void submit(Client client) throws Exception {
+      var jobId = (String) client.taskStateStore.get("job_id");
+      if (jobId == null) {
+        jobId = submitJob();
+        client.taskStateStore.set("job_id", jobId, Duration.ofHours(6));
+      }
+      waitForJob(jobId);
+      client.taskStateStore.delete("job_id");
+    }
+
+``get`` returns ``null`` when the key is not set. ``set`` stores any JSON-serializable value; pass a
+``java.time.Duration`` to expire the key after that long, or omit it to keep the key until it is deleted.
+``delete`` removes one key and ``clear`` removes every key for the task instance. Unlike the Python SDK,
+the Java SDK does not read ``[state_store] default_retention_days``, so a key stored without a retention
+never expires. The Java SDK also does not use a ``[workers] state_store_backend``: values always go to the
+metadata database as-is, so keys written by Python tasks through a custom backend are returned to Java as
+the raw reference marker rather than the stored value.
+
 .. _java-sdk/logging:
 
 Logging
