@@ -236,9 +236,7 @@ class CeleryExecutor(BaseExecutor):
                 # Store the Celery task_id (workload execution ID) in the event buffer. This will get "overwritten" if the task
                 # has another event, but that is fine, because the only other events are success/failed at
                 # which point we don't need the ID anymore anyway.
-                self._emit_task_event(
-                    key, TaskInstanceState.QUEUED, result.task_id, consume_run_id=False
-                )
+                self._emit_task_event(key, TaskInstanceState.QUEUED, result.task_id, consume_run_id=False)
 
     def _emit_task_event(self, key, state, info=None, *, consume_run_id: bool | None = None) -> None:
         """Write an executor event; compatible with cores that lack ``record_event``."""

@@ -3305,9 +3305,7 @@ class TestSchedulerJob:
         assert returned_tis[0].workload_run_id is not None
         assert UUID(returned_tis[0].workload_run_id), "is valid uuid"
 
-        db_value = session.scalar(
-            select(TaskInstance.workload_run_id).where(TaskInstance.id == ti.id)
-        )
+        db_value = session.scalar(select(TaskInstance.workload_run_id).where(TaskInstance.id == ti.id))
         assert db_value == returned_tis[0].workload_run_id
 
         session.rollback()
