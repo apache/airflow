@@ -3210,7 +3210,7 @@ dag_processor:
 
     dag_bundle_provider:
       description: |
-        Import path for the class that provides Dag bundle configurations and constructs Dag bundles.
+        Import path for the class that provides active Dag bundle metadata and constructs Dag bundles.
         The class must extend ``airflow.dag_processing.bundles.provider.DagBundleProvider`` and have a
         no-argument constructor.
 

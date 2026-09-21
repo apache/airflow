@@ -129,14 +129,14 @@ def _validate_executor_fields(dag: DAG, bundle_name: str | None = None) -> None:
 
     # Check if multi team is available by reading the multi_team configuration (which is boolean)
     if conf.getboolean("core", "multi_team"):
-        # Get team name from bundle configuration if available
+        # Get team name from bundle metadata if available
         if bundle_name:
             from airflow.dag_processing.bundles.manager import DagBundlesManager
 
             bundle_manager = DagBundlesManager()
-            bundle_config = bundle_manager.get_bundle_configuration(bundle_name)
+            bundle_metadata = bundle_manager.get_bundle_metadata(bundle_name)
 
-            dag_team_name = bundle_config.team_name
+            dag_team_name = bundle_metadata.team_name
             if dag_team_name:
                 log.debug(
                     "Found team '%s' for DAG '%s' via bundle '%s'", dag_team_name, dag.dag_id, bundle_name
@@ -174,9 +174,9 @@ def _assign_default_team_pools(
             from airflow.dag_processing.bundles.manager import DagBundlesManager
 
             bundle_manager = DagBundlesManager()
-            bundle_config = bundle_manager.get_bundle_configuration(bundle_name)
+            bundle_metadata = bundle_manager.get_bundle_metadata(bundle_name)
 
-            dag_team_name = bundle_config.team_name
+            dag_team_name = bundle_metadata.team_name
 
     if not dag_team_name:
         return

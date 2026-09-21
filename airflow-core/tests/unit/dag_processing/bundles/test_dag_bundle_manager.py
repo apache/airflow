@@ -35,7 +35,7 @@ from airflow.dag_processing.bundles.manager import (
     _get_configured_bundle_team_names,
     _guess_best_bundle_for_fileloc,
 )
-from airflow.dag_processing.bundles.provider import DagBundleConfiguration, DagBundleProvider
+from airflow.dag_processing.bundles.provider import DagBundleMetadata, DagBundleProvider
 from airflow.exceptions import AirflowConfigException
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
@@ -126,11 +126,11 @@ class BasicBundle(BaseDagBundle):
 
 class CustomDagBundleProvider(DagBundleProvider):
     def __init__(self):
-        self.configuration_requests = 0
+        self.metadata_requests = 0
 
-    def get_all_bundle_configurations(self):
-        self.configuration_requests += 1
-        return [DagBundleConfiguration(name="active-bundle")]
+    def get_active_bundle_metadata(self):
+        self.metadata_requests += 1
+        return [DagBundleMetadata(name="active-bundle")]
 
     def get_bundle(self, name, version=None, version_data=None):
         if name not in {"active-bundle", "retired-bundle"}:
@@ -143,22 +143,22 @@ class CustomDagBundleProvider(DagBundleProvider):
         )
 
 
-class DuplicateConfigurationDagBundleProvider(CustomDagBundleProvider):
-    def get_all_bundle_configurations(self):
+class DuplicateMetadataDagBundleProvider(CustomDagBundleProvider):
+    def get_active_bundle_metadata(self):
         return [
-            DagBundleConfiguration(name="duplicate"),
-            DagBundleConfiguration(name="duplicate"),
+            DagBundleMetadata(name="duplicate"),
+            DagBundleMetadata(name="duplicate"),
         ]
 
 
-class NonConfigurationDagBundleProvider(CustomDagBundleProvider):
-    def get_all_bundle_configurations(self):
+class NonMetadataDagBundleProvider(CustomDagBundleProvider):
+    def get_active_bundle_metadata(self):
         return [object()]
 
 
 class MissingTeamDagBundleProvider(CustomDagBundleProvider):
-    def get_all_bundle_configurations(self):
-        return [DagBundleConfiguration(name="active-bundle", team_name="missing-team")]
+    def get_active_bundle_metadata(self):
+        return [DagBundleMetadata(name="active-bundle", team_name="missing-team")]
 
 
 class FailingInitializationDagBundleProvider(CustomDagBundleProvider):
@@ -262,14 +262,14 @@ def test_custom_bundle_provider_resolves_active_and_retired_bundles():
     manager = DagBundlesManager()
     provider = manager._bundle_provider
     assert isinstance(provider, CustomDagBundleProvider)
-    assert provider.configuration_requests == 0
+    assert provider.metadata_requests == 0
 
-    assert manager.get_all_bundle_configurations() == (DagBundleConfiguration(name="active-bundle"),)
-    assert provider.configuration_requests == 1
-    assert manager.get_bundle_configuration("active-bundle") == DagBundleConfiguration(name="active-bundle")
+    assert manager.get_active_bundle_metadata() == (DagBundleMetadata(name="active-bundle"),)
+    assert provider.metadata_requests == 1
+    assert manager.get_bundle_metadata("active-bundle") == DagBundleMetadata(name="active-bundle")
     assert manager.get_all_bundle_names() == ["active-bundle"]
     with pytest.raises(ValueError, match="'unknown-bundle' is not configured"):
-        manager.get_bundle_configuration("unknown-bundle")
+        manager.get_bundle_metadata("unknown-bundle")
 
     active_bundle = manager.get_bundle("active-bundle")
     retired_bundle = manager.get_bundle(
@@ -288,21 +288,21 @@ def test_custom_bundle_provider_resolves_active_and_retired_bundles():
     ("provider_class", "expected_message"),
     [
         pytest.param(
-            "unit.dag_processing.bundles.test_dag_bundle_manager.DuplicateConfigurationDagBundleProvider",
+            "unit.dag_processing.bundles.test_dag_bundle_manager.DuplicateMetadataDagBundleProvider",
             "duplicate bundle name 'duplicate'",
             id="duplicate-name",
         ),
         pytest.param(
-            "unit.dag_processing.bundles.test_dag_bundle_manager.NonConfigurationDagBundleProvider",
-            "must return DagBundleConfiguration objects",
-            id="wrong-configuration-type",
+            "unit.dag_processing.bundles.test_dag_bundle_manager.NonMetadataDagBundleProvider",
+            "must return DagBundleMetadata objects",
+            id="wrong-metadata-type",
         ),
     ],
 )
-def test_custom_bundle_provider_rejects_invalid_configurations(provider_class, expected_message):
+def test_custom_bundle_provider_rejects_invalid_metadata(provider_class, expected_message):
     with conf_vars({("dag_processor", "dag_bundle_provider"): provider_class}):
         with pytest.raises(AirflowConfigException, match=expected_message):
-            DagBundlesManager().get_all_bundle_configurations()
+            DagBundlesManager().get_active_bundle_metadata()
 
 
 @pytest.mark.parametrize(
@@ -679,7 +679,7 @@ def test_example_dags_name_is_reserved():
     reserved_name_config = [{"name": "example_dags", "classpath": "yo face", "kwargs": {}}]
     with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(reserved_name_config)}):
         with pytest.raises(AirflowConfigException, match="Bundle name 'example_dags' is a reserved name."):
-            DagBundlesManager().get_all_bundle_configurations()
+            DagBundlesManager().get_active_bundle_metadata()
 
 
 class FailingBundle(BaseDagBundle):

@@ -32,7 +32,7 @@ from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: TC001
 from airflow.dag_processing.bundles.local import LocalDagBundle
 from airflow.dag_processing.bundles.provider import (
-    DagBundleConfiguration,
+    DagBundleMetadata,
     DagBundleProvider,
 )
 from airflow.exceptions import AirflowConfigException
@@ -121,8 +121,8 @@ def _get_configured_bundle_team_names() -> dict[str, str | None]:
     """Get the team owning each Dag bundle returned by the configured provider."""
     manager = DagBundlesManager()
     return {
-        configuration.name: configuration.team_name
-        for configuration in manager._bundle_provider.get_all_bundle_configurations()
+        metadata.name: metadata.team_name
+        for metadata in manager._bundle_provider.get_active_bundle_metadata()
     }
 
 
@@ -212,37 +212,37 @@ class DagBundlesManager(LoggingMixin):
                 "`dag_processor` key `dag_bundle_provider`."
             ) from e
 
-    def get_all_bundle_configurations(self) -> tuple[DagBundleConfiguration, ...]:
-        """Get all active Dag bundle configurations."""
-        bundle_configurations: dict[str, DagBundleConfiguration] = {}
-        for bundle_config in self._bundle_provider.get_all_bundle_configurations():
-            if not isinstance(bundle_config, DagBundleConfiguration):
+    def get_active_bundle_metadata(self) -> tuple[DagBundleMetadata, ...]:
+        """Get metadata for all active Dag bundles."""
+        bundle_metadata: dict[str, DagBundleMetadata] = {}
+        for metadata in self._bundle_provider.get_active_bundle_metadata():
+            if not isinstance(metadata, DagBundleMetadata):
                 raise AirflowConfigException(
-                    "Dag bundle providers must return DagBundleConfiguration objects from "
-                    "get_all_bundle_configurations()."
+                    "Dag bundle providers must return DagBundleMetadata objects from "
+                    "get_active_bundle_metadata()."
                 )
-            if bundle_config.name == _example_dag_bundle_name:
+            if metadata.name == _example_dag_bundle_name:
                 raise AirflowConfigException(
                     f"Bundle name '{_example_dag_bundle_name}' is a reserved name. Please choose another name for your bundle."
                     " Example Dags can be enabled with the '[core] load_examples' config."
                 )
-            if bundle_config.name in bundle_configurations:
+            if metadata.name in bundle_metadata:
                 raise AirflowConfigException(
-                    f"Dag bundle provider returned duplicate bundle name '{bundle_config.name}'."
+                    f"Dag bundle provider returned duplicate bundle name '{metadata.name}'."
                 )
-            if bundle_config.team_name and not conf.getboolean("core", "multi_team"):
+            if metadata.team_name and not conf.getboolean("core", "multi_team"):
                 raise AirflowConfigException(
-                    "Dag bundle configurations cannot have a team name when multi-team mode is disabled. "
+                    "Dag bundle metadata cannot have a team name when multi-team mode is disabled. "
                     "To enable multi-team, update section `core` key `multi_team` in your config."
                 )
-            bundle_configurations[bundle_config.name] = bundle_config
+            bundle_metadata[metadata.name] = metadata
 
         for name in self._example_dag_bundle_paths:
-            if name in bundle_configurations:
+            if name in bundle_metadata:
                 raise AirflowConfigException(f"Bundle name '{name}' is reserved for example Dags.")
-            bundle_configurations[name] = DagBundleConfiguration(name=name)
+            bundle_metadata[name] = DagBundleMetadata(name=name)
 
-        return tuple(bundle_configurations.values())
+        return tuple(bundle_metadata.values())
 
     @provide_session
     def sync_bundles_to_db(self, *, deactivate_missing: bool = True, session: Session = NEW_SESSION) -> None:
@@ -265,7 +265,7 @@ class DagBundlesManager(LoggingMixin):
         """
         self.log.debug("Syncing DAG bundles to the database")
 
-        bundle_configurations = {config.name: config for config in self.get_all_bundle_configurations()}
+        bundle_metadata = {metadata.name: metadata for metadata in self.get_active_bundle_metadata()}
 
         def _extract_and_sign_template(bundle_name: str) -> tuple[str | None, dict]:
             bundle_instance = self.get_bundle(name)
@@ -291,13 +291,13 @@ class DagBundlesManager(LoggingMixin):
             for bundle in stored.values()
         }
 
-        for name, config in bundle_configurations.items():
+        for name, metadata in bundle_metadata.items():
             team: Team | None = None
-            if config.team_name:
-                team = session.scalars(select(Team).where(Team.name == config.team_name)).one_or_none()
+            if metadata.team_name:
+                team = session.scalars(select(Team).where(Team.name == metadata.team_name)).one_or_none()
                 if not team:
                     raise AirflowConfigException(
-                        f"Team '{config.team_name}' configured for Dag bundle '{name}' does not exist."
+                        f"Team '{metadata.team_name}' configured for Dag bundle '{name}' does not exist."
                     )
 
             try:
@@ -322,7 +322,7 @@ class DagBundlesManager(LoggingMixin):
                 session.add(bundle)
                 self.log.info("Added new DAG bundle %s to the database", name)
 
-            if team and bundle_to_team.get(name) != config.team_name:
+            if team and bundle_to_team.get(name) != metadata.team_name:
                 # Change of team. It can be associating a team to a dag bundle that did not have one or
                 # swapping a team for another
                 bundle.teams = [team]
@@ -595,11 +595,11 @@ class DagBundlesManager(LoggingMixin):
             return LocalDagBundle(name=name, path=path, version=version, version_data=version_data)
         return self._bundle_provider.get_bundle(name=name, version=version, version_data=version_data)
 
-    def get_bundle_configuration(self, name: str) -> DagBundleConfiguration:
-        """Get the active configuration for a Dag bundle."""
-        for configuration in self.get_all_bundle_configurations():
-            if configuration.name == name:
-                return configuration
+    def get_bundle_metadata(self, name: str) -> DagBundleMetadata:
+        """Get metadata for an active Dag bundle."""
+        for metadata in self.get_active_bundle_metadata():
+            if metadata.name == name:
+                return metadata
         raise ValueError(f"Requested bundle '{name}' is not configured.")
 
     def get_all_dag_bundles(self) -> Iterable[BaseDagBundle]:
@@ -608,11 +608,11 @@ class DagBundlesManager(LoggingMixin):
 
         :return: list of DAG bundles.
         """
-        for configuration in self.get_all_bundle_configurations():
+        for metadata in self.get_active_bundle_metadata():
             try:
-                yield self.get_bundle(name=configuration.name)
+                yield self.get_bundle(name=metadata.name)
             except Exception as e:
-                self.log.exception("Error creating bundle '%s': %s", configuration.name, e)
+                self.log.exception("Error creating bundle '%s': %s", metadata.name, e)
                 # Skip this bundle and continue with others
                 continue
 
@@ -622,7 +622,7 @@ class DagBundlesManager(LoggingMixin):
 
         :return: sorted list of bundle names.
         """
-        return sorted(configuration.name for configuration in self.get_all_bundle_configurations())
+        return sorted(metadata.name for metadata in self.get_active_bundle_metadata())
 
     def view_url(self, name: str, version: str | None = None) -> str | None:
         warnings.warn(
