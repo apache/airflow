@@ -366,9 +366,7 @@ class KubernetesExecutor(BaseExecutor):
                     queue,
                 )
 
-        self._emit_task_event(
-            key, TaskInstanceState.QUEUED, self.scheduler_job_id, consume_run_id=False
-        )
+        self._emit_task_event(key, TaskInstanceState.QUEUED, self.scheduler_job_id, consume_run_id=False)
         job = KubernetesJob(key, command, kube_executor_config, pod_template_file, coordinator_kube_image)
         self.pod_launch_attempts[key] = _PodLaunchAttempt(job=job)
         self.task_queue.put(job)
