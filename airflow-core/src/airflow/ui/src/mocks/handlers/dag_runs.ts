@@ -75,9 +75,17 @@ const dagRunTaggedDag = {
   triggering_user_name: "admin",
 };
 
+const dagRunMultiTaggedDag = {
+  ...dagRunTaggedDag,
+  dag_display_name: "multi_tagged_dag",
+  dag_id: "multi_tagged_dag",
+  dag_run_id: "run_multi_tagged_dag",
+};
+
 // Maps dag_id to the tags its Dag is annotated with, so the "tags" query
 // param can be simulated without a real Dags table backing the mock.
 const dagIdTags: Record<string, Array<string>> = {
+  multi_tagged_dag: ["example_tag", "other_tag"],
   tagged_dag: ["example_tag"],
   test_dag: [],
 };
@@ -88,8 +96,9 @@ export const handlers: Array<HttpHandler> = [
     const logicalDateGte = url.searchParams.get("logical_date_gte");
     const logicalDateLte = url.searchParams.get("logical_date_lte");
     const tags = url.searchParams.getAll("tags");
+    const tagsMatchMode = url.searchParams.get("tags_match_mode");
 
-    const allRuns = [dagRunBeforeFilter, dagRunInRange, dagRunTaggedDag];
+    const allRuns = [dagRunBeforeFilter, dagRunInRange, dagRunTaggedDag, dagRunMultiTaggedDag];
 
     const filtered = allRuns.filter((run) => {
       const logicalDate = new Date(run.logical_date);
@@ -100,8 +109,16 @@ export const handlers: Array<HttpHandler> = [
       if (logicalDateLte !== null && logicalDate > new Date(logicalDateLte)) {
         return false;
       }
-      if (tags.length > 0 && !tags.some((tag) => dagIdTags[run.dag_id]?.includes(tag))) {
-        return false;
+      if (tags.length > 0) {
+        const runTags = dagIdTags[run.dag_id] ?? [];
+        const matches =
+          tagsMatchMode === "all"
+            ? tags.every((tag) => runTags.includes(tag))
+            : tags.some((tag) => runTags.includes(tag));
+
+        if (!matches) {
+          return false;
+        }
       }
 
       return true;
