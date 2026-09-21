@@ -4172,7 +4172,7 @@ def test_clear_task_instances_recalculates_dagrun_queued_deadlines(dag_maker, se
             serialized_dag_id=serialized_dag_id,
             reference=reference,
             interval=serialize(interval),
-            callback_def={"path": f"{__name__}.empty_callback_for_deadline", "kwargs": {}},
+            callback_def=serialize(AsyncCallback(empty_callback_for_deadline)),
         )
         session.add(deadline_alert)
         session.flush()
@@ -4235,7 +4235,7 @@ def test_clear_task_instances_recalculates_variable_interval_deadline(mock_get, 
         serialized_dag_id=serialized_dag_id,
         reference=DeadlineReference.DAGRUN_QUEUED_AT.serialize_reference(),
         interval=serialize(VariableInterval("deadline_seconds")),
-        callback_def={"path": f"{__name__}.empty_callback_for_deadline", "kwargs": {}},
+        callback_def=serialize(AsyncCallback(empty_callback_for_deadline)),
     )
     session.add(deadline_alert)
     session.flush()
