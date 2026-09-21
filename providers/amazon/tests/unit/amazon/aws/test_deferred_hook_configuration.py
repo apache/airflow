@@ -57,7 +57,6 @@ UNREADABLE_DEFER_SITES = frozenset({("operators/eks.py", "trigger")})
 PENDING_MIGRATION = frozenset(
     {
         ("sensors/batch.py", "BatchJobTrigger"),
-        ("sensors/opensearch_serverless.py", "OpenSearchServerlessCollectionActiveTrigger"),
     }
 )
 
@@ -237,8 +236,6 @@ HAND_BUILT_HOOK_EXCEPTIONS = frozenset(
         ("sagemaker_unified_studio.py", "SageMakerNotebookHook"),
         # EksPodOperator is a KubernetesPodOperator: it carries no verify or botocore_config to pass.
         ("eks.py", "EksHook"),
-        # Contributors Workshop task; see PENDING_MIGRATION.
-        ("opensearch_serverless.py", "OpenSearchServerlessHook"),
     }
 )
 
