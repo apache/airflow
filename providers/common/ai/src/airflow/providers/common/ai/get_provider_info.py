@@ -33,6 +33,7 @@ def get_provider_info():
                 "how-to-guide": [
                     "/docs/apache-airflow-providers-common-ai/operators/agent.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm.rst",
+                    "/docs/apache-airflow-providers-common-ai/operators/llm_batch.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm_file_analysis.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm_branch.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm_sql.rst",
@@ -69,6 +70,11 @@ def get_provider_info():
                 "integration-name": "Docker Sandboxes",
                 "external-doc-url": "https://docs.docker.com/ai/sandboxes/",
                 "tags": ["software"],
+            },
+            {
+                "integration-name": "Modal",
+                "external-doc-url": "https://modal.com/docs/guide/sandbox",
+                "tags": ["service"],
             },
         ],
         "hooks": [
@@ -149,7 +155,12 @@ def get_provider_info():
                         "label": "Model",
                         "description": "Model in provider:name format (e.g. anthropic:claude-sonnet-5, openai:gpt-5)",
                         "schema": {"type": ["string", "null"]},
-                    }
+                    },
+                    "fallback_conn_ids": {
+                        "label": "Fallback Connections",
+                        "description": "Connection IDs to fail over to, in order, while this provider is unavailable.",
+                        "schema": {"type": ["array", "null"], "items": {"type": "string"}},
+                    },
                 },
             },
             {
@@ -170,6 +181,11 @@ def get_provider_info():
                         "label": "Model",
                         "description": "Azure model identifier (e.g. azure:gpt-4o)",
                         "schema": {"type": ["string", "null"]},
+                    },
+                    "fallback_conn_ids": {
+                        "label": "Fallback Connections",
+                        "description": "Connection IDs to fail over to, in order, while this provider is unavailable.",
+                        "schema": {"type": ["array", "null"], "items": {"type": "string"}},
                     },
                     "api_version": {
                         "label": "API Version",
@@ -195,6 +211,11 @@ def get_provider_info():
                         "label": "Model",
                         "description": "Bedrock model identifier (e.g. bedrock:us.anthropic.claude-opus-4-5)",
                         "schema": {"type": ["string", "null"]},
+                    },
+                    "fallback_conn_ids": {
+                        "label": "Fallback Connections",
+                        "description": "Connection IDs to fail over to, in order, while this provider is unavailable.",
+                        "schema": {"type": ["array", "null"], "items": {"type": "string"}},
                     },
                     "region_name": {
                         "label": "AWS Region",
@@ -260,6 +281,11 @@ def get_provider_info():
                         "label": "Model",
                         "description": "Google model identifier (e.g. google-cloud:gemini-2.0-flash)",
                         "schema": {"type": ["string", "null"]},
+                    },
+                    "fallback_conn_ids": {
+                        "label": "Fallback Connections",
+                        "description": "Connection IDs to fail over to, in order, while this provider is unavailable.",
+                        "schema": {"type": ["array", "null"], "items": {"type": "string"}},
                     },
                     "project": {
                         "label": "GCP Project",
@@ -387,6 +413,7 @@ def get_provider_info():
                 "python-modules": [
                     "airflow.providers.common.ai.operators.agent",
                     "airflow.providers.common.ai.operators.llm",
+                    "airflow.providers.common.ai.operators.llm_batch",
                     "airflow.providers.common.ai.operators.llm_file_analysis",
                     "airflow.providers.common.ai.operators.llm_branch",
                     "airflow.providers.common.ai.operators.llm_sql",
@@ -397,9 +424,19 @@ def get_provider_info():
                 ],
             }
         ],
+        "triggers": [
+            {
+                "integration-name": "Common AI",
+                "python-modules": ["airflow.providers.common.ai.triggers.llm_batch"],
+            }
+        ],
         "task-decorators": [
             {"class-name": "airflow.providers.common.ai.decorators.agent.agent_task", "name": "agent"},
             {"class-name": "airflow.providers.common.ai.decorators.llm.llm_task", "name": "llm"},
+            {
+                "class-name": "airflow.providers.common.ai.decorators.llm_batch.llm_batch_task",
+                "name": "llm_batch",
+            },
             {
                 "class-name": "airflow.providers.common.ai.decorators.llm_file_analysis.llm_file_analysis_task",
                 "name": "llm_file_analysis",

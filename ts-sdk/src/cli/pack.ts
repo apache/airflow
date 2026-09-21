@@ -18,7 +18,8 @@
  */
 
 // airflow-ts-pack: bundle a TypeScript entrypoint into the single artifact NodeCoordinator consumes.
-// `bundle.min.mjs` carries the metadata and an integrity layout descriptor in JavaScript comments.
+// `bundle.min.mjs` carries the metadata, the entrypoint source, and an integrity layout descriptor
+// in JavaScript comments.
 //
 // Build first, then run the built bundle with --airflow-metadata so the manifest comes from the
 // bundle's own Dag registry and schema version, never from a hand-written sidecar.
@@ -46,7 +47,8 @@ const MANIFEST_MAX_BUFFER_BYTES = 64 * 1024 * 1024;
 const USAGE = `Usage: airflow-ts-pack <entry> [--outdir <dir> | --outfile <path>] [--source <name>]
 
 Bundles <entry> into a minified ${BUNDLE_FILENAME} with esbuild and embeds the
-airflow metadata generated from the bundle's served Dags.
+airflow metadata generated from the bundle's served Dags, plus <entry> itself as
+the readable source Airflow displays for the bundle.
 
 Options:
   --outdir <dir>    Output directory, holding ${BUNDLE_FILENAME} (default: dist)
@@ -156,7 +158,7 @@ function readBundleManifest(bundlePath: string): BundleManifest {
   const manifest = parsed;
   // The line is whatever the bundle printed and nothing downstream re-validates
   // it, so check each Dag entry down to the task-id element.
-  for (const [dagId, dag] of Object.entries(manifest.dags)) {
+  for (const [dagId, dag] of Object.entries(manifest.task_handlers)) {
     if (dag == null || !isTaskIdList(dag.tasks)) {
       throw new Error(
         `Bundle produced ${AIRFLOW_METADATA_FLAG} output with a malformed entry for Dag "${dagId}"`,
@@ -171,16 +173,17 @@ function readBundleManifest(bundlePath: string): BundleManifest {
 // raw TypeError rather than a report about the bundle.
 function isBundleManifest(value: unknown): value is BundleManifest {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
-  const { supervisor_schema_version: version, dags } = value as Partial<BundleManifest>;
+  const { supervisor_schema_version: version, task_handlers: taskHandlers } =
+    value as Partial<BundleManifest>;
   return (
     // Rendered into the manifest verbatim, where the schema requires a non-empty
     // string, so a truthy number or boolean would travel to Airflow as-is.
     typeof version === "string" &&
     version.length > 0 &&
-    typeof dags === "object" &&
-    dags !== null &&
+    typeof taskHandlers === "object" &&
+    taskHandlers !== null &&
     // An array would pass the typeof check and yield Dags named "0", "1", ...
-    !Array.isArray(dags)
+    !Array.isArray(taskHandlers)
   );
 }
 
@@ -219,7 +222,7 @@ export async function runPack(argv: readonly string[]): Promise<void> {
     });
 
     const manifest = readBundleManifest(stagingPath);
-    const dagEntries = Object.entries(manifest.dags);
+    const dagEntries = Object.entries(manifest.task_handlers);
     if (dagEntries.length === 0) {
       throw new Error(
         `${args.entry} served nothing; register Dags or task handlers with bundle.register(...)`,
@@ -232,12 +235,14 @@ export async function runPack(argv: readonly string[]): Promise<void> {
         process.stderr.write(`warning: dag ${JSON.stringify(dagId)} has no tasks\n`);
       }
     }
-    warnOnSuspiciousIds(manifest.dags);
+    warnOnSuspiciousIds(manifest.task_handlers);
 
     const bundle = encodeBundle({
       bundleManifest: manifest,
       sdkVersion: readSdkVersion(),
       entrypointName: args.source,
+      // Only the entrypoint, like the Java SDK's Airflow-Java-SDK-Dag-Code attribute.
+      entrypointSource: readFileSync(args.entry, "utf-8"),
       executable: readFileSync(stagingPath),
     });
     writeFileSync(bundlePath, bundle);
@@ -245,5 +250,5 @@ export async function runPack(argv: readonly string[]): Promise<void> {
     rmSync(stagingPath, { force: true });
   }
 
-  console.log(`Wrote ${bundlePath} (airflow metadata and integrity embedded)`);
+  console.log(`Wrote ${bundlePath} (airflow metadata, source, and integrity embedded)`);
 }

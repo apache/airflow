@@ -37,6 +37,7 @@ import {
 } from "../../src/coordinator/runtime.js";
 import { Dag } from "../../src/sdk/dag.js";
 import { Bundle } from "../../src/sdk/bundle.js";
+import { withArgNames } from "../../src/sdk/arg-names.js";
 import { TaskHandler } from "../../src/sdk/task-handler.js";
 import { getClient, getContext } from "../../src/sdk/task.js";
 
@@ -517,6 +518,38 @@ describe("coordinator runtime integration", () => {
           String(r["error"]).includes("pushed no return_value XCom"),
       ),
     ).toBe(true);
+  });
+
+  it("honours a handler's explicit renames over folding", async () => {
+    // `withArgNames` travels with the handler, so the dispatch site reads it
+    // back off the function the bundle holds.
+    let observed: unknown = null;
+    bundle.register(
+      new TaskHandler(
+        "py_dag",
+        "renamed",
+        withArgNames(
+          { label: "run_label" },
+          async ({ label, regionCode }: { label: string; regionCode: string }) => {
+            observed = { label, regionCode };
+            return observed;
+          },
+        ),
+      ),
+    );
+
+    const result = await driveSupervisor(
+      makeStartupDetails("renamed", "py_dag", "r1", {
+        arg_bindings: [
+          { name: "run_label", kind: "literal", value: "nightly" },
+          { name: "region_code", kind: "literal", value: "uk" },
+        ],
+      }),
+    );
+
+    expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+    // `label` came from the map, `regionCode` folded as usual.
+    expect(observed).toEqual({ label: "nightly", regionCode: "uk" });
   });
 
   it("fails the task when two of its bound names fold alike", async () => {

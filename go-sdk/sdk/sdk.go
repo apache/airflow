@@ -121,8 +121,8 @@ type XComClient interface {
 }
 
 // Client is the full task-facing API: read/write Variables, read Connections,
-// and read/write XCom. A task that declares an sdk.Client parameter is handed one
-// by the runtime. If a task needs only one capability, ask for the narrower
+// and read/write XCom. A task gets one from its airflow.Context by calling
+// actx.Client(). A helper that needs only one capability can take the narrower
 // VariableClient, ConnectionClient, or XComClient instead.
 type Client interface {
 	VariableClient
