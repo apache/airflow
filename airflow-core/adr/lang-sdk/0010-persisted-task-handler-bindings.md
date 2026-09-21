@@ -54,35 +54,13 @@ Two problems compound here.
 **The scan is per task.** Because Dag processing records nothing, every task execution re-walks the
 root and re-hashes candidates to answer a question whose answer changed only when someone deployed.
 
-**The index it scans is frozen at compile time, so dynamic Dag generation cannot work at all.** The
-`dags: {dag_id: {tasks: [...]}}` mapping is written when the artifact is packed, by executing the
-freshly built artifact and recording what `RegisterDags` produced
-([`collectManifest`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/pkg/execution/metadata.go#L83-L115)). Those identifiers are then fixed
-for the life of the artifact. Two coordinators route on them —
-`ExecutableCoordinator` through [`_dag_ids`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/executable/coordinator.py#L249-L254)
-and [`_Bundle.find`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/executable/coordinator.py#L296-L322),
-`NodeCoordinator` through the `task_handlers` mapping
-([`_build_execute_task_command`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/node/coordinator.py#L125-L127),
-[`_parse_bundle_metadata`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/node/_bundle_reader.py#L379-L383)) —
-so a Dag id the artifact only decides on at runtime can never be matched.
-
-That is the case where Dag ids are generated from data the artifact reads when it starts: an external
-YAML listing them, say. The build environment holds different data, or none. And the failure is not a
-silent mismatch at execution time — it is earlier and harder: an empty inventory is a fatal pack
-error ([`empty-dags check`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/cmd/airflow-go-pack/pack.go#L166-L168)), so such an artifact
-cannot be packed in the first place.
-
-`JavaCoordinator` sidesteps the inventory only by having none: it matches on `Main-Class`, accepts
-`what` and never reads `what.dag_id`
-([`_build_execute_task_command`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/java/coordinator.py#L207-L215)),
-with its own docstring conceding that with several executable JARs present "it may be
-nondeterministic which one ends up being executed"
-([`JavaCoordinator`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/java/coordinator.py#L180-L183)). The
-Gradle plugin writes two Airflow manifest attributes and no inventory
-([`Main-Class`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/java-sdk/plugin/src/main/kotlin/org/apache/airflow/sdk/plugin/AirflowSdkPlugin.kt#L113),
-[`Airflow-Supervisor-Schema-Version`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/java-sdk/plugin/src/main/kotlin/org/apache/airflow/sdk/plugin/AirflowSdkPlugin.kt#L194-L195)).
-So no coordinator can route a runtime-generated Dag id today: two consult a frozen index, and the
-third does not route at all.
+**The identifiers it scans are frozen when the artifact is built.** Packing an artifact records the
+Dag ids and task ids it exposes into the artifact's own metadata, and they are fixed from then on
+([`collectManifest`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/pkg/execution/metadata.go#L83-L115)). A coordinator picks an artifact
+by looking a `dag_id` up in that recorded list, so a Dag whose id the artifact only decides on when
+it runs — generated from an external YAML, say — can never be matched to it. Dynamic Dag generation
+does not merely misroute; it cannot be packed at all, because an artifact that enumerates no Dags at
+build time is rejected outright ([`empty-dags check`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/cmd/airflow-go-pack/pack.go#L166-L168)).
 
 Separately, `[sdk] coordinators` locates artifacts through filesystem roots — `jars_root`,
 `executables_root`, `bundles_root` ([ADR-0005](0005-coordinator-packaging.md)) — which are
@@ -103,7 +81,12 @@ Dag importer, and are not yet recorded in an ADR.
 ### Artifacts live in a named DagBundle, not a filesystem root
 
 `jars_root` / `executables_root` / `bundles_root` are replaced by a single coordinator kwarg naming a
-`DagBundle`:
+`DagBundle`.
+
+Nothing is taken away from deployments that want to place artifacts themselves. A `LocalDagBundle`
+pointed at the mount does exactly what an explicit root did — the directory is still theirs to
+manage — but it arrives through the same mechanism as every other bundle rather than beside it, so
+it inherits refresh and the rest without special-casing:
 
 ```ini
 [dag_processor]
@@ -170,10 +153,6 @@ validation of every `queue_to_coordinator` key
 ([`from_config`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/execution_time/coordinator.py#L262-L264)), so a typo surfaces at config load
 rather than as a lazy `InvalidCoordinatorError` on the first task.
 
-A deployment that wants to mount artifacts itself uses a `LocalDagBundle` pointed at the mount. That
-is the supported replacement for an explicit root, and it is the same mechanism, not an exception to
-it.
-
 ### Two tables
 
 The resolved binding is persisted. The artifact is normalised out, because one artifact typically
@@ -210,8 +189,7 @@ CREATE INDEX idx_lsth_artifact_id ON lang_sdk_task_handler (artifact_id);
 
 `PRIMARY KEY (dag_id, task_id)` is the conflict guard: two artifacts claiming the same task cannot
 both be recorded, and the collision is detected during the parse and reported as an import error
-rather than resolved by scan order. The shape mirrors [`TaskOutletAssetReference`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/airflow-core/src/airflow/models/asset.py#L657-L718), including its deliberate absence of a `task_id`
-foreign key — there is no per-task table to reference.
+rather than resolved by scan order.
 
 `dag_bundle_name` / `dag_relative_fileloc` identify the Python file that owns the row. They exist so
 the Dag processor manager can look up prior state by the file it is about to dispatch, **without**
@@ -225,18 +203,17 @@ that name already denotes the Python side of the comparison — `XComArgBinding`
 carrying wiring and values ([`build_arg_bindings`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/airflow-core/src/airflow/serialization/stub_arg_bindings.py#L221-L286)) —
 and reusing it would make the validation read as comparing a thing to itself.
 
-`cache_digest` is **opaque and coordinator-defined**, not "SHA-256 of the file". Each runtime supplies
-its own stable value ([ADR-0011](0011-bundle-metadata-and-cache-digest.md)). Nothing outside the
-coordinator may assume how it was computed.
+`cache_digest` is **opaque and coordinator-defined**, not "SHA-256 of the file"
+([ADR-0011](0011-bundle-metadata-and-cache-digest.md)).
 
 ### Objects on the wire
 
-Three hops carry the binding. Each is a distinct object; none reuses another's.
-
 **Manager → Dag-parsing child.** [`DagFileParseRequest`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/airflow-core/src/airflow/dag_processing/processor.py#L113-L130) gains the artifacts the manager
-already knows about. The parse child runs with `_AIRFLOW_PROCESS_CONTEXT = "client"` and speaks only
-`ToDagProcessor` / `ToManager` over its comm socket ([`_parse_file_entrypoint`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/airflow-core/src/airflow/dag_processing/processor.py#L208-L232)) — it has no database, so
-prior state must be pushed to it.
+already knows about. The parse child processor subprocesses run in the client context without a
+database connection ([`_parse_file_entrypoint`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/airflow-core/src/airflow/dag_processing/processor.py#L208-L232)),
+so the prior cache state must be pushed down from the manager. The alternative is a dedicated
+Execution API for the child processor process to retrieve `KnownSDKTaskHandlerArtifact` itself, which
+was rejected on blast radius.
 
 ```python
 class KnownSDKTaskHandlerArtifact(BaseModel):
@@ -263,8 +240,7 @@ total, not once each.
 **Dag-parsing child → coordinator subprocess.** Introduced here. The child spawns the runtime and
 forwards bytes in both directions, decoding nothing; the process that spawned the parse decodes the
 reply. `ToSDKTaskHandlerProcessor` is a new parent-to-child union differing from `ToDagProcessor` in
-one member, and `ToManager` gains `SDKTaskHandlerParsingResult` — the runtime's `Get*` traffic for
-connections, variables and XComs is identical either way and is relayed up unchanged.
+one member, and `ToManager` gains `SDKTaskHandlerParsingResult`.
 
 ```python
 class SDKTaskHandlerParseRequest(BaseModel):  # parent -> runtime, on ToSDKTaskHandlerProcessor
@@ -290,18 +266,9 @@ class TaskHandlerDeclaration(BaseModel):
 
 class TaskHandlerParam(BaseModel):
     name: str
-    value_schema: ArgValueSchema | None = None  # an open-vocabulary JSON Schema fragment
+    value_schema: JSONSchema | None = None
     required: bool  # the handler declares no default
 ```
-
-`ArgValueSchema` is [ADR-0007](0007-taskflow-across-language-boundary.md)'s shipped type, reused here
-so both sides of a comparison are the same type. Despite the name it carries **JSON Schema**: a
-pydantic-generated fragment that ships verbatim and that runtimes are required to treat as
-open-vocabulary
-([`_infer_value_schema`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/airflow-core/src/airflow/serialization/stub_arg_bindings.py#L95-L140)).
-The name is not changed here: the type is already code-generated into all three SDKs
-([`ArgValueSchema`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/execution_time/schema/schema.json#L4600-L4606)),
-so renaming it is a supervisor-schema change belonging to ADR-0007, not to this one.
 
 A `dag_id` the artifact registers nothing for is **omitted** from `task_handlers` rather than returned
 empty, so a probe that matches nothing is distinguishable from a probe that matched a Dag with zero
@@ -456,15 +423,13 @@ DagProcessorManager.persist_parsing_result                 [writes DB]
 ```
 
 Step 3 must upsert: two parse children can discover the same artifact in the same loop and race on
-the unique key. `activate_assets_if_possible` is the in-repo precedent for the dialect-aware form
-([`activate_assets_if_possible`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/airflow-core/src/airflow/dag_processing/collection.py#L908-L932)).
+the unique key.
 
 Step 4 reconciles **by the `dag_id`s in the result**, not by file path: delete rows for those
 `dag_id`s whose `task_id` is absent from the returned set, then insert or update the rest. Path-keyed
 eviction breaks when a Dag moves between files — the old rows stay keyed to a path nothing parses any
 more, and the primary key then blocks the new insert. With `dag_id` as the key a move simply updates
 `dag_relative_fileloc`, and a Dag that disappears entirely is reclaimed by the `ON DELETE CASCADE`.
-The set-difference shape to copy is [`_add_dag_asset_references`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/airflow-core/src/airflow/dag_processing/collection.py#L1004-L1026).
 
 Artifact rows are **never** evicted from one file's result. One artifact backs handlers owned by many
 Python files, so this file seeing fewer candidates says nothing about another file's. They are a
@@ -504,12 +469,7 @@ SchedulerJobRunner._enqueue_task_instances_with_queued_state   [no further DB re
               └── executor.queue_workload(workload)
 ```
 
-A stub task with no binding is **failed with its reason**, not skipped. Skipping is what the
-`dag_version_id` branch above does, and its own log message concedes the task is then stuck until
-something else repairs it — acceptable for a transient race, wrong for a configuration error that
-cannot repair itself without a re-parse. Filtering it out of the queueing query instead, the way
-`DM.bundle_name.is_not(None)` does, is worse still: the task silently never appears and nothing
-explains why.
+A stub task with no binding is **failed with its reason**, not skipped.
 
 ### Flow 3 — Task execution
 
