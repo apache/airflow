@@ -199,13 +199,15 @@ cookie to the final response that redirects the authenticated user to the UI. Th
 ``httponly`` cookie with subsequent requests; the UI does not manage the token.
 
 .. note::
-  Ensure that the cookie parameter ``httponly`` is set to ``True``. The UI does not manage the token.
+  Ensure that the cookie parameter ``httponly`` is set to ``True``.
 
 Redirect-based UI login flows
 '''''''''''''''''''''''''''''
 
 OAuth, OIDC, SAML, and similar login protocols leave Airflow while the identity provider authenticates the user.
-For these flows, complete authentication and set the Airflow JWT cookie before returning to the UI:
+For these flows, complete authentication and set the Airflow JWT cookie before returning to the UI.
+If the UI is reached before ``_token`` is attached, the interceptor starts login and the Unauthorized page can
+appear for a moment.
 
 #. When an unauthenticated UI request receives a ``401``, the UI navigates to ``/api/v2/auth/login`` and sends its
    original destination in ``next``.
@@ -219,15 +221,19 @@ For these flows, complete authentication and set the Airflow JWT cookie before r
 #. The callback returns a ``303`` redirect to the validated return URL, or to the configured ``[api] base_url`` when
    there was no original destination.
 
-The following compact example shows the two auth-manager handlers. The ``validate_airflow_return_url``,
-``store_login_nonce``, ``sign_login_state``, ``verify_and_consume_login_state``,
-``build_provider_authorization_url``, and ``exchange_code_and_build_user`` helpers are placeholders that the auth
-manager must implement. Airflow does not provide provider token exchange or state signing.
+The following compact example shows the two auth-manager handlers. Check the return URL with
+``is_safe_url`` from ``airflow.api_fastapi.core_api.security``, the same helper the core
+``/auth/login`` route and the simple auth manager already call. Prefer an absolute ``[api] base_url``
+when building the provider ``redirect_uri``; ``request.url_for`` is the fallback when that setting is
+missing. Identity providers reject a relative ``redirect_uri``. The ``store_login_nonce``,
+``sign_login_state``, ``verify_and_consume_login_state``, ``build_provider_authorization_url``, and
+``exchange_code_and_build_user`` helpers are placeholders that the auth manager must implement.
+Airflow does not provide provider token exchange or state signing.
 
 .. code-block:: python
 
     import secrets
-    from urllib.parse import urlsplit, urlunsplit
+    from urllib.parse import urljoin
 
     from fastapi import APIRouter, HTTPException, Request, status
     from fastapi.responses import RedirectResponse
@@ -238,29 +244,28 @@ manager must implement. Airflow does not provide provider token exchange or stat
         get_cookie_path,
     )
     from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
+    from airflow.api_fastapi.core_api.security import is_safe_url
     from airflow.configuration import conf
 
     router = APIRouter()
-    airflow_base_url = conf.get("api", "base_url", fallback="/")
-    base_url_parts = urlsplit(airflow_base_url)
-    callback_url = urlunsplit(
-        (
-            base_url_parts.scheme,
-            base_url_parts.netloc,
-            f"{AUTH_MANAGER_FASTAPI_APP_PREFIX.rstrip('/')}/callback",
-            "",
-            "",
-        )
-    )
+
+
+    def _login_callback_url(request: Request) -> str:
+        base_url = conf.get("api", "base_url", fallback=None)
+        if base_url:
+            return urljoin(base_url, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/callback")
+        return str(request.url_for("callback"))
 
 
     @router.get("/login")
-    def login(next: str | None = None) -> RedirectResponse:
-        validated_return_url = validate_airflow_return_url(next, base_url=airflow_base_url)
+    def login(request: Request, next: str | None = None) -> RedirectResponse:
+        if next and not is_safe_url(next, request=request):
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid or unsafe next URL")
+        validated_return_url = next or conf.get("api", "base_url", fallback="/")
         nonce = secrets.token_urlsafe(32)
         store_login_nonce(nonce)
         state = sign_login_state({"nonce": nonce, "return_url": validated_return_url})
-        provider_url = build_provider_authorization_url(redirect_uri=callback_url, state=state)
+        provider_url = build_provider_authorization_url(redirect_uri=_login_callback_url(request), state=state)
         return RedirectResponse(url=provider_url, status_code=303)
 
 
@@ -279,7 +284,11 @@ manager must implement. Airflow does not provide provider token exchange or stat
         if error is not None or code is None:
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Authentication failed")
 
-        validated_return_url = validate_airflow_return_url(login_state["return_url"], base_url=airflow_base_url)
+        return_url = login_state["return_url"]
+        if return_url and not is_safe_url(return_url, request=request):
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid or unsafe next URL")
+        validated_return_url = return_url or conf.get("api", "base_url", fallback="/")
+        callback_url = _login_callback_url(request)
         user = exchange_code_and_build_user(code=code, redirect_uri=callback_url)
         token = get_auth_manager().generate_jwt(user)
 
