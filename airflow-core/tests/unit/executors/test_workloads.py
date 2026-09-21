@@ -225,6 +225,7 @@ def test_workload_ti_round_trips_through_sdk_generated_model():
 
     dumped = ti.model_dump(mode="json")
     assert "external_executor_id" not in dumped
+    assert "workload_run_id" not in dumped
     assert "executor_config" not in dumped
     # Executor-side scheduling fields stay on the workload wire (older workers
     # deserialize the workload with a model that requires them) but are not
@@ -283,6 +284,7 @@ class TestExecuteTaskMakeVersionData:
         ti.context_carrier = None
         ti.hostname = None
         ti.external_executor_id = None
+        ti.workload_run_id = None
 
         ti.dag_model.bundle_name = "test-bundle"
         ti.dag_model.relative_fileloc = "dags/test_dag.py"

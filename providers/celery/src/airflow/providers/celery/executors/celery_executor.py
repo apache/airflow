@@ -258,8 +258,8 @@ class CeleryExecutor(BaseExecutor):
             else:
                 record_event(key, state, info, consume_run_id=consume_run_id)
             return
-        # Older BaseExecutor: event buffer is a plain (state, info) tuple.
-        self.event_buffer[key] = (state, info)
+        # Older BaseExecutor: event buffer is a plain (state, info[, workload_run_id]) tuple.
+        self.event_buffer[key] = (state, info, None)
 
     def _send_workloads_to_celery(self, workload_tuples_to_send: Sequence[WorkloadInCelery]):
         from airflow.providers.celery.executors.celery_executor_utils import send_workload_to_executor
@@ -303,7 +303,7 @@ class CeleryExecutor(BaseExecutor):
 
         self.log.debug("Inquiries completed.")
         for key, async_result in list(self.workloads.items()):
-            state, info = state_and_info_by_celery_task_id.get(async_result.task_id)
+            state, info, *_ = state_and_info_by_celery_task_id.get(async_result.task_id)
             if state:
                 self.update_task_state(cast("TaskInstanceKey", key), state, info)
 
@@ -387,7 +387,7 @@ class CeleryExecutor(BaseExecutor):
         adopted = []
         cached_celery_backend = next(iter(celery_tasks.values()))[0].backend
 
-        for celery_task_id, (state, info) in states_by_celery_task_id.items():
+        for celery_task_id, (state, info, *_) in states_by_celery_task_id.items():
             result, ti = celery_tasks[celery_task_id]
             result.backend = cached_celery_backend
             if isinstance(result.result, BaseException):

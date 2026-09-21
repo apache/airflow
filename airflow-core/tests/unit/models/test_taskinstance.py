@@ -2580,6 +2580,7 @@ class TestTaskInstance:
             "executor": "some_executor",
             "executor_config": {"Some": {"extra": "information"}},
             "external_executor_id": "some_executor_id",
+            "workload_run_id": "some-run-id",
             "trigger_timeout": None,
             "trigger_id": None,
             "next_kwargs": None,
