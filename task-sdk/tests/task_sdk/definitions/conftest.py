@@ -54,4 +54,9 @@ def make_xcom_arg(values: Any) -> XComArg:
     op = BaseOperator(task_id="upstream")
     xcom_arg = XComArg(op)
     xcom_arg.resolve = lambda *a, **kw: values
+
+    async def aresolve(*a, **kw):
+        return values
+
+    xcom_arg.aresolve = aresolve
     return xcom_arg

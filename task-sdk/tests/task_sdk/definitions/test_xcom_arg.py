@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
+import threading
 from collections.abc import Callable
 from unittest import mock
 
@@ -26,9 +28,10 @@ from task_sdk.definitions.conftest import make_xcom_arg
 
 from airflow.sdk import TaskInstanceState
 from airflow.sdk.bases.xcom import BaseXCom
+from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.definitions.xcom_arg import PlainXComArg
-from airflow.sdk.exceptions import AirflowSkipException
+from airflow.sdk.exceptions import AirflowSkipException, XComNotFound
 from airflow.sdk.execution_time.comms import GetXCom, XComResult, XComSequenceSliceResult
 from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
 from airflow.sdk.serde import deserialize, serialize
@@ -418,6 +421,117 @@ class TestPlainXComArgResolveMappedGroup:
         ti.xcom_pull.assert_called_once()
         assert ti.xcom_pull.call_args.kwargs["map_indexes"] == 0
 
+    @pytest.mark.asyncio
+    async def test_aresolve_stays_lazy_without_pulling(self):
+        arg = self._make_arg()
+        ti = self._make_ti(computed=None)
+        ti.axcom_pull = mock.AsyncMock()
+
+        resolved = await arg.aresolve({"ti": ti})
+
+        assert isinstance(resolved, LazyXComSequence)
+        ti.axcom_pull.assert_not_awaited()
+        ti.xcom_pull.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_aresolve_uses_axcom_pull_for_specific_index(self):
+        arg = self._make_arg()
+        ti = self._make_ti(computed=0)
+        ti.axcom_pull = mock.AsyncMock(return_value="value-0")
+
+        resolved = await arg.aresolve({"ti": ti})
+
+        assert resolved == "value-0"
+        ti.axcom_pull.assert_awaited_once_with(
+            task_ids="do_something", key="test", default=NOTSET, map_indexes=0
+        )
+        ti.xcom_pull.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_aresolve_computes_map_indexes_off_the_loop_thread(self):
+        """
+        Counting upstream task instances is a blocking supervisor call; on the loop thread it would
+        deadlock with the ``asend`` calls of the iterated tasks in flight, so it must run in a worker.
+        """
+        arg = self._make_arg()
+        ti = self._make_ti(computed=0)
+        ti.axcom_pull = mock.AsyncMock(return_value="value-0")
+        threads: list[threading.Thread] = []
+
+        def compute(**kwargs):
+            threads.append(threading.current_thread())
+            return 0
+
+        ti.get_relevant_upstream_map_indexes.side_effect = compute
+
+        await arg.aresolve({"ti": ti})
+
+        assert threads
+        assert threads[0] is not threading.current_thread()
+
+
+class TestPlainXComArgAresolve:
+    """``aresolve`` on an unmapped upstream pulls through ``ti.axcom_pull`` and never ``ti.xcom_pull``."""
+
+    @staticmethod
+    def _make_arg(key: str = BaseXCom.XCOM_RETURN_KEY, multiple_outputs: bool = False):
+        operator = mock.MagicMock()
+        operator.is_mapped = False
+        operator.task_id = "do_something"
+        operator.dag_id = "test_dag"
+        operator.multiple_outputs = multiple_outputs
+        operator.get_closest_mapped_task_group.return_value = None
+        return PlainXComArg(operator=operator, key=key)
+
+    @staticmethod
+    def _make_ti(pulled):
+        ti = mock.MagicMock()
+        ti.dag_id = "test_dag"
+        ti.xcom_pull.return_value = pulled
+        ti.axcom_pull = mock.AsyncMock(return_value=pulled)
+        return ti
+
+    @pytest.mark.asyncio
+    async def test_aresolve_pulls_unmapped_instance(self):
+        arg = self._make_arg()
+        ti = self._make_ti(pulled=[1, 2, 3])
+
+        assert await arg.aresolve({"ti": ti}) == [1, 2, 3]
+
+        ti.axcom_pull.assert_awaited_once_with(
+            task_ids="do_something", key=BaseXCom.XCOM_RETURN_KEY, default=NOTSET, map_indexes=None
+        )
+        ti.xcom_pull.assert_not_called()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("key", "multiple_outputs"),
+        [
+            pytest.param(BaseXCom.XCOM_RETURN_KEY, False, id="return-value"),
+            pytest.param("other", True, id="multiple-outputs"),
+        ],
+    )
+    async def test_aresolve_missing_xcom_gives_none_like_resolve(self, key, multiple_outputs):
+        arg = self._make_arg(key=key, multiple_outputs=multiple_outputs)
+        ti = self._make_ti(pulled=NOTSET)
+
+        assert await arg.aresolve({"ti": ti}) is None
+        assert arg.resolve({"ti": ti}) is None
+
+    @pytest.mark.asyncio
+    async def test_aresolve_missing_custom_key_raises_like_resolve(self):
+        arg = self._make_arg(key="other")
+        ti = self._make_ti(pulled=NOTSET)
+
+        with pytest.raises(XComNotFound):
+            await arg.aresolve({"ti": ti})
+        with pytest.raises(XComNotFound):
+            arg.resolve({"ti": ti})
+
+
+def _fail_sync_resolve(*args, **kwargs):
+    pytest.fail("synchronous resolve() must not be used on the async path")
+
 
 class TestXComArg:
     @pytest.mark.parametrize(
@@ -453,3 +567,42 @@ class TestXComArg:
         concatenated = a.concat(b)
         result = list(concatenated.iter_values({}))
         assert result == [1, 2, 10, 20]
+
+    @pytest.mark.asyncio
+    async def test_map_xcomarg_aresolve(self):
+        base = make_xcom_arg([1, 2, 3])
+        base.resolve = _fail_sync_resolve
+        mapped = base.map(lambda x: x * 10)
+        assert list(await mapped.aresolve({})) == [10, 20, 30]
+
+    @pytest.mark.asyncio
+    async def test_zip_xcomarg_aresolve(self):
+        a = make_xcom_arg([1, 2])
+        b = make_xcom_arg([10, 20])
+        a.resolve = b.resolve = _fail_sync_resolve
+        zipped = a.zip(b)
+        assert list(await zipped.aresolve({})) == [(1, 10), (2, 20)]
+
+    @pytest.mark.asyncio
+    async def test_concat_xcomarg_aresolve(self):
+        a = make_xcom_arg([1, 2])
+        b = make_xcom_arg([10, 20])
+        a.resolve = b.resolve = _fail_sync_resolve
+        concatenated = a.concat(b)
+        assert list(await concatenated.aresolve({})) == [1, 2, 10, 20]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "build", [lambda a: a.map(lambda x: x), lambda a: a.zip(a), lambda a: a.concat(a)]
+    )
+    async def test_composite_xcomarg_aresolve_rejects_non_sequence_like_resolve(self, build):
+        base = make_xcom_arg(42)
+        composite = build(base)
+        with pytest.raises(ValueError, match="expects sequence or dict"):
+            await composite.aresolve({})
+        with pytest.raises(ValueError, match="expects sequence or dict"):
+            composite.resolve({})
+
+    def test_base_aresolve_is_abstract(self):
+        with pytest.raises(NotImplementedError):
+            asyncio.run(super(PlainXComArg, make_xcom_arg([])).aresolve({}))

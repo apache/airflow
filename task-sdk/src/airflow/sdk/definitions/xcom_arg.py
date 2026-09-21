@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import inspect
 import itertools
@@ -190,6 +191,15 @@ class XComArg(ResolveMixin, DependencyMixin):
     def resolve(self, context: Mapping[str, Any]) -> Any:
         raise NotImplementedError()
 
+    async def aresolve(self, context: Mapping[str, Any]) -> Any:
+        """
+        Async twin of :meth:`resolve`, for callers running on the task's event loop.
+
+        XComs are pulled through ``ti.axcom_pull`` so the call never blocks the loop thread on the
+        supervisor channel (see ``AsyncAwareExecutor.map`` for why that matters).
+        """
+        raise NotImplementedError()
+
     def __enter__(self):
         if not self.operator.is_setup and not self.operator.is_teardown:
             raise AirflowException("Only setup/teardown tasks can be used as context managers.")
@@ -352,6 +362,21 @@ class PlainXComArg(XComArg):
         )
         return self._check_pulled(ti, result)
 
+    async def aresolve(self, context: Mapping[str, Any]) -> Any:
+        ti = context["ti"]
+        # Computing the map indexes may count upstream task instances through a synchronous
+        # supervisor call, so keep it off the loop thread.
+        map_indexes = await asyncio.to_thread(self._resolve_map_indexes, ti)
+        if isinstance(map_indexes, LazyXComSequence):
+            return map_indexes
+        result = await ti.axcom_pull(
+            task_ids=self.operator.task_id,
+            key=self.key,
+            default=NOTSET,
+            map_indexes=map_indexes,
+        )
+        return self._check_pulled(ti, result)
+
     def _resolve_map_indexes(self, ti: Any) -> LazyXComSequence | int | range | None:
         """
         Return the upstream map indexes to pull, or a lazy sequence over the whole mapped upstream.
@@ -477,6 +502,9 @@ class MapXComArg(XComArg):
     def resolve(self, context: Mapping[str, Any]) -> Any:
         return self._map(self.arg.resolve(context))
 
+    async def aresolve(self, context: Mapping[str, Any]) -> Any:
+        return self._map(await self.arg.aresolve(context))
+
     def _map(self, value: Any) -> _MapResult:
         if not isinstance(value, (Sequence, dict)):
             raise ValueError(f"XCom map expects sequence or dict, not {type(value).__name__}")
@@ -541,6 +569,9 @@ class ZipXComArg(XComArg):
     def resolve(self, context: Mapping[str, Any]) -> Any:
         return self._zip([arg.resolve(context) for arg in self.args])
 
+    async def aresolve(self, context: Mapping[str, Any]) -> Any:
+        return self._zip([await arg.aresolve(context) for arg in self.args])
+
     def _zip(self, values: list[Any]) -> _ZipResult:
         for value in values:
             if not isinstance(value, (Sequence, dict)):
@@ -603,6 +634,9 @@ class ConcatXComArg(XComArg):
 
     def resolve(self, context: Mapping[str, Any]) -> Any:
         return self._concat([arg.resolve(context) for arg in self.args])
+
+    async def aresolve(self, context: Mapping[str, Any]) -> Any:
+        return self._concat([await arg.aresolve(context) for arg in self.args])
 
     def _concat(self, values: list[Any]) -> _ConcatResult:
         for value in values:
