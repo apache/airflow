@@ -26,9 +26,6 @@
 Changelog
 ---------
 
-9.36.0
-......
-
 .. warning::
   Deferrable AWS operators and sensors now hand ``region_name``, ``verify`` and ``botocore_config``
   to the trigger they defer to, so the triggerer builds its hook from the operator's settings
@@ -37,6 +34,9 @@ Changelog
   triggerer host's ``AWS_DEFAULT_REGION``, and it applies the operator's SSL verification and
   botocore configuration, which previously never reached it. Set these explicitly on the operator
   if the deferred half needs to differ from the synchronous half.
+
+9.36.0
+......
 
 .. warning::
   The default waiter timeout of ``ComprehendCreateDocumentClassifierOperator`` was raised from
