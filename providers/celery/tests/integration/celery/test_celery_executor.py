@@ -413,7 +413,7 @@ class TestBulkStateFetcher:
         assert set(mget_args[0]) == {b"celery-task-meta-456", b"celery-task-meta-123"}
         mock_mget.assert_called_once_with(mock.ANY)
 
-        assert result == {"123": ("SUCCESS", None), "456": ("PENDING", None)}
+        assert result == {"123": ("SUCCESS", None, None), "456": ("PENDING", None, None)}
         assert caplog.messages == ["Fetched 2 state(s) for 2 task(s)"]
 
     @mock.patch("celery.backends.database.DatabaseBackend.ResultSession")
@@ -440,7 +440,7 @@ class TestBulkStateFetcher:
                     ]
                 )
 
-        assert result == {"123": ("SUCCESS", None), "456": ("PENDING", None)}
+        assert result == {"123": ("SUCCESS", None, None), "456": ("PENDING", None, None)}
         assert caplog.messages == ["Fetched 2 state(s) for 2 task(s)"]
 
     @mock.patch("celery.backends.database.DatabaseBackend.ResultSession")
@@ -474,7 +474,7 @@ class TestBulkStateFetcher:
                     ]
                 )
         assert mock_retry_db_result.call_count == 2
-        assert result == {"123": ("SUCCESS", None), "456": ("PENDING", None)}
+        assert result == {"123": ("SUCCESS", None, None), "456": ("PENDING", None, None)}
         assert caplog.messages == [
             "Failed operation _query_task_cls_from_db_backend.  Retrying 2 more times.",
             "Fetched 2 state(s) for 2 task(s)",
@@ -499,5 +499,5 @@ class TestBulkStateFetcher:
                     ]
                 )
 
-        assert result == {"123": ("SUCCESS", None), "456": ("PENDING", None)}
+        assert result == {"123": ("SUCCESS", None, None), "456": ("PENDING", None, None)}
         assert caplog.messages == ["Fetched 2 state(s) for 2 task(s)"]
