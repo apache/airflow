@@ -23,9 +23,11 @@
 //
 //     node my-bundle.mjs --comm=host:port --logs=host:port
 //
-// where `my-bundle.mjs` is a user-bundled Node script that imports
-// the SDK, calls `registerTask(...)` for each handler, then calls
-// `startCoordinator()`.
+// where `my-bundle.mjs` is a user-bundled Node script that imports the SDK,
+// registers what it provides on a `Bundle` (a `TaskHandler` per Python-owned
+// task, a `Dag` per natively declared one), then awaits `bundle.serve()`. Each
+// handler runs inside a task scope, which is what `getContext()` and
+// `getClient()` read.
 //
 // Lifecycle:
 //   1. Parse --comm / --logs from argv
@@ -34,6 +36,7 @@
 //        - DagFileParseRequest → respond with DagFileParsingResult, exit
 //        - StartupDetails      → run task, respond Succeed or Fail, exit
 //
+import { resolveArgs, type BoundArgs } from "./arg-binding.js";
 import { createCoordinatorClient } from "./client.js";
 import { CommChannel } from "./comm-channel.js";
 import { LogChannel } from "./log-channel.js";
@@ -51,8 +54,9 @@ import {
   type RuntimeTaskState,
   type StartupDetails,
 } from "./protocol.js";
-import { getRegisteredTask, listRegisteredTasks } from "../sdk/registry.js";
-import type { TaskContext, TaskHandlerArgs } from "../sdk/task.js";
+import { getArgNames } from "../sdk/arg-names.js";
+import { listBundleTasks, type Bundle } from "../sdk/bundle.js";
+import { runInTaskScope, type TaskContext } from "../sdk/task.js";
 import type { JsonValue } from "../sdk/client-types.js";
 
 export const ABORT_GRACE_PERIOD_MS = 30_000;
@@ -108,12 +112,21 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
   return { commAddr, logsAddr };
 }
 
-/** Start the coordinator runtime. Resolves when the subprocess has
- *  delivered its terminal frame and closed both sockets. */
-export async function startCoordinator(opts: StartCoordinatorOptions = {}): Promise<void> {
+/** Start the coordinator runtime, dispatching to `bundle`. Resolves when the
+ *  subprocess has delivered its terminal frame and closed both sockets.
+ *
+ *  Internal: `bundle.serve()` is the entry point Dag authors call, so this is
+ *  deliberately absent from the package `"exports"` map. Tests drive it
+ *  directly to supply explicit socket addresses. */
+export async function startCoordinator(
+  bundle: Bundle,
+  opts: StartCoordinatorOptions = {},
+): Promise<void> {
   const argv = opts.argv ?? process.argv;
   if (argv.includes(AIRFLOW_METADATA_FLAG)) {
-    process.stdout.write(`${AIRFLOW_METADATA_SENTINEL}${JSON.stringify(buildBundleManifest())}\n`);
+    process.stdout.write(
+      `${AIRFLOW_METADATA_SENTINEL}${JSON.stringify(buildBundleManifest(bundle))}\n`,
+    );
     return;
   }
   const parsed =
@@ -135,7 +148,7 @@ export async function startCoordinator(opts: StartCoordinatorOptions = {}): Prom
     const runtimeLogs = logs.child("runtime");
     runtimeLogs.debug("Connecting log socket", { logs_addr: parsed.logsAddr });
     await logs.connect(parsed.logsAddr);
-    const tasks = listRegisteredTasks();
+    const tasks = listBundleTasks(bundle);
     runtimeLogs.info("Coordinator runtime started", {
       registered_tasks: tasks,
       count: tasks.length,
@@ -157,7 +170,7 @@ export async function startCoordinator(opts: StartCoordinatorOptions = {}): Prom
         file: body.file,
         bundle_path: body.bundle_path,
       });
-      const response = handleParse(body, runtimeLogs);
+      const response = handleParse(body, bundle, runtimeLogs);
       await sendSupervisorResponse(firstFrame.id, response, comm, runtimeLogs);
     } else if (body.type === "StartupDetails") {
       runtimeLogs.info("Received task startup details", {
@@ -170,6 +183,7 @@ export async function startCoordinator(opts: StartCoordinatorOptions = {}): Prom
       });
       const response = await handleTask(
         body,
+        bundle,
         comm,
         runtimeLogs,
         logs.child("client"),
@@ -250,12 +264,13 @@ export function createRuntimeAbort(
 
 function handleParse(
   request: { file: string; bundle_path: string },
+  bundle: Bundle,
   logs: LogChannel,
 ): RuntimeDagFileParsingResult {
   // TypeScript-native Dag parsing is not yet supported.
   // Respond with an empty result so the Python-stub-Dag workflow works.
   logs.info("Parse-mode response (TS Dag parsing not yet supported)", {
-    registered_tasks: listRegisteredTasks(),
+    registered_tasks: listBundleTasks(bundle),
   });
   const response: RuntimeDagFileParsingResult = {
     type: "DagFileParsingResult",
@@ -267,19 +282,20 @@ function handleParse(
 
 async function handleTask(
   details: StartupDetails,
+  bundle: Bundle,
   comm: CommChannel,
   logs: LogChannel,
   clientLogs: LogChannel,
   signal: AbortSignal,
 ): Promise<RuntimeSucceedTask | RuntimeRetryTask | RuntimeTaskState> {
   const ti = details.ti;
-  const handler = getRegisteredTask(ti.dag_id, ti.task_id);
+  const handler = bundle.getTaskHandler(ti.dag_id, ti.task_id);
 
   if (!handler) {
     logs.warning("No handler registered for task", {
       dag_id: ti.dag_id,
       task_id: ti.task_id,
-      available: listRegisteredTasks(),
+      available: listBundleTasks(bundle),
     });
     // A missing handler means this bundle cannot run the task, so retrying the
     // same bundle/configuration mismatch would not help.
@@ -293,18 +309,38 @@ async function handleTask(
 
   const ctx = buildContext(details, signal);
   const client = createCoordinatorClient(comm, ctx, clientLogs);
-  const args: TaskHandlerArgs = { ctx, client };
+
+  let bound: BoundArgs;
+  try {
+    bound = await resolveArgs(details.ti_context?.arg_bindings, {
+      client,
+      signal: ctx.signal,
+      logs,
+      argNames: getArgNames(handler),
+    });
+  } catch (err) {
+    // Before the handler ran, so nothing it might have written is at stake.
+    const message = (err as Error).message ?? String(err);
+    logs.error("Cannot bind this task's call arguments", {
+      task_id: ctx.taskId,
+      error: message,
+    });
+    return buildFailureResponse(details, message);
+  }
   // Startup-details fields already logged above (`Received task
   // startup details`); this line just marks the handler-call boundary.
-  logs.debug("Dispatching to handler", { task_id: ctx.taskId });
+  logs.debug("Dispatching to handler", { task_id: ctx.taskId, bound_args: bound.names });
 
   try {
-    const result = await handler(args);
+    // The scope is installed around the call, not awaited inside it: the store
+    // follows the handler across every `await` it makes, so `getContext()` and
+    // `getClient()` work at any depth without the handler being handed either.
+    const result = await runInTaskScope({ ctx, client }, () => handler(bound.args as never));
     if (result !== undefined) {
       await client.setXCom({ key: "return_value", value: result as JsonValue });
     }
     // SucceedTask MUST include task_outlets and outlet_events as
-    // empty lists — the Execution API's TISuccessStatePayload
+    // empty lists, since the Execution API's TISuccessStatePayload
     // tagged-union validator rejects null for these fields.
     const response: RuntimeSucceedTask = {
       type: "SucceedTask",
@@ -319,6 +355,10 @@ async function handleTask(
       task_id: ctx.taskId,
       error: message,
       stack: (err as Error).stack ?? null,
+      // A handler that destructured a bound argument under a name nothing
+      // folds to gets no error of its own, so a failing task says what its
+      // call actually delivered.
+      bound_args: bound.names,
     });
     return buildFailureResponse(details, message);
   }

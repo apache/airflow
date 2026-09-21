@@ -136,6 +136,7 @@ def _get_task_instance_with_hitl_detail(
     task_instance_hitl_path,
     responses=create_openapi_http_exception_doc(
         [
+            status.HTTP_400_BAD_REQUEST,
             status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
             status.HTTP_409_CONFLICT,

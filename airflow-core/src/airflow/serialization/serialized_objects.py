@@ -31,7 +31,7 @@ import sys
 import weakref
 from collections.abc import Collection, Iterable, Mapping
 from functools import cache, cached_property, lru_cache
-from inspect import signature
+from inspect import Parameter, signature
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypeVar, cast, overload
 
@@ -112,8 +112,6 @@ from airflow.utils.db import LazySelectSequence
 from airflow.utils.sqlalchemy import deserialize_pod_dict
 
 if TYPE_CHECKING:
-    from inspect import Parameter
-
     from kubernetes.client import models as k8s  # noqa: TC004
     from kubernetes.client.api_client import ApiClient  # noqa: TC004
 
@@ -1063,6 +1061,20 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         if op.inherits_from_skipmixin:
             serialize_op["_can_skip_downstream"] = True
 
+        if op.is_stub:
+            # Imported here, not at module scope: this pulls pydantic's JSON-schema machinery,
+            # which only lang-SDK (non-Python) workloads ever need.
+            from airflow.sdk.bases.decorator import DecoratedOperator
+            from airflow.serialization.stub_arg_bindings import build_arg_bindings
+
+            serialize_op["is_stub"] = True
+            if (
+                not op.is_mapped
+                and isinstance(op, DecoratedOperator)
+                and (arg_bindings := build_arg_bindings(op))
+            ):
+                serialize_op["_arg_bindings"] = arg_bindings
+
         if op.start_trigger_args:
             serialize_op["start_trigger_args"] = _encode_start_trigger_args(op.start_trigger_args)
 
@@ -1177,6 +1189,10 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                     raise RuntimeError("_is_sensor=False should never have been serialized!")
                 object.__setattr__(op, "deps", op.deps | {ReadyToRescheduleDep()})
                 continue
+            elif k in ("is_stub", "_arg_bindings"):
+                # Both are restored unconditionally below: is_stub must fail closed rather than go
+                # through generic decoding, and _arg_bindings is plain JSON, not {__type, __var}.
+                continue
             elif (
                 k in cls._decorated_fields
                 or k not in op.get_serialized_fields()
@@ -1234,6 +1250,11 @@ class OperatorSerialization(DAGNode, BaseSerialization):
 
         # Used to determine if an Operator is inherited from SkipMixin
         setattr(op, "_can_skip_downstream", bool(encoded_op.get("_can_skip_downstream", False)))
+
+        # Fails closed like the Dag-level flag: a non-Python producer's blob is never schema-validated
+        # on this path, so anything that is not JSON ``true`` means "not a stub".
+        setattr(op, "is_stub", encoded_op.get("is_stub") is True)
+        setattr(op, "_arg_bindings", encoded_op.get("_arg_bindings"))
 
         start_trigger_args = None
         encoded_start_trigger_args = encoded_op.get("start_trigger_args", None)

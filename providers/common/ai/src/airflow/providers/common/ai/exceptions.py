@@ -37,3 +37,24 @@ class LLMFileAnalysisLimitExceededError(LLMFileAnalysisError):
 
 class LLMFileAnalysisMultimodalRequiredError(LLMFileAnalysisUnsupportedFormatError):
     """Raised when image/PDF inputs are used without ``multi_modal=True``."""
+
+
+class LowConfidenceError(ValueError):
+    """
+    Raised by an LLM operator whose ``DecisionPolicy`` says ``on_uncertain="fail"``.
+
+    The model's confidence in its answer was under the policy's bar, or the model reported no
+    confidence at all. Airflow's default retry behaviour retries it like any other exception;
+    match it in a retry rule to fail fast instead.
+    """
+
+
+class ManagedAgentInvocationError(RuntimeError):
+    """
+    Raised when a managed agent cannot be reached and retrying will not help.
+
+    Reserved for terminal conditions -- bad credentials, a missing agent, a
+    revoked quota. Transient failures should propagate unchanged so Airflow's
+    task-level retry handles them, and requests the model could fix by
+    rephrasing should raise ``pydantic_ai.exceptions.ModelRetry`` instead.
+    """

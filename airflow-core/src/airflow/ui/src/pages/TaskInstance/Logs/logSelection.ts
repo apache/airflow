@@ -20,6 +20,8 @@ import innerText from "react-innertext";
 
 import type { ParsedLogEntry } from "src/queries/useLogs";
 
+import { getGroupHeaderMarker } from "./utils";
+
 type RowRange = {
   end: number;
   start: number;
@@ -83,6 +85,69 @@ export const getSelectionPinnedRows = (
   ].filter((index): index is number => index !== undefined);
 };
 
+type BottomDragClampOptions = {
+  container: HTMLElement;
+  pointerY: number;
+  selection: Selection;
+};
+
+type BottomDragBoundary = {
+  lastRow: Element;
+  y: number;
+};
+
+/**
+ * The first Y coordinate where a downward drag leaves selectable log text.
+ * Mid-scroll this is the scrollport edge; at the end it is the last mounted
+ * row edge, before any trailing space or container padding.
+ */
+export const getBottomDragBoundary = (container: HTMLElement): BottomDragBoundary | undefined => {
+  const rows = container.querySelectorAll("[data-index]");
+  const lastRow = rows[rows.length - 1];
+
+  if (lastRow === undefined) {
+    return undefined;
+  }
+
+  return {
+    lastRow,
+    y: Math.min(container.getBoundingClientRect().bottom, lastRow.getBoundingClientRect().bottom),
+  };
+};
+
+/**
+ * Re-extend a downward drag selection to the last mounted row. When all log
+ * rows are absolutely positioned, Chrome can resolve a hit-test below the
+ * scrollport's text to the block start, reversing a downward selection.
+ */
+export const getBottomDragClampTarget = ({
+  container,
+  pointerY,
+  selection,
+}: BottomDragClampOptions): { node: Node; offset: number } | undefined => {
+  if (selection.rangeCount === 0) {
+    return undefined;
+  }
+  const anchorRow = getRowIndexForNode(selection.anchorNode, container);
+
+  if (anchorRow === undefined) {
+    return undefined;
+  }
+  const boundary = getBottomDragBoundary(container);
+
+  if (boundary === undefined || pointerY < boundary.y) {
+    return undefined;
+  }
+  const { lastRow } = boundary;
+  const offset = lastRow.childNodes.length;
+
+  if (selection.focusNode === lastRow && selection.focusOffset === offset) {
+    return undefined;
+  }
+
+  return { node: lastRow, offset };
+};
+
 /**
  * Merge selection-pinned row indexes into the virtualizer's default render
  * range. Rows holding selection boundaries must stay mounted while the user
@@ -104,13 +169,16 @@ export const mergePinnedIndexes = (
 
 /**
  * Canonical plain text of a parsed log entry for clipboard rebuilding:
- * group headers are plain strings, log lines render through the download
- * text pipeline, and the innerText fallback covers synthetic entries such
- * as the TI-context preamble.
+ * group headers rebuild as the on-screen `▶/▼ name` form (marker follows
+ * the group's current expand state), log lines render through the
+ * plain-text pipeline, and the innerText fallback covers synthetic
+ * entries such as the TI-context preamble.
  */
-export const getEntryText = (entry: ParsedLogEntry): string => {
+export const getEntryText = (entry: ParsedLogEntry, expandedGroupIds?: ReadonlySet<number>): string => {
   if (typeof entry.element === "string") {
-    return entry.element;
+    return entry.group?.type === "header"
+      ? `${getGroupHeaderMarker(expandedGroupIds?.has(entry.group.id) ?? false)} ${entry.element}`
+      : entry.element;
   }
   if (entry.getPlainText) {
     return entry.getPlainText();

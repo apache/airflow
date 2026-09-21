@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
@@ -32,8 +33,10 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+from pydantic import ValidationError
 from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from airflow._shared.observability.traces import OverrideableRandomIdGenerator
@@ -57,6 +60,7 @@ from airflow.sdk import Asset, TaskGroup, TriggerRule, task, task_group
 from airflow.state.metastore import MetastoreBackend
 from airflow.utils.state import DagRunState, State, TaskInstanceState, TerminalTIState
 
+from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
@@ -161,6 +165,14 @@ def test_id_matches_sub_claim(client, session, create_task_instance):
 
 
 class TestTIRunState:
+    RUN_PAYLOAD = {
+        "state": "running",
+        "hostname": "random-hostname",
+        "unixname": "random-unixname",
+        "pid": 100,
+        "start_date": "2024-09-30T12:00:00Z",
+    }
+
     def setup_method(self):
         clear_db_logs()
         clear_db_runs()
@@ -204,6 +216,30 @@ class TestTIRunState:
         assert response.status_code == 200
         events = response.json()["dag_run"]["consumed_asset_events"]
         assert [e["partition_key"] for e in events] == ["2024-01-15"]
+
+    def test_ti_run_missing_dagrun_returns_404(self, client, session, create_task_instance):
+        """A missing DagRun must surface as a clean 404, not an internal 500."""
+        ti = create_task_instance(
+            task_id="test_ti_run_missing_dagrun",
+            state=State.QUEUED,
+            session=session,
+        )
+        session.commit()
+
+        # Patch only around the request so fixture setup above is untouched; force the DagRun
+        # lookup (the only scalars() call before the guard) to return None.
+        with mock.patch("sqlalchemy.orm.Session.scalars", autospec=True) as mock_scalars:
+            mock_scalars.return_value.unique.return_value.one_or_none.return_value = None
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json=self.RUN_PAYLOAD,
+            )
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == {
+            "reason": "not_found",
+            "message": f"DagRun with dag_id={ti.dag_id} and run_id={ti.run_id} not found",
+        }
 
     @pytest.mark.parametrize(
         ("max_tries", "should_retry"),
@@ -371,6 +407,110 @@ class TestTIRunState:
         extras = mock_gen.generate.call_args.kwargs["extras"]
         assert extras["scope"] == "execution"
         assert extras["sub"] == str(ti.id)
+
+    def test_ti_run_returns_arg_bindings_for_stub_task(self, client, dag_maker):
+        """A stub task's TaskFlow arg spec is extracted from the serialized Dag and returned."""
+        with dag_maker("test_arg_bindings_dag", serialized=True):
+
+            @task.stub
+            def extract(): ...
+
+            @task.stub
+            def transform(country: str, extracted: dict, limit: int = 10): ...
+
+            transform("uk", extract())
+
+        dr = dag_maker.create_dagrun()
+        tis = {ti.task_id: ti for ti in dr.get_task_instances()}
+        for ti in tis.values():
+            ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        response = client.patch(f"/execution/task-instances/{tis['transform'].id}/run", json=self.RUN_PAYLOAD)
+        assert response.status_code == 200
+        assert response.json()["arg_bindings"] == [
+            {"name": "country", "kind": "literal", "value_schema": {"type": "string"}, "value": "uk"},
+            {
+                "name": "extracted",
+                "kind": "xcom",
+                "value_schema": {"type": "object", "additionalProperties": True},
+                "task_id": "extract",
+            },
+            {
+                "name": "limit",
+                "kind": "literal",
+                "value_schema": {"type": "integer", "format": "int64"},
+                "value": 10,
+                "from_default": True,
+            },
+        ]
+
+        # An argless stub has no captured spec, so the field stays unset.
+        response = client.patch(f"/execution/task-instances/{tis['extract'].id}/run", json=self.RUN_PAYLOAD)
+        assert response.status_code == 200
+        assert "arg_bindings" not in response.json()
+
+    @mock.patch(
+        "airflow.api_fastapi.execution_api.routes.task_instances.get_arg_bindings",
+        autospec=True,
+        return_value=[{"name": "country", "kind": "hologram", "value": "uk"}],
+    )
+    def test_ti_run_reports_invalid_arg_bindings_spec(self, _, client, dag_maker):
+        """A serialized spec this core version cannot validate fails with a structured error, not a bare 500."""
+        with dag_maker("test_invalid_arg_bindings_dag", serialized=True):
+
+            @task.stub
+            def transform(country: str): ...
+
+            transform("uk")
+
+        dr = dag_maker.create_dagrun()
+        (ti,) = dr.get_task_instances()
+        ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
+
+        assert response.status_code == 500
+        assert response.json()["detail"]["reason"] == "invalid_arg_bindings"
+
+    def test_ti_run_returns_no_arg_bindings_for_mapped_stub(self, client, dag_maker):
+        """Mapped stubs keep the legacy ignored-args behavior until per-map-index delivery lands."""
+        with dag_maker("test_mapped_stub_ignored_args", serialized=True):
+
+            @task.stub
+            def transform(country: str): ...
+
+            transform.expand(country=["uk", "fr"])
+
+        dr = dag_maker.create_dagrun()
+        ti = next(t for t in dr.get_task_instances() if t.map_index == 0)
+        ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
+        assert response.status_code == 200
+        assert "arg_bindings" not in response.json()
+
+    def test_arg_bindings_adapter_rejects_unknown_kind(self):
+        """The discriminated union refuses serialized specs with an unrecognised kind."""
+        from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import get_arg_bindings_adapter
+
+        with pytest.raises(ValidationError, match="does not match any of the expected tags"):
+            get_arg_bindings_adapter().validate_python(
+                [{"name": "country", "kind": "template", "value": "x"}]
+            )
+
+    def test_arg_bindings_adapter_carries_value_schema_fragments_verbatim(self):
+        """The fragment is free-form JSON schema: every keyword the provider generated must
+        survive validation untouched -- a typed model would silently strip what it doesn't know."""
+        from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import get_arg_bindings_adapter
+
+        fragment = {"anyOf": [{"type": "array", "items": {"type": "string"}}, {"type": "null"}]}
+        (binding,) = get_arg_bindings_adapter().validate_python(
+            [{"name": "tags", "kind": "literal", "value_schema": fragment, "value": ["a"]}]
+        )
+        assert binding.value_schema == fragment
 
     def test_dynamic_task_mapping_with_parse_time_value(self, client, dag_maker):
         """Test that dynamic task mapping works correctly with parse-time values."""
@@ -1031,6 +1171,65 @@ class TestTIRunState:
 
         assert response.status_code == 200
         assert response.json()["dag_run"]["team_name"] == (team_name if expect_team else None)
+
+    def test_ti_run_team_name_is_not_served_from_a_stale_cache(
+        self, client, session, dag_maker, time_machine
+    ):
+        """
+        ``ti_run`` must eager load the team rather than fall back to the cached resolver.
+
+        The fallback caches per dag_id for ``team_name_cache_ttl`` seconds, so a Dag whose team
+        was looked up before it moved bundles would keep reporting the old team to the worker.
+        """
+        from airflow.models.dag import clear_team_name_cache
+        from airflow.models.dagbundle import DagBundleModel
+        from airflow.models.team import Team
+
+        instant = timezone.parse("2024-09-30T12:00:00Z")
+        time_machine.move_to(instant, tick=False)
+
+        dag_id = str(uuid4())
+        with dag_maker(dag_id=dag_id, session=session):
+            EmptyOperator(task_id="task")
+        dr = dag_maker.create_dagrun(
+            run_id="test", logical_date=instant, state=DagRunState.RUNNING, start_date=instant
+        )
+        ti = dr.get_task_instance(task_id="task")
+        ti.set_state(State.QUEUED)
+
+        for suffix in ("old", "new"):
+            bundle = DagBundleModel(name=f"bundle-{suffix}-{dag_id}")
+            bundle.teams.append(Team(name=f"team-{suffix}-{dag_id[:8]}"))
+            session.add(bundle)
+        session.flush()
+        session.execute(
+            update(DagModel).where(DagModel.dag_id == dag_id).values(bundle_name=f"bundle-old-{dag_id}")
+        )
+        session.commit()
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            clear_team_name_cache()
+            # Warm the cache with the old team, then move the Dag to the other bundle.
+            assert DagModel.get_team_name(dag_id, session=session) == f"team-old-{dag_id[:8]}"
+            session.execute(
+                update(DagModel).where(DagModel.dag_id == dag_id).values(bundle_name=f"bundle-new-{dag_id}")
+            )
+            session.commit()
+
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "h",
+                    "unixname": "u",
+                    "pid": 1,
+                    "start_date": "2024-09-30T12:00:00Z",
+                },
+            )
+            clear_team_name_cache()
+
+        assert response.status_code == 200
+        assert response.json()["dag_run"]["team_name"] == f"team-new-{dag_id[:8]}"
 
     def test_ti_run_creates_audit_log(self, client, session, create_task_instance, time_machine):
         """Test that transitioning to RUNNING creates an audit log record."""
@@ -2664,6 +2863,19 @@ class TestTIHealthEndpoint:
     def teardown_method(self):
         clear_db_runs()
 
+    # ti_heartbeat runs on the async engine. The async engine binds its pool to
+    # the event loop that created it (once per process), but the test harness
+    # builds a fresh FastAPI app and event loop per test, so a pooled connection
+    # from a prior test's closed loop gets reused and fails ("attached to a
+    # different loop"). Re-configuring the async session before each test rebuilds
+    # the engine on the current loop. Same workaround as TestWaitDagRun in
+    # tests/unit/api_fastapi/core_api/routes/public/test_dag_run.py.
+    @pytest.fixture(autouse=True)
+    def reconfigure_async_db_engine(self):
+        from airflow.settings import _configure_async_session
+
+        _configure_async_session()
+
     @pytest.mark.parametrize(
         ("hostname", "pid", "expected_status_code", "expected_detail"),
         [
@@ -2922,10 +3134,10 @@ class TestTIHealthEndpoint:
         new_time = time_now.add(minutes=10)
         time_machine.move_to(new_time, tick=False)
 
-        original_execute = Session.execute
+        original_execute = AsyncSession.execute
         fast_path_intercepted = False
 
-        def execute_with_fast_path_miss(session_obj, statement, *args, **kwargs):
+        async def execute_with_fast_path_miss(session_obj, statement, *args, **kwargs):
             nonlocal fast_path_intercepted
             if (
                 not fast_path_intercepted
@@ -2934,9 +3146,9 @@ class TestTIHealthEndpoint:
             ):
                 fast_path_intercepted = True
                 return mock.MagicMock(rowcount=0)
-            return original_execute(session_obj, statement, *args, **kwargs)
+            return await original_execute(session_obj, statement, *args, **kwargs)
 
-        monkeypatch.setattr(Session, "execute", execute_with_fast_path_miss)
+        monkeypatch.setattr(AsyncSession, "execute", execute_with_fast_path_miss)
 
         response = client.put(
             f"/execution/task-instances/{ti.id}/heartbeat",
@@ -2968,10 +3180,10 @@ class TestTIHealthEndpoint:
         new_time = time_now.add(minutes=10)
         time_machine.move_to(new_time, tick=False)
 
-        original_execute = Session.execute
+        original_execute = AsyncSession.execute
         fast_path_intercepted = False
 
-        def execute_with_unknown_fast_path_rowcount(session_obj, statement, *args, **kwargs):
+        async def execute_with_unknown_fast_path_rowcount(session_obj, statement, *args, **kwargs):
             nonlocal fast_path_intercepted
             if (
                 not fast_path_intercepted
@@ -2980,9 +3192,9 @@ class TestTIHealthEndpoint:
             ):
                 fast_path_intercepted = True
                 return mock.MagicMock(rowcount=-1)
-            return original_execute(session_obj, statement, *args, **kwargs)
+            return await original_execute(session_obj, statement, *args, **kwargs)
 
-        monkeypatch.setattr(Session, "execute", execute_with_unknown_fast_path_rowcount)
+        monkeypatch.setattr(AsyncSession, "execute", execute_with_unknown_fast_path_rowcount)
 
         response = client.put(
             f"/execution/task-instances/{ti.id}/heartbeat",
@@ -2993,6 +3205,47 @@ class TestTIHealthEndpoint:
         assert fast_path_intercepted
         session.refresh(ti)
         assert ti.last_heartbeat_at == new_time
+
+    def test_ti_heartbeat_commit_failure_surfaces_error(
+        self, client, session, create_task_instance, monkeypatch
+    ):
+        """A commit failure must reach the worker as an error, never a silent 204.
+
+        ``AsyncSessionDep`` is function-scoped, so the yield-dependency commit runs
+        *before* the response is sent -- mirroring the sync ``SessionDep``. Were it
+        request-scoped (the FastAPI default for ``yield`` dependencies), the 204 would
+        be sent before the commit, so a commit failure (e.g. an asyncpg /
+        transaction-mode PgBouncer drop) would roll back *after* the worker already
+        saw success. Regression guard for the parity goal of this route conversion.
+        """
+        ti = create_task_instance(
+            task_id="test_ti_heartbeat_commit_failure",
+            state=State.RUNNING,
+            hostname="random-hostname",
+            pid=1789,
+            session=session,
+        )
+        session.commit()
+
+        async def failing_commit(self):
+            raise SQLAlchemyError("simulated commit failure (connection dropped)")
+
+        monkeypatch.setattr(AsyncSession, "commit", failing_commit)
+        # The default TestClient re-raises server exceptions, and it does so for *both*
+        # dependency scopes; the worker-visible status (500 vs a silent 204) is what
+        # tells them apart, so observe the response the worker would actually receive.
+        monkeypatch.setattr(client._transport, "raise_server_exceptions", False)
+
+        response = client.put(
+            f"/execution/task-instances/{ti.id}/heartbeat",
+            json={"hostname": "random-hostname", "pid": 1789},
+        )
+
+        # Function scope -> commit fails before the response -> 500. Request scope -> 204.
+        assert response.status_code == 500
+        # The transaction rolled back, so the heartbeat was not persisted.
+        session.refresh(ti)
+        assert ti.last_heartbeat_at is None
 
 
 class TestTIPutRTIF:
@@ -3712,6 +3965,39 @@ class TestGetPreviousTI:
         assert data["run_id"] == "target_run_1"
         assert data["state"] == State.SUCCESS
 
+    def test_get_previous_ti_query_is_bounded(self, client, session, create_task_instance):
+        """The single-row previous-TI lookup must ask the DB for one row, join ``dag_run`` once,
+        and surface the eager-loaded ``logical_date`` in the response."""
+        for i in range(5):
+            create_task_instance(
+                task_id="test_task",
+                state=State.SUCCESS,
+                logical_date=timezone.datetime(2025, 1, i + 1),
+                run_id=f"run{i + 1}",
+            )
+        session.commit()
+
+        with (
+            capture_orm_selects("task_instance") as statements,
+            assert_queries_count(1),
+        ):
+            response = client.get(
+                "/execution/task-instances/previous/dag/test_task",
+                params={"logical_date": "2025-01-05T00:00:00Z"},
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["run_id"] == "run4"
+        assert data["logical_date"] == "2025-01-04T00:00:00Z"
+        assert statements, "expected the endpoint to query the task_instance table"
+        for sql in statements:
+            assert re.search(r"\bLIMIT 1\b", sql), f"previous-TI lookup is not bounded to one row: {sql}"
+            dag_run_join_count = len(re.findall(r"JOIN dag_run(\s|$)", sql))
+            assert dag_run_join_count == 1, (
+                f"previous-TI query joins dag_run {dag_run_join_count} times, expected once: {sql}"
+            )
+
 
 class TestGetTaskStates:
     def setup_method(self):
@@ -3770,6 +4056,7 @@ class TestGetTaskStates:
             params={
                 "dag_id": "test_get_task_group_states_with_multiple_task_tasks",
                 "task_group_id": "group1",
+                "task_ids": ["task2"],
             },
         )
         assert response.status_code == 200
@@ -3777,6 +4064,7 @@ class TestGetTaskStates:
             "task_states": {
                 "test": {
                     "group1.task1": "success",
+                    "task2": "failed",
                 },
             },
         }

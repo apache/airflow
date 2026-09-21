@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, VStack } from "@chakra-ui/react";
-import { type ReactElement, useState } from "react";
+import { useState, type ReactElement } from "react";
 
-import { IconButton, Dialog } from "src/components/ui";
-import { ResizableWrapper, MARKDOWN_DIALOG_STORAGE_KEY } from "src/components/ui/ResizableWrapper";
+import { Heading, VStack, type ButtonProps } from "@chakra-ui/react";
+
+import { Dialog, IconButton, MARKDOWN_DIALOG_STORAGE_KEY, ResizableWrapper } from "src/system-components";
 
 import ReactMarkdown from "./ReactMarkdown";
 
@@ -29,17 +29,18 @@ const DisplayMarkdownButton = ({
   icon,
   mdContent,
   text,
+  ...rest
 }: {
   readonly header: string;
   readonly icon?: ReactElement;
   readonly mdContent: string;
   readonly text: string;
-}) => {
+} & ButtonProps) => {
   const [isDocsOpen, setIsDocsOpen] = useState(false);
 
   return (
-    <Box>
-      <IconButton data-testid="markdown-button" label={text} onClick={() => setIsDocsOpen(true)}>
+    <div>
+      <IconButton {...rest} data-testid="markdown-button" label={text} onClick={() => setIsDocsOpen(true)}>
         {icon}
       </IconButton>
       <Dialog.Root
@@ -50,7 +51,7 @@ const DisplayMarkdownButton = ({
       >
         <Dialog.Content backdrop maxHeight="none" maxWidth="none" padding={0} width="auto">
           <ResizableWrapper storageKey={MARKDOWN_DIALOG_STORAGE_KEY}>
-            <Dialog.Header bg="brand.muted" flexShrink={0}>
+            <Dialog.Header alignItems="center" flexShrink={0} justifyContent="space-between">
               <Heading size="xl">{header}</Heading>
               <Dialog.CloseTrigger closeButtonProps={{ size: "xl" }} />
             </Dialog.Header>
@@ -60,7 +61,7 @@ const DisplayMarkdownButton = ({
           </ResizableWrapper>
         </Dialog.Content>
       </Dialog.Root>
-    </Box>
+    </div>
   );
 };
 

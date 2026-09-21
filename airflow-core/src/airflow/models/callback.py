@@ -102,6 +102,13 @@ class ImportPathExecutorCallbackDefProtocol(ImportPathCallbackDefProtocol, Proto
     executor: str | None
 
 
+@runtime_checkable
+class ImportPathAsyncCallbackDefProtocol(ImportPathCallbackDefProtocol, Protocol):
+    """Protocol for callbacks that use the import path fetch method and support trigger queue assignment."""
+
+    queue: str | None
+
+
 class Callback(Base, BaseWorkload):
     """Base class for callbacks."""
 
@@ -137,7 +144,7 @@ class Callback(Base, BaseWorkload):
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     # Used for callbacks of type CallbackType.TRIGGERER
-    trigger_id: Mapped[int] = mapped_column(Integer, ForeignKey("trigger.id"), nullable=True)
+    trigger_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("trigger.id"), nullable=True)
     trigger = relationship("Trigger", back_populates="callback", uselist=False)
 
     def __init__(self, priority_weight: int = 1, prefix: str = "", **kwargs):
@@ -201,7 +208,7 @@ class Callback(Base, BaseWorkload):
         match type(callback_def).__name__:
             case "AsyncCallback":
                 if TYPE_CHECKING:
-                    assert isinstance(callback_def, ImportPathCallbackDefProtocol)
+                    assert isinstance(callback_def, ImportPathAsyncCallbackDefProtocol)
                 return TriggererCallback(callback_def, **kwargs)
 
             case "SyncCallback":
@@ -244,6 +251,7 @@ class TriggererCallback(Callback):
             CallbackTrigger(
                 callback_path=self.data["path"],
                 callback_kwargs=self.data["kwargs"],
+                queue=self.data.get("queue"),
             )
         )
         self.trigger.team_name = team_name

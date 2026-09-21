@@ -24,7 +24,7 @@ from functools import singledispatch
 from traceback import format_exception
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import ForeignKey, Integer, String, Text, delete, func, or_, select, update
+from sqlalchemy import ForeignKey, Index, Integer, String, Text, delete, func, or_, select, update
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Mapped, Session, mapped_column, relationship, selectinload
 from sqlalchemy.sql.functions import coalesce
@@ -92,6 +92,7 @@ class Trigger(Base):
     """
 
     __tablename__ = "trigger"
+    __table_args__ = (Index("idx_trigger_triggerer_queue_id", "triggerer_id", "queue", "id"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     classpath: Mapped[str] = mapped_column(String(1000), nullable=False)
@@ -200,7 +201,7 @@ class Trigger(Base):
     def from_object(cls, trigger: BaseTrigger) -> Trigger:
         """Alternative constructor that creates a trigger row based directly off of a Trigger object."""
         classpath, kwargs = trigger.serialize()
-        return cls(classpath=classpath, kwargs=kwargs)
+        return cls(classpath=classpath, kwargs=kwargs, queue=trigger.queue)
 
     @classmethod
     @provide_session

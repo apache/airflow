@@ -40,6 +40,12 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.apache.iceberg.hooks.iceberg"],
             }
         ],
+        "triggers": [
+            {
+                "integration-name": "Iceberg",
+                "python-modules": ["airflow.providers.apache.iceberg.triggers.iceberg"],
+            }
+        ],
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.apache.iceberg.hooks.iceberg.IcebergHook",

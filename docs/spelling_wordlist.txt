@@ -3,6 +3,7 @@ abc
 AbstractFileSystem
 AbstractToolset
 accessor
+accessors
 AccessSecretVersionResponse
 aci
 Ack
@@ -15,6 +16,7 @@ actionCard
 Acyclic
 acyclic
 adb
+adbc
 additionalProperties
 adf
 adhoc
@@ -51,6 +53,7 @@ alibaba
 alibabacloud
 allAuthenticatedUsers
 allowlist
+allowlists
 allUsers
 alphanumerics
 amazonaws
@@ -175,7 +178,9 @@ baseoperatorlink
 BaseView
 BaseXCom
 bashrc
+BatchClient
 batchGet
+BatchNodeState
 BatchServiceClient
 bc
 bcc
@@ -237,6 +242,8 @@ charset
 chatbot
 chatbots
 CheckOperator
+checkpointed
+checkpointing
 checksums
 childs
 chmod
@@ -311,6 +318,7 @@ containerConfiguration
 containerd
 ContainerGroup
 containerinstance
+containerised
 ContainerPort
 contentUrl
 contextmgr
@@ -318,6 +326,7 @@ contrib
 convertToIri
 cooldown
 copyable
+coreutils
 CoreV
 coroutine
 cosmosdb
@@ -390,6 +399,8 @@ dataframes
 DataFusion
 Datafusion
 datafusion
+Datagram
+datagram
 Datalake
 datamodel
 Datanodes
@@ -460,9 +471,11 @@ deliverability
 deltalake
 denylist
 dep
+dependant
 DependencyMixin
 Deprecations
 deprecations
+deprioritize
 deps
 deques
 deregister
@@ -477,6 +490,8 @@ deserializer
 deserializes
 deserializing
 dest
+destructures
+destructuring
 dev
 devel
 DevOps
@@ -786,6 +801,7 @@ hiveserver
 hmsclient
 hoc
 homebrew
+honoured
 hookimpl
 hookspec
 HostAliases
@@ -902,6 +918,7 @@ jdk
 jenkins
 JenkinsRequest
 Jetson
+Jev
 Jiajie
 Jinja
 jinja
@@ -1026,6 +1043,7 @@ logstash
 longblob
 lookups
 loopback
+lowercased
 lshift
 lte
 lxml
@@ -1068,9 +1086,12 @@ metastore
 metavar
 mget
 mgmt
+MiB
 microservice
 microservices
 microsoft
+microVM
+microVMs
 middleware
 middlewares
 midnights
@@ -1145,6 +1166,8 @@ nohup
 nonnegative
 nonterminal
 noqa
+Normalised
+normalised
 normalizer
 NotFound
 notificationChannels
@@ -1326,6 +1349,7 @@ protobuf
 provisioner
 proxied
 proxies
+proxying
 psql
 psrp
 psycopg
@@ -1395,6 +1419,7 @@ ReadOnlyCredentials
 readthedocs
 Realtime
 realtime
+rebalance
 rebase
 Rebasing
 Recency
@@ -1430,6 +1455,8 @@ requeue
 requeued
 requeues
 requeuing
+rerank
+reranking
 reserialize
 Reserializing
 resetdb
@@ -1484,6 +1511,7 @@ sanitization
 sas
 Sasl
 sasl
+sbx
 scala
 scalability
 scalable
@@ -1517,6 +1545,7 @@ sendgrid
 sentimentMax
 ser
 serde
+serialisation
 serialise
 serializable
 SerializedDAG
@@ -1585,6 +1614,7 @@ Splunk
 Sql
 sql
 sqla
+sqladmin
 Sqlalchemy
 sqlalchemy
 sqlglot
@@ -1610,6 +1640,7 @@ Stackdriver
 stackdriver
 stacklevel
 stacktrace
+Starlette
 starttls
 stateful
 StatefulSet
@@ -1814,6 +1845,7 @@ uncompress
 undeploy
 undeployed
 Undeploys
+unescaped
 unicode
 unicodecsv
 unindent
@@ -1881,6 +1913,7 @@ Vertica
 vertica
 Vespa
 vespa
+Vianet
 videointelligence
 views
 virtualenv
@@ -1911,6 +1944,7 @@ webpage
 Webserver
 webserver
 webservers
+webViewLink
 Werkzeug
 werkzeug
 whitespace

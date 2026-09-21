@@ -16,26 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, ClipboardRoot, Heading, HStack, Text } from "@chakra-ui/react";
 import { useState } from "react";
+
+import { Box, ClipboardRoot, Heading, HStack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
 import { PiFilePy } from "react-icons/pi";
 
 import { useImportErrorServiceGetImportErrors } from "openapi/queries";
+
+import { Accordion, ClipboardIconButton, Modal, Pagination } from "src/system-components";
+
 import { SearchBar } from "src/components/SearchBar";
 import Time from "src/components/Time";
-import { Accordion, ClipboardIconButton, Dialog } from "src/components/ui";
-import { Pagination } from "src/components/ui/Pagination";
 
 type ImportDAGErrorModalProps = {
-  onClose: () => void;
-  open: boolean;
+  readonly onClose: () => void;
+  readonly open: boolean;
 };
 
 const PAGE_LIMIT = 15;
 
-export const DagImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ onClose, open }) => {
+export const DagImportErrorsModal = ({ onClose, open }: ImportDAGErrorModalProps) => {
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -63,73 +65,81 @@ export const DagImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ onClo
   };
 
   return (
-    <Dialog.Root onOpenChange={onOpenChange} open={open} scrollBehavior="inside">
-      <Dialog.Content backdrop p={4}>
-        <Dialog.Header display="flex" justifyContent="space-between">
-          <HStack fontSize="xl">
-            <LuFileWarning />
-            <Heading>{translate("importErrors.dagImportError", { count: data?.total_entries ?? 0 })}</Heading>
-          </HStack>
-          <SearchBar
-            defaultValue={searchQuery}
-            onChange={handleSearchChange}
-            placeholder={translate("importErrors.searchByFile")}
-          />
-        </Dialog.Header>
-
-        <Dialog.CloseTrigger />
-
-        <Dialog.Body>
-          <Accordion.Root collapsible multiple size="md" variant="enclosed">
-            {(data?.import_errors ?? []).map((importError) => (
-              <Accordion.Item key={importError.import_error_id} value={String(importError.import_error_id)}>
-                <HStack align="stretch" gap={0} w="100%">
-                  <Accordion.ItemTrigger cursor="pointer" flex="1">
-                    <HStack alignItems="center" flexWrap="wrap" gap={2} w="100%">
-                      <Text display="flex" fontWeight="bold">
-                        {translate("components:versionDetails.bundleName")}
-                        {": "}
-                        {importError.bundle_name}
-                      </Text>
-                      <PiFilePy />
-                      {importError.filename}
-                    </HStack>
-                  </Accordion.ItemTrigger>
-                  <Box alignItems="center" display="flex" flexShrink={0} pr={2}>
-                    <ClipboardRoot value={importError.filename}>
-                      <ClipboardIconButton variant="outline" />
-                    </ClipboardRoot>
-                  </Box>
-                </HStack>
-                <Accordion.ItemContent>
-                  <Text color="fg.muted" fontSize="sm" mb={1}>
-                    {translate("importErrors.timestamp")}
+    <Modal
+      footerProps={{
+        children: (
+          <Pagination.Root
+            count={data?.total_entries ?? 0}
+            onPageChange={(event) => setPage(event.page)}
+            padding={4}
+            page={page}
+            pageSize={PAGE_LIMIT}
+          >
+            <HStack>
+              <Pagination.PrevTrigger />
+              <Pagination.Items />
+              <Pagination.NextTrigger />
+            </HStack>
+          </Pagination.Root>
+        ),
+      }}
+      headerProps={{
+        children: (
+          <>
+            <HStack fontSize="xl">
+              <LuFileWarning />
+              <Heading>
+                {translate("importErrors.dagImportError", { count: data?.total_entries ?? 0 })}
+              </Heading>
+            </HStack>
+            <SearchBar
+              defaultValue={searchQuery}
+              onChange={handleSearchChange}
+              placeholder={translate("importErrors.searchByFile")}
+            />
+          </>
+        ),
+        display: "flex",
+        justifyContent: "space-between",
+      }}
+      onOpenChange={onOpenChange}
+      open={open}
+      scrollBehavior="inside"
+    >
+      <Accordion.Root collapsible multiple size="md" variant="enclosed">
+        {(data?.import_errors ?? []).map((importError) => (
+          <Accordion.Item key={importError.import_error_id} value={String(importError.import_error_id)}>
+            <HStack align="stretch" gap={0} w="100%">
+              <Accordion.ItemTrigger cursor="pointer" flex="1">
+                <HStack alignItems="center" flexWrap="wrap" gap={2} w="100%">
+                  <Text display="flex" fontWeight="bold">
+                    {translate("components:versionDetails.bundleName")}
                     {": "}
-                    <Time datetime={importError.timestamp} />
+                    {importError.bundle_name}
                   </Text>
-                  <Text color="fg.error" fontSize="sm" whiteSpace="pre-wrap">
-                    <code>{importError.stack_trace}</code>
-                  </Text>
-                </Accordion.ItemContent>
-              </Accordion.Item>
-            ))}
-          </Accordion.Root>
-        </Dialog.Body>
-
-        <Pagination.Root
-          count={data?.total_entries ?? 0}
-          onPageChange={(event) => setPage(event.page)}
-          p={4}
-          page={page}
-          pageSize={PAGE_LIMIT}
-        >
-          <HStack>
-            <Pagination.PrevTrigger />
-            <Pagination.Items />
-            <Pagination.NextTrigger />
-          </HStack>
-        </Pagination.Root>
-      </Dialog.Content>
-    </Dialog.Root>
+                  <PiFilePy />
+                  {importError.filename}
+                </HStack>
+              </Accordion.ItemTrigger>
+              <Box alignItems="center" display="flex" flexShrink={0} pr={2}>
+                <ClipboardRoot value={importError.filename}>
+                  <ClipboardIconButton variant="outline" />
+                </ClipboardRoot>
+              </Box>
+            </HStack>
+            <Accordion.ItemContent>
+              <Text color="fg.muted" fontSize="sm" mb={1}>
+                {translate("importErrors.timestamp")}
+                {": "}
+                <Time datetime={importError.timestamp} />
+              </Text>
+              <Text color="fg.error" fontSize="sm" whiteSpace="pre-wrap">
+                <code>{importError.stack_trace}</code>
+              </Text>
+            </Accordion.ItemContent>
+          </Accordion.Item>
+        ))}
+      </Accordion.Root>
+    </Modal>
   );
 };

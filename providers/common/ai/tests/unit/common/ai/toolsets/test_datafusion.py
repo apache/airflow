@@ -225,7 +225,7 @@ class TestDataFusionToolsetQuery:
         ts = DataFusionToolset([cfg])
         ts._engine = _make_mock_engine()
 
-        with pytest.raises(SQLSafetyError, match="Statement type 'Create' is not allowed"):
+        with pytest.raises(ModelRetry, match="Statement type 'Create' is not allowed"):
             asyncio.run(
                 ts.call_tool(
                     "query",
@@ -234,6 +234,22 @@ class TestDataFusionToolsetQuery:
                     tool=MagicMock(spec=ToolsetTool),
                 )
             )
+
+    def test_sql_syntax_error_raises_model_retry(self):
+        cfg = _make_mock_datasource_config()
+        ts = DataFusionToolset([cfg])
+        ts._engine = _make_mock_engine()
+
+        with pytest.raises(ModelRetry) as exc_info:
+            asyncio.run(
+                ts.call_tool(
+                    "query",
+                    {"sql": "SELECT * FROM t WHERE"},
+                    ctx=MagicMock(spec=RunContext),
+                    tool=MagicMock(spec=ToolsetTool),
+                )
+            )
+        assert isinstance(exc_info.value.__cause__, SQLSafetyError)
 
     def test_allows_create_table_when_writes_enabled(self):
         cfg = _make_mock_datasource_config()

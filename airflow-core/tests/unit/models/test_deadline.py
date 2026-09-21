@@ -42,7 +42,10 @@ from airflow.sdk.definitions.deadline import (
     FixedDatetimeDeadline,
     deadline_reference,
 )
-from airflow.serialization.definitions.deadline import SerializedReferenceModels
+from airflow.serialization.definitions.deadline import (
+    SerializedReferenceModels,
+    _fetch_from_db as _fetch_serialized_deadline_from_db,
+)
 from airflow.utils.state import DagRunState
 
 from tests_common.test_utils import db
@@ -208,6 +211,23 @@ class TestDeadline:
             assert f"Run: {dagrun.id}" in repr_str
             assert f"needed by {DEFAULT_DATE}" in repr_str
             assert TEST_CALLBACK_PATH in repr_str
+
+    def test_repr_with_dagrun_id_but_no_dagrun_relationship(self, deadline_orm):
+        """__repr__ must NOT raise when dagrun_id is set but the dagrun relationship is None.
+
+        The FK (dagrun_id) can be set while the relationship resolves to None — e.g. the DagRun
+        was deleted (ondelete=CASCADE) and this is a stale/expired in-memory Deadline. A __repr__
+        that raised AttributeError here would break log lines, tracebacks, and debugger displays
+        exactly when something is already going wrong. The repr falls back to an id-only form.
+        """
+        # Sever the relationship while keeping the FK id (simulates deleted/detached DagRun).
+        deadline_orm.dagrun = None
+        assert deadline_orm.dagrun_id is not None
+
+        repr_str = repr(deadline_orm)  # must not raise
+        assert "[DagRun Deadline]" in repr_str
+        assert f"Run: {deadline_orm.dagrun_id}" in repr_str
+        assert "Dag: <unknown>" in repr_str
 
     @pytest.mark.db_test
     def test_bundle_name_propagated_to_callback(self, dagrun, session):
@@ -450,6 +470,36 @@ class TestCalculatedDeadlineDatabaseCalls:
                 result = reference.evaluate_with(session=session, interval=interval)
                 mock_fetch.assert_not_called()
                 assert result == DEFAULT_DATE + interval
+
+    def test_serialized_fetch_from_db_returns_null_column_without_missing_dagrun_warning(
+        self, session, dag_maker, caplog
+    ):
+        with dag_maker(DAG_ID):
+            EmptyOperator(task_id="test_task")
+
+        dag_maker.create_dagrun(
+            logical_date=None,
+            run_id="manual__null_logical_date",
+            state=DagRunState.QUEUED,
+        )
+        session.commit()
+
+        with caplog.at_level("WARNING", logger="airflow.serialization.definitions.deadline"):
+            result = _fetch_serialized_deadline_from_db(
+                DagRun.logical_date, session=session, dag_id=DAG_ID, run_id="manual__null_logical_date"
+            )
+
+        assert result is None
+        assert not any("Could not find DagRun" in record.message for record in caplog.records)
+
+    def test_serialized_fetch_from_db_logs_missing_dagrun(self, session, caplog):
+        with caplog.at_level("WARNING", logger="airflow.serialization.definitions.deadline"):
+            result = _fetch_serialized_deadline_from_db(
+                DagRun.logical_date, session=session, dag_id=DAG_ID, run_id="missing_run"
+            )
+
+        assert result is None
+        assert any("Could not find DagRun" in record.message for record in caplog.records)
 
     def test_average_runtime_with_sufficient_history(self, session, dag_maker):
         """Test AverageRuntimeDeadline when enough historical data exists."""

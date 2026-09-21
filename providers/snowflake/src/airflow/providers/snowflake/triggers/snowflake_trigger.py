@@ -20,6 +20,8 @@ import asyncio
 from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING, Any
 
+from asgiref.sync import sync_to_async
+
 from airflow.providers.snowflake.hooks.snowflake_sql_api import SnowflakeSqlApiHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -36,6 +38,9 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
     :param snowflake_conn_id: Reference to Snowflake connection id
     :param token_life_time: lifetime of the JWT Token in timedelta
     :param token_renewal_delta: Renewal time of the JWT Token in timedelta
+    :param cancel_on_kill: If True (default), cancel the running Snowflake queries when the user
+        kills the deferred task (mark failed, clear, or mark success). Requires a version of
+        ``apache-airflow`` with ``BaseTrigger.on_kill()`` support; on older versions it is inert.
     """
 
     def __init__(
@@ -45,6 +50,7 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
         snowflake_conn_id: str,
         token_life_time: timedelta,
         token_renewal_delta: timedelta,
+        cancel_on_kill: bool = True,
     ):
         super().__init__()
         self.poll_interval = poll_interval
@@ -52,6 +58,7 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
         self.snowflake_conn_id = snowflake_conn_id
         self.token_life_time = token_life_time
         self.token_renewal_delta = token_renewal_delta
+        self.cancel_on_kill = cancel_on_kill
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize SnowflakeSqlApiTrigger arguments and classpath."""
@@ -63,6 +70,7 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
                 "snowflake_conn_id": self.snowflake_conn_id,
                 "token_life_time": self.token_life_time,
                 "token_renewal_delta": self.token_renewal_delta,
+                "cancel_on_kill": self.cancel_on_kill,
             },
         )
 
@@ -93,6 +101,39 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
 
+    async def on_kill(self) -> None:
+        """
+        Best-effort cancel of the running Snowflake queries when the user kills the deferred task.
+
+        Cancellation issues one blocking request per query id, so a task with many statements
+        against a slow warehouse can exceed the triggerer's ``[triggerer] on_kill_timeout``
+        (default 30s); statements not cancelled within that budget may keep running.
+        """
+        if not self.cancel_on_kill or not self.query_ids:
+            return
+        self.log.info("Cancelling Snowflake query ids %s", self.query_ids)
+        try:
+            await sync_to_async(self._cancel_queries)()
+        except Exception:
+            self.log.exception(
+                "Failed to cancel Snowflake query ids %s. They may still be running.", self.query_ids
+            )
+
+    def _cancel_queries(self) -> None:
+        hook = SnowflakeSqlApiHook(
+            self.snowflake_conn_id,
+            self.token_life_time,
+            self.token_renewal_delta,
+        )
+        for query_id in self.query_ids:
+            try:
+                hook.cancel_queries([query_id])
+                self.log.info("Snowflake query id %s cancelled.", query_id)
+            except Exception:
+                self.log.exception(
+                    "Failed to cancel Snowflake query id %s; continuing with the rest.", query_id
+                )
+
     async def get_query_status(
         self, query_id: str, hook: SnowflakeSqlApiHook | None = None
     ) -> dict[str, Any]:
@@ -105,6 +146,3 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
             )
 
         return await hook.get_sql_api_query_status_async(query_id)
-
-    def _set_context(self, context):
-        pass

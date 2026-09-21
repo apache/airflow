@@ -225,7 +225,7 @@ func TestDecodeConnectionResult(t *testing.T) {
 // TestConnectionResultNullableCredentials covers the shapes login / password
 // can take on the wire: absent, explicit nil, explicit "", and a real value.
 // Empty-string and absent must be distinguishable so URI building in
-// sdk.Connection picks the same branch the HTTP-backed SDK would.
+// sdk.Connection preserves the distinction from an omitted credential.
 func TestConnectionResultNullableCredentials(t *testing.T) {
 	empty := ""
 	user := "user"

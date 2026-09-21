@@ -56,8 +56,8 @@ class TestAzureBatchTrigger:
     def test_build_trigger_event_success(self):
         completed_task = mock.MagicMock()
         completed_task.id = "task1"
-        completed_task.state = batch_models.TaskState.completed
-        completed_task.execution_info.result = batch_models.TaskExecutionResult.success
+        completed_task.state = batch_models.BatchTaskState.COMPLETED
+        completed_task.execution_info.result = batch_models.BatchTaskExecutionResult.SUCCESS
 
         event = self.TRIGGER._build_trigger_event([completed_task])
 
@@ -72,8 +72,8 @@ class TestAzureBatchTrigger:
     def test_build_trigger_event_failure(self):
         failed_task = mock.MagicMock()
         failed_task.id = "task1"
-        failed_task.state = batch_models.TaskState.completed
-        failed_task.execution_info.result = batch_models.TaskExecutionResult.failure
+        failed_task.state = batch_models.BatchTaskState.COMPLETED
+        failed_task.execution_info.result = batch_models.BatchTaskExecutionResult.FAILURE
 
         event = self.TRIGGER._build_trigger_event([failed_task])
 
@@ -89,12 +89,12 @@ class TestAzureBatchTrigger:
     def test_build_trigger_event_mixed_states(self):
         completed_task = mock.MagicMock()
         completed_task.id = "task1"
-        completed_task.state = batch_models.TaskState.completed
-        completed_task.execution_info.result = batch_models.TaskExecutionResult.success
+        completed_task.state = batch_models.BatchTaskState.COMPLETED
+        completed_task.execution_info.result = batch_models.BatchTaskExecutionResult.SUCCESS
 
         running_task = mock.MagicMock()
         running_task.id = "task2"
-        running_task.state = batch_models.TaskState.running
+        running_task.state = batch_models.BatchTaskState.RUNNING
 
         event = self.TRIGGER._build_trigger_event([completed_task, running_task])
 
@@ -121,12 +121,12 @@ class TestAzureBatchTrigger:
     ):
         running_task = mock.MagicMock()
         running_task.id = "task1"
-        running_task.state = batch_models.TaskState.running
+        running_task.state = batch_models.BatchTaskState.RUNNING
 
         completed_task = mock.MagicMock()
         completed_task.id = "task1"
-        completed_task.state = batch_models.TaskState.completed
-        completed_task.execution_info.result = batch_models.TaskExecutionResult.success
+        completed_task.state = batch_models.BatchTaskState.COMPLETED
+        completed_task.execution_info.result = batch_models.BatchTaskExecutionResult.SUCCESS
 
         mock_to_thread.side_effect = [
             [running_task],
@@ -150,7 +150,7 @@ class TestAzureBatchTrigger:
     def test_build_trigger_event_non_terminal(self):
         running_task = mock.MagicMock()
         running_task.id = "task1"
-        running_task.state = batch_models.TaskState.running
+        running_task.state = batch_models.BatchTaskState.RUNNING
 
         event = self.TRIGGER._build_trigger_event([running_task])
 
@@ -161,8 +161,8 @@ class TestAzureBatchTrigger:
     async def test_trigger_run_success(self, mock_to_thread):
         completed_task = mock.MagicMock()
         completed_task.id = "task1"
-        completed_task.state = batch_models.TaskState.completed
-        completed_task.execution_info.result = batch_models.TaskExecutionResult.success
+        completed_task.state = batch_models.BatchTaskState.COMPLETED
+        completed_task.execution_info.result = batch_models.BatchTaskExecutionResult.SUCCESS
 
         mock_to_thread.return_value = [completed_task]
 
@@ -182,8 +182,8 @@ class TestAzureBatchTrigger:
     async def test_trigger_run_failure(self, mock_to_thread):
         failed_task = mock.MagicMock()
         failed_task.id = "task1"
-        failed_task.state = batch_models.TaskState.completed
-        failed_task.execution_info.result = batch_models.TaskExecutionResult.failure
+        failed_task.state = batch_models.BatchTaskState.COMPLETED
+        failed_task.execution_info.result = batch_models.BatchTaskExecutionResult.FAILURE
 
         mock_to_thread.return_value = [failed_task]
 
@@ -243,8 +243,8 @@ class TestAzureBatchTrigger:
     ):
         completed_task = mock.MagicMock()
         completed_task.id = "task1"
-        completed_task.state = batch_models.TaskState.completed
-        completed_task.execution_info.result = batch_models.TaskExecutionResult.success
+        completed_task.state = batch_models.BatchTaskState.COMPLETED
+        completed_task.execution_info.result = batch_models.BatchTaskExecutionResult.SUCCESS
 
         mock_to_thread.return_value = [completed_task]
 
@@ -268,7 +268,7 @@ class TestAzureBatchTrigger:
     async def test_trigger_timeout(self, mock_to_thread, mock_time):
         running_task = mock.MagicMock()
         running_task.id = "task1"
-        running_task.state = batch_models.TaskState.running
+        running_task.state = batch_models.BatchTaskState.RUNNING
 
         mock_to_thread.return_value = [running_task]
 

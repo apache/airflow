@@ -17,7 +17,7 @@ For e2e tests (Playwright), see [`tests/e2e/README.md`](tests/e2e/README.md).
 - **TypeScript:** Strict mode is enabled (`strict`, `noUnusedLocals`, `noUnusedParameters`, `noUncheckedIndexedAccess`). Do not use `any`; fix type errors rather than suppressing them.
 - **Path aliases:** Use the configured aliases (`src/*`, `openapi/*`, `tests/*`) rather than relative `../../` imports.
 - **Icons:** Use `react-icons` exclusively. Do not add other icon packages. Prefer the three icon sets already dominant in the codebase — `react-icons/fi` (Feather, 82 uses), `react-icons/md` (Material Design, 28 uses), and `react-icons/lu` (Lucide, 26 uses) — before reaching for a less-used set.
-- **Shared components:** Place reusable components in `src/components/`. The `src/components/ui/` subdirectory is reserved for customized Chakra components only — do not put generic app components there.
+- **Shared components:** Place reusable components in `src/components/`. The top-level `src/system-components/` directory is reserved for customized Chakra components only — do not put generic app components there.
 - **API calls:** Use the auto-generated clients in `openapi-gen/` (generated from the OpenAPI spec via `pnpm codegen`). Do not write raw `axios` calls against API endpoints by hand.
 - **No `useMemo` or `useCallback`:** The project uses the React compiler (`babel-plugin-react-compiler`), which handles memoization automatically. Do not add `useMemo` or `useCallback` manually — they are unnecessary and may interfere with the compiler's optimizations.
 

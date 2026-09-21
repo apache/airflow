@@ -17,11 +17,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload, selectinload
 
 from airflow.api_fastapi.common.db.common import (
     apply_filters_to_select,
@@ -29,10 +28,11 @@ from airflow.api_fastapi.common.db.common import (
 from airflow.api_fastapi.common.parameters import BaseParam, RangeFilter, SortParam
 from airflow.configuration import conf
 from airflow.models import DagModel
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
+    from sqlalchemy.orm.strategy_options import _AbstractLoad
     from sqlalchemy.sql import Select
 
 
@@ -98,18 +98,23 @@ def generate_dag_with_latest_run_query(
     return query
 
 
-def attach_team_names(objects: Sequence, *, session: Session) -> None:
+def eager_load_teams(*path: Any) -> tuple[_AbstractLoad, ...]:
     """
-    Attach the owning team name to each object exposing a ``dag_id``.
+    Eager loading options for the team owning a Dag, for serializing ``team_name``.
 
-    Only performs a database lookup when multi-team mode is enabled; otherwise every
-    object keeps its default ``team_name`` of ``None``. The resolved name is set as the
-    ``team_name`` attribute on each object so the response serializer can read it.
+    ``DagModel.bundle`` is ``lazy="raise"``, so any endpoint whose response exposes
+    ``team_name`` must apply these options. Nothing is loaded when multi-team mode is
+    off: :attr:`DagModel.team_name` short-circuits to ``None`` without touching the
+    relationship, so single-team deployments pay for no extra join.
+
+    :param path: relationship attributes leading to ``DagModel``, empty when selecting it
+        directly. For example, ``eager_load_teams(DagRun.dag_model)`` for a Dag run query.
     """
-    if not objects or not conf.getboolean("core", "multi_team"):
-        return
+    if not conf.getboolean("core", "multi_team"):
+        return ()
 
-    dag_ids = list({obj.dag_id for obj in objects})
-    team_names_by_dag_id = DagModel.get_dag_id_to_team_name_mapping(dag_ids, session=session)
-    for obj in objects:
-        obj.team_name = team_names_by_dag_id.get(obj.dag_id)
+    loader: Any = None
+    for attribute in path:
+        loader = joinedload(attribute) if loader is None else loader.joinedload(attribute)
+    bundle_loader = joinedload(DagModel.bundle) if loader is None else loader.joinedload(DagModel.bundle)
+    return (bundle_loader.selectinload(DagBundleModel.teams),)

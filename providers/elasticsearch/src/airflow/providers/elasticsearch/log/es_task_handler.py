@@ -45,7 +45,7 @@ from pydantic import ValidationError
 import airflow.logging_config as alc
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dagrun import DagRun
-from airflow.providers.common.compat.sdk import conf
+from airflow.providers.common.compat.sdk import conf, timezone
 from airflow.providers.elasticsearch._compat import apply_compat_with
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit, resolve_nested
@@ -56,9 +56,7 @@ from airflow.utils.state import TaskInstanceState
 
 if AIRFLOW_V_3_2_PLUS:
     from airflow._shared.module_loading import import_string
-    from airflow.sdk import timezone
 else:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
     from airflow.utils.module_loading import import_string  # type: ignore[no-redef]
 
 if TYPE_CHECKING:

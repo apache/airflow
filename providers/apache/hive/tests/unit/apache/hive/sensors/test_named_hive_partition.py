@@ -25,12 +25,11 @@ import pytest
 
 from airflow.models.dag import DAG
 from airflow.providers.apache.hive.sensors.named_hive_partition import NamedHivePartitionSensor
-from airflow.providers.common.compat.sdk import AirflowSensorTimeout
-from airflow.utils.timezone import datetime
+from airflow.providers.common.compat.sdk import AirflowSensorTimeout, timezone
 
 from unit.apache.hive import MockHiveMetastoreHook, TestHiveEnvironment
 
-DEFAULT_DATE = datetime(2015, 1, 1)
+DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 

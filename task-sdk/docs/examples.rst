@@ -18,7 +18,7 @@
 Examples
 ========
 
-.. note:: For a minimal quick start, see the `Getting Started <../index.rst#getting-started>`_ section.
+.. note:: For a minimal quick start, see the :ref:`Getting Started <getting-started>` section.
 
 Key Concepts
 ------------
@@ -100,7 +100,7 @@ TaskFlow API Tutorial
 ---------------------
 
 This section provides a concise, code-first view. For the full tutorial and context,
-see the `core TaskFlow tutorial <../../airflow-core/docs/tutorial/taskflow.rst>`_.
+see the :doc:`core TaskFlow tutorial <apache-airflow:tutorial/taskflow>`.
 
 Step 1: Define the Dag
 ----------------------

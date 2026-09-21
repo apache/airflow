@@ -176,16 +176,17 @@ class KubernetesPodOperator(BaseOperator):
     :param in_cluster: run kubernetes client with in_cluster configuration.
     :param cluster_context: context that points to kubernetes cluster.
         Ignored when in_cluster is True. If None, current-context is used. (templated)
-    :param reattach_on_restart: deprecated for Airflow 3.3+, use ``durable`` instead. If the worker dies
-        while the pod is running, reattach and monitor during the next try. If False, always create a
-        new pod for each try.
+    :param reattach_on_restart: deprecated, use ``durable`` instead. If the worker dies while the pod
+        is running, reattach and monitor during the next try. If False, always create a new pod for
+        each try. Below Airflow 3.3, this remains the only way to control that behavior, since
+        ``durable`` has no effect there.
     :param durable: if the worker dies while the pod is running, reattach and monitor during the next
         try instead of creating a duplicate pod. If False, always create a new pod for each try.
-        Supersedes ``reattach_on_restart``; on Airflow 3.3+ the reconnection uses a persisted pod
-        identity in task state store instead of a label search, removing the ambiguity failure a label
-        search can hit when more than one matching pod exists. Defaults to ``True``. On Airflow
-        versions below 3.3, ``durable`` still works but falls back to the same label-search reattach
-        behavior as ``reattach_on_restart``, since task state store is unavailable.
+        Supersedes ``reattach_on_restart`` on Airflow 3.3+, where the reconnection uses a persisted
+        pod identity in task state store instead of a label search. Defaults to ``True`` on Airflow
+        3.3+. Below 3.3, ``durable`` has no effect -- setting it explicitly only emits a warning --
+        and ``reattach_on_restart`` (default ``True``) is the only lever, using the same
+        label-search reattach mechanism it always has.
     :param labels: labels to apply to the Pod. (templated)
     :param startup_timeout_seconds: timeout in seconds to startup the pod after pod was scheduled.
     :param startup_check_interval_seconds: interval in seconds to check if the pod has already started
@@ -242,7 +243,7 @@ class KubernetesPodOperator(BaseOperator):
     :param configmaps: (Optional) A list of names of config maps from which it collects ConfigMaps
         to populate the environment variables with. The contents of the target
         ConfigMap's Data field will represent the key-value pairs as environment variables.
-        Extends env_from.
+        Extends env_from. (templated)
     :param skip_on_exit_code: If task exits with this exit code, leave the task
         in ``skipped`` state (default: None). If set to ``None``, any non-zero
         exit code will be treated as a failure.
@@ -313,6 +314,7 @@ class KubernetesPodOperator(BaseOperator):
         "volume_mounts",
         "cluster_context",
         "env_from",
+        "configmaps",
         "node_selector",
         "kubernetes_conn_id",
         "base_container_name",
@@ -340,7 +342,7 @@ class KubernetesPodOperator(BaseOperator):
         cluster_context: str | None = None,
         labels: dict | None = None,
         reattach_on_restart: bool | None = None,
-        durable: bool = True,
+        durable: bool | None = None,
         startup_timeout_seconds: int = 120,
         startup_check_interval_seconds: int = 5,
         schedule_timeout_seconds: int | None = None,
@@ -401,14 +403,34 @@ class KubernetesPodOperator(BaseOperator):
     ) -> None:
         if reattach_on_restart is not None:
             # Kept as a real named parameter (not **kwargs) so `default_args` still applies correctly.
-            if AIRFLOW_V_3_3_PLUS:
+            warnings.warn(
+                "`reattach_on_restart` is deprecated and will be removed once this provider's "
+                "minimum supported Airflow version reaches 3.3. "
+                + (
+                    "Use `durable` instead."
+                    if AIRFLOW_V_3_3_PLUS
+                    else "On Airflow 3.3+, use `durable` instead."
+                ),
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+        if AIRFLOW_V_3_3_PLUS:
+            if durable is None:
+                # durable takes precedence when set, even against a conflicting
+                # reattach_on_restart; reattach_on_restart only fills the gap when durable itself
+                # was never touched.
+                durable = True if reattach_on_restart is None else reattach_on_restart
+        else:
+            if durable is not None:
+                # durable itself has no effect below 3.3 -- there's no task state store to persist
+                # a pod identity to, so only reattach_on_restart's label-search fallback is real
+                # there.
                 warnings.warn(
-                    "`reattach_on_restart` is deprecated and will be removed in a future release. "
-                    "Use `durable` instead.",
-                    AirflowProviderDeprecationWarning,
+                    "`durable` has no effect on Airflow versions below 3.3.",
+                    UserWarning,
                     stacklevel=2,
                 )
-            durable = reattach_on_restart
+            durable = True if reattach_on_restart is None else reattach_on_restart
         super().__init__(**kwargs)
         self.kubernetes_conn_id = kubernetes_conn_id
         self.do_xcom_push = do_xcom_push
@@ -421,20 +443,16 @@ class KubernetesPodOperator(BaseOperator):
         self.startup_check_interval_seconds = startup_check_interval_seconds
         # New parameter startup_timeout_seconds adds breaking change, to handle this as smooth as possible just reuse startup time
         self.schedule_timeout_seconds = schedule_timeout_seconds or startup_timeout_seconds
-        env_vars = convert_env_vars(env_vars) if env_vars else []
-        self.env_vars = env_vars
+        self.env_vars = env_vars or []
         pod_runtime_info_envs = (
             [convert_pod_runtime_info_env(p) for p in pod_runtime_info_envs] if pod_runtime_info_envs else []
         )
         self.pod_runtime_info_envs = pod_runtime_info_envs
         self.env_from = env_from or []
-        if configmaps:
-            self.env_from.extend([convert_configmap(c) for c in configmaps])
+        self.configmaps = configmaps or []
         self.ports = [convert_port(p) for p in ports] if ports else []
-        volume_mounts = [convert_volume_mount(v) for v in volume_mounts] if volume_mounts else []
-        self.volume_mounts = volume_mounts
-        volumes = [convert_volume(volume) for volume in volumes] if volumes else []
-        self.volumes = volumes
+        self.volume_mounts = volume_mounts or []
+        self.volumes = volumes or []
         self.secrets = secrets or []
         self.in_cluster = in_cluster
         self.cluster_context = cluster_context
@@ -449,7 +467,7 @@ class KubernetesPodOperator(BaseOperator):
         self.base_container_name = base_container_name or self.BASE_CONTAINER_NAME
         self.base_container_status_polling_interval = base_container_status_polling_interval
         self.init_container_logs = init_container_logs
-        self.container_logs = container_logs or self.base_container_name
+        self._container_logs = container_logs
         self.image_pull_policy = image_pull_policy
         self.runtime_class_name = runtime_class_name
         self.node_selector = node_selector or {}
@@ -511,6 +529,32 @@ class KubernetesPodOperator(BaseOperator):
         self._killed: bool = False
         self.container_name_log_prefix_enabled = container_name_log_prefix_enabled
         self.log_formatter = log_formatter
+
+    @property
+    def container_logs(self) -> Iterable[str] | str | Literal[True]:
+        # Falls back lazily rather than in __init__: base_container_name is a template field, so
+        # the fallback has to read it once rendering has happened.
+        return self._container_logs or self.base_container_name
+
+    @container_logs.setter
+    def container_logs(self, value: Iterable[str] | str | Literal[True] | None) -> None:
+        self._container_logs = value
+
+    def _do_render_template_fields(
+        self,
+        parent: Any,
+        template_fields: Iterable[str],
+        context: Context,
+        jinja_env: jinja2.Environment,
+        seen_oids: set[int],
+    ) -> None:
+        # A str-str mapping has to become V1EnvVar objects before rendering: rendering a dict
+        # covers only its values, whereas an env var name is a template field of V1EnvVar.
+        # Hooked here rather than in render_template_fields because a mapped task never calls
+        # that one — MappedOperator renders through _do_render_template_fields on the unmapped task.
+        if parent is self and isinstance(self.env_vars, dict):
+            self.env_vars = convert_env_vars(self.env_vars)
+        super()._do_render_template_fields(parent, template_fields, context, jinja_env, seen_oids)
 
     @cached_property
     def _incluster_namespace(self):
@@ -901,8 +945,11 @@ class KubernetesPodOperator(BaseOperator):
                     container_name_log_prefix_enabled=self.container_name_log_prefix_enabled,
                     log_formatter=self.log_formatter,
                 )
+            followed_containers = (
+                [self.container_logs] if isinstance(self.container_logs, str) else self.container_logs
+            )
             if not self.get_logs or (
-                self.container_logs is not True and self.base_container_name not in self.container_logs
+                followed_containers is not True and self.base_container_name not in followed_containers
             ):
                 self.pod_manager.await_container_completion(
                     pod=pod,
@@ -1573,6 +1620,9 @@ class KubernetesPodOperator(BaseOperator):
         self.env_vars = convert_env_vars_or_raise_error(self.env_vars) if self.env_vars else []
         if self.pod_runtime_info_envs:
             self.env_vars.extend(self.pod_runtime_info_envs)
+        env_from = [*self.env_from, *(convert_configmap(c) for c in self.configmaps)]
+        volume_mounts = [convert_volume_mount(v) for v in self.volume_mounts]
+        volumes = [convert_volume(volume) for volume in self.volumes]
 
         if self.pod_template_file:
             self.log.debug("Pod template file found, will parse for base pod")
@@ -1613,10 +1663,10 @@ class KubernetesPodOperator(BaseOperator):
                         ports=self.ports,
                         image_pull_policy=self.image_pull_policy,
                         resources=self.container_resources,
-                        volume_mounts=self.volume_mounts,
+                        volume_mounts=volume_mounts,
                         args=self.arguments,
                         env=self.env_vars,
-                        env_from=self.env_from,
+                        env_from=env_from,
                         security_context=self.container_security_context,
                         termination_message_policy=self.termination_message_policy,
                     )
@@ -1633,7 +1683,7 @@ class KubernetesPodOperator(BaseOperator):
                 scheduler_name=self.schedulername,
                 restart_policy="Never",
                 priority_class_name=self.priority_class_name,
-                volumes=self.volumes,
+                volumes=volumes,
                 active_deadline_seconds=self.active_deadline_seconds,
                 termination_grace_period_seconds=self.termination_grace_period,
             ),
