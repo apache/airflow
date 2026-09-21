@@ -344,7 +344,8 @@ class TestS3ToSFTPOperatorInit:
             sftp_filenames="new_",
         )
 
-        operator.execute(None)
+        with mock.patch.object(operator.log, "warning") as mock_log_warning:
+            operator.execute(None)
 
         assert mock_download_from_s3.call_args_list == [
             mock.call(sftp_client, mock_s3_hook, "source/pre_one.txt", "/destination/new_one.txt"),
@@ -355,6 +356,7 @@ class TestS3ToSFTPOperatorInit:
                 "/destination/new_again_pre_.txt",
             ),
         ]
+        mock_log_warning.assert_called_once_with(mock.ANY, 1, "pre_", ["xpre_two.txt"])
 
     @pytest.mark.parametrize(
         ("s3_filenames", "sftp_filenames"),

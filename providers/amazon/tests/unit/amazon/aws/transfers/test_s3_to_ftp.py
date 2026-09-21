@@ -70,7 +70,8 @@ class TestS3ToFTPOperator:
             ftp_filenames="new_",
         )
 
-        operator.execute(None)
+        with mock.patch.object(operator.log, "warning") as mock_log_warning:
+            operator.execute(None)
 
         assert mock_download_from_s3.call_args_list == [
             mock.call(
@@ -86,6 +87,7 @@ class TestS3ToFTPOperator:
                 "/destination/new_again_pre_.txt",
             ),
         ]
+        mock_log_warning.assert_called_once_with(mock.ANY, 1, "pre_", ["xpre_two.txt"])
 
 
 class TestS3ToFTPOperatorInit:

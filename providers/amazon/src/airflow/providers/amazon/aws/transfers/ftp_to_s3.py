@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import ftplib
+import posixpath
 from collections.abc import Sequence
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
@@ -139,15 +140,31 @@ class FTPToS3Operator(BaseOperator):
                 if ftp_prefix == "*":
                     files = list_dir
                 else:
-                    files = [f for f in list_dir if f.startswith(ftp_prefix)]
+                    # ``nlst`` may qualify entries with the listed directory, so the prefix
+                    # applies to the basename, while the substring test mirrors the old rule.
+                    files, dropped = [], []
+                    for entry in list_dir:
+                        if posixpath.basename(entry).startswith(ftp_prefix):
+                            files.append(entry)
+                        elif ftp_prefix in entry:
+                            dropped.append(entry)
+                    if dropped:
+                        self.log.warning(
+                            "%d file(s) contain %r but are not selected, because a string prefix "
+                            "matches only at the start of the filename: %s",
+                            len(dropped),
+                            ftp_prefix,
+                            dropped,
+                        )
 
                 for file in files:
                     self.log.info("Moving file %s", file)
 
+                    # The entry is kept as listed for retrieval, but the destination key is
+                    # built from the basename so it never embeds the source directory.
+                    filename = posixpath.basename(file)
                     if self.s3_filenames and isinstance(self.s3_filenames, str):
-                        filename = file.replace(ftp_prefix, self.s3_filenames, 1)
-                    else:
-                        filename = file
+                        filename = filename.replace(ftp_prefix, self.s3_filenames, 1)
 
                     s3_file_key = f"{self.s3_key}{filename}"
                     self.__upload_to_s3_from_ftp(file, s3_file_key)

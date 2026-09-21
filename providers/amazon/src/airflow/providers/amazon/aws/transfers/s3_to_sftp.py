@@ -142,6 +142,15 @@ class S3ToSFTPOperator(BaseOperator):
                     files = filenames
                 else:
                     files = [f for f in filenames if f.startswith(s3_prefix)]
+                    dropped = [f for f in filenames if s3_prefix in f and not f.startswith(s3_prefix)]
+                    if dropped:
+                        self.log.warning(
+                            "%d file(s) contain %r but are not selected, because a string prefix "
+                            "matches only at the start of the filename: %s",
+                            len(dropped),
+                            s3_prefix,
+                            dropped,
+                        )
 
                 for file in files:
                     self.log.info("Moving file %s", file)
