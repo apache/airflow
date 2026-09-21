@@ -36,21 +36,25 @@ from airflowctl.api.datamodels.generated import (
     ClearTaskInstancesBody,
     DAGPatchBody,
     DAGRunResponse,
+    DagSchedulingState,
 )
 from airflowctl.ctl.console_formatting import AirflowConsole
 
 
 def update_dag_state(
     dag_id: str,
-    operation: Literal["pause", "unpause"],
+    operation: Literal["pause", "unpause", "drain"],
     api_client,
     output: str,
 ):
-    """Update Dag state (pause/unpause)."""
+    """Update Dag state (pause/unpause/drain)."""
+    dag_body = (
+        DAGPatchBody(scheduling_state=DagSchedulingState.DRAINING)
+        if operation == "drain"
+        else DAGPatchBody(is_paused=operation == "pause")
+    )
     try:
-        response = api_client.dags.update(
-            dag_id=dag_id, dag_body=DAGPatchBody(is_paused=operation == "pause")
-        )
+        response = api_client.dags.update(dag_id=dag_id, dag_body=dag_body)
     except ServerResponseError as e:
         rich.print(f"[red]Error while trying to {operation} Dag {dag_id}: {e}[/red]")
         sys.exit(1)
@@ -82,6 +86,17 @@ def unpause(args, api_client=NEW_API_CLIENT) -> None:
     return update_dag_state(
         dag_id=args.dag_id,
         operation="unpause",
+        api_client=api_client,
+        output=args.output,
+    )
+
+
+@provide_api_client(kind=ClientKind.CLI)
+def drain(args, api_client=NEW_API_CLIENT) -> None:
+    """Drain a Dag."""
+    return update_dag_state(
+        dag_id=args.dag_id,
+        operation="drain",
         api_client=api_client,
         output=args.output,
     )

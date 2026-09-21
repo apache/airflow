@@ -80,12 +80,19 @@ class SbxSandboxBackend(SandboxBackend):
     backend ships with the provider yet; add one behind :class:`SandboxBackend`
     if you need Kubernetes.
 
-    **Network policy is a host-level setting, not a per-sandbox one.** ``sbx``
-    governs egress through ``sbx policy``, so this backend cannot apply a
-    per-sandbox rule. Rather than let a DAG author believe a
-    :class:`~airflow.providers.common.ai.sandbox.SandboxSpec` restriction is in
-    force when it is not, ``create`` refuses a spec it cannot honor unless the
-    Deployment Manager states the host policy through ``host_network_policy``.
+    **Network policy is layered on a host-level setting, not independent of
+    one.** ``sbx`` governs egress through a host-level ``sbx policy``.
+    ``create`` applies ``allow_egress_to`` as a per-sandbox rule on top of
+    that policy, but the rule can only narrow a host policy that is already
+    ``deny-all`` and never widen one. ``block_network`` has no per-sandbox
+    enforcement at all: no ``sbx`` call implements it. Rather than let a Dag
+    author believe a
+    :class:`~airflow.providers.common.ai.sandbox.SandboxSpec` restriction is
+    in force when it is not, ``create`` raises instead of silently ignoring a
+    spec that asks for either -- and since ``block_network`` defaults to
+    ``True``, a bare ``SandboxSpec()`` with no arguments already asks for it.
+    It lets the spec through only when the Deployment Manager has already
+    declared the host policy as ``deny-all`` through ``host_network_policy``.
 
     **Orphans are not reclaimed automatically.** There is no server-side TTL to
     fall back on: if the worker is killed outright, the microVM and its workspace

@@ -26,8 +26,8 @@ from unittest.mock import PropertyMock
 import pytest
 
 from airflow.providers.alibaba.cloud.log.oss_task_handler import OSSRemoteLogIO, OSSTaskHandler
+from airflow.providers.common.compat.sdk import timezone
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
@@ -137,7 +137,7 @@ class TestOSSTaskHandler:
         self.ti = ti = create_task_instance(
             dag_id="dag_for_testing_oss_task_handler",
             task_id="task_for_testing_oss_task_handler",
-            logical_date=datetime(2020, 1, 1),
+            logical_date=timezone.datetime(2020, 1, 1),
             state=TaskInstanceState.RUNNING,
         )
         ti.try_number = 1

@@ -49,7 +49,7 @@ To provide the database credentials to Airflow, you have 2 options - in your val
 Values file
 ^^^^^^^^^^^
 
-This is the simpler options, as the chart will create a Kubernetes Secret for you. However, keep in mind your credentials will be in your values file.
+This is the simpler option, as the chart will create a Kubernetes Secret for you. However, keep in mind your credentials will be in your values file.
 
 .. code-block:: yaml
    :caption: values.yaml
@@ -128,8 +128,8 @@ If you are using PostgreSQL as your database, you will likely want to enable `Pg
 Due to distributed nature of Airflow, it can open a lot of database connections. Using a connection pooler can significantly
 reduce the number of open connections on the database.
 
-Database credentials stored Values file
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Database credentials stored in Values file
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: yaml
    :caption: values.yaml
@@ -138,8 +138,8 @@ Database credentials stored Values file
      enabled: true
 
 
-Database credentials stored Kubernetes Secret
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Database credentials stored in Kubernetes Secret
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The default connection string in this case will not work. You need to modify accordingly the Kubernetes secret:
 
@@ -633,7 +633,7 @@ Security Context
 Constraints
 ^^^^^^^^^^^
 
-A ``Security Context Constraint`` (SCC) is a OpenShift construct that works as a RBAC rule. However, it targets Pods instead of users.
+A ``Security Context Constraint`` (SCC) is an OpenShift construct that works as an RBAC rule. However, it targets Pods instead of users.
 When defining a SCC, one can control actions and resources a POD can perform or access during startup and runtime.
 
 The SCCs are split into different levels or categories with the ``restricted`` SCC being the default one assigned to Pods.
@@ -789,6 +789,28 @@ This will generate the following scheduler deployment:
          containers:
            - name: scheduler
          ...
+
+Omitting default ``securityContext`` values
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+On OpenShift, the ``restricted`` SCC assigns ``runAsUser`` and ``fsGroup`` automatically and rejects Pods
+that request specific values without the ``anyuid`` SCC in place. Since an empty ``securityContexts.pod``
+falls back to :ref:`uid <parameters:Airflow>` / :ref:`gid <parameters:Airflow>` (as shown above), leaving
+it empty is not enough to avoid hard-coded values. Set ``securityContexts.disableDefaults`` to stop the
+chart from filling in these defaults wherever ``securityContexts.pod`` / ``securityContexts.containers``
+(or the equivalent per-component overrides) are left empty:
+
+.. code-block:: yaml
+   :caption: values.yaml
+
+   securityContexts:
+     disableDefaults: true
+
+This omits ``runAsUser`` / ``fsGroup`` (pod) and ``runAsUser`` (container) from the rendered
+``securityContext`` entirely wherever they are not explicitly set, allowing the SCC to supply its own
+values. Explicit values set in ``securityContexts.pod`` / ``securityContexts.containers`` (or a
+component's local override, e.g. ``scheduler.securityContexts.pod``) still take priority over
+``disableDefaults``.
 
 Built-in secrets and environment variables
 ------------------------------------------

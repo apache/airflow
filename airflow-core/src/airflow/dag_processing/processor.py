@@ -237,7 +237,12 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
 
     stability_check_result = check_dag_file_stability(os.fspath(msg.file))
 
-    if stability_check_error_dict := stability_check_result.get_error_format_dict(msg.file, msg.bundle_path):
+    # Callback runs must not be blocked by the stability check: callbacks for
+    # already-scheduled runs still have to execute, and they never produce a
+    # parsing result anyway.
+    if not msg.callback_requests and (
+        stability_check_error_dict := stability_check_result.get_error_format_dict(msg.file, msg.bundle_path)
+    ):
         # If Dag stability check level is error, we shouldn't parse the Dags and return the result early
         return DagFileParsingResult(
             fileloc=msg.file,
@@ -752,6 +757,7 @@ class DagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
         raise NotImplementedError(f"Don't call wait on {type(self).__name__} objects")
 
     def close(self):
+        self.cleanup_sockets_after_kill()
         try:
             self.logger_filehandle.close()
         except OSError:

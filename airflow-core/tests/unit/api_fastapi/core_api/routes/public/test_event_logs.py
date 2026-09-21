@@ -54,6 +54,8 @@ EVENT_WITH_TASK_INSTANCE = "EVENT_WITH_TASK_INSTANCE"
 EVENT_WITH_OWNER_AND_TASK_INSTANCE = "EVENT_WITH_OWNER_AND_TASK_INSTANCE"
 EVENT_WITHOUT_DTTM = "EVENT_WITHOUT_DTTM"
 EVENT_NON_EXISTED_ID = 9999
+TEAM_EVENT = "TEAM_EVENT"
+TEAM_NAME = "TEST_TEAM"
 
 
 class TestEventLogsEndpoint:
@@ -192,9 +194,20 @@ class TestGetEventLog(TestEventLogsEndpoint):
             "owner": expected_body.get("owner"),
             "owner_display_name": expected_body.get("owner_display_name"),
             "extra": expected_body.get("extra"),
+            "team_name": None,
         }
 
         assert response.json() == expected_json
+
+    def test_get_event_log_returns_the_recorded_team(self, test_client, session):
+        event_log = Log(event="cli_triggerer", team_name=TEAM_NAME)
+        session.add(event_log)
+        session.commit()
+
+        response = test_client.get(f"/eventLogs/{event_log.id}")
+
+        assert response.status_code == 200
+        assert response.json()["team_name"] == TEAM_NAME
 
     def test_should_raises_401_unauthenticated(self, unauthenticated_test_client, setup):
         event_log_id = setup[EVENT_NORMAL].id
@@ -449,6 +462,48 @@ class TestGetEventLogs(TestEventLogsEndpoint):
         event_log = response.json()["event_logs"][0]
         assert event_log["owner"] == OWNER_AIRFLOW
         assert event_log["owner_display_name"] == OWNER_AIRFLOW
+
+    def test_get_event_logs_returns_the_recorded_team(self, test_client, session):
+        session.add(Log(event=TEAM_EVENT, dag_id=DAG_ID, team_name=TEAM_NAME))
+        session.commit()
+
+        with assert_queries_count(4):
+            response = test_client.get("/eventLogs")
+
+        assert response.status_code == 200
+        teams_by_event = {
+            event_log["event"]: event_log["team_name"] for event_log in response.json()["event_logs"]
+        }
+        assert teams_by_event == {
+            EVENT_NORMAL: None,
+            EVENT_WITH_OWNER: None,
+            TASK_INSTANCE_EVENT: None,
+            EVENT_WITH_OWNER_AND_TASK_INSTANCE: None,
+            TEAM_EVENT: TEAM_NAME,
+        }
+
+    def test_get_event_logs_filtered_by_team(self, test_client, session):
+        session.add_all(
+            [
+                Log(event=TEAM_EVENT, dag_id=DAG_ID, team_name=TEAM_NAME),
+                Log(event="cli_triggerer", team_name=TEAM_NAME),
+                Log(event="cli_triggerer", team_name="other-team"),
+            ]
+        )
+        session.commit()
+
+        with assert_queries_count(4):
+            response = test_client.get("/eventLogs", params={"teams": [TEAM_NAME]})
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 2
+        assert {event_log["event"] for event_log in body["event_logs"]} == {TEAM_EVENT, "cli_triggerer"}
+
+        # A team no event was recorded for returns nothing.
+        response = test_client.get("/eventLogs", params={"teams": ["nonexistent-team"]})
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 0
 
     def test_get_event_logs_filters_by_owner_display_name_pattern(self, test_client):
         response = test_client.get("/eventLogs", params={"owner_display_name_pattern": "est Own"})

@@ -25,14 +25,17 @@ from sqlalchemy.orm import contains_eager, noload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
+from airflow.api_fastapi.common.db.dags import eager_load_teams
 from airflow.api_fastapi.common.parameters import (
     FilterParam,
     QueryLimit,
     QueryOffset,
     RangeFilter,
     SortParam,
+    _DagIdTeamsFilter,
     datetime_range_filter_factory,
     filter_param_factory,
+    teams_filter_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.deadline import (
@@ -93,6 +96,7 @@ def get_deadlines(
     last_updated_at: Annotated[
         RangeFilter, Depends(datetime_range_filter_factory("last_updated_at", Deadline))
     ],
+    teams: Annotated[_DagIdTeamsFilter, Depends(teams_filter_factory(DagRun.dag_id))],
 ) -> DeadlineCollectionResponse:
     """
     Get deadlines for a Dag run.
@@ -105,7 +109,9 @@ def get_deadlines(
         .join(Deadline.dagrun)
         .outerjoin(Deadline.deadline_alert)
         .options(
-            contains_eager(Deadline.dagrun).options(noload(DagRun.deadlines)),
+            contains_eager(Deadline.dagrun).options(
+                noload(DagRun.deadlines), *eager_load_teams(DagRun.dag_model)
+            ),
             contains_eager(Deadline.deadline_alert),
             noload(Deadline.callback),
         )
@@ -123,7 +129,7 @@ def get_deadlines(
 
     deadlines_select, total_entries = paginated_select(
         statement=query,
-        filters=[readable_dag_runs_filter, missed, deadline_time, last_updated_at],
+        filters=[readable_dag_runs_filter, missed, deadline_time, last_updated_at, teams],
         order_by=order_by,
         offset=offset,
         limit=limit,

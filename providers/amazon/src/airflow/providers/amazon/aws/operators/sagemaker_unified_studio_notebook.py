@@ -195,6 +195,9 @@ class SageMakerUnifiedStudioNotebookOperator(AwsBaseOperator[SageMakerUnifiedStu
                     owning_project_identifier=self.owning_project_identifier,
                     waiter_delay=self.waiter_delay,
                     timeout_configuration=self.timeout_configuration,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="execute_complete",
             )

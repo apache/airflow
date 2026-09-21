@@ -25,13 +25,6 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-import requests
-
-try:
-    from airflow.sdk import task
-except ImportError:
-    # Airflow 2 path
-    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from google.genai.types import (
     Content,
     CreateCachedContentConfig,
@@ -54,92 +47,17 @@ from airflow.providers.google.cloud.operators.vertex_ai.experiment_service impor
     DeleteExperimentRunOperator,
 )
 from airflow.providers.google.cloud.operators.vertex_ai.generative_model import RunEvaluationOperator
-from airflow.providers.google.common.utils.get_secret import get_secret
 
-
-def _get_actual_models(key) -> dict[str, str]:
-    models: dict[str, str] = {
-        "multimodal": "",
-        "text-embedding": "",
-        "cached-model": "",
-    }
-    try:
-        response = requests.get(
-            "https://generativelanguage.googleapis.com/v1beta/models",
-            {"key": key},
-            timeout=10,
-        )
-        response.raise_for_status()
-        available_models = response.json()
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching models from API: {e}")
-        return models
-
-    for model in available_models.get("models", []):
-        try:
-            model_name = model["name"].split("/")[-1]
-            splited_model_name = model_name.split("-")
-            if not models["text-embedding"] and ("gemini" in model_name and "embedding" in model_name):
-                models["text-embedding"] = model_name
-            elif (
-                models["text-embedding"]
-                and ("text" in model_name and "embedding" in model_name)
-                and int(splited_model_name[-1]) > int(models["text-embedding"].split("-")[-1])
-            ):
-                models["text-embedding"] = model_name
-            elif ("vision" not in model_name or "image" in model_name) and (
-                "flash" in model_name or "pro" in model_name
-            ):
-                if not models["multimodal"] and "pro" in model_name:
-                    models["multimodal"] = model_name
-                elif (
-                    models["multimodal"]
-                    and "pro" in model_name
-                    and float(models["multimodal"].split("-")[1]) < float(splited_model_name[1])
-                ):
-                    models["multimodal"] = model_name
-                elif (
-                    models["multimodal"]
-                    and "pro" in model_name
-                    and (
-                        float(models["multimodal"].split("-")[1]) == float(splited_model_name[1])
-                        and int(splited_model_name[-1]) > int(models["multimodal"].split("-")[-1])
-                    )
-                ):
-                    models["multimodal"] = model_name
-                if "createCachedContent" in model["supportedGenerationMethods"]:
-                    if not models["cached-model"]:
-                        models["cached-model"] = model_name
-                    elif models["cached-model"] and float(models["cached-model"].split("-")[1]) < float(
-                        splited_model_name[1]
-                    ):
-                        models["cached-model"] = model_name
-                    elif (
-                        models["cached-model"]
-                        and float(models["cached-model"].split("-")[1]) == float(splited_model_name[1])
-                        and int(splited_model_name[-1]) > int(models["cached-model"].split("-")[-1])
-                    ):
-                        models["cached-model"] = model_name
-        except (ValueError, IndexError) as e:
-            print(f"Could not parse model name '{model.get('name')}'. Skipping. Error: {e}")
-            continue
-    if not any(models.values()):
-        raise ValueError(f"Some of the models not found {models}")
-    return models
-
+from system.google.cloud.gen_ai import llm_models
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-GEMINI_API_KEY = "api_key"
-MODELS = "{{ task_instance.xcom_pull('get_actual_models') }}"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 DAG_ID = "gen_ai_generative_model_dag"
 REGION = "us-central1"
 PROMPT = "In 10 words or less, why is Apache Airflow amazing?"
 CONTENTS = [PROMPT]
-TEXT_EMBEDDING_MODEL = "{{ task_instance.xcom_pull('get_actual_models')['text-embedding'] }}"
-MULTIMODAL_MODEL = "{{ task_instance.xcom_pull('get_actual_models')['multimodal'] }}"
-MEDIA_GCS_PATH = "gs://download.tensorflow.org/example_images/320px-Felis_catus-cat_on_snow.jpg"
-MIME_TYPE = "image/jpeg"
+TEXT_EMBEDDING_MODEL = llm_models.get_text_embedding_gemini_model()
+MULTIMODAL_MODEL = llm_models.get_default_gemini_model()
 TOOLS = [Tool(google_search=GoogleSearch())]
 GENERATION_CONFIG_CREATE_CONTENT = GenerateContentConfig(
     max_output_tokens=256,
@@ -194,7 +112,7 @@ EXPERIMENT_NAME = f"eval-test-experiment-airflow-operator-{ENV_ID}".replace("_",
 EXPERIMENT_RUN_NAME = f"eval-experiment-airflow-operator-run-{ENV_ID}".replace("_", "-")
 PROMPT_TEMPLATE = "{instruction}. Article: {context}. Summary:"
 
-CACHED_MODEL = "{{ task_instance.xcom_pull('get_actual_models')['cached-model'] }}"
+CACHED_MODEL = llm_models.get_default_gemini_model()
 CACHED_SYSTEM_INSTRUCTION = """
 You are an expert researcher. You always stick to the facts in the sources provided, and never make up new facts.
 Now look at these research papers, and answer the following questions.
@@ -228,19 +146,6 @@ with DAG(
     tags=["example", "gen_ai", "generative_model"],
     render_template_as_native_obj=True,
 ) as dag:
-
-    @task
-    def get_gemini_api_key():
-        return get_secret(GEMINI_API_KEY)
-
-    get_gemini_api_key_task = get_gemini_api_key()
-
-    @task
-    def get_actual_models(key):
-        return _get_actual_models(key)
-
-    get_actual_models_task = get_actual_models(get_gemini_api_key_task)
-
     # [START how_to_cloud_gen_ai_generate_embeddings_task]
     generate_embeddings_task = GenAIGenerateEmbeddingsOperator(
         task_id="generate_embeddings_task",
@@ -330,16 +235,9 @@ with DAG(
         model=CACHED_MODEL,
     )
     # [END how_to_cloud_gen_ai_generate_from_cached_content_operator]
-    get_gemini_api_key_task >> get_actual_models_task
-    get_actual_models_task >> [generate_embeddings_task, count_tokens_task, generate_content_task]
-    get_actual_models_task >> create_cached_content_task >> generate_from_cached_content_task
-    (
-        get_actual_models_task
-        >> create_experiment_task
-        >> run_evaluation_task
-        >> delete_experiment_run_task
-        >> delete_experiment_task
-    )
+    [generate_embeddings_task, count_tokens_task, generate_content_task]
+    create_cached_content_task >> generate_from_cached_content_task
+    (create_experiment_task >> run_evaluation_task >> delete_experiment_run_task >> delete_experiment_task)
 
     from tests_common.test_utils.watcher import watcher
 

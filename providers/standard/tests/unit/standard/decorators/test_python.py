@@ -61,10 +61,11 @@ else:
     from airflow.models.xcom_arg import XComArg  # type: ignore[no-redef]
     from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
 
+from airflow.providers.common.compat.sdk import timezone
+
 if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk import TriggerRule, timezone
+    from airflow.sdk import TriggerRule
 else:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 if AIRFLOW_V_3_2_PLUS:
@@ -83,15 +84,6 @@ pytestmark = pytest.mark.db_test
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 PY38 = sys.version_info >= (3, 8)
 PY311 = sys.version_info >= (3, 11)
-
-
-@pytest.fixture(autouse=True)
-def clear_current_task_session():
-    try:
-        import airflow.utils.task_instance_session
-    except ModuleNotFoundError:
-        return
-    airflow.utils.task_instance_session.__current_task_instance_session = None
 
 
 class TestAirflowTaskDecorator(BasePythonTest):

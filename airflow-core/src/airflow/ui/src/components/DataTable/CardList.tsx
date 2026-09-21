@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ReactNode } from "react";
+
 import { Box, SimpleGrid, Skeleton, Text } from "@chakra-ui/react";
 import { flexRender, type Row } from "@tanstack/react-table";
-import type { ReactNode } from "react";
 
 import type { CardDef } from "./types";
 

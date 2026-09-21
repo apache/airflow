@@ -18,10 +18,11 @@
  * under the License.
  */
 
-import { registerTask, startCoordinator } from "../../../src/index.js";
+import { Bundle, Dag } from "../../../src/index.js";
 
 console.log("noise from an import-time dependency");
 
-registerTask({ dagId: "noisy_dag", taskId: "only" }, async () => undefined);
+const noisyDag = new Dag("noisy_dag");
+noisyDag.task("only", async () => undefined);
 
-await startCoordinator();
+await new Bundle(noisyDag).serve();

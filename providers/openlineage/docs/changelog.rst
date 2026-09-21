@@ -26,6 +26,20 @@
 Changelog
 ---------
 
+2.20.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix incorrect availability versions for OpenLineage config options (#71449)``
+* ``Avoid lazy-loading the bundle when resolving 'team_name' for Dag run lineage (#70312)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+
 2.20.0
 ......
 

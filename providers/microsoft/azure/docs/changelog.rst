@@ -27,6 +27,53 @@
 Changelog
 ---------
 
+15.1.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add support for sending emails through Microsoft Graph (#71565)``
+* ``Add Azure Analysis Services model refresh support (#71350)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Keep MSGraph pagination offset across paginated pages (#71986)``
+* ``Invalidate cached Microsoft Graph request adapter on 401 Unauthorized (#72688)``
+* ``Avoid extra_dejson in ADF and Synapse async hooks (#72130)``
+* ``Restrict MSGraph deferrable pagination to the configured host (#71842)``
+
+Misc
+~~~~
+
+* ``Depend on ''httpx2'' instead of ''httpx'' (#72111)``
+* ``Replace generic AirflowException in AzureBatchOperator input validation (#71981)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Sync connection UI metadata in provider.yaml with hook definitions (#72087)``
+
+15.0.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Keep MSGraph path parameters across paginated pages (#71866)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix typos across contributor and provider documentation (#71884)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use common.compat.sdk for the remaining provider timezone imports (#71209)``
+
+15.0.0
+......
+
 .. warning::
   The ``AzureBatchHook`` and ``AzureBatchOperator`` have been migrated to the ``azure-batch`` 15.x
   SDK (track 2). This is a breaking change and requires ``azure-batch>=15.0.0``.
@@ -54,6 +101,29 @@ Changelog
 
     * ``AzureBatchOperator`` no longer accepts the ``os_family`` parameter. A ``vm_publisher`` must now be
       provided to configure the pool's virtual machine image.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Migrate 'AzureBatchHook' and 'AzureBatchOperator' to the azure-batch 15.x SDK (#71071)``
+
+Features
+~~~~~~~~
+
+* ``Support certificate auth for Microsoft Graph filesystem (#71362)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Keep MSGraph request configuration across paginated pages (#71649)``
+* ``Fix Microsoft Graph filesystem auth by defaulting OAuth2 scope (#70879)``
+* ``Check GCSToAzureBlobStorageOperator match_glob support after template… (#70574)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Update changelog with better wording (#71161)``
+
 
 14.1.0
 ......

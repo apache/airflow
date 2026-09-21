@@ -450,7 +450,7 @@ that your sensor is not suitable for use with reschedule mode.
 An example of a sensor that keeps internal state and cannot be used with reschedule mode
 is :class:`airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionCompleteSensor`.
 It polls the number of objects at a prefix (this number is the internal state of the sensor)
-and succeeds when there a certain amount of time has passed without the number of objects changing.
+and succeeds when there has been a certain amount of time passed without the number of objects changing.
 
 Testing your operator
 ---------------------

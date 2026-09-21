@@ -1,4 +1,22 @@
 {
+  "alerts": {
+    "seeLessContext": "Veure menys",
+    "seeMoreContext": "Veure més",
+    "showMoreAlerts_one": "+{{count}} alerta més",
+    "showMoreAlerts_other": "+{{count}} alertes més"
+  },
+  "deadlines": {
+    "pending": {
+      "empty": "No hi ha terminis propers",
+      "title": "Propers"
+    },
+    "recentlyMissed": {
+      "empty": "No hi ha terminis no complerts",
+      "title": "Terminis no complerts"
+    },
+    "showMore": "Mostrar-ne més",
+    "title": "Terminis"
+  },
   "deferredSlotsNotCounted": "Diferides no comptades en slots: {{count}}",
   "deferredSlotsNotCountedTooltip": "Les tasques diferides que es mostren a la barra compten per als slots del Pool. Les tasques diferides que es mostren sota la barra provenen de Pools que no compten les tasques diferides per als slots.",
   "favorite": {

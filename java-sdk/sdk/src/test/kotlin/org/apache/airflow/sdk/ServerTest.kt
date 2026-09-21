@@ -56,7 +56,7 @@ class ServerTest {
   }
 
   private suspend fun ByteChannel.writeFrame(payload: ByteArray) {
-    writeByteArray(Frame.lengthPrefix(payload.size))
+    writeByteArray(Frame.lengthPrefix(payload.size.toUInt()))
     writeByteArray(payload)
   }
 
@@ -76,7 +76,7 @@ class ServerTest {
           // Deliver the StartupDetails frame (id 2, dag_id "c", task_id "a").
           toServer.writeFrame(hexToBytes(STARTUP_HEX))
           val prefix = fromServer.readByteArray(4)
-          val payload = fromServer.readByteArray(Frame.parseLengthPrefix(prefix))
+          val payload = fromServer.readByteArray(Frame.parseLengthPrefix(prefix).toInt())
           val result = CoordinatorComm.decode(payload)
           reported.put(result)
           toServer.writeFrame(ackFrame(result.id))

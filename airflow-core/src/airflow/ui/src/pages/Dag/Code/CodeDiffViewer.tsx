@@ -19,6 +19,7 @@
 import { Box } from "@chakra-ui/react";
 
 import { DiffEditor, type DiffEditorProps } from "src/components/MonacoEditor";
+
 import { useMonacoTheme } from "src/context/colorMode";
 
 type CodeDiffViewerProps = {

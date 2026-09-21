@@ -35,10 +35,11 @@ both a relative margin (``REL_THRESHOLD``) and an absolute floor
 (``MIN_ABS_INCREASE_MINUTES`` / ``JOB_MIN_ABS_INCREASE_MINUTES``) so short jobs
 with noisy timings do not trigger spurious alerts.
 
-The image-build step ("Prepare breeze & CI image") occasionally balloons on a
-one-off cache miss, so its time is *excluded* from the run and per-job durations
-used for the trend above. The image build is instead watched on its own and only
-reported when it has stayed slow for longer than ``IMAGE_BUILD_PERSISTENCE_DAYS``
+Steps that build, pull or push images (``IMAGE_WORK_STEP_PREFIXES`` — preparing the
+CI/PROD image in a test job, and the build+push of the image-cache jobs) occasionally
+balloon on a one-off cache miss, so their time is *excluded* from the run and per-job
+durations used for the trend above. That same image time is instead watched on its own
+and only reported when it has stayed slow for longer than ``IMAGE_BUILD_PERSISTENCE_DAYS``
 (so a single slow night never alerts).
 
 Environment variables (required):
@@ -77,12 +78,23 @@ from pathlib import Path
 from typing import TypedDict
 
 ISO_SUFFIX_Z = "Z"
-PREPARE_BREEZE_STEP_PREFIX = "Prepare breeze & CI image"
+# Steps that build, pull or push a Docker image rather than doing test/work. A change to
+# an early image layer (an apt package, a Dockerfile line) invalidates every layer after
+# it, so on the first run after such a merge these steps take multiples of their usual
+# time - a one-off that must not read as a work-time regression. Their names come from
+# .github/workflows/push-image-cache.yml and .github/actions/prepare_breeze_and_image.
+IMAGE_WORK_STEP_PREFIXES = (
+    "Prepare breeze & CI image",
+    "Prepare breeze & PROD image",
+    "Push CI ",
+    "Push PROD ",
+)
+IMAGE_WORK_LABEL = "Image build, pull & push"
 
 
 class JobDuration(TypedDict):
     duration: float
-    prepare_breeze_duration: float | None
+    image_work_duration: float | None
 
 
 def env_float(name: str, default: float) -> float:
@@ -249,39 +261,45 @@ def get_recent_runs(
     return runs
 
 
-def get_prepare_breeze_step_duration(job: dict) -> float | None:
-    """Return the prepare breeze step duration for a job, when the step exists."""
+def get_image_work_seconds(job: dict) -> float | None:
+    """Return the total time a job spent building, pulling or pushing images.
+
+    Summed rather than first-match: the cache-push jobs both build an image and push
+    it in separate steps, and a test job can prepare a CI and a PROD image.
+    """
+    total: float | None = None
     for step in job.get("steps", []):
-        name = step.get("name", "")
-        if not name.startswith(PREPARE_BREEZE_STEP_PREFIX):
+        if not step.get("name", "").startswith(IMAGE_WORK_STEP_PREFIXES):
             continue
-        return duration_seconds(step.get("startedAt"), step.get("completedAt"))
-    return None
+        seconds = duration_seconds(step.get("startedAt"), step.get("completedAt"))
+        if seconds is not None:
+            total = seconds if total is None else total + seconds
+    return total
 
 
 def calculate_work_duration(job_data: JobDuration) -> float:
-    """Return a job's wall-clock with the image-build (prepare breeze) step removed.
+    """Return a job's wall-clock with the image build/pull/push steps removed.
 
-    The image build occasionally balloons — a cache miss forces a full rebuild
-    (minutes → tens of minutes) — which would otherwise inflate the job's total
-    and flag an unrelated job as "slower". The duration trend should track the
-    actual test/work time, so image build is discounted from it and watched
-    separately by :func:`detect_image_build_regression`.
+    Image work occasionally balloons — an invalidated early layer forces a full rebuild
+    and a full re-push (minutes → tens of minutes) — which would otherwise inflate the
+    job's total and flag a job that did not actually get slower. The duration trend
+    should track the actual test/work time, so image work is discounted from it and
+    watched separately by :func:`detect_image_build_regression`.
     """
-    prepare_breeze = job_data["prepare_breeze_duration"] or 0.0
-    return max(job_data["duration"] - prepare_breeze, 0.0)
+    image_work = job_data["image_work_duration"] or 0.0
+    return max(job_data["duration"] - image_work, 0.0)
 
 
 def calculate_image_build_seconds(jobs: dict[str, JobDuration]) -> float | None:
-    """Return a representative image-build duration for a run.
+    """Return a representative image-work duration for a run.
 
-    The same CI image is prepared by every job, so the median prepare-breeze
-    duration across the run's jobs is a robust single figure for that run
-    (ignoring jobs where the step is absent). None when no job recorded it.
+    Nearly every job prepares the same image, so the median image-work duration
+    across the run's jobs is a robust single figure for that run (ignoring jobs
+    that did no image work). The handful of cache-push jobs, which build and push
+    rather than pull, sit far above that median and so do not move it. None when
+    no job recorded any image work.
     """
-    values = [
-        job["prepare_breeze_duration"] for job in jobs.values() if job["prepare_breeze_duration"] is not None
-    ]
+    values = [job["image_work_duration"] for job in jobs.values() if job["image_work_duration"] is not None]
     if not values:
         return None
     return median(values)
@@ -320,7 +338,7 @@ def get_run_jobs(repo: str, run_id: int) -> dict[str, JobDuration]:
         if existing is None or seconds > existing["duration"]:
             durations[name] = {
                 "duration": seconds,
-                "prepare_breeze_duration": get_prepare_breeze_step_duration(job),
+                "image_work_duration": get_image_work_seconds(job),
             }
     return durations
 
@@ -504,7 +522,7 @@ def format_slack_message(
                         f"🐳 *CI image build slow for {image_build_regression['span_days']:.1f} days* "
                         f"(across {image_build_regression['elevated_runs']} runs) — not a one-off "
                         f"cache miss:\n"
-                        f"• {PREPARE_BREEZE_STEP_PREFIX}: "
+                        f"• {IMAGE_WORK_LABEL}: "
                         f"{format_duration(image_build_regression['baseline'])} → "
                         f"*{format_duration(image_build_regression['latest'])}* "
                         f"(+{round(image_build_regression['rel_increase'] * 100, 1)}%)"
@@ -617,7 +635,7 @@ def write_step_summary(
         lines += [
             f"### 🐳 CI image build slow for {image_build_regression['span_days']:.1f} days",
             "",
-            f"- {PREPARE_BREEZE_STEP_PREFIX}: "
+            f"- {IMAGE_WORK_LABEL}: "
             f"**{format_duration(image_build_regression['latest'])}** "
             f"(baseline {format_duration(image_build_regression['baseline'])}, "
             f"+{round(image_build_regression['rel_increase'] * 100, 1)}%) "
