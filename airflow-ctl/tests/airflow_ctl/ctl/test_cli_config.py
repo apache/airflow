@@ -341,6 +341,19 @@ class TestCommandFactory:
 
         assert parsed_conf == {"my-key": "my-value"}
 
+    def test_group_commands_is_stable_across_repeated_access(self):
+        """Reading ``group_commands`` twice must not duplicate groups or subcommands."""
+        command_factory = CommandFactory()
+
+        # Snapshot the names and sizes rather than the list itself: both accesses
+        # hand back the same object, so only values captured before the second
+        # access can witness it mutating them.
+        first = [(group.name, len(group.subcommands)) for group in command_factory.group_commands]
+        second = [(group.name, len(group.subcommands)) for group in command_factory.group_commands]
+
+        assert second == first
+        assert len(second) == len({name for name, _ in second})
+
     def test_command_factory_parses_comma_separated_list_fields(self):
         """List fields should parse comma-separated CLI values as whole items."""
         command_factory = CommandFactory()
@@ -522,6 +535,43 @@ class TestCliConfigMethods:
             safe_call_command(raise_error, args=argparse.Namespace())
 
         assert ctx.value.code == 1
+
+    @pytest.mark.parametrize(
+        ("response", "hint_expected"),
+        [
+            pytest.param(
+                httpx.Response(302, headers={"location": "https://sso.example.com/login"}),
+                True,
+                id="redirect",
+            ),
+            pytest.param(
+                httpx.Response(502, headers={"content-type": "text/html"}, content=b"<html>nope</html>"),
+                False,
+                id="non-json-server-error",
+            ),
+            pytest.param(
+                httpx.Response(401, headers={"content-type": "text/html"}, content=b"<html>nope</html>"),
+                False,
+                id="non-json-client-error",
+            ),
+        ],
+    )
+    def test_safe_call_command_exits_non_zero_for_bare_http_status_error(
+        self, response, hint_expected, capsys
+    ):
+        response.request = httpx.Request("GET", "http://localhost:8080/api/v2/dags")
+
+        def raise_error(_args):
+            response.raise_for_status()
+
+        with pytest.raises(SystemExit) as ctx:
+            safe_call_command(raise_error, args=argparse.Namespace())
+
+        assert ctx.value.code == 1
+        # Rich hard-wraps at the console width, so normalise before matching on a phrase.
+        out = " ".join(capsys.readouterr().out.split())
+        assert "Server response error:" in out
+        assert ("does not follow" in out) is hint_expected
 
     def test_add_to_parser_drops_type_for_boolean_optional_action(self):
         """Test add_to_parser removes type for BooleanOptionalAction."""

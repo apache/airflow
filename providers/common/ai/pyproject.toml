@@ -69,19 +69,34 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=3.0.0",
     "apache-airflow-providers-common-compat>=1.15.0",
-    "apache-airflow-providers-standard>=1.12.1",
-    # Requires the pydantic-ai 2.x agent/instrumentation API (see #69122).
-    "pydantic-ai-slim>=2.0.0",
+    "apache-airflow-providers-standard>=1.12.1",  # use next version
+    # Requires the pydantic-ai cost API (RunUsage.cost, UsageLimits.cost_limit),
+    # landed in 2.23.0 via https://github.com/pydantic/pydantic-ai/pull/2684.
+    "pydantic-ai-slim>=2.23.0",
 ]
 
 # The optional dependencies should be modified in place in the generated file
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
-"anthropic" = ["pydantic-ai-slim[anthropic]>=2.0.0"]
-"bedrock" = ["pydantic-ai-slim[bedrock]>=2.0.0"]
-"google" = ["pydantic-ai-slim[google]>=2.0.0"]
-"openai" = ["pydantic-ai-slim[openai]>=2.0.0"]
-"mcp" = ["pydantic-ai-slim[mcp]>=2.0.0"]
+"anthropic" = ["pydantic-ai-slim[anthropic]>=2.23.0"]
+"bedrock" = ["pydantic-ai-slim[bedrock]>=2.23.0"]
+"google" = ["pydantic-ai-slim[google]>=2.23.0"]
+"openai" = ["pydantic-ai-slim[openai]>=2.23.0"]
+# TypeSafe Jev: answers typed questions (pick one of N, a bounded score, a yes/no
+# probability) and cannot emit text, so it fits a branch or a classification but not a
+# summary. It arrives through pydantic-ai's own ``typesafe:`` provider, so the hook needs
+# no changes -- setting ``model_id`` or the connection's Model field is the integration.
+# The adapter itself ships inside pydantic-ai-slim from 2.45.0 (pydantic/pydantic-ai#8450);
+# this extra only adds the pre-1.0 typesafe-sdk it talks to, which is why it is opt-in. It
+# deliberately does not raise the pydantic-ai-slim floor: from 2.31 the ``openai`` extra
+# needs openai>=3.8 while llama-index-llms-openai and the Google provider's litellm need
+# openai<3, so a higher floor makes the workspace unsatisfiable. The guide says 2.45+.
+"typesafe" = ["typesafe-sdk>=0.6.0"]
+"mcp" = ["pydantic-ai-slim[mcp]>=2.23.0"]
+# Modal-hosted sandboxes for SandboxToolset, the backend to use where the worker host
+# cannot run microVMs -- Kubernetes, most notably. Needs no host-level installation,
+# only Modal credentials.
+"modal" = ["modal>=1.5.0"]
 # Code mode: collapse tool calls into a single `run_code` tool that the model
 # drives by writing Python, executed in the Monty sandbox (pydantic-monty).
 # Enables AgentOperator(code_mode=True). Monty is pre-1.0; pinned here as an
@@ -138,7 +153,7 @@ dev = [
     "apache-airflow-providers-standard",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "sqlglot>=30.0.0",
-    "pydantic-ai-slim[mcp]>=2.0.0",
+    "pydantic-ai-slim[mcp]>=2.23.0",
     "pydantic-ai-skills>=1.2.0",
     "apache-airflow-providers-common-sql[datafusion]",
     "langchain>=1.0.0",

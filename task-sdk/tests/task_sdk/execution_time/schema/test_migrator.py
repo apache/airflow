@@ -470,3 +470,37 @@ class TestRealBundleArgBindingsDowngrade:
         assert isinstance(defaulted, LiteralArgBinding)
         assert defaulted.from_default is True
         assert defaulted.value_schema.root == {"type": "integer", "format": "int64"}
+
+
+class TestRealBundleRetryReasonUpgrade:
+    """
+    Drive the *real* supervisor bundle through the ``retry_reason`` migration.
+
+    ``TaskState`` flows foreign-runtime -> supervisor, the opposite direction from
+    ``arg_bindings`` above, so a runtime pinned to an older schema is exercised
+    through ``upgrade`` rather than ``downgrade``.
+    """
+
+    @pytest.fixture
+    def real_migrator(self) -> SchemaVersionMigrator:
+        return get_schema_version_migrator()
+
+    def test_upgrade_fills_missing_retry_reason_with_none(self, real_migrator):
+        from airflow.sdk.execution_time.comms import TaskState
+
+        body = {"type": "TaskState", "state": "failed", "end_date": None, "rendered_map_index": None}
+        out = real_migrator.upgrade(body, TaskState, "2026-06-16")
+        assert out["retry_reason"] is None
+
+    def test_upgrade_keeps_retry_reason_at_head(self, real_migrator):
+        from airflow.sdk.execution_time.comms import TaskState
+
+        body = {
+            "type": "TaskState",
+            "state": "failed",
+            "end_date": None,
+            "rendered_map_index": None,
+            "retry_reason": "auth error, do not retry",
+        }
+        out = real_migrator.upgrade(body, TaskState, "2026-10-30")
+        assert out["retry_reason"] == "auth error, do not retry"

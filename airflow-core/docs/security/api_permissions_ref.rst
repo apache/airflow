@@ -183,6 +183,10 @@ source code so it stays up to date as endpoints are added or changed.
      - ``Connection``
      - ``PUT``
    * - ``GET``
+     - ``/api/v2/dagBundles``
+     - ``DAG``
+     - ``GET``
+   * - ``GET``
      - ``/api/v2/dagSources/{dag_id}``
      - ``DAG.CODE``
      - ``GET``

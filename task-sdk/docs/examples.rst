@@ -100,7 +100,7 @@ TaskFlow API Tutorial
 ---------------------
 
 This section provides a concise, code-first view. For the full tutorial and context,
-see the `core TaskFlow tutorial <../../airflow-core/docs/tutorial/taskflow.rst>`_.
+see the :doc:`core TaskFlow tutorial <apache-airflow:tutorial/taskflow>`.
 
 Step 1: Define the Dag
 ----------------------

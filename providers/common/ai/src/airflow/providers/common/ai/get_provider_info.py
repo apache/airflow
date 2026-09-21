@@ -70,6 +70,11 @@ def get_provider_info():
                 "external-doc-url": "https://docs.docker.com/ai/sandboxes/",
                 "tags": ["software"],
             },
+            {
+                "integration-name": "Modal",
+                "external-doc-url": "https://modal.com/docs/guide/sandbox",
+                "tags": ["service"],
+            },
         ],
         "hooks": [
             {
@@ -149,7 +154,12 @@ def get_provider_info():
                         "label": "Model",
                         "description": "Model in provider:name format (e.g. anthropic:claude-sonnet-5, openai:gpt-5)",
                         "schema": {"type": ["string", "null"]},
-                    }
+                    },
+                    "fallback_conn_ids": {
+                        "label": "Fallback Connections",
+                        "description": "Connection IDs to fail over to, in order, while this provider is unavailable.",
+                        "schema": {"type": ["array", "null"], "items": {"type": "string"}},
+                    },
                 },
             },
             {
@@ -161,8 +171,8 @@ def get_provider_info():
                     "hidden-fields": ["schema", "port", "login"],
                     "relabeling": {"password": "API Key", "host": "Azure Endpoint"},
                     "placeholders": {
-                        "host": "https://<resource>.openai.azure.com",
-                        "extra": '{"model": "azure:gpt-4o", "api_version": "2024-07-01-preview"}',
+                        "host": "https://<resource>.openai.azure.com/openai/v1",
+                        "extra": '{"model": "azure:gpt-4o"}',
                     },
                 },
                 "conn-fields": {
@@ -171,9 +181,14 @@ def get_provider_info():
                         "description": "Azure model identifier (e.g. azure:gpt-4o)",
                         "schema": {"type": ["string", "null"]},
                     },
+                    "fallback_conn_ids": {
+                        "label": "Fallback Connections",
+                        "description": "Connection IDs to fail over to, in order, while this provider is unavailable.",
+                        "schema": {"type": ["array", "null"], "items": {"type": "string"}},
+                    },
                     "api_version": {
                         "label": "API Version",
-                        "description": "Azure OpenAI API version (e.g. 2024-07-01-preview). Falls back to OPENAI_API_VERSION.",
+                        "description": "Azure OpenAI API version (e.g. 2024-07-01-preview). Set when the endpoint path does not end in /v1 and the host is not *.models.ai.azure.com. Falls back to OPENAI_API_VERSION.",
                         "schema": {"type": ["string", "null"]},
                     },
                 },
@@ -195,6 +210,11 @@ def get_provider_info():
                         "label": "Model",
                         "description": "Bedrock model identifier (e.g. bedrock:us.anthropic.claude-opus-4-5)",
                         "schema": {"type": ["string", "null"]},
+                    },
+                    "fallback_conn_ids": {
+                        "label": "Fallback Connections",
+                        "description": "Connection IDs to fail over to, in order, while this provider is unavailable.",
+                        "schema": {"type": ["array", "null"], "items": {"type": "string"}},
                     },
                     "region_name": {
                         "label": "AWS Region",
@@ -260,6 +280,11 @@ def get_provider_info():
                         "label": "Model",
                         "description": "Google model identifier (e.g. google-cloud:gemini-2.0-flash)",
                         "schema": {"type": ["string", "null"]},
+                    },
+                    "fallback_conn_ids": {
+                        "label": "Fallback Connections",
+                        "description": "Connection IDs to fail over to, in order, while this provider is unavailable.",
+                        "schema": {"type": ["array", "null"], "items": {"type": "string"}},
                     },
                     "project": {
                         "label": "GCP Project",
