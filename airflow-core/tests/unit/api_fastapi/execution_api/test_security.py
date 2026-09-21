@@ -279,7 +279,7 @@ class TestGetTeamNameDep:
             patch("airflow.configuration.conf.getboolean", return_value=False),
             patch("airflow.utils.session.create_session_async") as mock_create_session,
         ):
-            result = await get_team_name_dep(token=token)
+            result = await get_team_name_dep(request=MagicMock(spec=Request), token=token)
 
         assert result is None
         mock_create_session.assert_not_called()
