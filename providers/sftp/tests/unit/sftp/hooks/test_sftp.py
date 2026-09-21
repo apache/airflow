@@ -888,6 +888,49 @@ class TestSFTPHookAsync:
     @patch("asyncssh.connect", new_callable=AsyncMock)
     @patch("airflow.providers.sftp.hooks.sftp.get_async_connection")
     @pytest.mark.asyncio
+    async def test_parse_extras_honours_deprecated_alias(self, mock_get_connection, mock_connect):
+        """``ignore_hostkey_verification`` keeps working on the async path too."""
+
+        class MockAirflowConnectionWithAlias:
+            host = "localhost"
+            port = 22
+            login = "username"
+            password = "password"
+            extra = '{"ignore_hostkey_verification": true}'
+            extra_dejson = {"ignore_hostkey_verification": True}
+
+        mock_get_connection.return_value = MockAirflowConnectionWithAlias()
+
+        hook = SFTPHookAsync()
+        with pytest.warns(AirflowProviderDeprecationWarning, match="ignore_hostkey_verification"):
+            await hook._get_conn()
+
+        assert hook.known_hosts == "none"
+
+    @patch("asyncssh.connect", new_callable=AsyncMock)
+    @patch("airflow.providers.sftp.hooks.sftp.get_async_connection")
+    @pytest.mark.asyncio
+    async def test_parse_extras_canonical_key_wins_over_alias(self, mock_get_connection, mock_connect):
+        """``no_host_key_check`` takes precedence over the deprecated alias."""
+
+        class MockAirflowConnectionWithBothKeys:
+            host = "localhost"
+            port = 22
+            login = "username"
+            password = "password"
+            extra = '{"no_host_key_check": false, "ignore_hostkey_verification": true}'
+            extra_dejson = {"no_host_key_check": False, "ignore_hostkey_verification": True}
+
+        mock_get_connection.return_value = MockAirflowConnectionWithBothKeys()
+
+        hook = SFTPHookAsync()
+        await hook._get_conn()
+
+        assert hook.known_hosts != "none"
+
+    @patch("asyncssh.connect", new_callable=AsyncMock)
+    @patch("airflow.providers.sftp.hooks.sftp.get_async_connection")
+    @pytest.mark.asyncio
     async def test_parse_extras_dss_host_key_raises(self, mock_get_connection, mock_connect):
         """Test that ssh-dss host_key is rejected."""
         mock_get_connection.return_value = MockAirflowConnectionWithHostKey(

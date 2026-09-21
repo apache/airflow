@@ -17,10 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from unittest import mock
 
 import pytest
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.ssh.hooks.ssh import SSHHookAsync
 
 
@@ -79,6 +81,29 @@ class TestSSHHookAsync:
         mock_conn.host = "test.host"
 
         hook._parse_extras(mock_conn)
+        assert hook.known_hosts != "none"
+
+    def test_parse_extras_honours_deprecated_alias(self):
+        """``ignore_hostkey_verification`` keeps working on the async path too."""
+        hook = SSHHookAsync(ssh_conn_id="test_conn")
+        mock_conn = mock.MagicMock()
+        mock_conn.extra_dejson = {"ignore_hostkey_verification": True}
+        mock_conn.host = "test.host"
+
+        with pytest.warns(AirflowProviderDeprecationWarning, match="ignore_hostkey_verification"):
+            hook._parse_extras(mock_conn)
+        assert hook.known_hosts == "none"
+
+    def test_parse_extras_canonical_key_wins_over_alias(self):
+        """``no_host_key_check`` takes precedence and suppresses the deprecation warning."""
+        hook = SSHHookAsync(ssh_conn_id="test_conn")
+        mock_conn = mock.MagicMock()
+        mock_conn.extra_dejson = {"no_host_key_check": False, "ignore_hostkey_verification": True}
+        mock_conn.host = "test.host"
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", AirflowProviderDeprecationWarning)
+            hook._parse_extras(mock_conn)
         assert hook.known_hosts != "none"
 
     def test_parse_extras_host_key(self):

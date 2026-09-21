@@ -183,6 +183,10 @@ class SSHHook(BaseHook):
         # whenever the connection has extras that do not mention host key checking.
         constructor_no_host_key_check = no_host_key_check
 
+        # Parsing a `host_key` extra forces `self.no_host_key_check` to False, so what the
+        # connection actually asked for is kept here and re-applied once parsing is done.
+        extra_no_host_key_check: bool | None = None
+
         # Placeholder for future cached connection
         self.client: paramiko.SSHClient | None = None
 
@@ -234,11 +238,8 @@ class SSHHook(BaseHook):
                     no_host_key_check = extra_options["ignore_hostkey_verification"]
 
                 if no_host_key_check is not None:
-                    no_host_key_check = str(no_host_key_check).lower() == "true"
-                    if host_key is not None and no_host_key_check:
-                        raise ValueError("Must check host key when provided")
-
-                    self.no_host_key_check = no_host_key_check
+                    extra_no_host_key_check = str(no_host_key_check).lower() == "true"
+                    self.no_host_key_check = extra_no_host_key_check
 
                 if (
                     "allow_host_key_change" in extra_options
@@ -287,6 +288,15 @@ class SSHHook(BaseHook):
         # built directly rather than from a Connection.
         if constructor_no_host_key_check is not None:
             self.no_host_key_check = constructor_no_host_key_check
+        elif extra_no_host_key_check is not None:
+            self.no_host_key_check = extra_no_host_key_check
+
+        # Validated on the effective value rather than on the extras alone, so that an explicit
+        # constructor argument can resolve a connection that sets both `host_key` and
+        # `no_host_key_check`, and so that skipping the check while a host key is configured is
+        # rejected whichever source asked for it.
+        if self.host_key is not None and self.no_host_key_check:
+            raise ValueError("Must check host key when provided")
 
         if self.cmd_timeout is NOTSET:
             self.cmd_timeout = CMD_TIMEOUT
@@ -645,6 +655,14 @@ class SSHHookAsync(BaseHook):
 
         host_key = extra_options.get("host_key")
         nhkc_raw = extra_options.get("no_host_key_check")
+        if nhkc_raw is None and "ignore_hostkey_verification" in extra_options:
+            warnings.warn(
+                "The `ignore_hostkey_verification` connection extra is deprecated; "
+                "use `no_host_key_check` instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            nhkc_raw = extra_options["ignore_hostkey_verification"]
         no_host_key_check = str(nhkc_raw).lower() == "true" if nhkc_raw is not None else False
 
         if host_key is not None and no_host_key_check:
