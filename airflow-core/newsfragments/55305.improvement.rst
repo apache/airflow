@@ -1,0 +1,1 @@
+Add a browser preference to expand task groups by default while preserving saved selections for each Dag.

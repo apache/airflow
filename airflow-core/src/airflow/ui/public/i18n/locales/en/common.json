@@ -297,6 +297,10 @@
         "helper": "Layout direction for Dag and asset graphs you haven't set individually.",
         "label": "Default graph direction"
       },
+      "taskGroupsExpanded": {
+        "helper": "Expand task groups in Dags where you haven't saved a group selection. Existing selections are kept.",
+        "label": "Expand task groups by default"
+      },
       "title": "Graph"
     },
     "marking": {
