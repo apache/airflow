@@ -729,7 +729,7 @@ def _resolve_decorated_operator_class(decorator_fn: object) -> type | None:
     if match is None:
         return None
 
-    func = inspect.unwrap(getattr(decorator_fn, "__func__", decorator_fn))
+    func = inspect.unwrap(getattr(decorator_fn, "__func__", decorator_fn))  # type: ignore[arg-type]
     module_globals = getattr(func, "__globals__", None)
     if module_globals is None:
         return None
