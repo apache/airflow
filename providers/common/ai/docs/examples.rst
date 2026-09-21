@@ -152,7 +152,9 @@ Reliability
    * - Guide
      - What it shows
    * - :doc:`retry_policies`
-     - Classifying task failures with an LLM to decide retry, fail, or delay. Source:
+     - Classifying task failures with an LLM into categories you define, then deriving
+       retry, fail, or delay from the category; and the same on a classifier model with a
+       confidence bar. Source:
        `example_llm_retry_policy.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_llm_retry_policy.py>`__.
    * - :doc:`provider_fallback`
      - Failing over to another vendor inside one task attempt, and drilling the chain
