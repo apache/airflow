@@ -65,13 +65,14 @@ Dynamic bundle configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Set :ref:`config:dag_processor__dag_bundle_provider` to the import path for the class Airflow uses to discover
-and construct Dag bundles. The configured implementation must return metadata for the complete list of active bundles.
+and construct Dag bundles. The configured implementation must return metadata for the complete list of currently
+configured bundles.
 The Dag processor requests the list every
 :ref:`config:dag_processor__bundle_refresh_check_interval` seconds and applies additions and removals without
 a restart. A bundle that is absent from the list becomes inactive.
 
 The configured implementation must raise an exception when it cannot read its source. It must return an empty
-list only when no bundles are active. On an error, the Dag processor keeps the last valid list and tries again
+list only when no bundles are configured. On an error, the Dag processor keeps the last valid list and tries again
 on the next refresh cycle.
 
 Airflow also reconciles the active list with the metadata database on later refresh cycles. This makes the
