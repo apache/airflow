@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import collections
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import AsyncIterator, Iterable, Iterator, Sequence
 from typing import Any, Protocol, cast
 
 import structlog
@@ -628,6 +628,30 @@ class XComIterable(Sequence):
             map_index=self.map_index,
         )
 
+    async def aget(self, index: int) -> Any:
+        """
+        Async counterpart of ``self[index]``: fetch one value through ``XCom.aget_one``.
+
+        Use it, or ``async for``, from code running on an event loop that has other SDK calls in
+        flight (an iterated task consuming this iterable as its input): a synchronous read there
+        would block the loop thread on the supervisor channel and deadlock with them.
+        """
+        from airflow.sdk.execution_time.xcom import XCom
+
+        if not (0 <= index < self.length):
+            raise IndexError(index)
+
+        return await XCom.aget_one(
+            key=f"{BaseXCom.XCOM_RETURN_KEY}_{index}",
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            run_id=self.run_id,
+            map_index=self.map_index,
+        )
+
+    def __aiter__(self) -> AsyncIterator[Any]:
+        return _AsyncXComIterator(self)
+
     def append(self, value: Any):
         """
         Push ``value`` as the next indexed XCom of the producing task.
@@ -759,6 +783,30 @@ class FlattenedXComIterable(XComIterable):
                 return item
         raise IndexError(key)  # pragma: no cover - unreachable given the bounds check above
 
+    async def _aiter_pages(self) -> AsyncIterator[Any]:
+        """Async twin of :meth:`_iter_pages`, reading each page through :meth:`XComIterable.aget`."""
+        for index in range(XComIterable.__len__(self)):
+            yield await XComIterable.aget(self, index)
+
+    async def __aiter__(self) -> AsyncIterator[Any]:  # type: ignore[override]
+        count = 0
+        async for page in self._aiter_pages():
+            for item in self._flatten(page):
+                count += 1
+                yield item
+        self._flattened_length = count
+
+    async def aget(self, index: int) -> Any:
+        """Async counterpart of ``self[index]`` in flattened positions; walks the pages like it."""
+        if index < 0:
+            raise IndexError(index)
+        current_index = 0
+        async for item in self:
+            if current_index == index:
+                return item
+            current_index += 1
+        raise IndexError(index)
+
     @classmethod
     def _flatten(cls, item: Any) -> Iterator[Any]:
         if isinstance(item, Iterable) and not isinstance(item, (str, bytes)):
@@ -770,6 +818,25 @@ class FlattenedXComIterable(XComIterable):
     @classmethod
     def deserialize(cls, data: dict, version: int):
         return FlattenedXComIterable(**data)
+
+
+class _AsyncXComIterator:
+    """Async iterator for XComIterable, one ``aget`` per position in order."""
+
+    def __init__(self, iterable: XComIterable):
+        self._iterable = iterable
+        self._index = 0
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        if self._index >= len(self._iterable):
+            raise StopAsyncIteration
+
+        value = await self._iterable.aget(self._index)
+        self._index += 1
+        return value
 
 
 class _XComIterator:

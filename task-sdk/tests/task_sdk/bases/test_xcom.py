@@ -391,6 +391,71 @@ class TestXComIterable:
         iterable.append("new_value")
         assert mock_set.call_args.kwargs["key"] == f"{BaseXCom.XCOM_RETURN_KEY}_3"
 
+    @pytest.mark.asyncio
+    @patch.object(XCom, "aget_one", new_callable=AsyncMock, return_value="value-1")
+    async def test_aget_calls_xcom_aget_one_with_indexed_key(self, mock_aget_one):
+        iterable = self.make_iterable(length=2, map_index=3)
+        assert await iterable.aget(1) == "value-1"
+        mock_aget_one.assert_awaited_once_with(
+            key=f"{BaseXCom.XCOM_RETURN_KEY}_1",
+            dag_id="dag",
+            task_id="task",
+            run_id="run",
+            map_index=3,
+        )
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("index", [-1, 2])
+    @patch.object(XCom, "aget_one", new_callable=AsyncMock)
+    async def test_aget_out_of_range_raises_index_error_without_fetching(self, mock_aget_one, index):
+        iterable = self.make_iterable(length=2)
+        with pytest.raises(IndexError):
+            await iterable.aget(index)
+        mock_aget_one.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    @patch.object(XCom, "get_one")
+    @patch.object(XCom, "aget_one", new_callable=AsyncMock)
+    async def test_async_iteration_reads_every_item_in_order_through_aget_one(
+        self, mock_aget_one, mock_get_one
+    ):
+        """``async for`` never touches the synchronous ``get_one``, so it is safe on the task's event loop."""
+        mock_aget_one.side_effect = self._pages_by_key(["a", "b", "c"])
+        iterable = self.make_iterable(length=3)
+        assert [item async for item in iterable] == ["a", "b", "c"]
+        assert [call.kwargs["key"] for call in mock_aget_one.await_args_list] == [
+            f"{BaseXCom.XCOM_RETURN_KEY}_{index}" for index in range(3)
+        ]
+        mock_get_one.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch.object(XCom, "aget_one", new_callable=AsyncMock)
+    async def test_async_iteration_on_empty_iterable_yields_nothing(self, mock_aget_one):
+        iterable = self.make_iterable(length=0)
+        assert [item async for item in iterable] == []
+        mock_aget_one.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    @patch.object(XCom, "get_one")
+    @patch.object(XCom, "aget_one", new_callable=AsyncMock)
+    async def test_flatten_async_iteration_expands_pages_through_aget_one(self, mock_aget_one, mock_get_one):
+        mock_aget_one.side_effect = self._pages_by_key([["a", "b"], "c", ("d",), [["e"]]])
+        flattened = self.make_iterable(length=4).flatten()
+        assert [item async for item in flattened] == ["a", "b", "c", "d", "e"]
+        assert len(flattened) == 5  # the walk cached the flattened length
+        mock_get_one.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch.object(XCom, "aget_one", new_callable=AsyncMock)
+    async def test_flatten_aget_indexes_flattened_items_not_pages(self, mock_aget_one):
+        mock_aget_one.side_effect = self._pages_by_key([["a", "b"], ["c"]])
+        flattened = self.make_iterable(length=2).flatten()
+        assert await flattened.aget(2) == "c"
+        with pytest.raises(IndexError):
+            await flattened.aget(3)
+        with pytest.raises(IndexError):
+            await flattened.aget(-1)
+
     @patch.object(XCom, "get_one")
     def test_flatten_expands_list_items(self, mock_get_one):
         """Items that are lists are expanded into individual elements."""
