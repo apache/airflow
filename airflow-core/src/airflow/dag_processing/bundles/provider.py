@@ -102,12 +102,6 @@ def _parse_bundle_config(config_list) -> list[_ExternalBundleConfig]:
         except ValidationError as e:
             raise _bundle_item_exc(f"Item {item} failed validation: {e}")
 
-        if cfg.name == "example_dags":
-            raise AirflowConfigException(
-                "Bundle name 'example_dags' is a reserved name. Please choose another name for your bundle."
-                " Example Dags can be enabled with the '[core] load_examples' config."
-            )
-
         bundles[cfg.name] = cfg
     if len(bundles.keys()) != len(config_list):
         raise _bundle_item_exc("One or more bundle names appeared multiple times")
