@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pydantic import BaseModel
 
@@ -47,6 +47,13 @@ class LLMFileAnalysisOperator(LLMOperator):
     :param llm_conn_id: Connection ID for the LLM provider.
     :param model_id: Model identifier (e.g. ``"openai:gpt-5"``).
         Overrides the model stored in the connection's extra field.
+    :param fallback_conn_ids: Connection IDs to fail over to, in order, when
+        the primary provider is unavailable. Overrides the ``fallback_conn_ids``
+        set in the connection's extra field. ``None`` (default) reads the
+        connection's own extra field; an explicit ``[]`` disables a chain
+        configured there. See
+        :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook`
+        for how blank entries in the list are dropped.
     :param system_prompt: Additional instructions appended to the built-in
         file-analysis system prompt.
     :param agent_params: Additional keyword arguments passed to the pydantic-ai
@@ -70,9 +77,13 @@ class LLMFileAnalysisOperator(LLMOperator):
         read from storage and ``max_text_chars`` limits the final prompt text
         budget. Default ``10``.
 
+    ``usage_limits`` is inherited from
+    :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
+
     Human-in-the-Loop approval parameters are inherited from
     :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
-    (``require_approval``, ``approval_timeout``, ``allow_modifications``).
+    (``require_approval``, ``approval_timeout``, ``on_approval_timeout``,
+    ``allow_modifications``, ``approval_notifiers``, ``approval_assigned_users``).
     The task pauses after the file analysis and only returns the result once a
     reviewer approves.
     """
@@ -82,6 +93,9 @@ class LLMFileAnalysisOperator(LLMOperator):
         "file_path",
         "file_conn_id",
     )
+
+    # Runs its own execute() without the confidence gate; a decision_policy is rejected at construction.
+    supports_decision_policy: ClassVar[bool] = False
 
     def __init__(
         self,

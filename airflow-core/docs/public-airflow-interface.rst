@@ -33,8 +33,7 @@ and extending Airflow capabilities by writing new executors, plugins, operators 
 Public Interface can be useful for building custom tools and integrations with other systems,
 and for automating certain aspects of the Airflow workflow.
 
-The primary public interface for Dag authors and task execution is using task SDK
-Airflow task SDK is the primary public interface for Dag authors and for task execution
+The primary public interface for Dag authors and for task execution is the Airflow Task SDK, via the
 :doc:`airflow.sdk namespace <core-concepts/taskflow>`. Direct access to the metadata database
 from task code is no longer allowed. Instead, use the :doc:`Stable REST API <stable-rest-api-ref>`,
 `Python Client <https://github.com/apache/airflow-client-python>`_, or Task Context methods.
@@ -61,7 +60,7 @@ Using Airflow Public Interfaces
 
 The following are some examples of the public interface of Airflow:
 
-* When you are writing your own operators or hooks. This is commonly done when no hook or operator exists for your use case, or when perhaps when one exists but you need to customize the behavior.
+* When you are writing your own operators or hooks. This is commonly done when no hook or operator exists for your use case, or perhaps when one exists but you need to customize the behavior.
 * When writing new :doc:`Plugins <administration-and-deployment/plugins>` that extend Airflow's functionality beyond
   Dag building blocks. Secrets, Timetables, Triggers, Listeners are all examples of such functionality. This
   is usually done by users who manage Airflow instances.
@@ -71,7 +70,7 @@ The following are some examples of the public interface of Airflow:
 * Using the taskflow API to write tasks
 * Relying on the consistent behavior of Airflow objects
 
-One aspect of "public interface" is  extending or using Airflow Python classes and functions. The classes
+One aspect of "public interface" is extending or using Airflow Python classes and functions. The classes
 and functions mentioned below can be relied on to maintain backwards-compatible signatures and behaviours within
 MAJOR version of Airflow. On the other hand, classes and methods starting with ``_`` (also known
 as protected Python methods) and ``__`` (also known as private Python methods) are not part of the Public

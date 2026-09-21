@@ -18,7 +18,7 @@
 Dag Bundles
 ===========
 
-A Dag bundle is a collection of one or more Dags, files along with their associated files, such as other
+A Dag bundle is a collection of one or more Dag files along with their associated files, such as other
 Python scripts, configuration files, or other resources. Dag bundles can source the Dags from various
 locations, such as local directories, Git repositories, or other external systems. Deployment administrators
 can also write their own Dag bundle classes to support custom sources. You can also define more than one Dag
@@ -217,7 +217,7 @@ The url is verified for safety, and if it is not safe, the view url for the bund
 You can also override the :ref:`config:dag_processor__refresh_interval` per Dag bundle by passing it in kwargs.
 This controls how often the Dag processor refreshes, or looks for new files, in the Dag bundles.
 
-Starting Airflow 3.0.2 git is pre installed in the base image. However, if you are using versions prior 3.0.2, you would need to install git in your docker image.
+Starting with Airflow 3.0.2, git is pre-installed in the base image. However, if you are using versions prior to 3.0.2, you would need to install git in your docker image.
 
 .. code-block:: Dockerfile
 
@@ -446,7 +446,7 @@ Other Considerations
 
 - **Versioning**: If your bundle supports versioning, ensure that ``initialize``, ``get_current_version`` and ``refresh`` are implemented to handle version-specific logic.
 
-- **Concurrency**: Workers may create many bundles simultaneously, and does nothing to serialize calls to the bundle objects. Thus, the bundle class must handle locking if
+- **Concurrency**: Workers may create many bundles simultaneously, and Airflow does nothing to serialize calls to the bundle objects. Thus, the bundle class must handle locking if
   that is problematic for the underlying technology. For example, if you are cloning a git repo, the bundle class is responsible for locking to ensure only 1 bundle
   object is cloning at a time. There is a ``lock`` method in the base class that can be used for this purpose, if necessary.
 

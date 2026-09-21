@@ -20,7 +20,7 @@ import pendulum
 
 # This example uses common.compat for Airflow 2.x/3.x compatibility.
 # If you only need Airflow 3+, you can use: from airflow.sdk import dag, task
-from airflow.providers.common.compat.sdk import dag, task
+from airflow.providers.common.compat.sdk import XComArg, dag, task
 from airflow.providers.openai.hooks.openai import OpenAIHook
 from airflow.providers.openai.operators.openai import OpenAIEmbeddingOperator, OpenAIResponseOperator
 
@@ -101,11 +101,22 @@ def example_openai_dag():
     # [END howto_operator_openai_embedding]
 
     # [START howto_operator_openai_response]
-    OpenAIResponseOperator(
+    openai_response = OpenAIResponseOperator(
         task_id="openai_response",
         conn_id="openai_default",
         input_text="Write a haiku about data pipelines.",
         response_kwargs={"instructions": "You are a helpful assistant."},
+    )
+
+    # Chains onto the previous response via its response_id XCom, continuing
+    # the same conversation without resending prior turns. Referencing the
+    # upstream XComArg here also creates the task dependency automatically --
+    # no explicit `>>` is needed.
+    OpenAIResponseOperator(
+        task_id="openai_response_follow_up",
+        conn_id="openai_default",
+        input_text="Now rewrite it as a limerick.",
+        response_kwargs={"previous_response_id": XComArg(openai_response, key="response_id")},
     )
 
     # ``max_output_tokens`` is templated, so a ceiling can vary by Dag run without hardcoding it.

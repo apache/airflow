@@ -269,7 +269,7 @@ serialized Dag is accessed by the scheduler to reconstruct the timetable.
 Timetable Display in UI
 -----------------------
 
-By default, a custom timetable is displayed by their class name in the UI (e.g.
+By default, a custom timetable is displayed by its class name in the UI (e.g.
 the *Schedule* column in the "dags" table). It is possible to customize this
 by overriding the ``summary`` property. This is especially useful for
 parameterized timetables to include arguments provided in ``__init__``. For
@@ -321,7 +321,7 @@ You can also wrap this inside ``__init__``, if you want to derive description.
         self.description = f"Schedule: after each workday, at {self._schedule_at}"
 
 
-This is specially useful when you want to provide comprehensive description which is different from ``summary`` property.
+This is especially useful when you want to provide comprehensive description which is different from ``summary`` property.
 
 So for a Dag declared like this:
 
@@ -347,7 +347,7 @@ Changing generated ``run_id``
 
 Since Airflow 2.4, Timetables are also responsible for generating the ``run_id`` for DagRuns.
 
-For example to have the Run ID show a "human friendly" date of when the run started (that is, the end of the data interval, rather then the start which is the date currently used) you could add a method like this to a custom timetable:
+For example to have the Run ID show a "human friendly" date of when the run started (that is, the end of the data interval, rather than the start which is the date currently used) you could add a method like this to a custom timetable:
 
 .. code-block:: python
 

@@ -25,6 +25,8 @@ from pydantic_ai.messages import ImageUrl
 from airflow.providers.common.ai.decorators.llm_branch import _LLMBranchDecoratedOperator
 from airflow.providers.common.ai.operators.llm_branch import LLMBranchOperator
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+
 
 class TestLLMBranchDecoratedOperator:
     def test_custom_operator_name(self):
@@ -73,6 +75,7 @@ class TestLLMBranchDecoratedOperator:
         with pytest.raises(TypeError, match="must be"):
             op.execute(context={})
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="require_approval needs Airflow >= 3.1.0")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_sequence_prompt_with_require_approval_raises_before_run_sync(self, mock_hook_cls):
         """Sequence prompt + require_approval=True fails before the agent runs."""
