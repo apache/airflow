@@ -45,6 +45,7 @@ TEST_BUILD_WORKING = {
 TEST_CONN_ID = "google_cloud_default"
 TEST_POLL_INTERVAL = 4.0
 TEST_LOCATION = "global"
+TEST_IMPERSONATION_CHAIN = "impersonated-account@developer.gserviceaccount.com"
 TEST_BUILD_INSTANCE = dict(
     id="test-build-id-9832662",
     status=3,
@@ -118,6 +119,24 @@ class TestCloudBuildCreateBuildTrigger:
             "poll_interval": TEST_POLL_INTERVAL,
             "location": TEST_LOCATION,
         }
+
+    @mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncHook"), autospec=True)
+    def test_get_async_hook_builds_hook_with_impersonation_chain(self, mock_hook):
+        trigger = CloudBuildCreateBuildTrigger(
+            id_=TEST_BUILD_ID,
+            project_id=TEST_PROJECT_ID,
+            gcp_conn_id=TEST_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            poll_interval=TEST_POLL_INTERVAL,
+            location=TEST_LOCATION,
+        )
+
+        trigger._get_async_hook()
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
 
     @pytest.mark.asyncio
     @mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncHook"))

@@ -164,6 +164,8 @@ class HttpToS3Operator(BaseOperator):
     def execute(self, context: Context):
         self.log.info("Calling HTTP method")
         response = self.http_hook.run(self.endpoint, self.data, self.headers, self.extra_options)
+        if self.log_response:
+            self.log.info(response.text)
 
         self.s3_hook.load_bytes(
             response.content,

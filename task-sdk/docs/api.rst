@@ -116,6 +116,10 @@ Deadline Alerts
 
 .. autoclass:: airflow.sdk.DeadlineReference
 
+.. autoclass:: airflow.sdk.BaseDeadlineReference
+
+.. autofunction:: airflow.sdk.deadline_reference
+
 Connections & Variables
 -----------------------
 .. autoapiclass:: airflow.sdk.Connection

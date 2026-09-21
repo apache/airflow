@@ -43,6 +43,26 @@ To enable this feature, ``airflow.cfg`` must be configured as follows:
 
 In the above example, Airflow will try to use ``S3Hook(aws_conn_id='my_s3_conn')``.
 
+Setting an object ACL for cross-account logging
+'''''''''''''''''''''''''''''''''''''''''''''''
+
+When Airflow runs under one AWS account but writes logs to a bucket owned by a different
+account, S3 makes the writing account the owner of each uploaded log object. As a result the
+bucket owner cannot read or manage the logs. Applying the ``bucket-owner-full-control`` ACL
+on upload grants the bucket owner full control over the log objects.
+
+Set the ACL with the ``[aws] s3_task_handler_acl_policy`` option:
+
+.. code-block:: ini
+
+    [aws]
+    # ACL applied to every task log object uploaded to S3, e.g. for cross-account buckets.
+    s3_task_handler_acl_policy = bucket-owner-full-control
+
+When unset, no ACL is sent and the bucket's default object ownership applies. The same value can
+also be supplied through ``[logging] remote_task_handler_kwargs``, for example
+``{"acl_policy": "bucket-owner-full-control"}``.
+
 You can also use `LocalStack <https://localstack.cloud/>`_ to emulate Amazon S3 locally.
 To configure it, you must additionally set the endpoint url to point to your local stack.
 You can do this via the Connection Extra ``endpoint_url`` field.

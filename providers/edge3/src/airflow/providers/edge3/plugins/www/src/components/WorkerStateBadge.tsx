@@ -18,7 +18,7 @@
  */
 import { Badge, type BadgeProps } from "@chakra-ui/react";
 import type { EdgeWorkerState } from "openapi/requests/types.gen";
-import * as React from "react";
+import { forwardRef } from "react";
 
 import { WorkerStateIcon } from "./WorkerStateIcon";
 
@@ -84,7 +84,7 @@ export type Props = {
   readonly state?: EdgeWorkerState | null;
 } & BadgeProps;
 
-export const WorkerStateBadge = React.forwardRef<HTMLDivElement, Props>(
+export const WorkerStateBadge = forwardRef<HTMLDivElement, Props>(
   ({ children, state, ...rest }, ref) => (
     <Badge
       borderRadius="full"

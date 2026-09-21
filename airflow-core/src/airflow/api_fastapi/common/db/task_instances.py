@@ -20,6 +20,7 @@ from __future__ import annotations
 from sqlalchemy import Select
 from sqlalchemy.orm import contains_eager, joinedload
 
+from airflow.api_fastapi.common.db.dags import eager_load_teams
 from airflow.models import Base
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
@@ -48,7 +49,9 @@ def eager_load_TI_and_TIH_for_validation(
 
     query = query.join(orm_model.dag_run).outerjoin(orm_model.dag_version)
     query = query.options(
-        contains_eager(orm_model.dag_run).options(joinedload(DagRun.dag_model)),
+        contains_eager(orm_model.dag_run).options(
+            joinedload(DagRun.dag_model).options(*eager_load_teams()),
+        ),
         contains_eager(orm_model.dag_version).options(joinedload(DagVersion.bundle)),
     )
     if orm_model is TaskInstance:

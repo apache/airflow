@@ -90,13 +90,14 @@ class DagVersion(Base):
 
     @property
     def bundle_url(self) -> str | None:
-        """Render the bundle URL using the joined bundle metadata if available."""
-        # Prefer using the joined bundle relationship when present to avoid extra queries
-        if getattr(self, "bundle", None) is not None and hasattr(self.bundle, "signed_url_template"):
-            return self.bundle.render_url(self.bundle_version)
+        """Render the bundle URL from the bundle metadata row, when there is one."""
+        # When a bundle row exists, use it (render_url returns None if it has no URL template).
+        # Only when there is no bundle row do we fall back to the deprecated manager lookup -- doing
+        # so for an empty template would hit the deprecated path (and its warning) on every call.
+        bundle = getattr(self, "bundle", None)
+        if bundle is not None:
+            return bundle.render_url(self.bundle_version)
 
-        # fallback to the deprecated option if the bundle model does not have a signed_url_template
-        # attribute
         if self.bundle_name is None:
             return None
         try:
@@ -228,12 +229,13 @@ class DagVersion(Base):
         Get the version of the DAG.
 
         :param dag_id: The DAG ID.
-        :param version_number: The version number.
+        :param version_number: The version number to look up. When ``None``, the latest
+            version is returned; any other value -- ``0`` included -- is used as a filter.
         :param session: The database session.
         :return: The version of the DAG or None if not found.
         """
         version_select_obj = select(cls).where(cls.dag_id == dag_id)
-        if version_number:
+        if version_number is not None:
             version_select_obj = version_select_obj.where(cls.version_number == version_number)
 
         return session.scalar(version_select_obj.order_by(cls.version_number.desc()).limit(1))

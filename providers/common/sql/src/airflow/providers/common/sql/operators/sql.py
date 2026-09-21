@@ -746,25 +746,30 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         match_boolean = True
 
         # abs() so the tolerance margin widens the bound outward for negative expected values too.
-        def _margin(expected):
-            return abs(expected) * tolerance if tolerance is not None else 0
+        # Without a tolerance the bound is compared as-is: a min/max check may be declared on a
+        # date or text column, where arithmetic on the bound raises TypeError.
+        def _lower(expected):
+            return expected - abs(expected) * tolerance if tolerance is not None else expected
+
+        def _upper(expected):
+            return expected + abs(expected) * tolerance if tolerance is not None else expected
 
         if "geq_to" in check_values:
-            match_boolean = record >= check_values["geq_to"] - _margin(check_values["geq_to"])
+            match_boolean = record >= _lower(check_values["geq_to"])
         elif "greater_than" in check_values:
-            match_boolean = record > check_values["greater_than"] - _margin(check_values["greater_than"])
+            match_boolean = record > _lower(check_values["greater_than"])
         if "leq_to" in check_values:
-            match_boolean = (
-                record <= check_values["leq_to"] + _margin(check_values["leq_to"]) and match_boolean
-            )
+            match_boolean = record <= _upper(check_values["leq_to"]) and match_boolean
         elif "less_than" in check_values:
-            match_boolean = (
-                record < check_values["less_than"] + _margin(check_values["less_than"]) and match_boolean
-            )
+            match_boolean = record < _upper(check_values["less_than"]) and match_boolean
         if "equal_to" in check_values:
             expected = check_values["equal_to"]
-            margin = _margin(expected)
-            match_boolean = (expected - margin <= record <= expected + margin) and match_boolean
+            if tolerance is None:
+                # Equality, not a degenerate range: a NULL result must fail the check rather
+                # than raise on an ordering comparison against None.
+                match_boolean = record == expected and match_boolean
+            else:
+                match_boolean = (_lower(expected) <= record <= _upper(expected)) and match_boolean
         return match_boolean
 
     def _column_mapping_validation(self, check, check_values):

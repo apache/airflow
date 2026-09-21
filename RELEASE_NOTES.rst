@@ -24,6 +24,449 @@
 
 .. towncrier release notes start
 
+Airflow 3.3.2 (2026-09-17)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+- Backfill endpoints no longer disclose which backfill ids exist across Dags
+
+  The four routes that name a backfill in their path -- ``GET /backfills/{backfill_id}``
+  and the ``pause``, ``unpause`` and ``cancel`` routes -- resolved the Dag they authorize
+  against from the ``dag_id`` supplied on the request whenever the path's id matched no row.
+  An unknown id and a backfill on a Dag the caller cannot see therefore answered differently,
+  which enumerates backfill ids across Dags.
+
+  The backfill named in the path is now the only thing those routes authorize against.
+
+  **Behaviour changes:**
+
+  - Requesting a backfill on a Dag the caller cannot read now returns ``404``
+    (``Backfill not found``) -- the same response an unknown id gets -- instead of the
+    ``403`` returned before. A caller who can read the Dag still gets ``403`` for a write
+    they are not allowed to make.
+  - A ``backfill_id`` in the path is never authorized against a ``dag_id`` in the request body
+    or query string. ``GET /backfills``, ``POST /backfills`` and ``POST /backfills/dry_run``
+    name no backfill in their path and keep authorizing off the request.
+  - All four routes now answer an unknown id with the same detail, ``Backfill not found``.
+    The ``pause``, ``unpause`` and ``cancel`` routes previously answered
+    ``Could not find backfill with id {backfill_id}``. Clients matching on ``detail``
+    must be updated. (#71113)
+
+- An explicit credential now takes precedence over the session cookie
+
+  ``get_user()`` is written to prefer an explicit bearer token, then OAuth2, then the
+  session cookie, but that precedence was unreachable whenever a cookie was present.
+  ``JWTRefreshMiddleware`` runs
+  first, resolves a user from the ``_token`` cookie alone and stamps it on
+  ``request.state``, and ``get_user()`` returned that cached user before looking at either
+  explicit credential. The effective order on every core-API route was cookie over bearer.
+
+  A request carrying both a session cookie and an explicit credential therefore executed,
+  and was recorded in the audit log, as the cookie's principal rather than the identity the
+  client presented. The cached user is now honoured only when the request carries no
+  explicit credential.
+
+  **Behaviour changes:**
+
+  - A request carrying **both** a ``_token`` cookie and an ``Authorization: Bearer`` header
+    is now resolved as the bearer token's principal, where it was previously resolved as the
+    cookie's. The same applies to a cookie combined with an OAuth2 token.
+  - An **invalid or expired** explicit credential is now rejected with ``401``/``403`` even
+    when a valid ``_token`` cookie accompanies it. Previously the cookie silently took over
+    and the request succeeded as the cookie's principal; the failure is now loud.
+  - Requests carrying a single credential are unaffected. Cookie-only browser sessions keep
+    the token-refresh behaviour of ``JWTRefreshMiddleware`` unchanged.
+  - Clients that relied on the cookie winning -- for example a browser-based tool that sent a
+    service account's bearer token while a user session cookie was present, and expected the
+    user's identity to apply -- will now act as the bearer token's principal. Remove the
+    header, or the cookie, to select the intended identity explicitly. (#72225)
+
+
+Bug Fixes
+^^^^^^^^^
+
+- Optimize the previous-task-instance lookup by removing a redundant ``dag_run`` join (#72944)
+- Revoke every credential presented to the logout endpoint, not just the session cookie (#72933)
+- API: Return HTTP 404 instead of 500 when a task starts against a missing Dag run (#72900)
+- Fix ``airflow db clean`` never purging the ``callback`` table (#72899)
+- Fix the Dag version inflation check not warning about custom ``DAG`` subclasses or aliased-module imports (#72898)
+- Fix ``DeadlockImminentError`` when a connection is resolved inside an async task (#72895)
+- Fix dag processor crash when an orphaned processor is killed (#72888)
+- Prevent corruption of ``XCom`` values that already parse as JSON during the ``bytea``-to-``JSONB`` migration (#72886)
+- Fix HTTP 500 for non-dict JSON bodies on the Variable and Connection API endpoints (#72878)
+- Fix resolution of deprecated imports in ``airflow.utils.helpers`` (#72868)
+- Bound single-row lookups with ``LIMIT 1`` to avoid scanning large tables (#72842)
+- UI: Fix clipping of the Last Run state badge (#72841)
+- UI: Fix Calendar view computing planned cron runs in UTC instead of the Dag's timezone (#72839)
+- Fix ``airflow info --file-io`` uploading an empty report (#72832)
+- Preserve custom operator defaults in mapped tasks (#72828)
+- Gate the asset event ``partition_key`` behind the 2026-06-30 Execution API version (#72827)
+- Improve deadline diagnostics for null ``DagRun`` fields (#72812)
+- Fix missing HTTP access logs when the api-server omits the core app (#72808)
+- Clarify when the auth manager ``is_authorized_hitl_task`` (Human-in-the-loop) hook runs (#72807)
+- Fix ``td_format`` rendering of negative durations (#72798)
+- UI: Make copied task log text match the on-screen format (#72771)
+- UI: Fix connection test with a null host and port (#72747)
+- Allow ``airflow jobs check --allow-multiple`` with ``--limit 0`` (#72744)
+- UI: Keep task log selection stable while dragging (#72743)
+- UI: Restore counts on the Dag Run and Task Instance lists (#72739)
+- UI: Fix the Dags list Last Run / Next Run going stale after runs complete (#72735)
+- UI: Fix the first startup request being sent to an unset API base URL (#72733)
+- UI: Fix task instance links leading to 404s for tasks outside the run's date range (#72732)
+- UI: Fix the Human-in-the-loop form crashing on null values (#72731)
+- UI: Fix copying task logs dropping rows that scrolled out of view (#72729)
+- UI: Label Dag active runs accurately (#72722)
+- Bound single-row ``XCom`` existence lookups with ``LIMIT 1`` to avoid full scans (#72702)
+- UI: Fix Firefox multi-line drag selection in the task log view (#72700)
+- Fix Dag scheduling stall after switching to a coarser cron (#72679)
+- Fix memray profiling capturing interpreter startup instead of the dag-processor job (#72661)
+- Prevent Dag-existence disclosure on the partitioned dag runs listing (#72660)
+- Fix mark-failed ``KeyError`` for removed-task task instances (#72620)
+- UI: Fix ``hierarchical_alphabetical`` sort order breaking the graph and grid (#72618)
+- Clarify ``@task``-decorated callable errors when extra positional arguments are passed (#72616)
+- Load the correct Dag version when a task starts from a trigger (#72614)
+- Fix ``airflow db migrate`` failing under the PyMySQL driver when a schema migration drops unique constraints (#72613)
+- Stop ``airflow providers get --full`` mutating cached provider metadata (#72601)
+- Fix ``airflow connections test`` returning a success exit code on failure (#72583)
+- Stop ``airflow standalone`` leaking components when one fails to start (#72568)
+- Fix ``DAG.cli()`` crashing on ``dags pause`` and ``dags unpause`` (#72565)
+- Prevent Dag CLI subcommands from being silently dropped (#72365)
+- Respect the ``limit`` search param in the task overview duration chart (#72357)
+- UI: Show duration chart tooltips in the selected timezone (#72339)
+- Export ``AIRFLOW_TEST_MODE`` from ``airflow tasks test`` without ``--env-vars`` (#72320)
+- Authenticate only once per task process to external secrets backends (#72237)
+- Remove the unreachable 404 response from the create Variable API endpoint (#72190)
+- Speed up bulk updates of Variables and Pools by fixing an N+1 query (#72160)
+- UI: Fix a React plugin rendering a previously loaded plugin's component (#72136)
+- Fix Variable write-conflict checks comparing against the wrong team (#72125)
+- UI: Surface connection test errors instead of failing silently (#71963)
+- Fix the runtime-varying-value checker skipping tasks defined after a nested ``with`` block (#71956)
+- Speed up marking a Dag run failed when it has many mapped task instances (#71955)
+- UI: Include the JSON parse-error message in the Variable form warning (#71953)
+- UI: Allow file downloads from plugin external-view iframes (#71952)
+- UI: Make the grid run bar tooltip time zone aware (#71951)
+- Reduce memory used when deleting queued asset events (#71937)
+- UI: Activate assets materialized from an AssetAlias so they appear in the Assets tab (#71935)
+- Fix ``Variable.set`` rewriting the ``team_name`` of existing variables (#71904)
+- Reduce memory used when deleting a Dag with a large history (#71889)
+- UI: Show an empty object for object params with no value (#71876)
+- Fix Dag callbacks silently dropped when the version inflation check blocks parsing (#71865)
+- Return HTTP 404 from task state store endpoints for unknown task instances (#71860)
+- Fix deadline never firing after a non-deadline Dag edit (#71859)
+- Honor the API server Dag cache TTL when no size limit is set (#71845)
+- Require Dag edit permission to delete asset queued events (#71828)
+- Bound the scheduler's deserialized Dag cache to prevent unbounded memory growth (#71821)
+- Stop variables export/import from silently corrupting values (#71791)
+- UI: Fix datetime pickers unusable on Firefox and Safari (#71788)
+- Scope ``/assets/events`` to the Dags the caller may read (#71785)
+- Serve logs from the scheduler if any executor is LocalExecutor (#71781)
+- Fix cleared tasks getting stuck when a Dag run has no version (#71773)
+- Stop the dag processor warning on every file path normalized for stats (#71764)
+- UI: Fix the last section on the page not being clickable (#71755)
+- Fix deadline serialization, repr, and prune edge cases (#71726)
+- Dispatch the highest-priority tasks first in the executor (#71715)
+- Keep ZIP-archived Dags active when ``dag_discovery_safe_mode`` is False (#71714)
+- Honor ``FORWARDED_ALLOW_IPS`` when the API server runs under gunicorn (#71708)
+- Fix ``airflow config lint`` staying silent on conditional removal rules (#71651)
+- Avoid exhausting the DB connection pool when rendering the grid structure for large Dags (#71626)
+- Fix Task SDK IPC short reads crashing the subprocess or hanging the supervisor (#71609)
+- Fix one bad callback request crashing the Dag processor and dropping the rest (#71608)
+- Fix ``clearTaskInstances`` returning HTTP 500 instead of 422 on an invalid body (#71559)
+- Mark only a run's most recent asset event as triggering it (#71547)
+- Fix Variables API handling of non-string JSON values (#71526)
+- Include server error detail in Task SDK API error tracebacks (#71491)
+- Show each Dag only once in ``airflow dags list`` (#71481)
+- Keep Dag run Execution API endpoints working for older Task SDK clients (#71438)
+- UI: Fix Calendar view hanging for Dags with high-frequency cron schedules (#71435)
+- Require existing-connection read access when testing an existing connection (#71428)
+- UI: Fix Grid view failing to load large Dags on MySQL (#71370)
+- Catch general Exception when initializing a Dag bundle (#71363)
+- Fix deactivation of stale ZIP-packaged Dags (#71326)
+- Avoid scheduler crash when periodic maintenance actions fail (#71288)
+- Fix ``_team_name`` missing from ``DagRun`` passed to some listener calls (#71262)
+
+Miscellaneous
+^^^^^^^^^^^^^
+
+- Add async asset store accessors for async tasks and watcher triggers (#72851)
+- UI: Add Consuming Tasks, Aliases, and Watchers to the assets pages (#72780)
+- Improve confirmation output when connections are added via the CLI (#72779)
+- UI: Sync the browser URL with navigation inside iframe views (#72776)
+- Reduce Dag-processor log noise by logging a bundle that is not due for refresh at debug instead of info (#72749)
+- Allow deadline alert UUID references in the serialized Dag schema (#72738)
+- Add ``SerializedVariableInterval`` for deadline alerts (#72244)
+- Report Dag cache metrics under each component's own namespace (#71925)
+- Add a password field type to ``FlexibleForm`` (#71573)
+- Add ``BaseDeadlineReference`` and ``deadline_reference`` to the SDK public interface (#71208)
+
+Doc Only Changes
+^^^^^^^^^^^^^^^^
+
+- Update Catalan (ca) UI translations (#73026)
+- Fix a missing newline in the overview docs that prevented an image from rendering (#73013)
+- Document durable execution in the core concepts docs (#73012)
+- Clarify authentication and add an authorization example for plugin FastAPI apps (#72942)
+- Document that plugin FastAPI apps are not authenticated by Airflow (#72932)
+- Close German UI translation gaps (#72843)
+- Fix the Postgres tutorial for psycopg3 (#72837)
+- Document scope boundaries the security model leaves implicit (#72829)
+- Make the first tutorial example more explicit about Airflow syntax (#72805)
+- Add a ``create_async_metadata_engine`` example to the docs (#72804)
+- Add a systemd unit file for the Airflow Dag processor (#72797)
+- UI: Complete ``zh-CN`` Simplified Chinese translations (#72789)
+- Drop the extraneous "common" tag in i18n (#72781)
+- Add missing Russian UI translations (#72755)
+- Complete German UI translations (#72736)
+- UI: Complete Polish UI translations (#72624)
+- Record recurring non-issue shapes in the security model (#72617)
+- Complete Taiwanese Mandarin (``zh-TW``) UI translations (#72615)
+- UI: Translate durations and relative times in the selected language (#72334)
+- Remove the TaskFlow recommendation from the tutorial docs (#72118)
+- Split the task execution architecture docs into an overview and a dev guide (#71858)
+- Document service.name and service.instance.id for OpenTelemetry metrics (#71854)
+- UI: Improve French translation wording (#71846)
+- Complete French UI translations (#71790)
+- Improve Arabic UI translations (#71789)
+- Document HTTP statuses that API routes raise but never declared (#71622)
+- Recommend ``dag.test()`` for testing custom operators in the docs (#71587)
+
+
+Airflow 3.3.1 (2026-08-12)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+pandas 3 changes how DataFrame XComs are stored and read back (#71169)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+pandas 3 exposes its public classes from the ``pandas`` namespace, so a DataFrame is qualified as
+``pandas.DataFrame`` instead of ``pandas.core.frame.DataFrame``. XComs record that name alongside the
+serialized value, so the name written into the metadata database depends on the pandas version of the
+component that pushed the value. Airflow registers both names, and a DataFrame written by either
+pandas version can be read by either -- no configuration change is needed, and existing XComs stay
+readable.
+
+What you should do:
+
+* **Roll this Airflow version out to every component before pandas 3 reaches any of them** -- workers
+  in particular. A component that predates this change cannot read a DataFrame XCom written under
+  pandas 3, and fails the pull with:
+
+  .. code-block:: text
+
+      ImportError: pandas.DataFrame was not found in allow list for deserialization imports.
+      To allow it, add it to allowed_deserialization_classes in the configuration
+
+  The message points at configuration, but the allow list is not the cause and changing it does not
+  help. The rows are not corrupt: they become readable again as soon as the reader is upgraded.
+
+* **Treat a downgrade as a one-way door for those XComs.** Rolling back to an Airflow version without
+  this change strands any DataFrame XCom written while on pandas 3, with the same error, until you
+  roll forward again.
+
+* **Review Dags that inspect the ``dtypes`` of a pulled DataFrame.** The pandas version of the *reader*
+  determines what a pulled DataFrame looks like, not the version that wrote it. Under pandas 3, a
+  column of strings comes back as ``str`` rather than ``object``, and its missing values
+  come back as ``nan`` rather than ``None``. Values are unchanged, but downstream code that branches
+  on ``dtype == "object"``, checks cells with ``is None``, or compares against a reference frame with
+  ``DataFrame.equals()`` can behave differently after the upgrade.
+
+Fix 2.x to 3.0+ upgrade failure when a custom Dag bundle is configured (#70994)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The ``0082_3_1_0_make_bundle_name_not_nullable`` migration assigned every legacy row
+``bundle_name='dags-folder'``, so triggering a DagRun raised ``Requested bundle 'dags-folder' is
+not configured.`` on any deployment that uses a bundle other than the default ``dags-folder``.
+``DagFileProcessorManager`` now runs a one-shot, best-effort backfill at startup that routes each
+affected Dag to the correct bundle based on its file path; unmatched Dags self-heal on the next
+successful parse (or run ``airflow dags reserialize`` to force it immediately).
+
+Team scoped values of options registered as sensitive are now hidden (#71099)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Configuration options are registered as sensitive under their base section, so until now only the
+base spelling of an option was masked. A team scoped override -- set in a ``[<team>=<section>]``
+config file section, or through an ``AIRFLOW__<TEAM>___<SECTION>__<KEY>`` environment variable --
+was not recognized as the same option and was returned in full.
+
+Sensitivity is now decided after resolving the team scoped spelling back to the base option, so a
+team scoped value is masked exactly as the base value already was.
+
+**Behaviour changes:**
+
+- ``AirflowConfigParser.as_dict(display_sensitive=False)``, ``GET /config``,
+  ``GET /config/section/{section}/option/{option}`` and ``airflow config list`` now return
+  ``< hidden >`` for a team scoped value of an option registered as sensitive. Deployments that
+  read a team's real value through any of these will now receive the mask; use
+  ``display_sensitive=True`` where a real value is required and appropriate.
+- Team scoped ``_cmd`` and ``_secret`` entries are replaced with ``< hidden >`` in place, rather
+  than being resolved into their value and removed as they are in a base section. Resolving them
+  is not supported for a team, so the command string or secret path is no longer shown either.
+- Non team configuration is unaffected, and ``display_sensitive=True`` continues to return real
+  values.
+
+Bug Fixes
+^^^^^^^^^
+
+- UI: Fix a 500 error when combining the last-run and any-run Dag state filters on the Dags list (#71371)
+- UI: Fix task log text selection being cleared while scrolling (#71200)
+- UI: Fix a translation key showing as raw text in the Clear Task dialog (#71240)
+- Fail deferred task instances whose saved state can't be resumed, instead of leaving them stuck (#71183)
+- Fix task callbacks being skipped when ``TriggerDagRunOperator`` gets a 404 (#71083)
+- Fix task state store rejecting keys that contain slashes (#70967)
+- Fix the ``deadline_reference`` decorator's no-parentheses form (#70966)
+- Fix Dag run duration stats crash on PostgreSQL 14+ (#70964)
+- Deactivate legacy Dags with a NULL ``bundle_name`` during upgrade from 2.x to 3.x (#70662)
+- Fix deadline alerts using an outdated Dag definition (#70965)
+- Fix deadline alert crashes on dynamic or malformed intervals (#70625)
+- Fix deadline alerts that have no fixed interval (#70659)
+- Fix backfill permission checks running against the wrong backfill for some ID formats (#71090)
+- Fix database lock contention and statement timeouts caused by slow asset listeners on large fan-outs (#71065)
+- Fix errors loading a Dag callback whose module isn't importable on the current component (#71042)
+- Reject reserved XCom serialization keys submitted as JSON string literals (#69462)
+- API: Return a clear error instead of a 500 for an invalid trigger-Dag-run request (#70775)
+- API: Return 503 when SQLite locks during backfill creation (#69659)
+- API: Return 422 for an empty backfill window and stop leaving orphan rows (#69367)
+- API: Return 410 instead of 500 when setting rendered fields for a stale task instance (#69529)
+- Reject invalid partition keys in the create asset events API (#69581)
+- Reject attaching partition keys to asset alias events (#69515)
+- Reject mismatched rollup mapper and window pairings at Dag parse time (#69516)
+- CLI: Reject inverted date windows in ``airflow partitions clear`` (#69547)
+- Fix asset materialization dropping the partition date on partitioned Dag runs (#69339)
+- UI: Fix partition progress returning errors or over-reporting for keys with slashes and duplicate rows (#69844)
+- Honor catchup for historical asset events in asset-triggered Dags (#69224)
+- Fix drifting data intervals for monthly/yearly schedules with catchup disabled (#69189)
+- Fix asset watcher triggers failing to decode their arguments (#70750)
+- Prevent Triggerer crashes by speeding up cleanup of unused triggers (#70668)
+- Fix Triggerer CrashLoopBackOff when ``json_logs`` is enabled (#70669)
+- Detect and surface task-worker communication deadlocks instead of hanging (#70744)
+- Fix TaskInstance duration calculation with SQLite (#70734)
+- Fix incorrect end date, duration, and map index in task try history for retried tasks (#69458)
+- Stop skipping ``none_failed_min_one_success`` tasks in mapped task groups (#70318)
+- Fix the scheduler firing ``on_failure_callback`` for heartbeat-timed-out retries (#69824)
+- Respect retries for deferrable tasks that fail via a trigger-emitted ``TaskFailedEvent``, instead of always failing terminally (#71163)
+- Prevent scheduler crash when process/thread are missing from the log format (#69787)
+- Fix ``TaskInstance`` mark-success downstream default (#70143)
+- Fix crash when tailing logs of a running task instance (#69521)
+- API: Return a consistent error response instead of a 500 when a database error occurs (#70236)
+- Fix Dag reparse authorization checking the wrong Dag (#70115)
+- Don't deactivate Dag bundles owned by other Dag processors (#70017)
+- Fix Dag bundle refresh using stale state (#70374)
+- Skip stored credentials when a connection test overrides host or port (#70010)
+- Fix cursor pagination dropping rows when sorting by a nullable column (#70739)
+- API: Filter stale Dag tags from the public API (#70746)
+- Fix Dag details active-runs count to exclude queued runs (#70511)
+- Fix environment-variable config overrides being ignored for some provider config sections (#70732)
+- CLI: Fix config ``update --option``/``--ignore-option`` never matching options (#70757)
+- CLI: Fix ``TypeError`` in ``airflow db shell`` when the database name is missing (#70752)
+- CLI: Send Airflow CLI logs to stderr for ``-o`` commands so structured output stays machine-readable (#70747)
+- Reduce Dag processor log noise from per-Dag run lookups (#69514)
+- Suppress noisy Alembic plugin setup logs (#70116)
+- Silence internal HTTP 422 deprecation warnings in logs (#70745)
+- Only resolve a team-namespaced environment secret for its own team (#70882)
+- Fix a team-scoped secret lookup that could return another team's secret for a crafted key (#71041)
+- Mask sensitive ``Variable`` values stored as JSON lists (#71069)
+- Fix secrets recorded unmasked in the audit log for bulk ``Variable``/``Connection`` updates (#71043)
+- Fix sensitive values nested inside lists, tuples, or sets not being masked in logs (#70189)
+- UI: Fix secrets not masked in the Rendered Templates view with ``KubernetesPodOperator`` (#70756)
+- Fix an open-redirect by rejecting malformed URLs in redirect validation (#70515)
+- Fix npm vulnerabilities in the simple auth manager (#70753)
+- Bump ``structlog>=26.1.0`` and ``croniter>=6.2.2`` to fix memory leaks (#70749)
+- Fix task instance notes not being visible to state-change listeners (#70252)
+- Call listeners for a running task instance when a Dag run state is manually set (#70286)
+- Fix ``dag`` and ``note`` missing from Dag-run state-change listener events (#70245)
+- Remove a Dag Run or Task Instance note when its content is cleared (#70735)
+- Fix ``email_on_failure``/``email_on_retry`` task alerts silently ignoring a custom ``[email] email_backend`` and always routing through ``SmtpNotifier``; an ``email_backend`` that cannot be imported now errors loudly instead of silently falling back to SMTP (#70129)
+- UI: Fix task states stuck stale when a run finishes quickly (#70397)
+- UI: Fix Grid view scrollbar hiding the latest Dag run (#70555)
+- UI: Fix grid/graph view topological sort for group-level and cross-group dependencies (#70591)
+- UI: Fix ``Trigger Again`` showing empty config for the selected run (#70288)
+- UI: Fix blank Assets dependency graph from missing Dag nodes (#70743)
+- UI: Fix the collapse button overlapping details panel content (#70751)
+- UI: Fix log line-number link highlighting (#69663)
+- UI: Fix partition key display and input handling (#69974)
+- UI: Fix Gantt tooltip showing the wrong end date on queued/scheduled bars (#70742)
+- UI: Make the Dag pause toggle distinguishable in dark mode (#70748)
+
+Miscellaneous
+^^^^^^^^^^^^^
+
+- UI: Show a note indicator on Dag runs in the Grid view (#70834)
+- UI: Show a saved-note indicator on task instances in the Grid view (#70829)
+- Add partition date filters to the Dag run API (#70304)
+- Add support for filtering Dags by any Dag run state (#70292)
+- Allow filtering the Dags list by failed and success runs in any run-state filter (#70293)
+- Add expand/collapse all for the Dag Run conf JSON in the Dag Runs list (#69777)
+- Show the Dag Run conf column by default in the Dag Runs list (#69604)
+- API: Allow keeping finished task states when clearing a Dag run (#69662)
+- Export ``FanOutMapper`` and wait policies from ``airflow.partition_mappers`` (#69513)
+- Add a ``task.execute`` OpenTelemetry span around task execution (#69359)
+- Add a ``run_type`` tag to the ``dagrun.duration.failed`` metric (#70731)
+- Improve error messages when a value's type cannot be serialized (for example, XCom values) (#70982)
+- Highlight user-code frames in task log tracebacks (#70375)
+- Optimize scheduling by avoiding duplicate trigger-rule upstream-count queries per pass (#70826)
+- Hide the run-on-latest-version option for non-versioned bundles (#70702)
+- Show the current page name in the browser tab title (#69656)
+- UI: Show larger Dag run and task instance counts on the dashboard (#71008)
+- UI: Refresh task details immediately when switching tasks (#71012)
+- UI: Reset the task try when switching Graph tasks (#70817)
+- UI: Add JSON validation and prettifying to the JSON editor (#70554)
+- UI: Make the Dag pause toggle update immediately on click (#70741)
+- UI: Improve Dag list rendering by deferring the pause confirmation dialog (#70025)
+- UI: Align boolean controls in the Trigger Dag form (#70963)
+- UI: Wrap long plugin source paths in the import-error dialog (#70737)
+- UI: Allow multiple routes to show active nav buttons (#70200)
+- UI: Make duration charts readable at a glance (#70197)
+- UI: Improve Grid view performance when summaries stream in (#69958)
+- UI: Improve Grid view responsiveness by avoiding a full re-render on hover (#69928)
+- UI: Fix missing glyph icons in the code editor (#69422)
+- UI: Complete missing Hebrew (``he``) translations (#70566)
+- UI: Complete missing Arabic (``ar``) translations (#70510)
+- UI: Complete the Polish (``pl``) translation (#70507)
+- UI: Add missing Greek (``el``) translations (#70471)
+- Optimize database queries when triggers submit asset events (#70738)
+- Optimize core queries by removing redundant result de-duplication (#69918)
+- Remove redundant database commits in API route handlers (#69620)
+- Make ``ResumableJobMixin`` an abstract base class (subclasses must implement its methods) (#70810)
+- UI: Add a keyboard shortcut help dialog (press ``?``) and clean up the graph/grid view (#69978)
+
+Doc Only Changes
+^^^^^^^^^^^^^^^^
+
+- Document the effect of state-store cleanup in ``ResumableJobMixin`` (#70792)
+- Document ``jwt_secret``/``_secret`` and ``LocalFilesystemBackend`` config support (#70730)
+- Clarify the ``logging_config_class`` contract and document ``REMOTE_TASK_LOG`` (#70592)
+- Clarify ``AssetAlias`` usage (#71087)
+- Clarify the ``AssetPartitionDagRun`` provisional-run docstring (#70104)
+- Clarify custom-time parameterized timetable logic (#69387)
+- Document native template rendering type coercion (#69389)
+- Update multi-node executor guidance (#69388)
+- Add a custom metrics section to the metrics docs (#70778)
+- Add Task SDK, Go and Java SDK execution architecture diagrams (#70100)
+- Add a docker-stack docs example for the venv scene (#69112)
+- Link the pkg.go.dev API reference from the Go SDK docs (#69440)
+- Link the published Java SDK API reference from the Java SDK docs (#69448)
+- Add a real example of ``CronDataIntervalTimetable`` and ``DeltaDataIntervalTimetable`` (#70434)
+- Fix incorrect code samples in the Deadline Alerts docs (#70786)
+- Fix reversed-direction examples in the ``FanOutMapper`` docs (#69511)
+- Fix documentation misusing previous/next for task relationships (#69570)
+- Fix partition-label casing (#69470)
+- Fix stale Airflow 2.0 references in ``dev/README.md`` (#70107)
+- Fix a Sphinx build error (#70761)
+- Update the description on "What is Airflow" (#71068)
+- Update local OTel Collector and Prometheus versions to support exponential histograms (#69056)
+- Simplify the API docs on pattern search (#70509)
+- Standardize Alembic migration descriptions and add a style lint (#70262)
+- UI: Complete Spanish UI translations (#70196)
+- Update French (``fr``) UI translations to 100% coverage (#70387)
+- Add missing Dutch (``nl``) translations (#70004)
+- Add missing Simplified Chinese (``zh-CN``) UI translations (#70417, #70418, #70419)
+- Fill the Taiwanese Mandarin (``zh-TW``) translation gaps (#70195, #70379, #69707)
+- Add missing Korean (``ko``) translations and backport from main (#70807, #70832)
+
 Airflow 3.3.0 (2026-07-06)
 --------------------------
 
@@ -6206,6 +6649,17 @@ You can achieve it also by installing airflow with ``[celery]``, ``[cncf.kuberne
 
 Users who base their images on the ``apache/airflow`` reference image (not slim) should be unaffected - the base
 reference image comes with all the three providers installed.
+
+``DAG.test()`` now returns a ``DagRun`` and no longer stops at the first task failure (#32820)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+This was an undocumented side effect of adding support for setup/teardown tasks in mapped task
+groups. Previously, ``DAG.test()`` returned ``None``, and if any task raised an exception, the
+whole test run stopped immediately without running the DAG's other schedulable tasks. Now,
+``DAG.test()`` returns the ``DagRun`` it executed, and a failing task no longer aborts the run:
+the remaining tasks keep running according to their trigger rules, just like in a real scheduled
+run. This makes it possible to use ``DAG.test()`` to test DAGs where a task is expected to fail
+but downstream tasks with a different trigger rule (or a parallel mapped task group) should still
+run, without having to fall back to the ``DebugExecutor``.
 
 Improvement Changes
 ^^^^^^^^^^^^^^^^^^^

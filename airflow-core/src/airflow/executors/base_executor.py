@@ -428,7 +428,10 @@ class BaseExecutor(LoggingMixin):
 
     def order_queued_tasks_by_priority(self) -> list[tuple[TaskInstanceKey, workloads.ExecuteTask]]:
         """
-        Orders the queued tasks by priority.
+        Orders the queued tasks by priority, highest ``priority_weight`` first.
+
+        Consumers take workloads from the front of this list, so the highest priority
+        tasks must come first for them to be scheduled before the rest.
 
         :return: List of workloads from the queued_tasks according to the priority.
         """
@@ -439,7 +442,7 @@ class BaseExecutor(LoggingMixin):
         return sorted(
             self.queued_tasks.items(),
             key=lambda x: x[1].ti.priority_weight,
-            reverse=False,
+            reverse=True,
         )
 
     def trigger_tasks(self, open_slots: int) -> None:

@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Text, type TextProps } from "@chakra-ui/react";
 import type { CSSProperties } from "react";
-import { FiArrowUpRight, FiArrowDownRight } from "react-icons/fi";
+
+import { Box, type TextProps } from "@chakra-ui/react";
+import { FiArrowDownRight, FiArrowUpRight } from "react-icons/fi";
 
 import type { NodeResponse } from "openapi/requests/types.gen";
 
@@ -50,7 +51,7 @@ export const TaskName = ({
 }: TaskNameProps) => {
   if (isGroup) {
     return (
-      <Text
+      <Box
         fontSize="md"
         fontWeight="bold"
         overflow="hidden"
@@ -60,12 +61,12 @@ export const TaskName = ({
       >
         {label}
         {isMapped ? " [ ]" : undefined}
-      </Text>
+      </Box>
     );
   }
 
   return (
-    <Text
+    <Box
       fontSize={isZoomedOut ? "lg" : "md"}
       fontWeight="bold"
       overflow="hidden"
@@ -79,6 +80,6 @@ export const TaskName = ({
       {setupTeardownType === "teardown" && (
         <FiArrowDownRight size={isZoomedOut ? 24 : 15} style={iconStyle} />
       )}
-    </Text>
+    </Box>
   );
 };

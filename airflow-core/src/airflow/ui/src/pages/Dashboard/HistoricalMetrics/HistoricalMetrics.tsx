@@ -16,14 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, VStack, SimpleGrid, GridItem, Flex, Heading } from "@chakra-ui/react";
 import { useState } from "react";
+
+import { Box, VStack, SimpleGrid, GridItem, Flex, Heading } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { PiBooks } from "react-icons/pi";
 
 import { useAssetServiceGetAssetEvents, useDashboardServiceHistoricalMetrics } from "openapi/queries";
+
 import { AssetEvents } from "src/components/Assets/AssetEvents";
 import { ErrorAlert } from "src/components/ErrorAlert";
+
 import { useAutoRefresh } from "src/utils";
 
 import { DagRunMetrics } from "./DagRunMetrics";
@@ -74,13 +77,13 @@ export const HistoricalMetrics = ({ endDate, startDate }: HistoricalMetricsProps
             {!isLoading && data !== undefined && (
               <Box>
                 <DagRunMetrics
+                  countsAreLowerBounds={data.dag_run_counts_are_lower_bounds ?? false}
                   dagRunStates={data.dag_run_states}
                   startDate={startDate}
-                  stateCountLimit={data.state_count_limit}
                 />
                 <TaskInstanceMetrics
+                  countsAreLowerBounds={data.task_instance_counts_are_lower_bounds ?? false}
                   startDate={startDate}
-                  stateCountLimit={data.state_count_limit}
                   taskInstanceStates={data.task_instance_states}
                 />
               </Box>

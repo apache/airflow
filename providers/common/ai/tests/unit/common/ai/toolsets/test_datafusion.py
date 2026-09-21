@@ -180,8 +180,9 @@ class TestDataFusionToolsetQuery:
             )
         )
         data = json.loads(result)
-        assert data["rows"] == [{"id": 1, "amount": 10.5}, {"id": 2, "amount": 20.0}]
-        assert data["count"] == 2
+        assert data["columns"] == ["id", "amount"]
+        assert data["rows"] == [[1, 10.5], [2, 20.0]]
+        assert data["row_count"] == 2
 
     def test_truncates_at_max_rows(self):
         cfg = _make_mock_datasource_config()
@@ -197,9 +198,10 @@ class TestDataFusionToolsetQuery:
             )
         )
         data = json.loads(result)
-        assert len(data["rows"]) == 1
+        assert data["rows"] == [[1, "a"]]
         assert data["truncated"] is True
-        assert data["count"] == 3
+        assert data["truncated_by"] == "max_rows"
+        assert data["total_rows"] == 3
 
     def test_handles_empty_result(self):
         cfg = _make_mock_datasource_config()
@@ -216,14 +218,14 @@ class TestDataFusionToolsetQuery:
         )
         data = json.loads(result)
         assert data["rows"] == []
-        assert data["count"] == 0
+        assert data["row_count"] == 0
 
     def test_blocks_create_table_by_default(self):
         cfg = _make_mock_datasource_config()
         ts = DataFusionToolset([cfg])
         ts._engine = _make_mock_engine()
 
-        with pytest.raises(SQLSafetyError, match="Statement type 'Create' is not allowed"):
+        with pytest.raises(ModelRetry, match="Statement type 'Create' is not allowed"):
             asyncio.run(
                 ts.call_tool(
                     "query",
@@ -232,6 +234,22 @@ class TestDataFusionToolsetQuery:
                     tool=MagicMock(spec=ToolsetTool),
                 )
             )
+
+    def test_sql_syntax_error_raises_model_retry(self):
+        cfg = _make_mock_datasource_config()
+        ts = DataFusionToolset([cfg])
+        ts._engine = _make_mock_engine()
+
+        with pytest.raises(ModelRetry) as exc_info:
+            asyncio.run(
+                ts.call_tool(
+                    "query",
+                    {"sql": "SELECT * FROM t WHERE"},
+                    ctx=MagicMock(spec=RunContext),
+                    tool=MagicMock(spec=ToolsetTool),
+                )
+            )
+        assert isinstance(exc_info.value.__cause__, SQLSafetyError)
 
     def test_allows_create_table_when_writes_enabled(self):
         cfg = _make_mock_datasource_config()

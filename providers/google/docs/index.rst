@@ -90,7 +90,7 @@ Google services including:
   - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 
-Release: 22.3.0
+Release: 22.5.0
 
 Provider package
 ----------------
@@ -130,7 +130,7 @@ PIP package                                 Version required
 ``google-auth``                             ``>=2.29.0``
 ``google-auth-httplib2``                    ``>=0.0.1``
 ``google-genai``                            ``>=2.8.0``
-``google-cloud-aiplatform[evaluation]``     ``>=1.155.0``
+``google-cloud-aiplatform[evaluation]``     ``>=1.164.0``
 ``ray[default]``                            ``>=2.42.0; python_version < "3.13"``
 ``ray[default]``                            ``>=2.49.0; python_version >= "3.13" and python_version < "3.14"``
 ``ray[default]``                            ``>=2.55.0; python_version >= "3.14" and python_version < "3.15"``
@@ -175,7 +175,7 @@ PIP package                                 Version required
 ``google-cloud-run``                        ``>=0.10.0``
 ``google-cloud-batch``                      ``>=0.13.0``
 ``grpcio-gcp``                              ``>=0.2.2``
-``httpx``                                   ``>=0.25.0``
+``httpx2``                                  ``>=2.0.0``
 ``looker-sdk``                              ``>=22.4.0,!=24.18.0``
 ``pandas-gbq``                              ``>=0.7.0``
 ``pandas``                                  ``>=2.1.2; python_version < "3.13"``
@@ -210,6 +210,7 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 Dependent package                                                                                                         Extra
 ========================================================================================================================  ====================
 `apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                      ``amazon``
+`apache-airflow-providers-apache-beam <https://airflow.apache.org/docs/apache-airflow-providers-apache-beam>`_            ``apache.beam``
 `apache-airflow-providers-apache-cassandra <https://airflow.apache.org/docs/apache-airflow-providers-apache-cassandra>`_  ``apache.cassandra``
 `apache-airflow-providers-cncf-kubernetes <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes>`_    ``cncf.kubernetes``
 `apache-airflow-providers-common-messaging <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging>`_  ``common.messaging``
@@ -238,12 +239,13 @@ Install them when installing from PyPI. For example:
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-google[cncf.kubernetes]
+    pip install apache-airflow-providers-google[apache.beam]
 
 
 ====================  ====================================================
 Extra                 Dependencies
 ====================  ====================================================
+``apache.beam``       ``apache-airflow-providers-apache-beam>=6.2.2``
 ``cncf.kubernetes``   ``apache-airflow-providers-cncf-kubernetes>=10.1.0``
 ``fab``               ``apache-airflow-providers-fab>=2.0.0``
 ``leveldb``           ``plyvel>=1.5.1; python_version < '3.13'``
@@ -259,7 +261,7 @@ Extra                 Dependencies
 ``postgres``          ``apache-airflow-providers-postgres``
 ``presto``            ``apache-airflow-providers-presto``
 ``salesforce``        ``apache-airflow-providers-salesforce``
-``sftp``              ``apache-airflow-providers-sftp``
+``sftp``              ``apache-airflow-providers-sftp>=5.3.3``
 ``ssh``               ``apache-airflow-providers-ssh``
 ``trino``             ``apache-airflow-providers-trino``
 ``http``              ``apache-airflow-providers-http``
@@ -273,5 +275,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-google 22.3.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.3.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.3.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.3.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-google 22.3.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.3.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.3.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.3.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-google 22.5.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.5.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.5.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.5.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-google 22.5.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.5.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.5.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-22.5.0-py3-none-any.whl.sha512>`__)

@@ -36,6 +36,7 @@ from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
 from airflow.api_fastapi.execution_api.datamodels.connection import ConnectionResponse
+from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import TaskArgBinding
 from airflow.api_fastapi.execution_api.datamodels.variable import VariableResponse
 from airflow.utils.state import (
     DagRunState,
@@ -390,6 +391,10 @@ class DagRun(StrictBaseModel):
             else:
                 values["note"] = None
 
+        # A property rather than a column, so the loop above never picks it up.
+        if not insp.detached:
+            values["team_name"] = data.team_name
+
         return values
 
 
@@ -433,6 +438,13 @@ class TIRunContext(BaseModel):
     When resuming from deferral, this is set to the task's original ``start_date`` so the
     supervisor uses it instead of ``datetime.now()``.  This ensures ``context["ti"].start_date``
     always reflects when the task *first* started, not when it was rescheduled/resumed.
+    """
+
+    arg_bindings: list[TaskArgBinding] | None = None
+    """
+    Ordered positional-argument binding spec for stub (foreign-runtime) tasks.
+
+    ``None`` for regular tasks and for stub tasks that declare no parameters.
     """
 
 

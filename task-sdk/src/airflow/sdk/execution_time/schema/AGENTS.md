@@ -83,11 +83,14 @@ head shape *is* the schema for the new body.
        )
    ```
 
-3. Reference the new `VersionChange` from the bundle in
-   `versions/__init__.py`:
+3. Reference the new `VersionChange` from the bundle returned by
+   `get_bundle()` in `versions/__init__.py`:
 
    ```python
-   Version("2026-06-16", AddRetryDelay, AddSentryTraceField),
+   return VersionBundle(
+       HeadVersion(),
+       Version("2026-06-16", AddRetryDelay, AddSentryTraceField),
+   )
    ```
 
 4. The `generate-supervisor-schemas-snapshot` prek hook will

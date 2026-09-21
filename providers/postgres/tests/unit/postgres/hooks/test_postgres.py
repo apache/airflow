@@ -27,7 +27,7 @@ import pytest
 import sqlalchemy
 
 from airflow.models import Connection
-from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 
@@ -110,7 +110,7 @@ class TestPostgresHookConn:
         )
         hook = PostgresHook(connection=conn)
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(TypeError, match="'sqlalchemy_query' must be of type dict"):
             hook.sqlalchemy_url
 
     @pytest.mark.parametrize("aws_conn_id", [NOTSET, None, "mock_aws_conn"])

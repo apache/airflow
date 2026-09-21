@@ -16,15 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ReactNode } from "react";
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
-import React from "react";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { UseDagServiceGetDagsUiKeyFn } from "openapi/queries";
 import type { DAGWithLatestDagRunsCollectionResponse } from "openapi/requests/types.gen";
+
 import { useTogglePause } from "src/queries/useTogglePause";
 
 const DAG_ID = "dag_under_test";
@@ -42,6 +44,7 @@ const buildDagsList = (isPaused: boolean): DAGWithLatestDagRunsCollectionRespons
       fileloc: "/dags/dag.py",
       has_import_errors: false,
       has_task_concurrency_limits: false,
+      has_unfinished_runs: false,
       is_favorite: false,
       is_paused: isPaused,
       is_stale: false,
@@ -58,6 +61,7 @@ const buildDagsList = (isPaused: boolean): DAGWithLatestDagRunsCollectionRespons
       next_dagrun_run_after: null,
       owners: ["airflow"],
       pending_actions: 0,
+      scheduling_state: isPaused ? "paused" : "active",
       tags: [],
       timetable_description: null,
       timetable_partitioned: false,
@@ -71,7 +75,7 @@ const server = setupServer();
 
 const createWrapper =
   (queryClient: QueryClient) =>
-  ({ children }: { readonly children: React.ReactNode }) => (
+  ({ children }: { readonly children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 
@@ -158,6 +162,29 @@ describe("useTogglePause", () => {
     const cached = queryClient.getQueryData<DAGWithLatestDagRunsCollectionResponse>(dagsListKey);
 
     expect(cached?.dags[0]?.is_paused).toBe(false);
+    expect(cached?.dags[0]?.scheduling_state).toBe("active");
+  });
+
+  it("optimistically marks a Dag as draining without hard-pausing it", async () => {
+    server.use(
+      http.patch("*/api/v2/dags/:dagId", () =>
+        HttpResponse.json({ dag_id: DAG_ID, is_paused: false, scheduling_state: "draining" }),
+      ),
+    );
+
+    const { dagsListKey, queryClient } = seedClient(false);
+    const { result } = renderHook(() => useTogglePause({ dagId: DAG_ID }), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    result.current.mutate({ dagId: DAG_ID, requestBody: { scheduling_state: "draining" } });
+
+    await waitFor(() => {
+      const dag = queryClient.getQueryData<DAGWithLatestDagRunsCollectionResponse>(dagsListKey)?.dags[0];
+
+      expect(dag?.is_paused).toBe(false);
+      expect(dag?.scheduling_state).toBe("draining");
+    });
   });
 
   it("invalidates the dags list query on settle so filtered lists refetch", async () => {

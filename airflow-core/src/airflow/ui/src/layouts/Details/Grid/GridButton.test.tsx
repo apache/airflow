@@ -20,38 +20,44 @@ import "@testing-library/jest-dom";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { TimezoneContext } from "src/context/timezone";
 import { Wrapper } from "src/utils/Wrapper";
 
 import { GridButton } from "./GridButton";
 
 describe("GridButton", () => {
-  it("shows run ID in the grid tooltip", () => {
+  it("shows run details in the grid tooltip respecting the selected timezone", async () => {
     vi.useFakeTimers();
 
     render(
-      <GridButton
-        dagId="example_dag"
-        duration={3661}
-        label="2026-04-21T00:00:00+00:00"
-        runId="manual__2026-04-21T00:00:00+00:00"
-        searchParams=""
-        state="success"
-      >
-        <span>bar</span>
-      </GridButton>,
+      <TimezoneContext.Provider value={{ selectedTimezone: "Europe/Vienna", setSelectedTimezone: vi.fn() }}>
+        <GridButton
+          dagId="example_dag"
+          duration={3661}
+          runAfter="2026-04-21T00:00:00+00:00"
+          runId="manual__2026-04-21T00:00:00+00:00"
+          searchParams=""
+          state="success"
+        >
+          <span>bar</span>
+        </GridButton>
+      </TimezoneContext.Provider>,
       { wrapper: Wrapper },
     );
 
-    act(() => {
-      fireEvent.mouseEnter(screen.getByText("bar"));
-      vi.advanceTimersByTime(500);
-    });
+    try {
+      await act(async () => {
+        fireEvent.pointerEnter(screen.getByText("bar"));
+        await vi.advanceTimersByTimeAsync(500);
+      });
 
-    expect(screen.getByTestId("basic-tooltip")).toHaveTextContent(
-      "common:runId: manual__2026-04-21T00:00:00+00:00",
-    );
-    expect(screen.getByTestId("basic-tooltip")).toHaveTextContent("duration: 01:01:01");
+      const tooltip = screen.getByRole("tooltip");
 
-    vi.useRealTimers();
+      expect(tooltip).toHaveTextContent("2026-04-21 02:00:00");
+      expect(tooltip).toHaveTextContent("common:runId: manual__2026-04-21T00:00:00+00:00");
+      expect(tooltip).toHaveTextContent("duration: 1h 1m");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

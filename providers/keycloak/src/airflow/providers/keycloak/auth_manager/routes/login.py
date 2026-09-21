@@ -28,7 +28,11 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX, get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
-from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_1_1_PLUS, AIRFLOW_V_3_1_8_PLUS
+from airflow.providers.keycloak.version_compat import (
+    AIRFLOW_V_3_1_1_PLUS,
+    AIRFLOW_V_3_1_8_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+)
 
 if AIRFLOW_V_3_1_8_PLUS:
     from airflow.api_fastapi.app import get_cookie_path
@@ -50,10 +54,8 @@ from airflow.providers.common.compat.sdk import conf
 from airflow.providers.keycloak.auth_manager.constants import (
     COOKIE_NAME_ACCESS_TOKEN,
     COOKIE_NAME_ID_TOKEN,
-    COOKIE_NAME_NAME,
     COOKIE_NAME_OAUTH_STATE,
     COOKIE_NAME_REFRESH_TOKEN,
-    COOKIE_NAME_USER_ID,
 )
 from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import KeycloakAuthManager
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
@@ -124,6 +126,7 @@ def login_callback(request: Request):
         refresh_token=tokens["refresh_token"],
     )
     token = get_auth_manager().generate_jwt(user)
+    request.state.jwt_token_issued = True
 
     response = RedirectResponse(url=conf.get("api", "base_url", fallback="/"), status_code=303)
     secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
@@ -141,19 +144,14 @@ def login_callback(request: Request):
         COOKIE_NAME_ID_TOKEN, tokens["id_token"], path=cookie_path, secure=secure, httponly=True
     )
 
-    response.set_cookie(COOKIE_NAME_USER_ID, userinfo["sub"], path=cookie_path, secure=secure, httponly=True)
+    if AIRFLOW_V_3_3_PLUS:
+        response.set_cookie(
+            COOKIE_NAME_ACCESS_TOKEN, tokens["access_token"], path=cookie_path, secure=secure, httponly=True
+        )
 
-    response.set_cookie(
-        COOKIE_NAME_NAME, userinfo["preferred_username"], path=cookie_path, secure=secure, httponly=True
-    )
-
-    response.set_cookie(
-        COOKIE_NAME_ACCESS_TOKEN, tokens["access_token"], path=cookie_path, secure=secure, httponly=True
-    )
-
-    response.set_cookie(
-        COOKIE_NAME_REFRESH_TOKEN, tokens["refresh_token"], path=cookie_path, secure=secure, httponly=True
-    )
+        response.set_cookie(
+            COOKIE_NAME_REFRESH_TOKEN, tokens["refresh_token"], path=cookie_path, secure=secure, httponly=True
+        )
 
     return response
 
@@ -205,23 +203,17 @@ def logout_callback(request: Request):
         secure=secure,
         httponly=True,
     )
-    response.delete_cookie(key=COOKIE_NAME_USER_ID, path=cookie_path, secure=secure, httponly=True)
-    response.delete_cookie(
-        key=COOKIE_NAME_NAME,
-        path=cookie_path,
-        secure=secure,
-        httponly=True,
-    )
-    response.delete_cookie(
-        key=COOKIE_NAME_ACCESS_TOKEN,
-        path=cookie_path,
-        secure=secure,
-        httponly=True,
-    )
-    response.delete_cookie(
-        key=COOKIE_NAME_REFRESH_TOKEN,
-        path=cookie_path,
-        secure=secure,
-        httponly=True,
-    )
+    if AIRFLOW_V_3_3_PLUS:
+        response.delete_cookie(
+            key=COOKIE_NAME_ACCESS_TOKEN,
+            path=cookie_path,
+            secure=secure,
+            httponly=True,
+        )
+        response.delete_cookie(
+            key=COOKIE_NAME_REFRESH_TOKEN,
+            path=cookie_path,
+            secure=secure,
+            httponly=True,
+        )
     return response

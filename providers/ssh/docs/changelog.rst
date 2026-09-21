@@ -27,6 +27,27 @@
 Changelog
 ---------
 
+6.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SSHRemoteJobOperator cleanup failing with custom remote_base_dir (#69885)``
+* ``Quote remote job paths in posix ssh command builders (#70091)``
+* ``Keep SSH remote job running when its PTY session hangs up (#70573)``
+* ``Fix template-field validation timing in ssh provider operators (#70315)``
+
+Misc
+~~~~
+
+* ``Support Paramiko 5 (#69712)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix flaky test_command_timeout_fail in SSH provider (#65864)``
+   * ``Make SSH remote-job kill test diagnosable and stop it reddening main (#70562)``
+
 6.0.0
 .....
 

@@ -722,6 +722,10 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.google.cloud.sensors.bigtable"],
             },
             {
+                "integration-name": "Google Cloud SQL",
+                "python-modules": ["airflow.providers.google.cloud.sensors.cloud_sql"],
+            },
+            {
                 "integration-name": "Managed Service for Apache Airflow",
                 "python-modules": ["airflow.providers.google.cloud.sensors.cloud_composer"],
             },
@@ -1541,6 +1545,20 @@ def get_provider_info():
                 "hook-class-name": "airflow.providers.google.leveldb.hooks.leveldb.LevelDBHook",
                 "hook-name": "LevelDB",
                 "connection-type": "leveldb",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["login", "password", "schema", "port"],
+                    "relabeling": {},
+                },
+                "conn-fields": {
+                    "create_if_missing": {
+                        "label": "Create a database if it does not exist",
+                        "schema": {"type": ["boolean", "null"], "default": False},
+                    },
+                    "error_if_exists": {
+                        "label": "Raise an exception if the database already exists",
+                        "schema": {"type": ["boolean", "null"], "default": False},
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.google.ads.hooks.ads.GoogleAdsHook",
@@ -1600,6 +1618,7 @@ def get_provider_info():
             "airflow.providers.google.cloud.links.compute.ComputeInstanceTemplateDetailsLink",
             "airflow.providers.google.cloud.links.compute.ComputeInstanceGroupManagerDetailsLink",
             "airflow.providers.google.cloud.links.cloud_run.CloudRunJobLoggingLink",
+            "airflow.providers.google.cloud.links.cloud_run.CloudRunJobExecutionDetailsLink",
             "airflow.providers.google.cloud.links.cloud_tasks.CloudTasksQueueLink",
             "airflow.providers.google.cloud.links.cloud_tasks.CloudTasksLink",
             "airflow.providers.google.cloud.links.dataproc.DataprocLink",
@@ -1630,6 +1649,7 @@ def get_provider_info():
             "airflow.providers.google.cloud.links.vertex_ai.VertexAIPipelineJobListLink",
             "airflow.providers.google.cloud.links.vertex_ai.VertexAIRayClusterLink",
             "airflow.providers.google.cloud.links.vertex_ai.VertexAIRayClusterListLink",
+            "airflow.providers.google.cloud.links.vertex_ai.VertexAICustomJobLink",
             "airflow.providers.google.cloud.links.workflows.WorkflowsWorkflowDetailsLink",
             "airflow.providers.google.cloud.links.workflows.WorkflowsListOfWorkflowsLink",
             "airflow.providers.google.cloud.links.workflows.WorkflowsExecutionLink",
@@ -1709,7 +1729,11 @@ def get_provider_info():
             {
                 "classpath": "airflow.providers.google.cloud.log.gcs_task_handler.GCSRemoteLogIO",
                 "scheme": "gs",
-            }
+            },
+            {
+                "classpath": "airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverRemoteLogIO",
+                "scheme": "stackdriver",
+            },
         ],
         "queues": [
             "airflow.providers.google.event_scheduling.events.pubsub.PubSubMessageQueueEventTriggerContainer"

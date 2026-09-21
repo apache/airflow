@@ -26,6 +26,92 @@
 Changelog
 ---------
 
+7.20.0
+.......
+
+.. warning::
+  ``DatabricksSQLStatementsSensor`` now rejects the combination of ``statement`` and
+  ``statement_id`` when the Dag is parsed rather than when the task runs, and the check is
+  ``is not None``, so an empty string counts as provided. ``statement="SELECT 1"`` together
+  with ``statement_id=""`` — or with a ``statement_id`` template that renders to ``None``
+  under ``render_template_as_native_obj=True`` — ran the statement in 7.19.0 and now raises
+  at Dag parse time. Pass exactly one of the two and omit the other entirely instead of
+  passing an empty value. The argument-validation errors in this sensor are also now
+  ``ValueError`` rather than ``AirflowException``.
+
+Features
+~~~~~~~~
+
+* ``Propagate OpenLineage context to Databricks job runs (#72643)``
+* ``Add performance_target to Databricks RunNow and CreateJobs operators (#72148)``
+* ``Add deferrable mode to Databricks SQL warehouse operators (#71752)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Report a retried Databricks task once, from its last attempt (#72313)``
+* ``Fix Databricks hook dropping tasks beyond the first page of a run (#72304)``
+* ``Validate DatabricksSQLStatementsSensor exclusivity at __init__ (#70831)``
+
+Misc
+~~~~
+
+* ``Use non-deprecated user_agent_entry param in DatabricksSqlHook (#72103)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Warn about the DatabricksSQLStatementsSensor exclusivity tightening (#72761)``
+   * ``Use common.compat.sdk for the remaining provider timezone imports (#71209)``
+
+7.19.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Databricks SQL warehouse lifecycle operators (#70088)``
+* ``Add performance_target parameter to DatabricksSubmitRunOperator (#71374)``
+* ``Add Databricks-native retry settings to task operators (#69182)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make 'durable' reach 'default_args' and warn when set below Airflow 3.3 (#71531)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document how clearing tasks works with task state store on durable operators (#71358)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Update changelog with better wording (#71161)``
+
+
+7.18.1
+......
+
+Misc
+~~~~
+
+* ``Review and update constraint dependencies (#70652)``
+* ``Validate DatabricksSQLStatementsSensor statement fields after rendering (#70340)``
+* ``Validate DatabricksCopyIntoOperator template fields after rendering (#70339)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document effect of state-store cleanup for operators with durable execution (#70721)``
+* ``Clarify Databricks retry_delay uses exponential backoff (#68622)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Restore Dag-parse-time validation for Databricks Repos operator arguments (#70551)``
+   * ``Validate Databricks Repos operators' template fields after rendering (#70341)``
+   * ``Limit pandas to < 3 for DataFrame XComs (#70791)``
+   * ``Revert "Limit pandas to < 3 for DataFrame XComs (#70791)" (#71100)``
+
 7.18.0
 ......
 
@@ -683,7 +769,7 @@ Misc
 .....
 
 .. note::
-  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+  This version contains no code changes. It was released to replace a previous version that was yanked due to a packaging issue.
 
 7.1.0
 .....

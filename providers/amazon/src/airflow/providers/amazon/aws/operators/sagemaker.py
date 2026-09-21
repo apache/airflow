@@ -299,11 +299,6 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
                 f"Argument action_if_job_exists accepts only 'timestamp' and 'fail'. \
                 Provided value: '{action_if_job_exists}'."
             )
-        if output_files_to_xcom and not wait_for_completion:
-            raise ValueError(
-                "output_files_to_xcom requires wait_for_completion=True. "
-                "Output files cannot be read before the job completes."
-            )
         self.action_if_job_exists = action_if_job_exists
         self.wait_for_completion = wait_for_completion
         self.print_log = print_log
@@ -329,6 +324,11 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
             self.config["RoleArn"] = hook.expand_role(self.config["RoleArn"])
 
     def execute(self, context: Context) -> dict:
+        if self.output_files_to_xcom and not self.wait_for_completion:
+            raise ValueError(
+                "output_files_to_xcom requires wait_for_completion=True. "
+                "Output files cannot be read before the job completes."
+            )
         self.preprocess_config()
 
         self.config["ProcessingJobName"] = self._get_unique_job_name(
@@ -379,6 +379,9 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
                     waiter_delay=self.check_interval,
                     waiter_max_attempts=self.max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="execute_complete",
             )
@@ -696,6 +699,9 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
                     job_type="endpoint",
                     waiter_delay=self.check_interval,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="execute_complete",
                 timeout=datetime.timedelta(seconds=self.max_ingestion_time),
@@ -924,6 +930,9 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
                     waiter_delay=self.check_interval,
                     waiter_max_attempts=self.max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="execute_complete",
             )
@@ -1100,6 +1109,9 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
                     job_type="tuning",
                     waiter_delay=self.check_interval,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="execute_complete",
                 timeout=(
@@ -1332,6 +1344,9 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
                     waiter_delay=self.check_interval,
                     waiter_max_attempts=self.max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="execute_complete",
             )
@@ -1478,6 +1493,9 @@ class SageMakerStartPipelineOperator(SageMakerBaseOperator):
                     waiter_delay=self.check_interval,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="execute_complete",
             )
@@ -1577,6 +1595,9 @@ class SageMakerStopPipelineOperator(SageMakerBaseOperator):
                     waiter_delay=self.check_interval,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="execute_complete",
             )
@@ -1926,9 +1947,6 @@ class SageMakerCreateNotebookOperator(AwsBaseOperator[SageMakerHook]):
         self.wait_for_completion = wait_for_completion
         self.create_instance_kwargs = create_instance_kwargs or {}
 
-        if self.create_instance_kwargs.get("tags") is not None:
-            self.create_instance_kwargs["tags"] = format_tags(self.create_instance_kwargs["tags"])
-
     def execute(self, context: Context):
         create_notebook_instance_kwargs = {
             "NotebookInstanceName": self.instance_name,
@@ -1941,7 +1959,10 @@ class SageMakerCreateNotebookOperator(AwsBaseOperator[SageMakerHook]):
             "RootAccess": self.root_access,
         }
         if self.create_instance_kwargs:
-            create_notebook_instance_kwargs.update(self.create_instance_kwargs)
+            create_instance_kwargs = dict(self.create_instance_kwargs)
+            if create_instance_kwargs.get("tags") is not None:
+                create_instance_kwargs["tags"] = format_tags(create_instance_kwargs["tags"])
+            create_notebook_instance_kwargs.update(create_instance_kwargs)
 
         self.log.info("Creating SageMaker notebook %s.", self.instance_name)
         response = self.hook.conn.create_notebook_instance(**prune_dict(create_notebook_instance_kwargs))

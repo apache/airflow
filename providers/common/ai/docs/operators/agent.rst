@@ -437,10 +437,18 @@ mode:
   expose a hook method that returns the processed result (``HookToolset``). The
   tool runs in the full worker environment with all its dependencies, and code
   mode just orchestrates it.
-- **Use a container-based execution environment** (e.g. Docker or E2B via
-  pydantic-ai-harness) instead of the in-process Monty sandbox. These support
-  third-party packages but pay a per-run container cost and a larger security
-  surface, so reach for them only when inline library code is genuinely required.
+- **Give the agent a real environment**, with
+  :class:`~airflow.providers.common.ai.toolsets.sandbox.SandboxToolset`. It hands
+  the model a shell and a filesystem in a disposable sandbox off the worker, so
+  third-party packages, a real interpreter and installed binaries are all
+  available. It costs a sandbox per run and a second or so to provision, against
+  well under a millisecond for Monty, so reach for it when inline library code is
+  genuinely required rather than by default. See :doc:`../toolsets` for the
+  backends and their limitations.
+
+The two are not exclusive: ``code_mode=True`` and a ``SandboxToolset`` can be
+enabled together, and the file tools fold into ``run_code`` while ``run_command``
+stays a tool of its own.
 
 Requires the ``code-mode`` extra::
 
@@ -484,10 +492,27 @@ Parameters
   See :ref:`capabilities-passthrough` for how to enable pydantic-ai capabilities
   such as ``Thinking``, ``WebSearch``, and ``ImageGeneration``.
 - ``usage_limits``: Optional pydantic-ai ``UsageLimits`` enforced on every
-  agent run (initial run, durable replay, and HITL regeneration). Use it to
-  cap requests, tokens, or tool calls per task -- agents are particularly
-  prone to runaway tool loops, so ``tool_calls_limit`` is a useful guardrail.
-  See :ref:`howto/operator:llm` for an example. Default ``None``.
+  agent run (initial run, durable replay, and HITL regeneration), or a
+  ``dict`` of the same fields -- the dict form is templated via Jinja, then
+  coerced per field type, failing the task with a ``ValueError`` naming the
+  field if a rendered value doesn't parse. Use it to cap requests, tokens, or
+  tool calls per task -- agents are particularly prone to runaway tool loops,
+  so ``tool_calls_limit`` is a useful guardrail. It also supports a per-run
+  USD ``cost_limit``; see :ref:`howto/operator:llm` for the caveats (not a
+  hard guarantee; not enforced for models pydantic-ai can't price, which log
+  a warning instead of failing the run) and an example. Default ``None``.
+
+  .. warning::
+     With ``durable=True``, a task retry replays cached model steps instead of
+     re-calling the model -- but pydantic-ai still adds each replayed step's
+     cost to the retry's own usage total, since it cannot distinguish a replay
+     from a live call. A ``cost_limit`` therefore counts already-paid-for
+     replayed cost against every retry's fresh budget, leaving less headroom
+     for the new calls the retry actually makes. And if the limit is lowered
+     between attempts -- easy to do by accident when ``usage_limits`` is
+     templated as a dict -- a retry can exceed it with zero new model calls.
+     The ``LLM run cost`` line in the task log reports the run's cumulative
+     cost for the same reason, not what this attempt actually spent.
 - ``durable``: When ``True``, enables step-level caching of model responses and
   tool results. On retry, cached steps are replayed instead of re-executing
   expensive LLM calls. On Airflow >= 3.3 the cache uses the task state store (no

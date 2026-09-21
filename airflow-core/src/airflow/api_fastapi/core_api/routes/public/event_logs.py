@@ -171,6 +171,12 @@ def get_event_logs(
         _PrefixSearchParam,
         Depends(prefix_search_param_factory(Log.event, "event_prefix_pattern")),
     ],
+    teams: Annotated[
+        FilterParam[list[str]],
+        Depends(
+            filter_param_factory(Log.team_name, list[str], FilterOptionEnum.IN, "teams", default_factory=list)
+        ),
+    ],
     readable_event_logs_filter: ReadableEventLogsFilterDep,
 ) -> EventLogCollectionResponse:
     """Get all Event Logs."""
@@ -214,6 +220,7 @@ def get_event_logs(
             owner_display_name_prefix_pattern,
             event_pattern,
             event_prefix_pattern,
+            teams,
             # Permission
             readable_event_logs_filter,
         ],

@@ -20,19 +20,21 @@ package execution
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/apache/airflow/go-sdk/airflow"
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
-	"github.com/apache/airflow/go-sdk/sdk"
 )
 
 // assertSucceedTask asserts RunTask produced a terminal SucceedTask body.
@@ -62,15 +64,15 @@ func assertRetryTask(t *testing.T, result any, reasonSubstr string) {
 
 // --- Test task functions ---
 
-func failingTask() error {
+func failingTask(airflow.Context) error {
 	return errors.New("task failed intentionally")
 }
 
-func panicTask() error {
+func panicTask(airflow.Context) error {
 	panic("something went wrong")
 }
 
-func simpleTask() error {
+func simpleTask(airflow.Context) error {
 	return nil
 }
 
@@ -83,23 +85,33 @@ func buildBundle(t *testing.T, register func(bundlev1.Registry)) bundlev1.Bundle
 	return reg
 }
 
-// --- Tests ---
+func newStartupDetails(
+	taskID string,
+	bindings ...genmodels.TaskArgBinding,
+) *genmodels.StartupDetails {
+	details := &genmodels.StartupDetails{
+		TI: genmodels.TaskInstance{
+			ID:       "550e8400-e29b-41d4-a716-446655440000",
+			DagID:    "test_dag",
+			TaskID:   taskID,
+			RunID:    "run1",
+			MapIndex: ptr(-1),
+		},
+		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
+	}
+	if bindings != nil {
+		specs := genmodels.ArgBindings(bindings)
+		details.TIContext.ArgBindings = &specs
+	}
+	return details
+}
 
 func TestTaskRunnerSuccess(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		r.AddDag("test_dag").AddTask(simpleTask)
 	})
 
-	details := &genmodels.StartupDetails{
-		TI: genmodels.TaskInstance{
-			ID:       "550e8400-e29b-41d4-a716-446655440000",
-			DagID:    "test_dag",
-			TaskID:   "simpleTask",
-			RunID:    "run1",
-			MapIndex: ptr(-1),
-		},
-		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
-	}
+	details := newStartupDetails("simpleTask")
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
@@ -113,16 +125,7 @@ func TestTaskRunnerFailure(t *testing.T) {
 		r.AddDag("test_dag").AddTask(failingTask)
 	})
 
-	details := &genmodels.StartupDetails{
-		TI: genmodels.TaskInstance{
-			ID:       "550e8400-e29b-41d4-a716-446655440000",
-			DagID:    "test_dag",
-			TaskID:   "failingTask",
-			RunID:    "run1",
-			MapIndex: ptr(-1),
-		},
-		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
-	}
+	details := newStartupDetails("failingTask")
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
@@ -136,20 +139,9 @@ func TestTaskRunnerRetry(t *testing.T) {
 		r.AddDag("test_dag").AddTask(failingTask)
 	})
 
-	details := &genmodels.StartupDetails{
-		TI: genmodels.TaskInstance{
-			ID:       "550e8400-e29b-41d4-a716-446655440000",
-			DagID:    "test_dag",
-			TaskID:   "failingTask",
-			RunID:    "run1",
-			MapIndex: ptr(-1),
-		},
-		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
-		TIContext: genmodels.TIRunContext{
-			ShouldRetry: true,
-			MaxTries:    3,
-		},
-	}
+	details := newStartupDetails("failingTask")
+	details.TIContext.ShouldRetry = true
+	details.TIContext.MaxTries = 3
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
@@ -163,15 +155,7 @@ func TestTaskRunnerTaskNotFound(t *testing.T) {
 		r.AddDag("test_dag").AddTask(simpleTask)
 	})
 
-	details := &genmodels.StartupDetails{
-		TI: genmodels.TaskInstance{
-			ID:     "550e8400-e29b-41d4-a716-446655440000",
-			DagID:  "test_dag",
-			TaskID: "nonexistent",
-			RunID:  "run1",
-		},
-		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
-	}
+	details := newStartupDetails("nonexistent")
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
@@ -185,16 +169,7 @@ func TestTaskRunnerPanic(t *testing.T) {
 		r.AddDag("test_dag").AddTask(panicTask)
 	})
 
-	details := &genmodels.StartupDetails{
-		TI: genmodels.TaskInstance{
-			ID:       "550e8400-e29b-41d4-a716-446655440000",
-			DagID:    "test_dag",
-			TaskID:   "panicTask",
-			RunID:    "run1",
-			MapIndex: ptr(-1),
-		},
-		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
-	}
+	details := newStartupDetails("panicTask")
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
@@ -208,20 +183,9 @@ func TestTaskRunnerPanicRetry(t *testing.T) {
 		r.AddDag("test_dag").AddTask(panicTask)
 	})
 
-	details := &genmodels.StartupDetails{
-		TI: genmodels.TaskInstance{
-			ID:       "550e8400-e29b-41d4-a716-446655440000",
-			DagID:    "test_dag",
-			TaskID:   "panicTask",
-			RunID:    "run1",
-			MapIndex: ptr(-1),
-		},
-		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
-		TIContext: genmodels.TIRunContext{
-			ShouldRetry: true,
-			MaxTries:    3,
-		},
-	}
+	details := newStartupDetails("panicTask")
+	details.TIContext.ShouldRetry = true
+	details.TIContext.MaxTries = 3
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
@@ -230,45 +194,286 @@ func TestTaskRunnerPanicRetry(t *testing.T) {
 	assertRetryTask(t, result, "panic: something went wrong")
 }
 
-func TestRunTaskHonorsContextCancellation(t *testing.T) {
+func TestTaskRunnerBindsArgs(t *testing.T) {
+	var gotCountry string
+	var gotMeta map[string]any
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTaskWithName("ctxcheck",
-			func(ctx context.Context) error { return ctx.Err() })
+		r.AddDag("test_dag").AddTaskWithName("transform",
+			func(actx airflow.Context, country string, meta map[string]any) error {
+				gotCountry = country
+				gotMeta = meta
+				return nil
+			})
 	})
 
-	details := &genmodels.StartupDetails{
-		TI: genmodels.TaskInstance{
-			ID:       "550e8400-e29b-41d4-a716-446655440000",
-			DagID:    "test_dag",
-			TaskID:   "ctxcheck",
-			RunID:    "run1",
-			MapIndex: ptr(-1),
+	details := newStartupDetails(
+		"transform",
+		map[string]any{
+			"name":         "country",
+			"kind":         "literal",
+			"value_schema": map[string]any{"type": "string"},
+			"value":        "uk",
 		},
-		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
-	}
-
-	// A cancelled root context must reach the user task through RunTask's
-	// threading; the task surfaces ctx.Err(), which RunTask maps to failed.
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
+		map[string]any{
+			"name":         "meta",
+			"kind":         "literal",
+			"value_schema": map[string]any{"type": "object"},
+			"value":        map[string]any{"k": "v"},
+		},
+	)
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
 
-	result := RunTask(ctx, bundle, details, comm, logger)
+	result := RunTask(context.Background(), bundle, details, comm, logger)
+	assertSucceedTask(t, result)
+	assert.Equal(t, "uk", gotCountry)
+	assert.Equal(t, map[string]any{"k": "v"}, gotMeta)
+}
+
+func TestTaskRunnerArgBindingsArityMismatch(t *testing.T) {
+	ran := false
+	bundle := buildBundle(t, func(r bundlev1.Registry) {
+		r.AddDag("test_dag").AddTaskWithName("transform",
+			func(actx airflow.Context, country string, meta map[string]any) error {
+				ran = true
+				return nil
+			})
+	})
+
+	details := newStartupDetails(
+		"transform",
+		map[string]any{
+			"name":         "country",
+			"kind":         "literal",
+			"value_schema": map[string]any{"type": "string"},
+			"value":        "uk",
+		},
+	)
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+	result := RunTask(context.Background(), bundle, details, comm, logger)
+	assertTaskState(t, result, genmodels.TaskStateStateFailed)
+	assert.False(t, ran, "the task body must not run on an arity mismatch")
+}
+
+type regionInput struct {
+	Region string `arg:"region"`
+}
+
+func TestTaskRunnerBindsStructArgs(t *testing.T) {
+	var got regionInput
+	bundle := buildBundle(t, func(r bundlev1.Registry) {
+		r.AddDag("test_dag").AddTaskWithName("transform",
+			func(actx airflow.Context, input regionInput) error {
+				got = input
+				return nil
+			})
+	})
+
+	details := newStartupDetails(
+		"transform",
+		map[string]any{
+			"name":         "region",
+			"kind":         "literal",
+			"value_schema": map[string]any{"type": "string"},
+			"value":        "eu-west-1",
+		},
+	)
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+	result := RunTask(context.Background(), bundle, details, comm, logger)
+	assertSucceedTask(t, result)
+	assert.Equal(t, "eu-west-1", got.Region)
+}
+
+func TestTaskRunnerStructIgnoresUnclaimedDefault(t *testing.T) {
+	var got regionInput
+	bundle := buildBundle(t, func(r bundlev1.Registry) {
+		r.AddDag("test_dag").AddTaskWithName("transform",
+			func(actx airflow.Context, input regionInput) error {
+				got = input
+				return nil
+			})
+	})
+
+	details := newStartupDetails(
+		"transform",
+		map[string]any{
+			"name":         "region",
+			"kind":         "literal",
+			"value_schema": map[string]any{"type": "string"},
+			"value":        "eu-west-1",
+		},
+		map[string]any{
+			"name":         "threshold",
+			"kind":         "literal",
+			"value_schema": map[string]any{"type": "number"},
+			"value":        0.75,
+			"from_default": true,
+		},
+	)
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+	result := RunTask(context.Background(), bundle, details, comm, logger)
+	assertSucceedTask(t, result)
+	assert.Equal(t, "eu-west-1", got.Region)
+}
+
+func TestTaskRunnerArgBindingsTypeMismatch(t *testing.T) {
+	bundle := buildBundle(t, func(r bundlev1.Registry) {
+		r.AddDag("test_dag").AddTaskWithName("transform",
+			func(actx airflow.Context, count int) error { return nil })
+	})
+
+	details := newStartupDetails(
+		"transform",
+		map[string]any{
+			"name":         "count",
+			"kind":         "literal",
+			"value_schema": map[string]any{"type": "string"},
+			"value":        "uk",
+		},
+	)
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+	result := RunTask(context.Background(), bundle, details, comm, logger)
 	assertTaskState(t, result, genmodels.TaskStateStateFailed)
 }
 
-func TestRunTaskInjectsRuntimeContext(t *testing.T) {
+func TestTaskRunnerArgBindingsUnknownKind(t *testing.T) {
+	ran := false
+	bundle := buildBundle(t, func(r bundlev1.Registry) {
+		r.AddDag("test_dag").AddTaskWithName("transform",
+			func(actx airflow.Context, country string) error {
+				ran = true
+				return nil
+			})
+	})
+
+	details := newStartupDetails(
+		"transform",
+		map[string]any{"name": "country", "kind": "template", "value": "x"},
+	)
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+	result := RunTask(context.Background(), bundle, details, comm, logger)
+	assertTaskState(t, result, genmodels.TaskStateStateFailed)
+	assert.False(t, ran, "the task body must not run on an unknown binding kind")
+}
+
+func TestTaskRunnerArgBindingsMalformedElement(t *testing.T) {
+	ran := false
+	bundle := buildBundle(t, func(r bundlev1.Registry) {
+		r.AddDag("test_dag").AddTaskWithName("transform",
+			func(actx airflow.Context, country string) error {
+				ran = true
+				return nil
+			})
+	})
+
+	details := newStartupDetails(
+		"transform",
+		"bogus",
+	)
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+	result := RunTask(context.Background(), bundle, details, comm, logger)
+	assertTaskState(t, result, genmodels.TaskStateStateFailed)
+	assert.False(t, ran, "the task body must not run on a malformed binding element")
+}
+
+func TestTaskRunnerArgBindingsMissingRequiredFields(t *testing.T) {
+	cases := []struct {
+		name string
+		spec map[string]any
+	}{
+		{name: "missing name", spec: map[string]any{"kind": "literal", "value": "x"}},
+		{name: "empty name", spec: map[string]any{"name": "", "kind": "literal", "value": "x"}},
+		{name: "xcom missing task_id", spec: map[string]any{"name": "country", "kind": "xcom"}},
+		{
+			name: "xcom empty task_id",
+			spec: map[string]any{"name": "country", "kind": "xcom", "task_id": ""},
+		},
+		{
+			name: "value_schema not a map",
+			spec: map[string]any{
+				"name": "country", "kind": "literal", "value": "x", "value_schema": "string",
+			},
+		},
+		{
+			name: "from_default not a bool",
+			spec: map[string]any{
+				"name": "country", "kind": "literal", "value": "x", "from_default": "true",
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ran := false
+			bundle := buildBundle(t, func(r bundlev1.Registry) {
+				r.AddDag("test_dag").AddTaskWithName("transform",
+					func(actx airflow.Context, country string) error {
+						ran = true
+						return nil
+					})
+			})
+
+			details := newStartupDetails("transform", tc.spec)
+
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+			result := RunTask(context.Background(), bundle, details, comm, logger)
+			assertTaskState(t, result, genmodels.TaskStateStateFailed)
+			assert.False(t, ran, "the task body must not run on an incomplete binding spec")
+		})
+	}
+}
+
+func TestTaskRunnerMalformedSpecHonorsShouldRetry(t *testing.T) {
+	bundle := buildBundle(t, func(r bundlev1.Registry) {
+		r.AddDag("test_dag").AddTaskWithName("transform",
+			func(actx airflow.Context, country string) error { return nil })
+	})
+
+	details := newStartupDetails(
+		"transform",
+		map[string]any{"name": "country", "kind": "template", "value": "x"},
+	)
+	details.TIContext.ShouldRetry = true
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+	result := RunTask(context.Background(), bundle, details, comm, logger)
+	assertRetryTask(t, result, `unknown kind "template"`)
+}
+
+// A handler taking an airflow.Context gets on that one value everything
+// the runtime used to hand over as separate parameters.
+func TestRunTaskInjectsAirflowContext(t *testing.T) {
 	logical := time.Date(2026, 6, 9, 12, 0, 0, 0, time.UTC)
-	start := logical
+	start := logical.Add(-time.Hour)
 	end := logical.Add(time.Hour)
 
-	var got sdk.TIRunContext
+	var got airflow.Context
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		r.AddDag("test_dag").AddTaskWithName("ctxgrab",
-			func(ctx sdk.TIRunContext) error {
-				got = ctx
+			func(actx airflow.Context) error {
+				got = actx
 				return nil
 			})
 	})
@@ -300,11 +505,9 @@ func TestRunTaskInjectsRuntimeContext(t *testing.T) {
 	result := RunTask(context.Background(), bundle, details, comm, logger)
 	assertSucceedTask(t, result)
 
-	require.NotNil(
-		t,
-		got,
-		"the task must receive a TIRunContext backed by the live task context",
-	)
+	assert.Same(t, logger, got.Logger(), "the task's logger must arrive on the Context")
+	assert.NotNil(t, got.Client(), "the coordinator-backed client must arrive on the Context")
+
 	ti := got.TaskInstance()
 	assert.Equal(t, "test_dag", ti.DagID)
 	assert.Equal(t, "run1", ti.RunID)
@@ -321,28 +524,58 @@ func TestRunTaskInjectsRuntimeContext(t *testing.T) {
 	assert.Equal(t, start, *dagRun.DataIntervalStart)
 	require.NotNil(t, dagRun.DataIntervalEnd)
 	assert.Equal(t, end, *dagRun.DataIntervalEnd)
+
+	// A helper taking a plain context.Context recovers the same surface.
+	recovered, ok := airflow.FromContext(context.Context(got))
+	require.True(t, ok)
+	assert.Equal(t, ti, recovered.TaskInstance())
+}
+
+// Serve traps SIGINT/SIGTERM into the context it hands RunTask, so a
+// supervisor shutdown reaches the handler on actx.Done().
+func TestRunTaskAirflowContextHonorsShutdown(t *testing.T) {
+	var sawDone bool
+	var sawErr error
+	bundle := buildBundle(t, func(r bundlev1.Registry) {
+		r.AddDag("test_dag").AddTaskWithName("ctxcheck",
+			func(actx airflow.Context) error {
+				select {
+				case <-actx.Done():
+					sawDone = true
+				default:
+				}
+				sawErr = actx.Err()
+				return sawErr
+			})
+	})
+
+	details := newStartupDetails("ctxcheck")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+	result := RunTask(ctx, bundle, details, comm, logger)
+
+	assert.True(t, sawDone, "actx.Done() must fire on a cancelled task context")
+	assert.ErrorIs(t, sawErr, context.Canceled)
+	assertTaskState(t, result, genmodels.TaskStateStateFailed)
 }
 
 func TestRunTaskRuntimeContextMappedIndex(t *testing.T) {
-	var got sdk.TIRunContext
+	var got airflow.Context
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		r.AddDag("test_dag").AddTaskWithName("ctxgrab",
-			func(ctx sdk.TIRunContext) error {
-				got = ctx
+			func(actx airflow.Context) error {
+				got = actx
 				return nil
 			})
 	})
 
-	details := &genmodels.StartupDetails{
-		TI: genmodels.TaskInstance{
-			ID:       "550e8400-e29b-41d4-a716-446655440000",
-			DagID:    "test_dag",
-			TaskID:   "ctxgrab",
-			RunID:    "run1",
-			MapIndex: ptr(5),
-		},
-		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
-	}
+	details := newStartupDetails("ctxgrab")
+	details.TI.MapIndex = ptr(5)
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
@@ -357,14 +590,9 @@ func TestRunTaskRuntimeContextMappedIndex(t *testing.T) {
 // --- End-to-end Serve test against a fake supervisor ---
 
 // fakeProvider implements bundlev1.BundleProvider; it lets a test inject the
-// registration closure and a synthetic version.
+// registration closure.
 type fakeProvider struct {
 	register func(bundlev1.Registry) error
-}
-
-func (f *fakeProvider) GetBundleVersion() bundlev1.BundleInfo {
-	v := "1.0"
-	return bundlev1.BundleInfo{Name: "fake", Version: &v}
 }
 
 func (f *fakeProvider) RegisterDags(reg bundlev1.Registry) error {
@@ -452,6 +680,74 @@ func TestServeStartupDetailsEndToEnd(t *testing.T) {
 	}
 }
 
+func TestServeUsesSupervisorLogLevelEnvironment(t *testing.T) {
+	t.Setenv(loggingLevelEnv, "ERROR")
+	t.Setenv(namespaceLevelsEnv, "example=DEBUG")
+
+	commAddr, logsAddr, commCh, logsCh, cleanup := startSupervisor(t)
+	defer cleanup()
+
+	provider := &fakeProvider{
+		register: func(r bundlev1.Registry) error {
+			r.AddDag("dag1").AddTaskWithName("logging", func(actx airflow.Context) error {
+				logger := actx.Logger()
+				logger.Info("global filtered")
+				logger.WithGroup("example.child").Debug("namespace debug")
+				logger.WithGroup("unrelated").Warn("unrelated filtered")
+				logger.Error("global error")
+				return nil
+			})
+			return nil
+		},
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- Serve(provider, commAddr, logsAddr) }()
+
+	commConn := <-commCh
+	defer commConn.Close()
+	logsConn := <-logsCh
+	defer logsConn.Close()
+	require.NoError(t, commConn.SetDeadline(time.Now().Add(10*time.Second)))
+	require.NoError(t, logsConn.SetDeadline(time.Now().Add(10*time.Second)))
+
+	payload, err := encodeRequest(0, map[string]any{
+		"type": "StartupDetails",
+		"ti": map[string]any{
+			"id":         "550e8400-e29b-41d4-a716-446655440000",
+			"dag_id":     "dag1",
+			"task_id":    "logging",
+			"run_id":     "run1",
+			"try_number": 1,
+		},
+		"bundle_info": map[string]any{"name": "fake", "version": "1.0"},
+	})
+	require.NoError(t, err)
+	require.NoError(t, writeFrame(commConn, payload))
+
+	frame, err := readFrame(commConn)
+	require.NoError(t, err)
+	require.True(t, isNilRaw(frame.Err))
+	assert.Equal(t, "SucceedTask", peekBodyType(frame.Body))
+
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("Serve did not return after task completion")
+	}
+
+	output, err := io.ReadAll(logsConn)
+	require.NoError(t, err)
+	var events []string
+	for line := range strings.Lines(string(output)) {
+		var entry map[string]any
+		require.NoError(t, json.Unmarshal([]byte(line), &entry))
+		events = append(events, entry["event"].(string))
+	}
+	assert.Equal(t, []string{"namespace debug", "global error"}, events)
+}
+
 // TestServeClientRoundTripEndToEnd drives a task that calls back into the
 // supervisor mid-execution, so the comm dispatcher's request/response
 // multiplexing is exercised against the real Serve rather than only the
@@ -471,8 +767,8 @@ func TestServeClientRoundTripEndToEnd(t *testing.T) {
 	provider := &fakeProvider{
 		register: func(r bundlev1.Registry) error {
 			r.AddDag("dag1").AddTaskWithName("getvar",
-				func(ctx context.Context, c sdk.Client) (string, error) {
-					v, err := c.GetVariable(ctx, varKey)
+				func(actx airflow.Context) (string, error) {
+					v, err := actx.Client().GetVariable(actx, varKey)
 					if err != nil {
 						return "", err
 					}

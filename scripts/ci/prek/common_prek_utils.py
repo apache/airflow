@@ -41,18 +41,21 @@ AIRFLOW_PROVIDERS_ROOT_PATH = AIRFLOW_ROOT_PATH / "providers"
 AIRFLOW_TASK_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "task-sdk"
 AIRFLOW_TASK_SDK_SOURCES_PATH = AIRFLOW_TASK_SDK_ROOT_PATH / "src"
 
-# Here we should add the second level paths that we want to have sub-packages in
-KNOWN_SECOND_LEVEL_PATHS = ["apache", "atlassian", "common", "cncf", "dbt", "ibm", "microsoft"]
-
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.10"
 
-# Maps a Docker build platform string (as declared in ``provider.yaml`` under
-# ``excluded-platforms``) to the ``platform_machine`` values Python reports on that
-# architecture. ``linux/arm64`` covers both Linux (``aarch64``) and macOS Apple Silicon
-# (``arm64``) so a provider opting out of ARM is never pulled in on any ARM machine where
-# its native dependency cannot be built.
+# Maps a platform string (as declared in ``provider.yaml`` under ``excluded-platforms``)
+# to the ``platform_machine`` values Python reports there. The two ARM spellings are not
+# synonyms: ``platform.machine()`` returns ``aarch64`` on Linux and ``arm64`` on macOS, so
+# each platform excludes exactly one of them. A provider whose native dependency is
+# unavailable on every ARM target lists both platforms; one that only lacks a Linux ARM
+# build lists ``linux/arm64`` alone and stays installable on Apple Silicon.
+#
+# Only the ``linux/*`` entries correspond to CI matrix platforms (see ``CI_PLATFORMS``);
+# ``darwin/arm64`` never matches a CI run and exists purely to drive the install-time
+# marker.
 EXCLUDED_PLATFORM_MACHINES: dict[str, list[str]] = {
-    "linux/arm64": ["aarch64", "arm64"],
+    "linux/arm64": ["aarch64"],
+    "darwin/arm64": ["arm64"],
 }
 
 GITHUB_TOKEN_ENV_VARS = ("GH_TOKEN", "GITHUB_TOKEN")
@@ -343,6 +346,59 @@ def check_uv_version(uv_bin: str = "uv") -> None:
         sys.exit(1)
 
 
+BREEZE_SHIM_MARKER = "Apache Airflow breeze shim — managed by scripts/tools/setup_breeze"
+BREEZE_SHIM_VERSION_PREFIX = "# breeze-shim-version:"
+SETUP_BREEZE_SHIM_VERSION_PREFIX = "SHIM_VERSION="
+SETUP_BREEZE_PATH = AIRFLOW_ROOT_PATH / "scripts" / "tools" / "setup_breeze"
+BREEZE_LOCKED_VENV_PATH = AIRFLOW_BREEZE_SOURCES_PATH / ".venv"
+
+
+def _read_shim_version(text: str, prefix: str) -> int | None:
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith(prefix):
+            try:
+                return int(stripped[len(prefix) :].strip().strip("\"'"))
+            except ValueError:
+                return None
+    return None
+
+
+def describe_breeze_not_running_from_lock() -> str | None:
+    """Describe why the ``breeze`` on PATH does not run from ``dev/breeze/uv.lock``.
+
+    Only the current shim (which dispatches to ``uv run --locked``) and the locked venv CI
+    syncs run the versions the lock pins. An older shim and a legacy ``uv tool`` / ``pipx``
+    install both resolve breeze's dependencies against the index instead, so anything derived
+    from them — command hashes above all — reflects whatever the index served that day.
+
+    :return: a description of the offending install, or None when breeze runs from the lock.
+    """
+    breeze_bin = shutil.which("breeze")
+    if breeze_bin is None:
+        return None
+    resolved = Path(breeze_bin).resolve()
+    if resolved.is_relative_to(BREEZE_LOCKED_VENV_PATH.resolve()):
+        return None
+    try:
+        text = Path(breeze_bin).read_text()
+    except (OSError, UnicodeDecodeError):
+        return None
+    if BREEZE_SHIM_MARKER not in text:
+        return f"`{breeze_bin}` is a legacy global install, which ignores the lock"
+    expected_version = _read_shim_version(SETUP_BREEZE_PATH.read_text(), SETUP_BREEZE_SHIM_VERSION_PREFIX)
+    if expected_version is None:
+        return None
+    installed_version = _read_shim_version(text, BREEZE_SHIM_VERSION_PREFIX)
+    if installed_version is not None and installed_version >= expected_version:
+        return None
+    installed_text = installed_version if installed_version is not None else "pre-versioning"
+    return (
+        f"the shim at `{breeze_bin}` needs to be upgraded "
+        f"(installed: {installed_text}, current: {expected_version})"
+    )
+
+
 def initialize_breeze_prek(name: str, file: str):
     if name not in ("__main__", "__mp_main__"):
         raise SystemExit(
@@ -360,7 +416,7 @@ def initialize_breeze_prek(name: str, file: str):
             "[red]The `breeze` command is not on path.[/]\n\n"
             "[yellow]Please install breeze. Recommended: run `./scripts/tools/setup_breeze` "
             "from the repo root — it installs a shim at `~/.local/bin/breeze` that runs breeze "
-            "via `uvx` from the current git worktree (see ADR 0017).\n"
+            "via `uv run --locked` from the current git worktree (see ADR 0017).\n"
             "Legacy global install (`uv tool install -e ./dev/breeze` or "
             "`pipx install -e ./dev/breeze`) still works but is no longer recommended.[/]\n\n"
             "[bright_blue]You can also set SKIP_BREEZE_PREK_HOOKS env variable to non-empty "
@@ -591,19 +647,54 @@ def get_provider_base_dir_from_path(file_path: Path) -> Path | None:
     return None
 
 
-def get_all_provider_ids(exclude_suspended_providers: bool = False) -> list[str]:
+def get_provider_namespace_from_path(file_path: Path) -> str | None:
+    """Get the namespace of the nested provider the file belongs to, None if it is not nested."""
+    provider_id = get_provider_id_from_path(file_path)
+    if not provider_id or "." not in provider_id:
+        return None
+    return provider_id.split(".")[0]
+
+
+def is_duplicated_namespace_init(file_path: Path) -> bool:
+    """Check whether the file is a namespace ``__init__.py`` repeated across the namespace."""
+    if file_path.name != "__init__.py":
+        return False
+    namespace = get_provider_namespace_from_path(file_path)
+    base_dir = get_provider_base_dir_from_path(file_path)
+    if namespace is None or base_dir is None:
+        return False
+    return file_path.relative_to(base_dir).parts in {
+        ("src", "airflow", "providers", namespace, "__init__.py"),
+        ("tests", "unit", namespace, "__init__.py"),
+        ("tests", "integration", namespace, "__init__.py"),
+        ("tests", "system", namespace, "__init__.py"),
+    }
+
+
+def get_all_provider_ids(
+    exclude_suspended_providers: bool = False, exclude_not_ready_providers: bool = False
+) -> list[str]:
     """
     Get all providers from the new provider structure
+
+    :param exclude_suspended_providers: skip providers whose state is ``suspended``
+    :param exclude_not_ready_providers: skip providers whose state is ``not-ready`` - those have
+        never been published, so anything describing what is installable must leave them out
     """
     all_provider_ids = []
+    excluded_states = set()
+    if exclude_suspended_providers:
+        excluded_states.add("suspended")
+    if exclude_not_ready_providers:
+        excluded_states.add("not-ready")
     for provider_file in AIRFLOW_PROVIDERS_ROOT_PATH.rglob("provider.yaml"):
         if provider_file.is_relative_to(AIRFLOW_PROVIDERS_ROOT_PATH / "src"):
             continue
-        if exclude_suspended_providers:
+        if excluded_states:
             import yaml
 
             provider_info = yaml.safe_load(provider_file.read_text())
-            if provider_info.get("state") == "suspended":
+            if provider_info.get("state") in excluded_states:
                 continue
         provider_id = get_provider_id_from_path(provider_file)
         if provider_id:

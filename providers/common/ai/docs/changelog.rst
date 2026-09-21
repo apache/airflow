@@ -25,6 +25,148 @@
 Changelog
 ---------
 
+.. note::
+  ``LLMRetryPolicy`` now asks the model only which category a failure is; whether that
+  category is retried, and after how long, comes from the policy's ``categories`` table
+  (``ErrorCategory(description, retry, delay, min_confidence)``), not from the model.
+  ``ErrorClassification`` and its ``should_retry``, ``suggested_delay_seconds`` and
+  ``reasoning`` fields are removed, so a Dag file that imports the class fails to parse,
+  and with it every Dag in that file. The new public names are ``ErrorCategory`` and
+  ``DEFAULT_CATEGORIES``.
+
+  A policy built with only ``llm_conn_id`` classifies into the same seven categories with
+  the same retry/fail split and the same 60s/10s/30s delays. The delays are now fixed by
+  the table rather than chosen by the model, so an error the model previously answered
+  with its own delay now waits the category's. Custom ``instructions`` that named a delay,
+  said "do NOT retry", or introduced category names outside the seven still parse but no
+  longer steer anything: the model is constrained to ``categories``, so a name of your own
+  is either mapped onto the nearest default or rejected by the schema and sent to the
+  fallback path. The 0.9.0 guide's Snowflake example asked for ``rate_limit`` after 120s
+  and now gets the default 60s. Move each such rule into an ``ErrorCategory`` entry and
+  keep ``instructions`` for teaching the model your error strings; passing custom
+  ``instructions`` without ``categories`` now raises a ``UserWarning`` at Dag parse time
+  saying so.
+
+  The ``retry_reason`` written on a retry is now a generated line
+  (``category=... confidence=... threshold=... action=... delay=...``) rather than the
+  model's prose, and a decision that came from ``fallback_rules`` has its reason prefixed
+  with ``LLM classification not applied (<why>);``. See :doc:`retry_policies`.
+
+.. note::
+  Configuring ``fallback_conn_ids`` on a connection (or the matching operator/decorator
+  argument) changes what exception a task raises once every connection in the chain fails:
+  it is ``pydantic_ai.exceptions.FallbackExceptionGroup``, not the last provider's own
+  exception. An existing ``RetryRule(exception=ModelHTTPError, ...)`` -- in
+  ``LLMRetryPolicy.fallback_rules`` or a plain ``ExceptionRetryPolicy`` -- stops matching
+  as soon as the connection gains a fallback chain, with no change to the Dag needed to
+  trigger it. Match ``pydantic_ai.exceptions.FallbackExceptionGroup`` explicitly as well,
+  or inspect its ``.exceptions`` attribute for the original per-model errors. See
+  :doc:`retry_policies`, "When the connection also carries a fallback chain".
+
+.. note::
+  ``SQLToolset`` now rejects ``allowed_tables=None`` and ``allowed_tables=[]`` with
+  ``ValueError``. Up to 0.9.0 both were accepted and exposed every table in the schema, so
+  a Dag that builds the list dynamically (a ``Variable.get`` with a ``None`` default, a
+  config file, a filtered comprehension) silently handed the agent the whole schema
+  whenever the lookup came back empty. Such a Dag now fails at import instead. Exposing
+  every table is still the default, but only by omitting the argument: no value you can
+  pass requests it, so a runtime lookup can never widen the allow-list by accident. Dags
+  that passed ``allowed_tables=None`` explicitly should drop the argument.
+
+0.9.0
+.....
+
+.. note::
+  A rejected ``LLMBranchOperator`` review now skips the direct downstream tasks -- teardown tasks
+  excepted -- instead of failing the task. Set ``fail_on_reject=True`` to keep failing the task, or
+  ``ignore_downstream_trigger_rules=True`` to skip every downstream task rather than only the direct
+  ones.
+
+Features
+~~~~~~~~
+
+* ``Support bzip2 and xz compressed inputs in LLM file analysis (#70302)``
+* ``Add .md file support in LLMFileAnalysisOperator (#71611)``
+* ``Add test_connection support to LangChainHook and LlamaIndexHook (#71841)``
+* ``Add BaseManagedAgentToolset for vendor-managed AI agents (#71946)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add require_approval preflight check to @task.llm_schema_compare (#71688)``
+* ``Skip downstream tasks instead of failing when an LLM branch review is rejected (#71073, #72183)``
+* ``Fix Vertex AI hook silently discarding credentials when vertexai flag is set (#72012)``
+
+Misc
+~~~~
+
+* ``Import TaskInstanceState from airflow.sdk (#72446)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix LlamaIndexHook docs to stop claiming Ollama/vLLM support (#72013)``
+* ``Document the missing resource category in common.ai retry policy docs (#72189)``
+* ``Document LLMFileAnalysisOperator's inherited LLM and HITL parameters (#71856)``
+* ``Fix reversed credential precedence in Bedrock hook docstring (#71826)``
+* ``Correct the common-ai toolset list and document the shields extra (#71819)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add drift tripwires for common.ai Vertex model prefix (#72152)``
+   * ``Add unit tests for common AI provider exceptions (#72082)``
+   * ``Fix common.ai Vertex model example to use a valid pydantic-ai prefix (#72011)``
+   * ``Sync connection UI metadata in provider.yaml with hook definitions (#72087)``
+   * ``[main] Upgrade important CI environment (#71590)``
+
+0.8.0
+.....
+
+.. note::
+    The ``query`` tool of ``SQLToolset`` and ``DataFusionToolset`` returns a different
+    shape. Rows were a dict per row alongside a ``count`` of every matching row:
+    ``{"rows": [{"id": 1, "name": "a"}], "count": 900}``. They are now columnar, and
+    ``row_count`` counts the rows actually returned:
+    ``{"columns": ["id", "name"], "rows": [[1, "a"]], "row_count": 1}``. A truncated
+    result also carries ``truncated_by`` -- ``max_rows`` or the new ``max_result_bytes``
+    -- and ``total_rows`` appears only when the driver reports a trustworthy query
+    total. The tool's own description states the new shape, so agents adapt without
+    changes; update any system prompt that describes the old shape, and any code
+    calling ``toolset.call_tool("query", ...)`` directly.
+
+Features
+~~~~~~~~
+
+* ``Add SandboxToolset for sandboxed agent shell and file access (#68847)``
+* ``Support require_approval in LLMSchemaCompareOperator (#71051)``
+* ``Bound SQL toolset query results by size, not just row count (#71317)``
+* ``Support custom redaction and message length cap in LLMRetryPolicy (#70830)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Let the agent retry on a rejected DataFusion query instead of failing the task (#71445)``
+
+Misc
+~~~~
+
+* ``Show which LLM providers each Common AI connection type reaches (#70497)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document the dedicated pydantic-ai vendor connection types (#71774)``
+* ``Document the common-ai MCPHook (#71817)``
+* ``Document the common-ai LangChain and LlamaIndex connection types (#71818)``
+* ``Fix and expand the common-ai provider's When to use guidance (#71820)``
+* ``Add LLMSchemaCompareOperator to the common-ai operator index table (#71738)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] CI: Upgrade important CI environment (#70501)``
+   * ``Require a lower bound on every dependency in pyproject.toml (#71378)``
+   * ``Pin providers in constraints to the versions published in PyPI (#71324)``
+
 0.7.0
 .....
 
@@ -36,13 +178,24 @@ Changelog
     to 1.2.0 or newer; if you cannot, stay on ``common.ai`` 0.6.0. Installations that do not use
     the ``skills`` extra are unaffected.
 
+.. note::
+    ``SQLToolset(allowed_tables=...)`` now fails closed: ``COPY`` in any form, and any function
+    sqlglot cannot type, are refused before the query runs. This closes a bypass where
+    ``pg_read_file()``, ``query_to_xml()`` and ``COPY ... FROM PROGRAM`` reached data and files
+    outside ``allowed_tables``. Project UDFs and a few common builtins such as
+    ``json_build_object`` are also not recognized; pass them in the new ``allowed_functions``
+    argument to permit them. The database role remains the real security boundary.
+
 Features
 ~~~~~~~~
 
-* ``Add AWS services toolset for agents to access 1000+ APIs (#70087)``
 * ``Add pydantic-ai capability matrix references doc to Common AI (#69887)``
 * ``Support excluding files from 'common.ai' Agent Skills discovery (#69924)``
 * ``Use task state store for 'common.ai' durable execution on Airflow 3.3+ (#68926)``
+* ``Support '.txt' files in 'LLMFileAnalysisOperator' (#70431)``
+* ``Support cloud URI globs in DocumentLoaderOperator (#70299)``
+* ``Support require_approval in LLMBranchOperator (#70651)``
+* ``Render multi-branch review choices as a multi-select (#71046)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -56,11 +209,17 @@ Bug Fixes
 * ``Reject unsupported require_approval in LLM branch and schema compare operators (#70069)``
 * ``Fix '@task.llm_branch' import failure on Task SDK-only workers (#70068)``
 * ``Fix common.ai durable execution skipping Toolset-capability tools (#69881)``
+* ``Redact secrets from LLMRetryPolicy classification prompts (#70229)``
+* ``Validate common AI tool-call arguments to enable pydantic-ai retries (#70096)``
+* ``Validate template fields after rendering in common.ai operators (#70338)``
 
 Misc
 ~~~~
 
 * ``Add dataclasses-json floor to common.ai llamaindex extra (#69755)``
+* ``Add a Retry Policies category to the provider registry (#70499)``
+* ``Mark asserts under 'TYPE_CHECKING' in 'DocumentLoaderOperator' (#70378)``
+* ``Mark KubernetesPodOperator and AgentOperator as durable capable (#70289)``
 
 Doc-only
 ~~~~~~~~
@@ -72,6 +231,7 @@ Doc-only
 * ``Add feature-comparison table and toolset links to common.ai provider docs (#69649)``
 * ``Add an Examples entry point to the common.ai provider docs (#69650)``
 * ``Document when to use common.ai vs vendor-specific AI providers (#69551)``
+* ``Document the sql extra required for LLMSQLQueryOperator (#70564)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -79,7 +239,12 @@ Doc-only
    * ``Add toolset as a provider module category (#70122)``
    * ``[main] Upgrade important CI environment (#69694)``
    * ``Guard code_mode example DAG on SQLToolset import (#69677)``
-
+   * ``Add AWS services toolset for agents to access 1000+ APIs (#70087)``
+   * ``Fix flaky secrets masking test in LLMRetryPolicy (#70823)``
+   * ``Revert AWS services toolset for common AI provider (#70695)``
+   * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+   * ``Mark common.ai provider as not ready for release (#70481)``
+   * ``Prepare providers release 2026-07-22 (#70256)``
 
 0.6.0
 .....

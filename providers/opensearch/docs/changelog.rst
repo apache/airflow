@@ -27,6 +27,40 @@
 Changelog
 ---------
 
+1.12.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Do not forward an empty ca_certs to the OpenSearch log client (#72552)``
+
+Misc
+~~~~
+
+* ``Use common.compat.sdk for the remaining provider timezone imports (#71209)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+1.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add OpensearchRemoteLogIO.from_config and register opensearch scheme (#70295)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Do not show @timestamp in logs in UI (#70790)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+
 1.11.1
 ......
 

@@ -55,6 +55,69 @@ def clean_stackdriver_handlers():
             del handler
 
 
+class TestStackdriverRemoteLogIOFromConfig:
+    @conf_vars(
+        {
+            ("logging", "base_log_folder"): "~/airflow/logs",
+            ("logging", "remote_base_log_folder"): "stackdriver:///airflow-tasks",
+            ("logging", "delete_local_logs"): "True",
+            ("logging", "google_key_path"): "/tmp/google-key.json",
+        }
+    )
+    def test_from_config(self):
+        subject = StackdriverRemoteLogIO.from_config()
+
+        assert subject.base_log_folder == Path("~/airflow/logs").expanduser()
+        assert subject.gcp_log_name == "airflow-tasks"
+        assert subject.gcp_key_path == "/tmp/google-key.json"
+        assert subject.delete_local_copy is True
+
+    @conf_vars(
+        {
+            ("logging", "base_log_folder"): "/tmp/airflow/logs",
+            ("logging", "remote_base_log_folder"): "stackdriver:///airflow-tasks",
+            ("logging", "delete_local_logs"): "False",
+            ("logging", "remote_task_handler_kwargs"): '{"delete_local_copy": true, "max_bytes": 1024}',
+        }
+    )
+    def test_from_config_applies_io_kwargs_and_filters_file_handler_kwargs(self):
+        subject = StackdriverRemoteLogIO.from_config()
+
+        assert subject.delete_local_copy is True
+        assert not hasattr(subject, "max_bytes")
+
+    @conf_vars({("logging", "remote_task_handler_kwargs"): '["not", "a", "dict"]'})
+    def test_from_config_rejects_non_dict_remote_task_handler_kwargs(self):
+        with pytest.raises(ValueError, match="remote_task_handler_kwargs"):
+            StackdriverRemoteLogIO.from_config()
+
+    @pytest.mark.parametrize(
+        "remote_base_log_folder",
+        [
+            pytest.param("stackdriver://", id="scheme-only"),
+            pytest.param("stackdriver://host", id="no-path"),
+        ],
+    )
+    def test_from_config_rejects_remote_base_without_log_name(self, remote_base_log_folder):
+        with conf_vars({("logging", "remote_base_log_folder"): remote_base_log_folder}):
+            with pytest.raises(ValueError, match="Stackdriver log name"):
+                StackdriverRemoteLogIO.from_config()
+
+    def test_provider_registers_stackdriver_scheme(self):
+        from airflow.providers_manager import ProvidersManager
+
+        manager = ProvidersManager()
+        if not hasattr(manager, "remote_logging_handler_by_scheme"):
+            pytest.skip("Airflow core does not support remote logging provider dispatch")
+
+        info = manager.remote_logging_handler_by_scheme("stackdriver")
+
+        assert info is not None
+        assert info.classpath == (
+            "airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverRemoteLogIO"
+        )
+
+
 class TestStackdriverRemoteLogIO:
     @pytest.fixture(autouse=True)
     def _setup(self, tmp_path):
@@ -692,8 +755,9 @@ class TestStackdriverLoggingHandlerTask:
 
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id")
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.LoggingServiceV2Client")
-    def test_should_return_valid_external_url(self, mock_client, mock_get_creds_and_project_id):
+    def test_should_return_valid_external_url(self, mock_client, mock_get_creds_and_project_id, monkeypatch):
         mock_get_creds_and_project_id.return_value = ("creds", "project_id")
+        monkeypatch.setenv("GOOGLE_CLOUD_HIGH_VALUE_COOKIE_DOMAIN", "googleapis.cn")
 
         stackdriver_task_handler = StackdriverTaskHandler(gcp_key_path="KEY_PATH")
         url = stackdriver_task_handler.get_external_log_url(self.ti, self.ti.try_number)
@@ -701,7 +765,7 @@ class TestStackdriverLoggingHandlerTask:
         parsed_url = urlsplit(url)
         parsed_qs = parse_qs(parsed_url.query)
         assert parsed_url.scheme == "https"
-        assert parsed_url.netloc == "console.cloud.google.com"
+        assert parsed_url.netloc == "console.cloud.googleapis.cn"
         assert parsed_url.path == "/logs/viewer"
         assert {"project", "interval", "resource", "advancedFilter"} == set(parsed_qs.keys())
         assert "global" in parsed_qs["resource"]

@@ -23,9 +23,11 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1784746595
+source-date-epoch: 1788976455
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 0.10.0
+  - 0.9.0
   - 0.8.2
   - 0.8.1
   - 0.8.0
@@ -61,6 +63,20 @@ config:
   keycloak_auth_manager:
     description: This section contains settings for Keycloak auth manager integration.
     options:
+      cache_ttl_seconds:
+        description: |
+          Time (in seconds) to cache auth decisions in bulk ``is_authorized_{resource}`` methods.
+        type: integer
+        version_added: 0.9.0
+        example: ~
+        default: "30"
+      cache_timeout_seconds:
+        description: |
+          Timeout (in seconds) to cache auth decisions in bulk ``is_authorized_{resource}`` methods.
+        type: integer
+        version_added: 0.9.0
+        example: ~
+        default: "60"
       client_id:
         description: |
           Client ID configured in Keycloak to integrate with Airflow.
@@ -76,6 +92,16 @@ config:
         sensitive: true
         version_added: 0.0.1
         example: ~
+        default: ~
+      jwt_federated_client_ids:
+        description: |
+          Comma-separated allow-list of Keycloak client ids (``azp`` claim) permitted to
+          exchange a Keycloak-issued access token for an Airflow token via the
+          ``urn:ietf:params:oauth:grant-type:jwt-bearer`` grant at ``/auth/token``. Unset
+          or empty denies every caller.
+        type: string
+        version_added: 0.10.0
+        example: "team-platform-admin-sa,other-team-sa"
         default: ~
       realm:
         description: |
