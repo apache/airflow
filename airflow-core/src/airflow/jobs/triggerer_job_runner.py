@@ -49,6 +49,7 @@ from structlog.contextvars import bind_contextvars as bind_log_contextvars
 from airflow._shared.module_loading import import_string
 from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
 from airflow.configuration import conf
 from airflow.exceptions import TaskNotFound
 from airflow.executors import workloads
@@ -140,7 +141,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from structlog.typing import FilteringBoundLogger, WrappedLogger
 
-    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
     from airflow.jobs.job import Job
     from airflow.sdk.api.client import Client
     from airflow.sdk.definitions.context import Context
@@ -460,13 +460,6 @@ class TriggerLoggingFactory:
         upload_to_remote(self.bound_logger, self.ti)
 
 
-def in_process_api_server() -> InProcessExecutionAPI:
-    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
-
-    api = InProcessExecutionAPI()
-    return api
-
-
 @attrs.define(kw_only=True)
 class TriggerRunnerSupervisor(WatchedSubprocess):
     """
@@ -573,7 +566,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         """
         from airflow.sdk.api.client import Client
 
-        client = Client(base_url=None, token="", dry_run=True, transport=in_process_api_server().transport)
+        client = Client(base_url=None, token="", dry_run=True, transport=InProcessExecutionAPI().transport)
         # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
         client.base_url = "http://in-process.invalid./"
         return client
