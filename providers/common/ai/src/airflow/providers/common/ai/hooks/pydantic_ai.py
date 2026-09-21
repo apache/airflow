@@ -331,9 +331,13 @@ class PydanticAIHook(BaseHook):
         if not llm_model_name:
             return
 
-        llm_provider, _ = parse_model_id(llm_model_name)
+        llm_provider = (
+            parse_model_id(llm_model_name)[0]
+            if _has_recognized_provider_prefix(llm_model_name)
+            else self.model_provider
+        )
         embed_provider, _ = parse_model_id(embed_model_name)
-        if llm_provider is None or embed_provider is None or embed_provider == "sentence-transformers":
+        if llm_provider is None or embed_provider is None:
             return
         llm_credential_provider = _get_credential_provider(llm_provider)
         embed_credential_provider = _get_credential_provider(embed_provider)

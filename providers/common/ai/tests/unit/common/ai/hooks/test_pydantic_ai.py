@@ -1343,7 +1343,7 @@ class TestPydanticAIHookGetEmbedder:
         with patch.object(hook, "get_connection", return_value=conn):
             hook.get_embedder()
 
-        mock_infer_provider_class.assert_called_once_with(provider_name)
+        assert mock_infer_provider_class.call_args_list == [call(provider_name), call(provider_name)]
         mock_infer_provider_class.return_value.assert_called_once_with(**expected_provider_kwargs)
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True)
@@ -1438,6 +1438,23 @@ class TestPydanticAIHookGetEmbedder:
 
         assert result.model is embedding_model
         assert mock_infer_embedding_model.call_args.args == ("openai:text-embedding-3-small",)
+        assert "provider_factory" in mock_infer_embedding_model.call_args.kwargs
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
+    def test_model_with_native_colon_share_embedding_connection(self, mock_infer_embedding_model):
+        mock_infer_embedding_model.return_value = MagicMock(spec=EmbeddingModel)
+        embed_model_id = "bedrock:amazon.titan-embed-text-v2:0"
+        hook = PydanticAIBedrockHook(embed_model_id=embed_model_id)
+        conn = Connection(
+            conn_id="pydanticai_bedrock_default",
+            conn_type="pydanticai_bedrock",
+            extra='{"model": "us.anthropic.claude-opus-4-6-v1:0", "region_name": "us-east-1"}',
+        )
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.get_embedder()
+
+        assert mock_infer_embedding_model.call_args.args == (embed_model_id,)
         assert "provider_factory" in mock_infer_embedding_model.call_args.kwargs
 
     @pytest.mark.parametrize(

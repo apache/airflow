@@ -109,18 +109,18 @@ Extra (JSON, optional)
     When using the UI, the "Model" and "Embedding Model" fields above write to
     this same location automatically.
 
-Fallback Connections
-    Other connection IDs to fail over to, in order, while this provider is
-    unavailable. Stored in ``extra["fallback_conn_ids"]``. Entries may name any
-    ``pydanticai`` connection type, so one chain can span vendors. See
-    :doc:`/provider_fallback`.
-
     Bedrock-specific fields include ``api_key``, ``base_url``, ``region_name``,
     AWS credentials and profile fields, and read/connect timeouts. ``google:``
     accepts ``api_key`` and ``base_url``; ``google-cloud:`` additionally accepts
     ``project``, ``location``, and ``service_account_info``. See the dedicated
     :doc:`pydantic_ai_bedrock` and :doc:`pydantic_ai_vertex` connection pages for
     the complete credential shapes and precedence rules.
+
+Fallback Connections
+    Other connection IDs to fail over to, in order, while this provider is
+    unavailable. Stored in ``extra["fallback_conn_ids"]``. Entries may name any
+    ``pydanticai`` connection type, so one chain can span vendors. See
+    :doc:`/provider_fallback`.
 
 Examples
 --------
