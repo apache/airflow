@@ -49,6 +49,18 @@ DEFAULT_DATE = timezone.datetime(2018, 1, 1)
 
 
 class TestSFTPToS3Operator:
+    @pytest.fixture(autouse=True)
+    def _ssh_default_allows_unknown_host(self, monkeypatch):
+        """Let the bundled ``ssh_default`` connection reach the test SSH server.
+
+        ``no_host_key_check`` now defaults to false, and ``ssh_default`` is a bare
+        ``ssh://localhost`` with no extras, so the transfer operators -- which build
+        their own ``SFTPHook`` from the conn id and cannot be handed a pre-configured
+        hook -- would be refused by host key verification. Setting the extra here is
+        exactly what a deployment relying on the old default has to do.
+        """
+        monkeypatch.setenv("AIRFLOW_CONN_SSH_DEFAULT", "ssh://localhost/?no_host_key_check=true")
+
     def setup_method(self):
         hook = SSHHook(ssh_conn_id="ssh_default")
 
