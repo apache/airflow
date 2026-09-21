@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shlex
 import types
 from pathlib import Path
 from unittest import mock
@@ -1585,6 +1586,19 @@ class TestGitDagBundle:
         ) in caplog
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_relative_local_repo_url_keeps_the_origin_git_resolved(self, mock_githook, git_repo, monkeypatch):
+        """git records an absolute origin for a local clone; replacing it breaks every later fetch."""
+        repo_path, _ = git_repo
+        monkeypatch.chdir(repo_path.parent)
+        mock_githook.return_value.repo_url = repo_path.name
+
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
+        bundle.initialize()
+
+        assert os.path.isabs(Repo(bundle.bare_repo_path).remotes.origin.url)
+        bundle.refresh()
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_clone_path_recovers_when_the_origin_rewrite_fails(self, mock_githook, git_repo):
         """On the clone path a failed rewrite must drop the bare repo and re-clone it.
 
@@ -1631,7 +1645,7 @@ class TestGitDagBundle:
             bundle._clone_bare_repo_if_required()
             _, kwargs = mock_gitRepo.clone_from.call_args
             assert kwargs["env"]["GIT_CONFIG_VALUE_0"] == ""
-            helper_path = kwargs["env"]["GIT_CONFIG_VALUE_1"]
+            helper_path = shlex.split(kwargs["env"]["GIT_CONFIG_VALUE_1"][1:])[0]
             assert kwargs["env"]["GIT_TERMINAL_PROMPT"] == "0"
             assert kwargs["env"]["AIRFLOW_GIT_TOKEN"] == ACCESS_TOKEN
             assert os.path.exists(helper_path)

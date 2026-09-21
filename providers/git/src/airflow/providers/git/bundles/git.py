@@ -351,17 +351,26 @@ class GitDagBundle(BaseDagBundle):
                 exc=e,
             )
 
+    @staticmethod
+    def _carries_credentials(url: str) -> bool:
+        """Report whether an origin url has ``user[:password]@`` in its authority."""
+        if not url.startswith(("http://", "https://")):
+            return False
+        return "@" in url.partition("://")[2].partition("/")[0]
+
     def _rewrite_bare_repo_origin(self, bare_repo: Repo) -> None:
         if "origin" not in bare_repo.remotes:
             return
         origin = bare_repo.remotes.origin
-        repo_url = str(self.repo_url)
         # Bundles cloned before credentials moved to a credential helper embedded ``user:token``
         # here, so the token sits in cleartext in ``<bundle>/bare/config`` where any Dag author
-        # on the Dag processor can read it. Rewriting origin is what removes it from those bundles.
-        if origin.url != repo_url:
+        # on the Dag processor can read it. Rewriting origin is what removes it from those
+        # bundles. Only an origin holding one is rewritten: git resolves a local source to an
+        # absolute path when it clones, and replacing that with a relative repo url would leave
+        # an origin the bare repo cannot resolve.
+        if self._carries_credentials(origin.url):
             self._log.info("Updating bare repository remote url", bare_repo_path=self.bare_repo_path)
-            origin.set_url(repo_url)
+            origin.set_url(str(self.repo_url))
 
     def _ensure_version_in_bare_repo(self) -> None:
         if not self.version:
