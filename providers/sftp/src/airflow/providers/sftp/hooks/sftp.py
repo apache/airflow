@@ -801,7 +801,7 @@ class SFTPHook(SSHHook):
                             remote, local, workers=concurrency, prefetch=prefetch
                         )
                     else:
-                        self.retrieve_directory(remote, local)
+                        self.retrieve_directory(remote, local, prefetch=prefetch)
                 else:
                     self.retrieve_file(remote, local, prefetch=prefetch)
         elif operation.lower() == SFTPOperation.PUT:
