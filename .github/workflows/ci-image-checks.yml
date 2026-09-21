@@ -204,6 +204,8 @@ jobs:
           python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
           make-mnt-writeable-and-cleanup: true
+          # The docs build only needs the CI image; the runner has ~90 GB free without the cleanup.
+          free-up-disk-space: false
       - name: "Restore docs inventory cache"
         # yamllint disable-line rule:line-length
         uses: apache/infrastructure-actions/stash/restore@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # restore/v1.0.0

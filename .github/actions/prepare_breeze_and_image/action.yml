@@ -34,6 +34,13 @@ inputs:
   make-mnt-writeable-and-cleanup:
     description: 'Whether to cleanup /mnt'
     required: true
+  free-up-disk-space:
+    description: >
+      Whether to remove unused pre-installed tooling from the runner before loading the image. The
+      removal takes close to three minutes; jobs whose footprint is only the CI image (docs build)
+      have ~90 GB free before it and can skip it.
+    required: false
+    default: "true"
   image-stash-ref:
     description: >
       Ref whose image stash to restore (empty = the per-branch one). An image built for a ref
@@ -54,6 +61,7 @@ runs:
     - name: "Free up disk space"
       shell: bash
       run: ./scripts/tools/free_up_disk_space.sh
+      if: inputs.free-up-disk-space == 'true'
     - name: "Install Breeze"
       uses: ./.github/actions/breeze
       id: breeze
