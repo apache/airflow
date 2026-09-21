@@ -1443,7 +1443,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if state in (CallbackState.FAILED, CallbackState.SUCCESS):
                     callback_keys_with_events.append(key)
             else:
-                cls.logger().error("Unknown workload key type in event buffer: %r", key)
+                raise TypeError(f"Unknown workload key type in event buffer: {key!r}")
 
         # Handle callback state events
         for callback_id in callback_keys_with_events:

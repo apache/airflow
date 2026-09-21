@@ -799,6 +799,15 @@ class TestSchedulerJob:
             callback_lookups = [c for c in spy_get.call_args_list if c.args and c.args[0] is Callback]
             assert callback_lookups == []
 
+    def test_process_executor_events_raises_on_unknown_key_type(self, session):
+        """An unrecognised key must fail loudly, matching run_workload and state_class_for_key."""
+        executor = MockExecutor(do_update=False)
+        self.job_runner = SchedulerJobRunner(Job(), executors=[executor])
+        executor.event_buffer["not-a-workload-key"] = (TaskInstanceState.SUCCESS, None)
+
+        with pytest.raises(TypeError, match="Unknown workload key type in event buffer"):
+            self.job_runner._process_executor_events(executor=executor, session=session)
+
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
     def test_process_executor_event_missing_dag(

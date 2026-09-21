@@ -9,8 +9,8 @@ that emit ``RemovedInAirflow4Warning`` and will be removed in Airflow 4.0.
 The connection-test surface introduced in Airflow 3.3 (``supports_connection_test``,
 ``queued_connection_tests``, and ``trigger_connection_tests()``) is folded into the same
 mechanism: connection tests are queued in ``executor_queues[WorkloadType.TEST_CONNECTION]``
-and dispatched by ``trigger_workloads`` alongside other workload types. A read-only
-``supports_connection_test`` compat property remains; ``queued_connection_tests`` and
+and dispatched by ``trigger_workloads`` alongside other workload types. A deprecated
+``supports_connection_test`` compat attribute remains; ``queued_connection_tests`` and
 ``trigger_connection_tests()`` are removed without a shim.
 
 **Migration:**
@@ -40,12 +40,20 @@ and dispatched by ``trigger_workloads`` alongside other workload types. A read-o
 - ``executor_queues`` is a ``collections.defaultdict`` and the per-``WorkloadType`` inner
   queues auto-vivify on access; do not replace it with a plain ``dict``.
 
-Legacy ``supports_callbacks = True`` / ``supports_connection_test = True`` class attributes on
-out-of-tree executors are still honored: ``BaseExecutor.__init_subclass__`` detects them and
-adds the corresponding entries to ``supported_workload_types`` (preserving any types inherited
-from the parent class) while emitting a deprecation warning. Subclasses that override the
-no-longer-invoked ``trigger_tasks`` or ``order_queued_tasks_by_priority`` methods also get a
-warning at class-definition time.
+Legacy ``supports_callbacks`` / ``supports_connection_test`` usage on out-of-tree executors is
+still honored, with a deprecation warning in each case:
+
+- Class attributes: ``BaseExecutor.__init_subclass__`` folds ``= True`` / ``= False``
+  declarations into ``supported_workload_types`` (adding or removing the type while preserving
+  everything else inherited from the parent class) and drops the plain bool so the compat
+  attribute keeps working on the subclass.
+- Class-level reads (``SomeExecutor.supports_callbacks``) and instance reads still return a
+  ``bool`` derived from ``supported_workload_types``.
+- Instance assignment (``self.supports_callbacks = True`` in ``__init__``) still works and toggles
+  the corresponding entry in that instance's ``supported_workload_types``.
+
+Subclasses that override the no-longer-invoked ``trigger_tasks``, ``trigger_connection_tests``
+or ``order_queued_tasks_by_priority`` methods also get a warning at class-definition time.
 
 Deprecation warnings for these compat entrypoints are emitted at most once per executor class to
 avoid flooding scheduler heartbeat logs, and each is paired with a ``log.warning`` so it is

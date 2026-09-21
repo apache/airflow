@@ -99,6 +99,34 @@ def _warn_deprecated_executor_usage(message: str) -> None:
     log.warning(message)
 
 
+class _LegacyWorkloadFlag:
+    """Deprecated bool accessor for one ``supported_workload_types`` member, usable on the class and on instances."""
+
+    def __init__(self, workload_type: WorkloadType) -> None:
+        self.workload_type = workload_type
+
+    def __set_name__(self, owner: type, name: str) -> None:
+        self.name = name
+
+    @property
+    def deprecation_message(self) -> str:
+        return (
+            f"{self.name} is deprecated. "
+            f"Use WorkloadType.{self.workload_type.name} in supported_workload_types instead."
+        )
+
+    def __get__(self, obj: BaseExecutor | None, owner: type[BaseExecutor] | None = None) -> bool:
+        target = obj if obj is not None else owner
+        if target is None:
+            raise TypeError(f"{self.name} must be accessed through a BaseExecutor class or instance")
+        target._warn_legacy_property(self.name, self.deprecation_message)
+        return self.workload_type in target.supported_workload_types
+
+    def __set__(self, obj: BaseExecutor, value: bool) -> None:
+        obj._warn_legacy_property(self.name, self.deprecation_message)
+        obj._set_workload_type_supported(self.workload_type, value)
+
+
 @dataclass
 class RunningRetryAttemptType:
     """
@@ -178,6 +206,8 @@ class BaseExecutor(LoggingMixin):
 
     supports_ad_hoc_ti_run: bool = False
     supported_workload_types: frozenset[WorkloadType] = frozenset({WorkloadType.EXECUTE_TASK})
+    supports_callbacks = _LegacyWorkloadFlag(WorkloadType.EXECUTE_CALLBACK)
+    supports_connection_test = _LegacyWorkloadFlag(WorkloadType.TEST_CONNECTION)
     supports_multi_team: bool = False
     sentry_integration: str = ""
 
@@ -219,23 +249,23 @@ class BaseExecutor(LoggingMixin):
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
         cls._legacy_warned = set()
-        legacy_workload_types: set[WorkloadType] = set()
-        if cls.__dict__.get("supports_callbacks") is True:
+        enabled: set[WorkloadType] = set()
+        disabled: set[WorkloadType] = set()
+        for flag in ("supports_callbacks", "supports_connection_test"):
+            value = cls.__dict__.get(flag)
+            if not isinstance(value, bool):
+                continue
+            workload_type = vars(BaseExecutor)[flag].workload_type
+            verb, preposition = ("Add", "to") if value else ("Remove", "from")
             _warn_deprecated_executor_usage(
-                f"{cls.__name__}: setting `supports_callbacks = True` as a class attribute is "
-                f"deprecated. Add `WorkloadType.EXECUTE_CALLBACK` to `supported_workload_types` "
+                f"{cls.__name__}: setting `{flag} = {value}` as a class attribute is deprecated. "
+                f"{verb} `WorkloadType.{workload_type.name}` {preposition} `supported_workload_types` "
                 f"instead.",
             )
-            legacy_workload_types.add(WorkloadType.EXECUTE_CALLBACK)
-        if cls.__dict__.get("supports_connection_test") is True:
-            _warn_deprecated_executor_usage(
-                f"{cls.__name__}: setting `supports_connection_test = True` as a class attribute is "
-                f"deprecated. Add `WorkloadType.TEST_CONNECTION` to `supported_workload_types` "
-                f"instead.",
-            )
-            legacy_workload_types.add(WorkloadType.TEST_CONNECTION)
-        if legacy_workload_types and "supported_workload_types" not in cls.__dict__:
-            cls.supported_workload_types = cls.supported_workload_types | legacy_workload_types
+            (enabled if value else disabled).add(workload_type)
+            delattr(cls, flag)
+        if (enabled or disabled) and "supported_workload_types" not in cls.__dict__:
+            cls.supported_workload_types = (cls.supported_workload_types | enabled) - disabled
         legacy_override_replacements = {
             "trigger_tasks": "trigger_workloads",
             "trigger_connection_tests": "trigger_workloads",
@@ -249,8 +279,8 @@ class BaseExecutor(LoggingMixin):
                     f"`{replacement}` instead.",
                 )
 
-    def _warn_legacy_property(self, prop_name: str, message: str) -> None:
-        cls = type(self)
+    @classmethod
+    def _warn_legacy_property(cls, prop_name: str, message: str) -> None:
         if prop_name in cls._legacy_warned:
             return
         cls._legacy_warned.add(prop_name)
@@ -340,46 +370,6 @@ class BaseExecutor(LoggingMixin):
         )
         self.executor_queues[WorkloadType.EXECUTE_CALLBACK] = value
 
-    @property
-    def supports_callbacks(self) -> bool:
-        """Backward-compat property: True if EXECUTE_CALLBACK is in supported_workload_types."""
-        self._warn_legacy_property(
-            "supports_callbacks",
-            "supports_callbacks is deprecated. "
-            "Use WorkloadType.EXECUTE_CALLBACK in supported_workload_types instead.",
-        )
-        return WorkloadType.EXECUTE_CALLBACK in self.supported_workload_types
-
-    @supports_callbacks.setter
-    def supports_callbacks(self, value: bool) -> None:
-        """Backward-compat setter: toggles EXECUTE_CALLBACK in supported_workload_types."""
-        self._warn_legacy_property(
-            "supports_callbacks",
-            "supports_callbacks is deprecated. "
-            "Use WorkloadType.EXECUTE_CALLBACK in supported_workload_types instead.",
-        )
-        self._set_workload_type_supported(WorkloadType.EXECUTE_CALLBACK, value)
-
-    @property
-    def supports_connection_test(self) -> bool:
-        """Backward-compat property: True if TEST_CONNECTION is in supported_workload_types."""
-        self._warn_legacy_property(
-            "supports_connection_test",
-            "supports_connection_test is deprecated. "
-            "Use WorkloadType.TEST_CONNECTION in supported_workload_types instead.",
-        )
-        return WorkloadType.TEST_CONNECTION in self.supported_workload_types
-
-    @supports_connection_test.setter
-    def supports_connection_test(self, value: bool) -> None:
-        """Backward-compat setter: toggles TEST_CONNECTION in supported_workload_types."""
-        self._warn_legacy_property(
-            "supports_connection_test",
-            "supports_connection_test is deprecated. "
-            "Use WorkloadType.TEST_CONNECTION in supported_workload_types instead.",
-        )
-        self._set_workload_type_supported(WorkloadType.TEST_CONNECTION, value)
-
     def _set_workload_type_supported(self, workload_type: WorkloadType, supported: bool) -> None:
         # Assign on the instance so the class-level frozenset shared by all instances is untouched.
         if supported:
@@ -427,7 +417,7 @@ class BaseExecutor(LoggingMixin):
         )
         return all_workloads[: max(0, open_slots)]
 
-    def _process_workloads(self, workloads: Sequence[ExecutorWorkload]) -> None:
+    def _process_workloads(self, workload_items: Sequence[ExecutorWorkload]) -> None:
         """
         Process the given workloads.
 
@@ -435,7 +425,7 @@ class BaseExecutor(LoggingMixin):
         the execution of workloads (e.g., queuing them to workers, submitting to
         external systems, etc.).
 
-        :param workloads: List of workloads to process
+        :param workload_items: List of workloads to process
         """
         raise NotImplementedError(f"{type(self).__name__} must implement _process_workloads()")
 

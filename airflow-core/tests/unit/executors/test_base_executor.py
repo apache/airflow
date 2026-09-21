@@ -1032,13 +1032,50 @@ class TestLegacySupportsCallbacksShim:
         assert legacy_warnings == []
         assert WorkloadType.EXECUTE_CALLBACK in ModernExecutor.supported_workload_types
 
-    def test_legacy_false_does_not_synthesise(self, recwarn):
-        class OptedOutExecutor(BaseExecutor):
-            supports_callbacks = False
+    def test_legacy_false_removes_inherited_workload_type(self):
+        """``= False`` on a parent that declared the type must opt out, not silently inherit it."""
+        assert WorkloadType.TEST_CONNECTION in LocalExecutor.supported_workload_types
+        with pytest.warns(RemovedInAirflow4Warning, match="supports_connection_test = False"):
 
-        legacy_warnings = [w for w in recwarn.list if "supports_callbacks = True" in str(w.message)]
-        assert legacy_warnings == []
-        assert WorkloadType.EXECUTE_CALLBACK not in OptedOutExecutor.supported_workload_types
+            class Restricted(LocalExecutor):
+                supports_connection_test = False
+
+        assert WorkloadType.TEST_CONNECTION not in Restricted.supported_workload_types
+        assert Restricted.supported_workload_types == LocalExecutor.supported_workload_types - {
+            WorkloadType.TEST_CONNECTION
+        }
+        assert "supports_connection_test" not in vars(Restricted)
+
+    @pytest.mark.parametrize(
+        ("executor_cls", "expected"),
+        [
+            pytest.param(BaseExecutor, False, id="base-false"),
+            pytest.param(LocalExecutor, True, id="local-true"),
+        ],
+    )
+    def test_class_level_read_returns_bool(self, executor_cls, expected):
+        """``ExecutorCls.supports_callbacks`` must be a bool, not a truthy property object."""
+        executor_cls._legacy_warned = set()
+        with pytest.warns(RemovedInAirflow4Warning, match="supports_callbacks is deprecated"):
+            assert executor_cls.supports_callbacks is expected
+
+    def test_instance_assignment_on_legacy_subclass_writes_through(self):
+        """Once the class-body bool is folded in, ``self.flag = X`` must still reach the descriptor."""
+        with pytest.warns(RemovedInAirflow4Warning, match="supports_callbacks = False"):
+
+            class LegacyOptOut(LocalExecutor):
+                supports_callbacks = False
+
+        executor = LegacyOptOut()
+        assert WorkloadType.EXECUTE_CALLBACK not in executor.supported_workload_types
+
+        with pytest.warns(RemovedInAirflow4Warning, match="supports_callbacks is deprecated"):
+            executor.supports_callbacks = True
+
+        assert executor.supports_callbacks is True
+        assert WorkloadType.EXECUTE_CALLBACK in executor.supported_workload_types
+        assert "supports_callbacks" not in vars(executor)
+        assert WorkloadType.EXECUTE_CALLBACK not in LegacyOptOut.supported_workload_types
 
     def test_legacy_connection_test_flag_synthesises_supported_workload_types(self):
         with pytest.warns(RemovedInAirflow4Warning, match="supports_connection_test = True"):
