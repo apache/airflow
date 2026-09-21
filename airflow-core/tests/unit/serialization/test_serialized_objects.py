@@ -517,7 +517,7 @@ def test_serialize_deserialize_connection():
             SerializedDeadlineAlert,
             SerializedVariableInterval("deadline_seconds"),
             SerializedVariableInterval("deadline_seconds"),
-            id="serialized_variable_interval",
+            id="core_serialized_alert",
         ),
     ],
 )

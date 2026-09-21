@@ -263,14 +263,13 @@ def _decode_deadline_callback(raw_callback: Any) -> AsyncCallback | SyncCallback
     belongs with that broader work, not smuggled in here.
     """
     from airflow.sdk.definitions.callback import (
-        AsyncCallback,
-        SyncCallback,
+        DEADLINE_CALLBACK_TYPES,
         _SerializedCallbackPath,
     )
 
     permitted = {
         f"{module}.{cls.__qualname__}": cls
-        for cls in (AsyncCallback, SyncCallback)
+        for cls in DEADLINE_CALLBACK_TYPES
         for module in (cls.__module__, _LEGACY_CALLBACK_MODULE)
     }
     classname, data = _normalised_payload(raw_callback, "callback")

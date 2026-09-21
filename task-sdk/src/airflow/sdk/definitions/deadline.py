@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any, overload
 
 import attrs
 
-from airflow.sdk.definitions.callback import AsyncCallback, Callback, SyncCallback
+from airflow.sdk.definitions.callback import DEADLINE_CALLBACK_TYPES, AsyncCallback, SyncCallback
 from airflow.sdk.definitions.variable import Variable
 from airflow.sdk.exceptions import AirflowRuntimeError, RemovedInAirflow4Warning
 
@@ -151,16 +151,34 @@ class DeadlineAlert:
         self,
         reference: DeadlineReferenceType,
         interval: timedelta | VariableInterval,
-        callback: Callback,
+        callback: AsyncCallback | SyncCallback,
         name: str | None = None,
     ):
+        if isinstance(interval, (int, float)) and not isinstance(interval, bool):
+            # A bare number was never documented or type-hinted, but it parses today because this
+            # check did not exist, and the decoder still reads legacy rows stored as total_seconds().
+            # Normalize so Dags that parse today keep parsing, and warn so the accident does not
+            # become contract.  bool is excluded: it is an int subclass, so True would mean 1 second.
+            warnings.warn(
+                f"Passing a number as a deadline interval is deprecated and will be removed in a "
+                f"future release. Pass timedelta(seconds={interval}) instead.",
+                RemovedInAirflow4Warning,
+                stacklevel=2,
+            )
+            interval = timedelta(seconds=interval)
+        elif isinstance(interval, timedelta):
+            # serde dispatches on qualified class name and registers only datetime.timedelta, so a
+            # subclass such as pendulum.duration() would pass the check below and then fail there.
+            # Rebuilding timedelta subclasses into a timedelta keeps this to one path.
+            interval = timedelta(seconds=interval.total_seconds())
+
         if not isinstance(interval, (timedelta, VariableInterval)):
             raise ValueError(
                 f"Interval must be a `timedelta` or a `VariableInterval`, received {type(interval).__name__}."
             )
 
         # Serializing blocks subclasses for security reasons, so isinstance is too loose.
-        if type(callback) not in (AsyncCallback, SyncCallback):
+        if type(callback) not in DEADLINE_CALLBACK_TYPES:
             raise ValueError(
                 f"Callbacks must be `AsyncCallback` or `SyncCallback`, received {type(callback).__name__}."
             )
