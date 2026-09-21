@@ -738,6 +738,12 @@ class KubernetesExecutor(BaseExecutor):
             self.event_buffer[key] = state, None
             return
 
+        # Watchers can report the same terminal pod event more than once. Only the first result
+        # for a task still tracked by this executor may mutate or delete its worker pod.
+        if key not in self.running:
+            self.log.debug("TI key not in running, ignoring duplicate result: %s", key)
+            return
+
         if self.kube_config.delete_worker_pods:
             if state != TaskInstanceState.FAILED or self.kube_config.delete_worker_pods_on_failure:
                 self.kube_scheduler.delete_pod(pod_name=pod_name, namespace=namespace)
