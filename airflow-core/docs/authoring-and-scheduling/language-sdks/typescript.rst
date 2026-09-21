@@ -301,6 +301,28 @@ The task id may be omitted, in which case it is the handler's function name:
 name of its own, such as an arrow function passed inline, has nothing to take an id from and needs
 one: either positionally or as ``taskId`` in its spec. Give it in one place only, not both.
 
+Order-only edges
+~~~~~~~~~~~~~~~~
+
+An edge that carries no value has no argument name to travel under, so it is drawn between the
+references themselves with ``before`` and ``after``, the TypeScript pair for Python's ``>>`` and
+``<<``:
+
+.. code-block:: typescript
+
+    const loaded = load({ transformed });
+    const cleaned = cleanup();
+
+    loaded.before(cleaned);                  // loaded >> cleaned
+    cleaned.after(loaded, transformed);      // [loaded, transformed] >> cleaned
+
+Both take any number of references, so one call draws several edges, and drawing an edge that
+already exists changes nothing. Each returns the reference it was called on, so
+``loaded.before(cleaned).before(notified)`` draws both edges from ``loaded``.
+
+Pass a value as an argument when the downstream task needs it, and use ``before`` or ``after`` when
+it only needs to run in order.
+
 ``new Dag`` and ``dag.task`` both take a trailing spec of Airflow options:
 ``{ schedule: "@daily", tags: ["etl"] }`` for the Dag, ``{ retries: 2, retryDelay: 30 }`` for a task.
 

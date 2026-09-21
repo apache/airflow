@@ -128,9 +128,6 @@ declare const RETURN_TYPE: unique symbol;
 /**
  * A reference to the result of one task, returned by calling that task.
  *
- * Identity only: the handler and the value are deliberately not exposed. Pass a
- * reference as an input of a downstream task to make that task depend on it.
- *
  * `TReturn` is the handler's return type, so a construct that needs a
  * particular one can ask for it. A reference of a narrower type is usable
  * wherever a wider one is: a `TaskRef<number>` is a `TaskRef<unknown>`.
@@ -146,7 +143,47 @@ export interface TaskRef<TReturn = unknown> {
   readonly taskId: string;
   /** @internal Never set; see {@link RETURN_TYPE}. */
   readonly [RETURN_TYPE]?: TReturn;
+  /**
+   * Run this task before each of `downstream`, carrying no value — the
+   * TypeScript spelling of Python's `>>`.
+   *
+   * ```ts
+   * loaded.before(cleaned, notified); // loaded >> [cleanup, notify]
+   * ```
+   *
+   * Variadic, so one call fans out, and it returns its own receiver rather
+   * than its arguments: a fan-out has no single "next" reference to hand back.
+   * Declaring an edge that already exists changes nothing.
+   */
+  before(...downstream: readonly TaskRef[]): TaskRef<TReturn>;
+  /**
+   * Run this task after each of `upstream`, carrying no value — Python's `<<`.
+   *
+   * ```ts
+   * cleaned.after(loaded, transformed); // [load, transform] >> cleanup
+   * ```
+   *
+   * Fan-*in* that carries data is the wiring object instead
+   * (`summarize({ north: extractNorth(), south: extractSouth() })`), so each
+   * direction has an answer: named keys when values flow, `after` when only
+   * order does.
+   */
+  after(...upstream: readonly TaskRef[]): TaskRef<TReturn>;
 }
+
+/**
+ * An order-only edge of a Dag: upstream task ID, then downstream task ID.
+ *
+ * Kept apart from the wiring a factory call records, because an edge that
+ * carries no value has no argument name to be recorded under.
+ */
+export interface OrderEdge {
+  readonly upstream: string;
+  readonly downstream: string;
+}
+
+// A task id cannot hold a NUL, so a joined pair cannot collide with one.
+const EDGE_KEY_SEPARATOR = "\u0000";
 
 /** Whether `value` is a TaskRef returned by any copy of this package. */
 function isTaskRef(value: unknown): value is TaskRef {
@@ -293,6 +330,7 @@ export type RecordedInputs = Readonly<Record<string, TaskRef | JsonValue>>;
 // Dag's private state without public accessors on the class.
 let taskRecordsOf: (dag: Dag) => ReadonlyMap<string, TaskRecord>;
 let inputsOf: (dag: Dag) => ReadonlyMap<string, RecordedInputs>;
+let orderEdgesOf: (dag: Dag) => readonly OrderEdge[];
 let finalizeOf: (dag: Dag) => void;
 
 /** Internal: whether `value` is a Dag built by any copy of this package. */
@@ -326,11 +364,15 @@ export class Dag {
   readonly spec: DagSpec;
   readonly #tasks = new Map<string, TaskRecord>();
   readonly #inputs = new Map<string, RecordedInputs>();
+  // Keyed by the two task ids, so declaring an edge twice records it once, and
+  // insertion-ordered so the serialized Dag reads as written.
+  readonly #orderEdges = new Map<string, OrderEdge>();
   #finalized = false;
 
   static {
     taskRecordsOf = (dag) => dag.#tasks;
     inputsOf = (dag) => dag.#inputs;
+    orderEdgesOf = (dag) => [...dag.#orderEdges.values()];
     finalizeOf = (dag) => dag.#finalize();
   }
 
@@ -441,7 +483,7 @@ export class Dag {
       );
     }
     const spec = this.#taskSpecOf(taskId, options);
-    const task = createTaskRef(this.dagId, taskId);
+    const task = this.#createTaskRef(taskId);
     this.#tasks.set(taskId, {
       task,
       // The runtime dispatches every handler through one instantiation, as it
@@ -472,6 +514,73 @@ export class Dag {
       spec[key] = value[key];
     }
     return spec as TaskSpec;
+  }
+
+  #createTaskRef(taskId: string): TaskRef {
+    const task: TaskRef = {
+      dagId: this.dagId,
+      taskId,
+      before: (...downstream) => {
+        for (const other of downstream) this.#addOrderEdge(task, other, "before");
+        return task;
+      },
+      after: (...upstream) => {
+        for (const other of upstream) this.#addOrderEdge(other, task, "after");
+        return task;
+      },
+    };
+    brand(task, "TaskRef");
+    return Object.freeze(task);
+  }
+
+  #addOrderEdge(upstream: TaskRef, downstream: TaskRef, verb: "before" | "after"): void {
+    if (this.#finalized) {
+      throw new Error(
+        `An edge was drawn on Dag "${this.dagId}" after the Dag was read; ` +
+          "declare every edge while the module is loading",
+      );
+    }
+    // The argument is the one that can be foreign: the receiver is a reference
+    // this Dag handed out, since it is what carries the method.
+    const other = verb === "before" ? downstream : upstream;
+    this.#validateOwnRef(other, verb);
+    if (upstream.taskId === downstream.taskId) {
+      throw new Error(
+        `${verb}() cannot draw an edge from task "${upstream.taskId}" of Dag "${this.dagId}" to ` +
+          "itself; an edge orders two different tasks",
+      );
+    }
+    const key = `${upstream.taskId}${EDGE_KEY_SEPARATOR}${downstream.taskId}`;
+    // Idempotent, so an edge drawn from both ends is one edge.
+    if (!this.#orderEdges.has(key)) {
+      this.#orderEdges.set(
+        key,
+        Object.freeze({ upstream: upstream.taskId, downstream: downstream.taskId }),
+      );
+    }
+  }
+
+  #validateOwnRef(ref: TaskRef, verb: string): void {
+    if (!isTaskRef(ref)) {
+      throw new Error(
+        `${verb}() on Dag "${this.dagId}" takes task references returned by calling a task, ` +
+          "not arbitrary values",
+      );
+    }
+    if (ref.dagId !== this.dagId) {
+      throw new Error(
+        `${verb}() cannot draw an edge to Dag "${ref.dagId}" task "${ref.taskId}" from Dag ` +
+          `"${this.dagId}"; an edge joins two tasks of one Dag`,
+      );
+    }
+    // Identity, not the ID pair: two Dag objects can carry the same dagId, and
+    // a second resolved copy of this package brands its own references.
+    if (this.#tasks.get(ref.taskId)?.task !== ref) {
+      throw new Error(
+        `${verb}() was given a reference to "${ref.taskId}" that this Dag did not hand out; ` +
+          `it comes from another Dag object with the same ID, or ${DUPLICATE_COPY_HINT}`,
+      );
+    }
   }
 
   #wire(taskId: string, inputs: unknown): void {
@@ -642,12 +751,6 @@ function destructuredKeys(handler: unknown): readonly string[] | undefined {
   return Object.freeze(keys as string[]);
 }
 
-function createTaskRef(dagId: string, taskId: string): TaskRef {
-  const task: TaskRef = { dagId, taskId };
-  brand(task, "TaskRef");
-  return Object.freeze(task);
-}
-
 function validateDagSpec(dagId: string, spec: DagSpec): void {
   const value: unknown = spec;
   if (!isPlainRecord(value)) {
@@ -668,6 +771,11 @@ function validateDagSpec(dagId: string, spec: DagSpec): void {
  */
 export function getDagTaskRecords(dag: Dag): ReadonlyMap<string, TaskRecord> {
   return taskRecordsOf(dag);
+}
+
+/** Internal: the order-only edges of a Dag, in the order they were drawn. */
+export function getDagOrderEdges(dag: Dag): readonly OrderEdge[] {
+  return orderEdgesOf(dag);
 }
 
 /** Internal: what each task of a Dag was called with, keyed by task ID.

@@ -21,6 +21,7 @@ import { describe, it, expect } from "vitest";
 import {
   Dag,
   finalizeDag,
+  getDagOrderEdges,
   getDagTaskInputs,
   getDagTaskRecords,
   type DagSpec,
@@ -37,7 +38,7 @@ describe("Dag", () => {
     expect(typeof myTask).toBe("function");
 
     const ref = myTask();
-    expect(ref).toEqual({ dagId: "example_dag", taskId: "my_task" });
+    expect(ref).toMatchObject({ dagId: "example_dag", taskId: "my_task" });
     expect(Object.isFrozen(ref)).toBe(true);
   });
 
@@ -54,9 +55,9 @@ describe("Dag", () => {
     const transformed = transform({ extracted });
     const loaded = load({ transformed });
 
-    expect(extracted).toEqual({ dagId: "chained_dag", taskId: "extract" });
-    expect(transformed).toEqual({ dagId: "chained_dag", taskId: "transform" });
-    expect(loaded).toEqual({ dagId: "chained_dag", taskId: "load" });
+    expect(extracted).toMatchObject({ dagId: "chained_dag", taskId: "extract" });
+    expect(transformed).toMatchObject({ dagId: "chained_dag", taskId: "transform" });
+    expect(loaded).toMatchObject({ dagId: "chained_dag", taskId: "load" });
 
     const inputs = getDagTaskInputs(dag);
     expect(inputs.get("extract")).toEqual({});
@@ -87,7 +88,7 @@ describe("Dag", () => {
     const transform = dag.task("transform", async (_: { upstream: unknown }) => undefined);
     const lookalike = { dagId: "lookalike_dag", taskId: "ghost" };
 
-    transform({ upstream: lookalike });
+    transform({ upstream: lookalike } as unknown as { upstream: TaskRef });
 
     expect(getDagTaskInputs(dag).get("transform")).toEqual({ upstream: lookalike });
   });
@@ -588,6 +589,172 @@ describe("Dag", () => {
       expect(() => dag.task("x", 42 as unknown as () => Promise<void>)).toThrowError(
         /handler for Dag "bad_handler_dag" task "x" must be a function/,
       );
+    });
+  });
+
+  describe("order-only edges", () => {
+    /** A Dag whose tasks are all placed, ready for edges to be drawn on it. */
+    function placedDag(dagId: string, ...taskIds: string[]) {
+      const dag = new Dag(dagId);
+      const refs = Object.fromEntries(
+        taskIds.map((taskId) => [taskId, dag.task(taskId, async () => undefined)()]),
+      );
+      return { dag, refs };
+    }
+
+    it("draws an edge with before, from the receiver to the argument", () => {
+      const { dag, refs } = placedDag("d", "load", "cleanup");
+
+      refs.load!.before(refs.cleanup!);
+
+      expect(getDagOrderEdges(dag)).toEqual([{ upstream: "load", downstream: "cleanup" }]);
+    });
+
+    it("draws an edge with after, from the argument to the receiver", () => {
+      const { dag, refs } = placedDag("d", "load", "cleanup");
+
+      refs.cleanup!.after(refs.load!);
+
+      expect(getDagOrderEdges(dag)).toEqual([{ upstream: "load", downstream: "cleanup" }]);
+    });
+
+    it("fans out from one before call", () => {
+      const { dag, refs } = placedDag("d", "load", "cleanup", "notify");
+
+      refs.load!.before(refs.cleanup!, refs.notify!);
+
+      expect(getDagOrderEdges(dag)).toEqual([
+        { upstream: "load", downstream: "cleanup" },
+        { upstream: "load", downstream: "notify" },
+      ]);
+    });
+
+    it("fans in from one after call", () => {
+      const { dag, refs } = placedDag("d", "load", "transform", "cleanup");
+
+      refs.cleanup!.after(refs.load!, refs.transform!);
+
+      expect(getDagOrderEdges(dag)).toEqual([
+        { upstream: "load", downstream: "cleanup" },
+        { upstream: "transform", downstream: "cleanup" },
+      ]);
+    });
+
+    it.each([
+      ["before", (a: TaskRef, b: TaskRef) => a.before(b)],
+      ["after", (a: TaskRef, b: TaskRef) => b.after(a)],
+    ])("returns the receiver from %s, not the arguments", (_verb, draw) => {
+      const { refs } = placedDag("d", "load", "cleanup");
+
+      // A fan-out has no single "next" reference, so chaining continues from
+      // the same task rather than from what was just pointed at.
+      expect(draw(refs.load!, refs.cleanup!)).toBe(_verb === "before" ? refs.load : refs.cleanup);
+    });
+
+    it("records an edge once however many times it is drawn", () => {
+      const { dag, refs } = placedDag("d", "load", "cleanup");
+
+      refs.load!.before(refs.cleanup!);
+      refs.load!.before(refs.cleanup!);
+      refs.cleanup!.after(refs.load!);
+
+      expect(getDagOrderEdges(dag)).toEqual([{ upstream: "load", downstream: "cleanup" }]);
+    });
+
+    it("rejects an edge from a task to itself", () => {
+      const { refs } = placedDag("d", "a");
+
+      expect(() => refs.a!.before(refs.a!)).toThrowError(
+        /before\(\) cannot draw an edge from task "a" of Dag "d" to itself/,
+      );
+      expect(() => refs.a!.after(refs.a!)).toThrowError(
+        /after\(\) cannot draw an edge from task "a" of Dag "d" to itself/,
+      );
+    });
+
+    it("keeps the two directions apart", () => {
+      const { dag, refs } = placedDag("d", "a", "b");
+
+      refs.a!.before(refs.b!);
+      refs.b!.before(refs.a!);
+
+      // Two distinct edges, both recorded: rejecting the cycle they form is a
+      // Dag-level concern, not an edge-level one.
+      expect(getDagOrderEdges(dag)).toEqual([
+        { upstream: "a", downstream: "b" },
+        { upstream: "b", downstream: "a" },
+      ]);
+    });
+
+    it("leaves a frozen edge that a caller cannot rewrite", () => {
+      const { dag, refs } = placedDag("d", "load", "cleanup");
+      refs.load!.before(refs.cleanup!);
+
+      expect(Object.isFrozen(getDagOrderEdges(dag)[0])).toBe(true);
+    });
+
+    it("carries no value, so it records no input", () => {
+      const { dag, refs } = placedDag("d", "load", "cleanup");
+
+      refs.load!.before(refs.cleanup!);
+
+      expect(getDagTaskInputs(dag).get("cleanup")).toEqual({});
+    });
+
+    it.each([
+      ["before", (ref: TaskRef, other: TaskRef) => ref.before(other)],
+      ["after", (ref: TaskRef, other: TaskRef) => ref.after(other)],
+    ])("rejects a %s edge to a task of another Dag", (verb, draw) => {
+      const { refs: here } = placedDag("here", "load");
+      const { refs: there } = placedDag("there", "cleanup");
+
+      expect(() => draw(here.load!, there.cleanup!)).toThrowError(
+        new RegExp(
+          `${verb}\\(\\) cannot draw an edge to Dag "there" task "cleanup" from Dag "here"`,
+        ),
+      );
+    });
+
+    it("rejects a reference from another Dag object carrying the same Dag ID", () => {
+      const { refs: first } = placedDag("same_id", "load");
+      const { refs: second } = placedDag("same_id", "cleanup");
+
+      expect(() => first.load!.before(second.cleanup!)).toThrowError(
+        /before\(\) was given a reference to "cleanup" that this Dag did not hand out/,
+      );
+    });
+
+    it.each([
+      ["a plain object", { dagId: "d", taskId: "cleanup" }],
+      ["a string", "cleanup"],
+      ["null", null],
+    ])("rejects %s where a reference belongs", (_label, value) => {
+      const { refs } = placedDag("d", "load");
+
+      expect(() => refs.load!.before(value as unknown as TaskRef)).toThrowError(
+        /before\(\) on Dag "d" takes task references returned by calling a task/,
+      );
+    });
+
+    it("records nothing when an edge is rejected", () => {
+      const { dag, refs } = placedDag("d", "load");
+
+      expect(() => refs.load!.before("cleanup" as unknown as TaskRef)).toThrow();
+      expect(getDagOrderEdges(dag)).toEqual([]);
+    });
+
+    it("rejects an edge drawn after the Dag was read", () => {
+      const { dag, refs } = placedDag("d", "load", "cleanup");
+      finalizeDag(dag);
+
+      expect(() => refs.load!.before(refs.cleanup!)).toThrowError(
+        /An edge was drawn on Dag "d" after the Dag was read/,
+      );
+    });
+
+    it("has no edges before any are drawn", () => {
+      const { dag } = placedDag("d", "load");
+      expect(getDagOrderEdges(dag)).toEqual([]);
     });
   });
 
