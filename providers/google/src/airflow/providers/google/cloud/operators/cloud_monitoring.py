@@ -315,7 +315,7 @@ class CloudMonitoringDisableAlertPoliciesOperator(GoogleCloudBaseOperator):
 
 class CloudMonitoringUpsertAlertOperator(GoogleCloudBaseOperator):
     """
-    Creates a new alert or updates an existing policy identified the name field in the alerts parameter.
+    Creates a new alert or updates an existing policy identified by the name field in the alerts parameter.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -583,9 +583,9 @@ class CloudMonitoringListNotificationChannelsOperator(GoogleCloudBaseOperator):
 
 class CloudMonitoringEnableNotificationChannelsOperator(GoogleCloudBaseOperator):
     """
-    Enables one or more disabled alerting policies identified by filter parameter.
+    Enables one or more disabled notification channels identified by filter parameter.
 
-    Inoperative in case the policy is already enabled.
+    Inoperative in case the channel is already enabled.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -602,7 +602,7 @@ class CloudMonitoringEnableNotificationChannelsOperator(GoogleCloudBaseOperator)
     :param metadata: Additional metadata that is provided to the method.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
-    :param project_id: The location used for the operation.
+    :param project_id: The project in which notification channels need to be enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -669,14 +669,14 @@ class CloudMonitoringDisableNotificationChannelsOperator(GoogleCloudBaseOperator
     """
     Disables one or more enabled notification channels identified by filter parameter.
 
-    Inoperative in case the policy is already disabled.
+    Inoperative in case the channel is already disabled.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CloudMonitoringDisableNotificationChannelsOperator`
 
     :param filter_:  If provided, this field specifies the criteria that
-        must be met by alert policies to be disabled.
+        must be met by notification channels to be disabled.
         For more details, see https://cloud.google.com/monitoring/api/v3/sorting-and-filtering.
     :param retry: A retry object used to retry requests. If ``None`` is
         specified, requests will be retried using a default configuration.
@@ -686,7 +686,7 @@ class CloudMonitoringDisableNotificationChannelsOperator(GoogleCloudBaseOperator
     :param metadata: Additional metadata that is provided to the method.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
-    :param project_id: The project in which notification channels needs to be enabled.
+    :param project_id: The project in which notification channels need to be disabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -753,13 +753,13 @@ class CloudMonitoringUpsertNotificationChannelOperator(GoogleCloudBaseOperator):
     """
     Create a new notification or updates an existing notification channel.
 
-    Channel is identified by the name field in the alerts parameter.
+    Channel is identified by the name field in the channels parameter.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CloudMonitoringUpsertNotificationChannelOperator`
 
-    :param channels: A JSON string or file that specifies all the alerts that needs
+    :param channels: A JSON string or file that specifies all the notification channels that needs
         to be either created or updated. For more details, see
         https://cloud.google.com/monitoring/api/ref_v3/rest/v3/projects.notificationChannels.
         (templated)
@@ -771,7 +771,7 @@ class CloudMonitoringUpsertNotificationChannelOperator(GoogleCloudBaseOperator):
     :param metadata: Additional metadata that is provided to the method.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
-    :param project_id: The project in which notification channels needs to be created/updated.
+    :param project_id: The project in which notification channels need to be created/updated.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -843,7 +843,7 @@ class CloudMonitoringDeleteNotificationChannelOperator(GoogleCloudBaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CloudMonitoringDeleteNotificationChannelOperator`
 
-    :param name: The alerting policy to delete. The format is:
+    :param name: The notification channel to delete. The format is:
                      ``projects/[PROJECT_ID]/notificationChannels/[CHANNEL_ID]``.
     :param retry: A retry object used to retry requests. If ``None`` is
         specified, requests will be retried using a default configuration.

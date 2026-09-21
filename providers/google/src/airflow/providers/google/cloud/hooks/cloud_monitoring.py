@@ -228,7 +228,7 @@ class CloudMonitoringHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-         Create a new alert or updates an existing policy identified the name field in the alerts parameter.
+         Create a new alert or updates an existing policy identified by the name field in the alerts parameter.
 
         :param project_id: The project in which alert needs to be created/updated.
         :param alerts: A JSON string or file that specifies all the alerts that needs
@@ -433,11 +433,11 @@ class CloudMonitoringHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Enable one or more disabled alerting policies identified by filter parameter.
+        Enable one or more disabled notification channels identified by filter parameter.
 
-        Inoperative in case the policy is already enabled.
+        Inoperative in case the channel is already enabled.
 
-        :param project_id: The project in which notification channels needs to be enabled.
+        :param project_id: The project in which notification channels need to be enabled.
         :param filter_:  If provided, this field specifies the criteria that
             must be met by notification channels to be enabled.
             For more details, see https://cloud.google.com/monitoring/api/v3/sorting-and-filtering.
@@ -469,11 +469,11 @@ class CloudMonitoringHook(GoogleBaseHook):
         """
         Disables one or more enabled notification channels identified by filter parameter.
 
-        Inoperative in case the policy is already disabled.
+        Inoperative in case the channel is already disabled.
 
-        :param project_id: The project in which notification channels needs to be enabled.
+        :param project_id: The project in which notification channels need to be disabled.
         :param filter_:  If provided, this field specifies the criteria that
-            must be met by alert policies to be disabled.
+            must be met by notification channels to be disabled.
             For more details, see https://cloud.google.com/monitoring/api/v3/sorting-and-filtering.
         :param retry: A retry object used to retry requests. If ``None`` is
             specified, requests will be retried using a default configuration.
@@ -503,13 +503,13 @@ class CloudMonitoringHook(GoogleBaseHook):
         """
         Create a new notification or updates an existing notification channel.
 
-        Channel is identified by the name field in the alerts parameter.
+        Channel is identified by the name field in the channels parameter.
 
-        :param channels: A JSON string or file that specifies all the alerts that needs
+        :param channels: A JSON string or file that specifies all the notification channels that needs
             to be either created or updated. For more details, see
             https://cloud.google.com/monitoring/api/ref_v3/rest/v3/projects.notificationChannels.
             (templated)
-        :param project_id: The project in which notification channels needs to be created/updated.
+        :param project_id: The project in which notification channels need to be created/updated.
         :param retry: A retry object used to retry requests. If ``None`` is
             specified, requests will be retried using a default configuration.
         :param timeout: The amount of time, in seconds, to wait
@@ -566,7 +566,7 @@ class CloudMonitoringHook(GoogleBaseHook):
         """
         Delete a notification channel.
 
-        :param name: The alerting policy to delete. The format is:
+        :param name: The notification channel to delete. The format is:
                          ``projects/[PROJECT_ID]/notificationChannels/[CHANNEL_ID]``.
         :param retry: A retry object used to retry requests. If ``None`` is
             specified, requests will be retried using a default configuration.

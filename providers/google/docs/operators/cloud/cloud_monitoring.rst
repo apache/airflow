@@ -61,7 +61,7 @@ to enable Alert Policies identified by given filter.
 Using the operator
 """"""""""""""""""
 
-You can use this operator with or without project id to fetch all the alert policies.
+You can use this operator with or without project id to enable alert policies.
 If project id is missing it will be retrieved from Google Cloud connection used.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/cloud_monitoring/example_cloud_monitoring.py
@@ -81,7 +81,7 @@ to disable Alert Policies identified by given filter.
 Using the operator
 """"""""""""""""""
 
-You can use this operator with or without project id to fetch all the alert policies.
+You can use this operator with or without project id to disable alert policies.
 If project id is missing it will be retrieved from Google Cloud connection used.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/cloud_monitoring/example_cloud_monitoring.py
@@ -96,13 +96,13 @@ CloudMonitoringUpsertAlertOperator
 ------------------------------------
 
 Use the :class:`~airflow.providers.google.cloud.operators.cloud_monitoring.CloudMonitoringUpsertAlertOperator`
-to upsert Alert Policies identified by given filter JSON string. If the alert with the give name already
+to upsert Alert Policies identified by given filter JSON string. If the alert with the given name already
 exists, then the operator updates the existing policy otherwise creates a new one.
 
 Using the operator
 """"""""""""""""""
 
-You can use this operator with or without project id to fetch all the alert policies.
+You can use this operator with or without project id to create or update alert policies.
 If project id is missing it will be retrieved from Google Cloud connection used.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/cloud_monitoring/example_cloud_monitoring.py
@@ -141,7 +141,7 @@ to fetch all the Notification Channels identified by given filter.
 Using the operator
 """"""""""""""""""
 
-You can use this operator with or without project id to fetch all the alert policies.
+You can use this operator with or without project id to fetch all the notification channels.
 If project id is missing it will be retrieved from Google Cloud connection used.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/cloud_monitoring/example_cloud_monitoring.py
@@ -161,7 +161,7 @@ to enable Notification Channels identified by given filter.
 Using the operator
 """"""""""""""""""
 
-You can use this operator with or without project id to fetch all the alert policies.
+You can use this operator with or without project id to enable notification channels.
 If project id is missing it will be retrieved from Google Cloud connection used.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/cloud_monitoring/example_cloud_monitoring.py
@@ -181,7 +181,7 @@ to disable Notification Channels identified by given filter.
 Using the operator
 """"""""""""""""""
 
-You can use this operator with or without project id to fetch all the alert policies.
+You can use this operator with or without project id to disable notification channels.
 If project id is missing it will be retrieved from Google Cloud connection used.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/cloud_monitoring/example_cloud_monitoring.py
@@ -196,13 +196,13 @@ CloudMonitoringUpsertNotificationChannelOperator
 ----------------------------------------------------
 
 Use the :class:`~airflow.providers.google.cloud.operators.cloud_monitoring.CloudMonitoringUpsertNotificationChannelOperator`
-to upsert Notification Channels identified by given channel JSON string. If the channel with the give name already
+to upsert Notification Channels identified by given channel JSON string. If the channel with the given name already
 exists, then the operator updates the existing channel otherwise creates a new one.
 
 Using the operator
 """"""""""""""""""
 
-You can use this operator with or without project id to fetch all the alert policies.
+You can use this operator with or without project id to create or update notification channels.
 If project id is missing it will be retrieved from Google Cloud connection used.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/cloud_monitoring/example_cloud_monitoring.py
@@ -216,12 +216,15 @@ If project id is missing it will be retrieved from Google Cloud connection used.
 CloudMonitoringDeleteNotificationChannelOperator
 ----------------------------------------------------
 
-The name of the alert to be deleted should be given in the format projects/<PROJECT_NAME>/notificationChannels/<CHANNEL_NAME>
+Use the :class:`~airflow.providers.google.cloud.operators.cloud_monitoring.CloudMonitoringDeleteNotificationChannelOperator`
+to delete a Notification Channel identified by given name.
 
 Using the operator
 """"""""""""""""""
 
-You can use this operator with or without project id to fetch all the alert policies.
+The name of the notification channel to be deleted should be given in the format projects/<PROJECT_NAME>/notificationChannels/<CHANNEL_NAME>
+
+You can use this operator with or without project id to delete a notification channel.
 If project id is missing it will be retrieved from Google Cloud connection used.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/cloud_monitoring/example_cloud_monitoring.py
