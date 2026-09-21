@@ -21,3 +21,9 @@ node_modules/
 
 # Byte-exact bundle artifacts: reformatting one invalidates its embedded digests.
 tests/cli/fixtures/*.min.mjs
+
+# Written by the conformance harness, whose two sides have to agree byte for
+# byte: reformatting either would make serialize_python.py --check fail against
+# output it had just produced.
+tests/conformance/serialized_python.json
+tests/conformance/serialized_typescript.json

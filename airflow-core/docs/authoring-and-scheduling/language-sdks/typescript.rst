@@ -346,6 +346,29 @@ an id of either.
 
 .. warning:: A cycle is not allowed. The Dag is rejected when it is read, naming the tasks on the cycle.
 
+Serialization
+~~~~~~~~~~~~~
+
+A native Dag serializes into the same Dag JSON a Python Dag produces, so the scheduler reads it
+without knowing which language declared it.
+
+``schedule`` accepts what maps to a stock timetable: unset, ``@once``, ``@continuous``, or a cron
+expression. A cron preset such as ``@daily`` is recorded as the expression it stands for. Anything
+else names a Python object a TypeScript bundle cannot point at, and is rejected.
+
+Every task of a native Dag runs on the Node coordinator, so it needs the queue the deployment routes
+there. Set it once on the Dag and each task inherits it:
+
+.. code-block:: typescript
+
+    const dag = new Dag("ts_etl", { schedule: "@daily", queue: "typescript" });
+
+    // ...and one task that needs its own.
+    dag.task("heavy", heavyHandler, { queue: "typescript_large" })();
+
+``queue`` on a task wins over the Dag's. See :ref:`typescript-sdk/coordinator-config` for the
+``queue_to_coordinator`` entry that sends that queue to the coordinator.
+
 ``new Dag`` and ``dag.task`` both take a trailing spec of Airflow options:
 ``{ schedule: "@daily", tags: ["etl"] }`` for the Dag, ``{ retries: 2, retryDelay: 30 }`` for a task.
 

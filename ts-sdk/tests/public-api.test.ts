@@ -370,6 +370,10 @@ describe("public API", () => {
     expectTypeOf<Dag["taskIds"]>().toEqualTypeOf<readonly string[]>();
     // Both specs are all-optional, so `{}` stays assignable and a field the
     // schema gains later cannot break a call site.
+    // `queue` is the one Dag field Airflow's schema does not have: a native
+    // Dag's tasks all run on the same coordinator, so the queue that routes
+    // them there belongs on the Dag.
+    expectTypeOf<DagSpec["queue"]>().toEqualTypeOf<string | undefined>();
     const emptyDagSpec: DagSpec = {};
     const emptyTaskSpec: TaskSpec = {};
     expect([emptyDagSpec, emptyTaskSpec]).toEqual([{}, {}]);

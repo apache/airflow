@@ -85,7 +85,7 @@ function kindOf(value: object): string {
   return prototype?.constructor?.name ?? "value";
 }
 
-const DAG_SPEC_KEYS: ReadonlySet<string> = new Set(Object.keys(DAG_SCHEMA_FIELDS));
+const DAG_SPEC_KEYS: ReadonlySet<string> = new Set([...Object.keys(DAG_SCHEMA_FIELDS), "queue"]);
 // `taskId` is hand-written rather than generated: the schema's task_id is
 // serializer-owned, and this is the authoring surface's own way to set it.
 const TASK_SPEC_KEYS: ReadonlySet<string> = new Set([...Object.keys(TASK_SCHEMA_FIELDS), "taskId"]);
@@ -98,10 +98,20 @@ const TASK_SPEC_KEYS: ReadonlySet<string> = new Set([...Object.keys(TASK_SCHEMA_
  * break a call site. An unknown key is rejected, so a misspelled field is an
  * error rather than a Dag that quietly ignores it.
  *
- * Setting a field records it. A Dag declared in TypeScript is not served to
- * Airflow yet, so nothing reads it.
+ * `queue` is the one hand-written field: Airflow's schema has no Dag-level
+ * queue, but every task of a native Dag runs on the same coordinator, so the
+ * queue that routes them there belongs on the Dag rather than on each task.
  */
-export type DagSpec = GeneratedDagFields;
+export interface DagSpec extends GeneratedDagFields {
+  /**
+   * Queue the Dag's tasks run on, unless a task names its own.
+   *
+   * A native Dag's tasks are executed by the Node coordinator, which the
+   * deployment's `queue_to_coordinator` maps a queue to, so this is what
+   * routes them there. `queue` on a {@link TaskSpec} wins for that task.
+   */
+  readonly queue?: string;
+}
 
 /**
  * Task-level options: the retries, the pool, the trigger rule, and the rest of
@@ -280,8 +290,8 @@ function nodeId(node: Node): string | undefined {
   return undefined;
 }
 
-/** Whether `value` is a TaskRef returned by any copy of this package. */
-function isTaskRef(value: unknown): value is TaskRef {
+/** Internal: whether `value` is a TaskRef returned by any copy of this package. */
+export function isTaskRef(value: unknown): value is TaskRef {
   return hasBrand(value, "TaskRef");
 }
 
