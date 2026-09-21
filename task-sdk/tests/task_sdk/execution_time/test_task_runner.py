@@ -6827,3 +6827,28 @@ def test_stats_tags_with_standalone_and_key_value_tags(create_runtime_ti):
         "task_id": "t",
         "run_type": "manual",
     }
+
+
+def test_post_execute_receives_result(create_runtime_ti, mock_supervisor_comms):
+    """Verify that an overridden post_execute receives the result of the execute method."""
+    post_execute_results: list[str] = []
+
+    from airflow.sdk import BaseOperator
+
+    class MyOperator(BaseOperator):
+        def execute(self, context):
+            return "my_success_result"
+
+        def post_execute(self, context, result=None):
+            post_execute_results.append(result)
+
+    task = MyOperator(task_id="post_execute_task")
+    ti = create_runtime_ti(task=task)
+    import unittest.mock as mock
+
+    log = mock.MagicMock(spec=["info", "debug", "warning", "error", "exception", "bind"])
+
+    run(ti, context=ti.get_template_context(), log=log)
+
+    assert post_execute_results == ["my_success_result"]
+
