@@ -164,6 +164,10 @@ class TestSecurity:
         response = client.get(f"/users/edit/{user_with_access.id}", follow_redirects=True)
         check_content_in_response("Reset Password", response)
 
+        response = client.post(f"/users/action/resetpasswords/{user_with_access.id}", follow_redirects=False)
+        assert response.status_code == 302
+        assert "/resetpassword/form" in response.location
+
     def test_user_edit_view_hides_reset_password_action_without_access(self, app, client):
         # No "read" access to Users means the action link is not visible, even though
         # the user can still reach the edit page via "edit" access to Users.
@@ -183,6 +187,31 @@ class TestSecurity:
         )
         response = client.get(f"/users/edit/{user_with_access.id}", follow_redirects=True)
         check_content_not_in_response("Reset Password", response)
+
+    def test_user_edit_view_shows_reset_password_action_without_passwords_read_access(self, app, client):
+        # The link's visibility follows "read" on Users, not "read" on Passwords, so a user
+        # without the latter still sees the link, while following it is refused.
+        user_with_access = create_user(
+            app,
+            username="has_access",
+            role_name="role_has_access",
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER),
+                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_USER),
+            ],
+        )
+        client = client_with_login(
+            app,
+            username="has_access",
+            password="has_access",
+        )
+        response = client.get(f"/users/edit/{user_with_access.id}", follow_redirects=True)
+        check_content_in_response("Reset Password", response)
+
+        response = client.post(f"/users/action/resetpasswords/{user_with_access.id}", follow_redirects=False)
+        assert response.status_code == 302
+        assert "resetpassword" not in response.location
 
     def test_user_model_view_without_delete_access(self, app, client):
         user_to_delete = create_user(
