@@ -147,7 +147,8 @@ with DAG(
 
     # [START howto_operator_gcp_cloud_monitoring_enable_notification_channel]
     enable_notification_channel = CloudMonitoringEnableNotificationChannelsOperator(
-        task_id="enable-notification-channel", filter_='type="pubsub"'
+        task_id="enable-notification-channel",
+        filter_=f'(displayName="{CHANNEL_1_NAME}" OR displayName="{CHANNEL_2_NAME}")',
     )
     # [END howto_operator_gcp_cloud_monitoring_enable_notification_channel]
 
@@ -159,7 +160,8 @@ with DAG(
 
     # [START howto_operator_gcp_cloud_monitoring_list_notification_channel]
     list_notification_channel = CloudMonitoringListNotificationChannelsOperator(
-        task_id="list-notification-channel", filter_='type="pubsub"'
+        task_id="list-notification-channel",
+        filter_=f'(displayName="{CHANNEL_1_NAME}" OR displayName="{CHANNEL_2_NAME}")',
     )
     # [END howto_operator_gcp_cloud_monitoring_list_notification_channel]
 
@@ -187,6 +189,7 @@ with DAG(
     # [START howto_operator_gcp_cloud_monitoring_list_alert_policy]
     list_alert_policies = CloudMonitoringListAlertPoliciesOperator(
         task_id="list-alert-policies",
+        filter_=f'(displayName="{ALERT_1_NAME}" OR displayName="{ALERT_2_NAME}")',
     )
     # [END howto_operator_gcp_cloud_monitoring_list_alert_policy]
 
