@@ -204,7 +204,7 @@ TEAM_BUNDLE_CONFIG = [
 
 
 @pytest.mark.parametrize("load_examples", ["False", "True"])
-def test_get_configured_bundle_metadata(load_examples):
+def test_get_declared_bundle_teams_excludes_example_bundles(load_examples):
     with conf_vars(
         {
             ("core", "load_examples"): load_examples,
@@ -212,18 +212,15 @@ def test_get_configured_bundle_metadata(load_examples):
             ("dag_processor", "dag_bundle_config_list"): json.dumps(TEAM_BUNDLE_CONFIG),
         }
     ):
-        assert {
-            metadata.name: metadata.team_name
-            for metadata in DagBundlesManager().get_configured_bundle_metadata()
-        } == {
+        assert DagBundlesManager().get_declared_bundle_teams() == {
             "team-bundle": "team-a",
             "unscoped-bundle": None,
         }
 
 
 @conf_vars({("dag_processor", "dag_bundle_config_list"): "[]"})
-def test_get_configured_bundle_metadata_without_config():
-    assert DagBundlesManager().get_configured_bundle_metadata() == ()
+def test_get_declared_bundle_teams_without_config():
+    assert DagBundlesManager().get_declared_bundle_teams() == {}
 
 
 def test_get_bundle():
@@ -266,10 +263,8 @@ def test_custom_bundle_provider_resolves_active_and_retired_bundles():
     assert isinstance(provider, CustomDagBundleProvider)
     assert provider.metadata_requests == 0
 
-    assert manager.get_configured_bundle_metadata() == (DagBundleMetadata(name="active-bundle"),)
-    assert provider.metadata_requests == 1
     assert manager.get_active_bundle_metadata() == (DagBundleMetadata(name="active-bundle"),)
-    assert provider.metadata_requests == 2
+    assert provider.metadata_requests == 1
     assert manager.get_bundle_metadata("active-bundle") == DagBundleMetadata(name="active-bundle")
     assert manager.get_all_bundle_names() == ["active-bundle"]
     with pytest.raises(ValueError, match="'unknown-bundle' is not configured"):
