@@ -43,7 +43,8 @@ fully model-driven, with the SDK's ``ExceptionRetryPolicy`` as the bottom rung:
      - The model names one of your ``categories``; the table says whether that
        category is retried, after how long, and how sure the model has to be.
        A classifier model such as TypeSafe's Jev answers in a few hundred
-       milliseconds and reports its confidence; a text model can sit here too.
+       milliseconds and reports its confidence; a text model can sit here too,
+       without a bar.
      - Category descriptions and the confidence bar. No reasoning, no prose.
    * - **LLM**
        (``LLMRetryPolicy``)
@@ -93,7 +94,7 @@ Usage
     llm_policy = LLMRetryPolicy(
         llm_conn_id="pydanticai_default",
         timeout=30.0,  # max seconds to wait for LLM response
-        fallback_rules=[  # used when the LLM call fails or the answer is under its bar
+        fallback_rules=[  # used when the LLM call fails
             RetryRule(exception=ConnectionError, action=RetryAction.RETRY, retry_delay=timedelta(seconds=10)),
             RetryRule(exception=PermissionError, action=RetryAction.FAIL),
         ],
@@ -319,7 +320,9 @@ Escalating to an LLM
 --------------------
 
 A classifier is cheap and fast, and a text model can reason about a failure it
-has never seen a category for. ``on_uncertain`` puts one behind the other:
+has never seen a category for. ``on_uncertain`` puts one behind the other.
+``snowflake_policy`` is the classifier policy from the previous section; the
+chain reuses its category table:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_retry_policy.py
     :language: python
@@ -336,20 +339,25 @@ The order of events on a failure:
    itself. Its decision is used, with the reason prefixed by why the classifier's
    answer was not: ``escalated (below_threshold); rate_limit: 429 with a
    Retry-After header``.
-3. If that policy decides nothing either (its model was unreachable and none of
-   its own ``fallback_rules`` matched), the outer ``fallback_rules`` apply, then
-   the task's own retry behaviour.
+3. If that policy returns DEFAULT, whatever reason it attached, it decided
+   nothing: the outer ``fallback_rules`` apply, then the task's own retry
+   behaviour. Only a RETRY or FAIL from ``on_uncertain`` ends the chain, so an
+   outer rule such as ``PermissionError -> FAIL`` still holds when both models
+   are unreachable.
 
-``on_uncertain`` accepts any ``RetryPolicy``, so an ``ExceptionRetryPolicy``
-works there too, and needs ``min_confidence``: without a bar the classifier is
-never unsure. Both model calls run on the worker at failure time, so a task
-that escalates pays for two before its retry is scheduled; ``timeout`` on each
-policy bounds that.
+``on_uncertain`` accepts any ``RetryPolicy``. An ``ExceptionRetryPolicy`` works
+there too; its ``default`` is what it returns when none of its rules match, so
+``default=RetryAction.FAIL`` fails every unsure classification and the outer
+rules never run. Without ``min_confidence`` the classifier's answer is always
+acted on, and ``on_uncertain`` is consulted only when the classifier call itself
+fails. Both model calls run on the worker at failure time, so a task that
+escalates pays for two before its retry is scheduled; ``timeout`` on each policy
+bounds that.
 
 When the connection also carries a fallback chain
 --------------------------------------------------
 
-``LLMRetryPolicy`` builds its classifier hook from ``llm_conn_id`` without passing
+Either policy builds its hook from ``llm_conn_id`` without passing
 ``fallback_conn_ids``, so if that connection's extra configures a chain (see
 :doc:`provider_fallback`), the policy inherits it silently -- editing the connection changes
 retry behaviour with no change to the Dag. Two things follow:
@@ -544,8 +552,9 @@ Both policies share every parameter below except ``categories``,
      - None
      - ``ClassifierRetryPolicy`` only. A ``RetryPolicy`` to consult when the
        classifier is under its bar, reports no confidence, or cannot be
-       reached; typically an ``LLMRetryPolicy`` on a text model. Its RETRY or FAIL is used; if it decides nothing, the outer
-       ``fallback_rules`` apply. Needs ``min_confidence``.
+       reached; typically an ``LLMRetryPolicy`` on a text model. Its RETRY or FAIL
+       is used; a DEFAULT, whatever its reason, means the outer ``fallback_rules``
+       apply.
    * - ``redactor``
      - None (uses ``redact_registered_secrets``)
      - Callable ``(str) -> str`` applied to the exception's string

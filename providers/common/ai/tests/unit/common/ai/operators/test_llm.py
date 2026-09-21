@@ -400,7 +400,7 @@ class TestLLMOperatorConfidenceGate:
         with caplog.at_level(logging.WARNING):
             output = op.execute(context)
 
-        assert isinstance(output, (Summary, dict))
+        assert Summary.model_validate(output).text == "t"
         assert "the decision record was not pushed to XCom" in caplog.text
 
     @pytest.mark.skipif(

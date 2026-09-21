@@ -37,22 +37,12 @@ Changelog
 
 .. note::
   ``execute_complete`` on ``LLMOperator``, ``LLMBranchOperator``, ``LLMSQLQueryOperator`` and
-  ``LLMSchemaCompareOperator`` gained a keyword argument, ``decision``, and every review pause
-  now passes it on resume. A subclass that overrides ``execute_complete`` with the old
-  three-argument signature raises ``TypeError`` when the reviewed task resumes; add
-  ``decision=None`` to the override. A review that was already pending when you upgraded
+  ``LLMSchemaCompareOperator`` gained a keyword argument, ``decision``. ``LLMOperator`` and
+  ``LLMBranchOperator`` pass it on resume, so a subclass of either that overrides
+  ``execute_complete`` with the old three-argument signature raises ``TypeError`` when the
+  reviewed task resumes; add ``decision=None`` to the override. The other two accept the
+  keyword but do not pass it yet. A review that was already pending when you upgraded
   resumes without it and is unaffected.
-
-.. note::
-  New ``ClassifierRetryPolicy``: the model names one of the author's ``categories`` (a
-  table of ``ErrorCategory(description, retry, delay, min_confidence)``) and the table
-  decides whether to retry, after how long, and how sure the model has to be. It is the
-  policy for a classifier model such as TypeSafe's Jev, and ``on_uncertain`` lets it hand
-  an unsure or failed classification to another policy, typically an ``LLMRetryPolicy`` on
-  a text model, before ``fallback_rules``. ``LLMRetryPolicy`` itself is unchanged: the model
-  returns ``ErrorClassification`` and chooses the retry and the delay from your
-  ``instructions``, and it grows no new arguments. Other new public names:
-  ``ErrorCategory``, ``DEFAULT_CATEGORIES``, ``CLASSIFIER_INSTRUCTIONS``.
 
 .. note::
   Configuring ``fallback_conn_ids`` on a connection (or the matching operator/decorator

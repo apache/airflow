@@ -46,7 +46,7 @@ from airflow.providers.common.ai.policies.retry import (
 )
 from airflow.providers.common.ai.utils.decision import picked_key
 from airflow.sdk._shared.secrets_masker import reset_secrets_masker
-from airflow.sdk.definitions.retry_policy import RetryAction, RetryDecision, RetryRule
+from airflow.sdk.definitions.retry_policy import RetryAction, RetryDecision, RetryPolicy, RetryRule
 from airflow.sdk.log import mask_secret
 
 HOOK = "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook"
@@ -160,7 +160,7 @@ class TestDefaultCategories:
             assert f"- {name}:" in DEFAULT_INSTRUCTIONS
 
 
-class TestLLMRetryPolicyConstruction:
+class TestClassifierRetryPolicyConstruction:
     @patch(HOOK, autospec=True)
     def test_construction_makes_no_connection_or_network_call(self, mock_hook_cls):
         """The policy is instantiated at Dag parse time, so everything is validated without a hook."""
@@ -228,6 +228,20 @@ class TestLLMRetryPolicyConstruction:
         policy = ClassifierRetryPolicy(llm_conn_id="test", categories=categories)
 
         assert copy.deepcopy(policy).categories == policy.categories
+
+    def test_chained_policy_can_be_deep_copied(self):
+        """The example Dag ships a classifier with an LLMRetryPolicy behind it."""
+        policy = ClassifierRetryPolicy(
+            llm_conn_id="jev",
+            min_confidence=0.8,
+            on_uncertain=LLMRetryPolicy(llm_conn_id="text", timeout=7.0),
+        )
+
+        copied = copy.deepcopy(policy)
+
+        assert isinstance(copied.on_uncertain, LLMRetryPolicy)
+        assert copied.on_uncertain is not policy.on_uncertain
+        assert copied.on_uncertain.timeout == 7.0
 
     @patch(HOOK, autospec=True)
     def test_caller_mapping_is_copied(self, mock_hook_cls):
@@ -539,7 +553,7 @@ class TestConfidenceGate:
         [record] = [r for r in caplog.records if r.name == "airflow.providers.common.ai.policies.retry"]
         assert record.levelno == logging.INFO
         assert (
-            "not acted on (below_threshold): category=auth confidence=0.30 threshold=0.60"
+            "not applied (below_threshold): category=auth confidence=0.30 threshold=0.60"
             in record.getMessage()
         )
         assert "probabilities={'auth': 0.3, 'network': 0.28}" in record.getMessage()
@@ -865,20 +879,6 @@ class TestFallbackBehaviour:
         assert "answered 'not_a_category', which is not a configured category" in caplog.text
         assert "KeyError" not in caplog.text
 
-    def test_subclass_classify_returning_the_wrong_type_is_reported_not_acted_on(self, caplog):
-        class Odd(ClassifierRetryPolicy):
-            def _classify(self, exception, try_number, max_tries):
-                return {"should_retry": True}  # the 0.9.0 shape, not a RetryDecision
-
-        policy = Odd(llm_conn_id="test")
-
-        with caplog.at_level(logging.ERROR, logger="airflow.providers.common.ai.policies.retry"):
-            decision = policy.evaluate(ValueError("x"), try_number=1, max_tries=3)
-
-        assert decision.action == RetryAction.DEFAULT
-        assert decision.reason == "classifier answer not applied (model_error); task retry settings apply"
-        assert "returned dict instead of a RetryDecision" in caplog.text
-
 
 class TestOnUncertain:
     """Classifier first; an LLM policy when it is unsure or unreachable; the rules when neither decides."""
@@ -889,16 +889,21 @@ class TestOnUncertain:
         )
     ]
 
-    def _chain(self, mock_hook_cls, classifier_answer, confidence, llm_answer):
-        """Wire two agents behind one patched hook: the classifier by output type, the LLM by ErrorClassification."""
-        classifier = (
-            _agent(classifier_answer, confidence=confidence) if classifier_answer else MagicMock(spec=Agent)
-        )
+    def _chain(self, mock_hook_cls, classifier_answer, confidence, llm_answer, *, bar=0.8, rules=RULES):
+        """Wire two agents behind one patched hook: the classifier by output type, the LLM by ErrorClassification.
+
+        ``None`` for either answer makes that model unreachable.
+        """
         if classifier_answer is None:
+            classifier = MagicMock(spec=Agent)
             classifier.run_sync.side_effect = TimeoutError("classifier unreachable")
-        llm = _agent(llm_answer) if isinstance(llm_answer, ErrorClassification) else MagicMock(spec=Agent)
+        else:
+            classifier = _agent(classifier_answer, confidence=confidence)
         if llm_answer is None:
+            llm = MagicMock(spec=Agent)
             llm.run_sync.side_effect = TimeoutError("llm unreachable")
+        else:
+            llm = _agent(llm_answer)
 
         def create_agent(**kwargs):
             return llm if kwargs["output_type"] is ErrorClassification else classifier
@@ -906,16 +911,24 @@ class TestOnUncertain:
         mock_hook_cls.return_value.create_agent.side_effect = create_agent
         return ClassifierRetryPolicy(
             llm_conn_id="jev",
-            min_confidence=0.8,
+            min_confidence=bar,
             on_uncertain=LLMRetryPolicy(llm_conn_id="text"),
-            fallback_rules=self.RULES,
+            fallback_rules=rules,
         )
 
-    def test_on_uncertain_needs_a_bar(self):
-        with pytest.raises(ValueError, match="on_uncertain needs min_confidence"):
-            ClassifierRetryPolicy(
-                llm_conn_id="jev", categories=DEFAULT_CATEGORIES, on_uncertain=LLMRetryPolicy(llm_conn_id="t")
-            )
+    @patch(HOOK, autospec=True)
+    def test_without_a_bar_the_llm_is_consulted_only_when_the_classifier_is_unreachable(self, mock_hook_cls):
+        llm_answer = ErrorClassification(category="auth", should_retry=False, reasoning="expired key")
+
+        answered = self._chain(mock_hook_cls, "network", None, llm_answer, bar=None)
+        decision = answered.evaluate(RuntimeError("reset"), try_number=1, max_tries=3)
+        assert decision.action == RetryAction.RETRY
+        assert decision.reason == "category=network confidence=n/a threshold=n/a action=retry delay=10s"
+
+        unreachable = self._chain(mock_hook_cls, None, None, llm_answer, bar=None)
+        decision = unreachable.evaluate(RuntimeError("reset"), try_number=1, max_tries=3)
+        assert decision.action == RetryAction.FAIL
+        assert decision.reason == "escalated (model_error); auth: expired key"
 
     def test_on_uncertain_must_be_a_retry_policy(self):
         with pytest.raises(TypeError, match="on_uncertain must be a RetryPolicy"):
@@ -974,8 +987,7 @@ class TestOnUncertain:
 
     @patch(HOOK, autospec=True)
     def test_nothing_decides_means_the_task_default(self, mock_hook_cls):
-        policy = self._chain(mock_hook_cls, "auth", 0.45, None)
-        policy.fallback_rules = None
+        policy = self._chain(mock_hook_cls, "auth", 0.45, None, rules=None)
 
         decision = policy.evaluate(ValueError("?"), try_number=1, max_tries=3)
 
@@ -996,6 +1008,86 @@ class TestOnUncertain:
         assert decision.reason == "escalated (model_error); inner rule"
         inner.evaluate.assert_called_once()
 
+    def test_inner_decision_without_a_reason_is_prefixed_without_a_none_suffix(self):
+        """An ExceptionRetryPolicy with default=RETRY returns RETRY and no reason when nothing matches."""
+        inner = MagicMock(spec=LLMRetryPolicy)
+        inner.evaluate.return_value = RetryDecision.retry(delay=timedelta(seconds=9))
+        policy = ClassifierRetryPolicy(llm_conn_id="nonexistent", min_confidence=0.8, on_uncertain=inner)
+
+        decision = policy.evaluate(RuntimeError("?"), try_number=1, max_tries=3)
+
+        assert decision.action == RetryAction.RETRY
+        assert decision.retry_delay == timedelta(seconds=9)
+        assert decision.reason == "escalated (model_error)"
+
+    @pytest.mark.parametrize(
+        "inner_decision",
+        [
+            pytest.param(RetryDecision.default(), id="bare-default"),
+            pytest.param(
+                RetryDecision(action=RetryAction.DEFAULT, reason="matched a DEFAULT rule"),
+                id="default-with-reason",
+            ),
+            pytest.param(
+                RetryDecision(action=RetryAction.DEFAULT, retry_delay=timedelta(seconds=99), reason="x"),
+                id="default-with-delay",
+            ),
+        ],
+    )
+    def test_any_default_from_on_uncertain_lets_the_outer_rules_run(self, inner_decision, caplog):
+        """Only RETRY or FAIL ends the chain; the reason text on a DEFAULT does not make it a decision."""
+        inner = MagicMock(spec=LLMRetryPolicy)
+        inner.evaluate.return_value = inner_decision
+        policy = ClassifierRetryPolicy(
+            llm_conn_id="nonexistent", min_confidence=0.8, on_uncertain=inner, fallback_rules=self.RULES
+        )
+
+        with caplog.at_level(logging.INFO, logger="airflow.providers.common.ai.policies.retry"):
+            decision = policy.evaluate(RuntimeError("?"), try_number=1, max_tries=3)
+
+        assert decision.action == RetryAction.RETRY
+        assert decision.retry_delay == timedelta(seconds=5)
+        assert decision.reason == "classifier answer not applied (model_error); rule"
+        assert "decided nothing" in caplog.text
+
+    def test_on_uncertain_raising_falls_to_the_outer_rules(self, caplog):
+        """A third-party policy that blows up must not take the classifier's rules floor with it."""
+
+        class Boom(RetryPolicy):
+            def evaluate(self, exception, try_number, max_tries, context=None):
+                raise RuntimeError("policy bug")
+
+        policy = ClassifierRetryPolicy(
+            llm_conn_id="nonexistent", min_confidence=0.8, on_uncertain=Boom(), fallback_rules=self.RULES
+        )
+
+        with caplog.at_level(logging.ERROR, logger="airflow.providers.common.ai.policies.retry"):
+            decision = policy.evaluate(RuntimeError("?"), try_number=1, max_tries=3)
+
+        assert decision.action == RetryAction.RETRY
+        assert decision.reason == "classifier answer not applied (model_error); rule"
+        assert "on_uncertain policy failed" in caplog.text
+
+    @patch(HOOK, autospec=True)
+    def test_nested_classifiers_both_down_still_reach_the_outer_fail_rule(self, mock_hook_cls):
+        """A ClassifierRetryPolicy as on_uncertain falls back with a DEFAULT of its own; the outer rules must still run."""
+        mock_hook_cls.return_value.create_agent.return_value.run_sync.side_effect = TimeoutError("down")
+        inner = ClassifierRetryPolicy(llm_conn_id="jev_b", min_confidence=0.5)
+        policy = ClassifierRetryPolicy(
+            llm_conn_id="jev_a",
+            min_confidence=0.8,
+            on_uncertain=inner,
+            fallback_rules=[
+                RetryRule(exception=PermissionError, action=RetryAction.FAIL, reason="never retry 403")
+            ],
+        )
+
+        decision = policy.evaluate(PermissionError("403"), try_number=1, max_tries=3)
+
+        assert decision.action == RetryAction.FAIL
+        assert decision.reason == "classifier answer not applied (model_error); never retry 403"
+        assert mock_hook_cls.return_value.create_agent.call_count == 2
+
 
 def _open_agent(category, should_retry, delay=0, reasoning="test"):
     """A mock agent answering the 0.9.0 ``ErrorClassification`` shape, for a policy without categories."""
@@ -1009,24 +1101,30 @@ def _open_agent(category, should_retry, delay=0, reasoning="test"):
 class TestLLMRetryPolicy:
     """The LLM layer is the 0.9.0 policy: the text model decides retry and delay, and nothing classifier-shaped is on it."""
 
-    def test_defaults(self):
-        policy = LLMRetryPolicy(llm_conn_id="test")
+    def test_positional_arguments_keep_the_0_9_0_order(self):
+        rules = [RetryRule(exception=ValueError, action=RetryAction.FAIL)]
 
-        assert policy.instructions == DEFAULT_INSTRUCTIONS
-        assert not hasattr(policy, "categories")
-        assert not hasattr(policy, "min_confidence")
+        policy = LLMRetryPolicy("conn", "openai:gpt-4o", "be brief", rules, 12.0)
+
+        assert (
+            policy.llm_conn_id,
+            policy.model_id,
+            policy.instructions,
+            policy.fallback_rules,
+            policy.timeout,
+        ) == (
+            "conn",
+            "openai:gpt-4o",
+            "be brief",
+            rules,
+            12.0,
+        )
 
     @pytest.mark.parametrize("kwarg", ["categories", "min_confidence", "on_uncertain"])
     def test_has_no_classifier_arguments(self, kwarg):
         """Those belong to ClassifierRetryPolicy; a text-model user never sees them."""
         with pytest.raises(TypeError, match="unexpected keyword argument"):
             LLMRetryPolicy(llm_conn_id="test", **{kwarg: None})
-
-    def test_classifier_defaults(self):
-        policy = ClassifierRetryPolicy(llm_conn_id="test", min_confidence=0.6)
-
-        assert policy.categories == dict(DEFAULT_CATEGORIES)
-        assert policy.instructions == CLASSIFIER_INSTRUCTIONS
 
     @patch(HOOK, autospec=True)
     def test_model_output_type_is_error_classification(self, mock_hook_cls):
@@ -1131,7 +1229,7 @@ class TestLLMRetryPolicy:
             decision = policy.evaluate(ValueError("x"), try_number=1, max_tries=3)
 
         assert decision.action == RetryAction.DEFAULT
-        assert "Use ClassifierRetryPolicy" in caplog.text
+        assert "use ClassifierRetryPolicy" in caplog.text
 
     def test_no_warning_for_any_instructions(self):
         with warnings.catch_warnings():

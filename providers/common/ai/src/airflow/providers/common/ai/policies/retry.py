@@ -74,6 +74,10 @@ except ImportError:
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from pydantic_ai import Agent
+    from pydantic_ai.agent import AgentRunResult
+
+    from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.retry_policy import RetryRule
 
@@ -108,7 +112,7 @@ DEFAULT_INSTRUCTIONS = (
 
 
 class ErrorClassification(BaseModel):
-    """Structured output of :class:`LLMRetryPolicy`: the model's category, decision, delay and reasoning."""
+    """Structured LLM output for error classification."""
 
     category: str
     """One of the categories the instructions describe, by default: rate_limit, auth, network, data, resource, transient, permanent."""
@@ -293,7 +297,7 @@ class _ModelRetryPolicy(RetryPolicy):
         self.redact_exception = redact_exception
         self.max_exception_length = max_exception_length
 
-    def _hook(self) -> Any:
+    def _hook(self) -> PydanticAIHook:
         from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 
         return PydanticAIHook(llm_conn_id=self.llm_conn_id, model_id=self.model_id)
@@ -309,7 +313,9 @@ class _ModelRetryPolicy(RetryPolicy):
             f"{type(exception).__name__}: {message}"
         )
 
-    def _run(self, agent: Any, exception: BaseException, try_number: int, max_tries: int) -> Any:
+    def _run(
+        self, agent: Agent[Any, Any], exception: BaseException, try_number: int, max_tries: int
+    ) -> AgentRunResult[Any]:
         from pydantic_ai.settings import ModelSettings
 
         return agent.run_sync(
@@ -360,7 +366,7 @@ class LLMRetryPolicy(_ModelRetryPolicy):
         decision path fast even when the provider is degraded.
     """
 
-    __doc__ = __doc__ + _REDACTION_PARAMS_DOC
+    __doc__ = (__doc__ or "") + _REDACTION_PARAMS_DOC  # ``or ""`` keeps the import working under python -OO
 
     _default_instructions = DEFAULT_INSTRUCTIONS
 
@@ -388,10 +394,11 @@ class LLMRetryPolicy(_ModelRetryPolicy):
             result = self._run(agent, exception, try_number, max_tries)
         except Exception as exc:
             if "not supported by this model" in str(exc):
-                # A classifier model refuses ErrorClassification's free-text fields client-side.
+                # A classifier model refuses ErrorClassification's free-text fields client-side. A text
+                # model whose profile lacks structured output raises the same words, so this is a hint.
                 log.error(
-                    "This model cannot answer ErrorClassification; it needs a typed question. "
-                    "Use ClassifierRetryPolicy for a classifier model such as TypeSafe's Jev."
+                    "This model cannot answer ErrorClassification. If it is a classifier model such as "
+                    "TypeSafe's Jev, use ClassifierRetryPolicy, which asks it a typed question."
                 )
             raise
         classification = result.output
@@ -461,12 +468,13 @@ class ClassifierRetryPolicy(_ModelRetryPolicy):
         confidence, or the model call fails; typically an :class:`LLMRetryPolicy` on a text
         model, so the classifier handles the clear cases and a reasoning model the rest.
         Its RETRY or FAIL is used, with the reason prefixed by why the classifier's answer
-        was not. If it decides nothing either (its model was unreachable and none of its own
-        ``fallback_rules`` matched), this policy's ``fallback_rules`` and then the task's own
-        retry behaviour apply. Needs ``min_confidence``.
+        was not. A DEFAULT from it counts as no decision, whatever reason it carries, and this
+        policy's ``fallback_rules`` and then the task's own retry behaviour apply. Without
+        ``min_confidence`` the classifier's answer is always acted on, so this policy is
+        consulted only when the classifier call itself fails.
     """
 
-    __doc__ = __doc__ + _REDACTION_PARAMS_DOC
+    __doc__ = (__doc__ or "") + _REDACTION_PARAMS_DOC  # ``or ""`` keeps the import working under python -OO
 
     _default_instructions = CLASSIFIER_INSTRUCTIONS
 
@@ -499,14 +507,8 @@ class ClassifierRetryPolicy(_ModelRetryPolicy):
         self.categories: dict[str, ErrorCategory] = self._validate_categories(
             DEFAULT_CATEGORIES if categories is None else categories
         )
-        if on_uncertain is not None:
-            if not isinstance(on_uncertain, RetryPolicy):
-                raise TypeError(f"on_uncertain must be a RetryPolicy, got {type(on_uncertain).__name__}.")
-            if self.min_confidence is None:
-                raise ValueError(
-                    "on_uncertain needs min_confidence: it is consulted when the classifier's answer is "
-                    "under the bar or the classifier could not answer, and without a bar there is no such case."
-                )
+        if on_uncertain is not None and not isinstance(on_uncertain, RetryPolicy):
+            raise TypeError(f"on_uncertain must be a RetryPolicy, got {type(on_uncertain).__name__}.")
         self.on_uncertain = on_uncertain
 
     def _validate_categories(self, categories: Mapping[str, ErrorCategory]) -> dict[str, ErrorCategory]:
@@ -560,21 +562,17 @@ class ClassifierRetryPolicy(_ModelRetryPolicy):
             outcome = "model_error"
         if isinstance(outcome, RetryDecision):
             return outcome
-        if not isinstance(outcome, str):
-            # A subclass's _classify returned something else; say so rather than acting on its repr.
-            log.error(
-                "Classifier retry classification returned %s instead of a RetryDecision, using fallback",
-                type(outcome).__name__,
-            )
-            outcome = "model_error"
         if self.on_uncertain is not None:
-            escalated = self._escalate(exception, try_number, max_tries, context, why=outcome)
+            escalated = self._escalate(
+                self.on_uncertain, exception, try_number, max_tries, context, why=outcome
+            )
             if escalated is not None:
                 return escalated
         return self._fall_back(exception, try_number, max_tries, context, why=outcome)
 
     def _escalate(
         self,
+        policy: RetryPolicy,
         exception: BaseException,
         try_number: int,
         max_tries: int,
@@ -583,26 +581,32 @@ class ClassifierRetryPolicy(_ModelRetryPolicy):
         why: str,
     ) -> RetryDecision | None:
         """
-        Consult ``on_uncertain`` and return its decision, or None when it decided nothing.
+        Consult ``on_uncertain`` and return its RETRY or FAIL, or None when it decided nothing.
 
-        A DEFAULT decision with no reason is what a policy returns when its own model call failed
-        and no rule of its own matched, so that case falls through to this policy's
-        ``fallback_rules``. Any other decision is returned with the reason prefixed by why the
-        classifier's answer was not used, so a ``retry_reason`` shows the whole chain.
+        Only RETRY and FAIL are decisions. DEFAULT means the policy had nothing to add to the
+        task's own settings, whatever reason it attached (its own fallback message, or a matched
+        rule with ``action=DEFAULT``), so this policy's ``fallback_rules`` still get their say.
+        A decision comes back with the reason prefixed by why the classifier's answer was not
+        used, so a ``retry_reason`` shows the whole chain.
         """
-        policy = cast("RetryPolicy", self.on_uncertain)
         log.info("Classifier answer not applied (%s), consulting %s", why, type(policy).__name__)
         try:
             decision = policy.evaluate(exception, try_number, max_tries, context)
         except Exception:
             log.exception("on_uncertain policy failed, using fallback rules")
             return None
-        if decision.action is RetryAction.DEFAULT and decision.reason is None:
+        if decision.action is RetryAction.DEFAULT:
+            log.info(
+                "%s decided nothing (%s), using fallback rules",
+                type(policy).__name__,
+                decision.reason or "no reason given",
+            )
             return None
+        prefix = f"escalated ({why})"
         return RetryDecision(
             action=decision.action,
             retry_delay=decision.retry_delay,
-            reason=f"escalated ({why}); {decision.reason}",
+            reason=prefix if decision.reason is None else f"{prefix}; {decision.reason}",
         )
 
     def _fall_back(
@@ -619,7 +623,8 @@ class ClassifierRetryPolicy(_ModelRetryPolicy):
 
         A ``retry_reason`` read later is then not mistaken for a plain rule match or a classifier
         decision. A matched rule always carries a reason; an unmatched evaluation is DEFAULT with
-        none. A matched rule keeps its action, delay and reason whatever the action.
+        none. A matched rule keeps its action and reason whatever the action; on DEFAULT the worker
+        applies the task's own settings and the reason reaches only the log.
         """
         prefix = f"classifier answer not applied ({why})"
         ruled = self._rules_decision(exception, try_number, max_tries, context)
@@ -647,16 +652,17 @@ class ClassifierRetryPolicy(_ModelRetryPolicy):
         )
         agent = self._hook().create_agent(output_type=output_type, instructions=self.instructions)
         result = self._run(agent, exception, try_number, max_tries)
-        # The output type validated the answer, so it is one of the configured names.
         name = picked_key(result.output)
         category = self.categories.get(name)
         if category is None:
-            # The output type validates the answer, so this needs the schema and the table to disagree.
+            # The output type constrains the answer to the configured names, so reaching this needs
+            # the schema and the table to disagree.
             log.error("Classifier answered %r, which is not a configured category", name)
             return "model_error"
 
         # A bare output type is one field, ``response``; its confidence is what the bar is compared against.
         model_confidence = ModelConfidence.from_result(result)
+        model_name = model_confidence.model or "n/a"
         confidence = model_confidence.confidence.get(BARE_OUTPUT_FIELD)
         threshold = threshold_for(self.min_confidence, self._category_bars, [name])
         uncertain = review_reason(require_approval=False, threshold=threshold, confidence=confidence)
@@ -668,20 +674,20 @@ class ClassifierRetryPolicy(_ModelRetryPolicy):
         )
         if uncertain is not None:
             log.info(
-                "Classifier answer not acted on (%s): %s. model=%s probabilities=%s",
+                "Classifier answer not applied (%s): %s. model=%s probabilities=%s",
                 uncertain,
                 summary,
-                model_confidence.model or "n/a",
+                model_name,
                 model_confidence.probabilities.get(BARE_OUTPUT_FIELD) or "n/a",
             )
             return uncertain
 
-        if not category.retry:
+        if category.retry:
+            delay_text = "task default" if category.delay is None else f"{category.delay.total_seconds():g}s"
+            reason = f"{summary} action=retry delay={delay_text}"
+            decision = RetryDecision.retry(delay=category.delay, reason=reason)
+        else:
             reason = f"{summary} action=fail"
-            log.info("Classifier decision: %s model=%s", reason, model_confidence.model or "n/a")
-            return RetryDecision.fail(reason=reason)
-
-        delay_text = "task default" if category.delay is None else f"{category.delay.total_seconds():g}s"
-        reason = f"{summary} action=retry delay={delay_text}"
-        log.info("Classifier decision: %s model=%s", reason, model_confidence.model or "n/a")
-        return RetryDecision.retry(delay=category.delay, reason=reason)
+            decision = RetryDecision.fail(reason=reason)
+        log.info("Classifier decision: %s model=%s", reason, model_name)
+        return decision
