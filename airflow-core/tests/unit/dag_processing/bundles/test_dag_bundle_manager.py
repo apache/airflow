@@ -129,7 +129,7 @@ class CustomDagBundleProvider(DagBundleProvider):
     def __init__(self):
         self.metadata_requests = 0
 
-    def get_active_bundle_metadata(self):
+    def get_configured_bundle_metadata(self):
         self.metadata_requests += 1
         return [DagBundleMetadata(name="active-bundle")]
 
@@ -145,7 +145,7 @@ class CustomDagBundleProvider(DagBundleProvider):
 
 
 class DuplicateMetadataDagBundleProvider(CustomDagBundleProvider):
-    def get_active_bundle_metadata(self):
+    def get_configured_bundle_metadata(self):
         return [
             DagBundleMetadata(name="duplicate"),
             DagBundleMetadata(name="duplicate"),
@@ -153,12 +153,12 @@ class DuplicateMetadataDagBundleProvider(CustomDagBundleProvider):
 
 
 class NonMetadataDagBundleProvider(CustomDagBundleProvider):
-    def get_active_bundle_metadata(self):
+    def get_configured_bundle_metadata(self):
         return [object()]
 
 
 class MissingTeamDagBundleProvider(CustomDagBundleProvider):
-    def get_active_bundle_metadata(self):
+    def get_configured_bundle_metadata(self):
         return [DagBundleMetadata(name="active-bundle", team_name="missing-team")]
 
 

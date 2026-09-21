@@ -41,17 +41,17 @@ class DagBundleMetadata:
 
 class DagBundleProvider(ABC):
     """
-    Provide active Dag bundle metadata and construct Dag bundles.
+    Provide configured Dag bundle metadata and construct Dag bundles.
 
-    The metadata list is the complete set of active bundles. A bundle name
+    The metadata list is the complete set of configured bundles. A bundle name
     may remain resolvable through ``get_bundle`` after it leaves that list because
     retained Dag runs can still need an older version. A name must continue to
     identify the same bundle implementation; use a new name for a different one.
     """
 
     @abstractmethod
-    def get_active_bundle_metadata(self) -> Sequence[DagBundleMetadata]:
-        """Return metadata for the complete set of active Dag bundles."""
+    def get_configured_bundle_metadata(self) -> Sequence[DagBundleMetadata]:
+        """Return metadata for the complete set of configured Dag bundles."""
 
     @abstractmethod
     def get_bundle(
@@ -143,7 +143,7 @@ class ConfigDagBundleProvider(DagBundleProvider):
                 team_name=bundle_config.team_name,
             )
 
-    def get_active_bundle_metadata(self) -> Sequence[DagBundleMetadata]:
+    def get_configured_bundle_metadata(self) -> Sequence[DagBundleMetadata]:
         return [
             DagBundleMetadata(name=name, team_name=config.team_name)
             for name, config in self._bundle_config.items()
