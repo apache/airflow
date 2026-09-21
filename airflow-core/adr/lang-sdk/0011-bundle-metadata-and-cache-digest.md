@@ -31,6 +31,31 @@ consequences land on the artifact format: the build-time Dag inventory loses its
 the Dag processor gains a new need — a stable value it can compare cheaply to decide whether
 re-validation is required.
 
+Today that artifact carries a build-time inventory of the Dag and task ids it exposes. This is what
+`airflow-go-pack` emits, and what the published schema requires
+([`$id`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/docs/airflow-metadata.schema.json#L3),
+[`required`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/docs/airflow-metadata.schema.json#L7)):
+
+```yaml
+airflow_bundle_metadata_version: "1.0"
+sdk:
+  language: "go"
+  version: "0.1.0"
+  supervisor_schema_version: "2026-06-16"
+source: "main.go"
+dags:                       # <-- frozen when the artifact was built
+  etl:
+    tasks:
+      - "extract"
+      - "transform"
+  reporting:
+    tasks:
+      - "publish"
+```
+
+The `dags` mapping is required and must be non-empty. TypeScript emits the same shape under the key
+`task_handlers`; Java emits no such document at all.
+
 The three SDKs are not in the same place, and the differences matter more than the shared spec
 suggests.
 
@@ -72,16 +97,26 @@ added under any name. After this change an artifact contains exactly three thing
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  compiled artifact       the executable, JAR, or bundled code           │
-│  entrypoint source       the authored source, verbatim, for display     │
-│  metadata                only what is needed to launch and to trust:    │
-│                            · a marker identifying this as an Airflow    │
-│                              Lang-SDK artifact                          │
-│                            · sdk.language / sdk.version                 │
-│                            · sdk.supervisor_schema_version              │
-│                            · integrity and cache digests                │
-│                            · source — the display filename              │
+│  compiled artifact     the executable, JAR, or bundled code             │
+│  entrypoint source     the authored source, verbatim, for display       │
+│  metadata              only what is needed to launch and to trust       │
 └─────────────────────────────────────────────────────────────────────────┘
+```
+
+and the metadata region is reduced to this:
+
+```yaml
+airflow_bundle_metadata_version: "2.0"
+sdk:
+  language: "go"                          # this is an Airflow Lang-SDK artifact
+  version: "0.1.0"
+  supervisor_schema_version: "2026-06-16" # how to speak to it
+source: "main.go"                         # display name only
+digests:
+  integrity: "<sha256 of the executable region>"
+  cache: "<sha256 of all logical content>"
+# no dags:
+# no task_handlers:
 ```
 
 No `dag_id` appears anywhere in it, and no `task_id`. That holds for **both** roles: a mixed-language
