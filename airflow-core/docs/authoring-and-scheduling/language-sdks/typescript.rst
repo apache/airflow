@@ -22,10 +22,14 @@ TypeScript SDK
 
 |experimental|
 
-The TypeScript SDK lets you register task handlers on a ``Bundle`` and implement their logic in TypeScript (or
-plain JavaScript), running on Node.js. A matching Python stub Dag still declares the scheduling shape and
-dependencies; individual tasks delegate to a Node.js subprocess that is spawned by
-:class:`~airflow.sdk.coordinators.node.NodeCoordinator` for each task instance.
+The TypeScript SDK lets you write Airflow tasks in TypeScript (or plain JavaScript), running on
+Node.js. Tasks are executed in a Node.js subprocess that
+:class:`~airflow.sdk.coordinators.node.NodeCoordinator` spawns per task instance.
+
+There are two ways to author with it. In the **mixed-language** mode a Python Dag declares the graph
+and TypeScript supplies the task bodies, which is what :ref:`typescript-sdk/quick-start` shows. In the
+**native** mode the Dag itself is declared in TypeScript, graph and schedule included, and no Python
+file is involved: see :ref:`typescript-sdk/native-dag`.
 
 The SDK is the ``apache-airflow-ts-sdk`` package (ESM-only). It is currently in **beta** and its API may change.
 
@@ -58,6 +62,8 @@ Prerequisites
   .. code-block:: bash
 
       npm install apache-airflow-ts-sdk
+
+.. _typescript-sdk/quick-start:
 
 Quick start
 -----------
@@ -350,7 +356,11 @@ Serialization
 ~~~~~~~~~~~~~
 
 A native Dag serializes into the same Dag JSON a Python Dag produces, so the scheduler reads it
-without knowing which language declared it.
+without knowing which language declared it. ``bundle.serve()`` is the entry point for both authoring
+modes: it serves the bundle's task handlers and declares its Dags.
+
+A Dag that cannot be read or serialized is reported as an import error against the bundle, so one
+broken Dag does not take out the others.
 
 ``schedule`` accepts what maps to a stock timetable: unset, ``@once``, ``@continuous``, or a cron
 expression. A cron preset such as ``@daily`` is recorded as the expression it stands for. Anything
@@ -551,9 +561,9 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
 Limitations
 -----------
 
-* **A Python stub Dag is still required.** The Execution API does not yet carry Dag structure for non-Python
-  languages, so task names and dependencies are declared in Python with
-  :func:`@task.stub <airflow.sdk.task.stub>`.
+* **A native Dag cannot express everything a Python Dag can.** Assets, a custom timetable, dynamic task
+  mapping and setup/teardown tasks have no TypeScript spelling yet, so a Dag that needs one of them is
+  declared in Python with :func:`@task.stub <airflow.sdk.task.stub>` tasks instead.
 * **Beta status.** The SDK API may change in incompatible ways between releases.
 * **One Node.js subprocess per task instance.** Tasks that need to share in-process state between instances
   should use XCom or an external store instead.
