@@ -34,8 +34,12 @@ class TestBranchMixIn:
         """do_branch(context, None) should skip all downstream tasks."""
         mixin = BranchMixIn()
 
-        downstream1 = MagicMock(spec=BaseOperator, task_id="down1")
-        downstream2 = MagicMock(spec=BaseOperator, task_id="down2")
+        downstream1 = MagicMock(
+            spec=BaseOperator, task_id="down1", wait_for_past_depends_before_skipping=False
+        )
+        downstream2 = MagicMock(
+            spec=BaseOperator, task_id="down2", wait_for_past_depends_before_skipping=False
+        )
 
         mock_task = MagicMock(spec=BaseOperator)
         mock_task.downstream_list = [downstream1, downstream2]
@@ -55,9 +59,13 @@ class TestBranchMixIn:
         """do_branch(context, 'down1') should follow down1 and skip others."""
         mixin = BranchMixIn()
 
-        downstream1 = MagicMock(spec=BaseOperator, task_id="down1")
+        downstream1 = MagicMock(
+            spec=BaseOperator, task_id="down1", wait_for_past_depends_before_skipping=False
+        )
         downstream1.get_flat_relative_ids.return_value = set()
-        downstream2 = MagicMock(spec=BaseOperator, task_id="down2")
+        downstream2 = MagicMock(
+            spec=BaseOperator, task_id="down2", wait_for_past_depends_before_skipping=False
+        )
 
         mock_task = MagicMock(spec=BaseOperator)
         mock_task.downstream_list = [downstream1, downstream2]
