@@ -32,9 +32,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/apache/airflow/go-sdk/airflow"
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
-	"github.com/apache/airflow/go-sdk/sdk"
 )
 
 // assertSucceedTask asserts RunTask produced a terminal SucceedTask body.
@@ -64,15 +64,15 @@ func assertRetryTask(t *testing.T, result any, reasonSubstr string) {
 
 // --- Test task functions ---
 
-func failingTask() error {
+func failingTask(airflow.Context) error {
 	return errors.New("task failed intentionally")
 }
 
-func panicTask() error {
+func panicTask(airflow.Context) error {
 	panic("something went wrong")
 }
 
-func simpleTask() error {
+func simpleTask(airflow.Context) error {
 	return nil
 }
 
@@ -199,7 +199,7 @@ func TestTaskRunnerBindsArgs(t *testing.T) {
 	var gotMeta map[string]any
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		r.AddDag("test_dag").AddTaskWithName("transform",
-			func(log *slog.Logger, country string, meta map[string]any) error {
+			func(actx airflow.Context, country string, meta map[string]any) error {
 				gotCountry = country
 				gotMeta = meta
 				return nil
@@ -235,7 +235,7 @@ func TestTaskRunnerArgBindingsArityMismatch(t *testing.T) {
 	ran := false
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		r.AddDag("test_dag").AddTaskWithName("transform",
-			func(country string, meta map[string]any) error {
+			func(actx airflow.Context, country string, meta map[string]any) error {
 				ran = true
 				return nil
 			})
@@ -267,7 +267,7 @@ func TestTaskRunnerBindsStructArgs(t *testing.T) {
 	var got regionInput
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		r.AddDag("test_dag").AddTaskWithName("transform",
-			func(input regionInput) error {
+			func(actx airflow.Context, input regionInput) error {
 				got = input
 				return nil
 			})
@@ -295,7 +295,7 @@ func TestTaskRunnerStructIgnoresUnclaimedDefault(t *testing.T) {
 	var got regionInput
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		r.AddDag("test_dag").AddTaskWithName("transform",
-			func(input regionInput) error {
+			func(actx airflow.Context, input regionInput) error {
 				got = input
 				return nil
 			})
@@ -329,7 +329,7 @@ func TestTaskRunnerStructIgnoresUnclaimedDefault(t *testing.T) {
 func TestTaskRunnerArgBindingsTypeMismatch(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		r.AddDag("test_dag").AddTaskWithName("transform",
-			func(count int) error { return nil })
+			func(actx airflow.Context, count int) error { return nil })
 	})
 
 	details := newStartupDetails(
@@ -353,7 +353,7 @@ func TestTaskRunnerArgBindingsUnknownKind(t *testing.T) {
 	ran := false
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		r.AddDag("test_dag").AddTaskWithName("transform",
-			func(country string) error {
+			func(actx airflow.Context, country string) error {
 				ran = true
 				return nil
 			})
@@ -376,7 +376,7 @@ func TestTaskRunnerArgBindingsMalformedElement(t *testing.T) {
 	ran := false
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		r.AddDag("test_dag").AddTaskWithName("transform",
-			func(country string) error {
+			func(actx airflow.Context, country string) error {
 				ran = true
 				return nil
 			})
@@ -425,7 +425,7 @@ func TestTaskRunnerArgBindingsMissingRequiredFields(t *testing.T) {
 			ran := false
 			bundle := buildBundle(t, func(r bundlev1.Registry) {
 				r.AddDag("test_dag").AddTaskWithName("transform",
-					func(country string) error {
+					func(actx airflow.Context, country string) error {
 						ran = true
 						return nil
 					})
@@ -446,7 +446,7 @@ func TestTaskRunnerArgBindingsMissingRequiredFields(t *testing.T) {
 func TestTaskRunnerMalformedSpecHonorsShouldRetry(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		r.AddDag("test_dag").AddTaskWithName("transform",
-			func(country string) error { return nil })
+			func(actx airflow.Context, country string) error { return nil })
 	})
 
 	details := newStartupDetails(
@@ -462,36 +462,18 @@ func TestTaskRunnerMalformedSpecHonorsShouldRetry(t *testing.T) {
 	assertRetryTask(t, result, `unknown kind "template"`)
 }
 
-func TestRunTaskHonorsContextCancellation(t *testing.T) {
-	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTaskWithName("ctxcheck",
-			func(ctx context.Context) error { return ctx.Err() })
-	})
-
-	details := newStartupDetails("ctxcheck")
-
-	// A cancelled root context must reach the user task through RunTask's
-	// threading; the task surfaces ctx.Err(), which RunTask maps to failed.
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
-
-	result := RunTask(ctx, bundle, details, comm, logger)
-	assertTaskState(t, result, genmodels.TaskStateStateFailed)
-}
-
-func TestRunTaskInjectsRuntimeContext(t *testing.T) {
+// A handler taking an airflow.Context gets on that one value everything
+// the runtime used to hand over as separate parameters.
+func TestRunTaskInjectsAirflowContext(t *testing.T) {
 	logical := time.Date(2026, 6, 9, 12, 0, 0, 0, time.UTC)
-	start := logical
+	start := logical.Add(-time.Hour)
 	end := logical.Add(time.Hour)
 
-	var got sdk.TIRunContext
+	var got airflow.Context
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		r.AddDag("test_dag").AddTaskWithName("ctxgrab",
-			func(ctx sdk.TIRunContext) error {
-				got = ctx
+			func(actx airflow.Context) error {
+				got = actx
 				return nil
 			})
 	})
@@ -523,11 +505,9 @@ func TestRunTaskInjectsRuntimeContext(t *testing.T) {
 	result := RunTask(context.Background(), bundle, details, comm, logger)
 	assertSucceedTask(t, result)
 
-	require.NotNil(
-		t,
-		got,
-		"the task must receive a TIRunContext backed by the live task context",
-	)
+	assert.Same(t, logger, got.Logger(), "the task's logger must arrive on the Context")
+	assert.NotNil(t, got.Client(), "the coordinator-backed client must arrive on the Context")
+
 	ti := got.TaskInstance()
 	assert.Equal(t, "test_dag", ti.DagID)
 	assert.Equal(t, "run1", ti.RunID)
@@ -544,14 +524,52 @@ func TestRunTaskInjectsRuntimeContext(t *testing.T) {
 	assert.Equal(t, start, *dagRun.DataIntervalStart)
 	require.NotNil(t, dagRun.DataIntervalEnd)
 	assert.Equal(t, end, *dagRun.DataIntervalEnd)
+
+	// A helper taking a plain context.Context recovers the same surface.
+	recovered, ok := airflow.FromContext(context.Context(got))
+	require.True(t, ok)
+	assert.Equal(t, ti, recovered.TaskInstance())
+}
+
+// Serve traps SIGINT/SIGTERM into the context it hands RunTask, so a
+// supervisor shutdown reaches the handler on actx.Done().
+func TestRunTaskAirflowContextHonorsShutdown(t *testing.T) {
+	var sawDone bool
+	var sawErr error
+	bundle := buildBundle(t, func(r bundlev1.Registry) {
+		r.AddDag("test_dag").AddTaskWithName("ctxcheck",
+			func(actx airflow.Context) error {
+				select {
+				case <-actx.Done():
+					sawDone = true
+				default:
+				}
+				sawErr = actx.Err()
+				return sawErr
+			})
+	})
+
+	details := newStartupDetails("ctxcheck")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+	result := RunTask(ctx, bundle, details, comm, logger)
+
+	assert.True(t, sawDone, "actx.Done() must fire on a cancelled task context")
+	assert.ErrorIs(t, sawErr, context.Canceled)
+	assertTaskState(t, result, genmodels.TaskStateStateFailed)
 }
 
 func TestRunTaskRuntimeContextMappedIndex(t *testing.T) {
-	var got sdk.TIRunContext
+	var got airflow.Context
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		r.AddDag("test_dag").AddTaskWithName("ctxgrab",
-			func(ctx sdk.TIRunContext) error {
-				got = ctx
+			func(actx airflow.Context) error {
+				got = actx
 				return nil
 			})
 	})
@@ -671,7 +689,8 @@ func TestServeUsesSupervisorLogLevelEnvironment(t *testing.T) {
 
 	provider := &fakeProvider{
 		register: func(r bundlev1.Registry) error {
-			r.AddDag("dag1").AddTaskWithName("logging", func(logger *slog.Logger) error {
+			r.AddDag("dag1").AddTaskWithName("logging", func(actx airflow.Context) error {
+				logger := actx.Logger()
 				logger.Info("global filtered")
 				logger.WithGroup("example.child").Debug("namespace debug")
 				logger.WithGroup("unrelated").Warn("unrelated filtered")
@@ -748,8 +767,8 @@ func TestServeClientRoundTripEndToEnd(t *testing.T) {
 	provider := &fakeProvider{
 		register: func(r bundlev1.Registry) error {
 			r.AddDag("dag1").AddTaskWithName("getvar",
-				func(ctx context.Context, c sdk.Client) (string, error) {
-					v, err := c.GetVariable(ctx, varKey)
+				func(actx airflow.Context) (string, error) {
+					v, err := actx.Client().GetVariable(actx, varKey)
 					if err != nil {
 						return "", err
 					}

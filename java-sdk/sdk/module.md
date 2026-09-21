@@ -44,6 +44,7 @@ meaning of each dimension is defined in the
 | state: `removed` | MAY | ✓ | 3.3 |  |
 | **Runtime capabilities** |  |  |  |  |
 | capability: `mixed-lang-stub-target` | MUST | ✓ | 3.3 | @task.stub |
+| capability: `taskflow-binding` | MUST | ✗ | – | bind @task.stub literal/XCom args to the native handler |
 | capability: `task-logging` | MUST | ✓ | 3.3 | SLF4J + JPL bridged to the task log |
 | capability: `xcom-read-write` | MUST | ✓ | 3.3 |  |
 | capability: `connection-read` | MUST | ✓ | 3.3 |  |

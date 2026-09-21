@@ -490,6 +490,8 @@ deserializer
 deserializes
 deserializing
 dest
+destructures
+destructuring
 dev
 devel
 DevOps
@@ -916,6 +918,7 @@ jdk
 jenkins
 JenkinsRequest
 Jetson
+Jev
 Jiajie
 Jinja
 jinja
@@ -1040,6 +1043,7 @@ logstash
 longblob
 lookups
 loopback
+lowercased
 lshift
 lte
 lxml
@@ -1345,6 +1349,7 @@ protobuf
 provisioner
 proxied
 proxies
+proxying
 psql
 psrp
 psycopg
@@ -1840,6 +1845,7 @@ uncompress
 undeploy
 undeployed
 Undeploys
+unescaped
 unicode
 unicodecsv
 unindent
