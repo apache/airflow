@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 from unittest import mock
 
+import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.monitoring_v3 import AlertPolicy, NotificationChannel
 
@@ -117,6 +118,17 @@ class TestStackdriverListAlertPoliciesOperator:
             }
         ]
 
+    @pytest.mark.parametrize(
+        ("format_", "expected_result"),
+        [("dict", [{"name": "test-name"}]), ("json", ['{"name": "test-name"}'])],
+    )
+    @mock.patch("airflow.providers.google.cloud.operators.stackdriver.StackdriverHook")
+    def test_execute_with_format(self, mock_hook, format_, expected_result):
+        operator = StackdriverListAlertPoliciesOperator(task_id=TEST_TASK_ID, format_=format_)
+        mock_hook.return_value.list_alert_policies.return_value = expected_result
+
+        assert operator.execute(context=mock.MagicMock()) == expected_result
+
 
 class TestStackdriverEnableAlertPoliciesOperator:
     @mock.patch("airflow.providers.google.cloud.operators.stackdriver.StackdriverHook")
@@ -213,6 +225,17 @@ class TestStackdriverListNotificationChannelsOperator:
                 }
             ],
         ]
+
+    @pytest.mark.parametrize(
+        ("format_", "expected_result"),
+        [("dict", [{"name": "test-123"}]), ("json", ['{"name": "test-123"}'])],
+    )
+    @mock.patch("airflow.providers.google.cloud.operators.stackdriver.StackdriverHook")
+    def test_execute_with_format(self, mock_hook, format_, expected_result):
+        operator = StackdriverListNotificationChannelsOperator(task_id=TEST_TASK_ID, format_=format_)
+        mock_hook.return_value.list_notification_channels.return_value = expected_result
+
+        assert operator.execute(context=mock.MagicMock()) == expected_result
 
 
 class TestStackdriverEnableNotificationChannelsOperator:
