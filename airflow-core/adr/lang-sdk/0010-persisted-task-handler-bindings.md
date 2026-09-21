@@ -17,7 +17,7 @@
  under the License.
  -->
 
-# ADR-0010: Persisted Task-Handler Bindings — Resolving Lang-SDK Artifacts at Parse Time
+# ADR-0010: Persisted Task-Handler Bindings (Resolving Lang-SDK Artifacts at Parse Time
 
 ## Status
 
@@ -26,7 +26,7 @@ Proposed
 ## Context
 
 A mixed-language Dag is authored in Python with `@task.stub` tasks whose bodies live in a Lang-SDK
-artifact — a packed Go binary, a JAR, a minified `.min.mjs`. Nothing in the Dag says *which* artifact.
+artifact) a packed Go binary, a JAR, a minified `.min.mjs`. Nothing in the Dag says *which* artifact.
 Nothing is recorded about that artifact when the Dag is processed, so the link has to be
 rediscovered on every single task execution by scanning a filesystem root:
 
@@ -55,15 +55,13 @@ Two problems compound here.
 root and re-hashes candidates to answer a question whose answer changed only when someone deployed.
 
 **The identifiers it scans are frozen when the artifact is built.** Packing an artifact records the
-Dag ids and task ids it exposes into the artifact's own metadata, and they are fixed from then on
-([`collectManifest`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/pkg/execution/metadata.go#L83-L115)). A coordinator picks an artifact
-by looking a `dag_id` up in that recorded list, so a Dag whose id the artifact only decides on when
-it runs — generated from an external YAML, say — can never be matched to it. Dynamic Dag generation
-does not merely misroute; it cannot be packed at all, because an artifact that enumerates no Dags at
-build time is rejected outright ([`empty-dags check`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/cmd/airflow-go-pack/pack.go#L166-L168)).
+Dag ids and task ids it exposes into the artifact's own metadata at the packing stage, and they are
+fixed from then on. Currently, a coordinator picks an artifact by looking a `dag_id` up in that
+recorded list. A Dag whose id the artifact only decides on when it runs (for example: generated from
+an external YAML) can never be matched to it.
 
-Separately, `[sdk] coordinators` locates artifacts through filesystem roots — `jars_root`,
-`executables_root`, `bundles_root` ([ADR-0005](0005-coordinator-packaging.md)) — which are
+Separately, `[sdk] coordinators` locates artifacts through filesystem roots (`jars_root`,
+`executables_root`, `bundles_root` ([ADR-0005](0005-coordinator-packaging.md))) which are
 unversioned mutable directories outside any `DagBundle`, with their own delivery problem. Deployments
 already solve that delivery by staging a `DagBundle` *into* the root
 ([`stage_artifacts.py`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/kubernetes-tests/lang_sdk/stage_artifacts.py)), which makes the root a second addressing layer over
@@ -72,9 +70,8 @@ a mechanism that already addresses and versions artifacts.
 This ADR replaces runtime discovery with a binding resolved once during Dag processing and persisted,
 and replaces the filesystem root with a named `DagBundle`.
 
-Terms follow the Language SDK spec ([`lang-sdk-spec.rst`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/docs/lang-sdk-spec.rst)). Native Dags — a Dag authored
-entirely in a Lang SDK — are **out of scope** here; they arrive through an ordinary `DagBundle` and a
-Dag importer, and are not yet recorded in an ADR.
+Native Dags (a Dag authored entirely in a Lang SDK) are **out of scope** here; they arrive through an
+ordinary `DagBundle` and a Dag importer, and are not yet recorded in an ADR.
 
 ## Decision
 
@@ -84,8 +81,8 @@ Dag importer, and are not yet recorded in an ADR.
 `DagBundle`.
 
 Nothing is taken away from deployments that want to place artifacts themselves. A `LocalDagBundle`
-pointed at the mount does exactly what an explicit root did — the directory is still theirs to
-manage — but it arrives through the same mechanism as every other bundle rather than beside it, so
+pointed at the mount does exactly what an explicit root did (the directory is still theirs to
+manage) but it arrives through the same mechanism as every other bundle rather than beside it, so
 it inherits refresh and the rest without special-casing:
 
 ```ini
@@ -133,8 +130,8 @@ queue_to_coordinator = {"java": "jdk-17"}
    bundle.path / <artifact_rel_path>
 ```
 
-The Python Dag file and the artifact sit in different bundles — `dags-folder` and
-`java-task-handlers` above — and that is the expected layout, not a workaround. Binaries and JARs do
+The Python Dag file and the artifact sit in different bundles (`dags-folder` and
+`java-task-handlers` above) and that is the expected layout, not a workaround. Binaries and JARs do
 not belong in the bundle holding `.py` files. Both are registered with the Dag processor, because
 registration is what makes `get_bundle(name)` resolvable on the worker.
 
@@ -199,12 +196,11 @@ that querying it means "a sequential scan of dag"
 
 `handler_params` stores what the runtime declared, so a changed Python file can be re-validated
 against a cached declaration with no subprocess. It is deliberately **not** called `arg_bindings`:
-that name already denotes the Python side of the comparison — `XComArgBinding` / `LiteralArgBinding`,
-carrying wiring and values ([`build_arg_bindings`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/airflow-core/src/airflow/serialization/stub_arg_bindings.py#L221-L286)) —
+that name already denotes the Python side of the comparison (`XComArgBinding` / `LiteralArgBinding`,
+carrying wiring and values, [`build_arg_bindings`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/airflow-core/src/airflow/serialization/stub_arg_bindings.py#L221-L286)),
 and reusing it would make the validation read as comparing a thing to itself.
 
-`cache_digest` is **opaque and coordinator-defined**, not "SHA-256 of the file"
-([ADR-0011](0011-bundle-metadata-and-cache-digest.md)).
+`cache_digest` is **opaque and coordinator-defined**, not "SHA-256 of the file".
 
 ### Objects on the wire
 
@@ -338,10 +334,10 @@ class StartupDetails(BaseModel):
     ...
 ```
 
-`None` means "this task needs no Lang-SDK artifact" — an ordinary Python task. It never means
+`None` means "this task needs no Lang-SDK artifact" (an ordinary Python task. It never means
 "unknown": a stub task that failed to resolve is not queued at all (see "Failure handling").
 
-### Flow 1 — Dag processing: the write path
+### Flow 1) Dag processing: the write path
 
 Resolution is driven by the Python file's parse, after `PythonDagImporter` has produced the Dags.
 The artifact never parses itself into these tables. That ordering is deliberate: a `dag_id` exists
@@ -435,7 +431,7 @@ Artifact rows are **never** evicted from one file's result. One artifact backs h
 Python files, so this file seeing fewer candidates says nothing about another file's. They are a
 cache; they are reclaimed by orphan sweep or by `db clean`, never by a per-file reconcile.
 
-### Flow 2 — Scheduling: the read path
+### Flow 2 (Scheduling: the read path
 
 ```
 SchedulerJobRunner._executable_task_instances_to_queued        [reads DB]
@@ -471,7 +467,7 @@ SchedulerJobRunner._enqueue_task_instances_with_queued_state   [no further DB re
 
 A stub task with no binding is **failed with its reason**, not skipped.
 
-### Flow 3 — Task execution
+### Flow 3) Task execution
 
 ```
 executor worker process
@@ -524,7 +520,7 @@ stored digest, so one cannot substitute for the other.
 
 ### The fast path
 
-Validation is expensive — one subprocess per candidate — and a file is re-parsed every
+Validation is expensive (one subprocess per candidate) and a file is re-parsed every
 `[dag_processor] min_file_process_interval` seconds, 30 by default. Re-probing unchanged artifacts
 every 30 seconds forever is not acceptable, so the probe is skipped when nothing relevant changed.
 
@@ -548,7 +544,7 @@ that differs from `known_artifacts` forces a probe. Without this, an added artif
 `(dag_id, task_id)` would never be detected, and the conflict rule above would be unenforceable.
 
 **The Python side is re-validated regardless.** The skip avoids the *subprocess*, not the comparison.
-`handler_params` is stored precisely so a changed `.py` — a stub task that gained an argument — is
+`handler_params` is stored precisely so a changed `.py` (a stub task that gained an argument) is
 compared against the cached declaration in process. Skipping the comparison as well would cache a
 verdict for a signature that no longer exists, and ship the mismatch to a worker as a runtime
 argument error instead of catching it as an import error.
@@ -569,8 +565,8 @@ importing keeps its last good `SerializedDagModel` rather than having it deleted
 **A stub task has no binding at all.** The scheduler fails it with the reason rather than queueing a
 workload that would die on the worker at `ValueError("dag_path is required")`, far from the cause.
 
-**Two artifacts claim one `(dag_id, task_id)`.** An import error against the Python file — the
-definition whose author can act — naming both artifact paths, since the fix is in the deployment.
+**Two artifacts claim one `(dag_id, task_id)`.** An import error against the Python file (the
+definition whose author can act) naming both artifact paths, since the fix is in the deployment.
 
 ## Consequences
 
@@ -585,16 +581,12 @@ definition whose author can act — naming both artifact paths, since the fix is
   that owns rows in it; `lang_sdk_task_handler_artifact` is a cache with no per-file eviction.
 - The artifact bundle is a second bundle on the execution path. `ExecuteTask` and `StartupDetails`
   each grow one optional `SDKTaskHandlerRef`, and the worker performs a second `initialize()`. Workload
-  payloads grow by roughly one `BundleInfo`, which is serialized into executor argv for
-  K8s/ECS/Batch/Lambda and into the message body for Celery/SQS.
+  payloads grow by roughly one `BundleInfo`.
 - `DagFileParseRequest` and `DagFileParsingResult` each gain a field, and `ToSDKTaskHandlerProcessor`
   becomes a fifth union the supervisor-schema registry introspects. Both messages already appear in
   the generated schemas of all three SDKs, so the snapshot is regenerated and the two prek hooks
   guarding it run.
-- Every Lang SDK must answer `SDKTaskHandlerParseRequest`. None does today: Go decodes
-  `DagFileParseRequest` and drops it ([`TypeDagFileParseRequest`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/pkg/execution/messages.go#L78-L83)), TS answers with a
-  documented empty stub ([`handleParse`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/ts-sdk/src/coordinator/runtime.ts#L265-L281)), Java has nothing. This is the
-  critical path for the feature.
+- Every Lang SDK must answer `SDKTaskHandlerParseRequest`.
 - A misrouted queue becomes an import error instead of a runtime failure. Today a stub task on a
   queue absent from `queue_to_coordinator` silently falls back to the Python coordinator
   ([`for_queue`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/execution_time/coordinator.py#L280-L284)) and dies in
@@ -602,37 +594,33 @@ definition whose author can act — naming both artifact paths, since the fix is
 - One artifact bundle is one Java classpath. `_calculate_classpath` joins every JAR under the root
   ([`_calculate_classpath`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/java/coordinator.py#L85-L87)), so all handlers in a bundle
   share one dependency graph. Isolating conflicting dependency versions requires a second bundle, a
-  second coordinator instance, and a second queue. This needs documenting, not just deciding.
-- Steady-state parsing costs no subprocesses. A cold start — empty tables, or a bundle whose
-  candidate set changed — costs one subprocess per changed candidate per coordinator, shared across
+  second coordinator instance, and a second queue. This needs documenting.
+- Steady-state parsing costs no subprocesses. A cold start (empty tables, or a bundle whose
+  candidate set changed) costs one subprocess per changed candidate per coordinator, shared across
   all Dag files in that parsing loop through `known_artifacts`.
 - No `DagVersion` coupling. An artifact rebuild does not bump a Dag's version, and a Dag edit does
-  not invalidate an artifact fingerprint. The two change independently and are tracked
-  independently, following the reasoning recorded in
-  [`rollup_fingerprint`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/airflow-core/src/airflow/migrations/versions/0121_3_3_0_add_rollup_fingerprint_to_apdr.py#L22-L29),
-  where a fingerprint was chosen over `dag_version_id` for exactly this reason.
+  not invalidate an artifact fingerprint.
 - Mixed-language stays Python-primary. A Lang-SDK runtime cannot declare stub tasks, and a native Dag
   cannot delegate a task to Python.
 
 ## References
 
-- [ADR-0011](0011-bundle-metadata-and-cache-digest.md) — what the artifact carries, and the cache digest
-- [ADR-0003](0003-pure-java-dags.md) — `BundleScanner` / build-time artifact inventory, superseded here
-- [ADR-0004](0004-dag-parsing.md) — the coordinator subprocess bridge and `can_handle_dag_file`
-- [ADR-0005](0005-coordinator-packaging.md) — `[sdk] coordinators`, and the roots this ADR removes
-- [ADR-0006](0006-no-lang-sdk-source-display.md) — no Lang-SDK source display
-- [ADR-0007](0007-taskflow-across-language-boundary.md) — `arg_bindings` / `ArgValueSchema`
-- [`go-sdk ADR-0004`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/adr/0004-self-contained-executable-bundle.md) — the artifact format, and the
+- [ADR-0003](0003-pure-java-dags.md) (`BundleScanner` / build-time artifact inventory, superseded here
+- [ADR-0004](0004-dag-parsing.md)) the coordinator subprocess bridge and `can_handle_dag_file`
+- [ADR-0005](0005-coordinator-packaging.md) (`[sdk] coordinators`, and the roots this ADR removes
+- [ADR-0006](0006-no-lang-sdk-source-display.md)) no Lang-SDK source display
+- [ADR-0007](0007-taskflow-across-language-boundary.md) (`arg_bindings` / `ArgValueSchema`
+- [`go-sdk ADR-0004`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/adr/0004-self-contained-executable-bundle.md)) the artifact format, and the
   "discovery without execution" requirement this ADR retracts
-- [`processor.py`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/airflow-core/src/airflow/dag_processing/processor.py) — `_parse_file`, `DagFileParseRequest`, `DagFileParsingResult`
-- [`collection.py`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/airflow-core/src/airflow/dag_processing/collection.py) — `update_dag_parsing_results_in_db`, the reconcile patterns
-- [`scheduler_job_runner.py`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/airflow-core/src/airflow/jobs/scheduler_job_runner.py) — the queueing query and `make_transient`
-- [`lang-sdk-spec.rst`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/docs/lang-sdk-spec.rst) — Language SDK spec
-- [AIP-108](https://cwiki.apache.org/confluence/x/pY4mGQ) — Language SDKs
+- [`processor.py`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/airflow-core/src/airflow/dag_processing/processor.py) (`_parse_file`, `DagFileParseRequest`, `DagFileParsingResult`
+- [`collection.py`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/airflow-core/src/airflow/dag_processing/collection.py)) `update_dag_parsing_results_in_db`, the reconcile patterns
+- [`scheduler_job_runner.py`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/airflow-core/src/airflow/jobs/scheduler_job_runner.py) (the queueing query and `make_transient`
+- [`lang-sdk-spec.rst`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/docs/lang-sdk-spec.rst)) Language SDK spec
+- [AIP-108](https://cwiki.apache.org/confluence/x/pY4mGQ) (Language SDKs
 
 ## Appendix
 
-### Appendix A — Which records each flow touches
+### Appendix A) Which records each flow touches
 
 | Flow | Table | Access | Keyed by | Notes |
 |---|---|---|---|---|
@@ -645,7 +633,7 @@ definition whose author can act — naming both artifact paths, since the fix is
 | Scheduling | `lang_sdk_task_handler` | READ | `(dag_id, task_id)` | eager-loaded or bulk pre-queried **before** `make_transient` |
 | Scheduling | `lang_sdk_task_handler_artifact` | READ | `artifact_id` | same load; supplies bundle name and path |
 | Scheduling | `dag` | READ | `has_import_errors` | existing; gates new runs, not in-flight ones |
-| Task execution | — | none | — | everything arrives on the workload |
+| Task execution | (| none |) | everything arrives on the workload |
 
 How a record crosses each boundary:
 
@@ -666,17 +654,17 @@ both tables                    ──▶ SDKTaskHandlerRef     ──▶ Execute
 
 **The artifact writes its own rows.** Let the Dag processor parse each artifact as a first-class
 input; the runtime self-reports its registrations and the rows are written by the artifact's own
-parse. This removes discovery entirely — the artifact is addressed by the path the processor is
-already iterating — and makes an artifact rebuild self-healing. It was rejected on ordering: on a
-cold start a Python file can be parsed before the artifact that backs it, so validation would find no
-rows and report an import error that is simply wrong until the next cycle. Repairing that needs
-"absence is not evidence" semantics plus a re-parse trigger when rows appear, which is more machinery
-than the Python-pulls flow costs.
+parse. Rejected because persisting these records is the manager's responsibility, not the task
+subprocess's: the subprocess runs user code in the client context, and giving it the last word on
+what lands in the tables puts a write that the manager owns behind a process the manager does not
+trust. The ordering also suffers, since on a cold start a Python file can be parsed before the
+artifact that backs it, leaving validation to report an import error that is wrong until the next
+cycle.
 
 **A single denormalised table.** Storing the artifact's fingerprint on every binding row avoids a
-join. Rejected because the same artifact's digest would be stored many times and could disagree —
-two parse children in one loop, one reading the file before a redeploy and one after, write different
-digests, and the skip decision then depends on which row is read. It also forfeits the cross-file
+join. Rejected on a race condition: the same artifact's digest would be stored many times and could
+disagree, because two parse children in one loop, one reading the file before a redeploy and one
+after, write different digests, and the skip decision then depends on which row is read. It also forfeits the cross-file
 cache: `known_artifacts` is scoped by artifact bundle, which a per-Dag-file table cannot answer
 without de-duplicating in SQL and trusting the copies agree.
 
@@ -702,12 +690,12 @@ counts: it defeats reproducible builds, which Go, Gradle and Maven all work to p
 would not even register, because the existing trailer digest covers the binary region only and not
 the metadata; and the deployment signal it seeks already exists in the bundle.
 
-### Appendix C — Suggested sequencing
+### Appendix C (Suggested sequencing
 
 The validation half requires a new wire message in three SDKs that have none. The recording half does
 not, and is what removes the execution-time scan. They can ship separately:
 
-**Phase 1 — resolution and consumption.** `task_handler_bundle_name` replaces the roots; the parse
+**Phase 1) resolution and consumption.** `task_handler_bundle_name` replaces the roots; the parse
 resolves the artifact and writes both tables; the workload, `StartupDetails` and the coordinators
 consume `SDKTaskHandlerRef`; `_dag_ids` and the root walk are deleted. No new wire message, no SDK work,
 no subprocess during parsing. `handler_params` is written empty.
