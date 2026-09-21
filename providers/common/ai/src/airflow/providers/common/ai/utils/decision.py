@@ -30,7 +30,8 @@ probability that the answer is correct, and the gate does not describe it as suc
 
 The public configuration lives in :mod:`airflow.providers.common.ai.policies.decision`
 (:class:`DecisionPolicy`, :class:`BranchOption`); this module is the machinery the
-operators call.
+operators and the retry policy call, including :func:`described_choices`, which builds
+the option type a model picks from with each option's description in the schema.
 """
 
 from __future__ import annotations
@@ -38,12 +39,14 @@ from __future__ import annotations
 import math
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any, Literal
 
 from airflow.providers.common.ai.exceptions import LowConfidenceError
 from airflow.providers.common.ai.policies.decision import DecisionPolicy, UncertainAction
 
 __all__ = [
+    "BARE_OUTPUT_FIELD",
     "DECISION_XCOM_KEY",
     "DecidedBy",
     "DecisionPolicy",
@@ -53,8 +56,10 @@ __all__ = [
     "check_uncertain_action",
     "decision_record",
     "describe_confidence",
+    "described_choices",
     "finalize_record",
     "initial_decided_by",
+    "picked_key",
     "policy_fails",
     "policy_record",
     "review_reason",
@@ -65,10 +70,38 @@ __all__ = [
 
 DECISION_XCOM_KEY = "decision"
 
+BARE_OUTPUT_FIELD = "response"
+"""The field name a classifier model reports a bare (non-object) output type's confidence under."""
+
 ReviewReason = Literal["require_approval", "below_threshold", "missing_confidence"]
 DecidedBy = Literal["model", "human", "timeout_default", "policy", "timeout"]
 
 _UNCERTAIN: tuple[ReviewReason, ...] = ("below_threshold", "missing_confidence")
+
+_NOT_LOADED = object()
+Choice: Any = _NOT_LOADED
+Choices: Any = _NOT_LOADED
+
+
+def _choice_types() -> tuple[Any, Any]:
+    """
+    Return pydantic-ai's ``(Choice, Choices)``, or ``(None, None)`` before 2.46.0.
+
+    Loaded on first use rather than at import: importing ``pydantic_ai`` costs most of a second,
+    and this module is imported by the retry policy at Dag-parse time, where nothing needs it yet.
+    Tests patch the module attributes directly, which this honours.
+    """
+    global Choice, Choices
+    if Choice is _NOT_LOADED or Choices is _NOT_LOADED:
+        try:
+            from pydantic_ai import (  # type: ignore[attr-defined]
+                Choice as loaded_choice,
+                Choices as loaded_choices,
+            )
+        except ImportError:  # pydantic-ai < 2.46.0: build the same schema from an Enum instead
+            loaded_choice = loaded_choices = None
+        Choice, Choices = loaded_choice, loaded_choices
+    return Choice, Choices
 
 
 def validate_decision_policy(policy: Any) -> DecisionPolicy:
@@ -269,3 +302,48 @@ def describe_confidence(model_confidence: ModelConfidence, key: str, threshold: 
         ranked = sorted(probabilities.items(), key=lambda item: item[1], reverse=True)
         line += "\n\nProbabilities: " + ", ".join(f"{option} {p:.2f}" for option, p in ranked)
     return line
+
+
+def described_choices(name: str, options: Mapping[str, str | None]) -> type[Any]:
+    """
+    Build the type a model picks one of ``options`` from, each option carrying its description.
+
+    With a description on any option the schema renders as ``anyOf`` of ``{const, description}``
+    instead of a bare ``enum`` list. That is the one JSON Schema shape that carries a description
+    per value, and it is what both a text model's tool schema and pydantic-ai's TypeSafe adapter
+    read an option's meaning from. On pydantic-ai 2.46+ the type is its ``Choices``; before that,
+    an ``Enum`` whose schema hook emits the same shape. Either way the model has to answer with one
+    of the keys, in the order given, and :func:`picked_key` returns that key whichever type answered.
+    """
+    keys = list(options)
+    descriptions = {key: text for key, text in options.items() if text}
+    choice, choices = _choice_types()
+    if choices is not None:
+        if not descriptions:
+            return choices(keys, name=name)
+        return choices({key: choice(descriptions.get(key)) for key in keys}, name=name)
+
+    # Generated member names: Enum reserves ``_sunder_`` names and ``mro``, and a key need not be an
+    # identifier. The key is the member's value, which is what the schema, the model and ``picked`` use.
+    enum_cls: type[Enum] = Enum(name, {f"option_{i}": key for i, key in enumerate(keys)})  # type: ignore[misc]
+    if not descriptions:
+        return enum_cls
+
+    def json_schema(cls: type[Enum], core_schema: Any, handler: Any) -> dict[str, Any]:
+        rendered: list[dict[str, Any]] = []
+        for member in cls:
+            option: dict[str, Any] = {"const": member.value, "type": "string"}
+            if text := descriptions.get(member.value):
+                option["description"] = text
+            rendered.append(option)
+        return {"anyOf": rendered, "title": cls.__name__}
+
+    # pydantic looks this hook up on the type when it builds the schema, so attaching it to the
+    # functional-API enum is the same as defining it in a class body.
+    setattr(enum_cls, "__get_pydantic_json_schema__", classmethod(json_schema))
+    return enum_cls
+
+
+def picked_key(value: Any) -> str:
+    """Return the key a picked option stands for: ``Choices`` answers with the key, the Enum fallback with a member."""
+    return value.value if isinstance(value, Enum) else str(value)
