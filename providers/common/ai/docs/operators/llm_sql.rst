@@ -60,7 +60,7 @@ With Object Storage
 -------------------
 
 Use ``datasource_config`` to generate queries for data stored in object storage
-(e.g., S3, local filesystem) via `DataFusion <https://datafusion.apache.org/>`_.
+(e.g., S3, GCS, local filesystem) via `DataFusion <https://datafusion.apache.org/>`_.
 The operator uses :class:`~airflow.providers.common.sql.config.DataSourceConfig`
 to register the object storage source as a table so the LLM can include it in
 the schema context.
@@ -135,6 +135,13 @@ Generate SQL for multiple prompts in parallel using ``expand()``:
     :start-after: [START howto_operator_llm_sql_expand]
     :end-before: [END howto_operator_llm_sql_expand]
 
+Usage Limits
+------------
+
+``usage_limits`` caps the request count, token usage, tool calls, or cost of the
+SQL generation run, and fails the task when a budget is exceeded. It is inherited
+from ``LLMOperator`` -- see :ref:`Usage Limits <howto/operator:llm_usage_limits>`.
+
 Human-in-the-Loop Approval
 --------------------------
 
@@ -149,6 +156,12 @@ modified query is re-validated against the same safety rules automatically.
     :language: python
     :start-after: [START howto_operator_llm_sql_approval]
     :end-before: [END howto_operator_llm_sql_approval]
+
+``approval_timeout``, ``approval_notifiers``, ``approval_assigned_users``, and
+the rest of the approval behaviour are inherited from
+:ref:`LLMOperator <howto/operator:llm>`.
+``decision_policy`` is not supported here: the operator runs its own ``execute`` without the
+confidence gate and rejects a policy with a bar at construction.
 
 SQL Safety Validation
 ---------------------

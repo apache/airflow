@@ -589,7 +589,7 @@ queue values are set to either ``"team_A"`` or ``"team_B"``):
 Difference between Mode='reschedule' and Deferrable=True in Sensors
 -------------------------------------------------------------------
 
-In Airflow, sensors wait for specific conditions to be met before proceeding with downstream tasks. Sensors have two options for managing idle periods: ``mode='reschedule'`` and ``deferrable=True``. Because ``mode='reschedule'`` is a parameter specific to the BaseSensorOperator in Airflow, it allows the sensor to reschedule itself if the condition is not met. ``'deferrable=True'`` is a convention used by some operators to indicate that the task can be retried (or deferred) later, but it is not a built-in parameter or mode in Airflow. The actual behavior of retrying the task varies depending on the specific operator implementation.
+In Airflow, sensors wait for specific conditions to be met before proceeding with downstream tasks. Sensors have two options for managing idle periods: ``mode='reschedule'`` and ``deferrable=True``. Because ``mode='reschedule'`` is a parameter specific to the BaseSensorOperator in Airflow, it allows the sensor to reschedule itself if the condition is not met. ``deferrable=True`` is a parameter supported by individual deferrable operators and sensors to indicate that the task should suspend itself and free the worker slot while waiting, resuming only when the condition is met. The actual behavior varies depending on the specific operator implementation.
 
 +--------------------------------------------------------+--------------------------------------------------------+
 |           mode='reschedule'                            |          deferrable=True                               |

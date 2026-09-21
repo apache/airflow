@@ -225,6 +225,9 @@ apache-airflow = "airflow.__main__:main"
 "docker" = [
     "apache-airflow-providers-docker>=3.14.1"
 ]
+"duckdb" = [
+    "apache-airflow-providers-duckdb>=0.1.0"
+]
 "edge3" = [
     "apache-airflow-providers-edge3>=1.0.0"
 ]
@@ -456,6 +459,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-dingding>=3.7.0",
     "apache-airflow-providers-discord>=3.9.0",
     "apache-airflow-providers-docker>=3.14.1",
+    "apache-airflow-providers-duckdb>=0.1.0",
     "apache-airflow-providers-edge3>=1.0.0",
     "apache-airflow-providers-elasticsearch>=6.6.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-exasol>=4.6.1",
@@ -1190,6 +1194,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/discord/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/docker/src",
     "$MYPY_CONFIG_FILE_DIR/providers/docker/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/duckdb/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/duckdb/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/edge3/src",
     "$MYPY_CONFIG_FILE_DIR/providers/edge3/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/elasticsearch/src",
@@ -1498,6 +1504,7 @@ apache-airflow-providers-dbt-cloud = false
 apache-airflow-providers-dingding = false
 apache-airflow-providers-discord = false
 apache-airflow-providers-docker = false
+apache-airflow-providers-duckdb = false
 apache-airflow-providers-edge3 = false
 apache-airflow-providers-elasticsearch = false
 apache-airflow-providers-exasol = false
@@ -1595,6 +1602,12 @@ pydantic-ai-skills = "2026-07-16T00:00:00Z"
 # past that release so 1.164.0 resolves while any later release stays quarantined.
 # Remove once the rolling window advances past 2026-08-12.
 google-cloud-aiplatform = "2026-08-13T00:00:00Z"
+# Temporary: typesafe-sdk>=0.6.0 (required by the apache-airflow-providers-common-ai[typesafe]
+# extra) first shipped on 2026-09-18, inside the "4 days" exclude-newer window. This pins the
+# per-package cutoff just past that release so it resolves while any later release stays
+# quarantined.
+# Remove once the rolling window advances past 2026-09-18.
+typesafe-sdk = "2026-09-19T00:00:00Z"
 
 [tool.uv.pip]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
@@ -1659,6 +1672,7 @@ apache-airflow-providers-dbt-cloud = false
 apache-airflow-providers-dingding = false
 apache-airflow-providers-discord = false
 apache-airflow-providers-docker = false
+apache-airflow-providers-duckdb = false
 apache-airflow-providers-edge3 = false
 apache-airflow-providers-elasticsearch = false
 apache-airflow-providers-exasol = false
@@ -1748,6 +1762,8 @@ apache-airflow-task-sdk-integration-tests = false
 pydantic-ai-skills = "2026-07-16T00:00:00Z"
 # Temporary: see the google-cloud-aiplatform note in `[tool.uv.exclude-newer-package]`.
 google-cloud-aiplatform = "2026-08-13T00:00:00Z"
+# Temporary: see the typesafe-sdk note in `[tool.uv.exclude-newer-package]`.
+typesafe-sdk = "2026-09-19T00:00:00Z"
 
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
@@ -1827,6 +1843,7 @@ apache-airflow-providers-dbt-cloud = { workspace = true }
 apache-airflow-providers-dingding = { workspace = true }
 apache-airflow-providers-discord = { workspace = true }
 apache-airflow-providers-docker = { workspace = true }
+apache-airflow-providers-duckdb = { workspace = true }
 apache-airflow-providers-edge3 = { workspace = true }
 apache-airflow-providers-elasticsearch = { workspace = true }
 apache-airflow-providers-exasol = { workspace = true }
@@ -1971,6 +1988,7 @@ members = [
     "providers/dingding",
     "providers/discord",
     "providers/docker",
+    "providers/duckdb",
     "providers/edge3",
     "providers/elasticsearch",
     "providers/exasol",

@@ -108,7 +108,8 @@ the registration — not from `handler.name` at runtime, which minification rena
 Implementation Notes). A handler with no source name — a bare anonymous arrow passed inline,
 `dag.task(async () => 42)` — has nothing to resolve and is a compile error until given an explicit
 id. This default is for native Dags, where both ends of every name are TypeScript; a mixed-language
-handler follows the same convention but should probably use the explicit form, more information in ([ADR-0001](0001-mixed-lang-dag-interface.md)).
+handler names the Python-owned task explicitly and does not default from the handler's function
+name ([ADR-0001](0001-mixed-lang-dag-interface.md), decision 3).
 
 The `TaskSpec` also carries the task id, so it can be set alongside the other task options:
 
