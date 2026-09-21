@@ -90,6 +90,32 @@ TEST_NOTIFICATION_CHANNEL_2 = {
 }
 
 
+@pytest.mark.parametrize("format_", ["Dict", "protobuf", ""])
+@pytest.mark.parametrize(
+    ("operator_class", "hook_method", "resource"),
+    [
+        (CloudMonitoringListAlertPoliciesOperator, "list_alert_policies", AlertPolicy(name="test-policy")),
+        (
+            CloudMonitoringListNotificationChannelsOperator,
+            "list_notification_channels",
+            NotificationChannel(name="test-channel"),
+        ),
+    ],
+)
+@mock.patch("airflow.providers.google.cloud.operators.cloud_monitoring.CloudMonitoringHook", autospec=True)
+def test_list_operator_converts_unrecognized_format(
+    mock_hook, operator_class, hook_method, resource, format_
+):
+    operator = operator_class(task_id=TEST_TASK_ID, format_=format_)
+    list_resources = getattr(mock_hook.return_value, hook_method)
+    list_resources.return_value = iter([resource])
+
+    result = operator.execute(context=mock.MagicMock(spec=dict))
+
+    assert list_resources.call_args.kwargs["format_"] == format_
+    assert result == [type(resource).to_dict(resource)]
+
+
 class TestCloudMonitoringListAlertPoliciesOperator:
     @pytest.mark.parametrize(
         ("format_", "policies"),
