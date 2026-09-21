@@ -1918,7 +1918,7 @@ class TestPytestSnowflakeHook:
 
 
 class TestAccountIdentifierValidation:
-    """``account`` and ``region`` are interpolated into the SQL API URL.
+    """``account`` and ``region`` are interpolated into the Snowflake REST URLs.
 
     Both are therefore restricted to the characters a Snowflake account or region
     identifier is actually made of, so neither can carry URL-significant punctuation
@@ -1970,3 +1970,25 @@ class TestAccountIdentifierValidation:
         """An empty account produced a meaningless host rather than an error."""
         with pytest.raises(ValueError, match="Invalid Snowflake account"):
             self._identifier("")
+
+    @mock.patch("requests.post")
+    def test_oauth_token_url_rejects_account_outside_charset(self, requests_post):
+        conn_config = CONN_PARAMS_OAUTH | {"account": "acct.example.com/x"}
+        hook = SnowflakeHook(snowflake_conn_id="mock_conn_id")
+
+        with pytest.raises(ValueError, match="Invalid Snowflake account"):
+            hook.get_oauth_token(conn_config=conn_config)
+
+        requests_post.assert_not_called()
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.HTTPBasicAuth")
+    @mock.patch("requests.post")
+    def test_oauth_token_endpoint_bypasses_account_validation(self, requests_post, mock_auth):
+        """An explicit ``token_endpoint`` replaces the account-derived URL entirely."""
+        conn_config = CONN_PARAMS_OAUTH | {"account": "acct.example.com/x"}
+        requests_post.return_value.status_code = 200
+        hook = SnowflakeHook(snowflake_conn_id="mock_conn_id")
+
+        hook.get_oauth_token(conn_config=conn_config, token_endpoint="https://example.com/oauth/token")
+
+        assert requests_post.call_args.args[0] == "https://example.com/oauth/token"

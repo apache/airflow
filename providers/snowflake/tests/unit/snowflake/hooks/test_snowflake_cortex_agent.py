@@ -537,3 +537,16 @@ class TestSnowflakeCortexAgentHook:
             params={"ifExists": expected},
             timeout=REQUEST_TIMEOUT,
         )
+
+    @mock.patch(
+        f"{HOOK_PATH}._get_static_conn_params",
+        new_callable=mock.PropertyMock,
+    )
+    def test_base_url_rejects_account_outside_charset(self, mock_static_conn_params):
+        """``account`` is interpolated into the base URL, so it may not carry URL punctuation."""
+        mock_static_conn_params.return_value = {"account": "acct.example.com/x"}
+
+        hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
+
+        with pytest.raises(ValueError, match="Invalid Snowflake account"):
+            hook._get_base_url()
