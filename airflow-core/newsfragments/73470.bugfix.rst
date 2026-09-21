@@ -1,0 +1,1 @@
+Fix ``wait_for_past_depends_before_skipping`` being ignored when a task is skipped directly by a ``ShortCircuitOperator`` or ``BranchPythonOperator`` upstream, instead of by the scheduler's dependency check.
