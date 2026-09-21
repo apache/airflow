@@ -259,10 +259,11 @@ def _recalculate_dagrun_queued_at_deadlines(
                 decode_deadline_alert_model(deadline_alert), session=session
             )
         except (ValueError, TypeError):
-            # A variable-backed interval resolves against an Airflow Variable that may be missing
-            # or non-numeric. Leave this deadline alone rather than failing the whole clear.
+            # Either step can fail: the alert may hold a payload the decoder refuses, or a
+            # variable-backed interval may point at a Variable that is missing or non-numeric.
+            # Leave this deadline alone rather than failing the whole clear.
             log.warning(
-                "Skipping recalculation of deadline %s for DagRun %s.%s: interval could not be resolved",
+                "Error while recalculating deadline %s for DagRun %s.%s, leaving it unchanged",
                 deadline.id,
                 dagrun.dag_id,
                 dagrun.run_id,

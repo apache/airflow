@@ -4322,7 +4322,9 @@ def test_clear_task_instances_skips_deadline_with_unresolvable_interval(dag_make
     tis = session.scalars(select(TI).where(TI.dag_id == dag.dag_id, TI.run_id == dag_run.run_id)).all()
 
     with (
-        mock.patch.object(Variable, "get", side_effect=KeyError("missing_deadline_interval_key")),
+        mock.patch.object(
+            Variable, "get", side_effect=KeyError("missing_deadline_interval_key")
+        ) as mock_variable_get,
         mock.patch("airflow.models.taskinstance.log") as mock_log,
     ):
         clear_task_instances(tis, session)
@@ -4332,7 +4334,15 @@ def test_clear_task_instances_skips_deadline_with_unresolvable_interval(dag_make
 
     deadline = session.scalar(select(Deadline).where(Deadline.dagrun_id == dag_run.id))
     assert deadline.deadline_time == original_deadline_time
+
+    # The alert decoded fine and the Variable lookup is what raised, so this is still covering
+    # an unresolvable interval rather than an earlier failure that lands in the same except.
+    mock_variable_get.assert_called_once_with("missing_deadline_interval_key", session=session)
+
     assert mock_log.warning.call_count == 1
+    msg, *args = mock_log.warning.call_args.args
+    assert "Error while recalculating deadline" in msg
+    assert args[0] == deadline.id
 
 
 def test_get_dagrun_loaded_but_none_returns_dagrun(dag_maker, session):
