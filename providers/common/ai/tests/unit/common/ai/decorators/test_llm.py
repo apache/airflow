@@ -47,6 +47,25 @@ class TestLLMDecoratedOperator:
         assert op.prompt == "Summarize this text"
         mock_agent.run_sync.assert_called_once_with("Summarize this text", usage_limits=None)
 
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_forwards_fallback_conn_ids_to_hook(self, mock_hook_cls, make_mock_run_result):
+        """``fallback_conn_ids`` is accepted as a decorator kwarg without a per-decorator code change."""
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = make_mock_run_result("ok")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = _LLMDecoratedOperator(
+            task_id="test",
+            python_callable=lambda: "p",
+            llm_conn_id="my_llm",
+            fallback_conn_ids=["conn_a", "conn_b"],
+        )
+        op.execute(context={})
+
+        mock_hook_cls.get_hook.assert_called_once_with(
+            "my_llm", hook_params={"model_id": None, "fallback_conn_ids": ["conn_a", "conn_b"]}
+        )
+
     @pytest.mark.parametrize(
         "return_value",
         [42, "", "   ", None, b"bytes", bytearray(b"x"), [], ()],

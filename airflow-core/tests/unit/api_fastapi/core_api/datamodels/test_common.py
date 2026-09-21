@@ -51,7 +51,17 @@ _REF_BY_URI = {"asset_ref": {"uri": "s3://bucket/key"}}
 def test_asset_expression_round_trips_unchanged(expression: dict):
     """The typed model must accept and re-serialize each stored expression byte-identically."""
     validated = _adapter.validate_python(expression)
-    assert _adapter.dump_python(validated, by_alias=True) == expression
+    # ``hidden`` is an API-only marker that stored rows never carry, so it is excluded when unset.
+    assert _adapter.dump_python(validated, by_alias=True, exclude_unset=True) == expression
+
+
+def test_asset_expression_accepts_redacted_leaf():
+    """A leaf redacted for an unauthorized caller keeps its place in the tree with blanked identity."""
+    redacted = {"asset": {"uri": None, "name": None, "group": "asset", "id": None, "hidden": True}}
+    validated = _adapter.validate_python({"all": [_ASSET, redacted]})
+    assert validated.all[1].asset.hidden is True
+    assert validated.all[0].asset.hidden is False
+    assert _adapter.dump_python(validated, by_alias=True)["all"][1] == redacted
 
 
 def test_asset_expression_tolerates_legacy_asset_leaf_without_id():
@@ -114,4 +124,4 @@ def test_field_preserves_current_shapes(expression):
     if expression is None:
         assert validated is None
     else:
-        assert _field_adapter.dump_python(validated, by_alias=True) == expression
+        assert _field_adapter.dump_python(validated, by_alias=True, exclude_unset=True) == expression

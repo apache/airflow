@@ -85,6 +85,7 @@ class TestLLMFileAnalysisOperator:
             "prompt",
             "llm_conn_id",
             "model_id",
+            "fallback_conn_ids",
             "system_prompt",
             "agent_params",
             "usage_limits",

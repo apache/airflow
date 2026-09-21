@@ -19,13 +19,21 @@
 
 import { describe, expect, it, vi } from "vitest";
 
-import { bindArgs, foldArgName, type BoundArgs } from "../../src/coordinator/arg-binding.js";
+import { foldArgName, resolveArgs, type BoundArgs } from "../../src/coordinator/arg-binding.js";
+import type { CoordinatorClient, XComEntry } from "../../src/coordinator/client.js";
 import type { LogChannel } from "../../src/coordinator/log-channel.js";
 import type { ArgBindings } from "../../src/generated/supervisor.js";
+import type { GetXComOpts } from "../../src/sdk/client-types.js";
 
 function literal(name: string, value: unknown, extra: Record<string, unknown> = {}) {
   return { name, kind: "literal" as const, value, ...extra };
 }
+
+function xcom(name: string, taskId: string, extra: Record<string, unknown> = {}) {
+  return { name, kind: "xcom" as const, task_id: taskId, ...extra };
+}
+
+const NO_RENAMES: ReadonlyMap<string, string> = new Map();
 
 function makeLogs() {
   const warning = vi.fn();
@@ -33,9 +41,39 @@ function makeLogs() {
   return { logs, warning };
 }
 
-function bind(bindings: ArgBindings): BoundArgs & { warning: ReturnType<typeof vi.fn> } {
+/** An upstream store keyed by task_id, plus the pull calls it saw. */
+function makeClient(upstream: Record<string, XComEntry> = {}) {
+  const getXComEntry = vi.fn(async (opts: GetXComOpts) => {
+    pulls.push(opts);
+    return upstream[opts.taskId ?? ""] ?? { found: false, value: null };
+  });
+  const pulls: GetXComOpts[] = [];
+  return { client: { getXComEntry } as unknown as CoordinatorClient, getXComEntry, pulls };
+}
+
+interface BindResult extends BoundArgs {
+  warning: ReturnType<typeof vi.fn>;
+  pulls: GetXComOpts[];
+}
+
+async function bind(
+  bindings: ArgBindings,
+  opts: {
+    upstream?: Record<string, XComEntry>;
+    signal?: AbortSignal;
+    argNames?: Record<string, string>;
+  } = {},
+): Promise<BindResult> {
   const { logs, warning } = makeLogs();
-  return { ...bindArgs(bindings, logs), warning };
+  const { client, pulls } = makeClient(opts.upstream);
+  const signal = opts.signal ?? new AbortController().signal;
+  const bound = await resolveArgs(bindings, {
+    client,
+    signal,
+    logs,
+    argNames: new Map(Object.entries(opts.argNames ?? {})),
+  });
+  return { ...bound, warning, pulls };
 }
 
 describe("foldArgName", () => {
@@ -60,17 +98,17 @@ describe("foldArgName", () => {
   });
 });
 
-describe("bindArgs", () => {
-  it("delivers nothing for a task called with no arguments", () => {
+describe("resolveArgs", () => {
+  it("delivers nothing for a task called with no arguments", async () => {
     for (const bindings of [null, undefined, []] as (ArgBindings | undefined)[]) {
-      const bound = bindArgs(bindings, makeLogs().logs);
+      const bound = await bind(bindings as ArgBindings);
       expect(bound.names).toEqual([]);
       expect(Object.keys(bound.args as object)).toEqual([]);
     }
   });
 
-  it("binds a camelCase name to Python's snake_case with nothing declared", () => {
-    const { args } = bind([
+  it("binds a camelCase name to Python's snake_case with nothing declared", async () => {
+    const { args } = await bind([
       literal("region_code", "uk"),
       literal("threshold", 0.75),
       literal("s3_uri", "s3://bucket/key"),
@@ -88,22 +126,22 @@ describe("bindArgs", () => {
     });
   });
 
-  it("binds in the other direction too, and for a capitalised name", () => {
+  it("binds in the other direction too, and for a capitalised name", async () => {
     // Folding is symmetric, so a Python side that already uses camelCase or a
     // capitalised name needs nothing declared either.
-    const { args } = bind([literal("regionCode", "uk"), literal("Name", "United Kingdom")]);
+    const { args } = await bind([literal("regionCode", "uk"), literal("Name", "United Kingdom")]);
     const { region_code: regionCode, name } = args as { region_code: string; name: string };
 
     expect({ regionCode, name }).toEqual({ regionCode: "uk", name: "United Kingdom" });
   });
 
-  it("binds an exact name without folding it", () => {
-    const { args } = bind([literal("threshold", 0.75)]);
+  it("binds an exact name without folding it", async () => {
+    const { args } = await bind([literal("threshold", 0.75)]);
     expect((args as { threshold: number }).threshold).toBe(0.75);
   });
 
-  it("binds every JSON value a literal can carry", () => {
-    const { args } = bind([
+  it("binds every JSON value a literal can carry", async () => {
+    const { args } = await bind([
       literal("totals", { orders: 12, revenue: 3402 }),
       literal("regions", ["uk", "de"]),
       literal("dry_run", false),
@@ -121,56 +159,58 @@ describe("bindArgs", () => {
     });
   });
 
-  it("binds an argument the call left at its default", () => {
+  it("binds an argument the call left at its default", async () => {
     // Arrives flagged `from_default`, which changes nothing about the value:
     // the handler cannot tell, and should not need to.
-    const { args } = bind([literal("dry_run", true, { from_default: true })]);
+    const { args } = await bind([literal("dry_run", true, { from_default: true })]);
     expect((args as { dryRun: boolean }).dryRun).toBe(true);
   });
 
-  it("logs an unmatched name rather than throwing", () => {
+  it("logs an unmatched name rather than throwing", async () => {
     // A destructuring default such as `{ runId = "manual" }` is a legitimate
     // miss, and nothing can tell one from a typo, so a miss cannot fail a task.
-    const { args, warning } = bind([literal("region_code", "uk")]);
+    const { args, warning } = await bind([literal("region_code", "uk")]);
     const { runId = "manual", reigonCode } = args as { runId?: string; reigonCode?: string };
 
     expect(runId).toBe("manual");
     expect(reigonCode).toBeUndefined();
     expect(warning).toHaveBeenCalledWith("Task argument not bound by this task's call", {
       requested: "runId",
+      renamed_to: null,
       bound: ["region_code"],
     });
     // Both the requested name and what the call actually delivered, so a typo
     // is diagnosable from the task log alone.
     expect(warning).toHaveBeenCalledWith("Task argument not bound by this task's call", {
       requested: "reigonCode",
+      renamed_to: null,
       bound: ["region_code"],
     });
   });
 
-  it("does not log a symbol read as an unbound argument", () => {
+  it("does not log a symbol read as an unbound argument", async () => {
     // Promise resolution, string coercion and test frameworks all probe an
     // object with symbols; none of those is an argument that went missing.
-    const { args, warning } = bind([literal("region_code", "uk")]);
+    const { args, warning } = await bind([literal("region_code", "uk")]);
     void (args as Record<symbol, unknown>)[Symbol.toPrimitive];
     void (args as Record<symbol, unknown>)[Symbol.iterator];
 
     expect(warning).not.toHaveBeenCalled();
   });
 
-  it("folds `in` like a read", () => {
-    const { args } = bind([literal("region_code", "uk")]);
+  it("folds `in` like a read", async () => {
+    const { args } = await bind([literal("region_code", "uk")]);
 
     expect("regionCode" in (args as object)).toBe(true);
     expect("region_code" in (args as object)).toBe(true);
     expect("threshold" in (args as object)).toBe(false);
   });
 
-  it("yields Python's names from Object.keys and rest destructuring", () => {
+  it("yields Python's names from Object.keys and rest destructuring", async () => {
     // The SDK has no TypeScript-side names to enumerate: it sees the wire's
     // names and nothing else, so that is what enumeration reports.
     const bindings: ArgBindings = [literal("region_code", "uk"), literal("dry_run", false)];
-    const { args, names } = bind(bindings);
+    const { args, names } = await bind(bindings);
     const { ...rest } = args as object;
 
     expect(names).toEqual(["region_code", "dry_run"]);
@@ -182,55 +222,278 @@ describe("bindArgs", () => {
     ]);
   });
 
-  it("keeps the declaration order of the calling signature", () => {
-    const { names } = bind([literal("c", 1), literal("a", 2), literal("b", 3)]);
+  it("keeps the declaration order of the calling signature", async () => {
+    const { names } = await bind([literal("c", 1), literal("a", 2), literal("b", 3)]);
     expect(names).toEqual(["c", "a", "b"]);
   });
 
-  it("fails at dispatch when two Python names fold to the same token", () => {
+  it("fails at dispatch when two Python names fold to the same token", async () => {
     // Neither could be reached by name, and picking either silently would hand
     // the handler the wrong value.
-    expect(() => bind([literal("region_code", "uk"), literal("regionCode", "de")])).toThrowError(
+    await expect(
+      bind([literal("region_code", "uk"), literal("regionCode", "de")]),
+    ).rejects.toThrowError(
       /Task arguments "region_code" and "regionCode" both fold to "regioncode"/,
     );
   });
 
-  it("does not reach Object.prototype for an argument that was not passed", () => {
+  it("does not reach Object.prototype for an argument that was not passed", async () => {
     // A Python argument named `constructor` or `toString` must bind like any
     // other, and a handler destructuring one that was not passed must miss.
-    const { args } = bind([literal("toString", "not a function")]);
+    const { args } = await bind([literal("toString", "not a function")]);
 
     expect((args as { toString: unknown }).toString).toBe("not a function");
     expect((args as { constructor?: unknown }).constructor).toBeUndefined();
     expect("valueOf" in (args as object)).toBe(false);
   });
 
-  it("binds an argument named __proto__ as a key", () => {
-    const { args } = bind([literal("__proto__", { polluted: true })]);
+  it("binds an argument named __proto__ as a key", async () => {
+    const { args } = await bind([literal("__proto__", { polluted: true })]);
 
     expect(Object.keys(args as object)).toEqual(["__proto__"]);
     expect(({} as { polluted?: boolean }).polluted).toBeUndefined();
   });
 
-  it("refuses an XCom-backed argument, naming the upstream task", () => {
-    expect(() =>
-      bind([{ name: "totals", kind: "xcom" as const, task_id: "make_totals" }]),
-    ).toThrowError(/takes the output of upstream task "make_totals"/);
+  it("resolves an XCom-backed argument from the upstream task's output", async () => {
+    const totals = { orders: 12, revenue: 3402 };
+    const { args, pulls } = await bind([xcom("totals", "make_totals")], {
+      upstream: { make_totals: { found: true, value: totals } },
+    });
+
+    expect((args as { totals: typeof totals }).totals).toEqual(totals);
+    // The upstream's return value, under the same key Python `@task` uses.
+    expect(pulls).toEqual([{ key: "return_value", taskId: "make_totals" }]);
   });
 
-  it("refuses a binding kind from a newer Airflow", () => {
+  it("folds an XCom-backed argument's name like any other", async () => {
+    const { args } = await bind([xcom("region_totals", "make_totals")], {
+      upstream: { make_totals: { found: true, value: 12 } },
+    });
+    expect((args as { regionTotals: number }).regionTotals).toBe(12);
+  });
+
+  it("binds an upstream that pushed null, rather than failing", async () => {
+    // Distinct from an upstream that pushed nothing: `getXCom` answers null for
+    // both, which is why binding reads the found flag instead of the value.
+    const { args } = await bind([xcom("totals", "make_totals")], {
+      upstream: { make_totals: { found: true, value: null } },
+    });
+    expect((args as { totals: unknown }).totals).toBeNull();
+  });
+
+  it("fails when the upstream pushed no output, naming both", async () => {
+    // An unbound argument reaches the handler as `undefined` and corrupts its
+    // output rather than stopping it.
+    await expect(bind([xcom("totals", "make_totals")])).rejects.toThrowError(
+      /Task argument "totals" takes the output of upstream task "make_totals", which pushed no return_value XCom/,
+    );
+  });
+
+  it("pulls every upstream output at once", async () => {
+    // A task called with four upstream outputs should wait for one round-trip,
+    // not four, so the pulls must all be in flight together.
+    let inFlight = 0;
+    let peak = 0;
+    const client = {
+      getXComEntry: async (opts: GetXComOpts): Promise<XComEntry> => {
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        inFlight -= 1;
+        return { found: true, value: opts.taskId ?? null };
+      },
+    } as unknown as CoordinatorClient;
+
+    const bound = await resolveArgs(
+      [xcom("a", "t_a"), xcom("b", "t_b"), xcom("c", "t_c"), xcom("d", "t_d")],
+      { client, signal: new AbortController().signal, logs: makeLogs().logs, argNames: NO_RENAMES },
+    );
+
+    expect(peak).toBe(4);
+    expect({ ...(bound.args as object) }).toEqual({ a: "t_a", b: "t_b", c: "t_c", d: "t_d" });
+  });
+
+  it("mixes literal and upstream arguments in one call", async () => {
+    const { args, pulls } = await bind(
+      [literal("region_code", "uk"), xcom("totals", "make_totals"), literal("currency", "GBP")],
+      { upstream: { make_totals: { found: true, value: { orders: 12 } } } },
+    );
+
+    expect({ ...(args as object) }).toEqual({
+      region_code: "uk",
+      totals: { orders: 12 },
+      currency: "GBP",
+    });
+    // Only the XCom-backed one costs a round-trip.
+    expect(pulls).toHaveLength(1);
+  });
+
+  it("issues no pull at all when the spec is unhonourable", async () => {
+    // Checked in full before anything is resolved, so a bad spec costs no
+    // round-trip and leaves no half-resolved call behind.
+    const { client, getXComEntry } = makeClient({ make_totals: { found: true, value: 1 } });
+    await expect(
+      resolveArgs(
+        [xcom("totals", "make_totals"), literal("region_code", 1), literal("regionCode", 2)],
+        {
+          client,
+          signal: new AbortController().signal,
+          logs: makeLogs().logs,
+          argNames: NO_RENAMES,
+        },
+      ),
+    ).rejects.toThrowError(/both fold to "regioncode"/);
+    expect(getXComEntry).not.toHaveBeenCalled();
+  });
+
+  it("gives up on an already-aborted task without pulling", async () => {
+    // Arguments resolve before the handler runs, the one stretch of a task's
+    // life with nothing else listening for termination.
+    const controller = new AbortController();
+    controller.abort(new Error("Task aborted by SIGTERM"));
+    const { client, getXComEntry } = makeClient({ make_totals: { found: true, value: 1 } });
+
+    await expect(
+      resolveArgs([xcom("totals", "make_totals")], {
+        client,
+        signal: controller.signal,
+        logs: makeLogs().logs,
+        argNames: NO_RENAMES,
+      }),
+    ).rejects.toThrowError(
+      /Aborted while resolving this task's arguments.*Task aborted by SIGTERM/,
+    );
+    expect(getXComEntry).not.toHaveBeenCalled();
+  });
+
+  it("stops mid-pull when the task is aborted", async () => {
+    const controller = new AbortController();
+    const client = {
+      getXComEntry: () => new Promise<XComEntry>(() => undefined),
+    } as unknown as CoordinatorClient;
+
+    const pending = resolveArgs([xcom("totals", "make_totals")], {
+      client,
+      signal: controller.signal,
+      logs: makeLogs().logs,
+      argNames: NO_RENAMES,
+    });
+    controller.abort(new Error("Task aborted by SIGTERM"));
+
+    await expect(pending).rejects.toThrowError(/Aborted while resolving this task's arguments/);
+  });
+
+  it("leaves a literal-only call unaffected by an aborted task", async () => {
+    // Nothing is waited on, so there is nothing to give up: the handler still
+    // gets its arguments and the abort reaches it through the context signal.
+    const controller = new AbortController();
+    controller.abort(new Error("Task aborted by SIGTERM"));
+
+    const { args } = await bind([literal("region_code", "uk")], { signal: controller.signal });
+    expect((args as { regionCode: string }).regionCode).toBe("uk");
+  });
+
+  it.each([
+    [
+      "a literal",
+      literal("count", Number.MAX_SAFE_INTEGER + 2, { value_schema: { format: "int64" } }),
+    ],
+    ["an upstream output", xcom("count", "make_count", { value_schema: { format: "int64" } })],
+  ])("refuses a Python int beyond exact JavaScript range from %s", async (_label, binding) => {
+    // It arrives with its low digits already lost, and nothing downstream
+    // could notice, so carrying it as a string is the only honest option.
+    await expect(
+      bind([binding] as ArgBindings, {
+        upstream: { make_count: { found: true, value: Number.MAX_SAFE_INTEGER + 2 } },
+      }),
+    ).rejects.toThrowError(
+      /is a 64-bit integer of .*, beyond the .* a JavaScript number holds exactly/,
+    );
+  });
+
+  it("accepts a Python int JavaScript still holds exactly", async () => {
+    const { args } = await bind([
+      literal("count", Number.MAX_SAFE_INTEGER, { value_schema: { format: "int64" } }),
+    ]);
+    expect((args as { count: number }).count).toBe(Number.MAX_SAFE_INTEGER);
+  });
+
+  it("refuses a binding kind from a newer Airflow", async () => {
     // Skipping it would leave the argument unbound, and an unbound argument
     // destructures to `undefined` and corrupts the task's output.
     const unknownKind = [{ name: "totals", kind: "dataset" }] as unknown as ArgBindings;
-    expect(() => bind(unknownKind)).toThrowError(
+    await expect(bind(unknownKind)).rejects.toThrowError(
       /has binding kind "dataset", which this version of apache-airflow-ts-sdk cannot bind/,
     );
   });
 
-  it("refuses assignment and deletion", () => {
+  describe("with explicit renames", () => {
+    it("binds a name the Python side never used", async () => {
+      const { args } = await bind([literal("run_label", "nightly")], {
+        argNames: { label: "run_label" },
+      });
+      expect((args as { label: string }).label).toBe("nightly");
+    });
+
+    it("still folds everything the map does not mention", async () => {
+      const { args } = await bind([literal("run_label", "nightly"), literal("region_code", "uk")], {
+        argNames: { label: "run_label" },
+      });
+      const { label, regionCode } = args as { label: string; regionCode: string };
+      expect({ label, regionCode }).toEqual({ label: "nightly", regionCode: "uk" });
+    });
+
+    it("beats a folded match on the same name", async () => {
+      // An author who stated a binding meant it, so the map wins over the
+      // name that would otherwise have folded to it.
+      const { args } = await bind([literal("run_label", "nightly"), literal("label", "folded")], {
+        argNames: { label: "run_label" },
+      });
+      expect((args as { label: string }).label).toBe("nightly");
+    });
+
+    it("leaves the renamed wire name reachable under its own name", async () => {
+      // Enumeration reports Python's names, so rest destructuring must keep
+      // resolving them whatever the handler renamed.
+      const { args } = await bind([literal("run_label", "nightly")], {
+        argNames: { label: "run_label" },
+      });
+      expect({ ...(args as object) }).toEqual({ run_label: "nightly" });
+      expect("run_label" in (args as object)).toBe(true);
+      expect("label" in (args as object)).toBe(true);
+    });
+
+    it("misses rather than falling back when the mapped name was not passed", async () => {
+      // Falling back to folding would hand the handler a value the SDK
+      // guessed at, and hide the fact that the stated binding was wrong.
+      const { args, warning } = await bind([literal("label", "folded")], {
+        argNames: { label: "run_label" },
+      });
+
+      expect((args as { label?: string }).label).toBeUndefined();
+      expect("label" in (args as object)).toBe(false);
+      // The wire name the handler asked for, so a wrong entry is diagnosable
+      // from the task log rather than looking like an argument never passed.
+      expect(warning).toHaveBeenCalledWith("Task argument not bound by this task's call", {
+        requested: "label",
+        renamed_to: "run_label",
+        bound: ["label"],
+      });
+    });
+
+    it("renames an XCom-backed argument too", async () => {
+      const { args } = await bind([xcom("run_totals", "make_totals")], {
+        argNames: { totals: "run_totals" },
+        upstream: { make_totals: { found: true, value: { orders: 12 } } },
+      });
+      expect((args as { totals: { orders: number } }).totals).toEqual({ orders: 12 });
+    });
+  });
+
+  it("refuses assignment and deletion", async () => {
     // The bound object mirrors a call site that already happened, so writing
     // to it would change nothing an author could observe downstream.
-    const { args } = bind([literal("region_code", "uk")]);
+    const { args } = await bind([literal("region_code", "uk")]);
 
     expect(() => {
       (args as { regionCode: string }).regionCode = "de";

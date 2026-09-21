@@ -36,7 +36,7 @@
 //        - DagFileParseRequest → respond with DagFileParsingResult, exit
 //        - StartupDetails      → run task, respond Succeed or Fail, exit
 //
-import { bindArgs, type BoundArgs } from "./arg-binding.js";
+import { resolveArgs, type BoundArgs } from "./arg-binding.js";
 import { createCoordinatorClient } from "./client.js";
 import { CommChannel } from "./comm-channel.js";
 import { LogChannel } from "./log-channel.js";
@@ -54,6 +54,7 @@ import {
   type RuntimeTaskState,
   type StartupDetails,
 } from "./protocol.js";
+import { getArgNames } from "../sdk/arg-names.js";
 import { listBundleTasks, type Bundle } from "../sdk/bundle.js";
 import { runInTaskScope, type TaskContext } from "../sdk/task.js";
 import type { JsonValue } from "../sdk/client-types.js";
@@ -311,7 +312,12 @@ async function handleTask(
 
   let bound: BoundArgs;
   try {
-    bound = bindArgs(details.ti_context?.arg_bindings, logs);
+    bound = await resolveArgs(details.ti_context?.arg_bindings, {
+      client,
+      signal: ctx.signal,
+      logs,
+      argNames: getArgNames(handler),
+    });
   } catch (err) {
     // Before the handler ran, so nothing it might have written is at stake.
     const message = (err as Error).message ?? String(err);

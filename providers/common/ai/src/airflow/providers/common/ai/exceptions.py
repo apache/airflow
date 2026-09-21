@@ -39,6 +39,16 @@ class LLMFileAnalysisMultimodalRequiredError(LLMFileAnalysisUnsupportedFormatErr
     """Raised when image/PDF inputs are used without ``multi_modal=True``."""
 
 
+class LowConfidenceError(ValueError):
+    """
+    Raised by an LLM operator whose ``DecisionPolicy`` says ``on_uncertain="fail"``.
+
+    The model's confidence in its answer was under the policy's bar, or the model reported no
+    confidence at all. Airflow's default retry behaviour retries it like any other exception;
+    match it in a retry rule to fail fast instead.
+    """
+
+
 class ManagedAgentInvocationError(RuntimeError):
     """
     Raised when a managed agent cannot be reached and retrying will not help.

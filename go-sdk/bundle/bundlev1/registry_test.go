@@ -25,21 +25,23 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/apache/airflow/go-sdk/airflow"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
-func myTask() error { return nil }
-func myTaskWithArgs(ctx context.Context, logger *slog.Logger, client sdk.Client) error {
-	if ctx == nil || logger == nil || client == nil {
-		return errors.New("missing required argument")
-	}
-	return nil
-}
-func errorTask() error { return errors.New("fail") }
+func myTask(airflow.Context) error { return nil }
 
-func NotErrorRet() int {
+func myTaskWithArgs(actx airflow.Context, country string, count int) error { return nil }
+
+func errorTask(airflow.Context) error { return errors.New("fail") }
+
+func NotErrorRet(airflow.Context) int {
 	return 0
 }
+
+// legacyTask declares its context, logger and client as separate parameters
+// instead of taking an airflow.Context.
+func legacyTask(ctx context.Context, logger *slog.Logger, client sdk.Client) error { return nil }
 
 type RegistrySuite struct {
 	suite.Suite
@@ -109,6 +111,17 @@ func (s *RegistrySuite) TestAddTask_InvalidReturnType() {
 		"error registering task \"NotErrorRet\" for DAG \"dag1\": expected task function github.com/apache/airflow/go-sdk/bundle/bundlev1.NotErrorRet last return value to return error but found int",
 		func() {
 			s.dag.AddTask(NotErrorRet)
+		},
+	)
+}
+
+func (s *RegistrySuite) TestAddTask_MissingAirflowContextPanics() {
+	s.PanicsWithError(
+		`error registering task "legacyTask" for DAG "dag1": task function `+
+			`github.com/apache/airflow/go-sdk/bundle/bundlev1.legacyTask: parameter 0 is `+
+			`context.Context, but the first parameter must be airflow.Context`,
+		func() {
+			s.dag.AddTask(legacyTask)
 		},
 	)
 }
