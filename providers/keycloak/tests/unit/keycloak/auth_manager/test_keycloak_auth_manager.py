@@ -1118,9 +1118,7 @@ class TestKeycloakAuthManager:
         resp.text = '{"error": "invalid_grant", "error_description": "Invalid bearer token"}'
         auth_manager.http_session.post = Mock(return_value=resp)
 
-        result = auth_manager.filter_authorized_menu_items(
-            [MenuItem.ASSETS, MenuItem.CONNECTIONS], user=user
-        )
+        result = auth_manager.filter_authorized_menu_items([MenuItem.ASSETS, MenuItem.CONNECTIONS], user=user)
 
         assert result == []
 
