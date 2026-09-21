@@ -64,8 +64,8 @@ Dag bundles are configured in :ref:`config:dag_processor__dag_bundle_config_list
 Dynamic bundle configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Set :ref:`config:dag_processor__dag_bundle_provider` to the import path for the class Airflow uses to load
-Dag bundle configuration. The configured implementation must return the complete list of active bundles.
+Set :ref:`config:dag_processor__dag_bundle_provider` to the import path for the class Airflow uses to discover
+and construct Dag bundles. The configured implementation must return metadata for the complete list of active bundles.
 The Dag processor requests the list every
 :ref:`config:dag_processor__bundle_refresh_check_interval` seconds and applies additions and removals without
 a restart. A bundle that is absent from the list becomes inactive.

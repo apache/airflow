@@ -49,7 +49,7 @@ from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersion
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.dag_processing.bundles.provider import DagBundleConfiguration
+from airflow.dag_processing.bundles.provider import DagBundleMetadata
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.dagbag import DagBag
 from airflow.dag_processing.manager import (
@@ -350,19 +350,19 @@ class TestDagFileProcessorManager:
         ret._open_sockets.clear()
         return ret, read_end
 
-    def test_reconcile_unchanged_bundle_configurations_clears_team_cache_after_sync(self):
+    def test_reconcile_unchanged_bundle_metadata_clears_team_cache_after_sync(self):
         manager = DagFileProcessorManager(max_runs=1)
         manager._bundle_name_to_team_name = {"existing": "old-team"}
         bundle_manager = MagicMock(spec=DagBundlesManager)
-        bundle_configurations = ()
-        bundle_manager.get_all_bundle_configurations.return_value = bundle_configurations
+        bundle_metadata = ()
+        bundle_manager.get_active_bundle_metadata.return_value = bundle_metadata
         manager._dag_bundles_manager = bundle_manager
 
-        manager._reconcile_bundle_configurations(known_files={})
+        manager._reconcile_bundles(known_files={})
 
         assert manager._bundle_name_to_team_name == {}
         bundle_manager.sync_bundles_to_db.assert_called_once_with(
-            bundle_configurations=bundle_configurations, deactivate_missing=True
+            bundle_metadata=bundle_metadata, deactivate_missing=True
         )
 
     def test_reconcile_complete_provider_when_filtered(self):
@@ -370,21 +370,21 @@ class TestDagFileProcessorManager:
         owned_bundle = MagicMock(spec=BaseDagBundle)
         owned_bundle.name = "owned"
         bundle_manager = MagicMock(spec=DagBundlesManager)
-        bundle_manager.provides_complete_configuration = True
-        bundle_configurations = (
-            DagBundleConfiguration(name="owned"),
-            DagBundleConfiguration(name="other"),
+        bundle_manager.provides_complete_bundle_list = True
+        bundle_metadata = (
+            DagBundleMetadata(name="owned"),
+            DagBundleMetadata(name="other"),
         )
-        bundle_manager.get_all_bundle_configurations.return_value = bundle_configurations
+        bundle_manager.get_active_bundle_metadata.return_value = bundle_metadata
         bundle_manager.get_bundle.return_value = owned_bundle
         manager._dag_bundles_manager = bundle_manager
 
-        manager._reconcile_bundle_configurations(known_files={})
+        manager._reconcile_bundles(known_files={})
 
         assert manager._dag_bundles == [owned_bundle]
         bundle_manager.get_bundle.assert_called_once_with("owned")
         bundle_manager.sync_bundles_to_db.assert_called_once_with(
-            bundle_configurations=bundle_configurations, deactivate_missing=True
+            bundle_metadata=bundle_metadata, deactivate_missing=True
         )
 
     def test_reconcile_keeps_loaded_bundles_after_provider_error(self):
@@ -394,10 +394,10 @@ class TestDagFileProcessorManager:
         manager._dag_bundles = [existing_bundle]
 
         bundle_manager = MagicMock(spec=DagBundlesManager)
-        bundle_manager.get_all_bundle_configurations.side_effect = RuntimeError("source unavailable")
+        bundle_manager.get_active_bundle_metadata.side_effect = RuntimeError("source unavailable")
         manager._dag_bundles_manager = bundle_manager
 
-        manager._reconcile_bundle_configurations(known_files={})
+        manager._reconcile_bundles(known_files={})
 
         assert manager._dag_bundles == [existing_bundle]
         bundle_manager.sync_bundles_to_db.assert_not_called()
@@ -413,19 +413,19 @@ class TestDagFileProcessorManager:
         added_bundle = MagicMock(spec=BaseDagBundle)
         added_bundle.name = "added"
 
-        retained_configuration = DagBundleConfiguration(name="retained")
+        retained_metadata = DagBundleMetadata(name="retained")
         manager._dag_bundles = [retained_bundle, team_updated_bundle, removed_bundle]
         manager._bundle_versions = {"updated": "old", "removed": "old"}
         manager._bundle_version_data = {"updated": {"old": True}, "removed": {"old": True}}
         manager._force_refresh_bundles = {"removed"}
 
         bundle_manager = MagicMock(spec=DagBundlesManager)
-        bundle_configurations = (
-            retained_configuration,
-            DagBundleConfiguration(name="updated", team_name="new-team"),
-            DagBundleConfiguration(name="added"),
+        bundle_metadata = (
+            retained_metadata,
+            DagBundleMetadata(name="updated", team_name="new-team"),
+            DagBundleMetadata(name="added"),
         )
-        bundle_manager.get_all_bundle_configurations.return_value = bundle_configurations
+        bundle_manager.get_active_bundle_metadata.return_value = bundle_metadata
         bundle_manager.get_bundle.return_value = added_bundle
         manager._dag_bundles_manager = bundle_manager
 
@@ -435,7 +435,7 @@ class TestDagFileProcessorManager:
         known_files = {"retained": set(), "removed": {removed_file}}
 
         with mock.patch.object(manager, "handle_removed_files", autospec=True) as handle_removed_files:
-            manager._reconcile_bundle_configurations(known_files=known_files)
+            manager._reconcile_bundles(known_files=known_files)
 
         assert manager._dag_bundles == [retained_bundle, team_updated_bundle, added_bundle]
         assert manager._force_refresh_bundles == {"added"}
@@ -445,19 +445,19 @@ class TestDagFileProcessorManager:
         handle_removed_files.assert_called_once_with(known_files=known_files)
         bundle_manager.get_bundle.assert_called_once_with("added")
         bundle_manager.sync_bundles_to_db.assert_called_once_with(
-            bundle_configurations=bundle_configurations, deactivate_missing=True
+            bundle_metadata=bundle_metadata, deactivate_missing=True
         )
 
     def test_reconcile_retries_failed_bundle_addition(self):
         manager = DagFileProcessorManager(max_runs=1)
-        added_configuration = DagBundleConfiguration(name="added")
+        added_metadata = DagBundleMetadata(name="added")
 
         bundle_manager = MagicMock(spec=DagBundlesManager)
-        bundle_manager.get_all_bundle_configurations.return_value = (added_configuration,)
+        bundle_manager.get_active_bundle_metadata.return_value = (added_metadata,)
         bundle_manager.get_bundle.side_effect = RuntimeError("cannot construct bundle")
         manager._dag_bundles_manager = bundle_manager
 
-        manager._reconcile_bundle_configurations(known_files={})
+        manager._reconcile_bundles(known_files={})
 
         assert manager._dag_bundles == []
         bundle_manager.get_bundle.assert_called_once_with("added")
@@ -563,7 +563,7 @@ class TestDagFileProcessorManager:
         """A processor started with ``--bundle-name`` owns a subset and must not deactivate others."""
         manager = DagFileProcessorManager(max_runs=1, bundle_names_to_parse=["only-mine"])
         with mock.patch("airflow.dag_processing.manager.DagBundlesManager") as mock_bundles_manager:
-            mock_bundles_manager.return_value.provides_complete_configuration = False
+            mock_bundles_manager.return_value.provides_complete_bundle_list = False
             manager.sync_bundles()
         mock_bundles_manager.return_value.sync_bundles_to_db.assert_called_once_with(deactivate_missing=False)
 
@@ -3201,9 +3201,9 @@ class TestDagFileProcessorManager:
         with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(config)}):
             DagBundlesManager().sync_bundles_to_db()
             with mock.patch("airflow.dag_processing.manager.DagBundlesManager") as mock_bundle_manager:
-                mock_bundle_manager.return_value.get_all_bundle_configurations.return_value = (
-                    DagBundleConfiguration(name="bundleone"),
-                    DagBundleConfiguration(name="bundletwo"),
+                mock_bundle_manager.return_value.get_active_bundle_metadata.return_value = (
+                    DagBundleMetadata(name="bundleone"),
+                    DagBundleMetadata(name="bundletwo"),
                 )
                 mock_bundle_manager.return_value.get_all_dag_bundles.return_value = [bundleone, bundletwo]
 
@@ -3358,8 +3358,8 @@ class TestDagFileProcessorManager:
         with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(config)}):
             DagBundlesManager().sync_bundles_to_db()
             with mock.patch("airflow.dag_processing.manager.DagBundlesManager") as mock_bundle_manager:
-                mock_bundle_manager.return_value.get_all_bundle_configurations.return_value = (
-                    DagBundleConfiguration(name="bundleone"),
+                mock_bundle_manager.return_value.get_active_bundle_metadata.return_value = (
+                    DagBundleMetadata(name="bundleone"),
                 )
                 mock_bundle_manager.return_value.get_all_dag_bundles.return_value = [mybundle]
                 manager = DagFileProcessorManager(max_runs=1)
@@ -3387,8 +3387,8 @@ class TestDagFileProcessorManager:
         with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(config)}):
             DagBundlesManager().sync_bundles_to_db()
             with mock.patch("airflow.dag_processing.manager.DagBundlesManager") as mock_bundle_manager:
-                mock_bundle_manager.return_value.get_all_bundle_configurations.return_value = (
-                    DagBundleConfiguration(name="bundleone"),
+                mock_bundle_manager.return_value.get_active_bundle_metadata.return_value = (
+                    DagBundleMetadata(name="bundleone"),
                 )
                 mock_bundle_manager.return_value.get_all_dag_bundles.return_value = [bundleone]
                 manager = DagFileProcessorManager(max_runs=1)
@@ -3417,8 +3417,8 @@ class TestDagFileProcessorManager:
         with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(config)}):
             DagBundlesManager().sync_bundles_to_db()
             with mock.patch("airflow.dag_processing.manager.DagBundlesManager") as mock_bundle_manager:
-                mock_bundle_manager.return_value.get_all_bundle_configurations.return_value = (
-                    DagBundleConfiguration(name="bundleone"),
+                mock_bundle_manager.return_value.get_active_bundle_metadata.return_value = (
+                    DagBundleMetadata(name="bundleone"),
                 )
                 mock_bundle_manager.return_value.get_all_dag_bundles.return_value = [bundleone]
                 manager = DagFileProcessorManager(max_runs=1)
@@ -3782,7 +3782,7 @@ class TestDagFileProcessorManager:
             mock.patch.object(manager, "handle_removed_files"),
             mock.patch.object(manager, "_resort_file_queue"),
             mock.patch.object(manager, "_add_new_files_to_queue"),
-            mock.patch.object(manager, "_reconcile_bundle_configurations"),
+            mock.patch.object(manager, "_reconcile_bundles"),
         ):
             manager._refresh_dag_bundles({})
         return patched_get, patched_update
@@ -3862,7 +3862,7 @@ class TestDagFileProcessorManager:
             mock.patch.object(manager, "handle_removed_files"),
             mock.patch.object(manager, "_resort_file_queue"),
             mock.patch.object(manager, "_add_new_files_to_queue"),
-            mock.patch.object(manager, "_reconcile_bundle_configurations"),
+            mock.patch.object(manager, "_reconcile_bundles"),
         ):
             manager._refresh_dag_bundles(known_files)
 
@@ -3901,7 +3901,7 @@ class TestDagFileProcessorManager:
 
         with (
             mock.patch.object(manager, "get_bundle_state", side_effect=Exception("API error")),
-            mock.patch.object(manager, "_reconcile_bundle_configurations"),
+            mock.patch.object(manager, "_reconcile_bundles"),
         ):
             manager._refresh_dag_bundles({})
 
@@ -3935,7 +3935,7 @@ class TestDagFileProcessorManager:
             mock.patch.object(manager, "handle_removed_files"),
             mock.patch.object(manager, "_resort_file_queue"),
             mock.patch.object(manager, "_add_new_files_to_queue"),
-            mock.patch.object(manager, "_reconcile_bundle_configurations"),
+            mock.patch.object(manager, "_reconcile_bundles"),
         ):
             manager._refresh_dag_bundles({})
 
@@ -3963,7 +3963,7 @@ class TestDagFileProcessorManager:
             mock.patch.object(manager, "handle_removed_files"),
             mock.patch.object(manager, "_resort_file_queue"),
             mock.patch.object(manager, "_add_new_files_to_queue"),
-            mock.patch.object(manager, "_reconcile_bundle_configurations"),
+            mock.patch.object(manager, "_reconcile_bundles"),
         ):
             manager._refresh_dag_bundles(known_files)
 

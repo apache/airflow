@@ -332,7 +332,7 @@ class DagFileProcessorManager(LoggingMixin):
     def sync_bundles(self) -> None:
         """Sync configured DAG bundles to the metadata database."""
         # When this processor only parses a subset of bundles, it does not see the full
-        # bundle configuration and must not deactivate bundles owned by other processors.
+        # bundle list and must not deactivate bundles owned by other processors.
         dag_bundle_manager = self._get_dag_bundles_manager()
         dag_bundle_manager.sync_bundles_to_db(
             deactivate_missing=self._can_deactivate_missing_bundles(dag_bundle_manager)
@@ -354,7 +354,7 @@ class DagFileProcessorManager(LoggingMixin):
         return self._dag_bundles_manager
 
     def _can_deactivate_missing_bundles(self, dag_bundle_manager: DagBundlesManager) -> bool:
-        return not self.bundle_names_to_parse or dag_bundle_manager.provides_complete_configuration
+        return not self.bundle_names_to_parse or dag_bundle_manager.provides_complete_bundle_list
 
     def run(self):
         """
@@ -873,7 +873,7 @@ class DagFileProcessorManager(LoggingMixin):
             return
 
         self._bundles_last_refreshed = now_seconds
-        self._reconcile_bundle_configurations(known_files=known_files)
+        self._reconcile_bundles(known_files=known_files)
 
         any_refreshed = False
         for bundle in self._dag_bundles:
@@ -982,58 +982,56 @@ class DagFileProcessorManager(LoggingMixin):
             self._resort_file_queue()
             self._add_new_files_to_queue(known_files=known_files)
 
-    def _reconcile_bundle_configurations(self, known_files: dict[str, set[DagFileInfo]]) -> None:
+    def _reconcile_bundles(self, known_files: dict[str, set[DagFileInfo]]) -> None:
         dag_bundle_manager = self._get_dag_bundles_manager()
         try:
-            bundle_configurations = dag_bundle_manager.get_all_bundle_configurations()
+            bundle_metadata = dag_bundle_manager.get_active_bundle_metadata()
         except Exception:
-            self.log.exception("Error reading Dag bundle configuration")
+            self.log.exception("Error reading active Dag bundle metadata")
             return
 
         try:
             dag_bundle_manager.sync_bundles_to_db(
-                bundle_configurations=bundle_configurations,
+                bundle_metadata=bundle_metadata,
                 deactivate_missing=self._can_deactivate_missing_bundles(dag_bundle_manager),
             )
         except Exception:
-            self.log.exception("Error reconciling Dag bundle configuration")
+            self.log.exception("Error reconciling Dag bundles")
         else:
             self._bundle_name_to_team_name.clear()
 
         if self.bundle_names_to_parse:
-            bundle_configurations = tuple(
-                configuration
-                for configuration in bundle_configurations
-                if configuration.name in self.bundle_names_to_parse
+            bundle_metadata = tuple(
+                metadata for metadata in bundle_metadata if metadata.name in self.bundle_names_to_parse
             )
 
         loaded_bundles_by_name = {bundle.name: bundle for bundle in self._dag_bundles}
         loaded_bundle_names = set(loaded_bundles_by_name)
-        configured_bundle_names = {configuration.name for configuration in bundle_configurations}
+        active_bundle_names = {metadata.name for metadata in bundle_metadata}
         # Bundle construction settings are immutable for a name; changes require a new name.
-        if configured_bundle_names == loaded_bundle_names:
+        if active_bundle_names == loaded_bundle_names:
             return
 
-        removed_bundle_names = loaded_bundle_names - configured_bundle_names
+        removed_bundle_names = loaded_bundle_names - active_bundle_names
         for bundle_name in removed_bundle_names:
             del loaded_bundles_by_name[bundle_name]
 
         added_bundle_names: set[str] = set()
-        for configuration in bundle_configurations:
-            if configuration.name in loaded_bundles_by_name:
+        for metadata in bundle_metadata:
+            if metadata.name in loaded_bundles_by_name:
                 continue
             try:
-                bundle = dag_bundle_manager.get_bundle(configuration.name)
+                bundle = dag_bundle_manager.get_bundle(metadata.name)
             except Exception as e:
-                self.log.exception("Error creating bundle '%s': %s", configuration.name, e)
+                self.log.exception("Error creating bundle '%s': %s", metadata.name, e)
                 continue
-            loaded_bundles_by_name[configuration.name] = bundle
-            added_bundle_names.add(configuration.name)
+            loaded_bundles_by_name[metadata.name] = bundle
+            added_bundle_names.add(metadata.name)
 
         self._dag_bundles = [
-            loaded_bundles_by_name[configuration.name]
-            for configuration in bundle_configurations
-            if configuration.name in loaded_bundles_by_name
+            loaded_bundles_by_name[metadata.name]
+            for metadata in bundle_metadata
+            if metadata.name in loaded_bundles_by_name
         ]
         self._force_refresh_bundles.update(added_bundle_names)
 
@@ -1047,7 +1045,7 @@ class DagFileProcessorManager(LoggingMixin):
             self.handle_removed_files(known_files=known_files)
 
         self.log.info(
-            "Refreshed Dag bundle configuration: added=%s, removed=%s",
+            "Reconciled Dag bundles: added=%s, removed=%s",
             sorted(added_bundle_names),
             sorted(removed_bundle_names),
         )
