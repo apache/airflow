@@ -36,69 +36,97 @@ suggests.
 
 **Go** packs a binary trailer: `binary || source || metadata || trailer`, with a 64-byte
 `AFBNDL01` trailer whose normative layout lives at
-`go-sdk/internal/bundlefooter/footer.go:24-31`. Its `binary_sha256` covers **`[0, source_start)` —
-the binary region only** (`go-sdk/internal/bundlefooter/footer.go:98-101, 173, 269-280`). The source and metadata regions carry
-no digest at all. The manifest key is `dags` (`go-sdk/internal/airflowmetadata/airflowmetadata.go:35-51`).
+[`bundlefooter trailer layout`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/internal/bundlefooter/footer.go#L24-L31). Its `binary_sha256` covers **`[0, source_start)` —
+the binary region only** ([`Append`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/internal/bundlefooter/footer.go#L98-L101), [`Read`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/internal/bundlefooter/footer.go#L173), [`hashRegion`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/internal/bundlefooter/footer.go#L269-L280)). The source and metadata regions carry
+no digest at all. The manifest key is `dags` ([`Manifest`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/internal/airflowmetadata/airflowmetadata.go#L35-L51)).
 
 **TypeScript** has a wholly separate, text-comment format with its own spec
-(`task-sdk/docs/ts-bundle-spec.rst`): a `//# airflowBundle=` layout header on line 1, then
+([`ts-bundle-spec.rst`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/docs/ts-bundle-spec.rst)): a `//# airflowBundle=` layout header on line 1, then
 `//# airflowMetadata=` raw UTF-8 JSON, then source, then code
-(`ts-sdk/src/cli/bundle-encoder.ts:48-52, 81-88`). It shares no magic, no ordering, no serialization
+([`EMBEDDED_METADATA_PREFIX`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/ts-sdk/src/cli/bundle-encoder.ts#L48-L52), [`encodeBundle`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/ts-sdk/src/cli/bundle-encoder.ts#L81-L88)). It shares no magic, no ordering, no serialization
 and no code with Go. It already **hashes all three regions independently**
-(`ts-sdk/src/cli/bundle-encoder.ts:100-104`) and verifies all three on read
-(`task-sdk/src/airflow/sdk/coordinators/node/_bundle_reader.py:293-318, 321-361`). And it emits
+([`encodeBundle digests`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/ts-sdk/src/cli/bundle-encoder.ts#L100-L104)) and verifies all three on read
+([`_compute_stable_digests`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/node/_bundle_reader.py#L293-L318), [`_verify_integrity`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/node/_bundle_reader.py#L321-L361)). And it emits
 **`task_handlers`**, not `dags`, with a rationale that anticipates ADR-0010 exactly
-(`ts-sdk/src/coordinator/manifest.ts:28-31`): *"a TypeScript bundle provides handlers for Dags
+([`BundleManifest`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/ts-sdk/src/coordinator/manifest.ts#L28-L31)): *"a TypeScript bundle provides handlers for Dags
 declared elsewhere, not Dag definitions."*
 
 **Java** has no packer and no artifact metadata beyond two manifest attributes — `Main-Class`
-(`java-sdk/plugin/src/main/kotlin/org/apache/airflow/sdk/plugin/AirflowSdkPlugin.kt:113`) and
-`Airflow-Supervisor-Schema-Version` (`:194-195`). No inventory, no digest, no source region.
+([`Main-Class`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/java-sdk/plugin/src/main/kotlin/org/apache/airflow/sdk/plugin/AirflowSdkPlugin.kt#L113)) and
+`Airflow-Supervisor-Schema-Version` ([`Airflow-Supervisor-Schema-Version`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/java-sdk/plugin/src/main/kotlin/org/apache/airflow/sdk/plugin/AirflowSdkPlugin.kt#L194-L195)). No inventory, no digest, no source region.
 `Airflow-Java-SDK-Metadata` and `Airflow-Java-SDK-Dag-Code` exist only in
 [ADR-0003](0003-pure-java-dags.md) prose and were never built.
 
 So the published schema — which requires `dags` and carries `1.0` in its `$id`
-(`task-sdk/docs/airflow-metadata.schema.json:3, 7, 43-50`) — currently describes Go and no one else.
+([`$id`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/docs/airflow-metadata.schema.json#L3), [`required`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/docs/airflow-metadata.schema.json#L7), [`dags`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/docs/airflow-metadata.schema.json#L43-L50)) — currently describes Go and no one else.
 TypeScript emits a document that cannot validate against it while still declaring
 `airflow_bundle_metadata_version: "1.0"`; Java emits nothing schema-shaped. That split predates this
 work and has to be reconciled regardless; ADR-0010 forces the question rather than creating it.
 
 ## Decision
 
-### `task_handlers` becomes the canonical name, and the inventory becomes advisory
+### The artifact carries no Dag or task identifiers
 
-TypeScript's naming is correct and is adopted: an artifact in the mixed-language role contributes
-task bodies for Dags declared elsewhere, so a mapping called `dags` misdescribes it. The canonical
-schema is republished as `2.0` with `task_handlers` in place of `dags`, and Go's manifest follows.
+The inventory is not renamed, softened, or made optional. It is **removed**, and no replacement is
+added under any name. After this change an artifact contains exactly three things:
 
-More importantly, the inventory stops being **required** and stops being **load-bearing**. It is no
-longer the routing key for any coordinator; ADR-0010's persisted binding is. A packer that cannot
-enumerate handlers at build time emits the key empty, or omits it, and this is not an error.
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  compiled artifact       the executable, JAR, or bundled code           │
+│  entrypoint source       the authored source, verbatim, for display     │
+│  metadata                only what is needed to launch and to trust:    │
+│                            · a marker identifying this as an Airflow    │
+│                              Lang-SDK artifact                          │
+│                            · sdk.language / sdk.version                 │
+│                            · sdk.supervisor_schema_version              │
+│                            · integrity and cache digests                │
+│                            · source — the display filename              │
+└─────────────────────────────────────────────────────────────────────────┘
+```
 
-That last clause is the point of the change. The inventory is produced by executing the freshly
-built artifact against an in-memory registry recorder (`go-sdk/pkg/execution/metadata.go:105-112`;
-`ts-sdk/src/cli/pack.ts:117-124`), so it is correct only when registration depends on nothing the
-build environment lacks. Dynamic Dag rendering — Dag ids generated from data the artifact reads at
-runtime — violates that by construction, and today it cannot even be packed: an empty inventory is
-fatal in both packers (`go-sdk/cmd/airflow-go-pack/pack.go:166-168`,
-`ts-sdk/src/cli/pack.ts:226-230`). Those two checks are removed.
+No `dag_id` appears anywhere in it, and no `task_id`. That holds for **both** roles: a mixed-language
+artifact contributing task handlers, and a native Dag artifact. The artifact declares what it *is*
+and how to launch it; what it *contains* is discovered by asking it, and recorded by
+[ADR-0010](0010-persisted-task-handler-bindings.md).
 
-Everything else in the metadata stays: `airflow_bundle_metadata_version`, `sdk.language`,
-`sdk.version`, `sdk.supervisor_schema_version`, `source`.
+The reasoning is the same in both roles and is not specific to dynamic rendering. An identifier
+recorded at build time is a claim about runtime behaviour made by a process that cannot observe it.
+It is produced by executing the freshly built artifact against an in-memory registry recorder
+([`collectManifest`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/pkg/execution/metadata.go#L105-L112); [`readBundleManifest`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/ts-sdk/src/cli/pack.ts#L117-L124)), so it is accurate
+only while registration depends on nothing the build environment lacks. Dynamic Dag rendering — Dag
+ids generated from data the artifact reads at runtime — is the case that makes the claim plainly
+false, and today it cannot be packed at all, because an empty inventory is fatal in both packers
+([`empty-dags check`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/cmd/airflow-go-pack/pack.go#L166-L168), [`empty-handlers check`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/ts-sdk/src/cli/pack.ts#L226-L230)). But a claim that
+happens to be true today is still a second source of truth that can drift from the runtime tomorrow.
+Keeping it as advisory metadata would preserve exactly that drift while removing the only thing that
+would have caught it — a consumer that fails when it is wrong.
+
+So both the `dags` mapping (Go, and the published schema) and the `task_handlers` mapping
+(TypeScript) go, along with the two fatal-empty checks that guarded them.
 
 **This supersedes recent work, not dead code.** The Node coordinator routes by `dag_id` through
-`task_handlers` today (`task-sdk/src/airflow/sdk/coordinators/node/coordinator.py:125-127`, reading
-via `task-sdk/src/airflow/sdk/coordinators/node/_bundle_reader.py:379-383`), landed in #73126. That routing is replaced by the persisted
-binding, not merely deleted: the capability survives, its input moves from a build-time guess to a
-parse-time observation. The Executable coordinator's `_dag_ids` / `_Bundle.find` pair
-(`task-sdk/src/airflow/sdk/coordinators/executable/coordinator.py:249-254, 296-322`) goes the same
-way. Java loses nothing, because Java never had it — it matches on `Main-Class` and discards
-`what.dag_id` entirely (`task-sdk/src/airflow/sdk/coordinators/java/coordinator.py:207-215`), with its own docstring conceding that
-"it may be nondeterministic which one ends up being executed" (`:180-183`).
+`task_handlers` today ([`_build_execute_task_command`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/node/coordinator.py#L125-L127), reading
+via [`_parse_bundle_metadata`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/node/_bundle_reader.py#L379-L383)), landed in #73126. The
+capability survives — its input moves from a build-time guess to a parse-time observation — but the
+mechanism is replaced. The Executable coordinator's `_dag_ids` / `_Bundle.find` pair
+([`_dag_ids`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/executable/coordinator.py#L249-L254), [`_Bundle.find`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/executable/coordinator.py#L296-L322)) goes the same
+way. Java loses nothing, because Java never had it: it matches on `Main-Class` and discards
+`what.dag_id` entirely ([`_build_execute_task_command`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/java/coordinator.py#L207-L215)), with
+its own docstring conceding that "it may be nondeterministic which one ends up being executed"
+([`JavaCoordinator`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/java/coordinator.py#L180-L183)).
 
-Candidate *detection* is unaffected and still requires executing nothing: the `AFBNDL01` trailer
-magic for Go (`go-sdk/internal/bundlefooter/footer.go:57`), the `.min.mjs` suffix plus a valid layout
-header for TypeScript (`task-sdk/src/airflow/sdk/coordinators/node/coordinator.py:43`), a `Main-Class` attribute for Java.
+Candidate *detection* is unaffected and still requires executing nothing — it is exactly the "this is
+an Airflow Lang-SDK artifact" marker doing its job: the `AFBNDL01` trailer magic for Go
+([`Magic`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/internal/bundlefooter/footer.go#L57)), the `.min.mjs` suffix plus a valid layout header for
+TypeScript ([`BUNDLE_SUFFIX`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/node/coordinator.py#L43)), a `Main-Class` attribute
+for Java.
+
+The entrypoint source region stays, for display. That sits awkwardly against
+[ADR-0006](0006-no-lang-sdk-source-display.md), which rules out Lang-SDK source display for
+mixed-language Dags, while TypeScript landed source embedding in #73127 and Python-side
+`read_bundle_source` exists with no production caller. Whether the region is displayed, and in which
+role, is ADR-0006's question and is not reopened here; this ADR only records that the region is
+retained.
 
 ### A cache digest, distinct from the integrity hash
 
@@ -129,7 +157,7 @@ No artifact can contain its own complete hash — writing the digest changes the
 each scheme excludes the field holding it.
 
 **TypeScript — already done.** The layout header carries a `sha256` for each of the three regions
-(`ts-sdk/src/cli/bundle-encoder.ts:69-79, 214-220`), all outside the header itself. The cache digest
+([`VerifiedByteRange`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/ts-sdk/src/cli/bundle-encoder.ts#L69-L79), [`encodeHeader`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/ts-sdk/src/cli/bundle-encoder.ts#L214-L220)), all outside the header itself. The cache digest
 is derived from those three values. No format change, no packer change.
 
 **Go — one new trailer field.** Today nothing covers the source and metadata regions, so a metadata
@@ -138,12 +166,12 @@ change is invisible to `binary_sha256`. A whole-content digest over
 stays unchanged, for integrity.
 
 The trailer must grow: `TrailerSize` is 64 with only 12 reserved bytes
-(`go-sdk/internal/bundlefooter/footer.go:24-31, 46-53`), which cannot hold a 32-byte digest. Growing
+([`bundlefooter trailer layout`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/internal/bundlefooter/footer.go#L24-L31), [`TrailerSize`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/internal/bundlefooter/footer.go#L46-L53)), which cannot hold a 32-byte digest. Growing
 it has a compatibility trap. The reader seeks to `file_size - FOOTER_SIZE` and checks the magic at
-`[56:64]` of that window (`task-sdk/src/airflow/sdk/coordinators/executable/coordinator.py:94-98`),
+`[56:64]` of that window ([`_Footer.read`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/executable/coordinator.py#L94-L98)),
 so against a 96-byte trailer an old reader lands 32 bytes in, fails the magic check, and treats the
 file as *not a bundle at all* — surfacing as "cannot find executable bundle containing dag_id=…"
-(`:320`) rather than the unsupported-version error the format already knows how to raise (`:101-105`).
+([`_Bundle.find`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/executable/coordinator.py#L320)) rather than the unsupported-version error the format already knows how to raise ([`_Footer.read`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/executable/coordinator.py#L101-L105)).
 Lay the new trailer out so an old reader still lands on a field it rejects loudly, or accept that a
 new-format artifact on an old runtime looks like a missing one.
 
@@ -158,30 +186,22 @@ invalidate the cache on nearly every rebuild, which is the cost this digest exis
 `SHA-256-Digest-Manifest` — but requires a keystore.
 
 The Gradle plugin writes it alongside the attribute it already stamps
-(`java-sdk/plugin/src/main/kotlin/org/apache/airflow/sdk/plugin/AirflowSdkPlugin.kt:194-195`). Maven
+([`Airflow-Supervisor-Schema-Version`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/java-sdk/plugin/src/main/kotlin/org/apache/airflow/sdk/plugin/AirflowSdkPlugin.kt#L194-L195)). Maven
 users reproduce it by hand, as they already must for `Airflow-Supervisor-Schema-Version`
-(`airflow-core/docs/authoring-and-scheduling/language-sdks/java.rst:765`).
+([`Maven shade recipe`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/airflow-core/docs/authoring-and-scheduling/language-sdks/java.rst#L765)).
 
 **Any SDK, as a fallback.** A coordinator with no stored digest computes one at read time. Correct
 everywhere, at the cost of reading the artifact on every parse — which is why the stored field exists
 for runtimes that can carry one, and why Java's absence of one is worth closing.
 
-### The digest lives in the artifact, not beside it
-
-A sidecar hash file would reverse `go-sdk/adr/0004-self-contained-executable-bundle.md`, whose
-central decision was replacing a multi-part ZIP with a single self-contained file, and which the
-end-to-end tests deliberately uphold — "Deliberately no metadata sidecar: the coordinator must
-resolve the schema version from the metadata airflow-ts-pack embedded in the bundle"
-(`airflow-e2e-tests/tests/airflow_e2e_tests/conftest.py:721-722`).
-
 ### What this retracts
 
 Two accepted Go-SDK ADRs state the removed requirement outright and are superseded on this point:
 
-- `go-sdk/adr/0004-self-contained-executable-bundle.md:43-50` — "**Discovery without execution** — the
+- [`discovery without execution`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/adr/0004-self-contained-executable-bundle.md#L43-L50) — "**Discovery without execution** — the
   scanner must be able to read `dag_id`/`task_id` and the SDK language/version from a bundle on disk
   without running the binary."
-- `go-sdk/adr/0005-retire-go-edge-worker.md:58-62` — "The metadata footer on a packed bundle is
+- [`footer required`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/adr/0005-retire-go-edge-worker.md#L58-L62) — "The metadata footer on a packed bundle is
   required for coordinator discovery."
 
 Discovery-without-execution is relocated rather than weakened: nothing needs to learn a `dag_id` from
@@ -193,43 +213,44 @@ digest.
 
 - Dynamic Dag rendering becomes packable. The fatal empty-inventory checks disappear with the
   requirement they enforced.
-- The canonical schema goes to `2.0` and renames `dags` to `task_handlers`, resolving a split in which
-  TypeScript bundles have never validated against the schema they claim to conform to. Readers accept
-  `1.x` and treat `dags` as a synonym for one release.
-- Two spec documents converge or stay explicitly divergent. `task-sdk/docs/executable-bundle-spec.rst`
-  and `task-sdk/docs/ts-bundle-spec.rst` describe genuinely different container formats but should
+- The canonical schema goes to `2.0` and drops the identifier mapping entirely, which also resolves a
+  split in which TypeScript bundles have never validated against the schema they claim to conform to:
+  there is no longer a key for them to disagree on. Readers accept `1.x` and ignore `dags` /
+  `task_handlers` for one release.
+- Two spec documents converge or stay explicitly divergent. [`executable-bundle-spec.rst`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/docs/executable-bundle-spec.rst)
+  and [`ts-bundle-spec.rst`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/docs/ts-bundle-spec.rst) describe genuinely different container formats but should
   share one metadata schema; today only the former references it.
 - The Go trailer format changes and its version is bumped. TypeScript needs no format change. Java
   gains its first content digest.
 - Node's build-time `dag_id` routing (#73126) and the Executable coordinator's `_dag_ids` lookup are
   both replaced by the persisted binding. Java's `Main-Class` first-match-wins — the one genuinely
   nondeterministic selector left — is replaced too, which is a fix rather than a migration.
-- The packer may no longer need to execute the artifact at all. `supervisor_schema_version` is a
-  compile-time constant of the SDK, so with the inventory optional the introspection round trip could
-  go — taking with it the cross-compile host-arch sidecar build
-  (`go-sdk/cmd/airflow-go-pack/pack.go:136-151`), the rule that `--executable` with a
-  non-host-runnable binary is a hard error (`:384-391`), and the scan-stdout-for-a-sentinel hack
-  TypeScript needs because user import-time logging pollutes stdout (`ts-sdk/src/cli/pack.ts:138-152`).
+- The packer no longer needs to execute the artifact at all. `supervisor_schema_version` is a
+  compile-time constant of the SDK, so with the inventory gone the introspection round trip goes with
+  it — taking with it the cross-compile host-arch sidecar build
+  ([`buildIntrospectionSidecar`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/cmd/airflow-go-pack/pack.go#L136-L151)), the rule that `--executable` with a
+  non-host-runnable binary is a hard error ([`--executable guard`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/cmd/airflow-go-pack/pack.go#L384-L391)), and the scan-stdout-for-a-sentinel hack
+  TypeScript needs because user import-time logging pollutes stdout ([`readBundleManifest`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/ts-sdk/src/cli/pack.ts#L138-L152)).
   Whether to keep `--airflow-metadata` and `airflow-go-pack inspect` as debugging affordances is left
   open.
 - A byte-identical rebuild produces no new record. A deployment wanting each deploy distinguishable
   regardless should use the bundle version, not the artifact.
 - The digest's definition differs per SDK by design, and will be "fixed" unless that is written down
   next to the column.
-- Three directory walkers still exist (`task-sdk/src/airflow/sdk/coordinators/_bundle_metadata.py:67`,
-  `task-sdk/src/airflow/sdk/coordinators/executable/coordinator.py:270`, `task-sdk/src/airflow/sdk/coordinators/java/coordinator.py:59`), with a standing note that the other two
-  should move onto the shared one (`task-sdk/src/airflow/sdk/coordinators/_bundle_metadata.py:61-62`). ADR-0010 removes the need for all
+- Three directory walkers still exist ([`_walk_files`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/_bundle_metadata.py#L67),
+  [`_walk_executables`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/executable/coordinator.py#L270), [`_walk_jars`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/java/coordinator.py#L59)), with a standing note that the other two
+  should move onto the shared one ([`walk_files`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/_bundle_metadata.py#L61-L62)). ADR-0010 removes the need for all
   three on the execution path, which makes that consolidation cheap to finish.
 
 ## References
 
 - [ADR-0010](0010-persisted-task-handler-bindings.md) — what consumes the digest, and why the inventory is unused
 - [ADR-0003](0003-pure-java-dags.md) — the Java build-time inventory that was designed and never built
-- `go-sdk/adr/0001-bundle-packing-options.md` — why the inventory was runtime-introspected, not AST-scanned
-- `go-sdk/adr/0004-self-contained-executable-bundle.md` — the Go artifact format, partially superseded here
-- `go-sdk/adr/0005-retire-go-edge-worker.md` — the footer-required statement, clarified here
-- `go-sdk/internal/bundlefooter/footer.go` — the normative Go trailer layout
-- `ts-sdk/src/cli/bundle-encoder.ts` — the TypeScript container format and its per-region digests
-- `task-sdk/docs/executable-bundle-spec.rst` — the Go-shaped spec to amend
-- `task-sdk/docs/ts-bundle-spec.rst` — the TypeScript spec, which uses `task_handlers` already
-- `task-sdk/docs/airflow-metadata.schema.json` — the schema to republish as `2.0`
+- [`go-sdk ADR-0001`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/adr/0001-bundle-packing-options.md) — why the inventory was runtime-introspected, not AST-scanned
+- [`go-sdk ADR-0004`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/adr/0004-self-contained-executable-bundle.md) — the Go artifact format, partially superseded here
+- [`go-sdk ADR-0005`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/adr/0005-retire-go-edge-worker.md) — the footer-required statement, clarified here
+- [`footer.go`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/internal/bundlefooter/footer.go) — the normative Go trailer layout
+- [`bundle-encoder.ts`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/ts-sdk/src/cli/bundle-encoder.ts) — the TypeScript container format and its per-region digests
+- [`executable-bundle-spec.rst`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/docs/executable-bundle-spec.rst) — the Go-shaped spec to amend
+- [`ts-bundle-spec.rst`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/docs/ts-bundle-spec.rst) — the TypeScript spec, which uses `task_handlers` already
+- [`airflow-metadata.schema.json`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/docs/airflow-metadata.schema.json) — the schema to republish as `2.0`
