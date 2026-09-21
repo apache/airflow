@@ -78,6 +78,7 @@ def client(request: pytest.FixtureRequest):
         # Pooled async connections are bound to this client's event loop. Dispose them while
         # the loop is still running so the next test's loop never inherits one.
         if settings.async_engine is not None:
+            assert client.portal is not None
             client.portal.call(settings.async_engine.dispose)
 
     exec_app.dependency_overrides.pop(require_auth, None)
