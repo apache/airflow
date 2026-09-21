@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import select
 
 from airflow.configuration import conf
-from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.dag_processing.bundles.manager import _get_configured_bundle_team_names
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
@@ -121,7 +121,7 @@ def _dag_processor_instance_health(job: Job) -> dict[str, Any]:
 def _configured_bundle_teams() -> dict[str, str | None]:
     """Map every configured Dag bundle to the team owning it, empty when the config is unreadable."""
     try:
-        return DagBundlesManager().get_declared_bundle_teams()
+        return _get_configured_bundle_team_names()
     except Exception:
         # A health probe must not fail on malformed bundle config; callers fall back to liveness only.
         log.warning("Could not read the Dag bundle configuration", exc_info=True)
