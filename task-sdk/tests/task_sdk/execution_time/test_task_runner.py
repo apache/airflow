@@ -1484,6 +1484,27 @@ def test_execution_timeout(create_runtime_ti):
         _execute_task(context=ti.get_template_context(), ti=ti, log=mock.MagicMock())
 
 
+def test_execution_timeout_with_deferral(create_runtime_ti):
+    def my_callable():
+        pass
+
+    op = PythonOperator(
+        task_id="test_timeout_deferral",
+        execution_timeout=timedelta(minutes=5),
+        python_callable=my_callable,
+    )
+
+    ti = create_runtime_ti(task=op, dag_id="dag_execution_timeout_deferral")
+
+    # Mock ti.start_date to be 6 minutes ago, effectively expiring the 5 min timeout
+    from datetime import datetime, timedelta, timezone
+
+    ti.start_date = datetime.now(tz=timezone.utc) - timedelta(minutes=6)
+
+    with pytest.raises(AirflowTaskTimeout):
+        _execute_task(context=ti.get_template_context(), ti=ti, log=mock.MagicMock())
+
+
 def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comms, spy_agency):
     """Test running a Dag with templated task."""
     from airflow.providers.standard.operators.bash import BashOperator
