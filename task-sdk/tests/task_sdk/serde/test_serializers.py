@@ -155,7 +155,7 @@ class TestSerializers:
         ],
     )
     def test_deserialize_timedelta_numeric_payloads(self, payload, expected):
-        """Timedelta payloads may arrive as int (e.g. DeadlineAlert interval); see #72319."""
+        """Timedelta payloads may arrive as int (DeadlineAlert interval); see #72319."""
         assert deserialize({CLASSNAME: "datetime.timedelta", VERSION: 2, DATA: payload}) == expected
 
     @pytest.mark.parametrize(
