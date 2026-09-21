@@ -170,6 +170,50 @@ class TestGetTools:
             tools["run_command"].args_validator.validate_python(bad_args)
 
 
+class TestNetworkNote:
+    """
+    The model reads tool descriptions and nothing else, so the egress policy belongs
+    there. Measured without it: a ``pip install`` under the default deny costs a turn
+    and returns a DNS error, and under an allowlist a reach for plain HTTP is never
+    refused, so the model burns its whole command budget and reads a timeout, which
+    it takes to mean its command was slow.
+    """
+
+    @pytest.mark.asyncio
+    async def test_the_default_spec_tells_the_model_there_is_no_network(self):
+        tools = await SandboxToolset(_RecordingBackend()).get_tools(_ctx())
+
+        description = tools["run_command"].tool_def.description
+        assert "NO network access" in description
+        assert "DNS" in description
+
+    @pytest.mark.asyncio
+    async def test_an_allowlist_names_the_hosts_and_the_port(self):
+        toolset = SandboxToolset(
+            _RecordingBackend(),
+            spec=SandboxSpec(block_network=True, allow_egress_to=["pypi.org", "files.pythonhosted.org"]),
+        )
+
+        description = (await toolset.get_tools(_ctx()))["run_command"].tool_def.description
+        assert "pypi.org, files.pythonhosted.org" in description
+        # Plain HTTP is the trap worth naming, because nothing refuses it.
+        assert "plain HTTP" in description
+
+    @pytest.mark.asyncio
+    async def test_an_open_sandbox_says_so(self):
+        toolset = SandboxToolset(_RecordingBackend(), spec=SandboxSpec(block_network=False))
+
+        description = (await toolset.get_tools(_ctx()))["run_command"].tool_def.description
+        assert "has outbound network access" in description
+
+    @pytest.mark.asyncio
+    async def test_only_run_command_carries_the_note(self):
+        tools = await SandboxToolset(_RecordingBackend()).get_tools(_ctx())
+
+        for name in ("read_file", "write_file", "list_directory"):
+            assert "network" not in tools[name].tool_def.description
+
+
 class TestRunCommand:
     @pytest.mark.asyncio
     async def test_labels_streams_and_reports_a_nonzero_exit(self):
@@ -250,6 +294,69 @@ class TestRunCommand:
             await _call(ts, "run_command", {"command": "y"})
 
         assert [c[0] for c in backend.commands] == ["box-1", "box-2"]
+
+    @pytest.mark.asyncio
+    async def test_a_timeout_reports_the_budget_the_command_actually_had(self):
+        """
+        A backend may have to shorten a deadline, and then the request is the wrong number.
+
+        The Modal backend does this when a sandbox has less life left than the command asked
+        for. Reporting the request would send the model back asking for more time when the
+        constraint was never its request, and the sandbox may well have survived, so there is
+        no replacement note to explain the difference either.
+        """
+        backend = _RecordingBackend(
+            run_result=SandboxExecResult(
+                exit_code=-1, stdout="", stderr="", timed_out=True, applied_timeout=23
+            )
+        )
+        ts = SandboxToolset(backend, default_command_timeout=60, max_command_timeout=60)
+
+        async with ts:
+            result = await _call(ts, "run_command", {"command": "x"})
+
+        assert "[timed out after 23s]" in result
+        assert "60s" not in result
+
+    @pytest.mark.asyncio
+    async def test_a_timeout_falls_back_to_the_requested_budget(self):
+        """A backend that shortens nothing sets no applied_timeout, and `sbx` never does."""
+        backend = _RecordingBackend(
+            run_result=SandboxExecResult(exit_code=-1, stdout="", stderr="", timed_out=True)
+        )
+        ts = SandboxToolset(backend, default_command_timeout=5, max_command_timeout=5)
+
+        async with ts:
+            result = await _call(ts, "run_command", {"command": "x"})
+
+        assert "[timed out after 5s]" in result
+
+    @pytest.mark.asyncio
+    async def test_a_replaced_sandbox_is_announced_after_an_ordinary_failure_too(self):
+        """
+        A backend can lose the sandbox under a command that did not time out.
+
+        The Modal backend reports exactly that when a sandbox is terminated or reaches its
+        own lifetime mid-command: an exit status like any other, with the sandbox gone. The
+        model has to hear that its files went with it, or it will act on a filesystem that
+        no longer exists.
+        """
+        backend = _RecordingBackend(
+            run_result=SandboxExecResult(
+                exit_code=128,
+                stdout="starting\n",
+                stderr="waiting on pid 4: ... failed: EOF\n",
+                timed_out=False,
+                sandbox_terminated=True,
+            )
+        )
+        ts = SandboxToolset(backend)
+
+        async with ts:
+            result = await _call(ts, "run_command", {"command": "x"})
+
+        assert "[exit code: 128]" in result
+        assert "sandbox was replaced" in result
 
     @pytest.mark.asyncio
     async def test_backend_truncation_is_surfaced_to_the_model(self):

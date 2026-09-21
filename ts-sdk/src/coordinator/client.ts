@@ -21,15 +21,21 @@ import type { CommChannel } from "./comm-channel.js";
 import type { LogChannel } from "./log-channel.js";
 import type { TaskContext } from "../sdk/task.js";
 import type { TaskClient } from "../sdk/client.js";
-import type { ConnectionResult, GetXComOpts, SetXComOpts } from "../sdk/client-types.js";
+import type { ConnectionResult, GetXComOpts, JsonValue, SetXComOpts } from "../sdk/client-types.js";
 import { ConnectionNotFoundError, VariableNotFoundError } from "../sdk/client.js";
 import type {
   GetVariable,
+  PutVariable,
+  DeleteVariable,
   GetXCom,
   SetXCom,
   GetConnection,
   ConnectionResult as WireConnectionResult,
 } from "./protocol.js";
+
+/** What a supervisor "row is absent" error means for an operation: only a lookup
+ *  can return `null`; for a `void` call a swallowed error would read as success. */
+type AbsentRowPolicy = "null" | "throw";
 
 function resolveWireMapIndex(
   requestedMapIndex: number | null | undefined,
@@ -54,22 +60,47 @@ function fromWireConnection(body: WireConnectionResult): ConnectionResult {
   };
 }
 
+/** The outcome of an XCom pull, keeping an absent row distinct from a stored null. */
+export interface XComEntry {
+  readonly found: boolean;
+  /** `null` both for a stored null and for an absent row. */
+  readonly value: JsonValue;
+}
+
+const XCOM_ABSENT: XComEntry = { found: false, value: null };
+
+/**
+ * A task's {@link TaskClient} plus the reads only the runtime itself makes.
+ * Handlers are typed against `TaskClient`, so nothing added here is public API.
+ */
+export interface CoordinatorClient extends TaskClient {
+  /**
+   * Pull an XCom, reporting whether the row exists.
+   *
+   * {@link TaskClient.getXCom} answers `null` for an absent row and a stored
+   * null alike. Argument binding needs them apart: an upstream that pushed no
+   * output fails the task, while one that pushed null binds null.
+   */
+  getXComEntry(opts: GetXComOpts): Promise<XComEntry>;
+}
+
 export function createCoordinatorClient(
   comm: CommChannel,
   ctx: TaskContext,
   logs: LogChannel | null = null,
-): TaskClient {
+): CoordinatorClient {
   async function rpc<T>(
     op: string,
     expectedType: string | null,
     request: unknown,
     extract: (body: Record<string, unknown> | null) => T,
+    absent: AbsentRowPolicy,
   ): Promise<T | null> {
     logs?.debug(`${op} request`);
     const frame = await comm.request(request);
     const err = parseFrameError(frame);
     if (err) {
-      if (isNotFound(err)) {
+      if (absent === "null" && isNotFound(err)) {
         logs?.debug(`${op} not found`, { error: err.code });
         return null;
       }
@@ -88,12 +119,18 @@ export function createCoordinatorClient(
     return extract(body);
   }
 
-  const client: TaskClient = {
+  const client: CoordinatorClient = {
     // ---- Variables ----
 
     async getVariable(key: string): Promise<string | null> {
       const msg: GetVariable = { type: "GetVariable", key };
-      return rpc("GetVariable", "VariableResult", msg, (body) => (body!.value as string) ?? null);
+      return rpc(
+        "GetVariable",
+        "VariableResult",
+        msg,
+        (body) => (body!.value as string) ?? null,
+        "null",
+      );
     },
 
     async getVariableOrThrow(key: string): Promise<string> {
@@ -102,9 +139,26 @@ export function createCoordinatorClient(
       return value;
     },
 
+    async setVariable(key: string, value: string, description?: string | null): Promise<void> {
+      // `description` is a required wire field the supervisor validates, so it
+      // is always sent; null is what Python's `Variable.set` stores by default.
+      const msg: PutVariable = {
+        type: "PutVariable",
+        key,
+        value,
+        description: description ?? null,
+      };
+      await rpc("PutVariable", null, msg, () => undefined, "throw");
+    },
+
+    async deleteVariable(key: string): Promise<void> {
+      const msg: DeleteVariable = { type: "DeleteVariable", key };
+      await rpc("DeleteVariable", "OKResponse", msg, () => undefined, "throw");
+    },
+
     // ---- XCom ----
 
-    async getXCom<T = unknown>(opts: GetXComOpts): Promise<T | null> {
+    async getXComEntry(opts: GetXComOpts): Promise<XComEntry> {
       const msg: GetXCom = {
         type: "GetXCom",
         key: opts.key,
@@ -114,7 +168,25 @@ export function createCoordinatorClient(
         map_index: resolveWireMapIndex(opts.mapIndex, ctx.mapIndex),
         include_prior_dates: opts.includePriorDates ?? false,
       };
-      return rpc("GetXCom", "XComResult", msg, (body) => (body!.value as T) ?? null);
+      const entry = await rpc<XComEntry>(
+        "GetXCom",
+        "XComResult",
+        msg,
+        (body) => ({
+          found: true,
+          // A row storing null arrives as an XComResult carrying null, so the
+          // result frame decides `found` rather than the value.
+          value: (body!.value ?? null) as JsonValue,
+        }),
+        "null",
+      );
+      // `rpc` answers null for the supervisor's XCOM_NOT_FOUND.
+      return entry ?? XCOM_ABSENT;
+    },
+
+    async getXCom<T = unknown>(opts: GetXComOpts): Promise<T | null> {
+      const { value } = await client.getXComEntry(opts);
+      return (value as unknown as T) ?? null;
     },
 
     async setXCom(opts: SetXComOpts): Promise<void> {
@@ -127,15 +199,19 @@ export function createCoordinatorClient(
         run_id: opts.runId ?? ctx.runId,
         map_index: resolveWireMapIndex(opts.mapIndex, ctx.mapIndex),
       };
-      await rpc("SetXCom", null, msg, () => undefined);
+      await rpc("SetXCom", null, msg, () => undefined, "throw");
     },
 
     // ---- Connections ----
 
     async getConnection(connId: string): Promise<ConnectionResult | null> {
       const msg: GetConnection = { type: "GetConnection", conn_id: connId };
-      return rpc("GetConnection", "ConnectionResult", msg, (body) =>
-        fromWireConnection(body as unknown as WireConnectionResult),
+      return rpc(
+        "GetConnection",
+        "ConnectionResult",
+        msg,
+        (body) => fromWireConnection(body as unknown as WireConnectionResult),
+        "null",
       );
     },
 
@@ -151,7 +227,7 @@ export function createCoordinatorClient(
 // -------- Error handling (two functions) --------
 //
 // parseFrameError: extract a structured error from the frame (once).
-// isNotFound: decide if the error means "absent" (return null to caller)
+// isNotFound: decide if the error means "absent" (a lookup returns null)
 //             or "failed" (throw).
 
 interface FrameError {
@@ -192,7 +268,7 @@ function isNotFound(err: FrameError): boolean {
   // The supervisor wraps API server 404s as API_SERVER_ERROR with
   // detail.status_code=404 (supervisor.py: WatchedSubprocess.handle_requests).
   // Dag / Dag run lookups hit this path.
-  // TODO: If the TS client adds APIs beyond variables, XCom, and connections,
+  // TODO: If the TS client adds lookups beyond variables, XCom, and connections,
   // make not-found handling operation-specific instead of treating every
   // API_SERVER_ERROR 404 as null.
   return err.code === "API_SERVER_ERROR" && err.statusCode === 404;
