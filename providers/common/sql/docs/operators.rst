@@ -297,10 +297,11 @@ Supported Storage Systems
 -------------------------
 - S3
 - GCS
+- Azure Blob Storage
 - Local File System
 
 .. note::
-   Azure, HTTP, Delta are not yet supported but will be added in the future.
+   HTTP, Delta are not yet supported but will be added in the future.
 
 
 
@@ -361,6 +362,27 @@ resolved in this order:
     :dedent: 4
     :start-after: [START howto_analytics_operator_with_gcs]
     :end-before: [END howto_analytics_operator_with_gcs]
+
+Azure Storage
+-------------
+Use a ``conn_id`` pointing to a ``wasb`` connection. Credentials are resolved in
+this order:
+
+1. Azure AD service principal -- ``tenant_id`` extra, with ``login`` as the
+   client ID and ``password`` as the client secret
+2. SAS token -- ``sas_token`` extra, as a query string
+3. Shared key -- ``password``, or the ``shared_access_key``/``account_key`` extra
+4. Ambient credentials -- ``AZURE_*`` environment variables, managed identity,
+   workload identity, or the Azure CLI
+
+``connection_string``, ``managed_identity_client_id``, ``workload_identity_tenant_id``,
+and a URL-form ``sas_token`` are not supported.
+
+.. exampleinclude:: /../../sql/src/airflow/providers/common/sql/example_dags/example_analytics.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_analytics_operator_with_azure]
+    :end-before: [END howto_analytics_operator_with_azure]
 
 Local File System Storage
 -------------------------
