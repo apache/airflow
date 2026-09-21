@@ -121,10 +121,7 @@ def _dag_processor_instance_health(job: Job) -> dict[str, Any]:
 def _configured_bundle_teams() -> dict[str, str | None]:
     """Map every configured Dag bundle to the team owning it, empty when the config is unreadable."""
     try:
-        return {
-            metadata.name: metadata.team_name
-            for metadata in DagBundlesManager().get_configured_bundle_metadata()
-        }
+        return DagBundlesManager().get_declared_bundle_teams()
     except Exception:
         # A health probe must not fail on malformed bundle config; callers fall back to liveness only.
         log.warning("Could not read the Dag bundle configuration", exc_info=True)

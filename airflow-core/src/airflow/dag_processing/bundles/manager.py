@@ -203,7 +203,7 @@ class DagBundlesManager(LoggingMixin):
                 "`dag_processor` key `dag_bundle_provider`."
             ) from e
 
-    def get_configured_bundle_metadata(self) -> tuple[DagBundleMetadata, ...]:
+    def _get_provider_bundle_metadata(self) -> tuple[DagBundleMetadata, ...]:
         """Get validated metadata returned by the configured Dag bundle provider."""
         bundle_metadata: dict[str, DagBundleMetadata] = {}
         for metadata in self._bundle_provider.get_configured_bundle_metadata():
@@ -232,7 +232,7 @@ class DagBundlesManager(LoggingMixin):
 
     def get_active_bundle_metadata(self) -> tuple[DagBundleMetadata, ...]:
         """Get metadata for all active Dag bundles, including example bundles."""
-        bundle_metadata = {metadata.name: metadata for metadata in self.get_configured_bundle_metadata()}
+        bundle_metadata = {metadata.name: metadata for metadata in self._get_provider_bundle_metadata()}
 
         # Airflow owns example Dag bundles; configured providers do not need to include them.
         for name in self._example_dag_bundle_paths:
@@ -241,6 +241,10 @@ class DagBundlesManager(LoggingMixin):
             bundle_metadata[name] = DagBundleMetadata(name=name)
 
         return tuple(bundle_metadata.values())
+
+    def get_declared_bundle_teams(self) -> dict[str, str | None]:
+        """Get the team owning each bundle declared by the configured provider."""
+        return {metadata.name: metadata.team_name for metadata in self._get_provider_bundle_metadata()}
 
     @provide_session
     def sync_bundles_to_db(self, *, deactivate_missing: bool = True, session: Session = NEW_SESSION) -> None:
