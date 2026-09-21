@@ -126,6 +126,24 @@ func TestServeAcceptsFlagsTheBundleDefines(t *testing.T) {
 	assert.Contains(t, stdout.String(), "py_etl")
 }
 
+func TestServeRejectsBundleFlagWithReservedName(t *testing.T) {
+	for _, name := range []string{"airflow-metadata", "format", "comm", "logs"} {
+		t.Run(name, func(t *testing.T) {
+			saved := flag.CommandLine
+			t.Cleanup(func() { flag.CommandLine = saved })
+			flag.CommandLine = flag.NewFlagSet("bundle", flag.ContinueOnError)
+			flag.String(name, "", "a flag the bundle author defined")
+
+			var stdout bytes.Buffer
+			err := etlBundle().serve([]string{"--airflow-metadata"}, &stdout)
+
+			require.EqualError(t, err,
+				"the bundle defines a --"+name+" flag, but Serve reserves that name")
+			assert.Empty(t, stdout.String())
+		})
+	}
+}
+
 func TestServeRejectsBadFlags(t *testing.T) {
 	tests := []struct {
 		name    string

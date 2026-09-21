@@ -19,6 +19,7 @@ package airflow
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"os"
 
@@ -91,7 +92,18 @@ func (b *BundleRef) serve(args []string, stdout io.Writer) error {
 		"host:port of the supervisor's coordinator logs channel (selects coordinator mode)",
 	)
 	// A bundle may define flags of its own on pflag.CommandLine. Serve parses the whole command
-	// line, so it has to accept those too.
+	// line, so it has to accept those too. AddFlagSet skips a flag whose name is already taken,
+	// so Serve checks the names first. Otherwise it would ignore the bundle's flag and report
+	// nothing.
+	var taken string
+	flags.VisitAll(func(f *flag.Flag) {
+		if taken == "" && flag.CommandLine.Lookup(f.Name) != nil {
+			taken = f.Name
+		}
+	})
+	if taken != "" {
+		return fmt.Errorf("the bundle defines a --%s flag, but Serve reserves that name", taken)
+	}
 	flags.AddFlagSet(flag.CommandLine)
 	if err := flags.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -114,9 +126,9 @@ func (b *BundleRef) serve(args []string, stdout io.Writer) error {
 		if err != nil {
 			return err
 		}
-		return execution.DumpAirflowMetadata(stdout, &b.tasks, format)
+		return execution.DumpAirflowMetadata(stdout, &b.taskHandlers, format)
 	case modeCoordinator:
-		return execution.Serve(&b.tasks, *commAddr, *logsAddr)
+		return execution.Serve(&b.taskHandlers, *commAddr, *logsAddr)
 	case modeCoordinatorUsageError:
 		return errCoordinatorFlagsRequired
 	}

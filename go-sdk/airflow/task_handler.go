@@ -21,24 +21,23 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/apache/airflow/go-sdk/internal/bundlev1"
+	"github.com/apache/airflow/go-sdk/internal/bundle"
 )
 
 type taskHandler struct {
 	dagId, taskId string
-	task          bundlev1.Task
+	task          bundle.Task
 }
 
-func (*taskHandler) registraterable() {}
+func (*taskHandler) registerable() {}
 
 // TaskHandler makes fn the Go body of a task that a Python Dag declares with @task.stub.
 // Pass what it returns to [BundleRef.Register].
 //
 // dagId is the dag_id of that Python Dag, and taskId is the task_id of the stub task.
 //
-// fn takes a [Context] first, as the package documentation describes.
-// Every parameter after the Context is data, filled from the arguments of the Python stub's
-// TaskFlow call.
+// fn takes a [Context] first, as the package documentation describes. Every parameter after
+// the Context is data, filled from the arguments of the Python stub's TaskFlow call.
 // fn returns either error or (result, error).
 // A non-nil error fails the task, and a non-nil result is pushed as the task's return-value XCom.
 //
@@ -46,13 +45,17 @@ func (*taskHandler) registraterable() {}
 // not a function, does not take a Context first, or does not return an error.
 // main calls TaskHandler before Serve, so a handler that fails the check stops the executable as
 // soon as it starts instead of when the task first runs.
-func TaskHandler(dagId, taskId string, fn any) Registraterable {
-	if reflect.ValueOf(fn).Kind() != reflect.Func {
+func TaskHandler(dagId, taskId string, fn any) Registerable {
+	v := reflect.ValueOf(fn)
+	if v.Kind() != reflect.Func {
 		panic(
 			fmt.Sprintf("airflow.TaskHandler(%q, %q): fn is %T, not a function", dagId, taskId, fn),
 		)
 	}
-	task, err := bundlev1.NewTaskFunction(fn)
+	if v.IsNil() {
+		panic(fmt.Sprintf("airflow.TaskHandler(%q, %q): fn is a nil %T", dagId, taskId, fn))
+	}
+	task, err := bundle.NewTaskFunction(fn)
 	if err != nil {
 		panic(fmt.Sprintf("airflow.TaskHandler(%q, %q): %v", dagId, taskId, err))
 	}

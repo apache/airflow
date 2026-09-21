@@ -32,7 +32,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/apache/airflow/go-sdk/internal/bundlev1"
+	"github.com/apache/airflow/go-sdk/internal/bundle"
 	"github.com/apache/airflow/go-sdk/internal/contexttest"
 	"github.com/apache/airflow/go-sdk/pkg/binding"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
@@ -81,7 +81,7 @@ func init() { binding.RegisterTaskContext(contexttest.New) }
 
 type testBundle map[string]testDag
 
-type testDag map[string]bundlev1.Task
+type testDag map[string]bundle.Task
 
 func (b testBundle) AddDag(dagId string) testDag {
 	b[dagId] = testDag{}
@@ -89,23 +89,23 @@ func (b testBundle) AddDag(dagId string) testDag {
 }
 
 func (d testDag) AddTaskWithName(taskId string, fn any) {
-	task, err := bundlev1.NewTaskFunction(fn)
+	task, err := bundle.NewTaskFunction(fn)
 	if err != nil {
 		panic(err)
 	}
 	d[taskId] = task
 }
 
-func (b testBundle) LookupTask(dagId, taskId string) (bundlev1.Task, bool) {
+func (b testBundle) LookupTask(dagId, taskId string) (bundle.Task, bool) {
 	task, ok := b[dagId][taskId]
 	return task, ok
 }
 
-func buildBundle(t *testing.T, register func(testBundle)) bundlev1.Bundle {
+func buildBundle(t *testing.T, register func(testBundle)) bundle.Bundle {
 	t.Helper()
-	bundle := testBundle{}
-	register(bundle)
-	return bundle
+	b := testBundle{}
+	register(b)
+	return b
 }
 
 func newStartupDetails(

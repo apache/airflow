@@ -36,7 +36,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/apache/airflow/go-sdk/internal/bundlev1"
+	"github.com/apache/airflow/go-sdk/internal/bundle"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 )
 
@@ -73,7 +73,7 @@ const terminalSendTimeout = 30 * time.Second
 // fails closed without needing to send a frame; the post-connect paths below
 // log the reason at Error first so it still reaches the supervisor's log
 // stream over the already-connected logs socket.
-func Serve(bundle bundlev1.Bundle, commAddr, logsAddr string) error {
+func Serve(b bundle.Bundle, commAddr, logsAddr string) error {
 	if commAddr == "" {
 		return fmt.Errorf("missing --comm=host:port argument")
 	}
@@ -159,7 +159,7 @@ func Serve(bundle bundlev1.Bundle, commAddr, logsAddr string) error {
 			"dag_id", msg.TI.DagID,
 			"task_id", msg.TI.TaskID,
 		)
-		result := RunTask(ctx, bundle, msg, comm, logger)
+		result := RunTask(ctx, b, msg, comm, logger)
 		// Bound the terminal write so a wedged socket cannot hang shutdown.
 		_ = commConn.SetWriteDeadline(time.Now().Add(terminalSendTimeout))
 		if err := comm.SendRequest(frame.ID, result); err != nil {

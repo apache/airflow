@@ -28,7 +28,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/apache/airflow/go-sdk/internal/bundlev1"
+	"github.com/apache/airflow/go-sdk/internal/bundle"
 )
 
 func noop(Context) error { return nil }
@@ -47,22 +47,22 @@ func TestRegisterMakesTasksFindable(t *testing.T) {
 		{"reports", "extract"},
 	}
 	for _, id := range registered {
-		task, ok := b.tasks.LookupTask(id[0], id[1])
+		task, ok := b.taskHandlers.LookupTask(id[0], id[1])
 		assert.True(t, ok, "%s.%s must be registered", id[0], id[1])
 		assert.NotNil(t, task)
 	}
 
-	_, ok := b.tasks.LookupTask("reports", "transform")
+	_, ok := b.taskHandlers.LookupTask("reports", "transform")
 	assert.False(t, ok, "transform is registered for py_etl only")
-	_, ok = b.tasks.LookupTask("unknown", "extract")
+	_, ok = b.taskHandlers.LookupTask("unknown", "extract")
 	assert.False(t, ok)
 }
 
 func TestRegisterKeepsRegistrationOrder(t *testing.T) {
 	b := Bundle()
-	assert.Empty(t, b.tasks.OrderedDags())
+	assert.Empty(t, b.taskHandlers.ListTaskHandlers())
 
-	// Out of alphabetical order, so the test fails if OrderedDags sorts instead of keeping
+	// Out of alphabetical order, so the test fails if ListTaskHandlers sorts instead of keeping
 	// registration order.
 	b.Register(
 		TaskHandler("zeta", "z2", noop),
@@ -70,16 +70,21 @@ func TestRegisterKeepsRegistrationOrder(t *testing.T) {
 		TaskHandler("zeta", "z1", noop),
 	)
 
-	assert.Equal(t, []bundlev1.DagInfo{
-		{DagID: "zeta", Tasks: []bundlev1.TaskInfo{{ID: "z2"}, {ID: "z1"}}},
-		{DagID: "alpha", Tasks: []bundlev1.TaskInfo{{ID: "a1"}}},
-	}, b.tasks.OrderedDags())
+	assert.Equal(t, []bundle.TaskHandlerInfo{
+		{DagID: "zeta", TaskID: "z2"},
+		{DagID: "alpha", TaskID: "a1"},
+		{DagID: "zeta", TaskID: "z1"},
+	}, b.taskHandlers.ListTaskHandlers())
+
+	listed := b.taskHandlers.ListTaskHandlers()
+	listed[0].TaskID = "changed by the caller"
+	assert.Equal(t, "z2", b.taskHandlers.ListTaskHandlers()[0].TaskID)
 }
 
 // A package that defines task handlers exports a function like etlHandlers, and main registers
 // what it returns.
-func etlHandlers() []Registraterable {
-	return []Registraterable{
+func etlHandlers() []Registerable {
+	return []Registerable{
 		TaskHandler("py_etl", "extract", noop),
 		TaskHandler("py_etl", "transform", noop),
 	}
@@ -90,10 +95,11 @@ func TestRegisterTakesASliceOfHandlers(t *testing.T) {
 	b.Register(etlHandlers()...)
 	b.Register(TaskHandler("reports", "render", noop))
 
-	assert.Equal(t, []bundlev1.DagInfo{
-		{DagID: "py_etl", Tasks: []bundlev1.TaskInfo{{ID: "extract"}, {ID: "transform"}}},
-		{DagID: "reports", Tasks: []bundlev1.TaskInfo{{ID: "render"}}},
-	}, b.tasks.OrderedDags())
+	assert.Equal(t, []bundle.TaskHandlerInfo{
+		{DagID: "py_etl", TaskID: "extract"},
+		{DagID: "py_etl", TaskID: "transform"},
+		{DagID: "reports", TaskID: "render"},
+	}, b.taskHandlers.ListTaskHandlers())
 }
 
 func TestRegisterRejectsDuplicateTask(t *testing.T) {
@@ -121,27 +127,25 @@ func TestRegisterIsSafeForConcurrentUse(t *testing.T) {
 			defer wg.Done()
 			for i := range perWorker {
 				b.Register(TaskHandler("py_etl", fmt.Sprintf("task_%d_%d", worker, i), noop))
-				b.tasks.LookupTask("py_etl", "task_0_0")
-				b.tasks.OrderedDags()
+				b.taskHandlers.LookupTask("py_etl", "task_0_0")
+				b.taskHandlers.ListTaskHandlers()
 			}
 		}()
 	}
 	wg.Wait()
 
-	dags := b.tasks.OrderedDags()
-	require.Len(t, dags, 1)
-	assert.Len(t, dags[0].Tasks, workers*perWorker)
+	assert.Len(t, b.taskHandlers.ListTaskHandlers(), workers*perWorker)
 }
 
 func TestRegisterRejectsNilItem(t *testing.T) {
-	var item Registraterable
+	var item Registerable
 	assert.PanicsWithValue(t, "airflow.BundleRef.Register: cannot register <nil>", func() {
 		Bundle().Register(item)
 	})
 }
 
-// Embedding promotes the unexported method, so this struct compiles as a Registraterable.
-type wrappedItem struct{ Registraterable }
+// Embedding promotes the unexported method, so this struct compiles as a Registerable.
+type wrappedItem struct{ Registerable }
 
 func TestRegisterRejectsEmbeddedItem(t *testing.T) {
 	item := wrappedItem{TaskHandler("py_etl", "transform", noop)}
@@ -154,14 +158,14 @@ func TestRegisterRejectsEmbeddedItem(t *testing.T) {
 	)
 }
 
-func TestRegistraterableIsSealed(t *testing.T) {
-	typ := reflect.TypeFor[Registraterable]()
+func TestRegisterableIsSealed(t *testing.T) {
+	typ := reflect.TypeFor[Registerable]()
 	require.Equal(t, 1, typ.NumMethod())
 	// reflect reports a package path only for an unexported method.
 	assert.Equal(t, "github.com/apache/airflow/go-sdk/airflow", typ.Method(0).PkgPath)
 }
 
-func TestRegistraterableRejectsForeignTypes(t *testing.T) {
+func TestRegisterableRejectsForeignTypes(t *testing.T) {
 	if testing.Short() {
 		t.Skip("shells out to `go build`")
 	}
@@ -173,6 +177,6 @@ func TestRegistraterableRejectsForeignTypes(t *testing.T) {
 		CombinedOutput()
 
 	require.Error(t, err, "a type defined outside package airflow must not compile as an item")
-	assert.Contains(t, string(out), "foreignItem does not implement airflow.Registraterable")
-	assert.Contains(t, string(out), "unexported method registraterable")
+	assert.Contains(t, string(out), "foreignItem does not implement airflow.Registerable")
+	assert.Contains(t, string(out), "unexported method registerable")
 }

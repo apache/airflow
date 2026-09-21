@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package bundlev1
+package bundle
 
 import (
 	"context"
@@ -43,24 +43,18 @@ type Bundle interface {
 	LookupTask(dagId, taskId string) (Task, bool)
 }
 
-// TaskInfo describes a registered task by its user-visible id.
-type TaskInfo struct {
-	ID string
+// TaskHandlerInfo identifies a registered task handler by its dag_id and task_id.
+type TaskHandlerInfo struct {
+	DagID  string
+	TaskID string
 }
 
-// DagInfo describes a registered dag together with its tasks in
-// registration order.
-type DagInfo struct {
-	DagID string
-	Tasks []TaskInfo
-}
-
-// EnumerableBundle lists the registered Dags and their tasks in registration
-// order. DumpAirflowMetadata in pkg/execution builds the --airflow-metadata
-// manifest from that list, which is how airflow-go-pack reads a bundle's Dag and
-// task ids without running a task.
+// EnumerableBundle lists the registered task handlers in registration order.
+// DumpAirflowMetadata in pkg/execution builds the --airflow-metadata manifest
+// from that list, which is how airflow-go-pack reads a bundle's Dag and task ids
+// without running a task.
 type EnumerableBundle interface {
-	OrderedDags() []DagInfo
+	ListTaskHandlers() []TaskHandlerInfo
 }
 
 type taskFunction struct {

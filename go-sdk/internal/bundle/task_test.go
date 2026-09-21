@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package bundlev1
+package bundle
 
 import (
 	"context"

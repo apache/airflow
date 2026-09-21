@@ -26,7 +26,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/apache/airflow/go-sdk/internal/airflowmetadata"
-	"github.com/apache/airflow/go-sdk/internal/bundlev1"
+	"github.com/apache/airflow/go-sdk/internal/bundle"
 )
 
 // sdkModulePath is the import path of the SDK module. Used to identify the
@@ -62,17 +62,17 @@ func ParseMetadataFormat(s string) (MetadataFormat, error) {
 	}
 }
 
-// DumpAirflowMetadata writes the bundle's airflow-metadata manifest to w
-// (YAML by default, JSON when format is MetadataFormatJSON). It only reads the
+// DumpAirflowMetadata writes the bundle's airflow-metadata manifest to w, as YAML
+// by default or as JSON when format is MetadataFormatJSON. It only reads the
 // registered Dag and task ids, without running a task or calling an external service.
 // airflow-go-pack execs the binary with --airflow-metadata and decodes this
 // output to build the embedded manifest.
 func DumpAirflowMetadata(
 	w io.Writer,
-	bundle bundlev1.EnumerableBundle,
+	b bundle.EnumerableBundle,
 	format MetadataFormat,
 ) error {
-	data, err := encodeManifest(collectManifest(bundle), format)
+	data, err := encodeManifest(collectManifest(b), format)
 	if err != nil {
 		return err
 	}
@@ -80,7 +80,7 @@ func DumpAirflowMetadata(
 	return err
 }
 
-func collectManifest(bundle bundlev1.EnumerableBundle) airflowmetadata.Manifest {
+func collectManifest(b bundle.EnumerableBundle) airflowmetadata.Manifest {
 	meta := airflowmetadata.Manifest{
 		AirflowBundleMetadataVersion: airflowmetadata.FormatVersion,
 		SDK: airflowmetadata.SDK{
@@ -90,12 +90,10 @@ func collectManifest(bundle bundlev1.EnumerableBundle) airflowmetadata.Manifest 
 		},
 		Dags: make(map[string]airflowmetadata.Dag),
 	}
-	for _, dag := range bundle.OrderedDags() {
-		taskIDs := make([]string, 0, len(dag.Tasks))
-		for _, t := range dag.Tasks {
-			taskIDs = append(taskIDs, t.ID)
-		}
-		meta.Dags[dag.DagID] = airflowmetadata.Dag{Tasks: taskIDs}
+	for _, handler := range b.ListTaskHandlers() {
+		dag := meta.Dags[handler.DagID]
+		dag.Tasks = append(dag.Tasks, handler.TaskID)
+		meta.Dags[handler.DagID] = dag
 	}
 	return meta
 }

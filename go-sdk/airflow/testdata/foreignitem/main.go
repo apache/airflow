@@ -16,7 +16,7 @@
 // under the License.
 
 // Command foreignitem tries to register a type that package airflow did not define.
-// It must not compile. TestRegistraterableRejectsForeignTypes builds it and expects that failure.
+// It must not compile. TestRegisterableRejectsForeignTypes builds it and expects that failure.
 package main
 
 import "github.com/apache/airflow/go-sdk/airflow"
@@ -24,8 +24,8 @@ import "github.com/apache/airflow/go-sdk/airflow"
 type foreignItem struct{}
 
 // An unexported method name belongs to the package that declares it, so this method is not
-// the registraterable method of airflow.Registraterable even though it is spelled the same.
-func (foreignItem) registraterable() {}
+// the registerable method of airflow.Registerable even though it is spelled the same.
+func (foreignItem) registerable() {}
 
 func main() {
 	airflow.Bundle().Register(foreignItem{})

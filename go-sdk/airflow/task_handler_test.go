@@ -72,7 +72,7 @@ func runTask(
 	details *genmodels.StartupDetails,
 ) any {
 	comm := execution.NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
-	return execution.RunTask(ctx, &b.tasks, details, comm, logger)
+	return execution.RunTask(ctx, &b.taskHandlers, details, comm, logger)
 }
 
 func discardLogger() *slog.Logger { return slog.New(slog.NewTextHandler(io.Discard, nil)) }
@@ -86,6 +86,8 @@ func panicMessage(t *testing.T, f func()) (msg string) {
 }
 
 func TestTaskHandlerPanicsOnBadHandler(t *testing.T) {
+	var unassigned func(Context) error
+
 	tests := []struct {
 		name string
 		fn   any
@@ -93,6 +95,11 @@ func TestTaskHandlerPanicsOnBadHandler(t *testing.T) {
 	}{
 		{name: "not a function", fn: "transform", want: "fn is string, not a function"},
 		{name: "nil", fn: nil, want: "fn is <nil>, not a function"},
+		{
+			name: "nil function value",
+			fn:   unassigned,
+			want: "fn is a nil func(airflow.Context) error",
+		},
 		{
 			name: "no leading Context",
 			fn:   func(ctx context.Context, logger *slog.Logger) error { return nil },
