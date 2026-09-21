@@ -423,11 +423,25 @@ export const $AssetExpressionAsset = {
 export const $AssetExpressionAssetInfo = {
     properties: {
         uri: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Uri'
         },
         name: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Name'
         },
         group: {
@@ -444,6 +458,11 @@ export const $AssetExpressionAssetInfo = {
                 }
             ],
             title: 'Id'
+        },
+        hidden: {
+            type: 'boolean',
+            title: 'Hidden',
+            default: false
         }
     },
     type: 'object',
@@ -454,7 +473,11 @@ export const $AssetExpressionAssetInfo = {
 \`\`id\`\` is injected by \`\`DagModelOperation.update_dag_asset_expression\`\` when the expression is
 persisted; \`\`BaseAsset.as_expression()\`\` itself only emits \`\`uri\`\`/\`\`name\`\`/\`\`group\`\`. It is left
 optional so a row persisted before id-enrichment (or migrated from the pre-3.0 dataset format)
-degrades gracefully instead of failing response validation.`
+degrades gracefully instead of failing response validation.
+
+A leaf the caller is not authorized to read is served with \`\`hidden\`\` set and \`\`uri\`\`, \`\`name\`\`
+and \`\`id\`\` blanked (see \`\`airflow.api_fastapi.common.asset_expression\`\`), so the shape of the
+schedule stays visible without revealing which asset it waits on.`
 } as const;
 
 export const $AssetExpressionRef = {
@@ -1023,13 +1046,12 @@ export const $BaseInfoResponse = {
         status: {
             anyOf: [
                 {
-                    type: 'string'
+                    '$ref': '#/components/schemas/HealthStatus'
                 },
                 {
                     type: 'null'
                 }
-            ],
-            title: 'Status'
+            ]
         }
     },
     type: 'object',
@@ -2837,6 +2859,10 @@ export const $DAGDetailsResponse = {
             type: 'boolean',
             title: 'Is Paused'
         },
+        scheduling_state: {
+            '$ref': '#/components/schemas/DagSchedulingState',
+            default: 'active'
+        },
         is_stale: {
             type: 'boolean',
             title: 'Is Stale'
@@ -3307,13 +3333,29 @@ Deprecated: Use max_active_tasks instead.`,
 export const $DAGPatchBody = {
     properties: {
         is_paused: {
-            type: 'boolean',
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Is Paused'
+        },
+        scheduling_state: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/DagSchedulingState'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     additionalProperties: false,
     type: 'object',
-    required: ['is_paused'],
     title: 'DAGPatchBody',
     description: 'Dag Serializer for updatable bodies.'
 } as const;
@@ -3331,6 +3373,10 @@ export const $DAGResponse = {
         is_paused: {
             type: 'boolean',
             title: 'Is Paused'
+        },
+        scheduling_state: {
+            '$ref': '#/components/schemas/DagSchedulingState',
+            default: 'active'
         },
         is_stale: {
             type: 'boolean',
@@ -4394,9 +4440,45 @@ export const $DAGWarningResponse = {
     description: 'Dag Warning serializer for responses.'
 } as const;
 
-export const $DagProcessorInfoResponse = {
+export const $DagBundleCollectionResponse = {
     properties: {
-        status: {
+        dag_bundles: {
+            items: {
+                '$ref': '#/components/schemas/DagBundleResponse'
+            },
+            type: 'array',
+            title: 'Dag Bundles'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['dag_bundles', 'total_entries'],
+    title: 'DagBundleCollectionResponse',
+    description: 'Dag bundle collection response.'
+} as const;
+
+export const $DagBundleResponse = {
+    properties: {
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        active: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Active',
+            description: "Whether the bundle is still present in this deployment's configuration."
+        },
+        version: {
             anyOf: [
                 {
                     type: 'string'
@@ -4405,7 +4487,76 @@ export const $DagProcessorInfoResponse = {
                     type: 'null'
                 }
             ],
-            title: 'Status'
+            title: 'Version',
+            description: 'The latest version Airflow has seen for the bundle. Null when the bundle does not support versioning, or when no Dag processor has refreshed it successfully yet.'
+        },
+        last_refreshed: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Last Refreshed',
+            description: 'When a Dag processor last successfully refreshed the bundle. It advances even when the version did not change, and a failed refresh leaves it untouched.'
+        },
+        bundle_url: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Bundle Url',
+            description: 'A link to view the bundle at ``version``, when one is configured and the caller may read Dag versions.'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name',
+            description: 'The team owning the bundle, in a multi-team deployment.'
+        },
+        import_error_count: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Import Error Count',
+            description: 'Number of Dag import errors recorded against this bundle that the caller is permitted to see, counted on the same terms as ``GET /importErrors``. Null when the caller may not read import errors.'
+        }
+    },
+    type: 'object',
+    required: ['name', 'active', 'version', 'last_refreshed', 'bundle_url', 'team_name', 'import_error_count'],
+    title: 'DagBundleResponse',
+    description: 'Dag bundle serializer for responses.'
+} as const;
+
+export const $DagProcessorInfoResponse = {
+    properties: {
+        status: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/HealthStatus'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         latest_dag_processor_heartbeat: {
             anyOf: [
@@ -4421,13 +4572,12 @@ export const $DagProcessorInfoResponse = {
         detailed_status: {
             anyOf: [
                 {
-                    type: 'string'
+                    '$ref': '#/components/schemas/DetailedHealthStatus'
                 },
                 {
                     type: 'null'
                 }
-            ],
-            title: 'Detailed Status'
+            ]
         },
         instances: {
             anyOf: [
@@ -4452,17 +4602,6 @@ export const $DagProcessorInfoResponse = {
 
 export const $DagProcessorInstanceInfoResponse = {
     properties: {
-        status: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Status'
-        },
         hostname: {
             anyOf: [
                 {
@@ -4501,7 +4640,7 @@ export const $DagProcessorInstanceInfoResponse = {
         }
     },
     type: 'object',
-    required: ['status', 'hostname', 'latest_dag_processor_heartbeat', 'bundle_names'],
+    required: ['hostname', 'latest_dag_processor_heartbeat', 'bundle_names'],
     title: 'DagProcessorInstanceInfoResponse',
     description: 'Dag processor instance info serializer for responses.'
 } as const;
@@ -4671,6 +4810,13 @@ export const $DagScheduleAssetReference = {
     description: 'Dag schedule reference serializer for assets.'
 } as const;
 
+export const $DagSchedulingState = {
+    type: 'string',
+    enum: ['active', 'draining', 'paused'],
+    title: 'DagSchedulingState',
+    description: 'States controlling whether a Dag can create and schedule work.'
+} as const;
+
 export const $DagStatsCollectionResponse = {
     properties: {
         dags: {
@@ -4824,6 +4970,13 @@ export const $DagWarningType = {
 
 This is the set of allowable values for the \`\`warning_type\`\` field
 in the DagWarning model.`
+} as const;
+
+export const $DetailedHealthStatus = {
+    type: 'string',
+    enum: ['healthy', 'degraded', 'down'],
+    title: 'DetailedHealthStatus',
+    description: "How much of a component's work has a live instance covering it."
 } as const;
 
 export const $DryRunBackfillCollectionResponse = {
@@ -5597,6 +5750,13 @@ export const $HealthInfoResponse = {
     required: ['metadatabase', 'scheduler', 'triggerer'],
     title: 'HealthInfoResponse',
     description: 'Health serializer for responses.'
+} as const;
+
+export const $HealthStatus = {
+    type: 'string',
+    enum: ['healthy', 'unhealthy'],
+    title: 'HealthStatus',
+    description: 'Aggregate health of a component: whether it has at least one live instance.'
 } as const;
 
 export const $ImportErrorCollectionResponse = {
@@ -6699,13 +6859,12 @@ export const $SchedulerInfoResponse = {
         status: {
             anyOf: [
                 {
-                    type: 'string'
+                    '$ref': '#/components/schemas/HealthStatus'
                 },
                 {
                     type: 'null'
                 }
-            ],
-            title: 'Status'
+            ]
         },
         latest_scheduler_heartbeat: {
             anyOf: [
@@ -6721,13 +6880,12 @@ export const $SchedulerInfoResponse = {
         detailed_status: {
             anyOf: [
                 {
-                    type: 'string'
+                    '$ref': '#/components/schemas/DetailedHealthStatus'
                 },
                 {
                     type: 'null'
                 }
-            ],
-            title: 'Detailed Status'
+            ]
         },
         instances: {
             anyOf: [
@@ -6752,17 +6910,6 @@ export const $SchedulerInfoResponse = {
 
 export const $SchedulerInstanceInfoResponse = {
     properties: {
-        status: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Status'
-        },
         hostname: {
             anyOf: [
                 {
@@ -6787,7 +6934,7 @@ export const $SchedulerInstanceInfoResponse = {
         }
     },
     type: 'object',
-    required: ['status', 'hostname', 'latest_scheduler_heartbeat'],
+    required: ['hostname', 'latest_scheduler_heartbeat'],
     title: 'SchedulerInstanceInfoResponse',
     description: 'Scheduler instance info serializer for responses.'
 } as const;
@@ -8548,13 +8695,12 @@ export const $TriggererInfoResponse = {
         status: {
             anyOf: [
                 {
-                    type: 'string'
+                    '$ref': '#/components/schemas/HealthStatus'
                 },
                 {
                     type: 'null'
                 }
-            ],
-            title: 'Status'
+            ]
         },
         latest_triggerer_heartbeat: {
             anyOf: [
@@ -8570,13 +8716,12 @@ export const $TriggererInfoResponse = {
         detailed_status: {
             anyOf: [
                 {
-                    type: 'string'
+                    '$ref': '#/components/schemas/DetailedHealthStatus'
                 },
                 {
                     type: 'null'
                 }
-            ],
-            title: 'Detailed Status'
+            ]
         },
         instances: {
             anyOf: [
@@ -8601,17 +8746,6 @@ export const $TriggererInfoResponse = {
 
 export const $TriggererInstanceInfoResponse = {
     properties: {
-        status: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Status'
-        },
         hostname: {
             anyOf: [
                 {
@@ -8647,7 +8781,7 @@ export const $TriggererInstanceInfoResponse = {
         }
     },
     type: 'object',
-    required: ['status', 'hostname', 'latest_triggerer_heartbeat', 'team_name'],
+    required: ['hostname', 'latest_triggerer_heartbeat', 'team_name'],
     title: 'TriggererInstanceInfoResponse',
     description: 'Triggerer instance info serializer for responses.'
 } as const;
@@ -9688,6 +9822,10 @@ export const $DAGWithLatestDagRunsResponse = {
             type: 'boolean',
             title: 'Is Paused'
         },
+        scheduling_state: {
+            '$ref': '#/components/schemas/DagSchedulingState',
+            default: 'active'
+        },
         is_stale: {
             type: 'boolean',
             title: 'Is Stale'
@@ -9949,6 +10087,10 @@ export const $DAGWithLatestDagRunsResponse = {
             type: 'array',
             title: 'Latest Dag Runs'
         },
+        has_unfinished_runs: {
+            type: 'boolean',
+            title: 'Has Unfinished Runs'
+        },
         pending_actions: {
             items: {
                 '$ref': '#/components/schemas/HITLDetail'
@@ -9985,7 +10127,7 @@ export const $DAGWithLatestDagRunsResponse = {
         }
     },
     type: 'object',
-    required: ['dag_id', 'dag_display_name', 'is_paused', 'is_stale', 'last_parsed_time', 'last_parse_duration', 'last_expired', 'bundle_name', 'bundle_version', 'relative_fileloc', 'fileloc', 'description', 'timetable_summary', 'timetable_description', 'timetable_partitioned', 'timetable_periodic', 'tags', 'max_active_tasks', 'max_active_runs', 'max_consecutive_failed_dag_runs', 'has_task_concurrency_limits', 'has_import_errors', 'next_dagrun_logical_date', 'next_dagrun_data_interval_start', 'next_dagrun_data_interval_end', 'next_dagrun_run_after', 'allowed_run_types', 'owners', 'asset_expression', 'latest_dag_runs', 'pending_actions', 'is_favorite', 'is_backfillable', 'file_token'],
+    required: ['dag_id', 'dag_display_name', 'is_paused', 'is_stale', 'last_parsed_time', 'last_parse_duration', 'last_expired', 'bundle_name', 'bundle_version', 'relative_fileloc', 'fileloc', 'description', 'timetable_summary', 'timetable_description', 'timetable_partitioned', 'timetable_periodic', 'tags', 'max_active_tasks', 'max_active_runs', 'max_consecutive_failed_dag_runs', 'has_task_concurrency_limits', 'has_import_errors', 'next_dagrun_logical_date', 'next_dagrun_data_interval_start', 'next_dagrun_data_interval_end', 'next_dagrun_run_after', 'allowed_run_types', 'owners', 'asset_expression', 'latest_dag_runs', 'has_unfinished_runs', 'pending_actions', 'is_favorite', 'is_backfillable', 'file_token'],
     title: 'DAGWithLatestDagRunsResponse',
     description: 'DAG with latest dag runs response serializer.'
 } as const;
@@ -10760,7 +10902,7 @@ export const $LightGridTaskInstanceSummary = {
 
 export const $MenuItem = {
     type: 'string',
-    enum: ['Required Actions', 'Assets', 'Audit Log', 'Config', 'Connections', 'Dags', 'Deadlines', 'Docs', 'Jobs', 'Plugins', 'Pools', 'Providers', 'Variables', 'XComs'],
+    enum: ['Required Actions', 'Assets', 'Audit Log', 'Config', 'Connections', 'Dags', 'Dag Bundles', 'Deadlines', 'Docs', 'Jobs', 'Plugins', 'Pools', 'Providers', 'Variables', 'XComs'],
     title: 'MenuItem',
     description: 'Define all menu items defined in the menu.'
 } as const;

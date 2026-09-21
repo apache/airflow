@@ -216,7 +216,27 @@ class TestCredentials:
         mock_keyring.set_password.side_effect = NoKeyringError("no backend")
 
         with pytest.raises(AirflowCtlKeyringException, match="Keyring backend is not available"):
-            Credentials(client_kind=cli_client).save()
+            Credentials(client_kind=cli_client, api_token="TEST_TOKEN").save()
+
+    @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_SAVE_KEYRING_TYPE_ERROR"})
+    @patch("airflowctl.api.client.keyring")
+    def test_save_propagates_unexpected_keyring_error(self, mock_keyring):
+        mock_keyring.set_password.side_effect = TypeError("password must be a string")
+
+        with pytest.raises(TypeError, match="password must be a string"):
+            Credentials(
+                api_url="http://localhost:8080",
+                api_token="TEST_TOKEN",
+                client_kind=ClientKind.AUTH,
+            ).save()
+
+    @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_SAVE_NO_TOKEN"})
+    @patch("airflowctl.api.client.keyring")
+    def test_save_without_token(self, mock_keyring):
+        with pytest.raises(AirflowCtlCredentialNotFoundException, match="No API token found"):
+            Credentials(api_url="http://localhost:8080", client_kind=ClientKind.AUTH).save()
+
+        mock_keyring.set_password.assert_not_called()
 
     @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_SAVE_SKIP_KEYRING"})
     @patch("airflowctl.api.client.keyring")
@@ -529,6 +549,24 @@ def test_credentials_rejects_unsafe_env_from_environment_variable(monkeypatch, a
 
 class TestRetryConfigurationEnvVars:
     """The knobs are read at import time, so a bad value used to take down even ``--help``."""
+
+    @pytest.fixture(autouse=True)
+    def unique_config_dir(self, monkeypatch, tmp_path):
+        """
+        Override the module fixture, which clears ``os.environ`` wholesale.
+
+        These tests hand the environment to a child interpreter, and starting one needs more
+        than ``AIRFLOW_HOME``: a ``--enable-shared`` Python cannot find ``libpython`` without
+        the ``LD_LIBRARY_PATH`` its installer exported. Only the knobs under test are dropped,
+        so a value in the developer's own shell cannot decide the result.
+        """
+        monkeypatch.setenv("AIRFLOW_HOME", str(tmp_path))
+        for name in (
+            "AIRFLOW_CLI_API_RETRIES",
+            "AIRFLOW_CLI_API_RETRY_WAIT_MIN",
+            "AIRFLOW_CLI_API_RETRY_WAIT_MAX",
+        ):
+            monkeypatch.delenv(name, raising=False)
 
     @staticmethod
     def _import_with(**env: str) -> subprocess.CompletedProcess:

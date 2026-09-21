@@ -105,7 +105,6 @@ providers/amazon/src/airflow/providers/amazon/aws/sensors/kinesis_analytics.py::
 providers/amazon/src/airflow/providers/amazon/aws/sensors/lambda_function.py::1
 providers/amazon/src/airflow/providers/amazon/aws/sensors/mwaa.py::4
 providers/amazon/src/airflow/providers/amazon/aws/sensors/opensearch_serverless.py::1
-providers/amazon/src/airflow/providers/amazon/aws/sensors/quicksight.py::1
 providers/amazon/src/airflow/providers/amazon/aws/sensors/rds.py::1
 providers/amazon/src/airflow/providers/amazon/aws/sensors/redshift_cluster.py::1
 providers/amazon/src/airflow/providers/amazon/aws/sensors/s3.py::3
@@ -113,7 +112,6 @@ providers/amazon/src/airflow/providers/amazon/aws/sensors/sagemaker.py::8
 providers/amazon/src/airflow/providers/amazon/aws/sensors/sagemaker_unified_studio.py::1
 providers/amazon/src/airflow/providers/amazon/aws/sensors/sqs.py::2
 providers/amazon/src/airflow/providers/amazon/aws/sensors/step_function.py::1
-providers/amazon/src/airflow/providers/amazon/aws/transfers/gcs_to_s3.py::1
 providers/amazon/src/airflow/providers/amazon/aws/transfers/redshift_to_s3.py::1
 providers/amazon/src/airflow/providers/amazon/aws/transfers/s3_to_dynamodb.py::3
 providers/amazon/src/airflow/providers/amazon/aws/transfers/s3_to_redshift.py::3
@@ -266,8 +264,6 @@ providers/google/src/airflow/providers/google/cloud/operators/looker.py::1
 providers/google/src/airflow/providers/google/cloud/operators/managed_kafka.py::15
 providers/google/src/airflow/providers/google/cloud/operators/pubsub.py::1
 providers/google/src/airflow/providers/google/cloud/operators/spanner.py::19
-providers/google/src/airflow/providers/google/cloud/operators/speech_to_text.py::2
-providers/google/src/airflow/providers/google/cloud/operators/text_to_speech.py::1
 providers/google/src/airflow/providers/google/cloud/operators/translate.py::9
 providers/google/src/airflow/providers/google/cloud/operators/translate_speech.py::2
 providers/google/src/airflow/providers/google/cloud/operators/vertex_ai/batch_prediction_job.py::1
@@ -309,11 +305,10 @@ providers/google/src/airflow/providers/google/cloud/triggers/cloud_composer.py::
 providers/google/src/airflow/providers/google/cloud/triggers/cloud_run.py::1
 providers/google/src/airflow/providers/google/cloud/triggers/dataproc.py::5
 providers/google/src/airflow/providers/google/cloud/triggers/kubernetes_engine.py::1
-providers/google/src/airflow/providers/google/cloud/utils/credentials_provider.py::16
+providers/google/src/airflow/providers/google/cloud/utils/credentials_provider.py::15
 providers/google/src/airflow/providers/google/common/hooks/base_google.py::7
 providers/google/src/airflow/providers/google/common/hooks/operation_helpers.py::2
 providers/google/src/airflow/providers/google/firebase/hooks/firestore.py::1
-providers/google/src/airflow/providers/google/firebase/operators/firestore.py::1
 providers/google/src/airflow/providers/google/leveldb/hooks/leveldb.py::4
 providers/google/src/airflow/providers/google/marketing_platform/hooks/campaign_manager.py::2
 providers/google/src/airflow/providers/google/marketing_platform/hooks/search_ads.py::1
@@ -400,7 +395,6 @@ providers/telegram/src/airflow/providers/telegram/operators/telegram.py::2
 providers/teradata/src/airflow/providers/teradata/hooks/bteq.py::10
 providers/teradata/src/airflow/providers/teradata/hooks/ttu.py::1
 providers/teradata/src/airflow/providers/teradata/operators/teradata_compute_cluster.py::9
-providers/teradata/src/airflow/providers/teradata/triggers/teradata_compute_cluster.py::1
 providers/teradata/src/airflow/providers/teradata/utils/bteq_util.py::2
 providers/trino/src/airflow/providers/trino/hooks/trino.py::1
 providers/vespa/src/airflow/providers/vespa/operators/vespa_ingest.py::1

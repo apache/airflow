@@ -43,6 +43,17 @@ from airflow.providers.keycloak.auth_manager.resources import KeycloakResource
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
+# "Dag Bundles" is granted to every team role rather than only the admin one: the page is scoped
+# by the Dags a caller can read, so a Viewer who can already reach the bundles through the API has
+# to be able to find them under Browse. The provider still supports Airflow versions predating the
+# menu item, where ``TEAM_MENU_ITEMS`` drops it, so the expected grants follow the same guard the
+# source does rather than hard-coding a name that does not exist there.
+DAG_BUNDLES_MENU = ["Dag Bundles"] if hasattr(MenuItem, "DAG_BUNDLES") else []
+EXPECTED_TEAM_MENU_RESOURCES = sorted(["Assets", "Dags", "Docs", *DAG_BUNDLES_MENU])
+EXPECTED_TEAM_ADMIN_MENU_RESOURCES = sorted(
+    ["Assets", "Connections", "Dags", "Docs", "Pools", "Variables", "XComs", *DAG_BUNDLES_MENU]
+)
+
 
 @pytest.mark.db_test
 class TestCommands:
@@ -695,7 +706,7 @@ class TestCommands:
             permission_name="MenuAccess-team-a",
             policy_name="Allow-Viewer-team-a",
             scope_names=["MENU"],
-            resource_names=["Assets", "Dags", "Docs"],
+            resource_names=EXPECTED_TEAM_MENU_RESOURCES,
             decision_strategy="AFFIRMATIVE",
             _dry_run=False,
         )
@@ -705,7 +716,7 @@ class TestCommands:
             permission_name="MenuAccess-Admin-team-a",
             policy_name="Allow-Admin-team-a",
             scope_names=["MENU"],
-            resource_names=["Assets", "Connections", "Dags", "Docs", "Pools", "Variables", "XComs"],
+            resource_names=EXPECTED_TEAM_ADMIN_MENU_RESOURCES,
             decision_strategy="AFFIRMATIVE",
             _dry_run=False,
         )
@@ -750,7 +761,7 @@ class TestCommands:
             "test-id",
             name="MenuAccess-team-a",
             scope_names=["MENU"],
-            resource_names=["Assets", "Dags", "Docs"],
+            resource_names=EXPECTED_TEAM_MENU_RESOURCES,
             decision_strategy="AFFIRMATIVE",
             _dry_run=False,
         )
@@ -759,7 +770,7 @@ class TestCommands:
             "test-id",
             name="MenuAccess-Admin-team-a",
             scope_names=["MENU"],
-            resource_names=["Assets", "Connections", "Dags", "Docs", "Pools", "Variables", "XComs"],
+            resource_names=EXPECTED_TEAM_ADMIN_MENU_RESOURCES,
             decision_strategy="AFFIRMATIVE",
             _dry_run=False,
         )

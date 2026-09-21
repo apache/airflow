@@ -56,7 +56,7 @@ Inside any ``@task``-decorated function or ``BaseOperator.execute()`` method, ta
         my_value = task_state_store.get("my_key", default="my_default_key")
 
         # Set the new value
-        new_value = f"It is {random.randint(1, 12 + 1)} o'clock"
+        new_value = f"It is {random.randint(1, 12)} o'clock"
         task_state_store.set("my_key", new_value)
 
         # Delete the value
@@ -187,7 +187,7 @@ the default retention window.
 
 On a retry, the task finds the stored ``job_id`` and reattaches instead of submitting a duplicate job. Another example of this sort of logic can be found in `example_task_state_store.py <https://github.com/apache/airflow/blob/main/airflow-core/src/airflow/example_dags/example_task_state_store.py>`_.
 
-For ``BaseOperator`` subclasses, the :class:`~airflow.sdk.bases.resumablemixin.ResumableJobMixin` encapsulates this pattern. It persists the external job ID to task state store after submission and, on retry, reconnects to an active job or resubmits if the prior job reached a terminal failure state.
+For ``BaseOperator`` subclasses, the :class:`~airflow.sdk.bases.resumablejobmixin.ResumableJobMixin` encapsulates this pattern. It persists the external job ID to task state store after submission and, on retry, reconnects to an active job or resubmits if the prior job reached a terminal failure state.
 
 Intra-task checkpointing
 ~~~~~~~~~~~~~~~~~~~~~~~~

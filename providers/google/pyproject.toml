@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-google"
-version = "22.4.0"
+version = "22.5.0"
 description = "Provider package apache-airflow-providers-google for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -132,7 +132,7 @@ dependencies = [
     "google-cloud-run>=0.10.0",
     "google-cloud-batch>=0.13.0",
     "grpcio-gcp>=0.2.2",
-    "httpx>=0.25.0",
+    "httpx2>=2.0.0",
     # looker-sdk 24.18.0 has issues in import looker_sdk.rtl,  No module named looker_sdk.rtl
     # See https://github.com/looker-open-source/sdk-codegen/issues/1518
     "looker-sdk>=22.4.0,!=24.18.0",
@@ -159,6 +159,9 @@ dependencies = [
 # The optional dependencies should be modified in place in the generated file
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
+"apache.beam" = [
+    "apache-airflow-providers-apache-beam>=6.2.2",
+]
 "cncf.kubernetes" = [
     "apache-airflow-providers-cncf-kubernetes>=10.1.0",
 ]
@@ -229,6 +232,7 @@ dev = [
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
     "apache-airflow-providers-amazon",
+    "apache-airflow-providers-apache-beam",
     "apache-airflow-providers-apache-cassandra",
     "apache-airflow-providers-cncf-kubernetes",
     "apache-airflow-providers-common-compat",
@@ -280,8 +284,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/22.4.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-google/22.4.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/22.5.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-google/22.5.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
