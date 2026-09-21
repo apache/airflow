@@ -270,8 +270,9 @@ class BaseExecutor(LoggingMixin):
         if isinstance(workload, workloads.ExecuteTask):
             ti = workload.ti
             self.queued_tasks[ti.key] = workload
-            if getattr(ti, "workload_run_id", None):
-                self._workload_run_ids[ti.key].append(ti.workload_run_id)
+            run_id = getattr(ti, "workload_run_id", None)
+            if isinstance(run_id, str):
+                self._workload_run_ids[ti.key].append(run_id)
         elif isinstance(workload, workloads.ExecuteCallback):
             if not self.supports_callbacks:
                 raise NotImplementedError(

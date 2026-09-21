@@ -383,7 +383,7 @@ class KubernetesExecutor(BaseExecutor):
             else:
                 record_event(key, state, info, consume_run_id=consume_run_id)
             return
-        self.event_buffer[key] = (state, info)
+        self.event_buffer[key] = (state, info, None)
 
     def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
         from airflow.executors import workloads
@@ -393,7 +393,7 @@ class KubernetesExecutor(BaseExecutor):
         ti = workload.ti
         self.queued_tasks[ti.key] = workload
         workload_run_id = getattr(ti, "workload_run_id", None)
-        if workload_run_id and hasattr(self, "_workload_run_ids"):
+        if isinstance(workload_run_id, str) and hasattr(self, "_workload_run_ids"):
             self._workload_run_ids[ti.key].append(workload_run_id)
 
     def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
