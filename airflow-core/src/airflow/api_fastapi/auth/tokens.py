@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import time
@@ -114,6 +115,9 @@ class JWKS:
     refresh_interval_secs: int = 3600
     refresh_retry_interval_secs: int = 10
 
+    _fetch_lock: asyncio.Lock | None = attrs.field(default=None, init=False, repr=False)
+    _fetch_lock_loop: asyncio.AbstractEventLoop | None = attrs.field(default=None, init=False, repr=False)
+
     def __repr__(self) -> str:
         return f"JWKS(url={self.url}, fetched_at={self.fetched_at})"
 
@@ -128,19 +132,45 @@ class JWKS:
         obj._jwks = jwt.PyJWKSet(keyset)
         return obj
 
+    def _get_fetch_lock(self) -> asyncio.Lock:
+        """
+        Return a fetch lock belonging to the running event loop.
+
+        An ``asyncio.Lock`` binds itself to the loop it first blocks on, and ``JWTValidator`` is also
+        driven synchronously via ``async_to_sync``, which runs each call in a throwaway loop -- reusing
+        one lock across those would raise "bound to a different event loop". Those calls are serial, so
+        a per-loop lock still gives single-flight where concurrency actually happens: the server's loop.
+        """
+        loop = asyncio.get_running_loop()
+        if self._fetch_lock is None or self._fetch_lock_loop is not loop:
+            self._fetch_lock = asyncio.Lock()
+            self._fetch_lock_loop = loop
+        return self._fetch_lock
+
     async def fetch_jwks(self) -> None:
-        if not self._should_fetch_jwks():
-            return
-        if self.url.startswith("http"):
-            data = await self._fetch_remote_jwks()
-        else:
-            data = self._fetch_local_jwks()
-
-        if not data:
+        if self._jwks and not self._should_fetch_jwks():
             return
 
-        self._jwks = jwt.PyJWKSet.from_dict(data)
-        log.debug("Fetched JWKS", url=self.url, keys=len(self._jwks.keys))
+        lock = self._get_fetch_lock()
+        if self._jwks and lock.locked():
+            # A refresh is already in flight and our keyset is still usable -- serve it instead of
+            # queueing every concurrent request behind a fetch that may be slow to time out.
+            return
+
+        async with lock:
+            # Whoever held the lock may have loaded the keyset, or just spent the retry budget.
+            if not self._should_fetch_jwks():
+                return
+            if self.url.startswith("http"):
+                data = await self._fetch_remote_jwks()
+            else:
+                data = self._fetch_local_jwks()
+
+            if not data:
+                return
+
+            self._jwks = jwt.PyJWKSet.from_dict(data)
+            log.debug("Fetched JWKS", url=self.url, keys=len(self._jwks.keys))
 
     async def _fetch_remote_jwks(self) -> dict[str, Any] | None:
         try:
@@ -185,19 +215,19 @@ class JWKS:
             # Fetch local JWKS only if not already loaded
             # This could be improved in future by looking at mtime of file.
             return not self._jwks
-        # For remote fetches we check if the JWKS is not loaded (fetched_at = 0) or if the last fetch was more than
-        # refresh_interval_secs ago and the last fetch attempt was more than refresh_retry_interval_secs ago
+        # For remote fetches we check if the JWKS is not loaded (fetched_at = 0) or if the last fetch was more
+        # than refresh_interval_secs ago. The retry interval gates the not-loaded case too: while the endpoint
+        # is down every request would otherwise issue its own fetch, turning one IdP outage into a request-rate
+        # hammering of it.
         now = time.monotonic()
-        return self.refresh_jwks and (
-            not self._jwks
-            or (
-                self.fetched_at == 0
-                or (
-                    now - self.fetched_at > self.refresh_interval_secs
-                    and now - self.last_fetch_attempt_at > self.refresh_retry_interval_secs
-                )
-            )
-        )
+        if not self.refresh_jwks:
+            return False
+        if (
+            self.last_fetch_attempt_at
+            and now - self.last_fetch_attempt_at <= self.refresh_retry_interval_secs
+        ):
+            return False
+        return not self._jwks or self.fetched_at == 0 or now - self.fetched_at > self.refresh_interval_secs
 
     async def get_key(self, kid: str) -> jwt.PyJWK:
         """Fetch the JWKS and find the matching key for the token."""
@@ -211,7 +241,7 @@ class JWKS:
 
     def status(self):
         # https://svcs.hynek.me/en/stable/core-concepts.html#health-checks
-        if not self._should_fetch_jwks():
+        if self._jwks and not self._should_fetch_jwks():
             # Up-to-date, we are healthy
             return
 

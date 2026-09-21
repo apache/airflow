@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import pathlib
 from datetime import datetime, timedelta
@@ -27,6 +28,7 @@ import anyio
 import httpx
 import jwt
 import pytest
+from asgiref.sync import async_to_sync
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 
 from airflow._shared.timezones import timezone
@@ -112,6 +114,74 @@ class TestJWKS:
                 await jwks.get_key("kid")
             assert isinstance(await jwks.get_key("kid2"), jwt.PyJWK)
             spy_agency.assert_spy_called(spy)
+
+    async def test_failing_remote_jwks_is_retried_at_most_once_per_retry_interval(
+        self, spy_agency: SpyAgency
+    ):
+        async def mock_transport(request):
+            return httpx.Response(status_code=500)
+
+        client = httpx.AsyncClient(transport=httpx.MockTransport(mock_transport))
+        current = 1_000_000.0
+
+        def mock_monotonic():
+            return current
+
+        with patch("airflow.api_fastapi.auth.tokens.time.monotonic", side_effect=mock_monotonic):
+            jwks = JWKS(url="https://example.com/jwks.json", client=client)
+            spy = spy_agency.spy_on(JWKS._fetch_remote_jwks)
+
+            for _ in range(5):
+                with pytest.raises(KeyError):
+                    await jwks.get_key("kid")
+                current += 1
+
+            assert len(spy.calls) == 1
+
+            # A pending retry is not health: the keyset has never loaded.
+            with pytest.raises(RuntimeError, match="JWKS never fetched"):
+                jwks.status()
+
+            current += jwks.refresh_retry_interval_secs
+            with pytest.raises(KeyError):
+                await jwks.get_key("kid")
+
+            assert len(spy.calls) == 2
+
+    async def test_concurrent_first_fetch_is_shared(self, ed25519_private_key, spy_agency: SpyAgency):
+        jwk_content = json.dumps({"keys": [key_to_jwk_dict(ed25519_private_key, "kid")]})
+
+        async def mock_transport(request):
+            await anyio.sleep(0.05)
+            return httpx.Response(status_code=200, content=jwk_content)
+
+        client = httpx.AsyncClient(transport=httpx.MockTransport(mock_transport))
+        jwks = JWKS(url="https://example.com/jwks.json", client=client)
+        spy = spy_agency.spy_on(JWKS._fetch_remote_jwks)
+
+        keys = await asyncio.gather(*(jwks.get_key("kid") for _ in range(10)))
+
+        assert all(isinstance(key, jwt.PyJWK) for key in keys)
+        assert len(spy.calls) == 1
+
+    def test_contended_fetch_survives_a_new_event_loop(self):
+        """``validated_claims`` runs each call in a throwaway loop, so a lock cannot outlive one."""
+
+        async def mock_transport(request):
+            await anyio.sleep(0.01)
+            return httpx.Response(status_code=500)
+
+        client = httpx.AsyncClient(transport=httpx.MockTransport(mock_transport))
+        jwks = JWKS(url="https://example.com/jwks.json", client=client, refresh_retry_interval_secs=0)
+
+        async def two_at_once():
+            # With no keyset to fall back on the second caller blocks on the lock, and blocking is
+            # what binds an asyncio.Lock to the loop it is running in.
+            results = await asyncio.gather(*(jwks.get_key("kid") for _ in range(2)), return_exceptions=True)
+            assert [type(result) for result in results] == [KeyError, KeyError]
+
+        for _ in range(2):
+            async_to_sync(two_at_once)()
 
 
 def test_load_pk_from_file(tmp_path: pathlib.Path, rsa_private_key):
