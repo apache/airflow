@@ -2414,6 +2414,31 @@ class TestGetTaskDependencies(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 200, response.text
 
+    @pytest.mark.parametrize(
+        ("url", "expected_detail"),
+        [
+            pytest.param(
+                "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
+                "non_existent_task/dependencies",
+                "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, "
+                "task_id: `non_existent_task` and map_index: `-1` was not found",
+                id="unmapped",
+            ),
+            pytest.param(
+                "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
+                "print_the_context/99/dependencies",
+                "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, "
+                "task_id: `print_the_context` and map_index: `99` was not found",
+                id="by_map_index",
+            ),
+        ],
+    )
+    def test_should_respond_404(self, test_client, session, url, expected_detail):
+        self.create_task_instances(session)
+        response = test_client.get(url)
+        assert response.status_code == 404
+        assert response.json()["detail"] == expected_detail
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(
             "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
@@ -4870,9 +4895,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         ("error", "code", "payload"),
         [
             [
-                [
-                    "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `print_the_context` and map_index: `None` was not found",
-                ],
+                "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `print_the_context` and map_index: `None` was not found",
                 404,
                 {
                     "new_state": "failed",
@@ -5743,9 +5766,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
         ("error", "code", "payload"),
         [
             [
-                [
-                    "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `print_the_context` and map_index: `-1` was not found"
-                ],
+                "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `print_the_context` and map_index: `-1` was not found",
                 404,
                 {
                     "new_state": "failed",

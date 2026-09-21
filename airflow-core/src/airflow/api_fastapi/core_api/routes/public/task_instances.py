@@ -324,9 +324,7 @@ def get_task_instance_dependencies(
     result = session.execute(query).one_or_none()
 
     if result is None:
-        error_message = (
-            f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
-        )
+        error_message = f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found"
         raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
 
     ti = result[0]

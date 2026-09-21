@@ -170,9 +170,7 @@ def _patch_ti_validate_request(
 
     tis = session.scalars(query).all()
 
-    err_msg_404 = (
-        f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
-    )
+    err_msg_404 = f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found"
     if len(tis) == 0:
         raise HTTPException(status.HTTP_404_NOT_FOUND, err_msg_404)
 
