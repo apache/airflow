@@ -920,6 +920,42 @@ class TestIterableOperator:
                 with pytest.raises(BaseExceptionGroup):
                     iterable_op.execute(context=context)
 
+    def test_execute_failed_attempt_leaves_no_completion_marker_so_retry_resumes(self):
+        """
+        Regression test: an attempt that fails must not write the completion marker.
+
+        The marker tells a retry apart from a rerun after a manual clear: when it is present, every
+        checkpoint is ignored and every index runs again. Raising the collected sub-task failures
+        outside the ``Checkpoints`` block would let the block exit cleanly and write the marker on a
+        failed attempt, so the retry would re-run the succeeded indices too instead of resuming.
+        """
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"arg1": 1}, {"raise_exception": ValueError("boom")}])
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="exec_failed_no_marker")
+
+            with mock_context(task=iterable_op) as context:
+                store = context["task_state_store"]
+
+                with pytest.raises(BaseExceptionGroup):
+                    iterable_op.execute(context=context)
+
+                assert "_iterable_completed" not in store
+                assert store["_iterable_0"]["status"] == "success"
+                assert store["_iterable_1"]["status"] == "up_for_retry"
+
+                # The retry: the failing item succeeds now; index 0 must be replayed, not re-run.
+                context["ti"].try_number = 2
+                iterable_op.expand_input = ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}])
+                with patch.object(
+                    iterable_op, "_run_operator", wraps=iterable_op._run_operator
+                ) as run_operator:
+                    materialized = list(iterable_op.execute(context=context))
+
+                assert materialized == [(1, None, None), (2, None, None)]
+                assert run_operator.call_count == 1
+                assert run_operator.call_args.args[1].index == 1
+                assert store["_iterable_completed"] == {"completed": True, "try_number": 2}
+
     def test_execute_fail_exception_re_raised_directly_without_retry(self):
         """A sub-task that raises AirflowFailException must be re-raised directly (not wrapped in a
         BaseExceptionGroup) so the IterableOperator fails without being retried."""
@@ -1422,6 +1458,15 @@ class TestCheckpoints:
         store.get.assert_called_once_with("_iterable_completed")
         store.delete.assert_not_called()
         store.set.assert_called_once_with("_iterable_completed", {"completed": True, "try_number": 2})
+
+    def test_failed_attempt_leaves_no_marker(self):
+        context, store = self._context(try_number=1)
+
+        with pytest.raises(RuntimeError, match="sub-task failures"):
+            with Checkpoints(context):
+                raise RuntimeError("sub-task failures")
+
+        store.set.assert_not_called()
 
     def test_rerun_after_clear_removes_marker_and_ignores_checkpoints(self):
         context, store = self._context(try_number=2, marker={"completed": True, "try_number": 1})
