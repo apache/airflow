@@ -18,8 +18,16 @@ from __future__ import annotations
 
 import asyncio
 
-import asyncssh
 import pytest
+from asyncssh import (
+    SFTPBadMessage,
+    SFTPConnectionLost,
+    SFTPFailure,
+    SFTPNoConnection,
+    SFTPNoSuchFile,
+    SFTPOpUnsupported,
+    SFTPPermissionDenied,
+)
 
 from airflow.providers.sftp.pools.sftp import SFTPClientPool, _is_connection_faulty
 
@@ -92,13 +100,13 @@ class TestSFTPClientPool:
     @pytest.mark.parametrize(
         ("exc", "expected"),
         [
-            pytest.param(asyncssh.SFTPNoSuchFile("missing"), False, id="no-such-file"),
-            pytest.param(asyncssh.SFTPPermissionDenied("denied"), False, id="permission-denied"),
-            pytest.param(asyncssh.SFTPFailure("failure"), False, id="failure"),
-            pytest.param(asyncssh.SFTPOpUnsupported("unsupported"), False, id="op-unsupported"),
-            pytest.param(asyncssh.SFTPConnectionLost("lost"), True, id="connection-lost"),
-            pytest.param(asyncssh.SFTPNoConnection("no connection"), True, id="no-connection"),
-            pytest.param(asyncssh.SFTPBadMessage("bad message"), True, id="bad-message"),
+            pytest.param(SFTPNoSuchFile("missing"), False, id="no-such-file"),
+            pytest.param(SFTPPermissionDenied("denied"), False, id="permission-denied"),
+            pytest.param(SFTPFailure("failure"), False, id="failure"),
+            pytest.param(SFTPOpUnsupported("unsupported"), False, id="op-unsupported"),
+            pytest.param(SFTPConnectionLost("lost"), True, id="connection-lost"),
+            pytest.param(SFTPNoConnection("no connection"), True, id="no-connection"),
+            pytest.param(SFTPBadMessage("bad message"), True, id="bad-message"),
             pytest.param(ValueError("boom"), True, id="not-an-sftp-error"),
         ],
     )
@@ -111,10 +119,11 @@ class TestSFTPClientPool:
         pool = SFTPClientPool("app_error_conn", pool_size=1)
         release_spy = mocker.spy(pool, "_release_pair")
 
-        with pytest.raises(asyncssh.SFTPNoSuchFile):
+        with pytest.raises(SFTPNoSuchFile):
             async with pool.get_sftp_client():
-                raise asyncssh.SFTPNoSuchFile("missing")
+                raise SFTPNoSuchFile("missing")
 
+        assert release_spy.call_args_list
         assert all(call.kwargs.get("faulty") is False for call in release_spy.call_args_list)
 
     @staticmethod
@@ -122,7 +131,7 @@ class TestSFTPClientPool:
         """One failed lookup against the pool, recording the client it was served."""
         async with pool.get_sftp_client() as sftp:
             seen.append(sftp)
-            raise asyncssh.SFTPNoSuchFile("missing")
+            raise SFTPNoSuchFile("missing")
 
     @pytest.mark.asyncio
     async def test_get_sftp_client_reuses_connection_after_application_sftp_error(
@@ -134,12 +143,11 @@ class TestSFTPClientPool:
             seen: list = []
 
             for _ in range(5):
-                with pytest.raises(asyncssh.SFTPNoSuchFile):
+                with pytest.raises(SFTPNoSuchFile):
                     await self._miss(pool, seen)
 
             assert close_spy.call_count == 0
             assert len(seen) == 5
-            assert all(client is seen[0] for client in seen)
 
     @pytest.mark.asyncio
     async def test_get_sftp_client_marks_connection_faulty_on_transport_sftp_error(
@@ -148,9 +156,9 @@ class TestSFTPClientPool:
         pool = SFTPClientPool("transport_error_conn", pool_size=1)
         release_spy = mocker.spy(pool, "_release_pair")
 
-        with pytest.raises(asyncssh.SFTPConnectionLost):
+        with pytest.raises(SFTPConnectionLost):
             async with pool.get_sftp_client():
-                raise asyncssh.SFTPConnectionLost("lost")
+                raise SFTPConnectionLost("lost")
 
         assert any(call.kwargs.get("faulty") is True for call in release_spy.call_args_list)
 

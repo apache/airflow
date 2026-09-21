@@ -21,18 +21,22 @@ import os
 from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass, field
 from threading import Lock
+from typing import TYPE_CHECKING
 from weakref import WeakKeyDictionary
 
-import asyncssh
+from asyncssh import SFTPBadMessage, SFTPConnectionLost, SFTPError, SFTPNoConnection
 
 from airflow.providers.sftp.hooks.sftp import SFTPHookAsync
 from airflow.utils.log.logging_mixin import LoggingMixin
 
+if TYPE_CHECKING:
+    import asyncssh
+
 #: SFTP status codes that report a broken or desynchronised transport.
-_TRANSPORT_SFTP_ERRORS: tuple[type[asyncssh.SFTPError], ...] = (
-    asyncssh.SFTPNoConnection,
-    asyncssh.SFTPConnectionLost,
-    asyncssh.SFTPBadMessage,
+_TRANSPORT_SFTP_ERRORS: tuple[type[SFTPError], ...] = (
+    SFTPNoConnection,
+    SFTPConnectionLost,
+    SFTPBadMessage,
 )
 
 
@@ -40,10 +44,10 @@ def _is_connection_faulty(exc: BaseException) -> bool:
     """
     Whether ``exc`` means the pooled SSH connection can no longer be reused.
 
-    Any other ``SFTPError`` is a status reply the server sent over a live channel, so
-    the connection stays good; a non-``SFTPError`` is assumed to have broken it.
+    Any other ``SFTPError`` is a status-level failure that leaves the channel usable,
+    so the connection stays good; a non-``SFTPError`` is assumed to have broken it.
     """
-    if isinstance(exc, asyncssh.SFTPError):
+    if isinstance(exc, SFTPError):
         return isinstance(exc, _TRANSPORT_SFTP_ERRORS)
     return True
 
