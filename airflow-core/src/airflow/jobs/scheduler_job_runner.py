@@ -1081,6 +1081,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 "state": TaskInstanceState.QUEUED,
                 "queued_dttm": timezone.utcnow(),
                 "queued_by_job_id": self.job.id,
+                # Per-invocation id so a stale executor SUCCESS from a previous worker
+                # (e.g. defer exit) cannot be matched to a later enqueue of the same key.
+                "workload_run_id": random_db_uuid(),
             }
 
             # Pre-assign external_executor_id atomically with the QUEUED state so it
@@ -1116,25 +1119,26 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .execution_options(synchronize_session=False)
             )
 
+            # Always read workload_run_id (and external_executor_id when pre-assigned)
+            # back onto in-memory objects so ExecuteTask.make carries them through
+            # make_transient. Use RETURNING on PostgreSQL; SELECT elsewhere.
+            returning_cols = [TI.id, TI.workload_run_id]
             if pre_assign_executors:
-                # Read the DB-generated UUIDs back onto the in-memory objects so the
-                # workload DTO carries them through to send_workload_to_executor (the
-                # objects are about to be detached by make_transient). Use RETURNING
-                # where supported (PostgreSQL); fall back to a SELECT for MySQL and
-                # SQLite (RETURNING requires SQLite 3.35+ which isn't guaranteed).
-                if get_dialect_name(session) == "postgresql":
-                    result = session.execute(queued_update.returning(TI.id, TI.external_executor_id))
-                    id_map = {row[0]: row[1] for row in result}
-                else:
-                    session.execute(queued_update)
-                    id_rows = session.execute(
-                        select(TI.id, TI.external_executor_id).where(filter_for_tis)
-                    ).all()
-                    id_map = {row[0]: row[1] for row in id_rows}
-                for ti in executable_tis:
-                    ti.external_executor_id = id_map.get(ti.id)
+                returning_cols.append(TI.external_executor_id)
+
+            if get_dialect_name(session) == "postgresql":
+                result = session.execute(queued_update.returning(*returning_cols))
+                rows = list(result)
             else:
                 session.execute(queued_update)
+                rows = list(session.execute(select(*returning_cols).where(filter_for_tis)).all())
+
+            workload_run_id_map = {row[0]: row[1] for row in rows}
+            external_id_map = {row[0]: row[2] for row in rows} if pre_assign_executors else {}
+            for ti in executable_tis:
+                ti.workload_run_id = workload_run_id_map.get(ti.id)
+                if pre_assign_executors:
+                    ti.external_executor_id = external_id_map.get(ti.id)
 
             for ti in executable_tis:
                 ti.emit_state_change_metric(TaskInstanceState.QUEUED)
@@ -1412,8 +1416,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         tis_with_right_state: list[TaskInstanceKey] = []
         callback_keys_with_events: list[CallbackKey] = []
 
+        def _unpack_event(value: tuple) -> tuple[Any, Any, str | None]:
+            if len(value) >= 3:
+                return value[0], value[1], value[2]
+            return value[0], value[1], None
+
         # Report execution - handle both task and callback events
-        for key, (state, _) in event_buffer.items():
+        for key, event_value in event_buffer.items():
+            state, _, _ = _unpack_event(event_value)
             if isinstance(key, TaskInstanceKey):
                 existing_try = ti_primary_key_to_try_number_map.get(key.primary)
                 if existing_try is not None and existing_try != key.try_number:
@@ -1447,7 +1457,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         # Handle callback state events
         for callback_id in callback_keys_with_events:
-            state, info = event_buffer.pop(callback_id)
+            state, info, _ = _unpack_event(event_buffer.pop(callback_id))
             callback = session.get(Callback, UUID(str(callback_id)))
             if not callback:
                 # This should not normally happen - we just received an event for this callback.
@@ -1510,7 +1520,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ti.state,
                     job_id,
                 )
-            state, info = event_buffer.pop(buffer_key)
+            state, info, event_workload_run_id = _unpack_event(event_buffer.pop(buffer_key))
 
             if state in (TaskInstanceState.QUEUED, TaskInstanceState.RUNNING):
                 ti.external_executor_id = info
@@ -1559,9 +1569,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # from the worker exit after defer() has not been processed yet - should not fail it.
             # 4) the trigger already put the TI back to queued (resume after defer) but the executor success
             # from the worker exit after defer() has not been processed yet - should not fail it.
-
-            # All of this could also happen if the state is "running",
-            # but that is handled by the scheduler detecting task instances without heartbeats.
+            # 5) the resumed attempt is already RUNNING when the stale defer-exit SUCCESS arrives —
+            # workload_run_id mismatch identifies this without relying on next_method/state heuristics.
 
             ti_queued = ti.try_number == buffer_key.try_number and ti.state in (
                 TaskInstanceState.SCHEDULED,
@@ -1569,12 +1578,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 TaskInstanceState.RUNNING,
                 TaskInstanceState.RESTARTING,
             )
+            stale_workload_run = (
+                event_workload_run_id is not None
+                and ti.workload_run_id is not None
+                and event_workload_run_id != ti.workload_run_id
+            )
             ti_requeued = (
                 ti.queued_by_job_id != job_id  # Another scheduler has queued this task again
                 or executor.has_task(ti)  # This scheduler has this task already
+                or stale_workload_run
                 or (
-                    # Resume-after-defer: trigger moved TI to scheduled or queued (next_method set)
-                    # before we saw the executor success from the defer exit for the same try_number.
+                    # Defense in depth for older events without workload_run_id: resume-after-defer
+                    # while next_method is still set (SCHEDULED/QUEUED variants from #66431/#68741).
                     ti.state in (TaskInstanceState.SCHEDULED, TaskInstanceState.QUEUED)
                     and state == TaskInstanceState.SUCCESS
                     and ti.next_method is not None
@@ -3544,6 +3559,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         ti.state = None
                         ti.queued_by_job_id = None
                         ti.external_executor_id = None
+                        ti.workload_run_id = None
                         ti.clear_next_method_args()
 
                     for ti in set(tis_to_adopt_or_reset) - set(to_reset):

@@ -85,8 +85,8 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
 
     # Event_buffer dict value type
-    # Tuple of: state, info
-    EventBufferValueType = tuple[str | None, Any]
+    # Tuple of: state, info, workload_run_id (optional; None when unknown/legacy)
+    EventBufferValueType = tuple[Any, Any, str | None]
 
 
 log = logging.getLogger(__name__)
@@ -227,6 +227,10 @@ class BaseExecutor(LoggingMixin):
         self.queued_callbacks: dict[CallbackKey, workloads.ExecuteCallback] = {}
         self.queued_connection_tests: dict[ConnectionTestKey, workloads.TestConnection] = {}
         self.running: set[WorkloadKey] = set()
+        # FIFO of workload_run_id values per TaskInstanceKey, appended on queue and
+        # consumed when a terminal SUCCESS/FAILED event is recorded. Survives a
+        # re-enqueue of the same key so a stale defer-exit SUCCESS keeps its old id.
+        self._workload_run_ids: dict[TaskInstanceKey, deque[str]] = defaultdict(deque)
         self.event_buffer: dict[WorkloadKey, EventBufferValueType] = {}
         self._task_event_logs: deque[Log] = deque()
         self.conf = ExecutorConf(team_name)
@@ -266,6 +270,9 @@ class BaseExecutor(LoggingMixin):
         if isinstance(workload, workloads.ExecuteTask):
             ti = workload.ti
             self.queued_tasks[ti.key] = workload
+            run_id = getattr(ti, "workload_run_id", None)
+            if isinstance(run_id, str):
+                self._workload_run_ids[ti.key].append(run_id)
         elif isinstance(workload, workloads.ExecuteCallback):
             if not self.supports_callbacks:
                 raise NotImplementedError(
@@ -287,6 +294,53 @@ class BaseExecutor(LoggingMixin):
                 f"Un-handled workload type {type(workload).__name__!r} in {type(self).__name__}. "
                 f"Workload must be one of: ExecuteTask, ExecuteCallback, TestConnection."
             )
+
+    def _pop_workload_run_id(self, key: WorkloadKey) -> str | None:
+        """Consume the oldest queued workload_run_id for a task key, if any."""
+        if not isinstance(key, TaskInstanceKey):
+            return None
+        pending = self._workload_run_ids.get(key)
+        if not pending:
+            return None
+        run_id = pending.popleft()
+        if not pending:
+            del self._workload_run_ids[key]
+        return run_id
+
+    @staticmethod
+    def unpack_event(value: EventBufferValueType | tuple[Any, ...]) -> tuple[Any, Any, str | None]:
+        """Normalize event buffer values to ``(state, info, workload_run_id)``."""
+        if len(value) >= 3:
+            return value[0], value[1], value[2]
+        return value[0], value[1], None
+
+    def record_event(
+        self,
+        key: WorkloadKey,
+        state: WorkloadState,
+        info=None,
+        *,
+        workload_run_id: str | None = None,
+        consume_run_id: bool | None = None,
+    ) -> None:
+        """
+        Write an executor event, optionally attaching a workload_run_id.
+
+        Terminal task SUCCESS/FAILED events consume the next queued run id when
+        one was not supplied explicitly. Intermediate states (QUEUED/RUNNING)
+        must not consume it — those events are drained separately.
+        """
+        from airflow.utils.state import TaskInstanceState
+
+        if consume_run_id is None:
+            consume_run_id = isinstance(key, TaskInstanceKey) and state in (
+                TaskInstanceState.SUCCESS,
+                TaskInstanceState.FAILED,
+            )
+        popped_run_id = self._pop_workload_run_id(key) if consume_run_id else None
+        if workload_run_id is None:
+            workload_run_id = popped_run_id
+        self.event_buffer[key] = (state, info, workload_run_id)
 
     def _get_workloads_to_schedule(self, open_slots: int) -> list[tuple[WorkloadKey, ExecutorWorkload]]:
         """
@@ -478,7 +532,14 @@ class BaseExecutor(LoggingMixin):
     # TODO: This should not be using `TaskInstanceState` here, this is just "did the process complete, or did
     # it die". It is possible for the task itself to finish with success, but the state of the task to be set
     # to FAILED. By using TaskInstanceState enum here it confuses matters!
-    def change_state(self, key: WorkloadKey, state: WorkloadState, info=None, remove_running=True) -> None:
+    def change_state(
+        self,
+        key: WorkloadKey,
+        state: WorkloadState,
+        info=None,
+        remove_running=True,
+        workload_run_id: str | None = None,
+    ) -> None:
         """
         Change state of the task.
 
@@ -486,6 +547,8 @@ class BaseExecutor(LoggingMixin):
         :param state: State to set for the task.
         :param info: Executor information for the task instance
         :param remove_running: Whether or not to remove the TI key from running set
+        :param workload_run_id: Invocation id for the finished worker; when omitted for
+            terminal task events, the next id queued for this key is consumed.
         """
         self.log.debug("Changing state: %s", key)
         if remove_running:
@@ -493,25 +556,27 @@ class BaseExecutor(LoggingMixin):
                 self.running.remove(key)
             except KeyError:
                 self.log.debug("Could not find key: %s", key)
-        self.event_buffer[key] = state, info
+        self.record_event(key, state, info, workload_run_id=workload_run_id)
 
-    def fail(self, key: WorkloadKey, info=None) -> None:
+    def fail(self, key: WorkloadKey, info=None, workload_run_id: str | None = None) -> None:
         """
         Set fail state for the event.
 
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
+        :param workload_run_id: Invocation id for the finished worker, if known
         """
-        self.change_state(key, state_class_for_key(key).FAILED, info)
+        self.change_state(key, state_class_for_key(key).FAILED, info, workload_run_id=workload_run_id)
 
-    def success(self, key: WorkloadKey, info=None) -> None:
+    def success(self, key: WorkloadKey, info=None, workload_run_id: str | None = None) -> None:
         """
         Set success state for the event.
 
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
+        :param workload_run_id: Invocation id for the finished worker, if known
         """
-        self.change_state(key, state_class_for_key(key).SUCCESS, info)
+        self.change_state(key, state_class_for_key(key).SUCCESS, info, workload_run_id=workload_run_id)
 
     def queued(self, key: WorkloadKey, info=None) -> None:
         """

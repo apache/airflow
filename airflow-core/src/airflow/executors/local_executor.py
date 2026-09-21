@@ -97,7 +97,7 @@ def _run_worker(
             unread_messages.value -= 1
 
         if workload.running_state is not None:
-            output.put((workload.key, workload.running_state, None))
+            output.put((workload.key, workload.running_state, None, None))
 
         try:
             BaseExecutor.run_workload(
@@ -106,10 +106,12 @@ def _run_worker(
                 proctitle=f"{_get_executor_process_title_prefix(team_conf.team_name)} {workload.display_name}",
                 subprocess_logs_to_stdout=True,
             )
-            output.put((workload.key, workload.success_state, None))
+            run_id = getattr(getattr(workload, "ti", None), "workload_run_id", None)
+            output.put((workload.key, workload.success_state, None, run_id))
         except Exception as e:
             log.exception("Workload execution failed.", workload_type=type(workload).__name__)
-            output.put((workload.key, workload.failure_state, e))
+            run_id = getattr(getattr(workload, "ti", None), "workload_run_id", None)
+            output.put((workload.key, workload.failure_state, e, run_id))
 
 
 class LocalExecutor(BaseExecutor):
@@ -246,8 +248,15 @@ class LocalExecutor(BaseExecutor):
     def _read_results(self):
         try:
             while not self.result_queue.empty():
-                key, state, exc = self.result_queue.get()
-                self.change_state(key, state)
+                result = self.result_queue.get()
+                # Support legacy 3-tuples (key, state, exc) and current 4-tuples
+                # (key, state, exc, workload_run_id) from workers / tests.
+                if len(result) == 3:
+                    key, state, _exc = result
+                    workload_run_id = None
+                else:
+                    key, state, _exc, workload_run_id = result
+                self.change_state(key, state, workload_run_id=workload_run_id)
         except (OSError, EOFError):
             self.log.exception("Error reading from result queue")
 
