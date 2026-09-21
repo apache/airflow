@@ -117,15 +117,6 @@ def _guess_best_bundle_for_fileloc(
     return None
 
 
-def _get_configured_bundle_team_names() -> dict[str, str | None]:
-    """Get the team owning each Dag bundle returned by the configured provider."""
-    manager = DagBundlesManager()
-    return {
-        metadata.name: metadata.team_name
-        for metadata in manager._bundle_provider.get_active_bundle_metadata()
-    }
-
-
 def _is_safe_bundle_url(url: str) -> bool:
     """
     Check if a bundle URL is safe to use.
@@ -212,8 +203,8 @@ class DagBundlesManager(LoggingMixin):
                 "`dag_processor` key `dag_bundle_provider`."
             ) from e
 
-    def get_active_bundle_metadata(self) -> tuple[DagBundleMetadata, ...]:
-        """Get metadata for all active Dag bundles."""
+    def get_configured_bundle_metadata(self) -> tuple[DagBundleMetadata, ...]:
+        """Get validated metadata returned by the configured Dag bundle provider."""
         bundle_metadata: dict[str, DagBundleMetadata] = {}
         for metadata in self._bundle_provider.get_active_bundle_metadata():
             if not isinstance(metadata, DagBundleMetadata):
@@ -236,6 +227,12 @@ class DagBundlesManager(LoggingMixin):
                     "To enable multi-team, update section `core` key `multi_team` in your config."
                 )
             bundle_metadata[metadata.name] = metadata
+
+        return tuple(bundle_metadata.values())
+
+    def get_active_bundle_metadata(self) -> tuple[DagBundleMetadata, ...]:
+        """Get metadata for all active Dag bundles, including example bundles."""
+        bundle_metadata = {metadata.name: metadata for metadata in self.get_configured_bundle_metadata()}
 
         for name in self._example_dag_bundle_paths:
             if name in bundle_metadata:

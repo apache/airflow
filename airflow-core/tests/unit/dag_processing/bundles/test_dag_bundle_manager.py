@@ -32,7 +32,6 @@ from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.dag_processing.bundles.local import LocalDagBundle
 from airflow.dag_processing.bundles.manager import (
     DagBundlesManager,
-    _get_configured_bundle_team_names,
     _guess_best_bundle_for_fileloc,
 )
 from airflow.dag_processing.bundles.provider import DagBundleMetadata, DagBundleProvider
@@ -205,7 +204,7 @@ TEAM_BUNDLE_CONFIG = [
 
 
 @pytest.mark.parametrize("load_examples", ["False", "True"])
-def test_get_configured_bundle_team_names(load_examples):
+def test_get_configured_bundle_metadata(load_examples):
     with conf_vars(
         {
             ("core", "load_examples"): load_examples,
@@ -213,15 +212,18 @@ def test_get_configured_bundle_team_names(load_examples):
             ("dag_processor", "dag_bundle_config_list"): json.dumps(TEAM_BUNDLE_CONFIG),
         }
     ):
-        assert _get_configured_bundle_team_names() == {
+        assert {
+            metadata.name: metadata.team_name
+            for metadata in DagBundlesManager().get_configured_bundle_metadata()
+        } == {
             "team-bundle": "team-a",
             "unscoped-bundle": None,
         }
 
 
 @conf_vars({("dag_processor", "dag_bundle_config_list"): "[]"})
-def test_get_configured_bundle_team_names_without_config():
-    assert _get_configured_bundle_team_names() == {}
+def test_get_configured_bundle_metadata_without_config():
+    assert DagBundlesManager().get_configured_bundle_metadata() == ()
 
 
 def test_get_bundle():
@@ -264,8 +266,10 @@ def test_custom_bundle_provider_resolves_active_and_retired_bundles():
     assert isinstance(provider, CustomDagBundleProvider)
     assert provider.metadata_requests == 0
 
-    assert manager.get_active_bundle_metadata() == (DagBundleMetadata(name="active-bundle"),)
+    assert manager.get_configured_bundle_metadata() == (DagBundleMetadata(name="active-bundle"),)
     assert provider.metadata_requests == 1
+    assert manager.get_active_bundle_metadata() == (DagBundleMetadata(name="active-bundle"),)
+    assert provider.metadata_requests == 2
     assert manager.get_bundle_metadata("active-bundle") == DagBundleMetadata(name="active-bundle")
     assert manager.get_all_bundle_names() == ["active-bundle"]
     with pytest.raises(ValueError, match="'unknown-bundle' is not configured"):
@@ -676,7 +680,13 @@ def test_example_dags_bundle_added_for_custom_provider():
 
 
 def test_example_dags_name_is_reserved():
-    reserved_name_config = [{"name": "example_dags", "classpath": "yo face", "kwargs": {}}]
+    reserved_name_config = [
+        {
+            "name": "example_dags",
+            "classpath": "unit.dag_processing.bundles.test_dag_bundle_manager.BasicBundle",
+            "kwargs": {"refresh_interval": 1},
+        }
+    ]
     with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(reserved_name_config)}):
         with pytest.raises(AirflowConfigException, match="Bundle name 'example_dags' is a reserved name."):
             DagBundlesManager().get_active_bundle_metadata()
