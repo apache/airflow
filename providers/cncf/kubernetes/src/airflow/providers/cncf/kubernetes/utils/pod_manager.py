@@ -997,7 +997,7 @@ class PodManager(LoggingMixin):
         finally:
             try:
                 self.extract_xcom_kill(pod)
-            except PodCommandException as e:
+            except (PodCommandException, ApiException) as e:
                 if not ignore_kill_failure:
                     raise
                 self.log.warning(
