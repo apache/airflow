@@ -21,7 +21,7 @@
 
 ## Status
 
-Proposed. Revised after the review on #72047.
+Accepted. Revised after the review on #72047, and again as it was implemented.
 
 ## Decision
 
@@ -209,13 +209,17 @@ Dag is read.
 - One authoring surface (`dag.task()` plus its factory) covers the graph and each task's arguments,
   and `before`/`after` cover edges that carry nothing.
 - Handlers are unit-testable as plain functions of their data, with no SDK fixture to construct.
-- `DagSpec` and `TaskSpec` are empty placeholders today — `Record<string, never>`
-  (`ts-sdk/src/sdk/dag.ts`), so `new Dag("d", { schedule: "@daily" })` is currently a compile error
-  by design. Native declaration is what fills them, generated from the serialized-Dag JSON schema the
-  way `src/generated/supervisor.ts` is. This ADR does not choose those fields; it fixes where an
-  author writes them.
+- `DagSpec` and `TaskSpec` carry the fields of Airflow's own serialized-Dag JSON schema, generated
+  from it the way `src/generated/supervisor.ts` is, so every field is optional and a misspelled one is
+  a compile error. This ADR does not choose those fields; it fixes where an author writes them. `queue`
+  is the one hand-written Dag field: the schema has no Dag-level queue, but every task of a native Dag
+  runs on the same coordinator, so the queue that routes them there belongs on the Dag.
 - `TaskOptions` carries the task's spec and nothing else: the names on the wire are the keys of the
-  call itself. With wiring moved to the factory call, `inputs` is no longer an option.
+  call itself. With wiring moved to the factory call, `inputs` is no longer an option, so the trailing
+  argument is the spec's own fields.
+- A native Dag's tasks serialize as stub tasks (`is_stub`, with `_arg_bindings`), which is how the API
+  server resolves each argument per task instance and hands it to a foreign runtime. So the wiring an
+  author writes is the same mechanism a `@task.stub` call already uses, rather than a second one.
 - `TaskHandlerArgs` is removed from the public API, `DagRegistry` becomes `Bundle`, and
   `serveDags(registry)` becomes `bundle.serve()`, which breaks
   0.1.0-beta1 authors; see [ADR-0001](0001-mixed-lang-dag-interface.md) for the shipped call sites

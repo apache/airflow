@@ -17,13 +17,15 @@
  * under the License.
  */
 
-// The bundle entry point: one bundle, two Python-owned Dags.
+// The bundle entry point: one bundle, three Dags, both authoring modes.
 //
-// Both Dags in `dags/` are declared in Python with `@task.stub` tasks routed to the Node
-// coordinator, so this side only supplies the task bodies.
+// The two Dags in `dags/` are declared in Python with `@task.stub` tasks routed to the Node
+// coordinator, so this side only supplies their task bodies. The third, in `native.ts`, is
+// declared in TypeScript outright — graph, schedule and all.
 
 import { Bundle, getClient, getContext, TaskHandler } from "apache-airflow-ts-sdk";
 
+import { dag as nativeDag } from "./native.js";
 import { buildSummaryMessage, report, summarize } from "./taskflow.js";
 
 export async function buildMessage() {
@@ -72,8 +74,12 @@ export async function readConnection() {
 // One register call lists everything this bundle provides.
 // `build_message` appears under both Dags: two different handlers, told apart by the dag_id each
 // is bound to and never by the task_id alone.
+//
+// One bundle serves both authoring modes: handlers for the Dags a Python file declares, and the
+// natively declared Dag from `native.ts`, whose graph this side owns outright.
 const bundle = new Bundle();
 bundle.register(
+  nativeDag,
   new TaskHandler("typescript_example", "build_message", buildMessage),
   new TaskHandler("typescript_example", "read_connection", readConnection),
   new TaskHandler("typescript_example", "write_and_delete_variable", writeAndDeleteVariable),

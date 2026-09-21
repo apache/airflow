@@ -455,6 +455,12 @@ in the task spec.
 Templated arguments pass through untouched, so ``{{ ds }}`` in a ``conf`` value is rendered
 server-side where rendering already happens.
 
+A worked example
+~~~~~~~~~~~~~~~~
+
+``ts-sdk/example/src/native.ts`` puts the constructs above into one Dag, registered on the same
+bundle as the mixed-language handlers beside it, so a single artifact serves both authoring modes.
+
 ``new Dag`` and ``dag.task`` both take a trailing spec of Airflow options:
 ``{ schedule: "@daily", tags: ["etl"] }`` for the Dag, ``{ retries: 2, retryDelay: 30 }`` for a task.
 
