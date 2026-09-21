@@ -1425,6 +1425,18 @@ class TriggerRunner:
                         trigger_instance.task_instance = runtime_ti
                     else:
                         trigger_instance.task_instance = ti
+
+                    # Pass the task_state_store through to the Trigger so it can be used in the Trigger
+                    trigger_instance.task_state_store = TaskStateStoreAccessor(
+                        ti_id=ti.id,
+                        scope=TaskScope(
+                            dag_id=ti.dag_id,
+                            run_id=ti.run_id,
+                            task_id=ti.task_id,
+                            map_index=ti.map_index,
+                        ),
+                    )
+
                 else:
                     trigger_name = f"ID {trigger_id}"
                     trigger_instance = trigger_class(**deserialised_kwargs)
@@ -1435,17 +1447,6 @@ class TriggerRunner:
             trigger_instance.trigger_id = trigger_id
             trigger_instance.triggerer_job_id = self.job_id
             trigger_instance.timeout_after = workload.timeout_after
-
-            if (ti := workload.ti) is not None:
-                trigger_instance.task_state_store = TaskStateStoreAccessor(
-                    ti_id=ti.id,
-                    scope=TaskScope(
-                        dag_id=ti.dag_id,
-                        run_id=ti.run_id,
-                        task_id=ti.task_id,
-                        map_index=ti.map_index,
-                    ),
-                )
 
             if isinstance(trigger_instance, BaseEventTrigger) and workload.watched_assets:
                 trigger_instance.asset_state_store = AssetStateStoreAccessors(

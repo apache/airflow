@@ -159,6 +159,12 @@ A trigger belonging to a deferred task can read and write that task's state stor
 
 It is ``None`` on a trigger with no task instance (an asset watcher leveraging a trigger that inherits from ``BaseEventTrigger``), which reaches asset state through ``self.asset_state_store`` instead (see :doc:`asset-state-store`).
 
+.. warning::
+
+    The shared namespace holds only when the triggerer resolves the same state store backend as the worker. The accessor reads ``[workers] state_store_backend`` from the configuration of whichever process it runs in, so a deployment that sets that option on its workers alone leaves the triggerer without a backend.
+
+    In that state the task instance writes its value through the backend and stores only an internal reference in the metadata database. A trigger reading the same key has no backend to resolve that reference with, so it silently receives the reference marker instead of the value, and no warning is logged. Set ``[workers] state_store_backend`` on the triggerer exactly as it is set on the workers.
+
 Some Example Use Cases
 ----------------------
 
