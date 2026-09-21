@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
 
 from jwt import InvalidTokenError
 from sqlalchemy import select
+from starlette.concurrency import run_in_threadpool
 
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import (
@@ -163,7 +164,9 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
             log.error("JWT token is not valid: %s", e)
             raise e
 
-        if (jti := payload.get("jti")) and RevokedToken.is_revoked(jti):
+        # A synchronous DB round trip, on the event loop, on every authenticated request;
+        # ``TeamAuthorizationMiddleware.dispatch`` offloads its auth manager call the same way.
+        if (jti := payload.get("jti")) and await run_in_threadpool(RevokedToken.is_revoked, jti):
             raise InvalidTokenError("Token has been revoked")
 
         try:

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import threading
 import warnings
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, Mock, create_autospec, patch
@@ -333,6 +334,34 @@ class TestBaseAuthManager:
             await auth_manager.get_user_from_token(token)
 
         mock_is_revoked.assert_called_once_with("some-jti")
+
+    @patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager._get_token_validator",
+        autospec=True,
+    )
+    @patch.object(EmptyAuthManager, "deserialize_user")
+    @pytest.mark.asyncio
+    async def test_get_user_from_token_does_not_check_revocation_on_the_event_loop(
+        self, mock_deserialize_user, mock__get_token_validator, auth_manager
+    ):
+        """``is_revoked`` is a blocking DB call, so it must not run on the event loop thread."""
+        token = "token"
+        payload = {"jti": "some-jti"}
+        signer = AsyncMock(spec=JWTValidator)
+        signer.avalidated_claims.return_value = payload
+        mock__get_token_validator.return_value = signer
+        mock_deserialize_user.return_value = BaseAuthManagerUserTest(name="test")
+        calling_threads: list[threading.Thread] = []
+
+        def record_thread(jti):
+            calling_threads.append(threading.current_thread())
+            return False
+
+        with patch("airflow.models.revoked_token.RevokedToken.is_revoked", side_effect=record_thread):
+            await auth_manager.get_user_from_token(token)
+
+        assert len(calling_threads) == 1
+        assert calling_threads[0] is not threading.current_thread()
 
     @patch(
         "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager._get_token_validator",

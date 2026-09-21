@@ -17,7 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+import threading
 import time
+from contextlib import suppress
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, ClassVar
 
@@ -35,6 +37,10 @@ if TYPE_CHECKING:
 
 log = structlog.get_logger(__name__)
 
+# An unbounded DELETE holds row locks for the whole transaction, and this one runs on
+# the request path, so the backlog is drained in bounded passes instead.
+_CLEANUP_BATCH_SIZE = 100
+
 
 class RevokedToken(Base):
     """Stores revoked JWT token JTIs to support token invalidation on logout."""
@@ -43,6 +49,9 @@ class RevokedToken(Base):
 
     # Track last cleanup time to avoid running cleanup on every request
     _last_cleanup_time: ClassVar[float] = 0.0
+    # The interval check above is not serialised -- ``is_revoked`` runs in the request
+    # threadpool -- so without this guard a drain has every in-flight request repeat it.
+    _cleanup_lock: ClassVar[threading.Lock] = threading.Lock()
 
     jti: Mapped[str] = mapped_column(String(32), primary_key=True)
     exp: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False, index=True)
@@ -71,9 +80,26 @@ class RevokedToken(Base):
         """
         now = time.monotonic()
         cleanup_interval = conf.getint("api_auth", "jwt_expiration_time", fallback=3600) * 2
-        if now - cls._last_cleanup_time >= cleanup_interval:
+        if now - cls._last_cleanup_time < cleanup_interval:
+            return
+        if not cls._cleanup_lock.acquire(blocking=False):
+            return
+        try:
+            # Set before the delete so a failing database is not retried on every request.
             cls._last_cleanup_time = now
-            try:
-                session.execute(delete(cls).where(cls.exp < datetime.now(tz=timezone.utc)))
-            except Exception:
-                log.exception("Failed to clean up expired revoked tokens")
+            expired_jtis = session.scalars(
+                select(cls.jti).where(cls.exp < datetime.now(tz=timezone.utc)).limit(_CLEANUP_BATCH_SIZE)
+            ).all()
+            if expired_jtis:
+                session.execute(delete(cls).where(cls.jti.in_(expired_jtis)))
+            if len(expired_jtis) == _CLEANUP_BATCH_SIZE:
+                # More to drain: resume on the next request instead of waiting the interval out.
+                cls._last_cleanup_time = now - cleanup_interval
+        except Exception:
+            log.exception("Failed to clean up expired revoked tokens")
+            # PostgreSQL aborts the transaction on a failed statement, which would take the
+            # ``is_revoked`` read with it; ``rollback`` itself can raise on a dead connection.
+            with suppress(Exception):
+                session.rollback()
+        finally:
+            cls._cleanup_lock.release()
