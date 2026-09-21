@@ -140,10 +140,12 @@ four fields: ``category``, ``should_retry``, ``suggested_delay_seconds``, and
 ``reasoning``. Only ``should_retry`` and ``suggested_delay_seconds`` affect
 the run.
 
-``category`` and ``reasoning`` are only recorded on a RETRY. They are written
+``category`` and ``reasoning`` are recorded on both outcomes. They are written
 to the task instance's ``retry_reason`` (truncated to 500 characters, see
-below), then cleared once the next attempt starts running. On a FAIL they are
-not written anywhere -- they only show up in the task log.
+below). On a RETRY the value is cleared once the next attempt starts running.
+A FAIL is terminal, so there is no next attempt to clear it and the reason
+stays on the row. When the model asked to retry but no attempts were left, the
+stored reason ends with a ``; retries exhausted (N of M)`` note.
 
 Two limits are worth knowing about:
 
@@ -208,7 +210,7 @@ When writing custom instructions:
   fields explicitly so the model fills them.
 - Be concrete with examples (``"'Warehouse suspended' -> transient"``) rather
   than vague rules ("treat warehouse issues as recoverable").
-- ``retry_reason`` is truncated to 500 chars in the audit log -- keep
+- ``retry_reason`` is truncated to 500 chars on the task instance -- keep
   ``reasoning`` outputs concise.
 
 Parameters
