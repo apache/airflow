@@ -35,7 +35,12 @@ When to use this provider
        worker-run agent with toolsets
      - ``common.ai``
      - ``apache-airflow-providers-common-ai``
-   * - A vendor's native Embeddings, Responses, or Batch API
+   * - Many prompts through a batch API at half the price, with retry-safe re-attachment
+       and results landed on object storage
+     - ``common.ai``
+     - ``apache-airflow-providers-common-ai`` (:doc:`operators/llm_batch`)
+   * - A vendor's native Embeddings or Responses API, or a batch of raw provider request
+       bodies (multi-turn, images, non-chat endpoints)
      - The vendor's own provider
      - e.g. :doc:`apache-airflow-providers-openai:index`,
        :doc:`apache-airflow-providers-anthropic:index`,
@@ -63,6 +68,9 @@ Use it when a Dag needs:
 
 * **Generation, classification, summarization, or structured extraction** —
   :doc:`LLMOperator and @task.llm <operators/llm>`, with Pydantic-typed output pushed to XCom.
+* **Many prompts at half the price** — :doc:`LLMBatchOperator and @task.llm_batch <operators/llm_batch>`
+  submit prompts as one provider batch job (OpenAI or Anthropic), poll in deferrable mode for up to 24
+  hours, re-attach on retry instead of paying twice, and land results as JSONL on object storage.
 * **Branching on a model's decision** — :doc:`LLMBranchOperator <operators/llm_branch>`.
 * **Agents with tools** — :doc:`AgentOperator <operators/agent>` runs a multi-turn agent loop
   in the worker, calling Airflow-defined :doc:`toolsets <toolsets>` (SQL, hooks, MCP servers,
@@ -90,10 +98,11 @@ Use it when a Dag needs:
 Use a vendor's own provider instead when the Dag needs that vendor's **native API surface** —
 a service the vendor runs for you, which no vendor-neutral operator wraps:
 
-* :doc:`apache-airflow-providers-openai:index` — the Embeddings, Responses, and Batch APIs.
-* :doc:`apache-airflow-providers-anthropic:index` — the Claude Message Batches API, and
-  Managed Agents sessions where the agent loop runs on Anthropic's infrastructure rather
-  than in the Airflow worker.
+* :doc:`apache-airflow-providers-openai:index` — the Embeddings and Responses APIs, and Batch
+  jobs built from a pre-uploaded JSONL file of raw request bodies.
+* :doc:`apache-airflow-providers-anthropic:index` — Message Batches built from raw Messages
+  API request bodies (multi-turn, images, tools), and Managed Agents sessions where the agent
+  loop runs on Anthropic's infrastructure rather than in the Airflow worker.
 * :doc:`apache-airflow-providers-cohere:index` — Cohere's own Embed API.
 * :doc:`apache-airflow-providers-google:index` — Vertex AI's Batch Prediction jobs
   (``CreateBatchPredictionJobOperator``), a managed batch service like OpenAI's Batch API.
@@ -275,10 +284,10 @@ Install them when installing from PyPI. For example:
 ==============  =======================================================================================================================================
 Extra           Dependencies
 ==============  =======================================================================================================================================
-``anthropic``   ``pydantic-ai-slim[anthropic]>=2.23.0``
+``anthropic``   ``pydantic-ai-slim[anthropic]>=2.23.0``, ``anthropic>=1.0.0``
 ``bedrock``     ``pydantic-ai-slim[bedrock]>=2.23.0``
 ``google``      ``pydantic-ai-slim[google]>=2.23.0``
-``openai``      ``pydantic-ai-slim[openai]>=2.23.0``
+``openai``      ``pydantic-ai-slim[openai]>=2.23.0``, ``openai>=2.45.0``
 ``typesafe``    ``typesafe-sdk>=0.6.0``
 ``mcp``         ``pydantic-ai-slim[mcp]>=2.23.0``
 ``modal``       ``modal>=1.5.0``
