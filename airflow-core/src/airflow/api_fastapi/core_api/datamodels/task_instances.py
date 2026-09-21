@@ -89,7 +89,7 @@ class TaskInstanceResponse(BaseModel):
     queued_by_job: JobResponse | None = Field(alias="triggerer_job")
     dag_version: DagVersionResponse | None
     team_name: str | None = None
-    retry_reason: str | None = None
+    state_reason: str | None = Field(default=None, validation_alias="retry_reason")
 
 
 class TaskInstanceCollectionResponse(BaseModel):

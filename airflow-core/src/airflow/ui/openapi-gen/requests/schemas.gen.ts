@@ -7337,7 +7337,7 @@ export const $TaskInstanceHistoryResponse = {
                 }
             ]
         },
-        retry_reason: {
+        state_reason: {
             anyOf: [
                 {
                     type: 'string'
@@ -7346,7 +7346,7 @@ export const $TaskInstanceHistoryResponse = {
                     type: 'null'
                 }
             ],
-            title: 'Retry Reason'
+            title: 'State Reason'
         }
     },
     type: 'object',
@@ -7648,7 +7648,7 @@ export const $TaskInstanceResponse = {
             ],
             title: 'Team Name'
         },
-        retry_reason: {
+        state_reason: {
             anyOf: [
                 {
                     type: 'string'
@@ -7657,7 +7657,7 @@ export const $TaskInstanceResponse = {
                     type: 'null'
                 }
             ],
-            title: 'Retry Reason'
+            title: 'State Reason'
         }
     },
     type: 'object',

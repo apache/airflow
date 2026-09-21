@@ -441,8 +441,12 @@
     "queue": "Queue",
     "queuedWhen": "Queued At",
     "renderedMapIndex": "Rendered Map Index",
-    "retryReason": "Reason for state",
     "scheduledWhen": "Scheduled At",
+    "stateReason": "Reason for state",
+    "stateReasonSummary": {
+      "failed": "Stopped on try {{tryNumber}} of {{totalTries}}",
+      "upForRetry": "Retrying after try {{tryNumber}} of {{totalTries}}"
+    },
     "trigger": "Trigger",
     "triggerer": {
       "assigned": "Assigned triggerer",

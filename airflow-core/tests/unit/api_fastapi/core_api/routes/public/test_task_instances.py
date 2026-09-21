@@ -244,16 +244,16 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "trigger": None,
             "triggerer_job": None,
             "team_name": None,
-            "retry_reason": None,
+            "state_reason": None,
         }
 
-    def test_should_include_retry_reason(self, test_client, session):
+    def test_should_include_state_reason(self, test_client, session):
         self.create_task_instances(session, task_instances=[{"retry_reason": "auth error, do not retry"}])
         response = test_client.get(
             "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
         )
         assert response.status_code == 200
-        assert response.json()["retry_reason"] == "auth error, do not retry"
+        assert response.json()["state_reason"] == "auth error, do not retry"
 
     @conf_vars({("core", "multi_team"): "True"})
     def test_should_include_team_name(self, test_client, session):
@@ -338,7 +338,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "trigger": None,
             "triggerer_job": None,
             "team_name": None,
-            "retry_reason": None,
+            "state_reason": None,
             "dag_version": {
                 "id": response_data["dag_version"]["id"],
                 "version_number": expected_version_number,
@@ -435,7 +435,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "unixname": getuser(),
             },
             "team_name": None,
-            "retry_reason": None,
+            "state_reason": None,
         }
 
     def test_should_respond_200_with_task_state_in_removed(self, test_client, session):
@@ -490,7 +490,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "trigger": None,
             "triggerer_job": None,
             "team_name": None,
-            "retry_reason": None,
+            "state_reason": None,
         }
 
     def test_should_respond_200_task_instance_with_rendered(self, test_client, session):
@@ -548,7 +548,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "trigger": None,
             "triggerer_job": None,
             "team_name": None,
-            "retry_reason": None,
+            "state_reason": None,
         }
 
     def test_raises_404_for_nonexistent_task_instance(self, test_client):
@@ -670,7 +670,7 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
                 "trigger": None,
                 "triggerer_job": None,
                 "team_name": None,
-                "retry_reason": None,
+                "state_reason": None,
             }
 
     def test_should_respond_401(self, unauthenticated_test_client):
@@ -2826,10 +2826,10 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "id": response_data["dag_version"]["id"],
                 "version_number": 1,
             },
-            "retry_reason": None,
+            "state_reason": None,
         }
 
-    def test_should_include_retry_reason_from_history(self, test_client, session):
+    def test_should_include_state_reason_from_history(self, test_client, session):
         self.create_task_instances(
             session,
             task_instances=[{"state": State.SUCCESS, "retry_reason": "auth error, do not retry"}],
@@ -2839,7 +2839,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries/1"
         )
         assert response.status_code == 200
-        assert response.json()["retry_reason"] == "auth error, do not retry"
+        assert response.json()["state_reason"] == "auth error, do not retry"
 
     @pytest.mark.parametrize("try_number", [1, 2])
     def test_should_respond_200_with_different_try_numbers(self, test_client, try_number, session):
@@ -2885,7 +2885,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "id": response_data["dag_version"]["id"],
                 "version_number": 1,
             },
-            "retry_reason": None,
+            "state_reason": None,
         }
 
     @pytest.mark.parametrize("try_number", [1, 2])
@@ -2963,7 +2963,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                     "id": response_data["dag_version"]["id"],
                     "version_number": 1,
                 },
-                "retry_reason": None,
+                "state_reason": None,
             }
 
     def test_should_respond_200_with_task_state_in_deferred(self, test_client, session):
@@ -3036,7 +3036,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "id": response_data["dag_version"]["id"],
                 "version_number": 1,
             },
-            "retry_reason": None,
+            "state_reason": None,
         }
 
     def test_should_respond_200_with_task_state_in_removed(self, test_client, session):
@@ -3084,7 +3084,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "id": response_data["dag_version"]["id"],
                 "version_number": 1,
             },
-            "retry_reason": None,
+            "state_reason": None,
         }
 
     def test_should_respond_401(self, unauthenticated_test_client):
@@ -3160,7 +3160,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "created_at": mock.ANY,
                 "dag_display_name": "dag_with_multiple_versions",
             },
-            "retry_reason": None,
+            "state_reason": None,
         }
 
     def test_should_not_return_duplicate_runs(self, test_client, session):
@@ -3898,7 +3898,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "trigger": None,
                 "triggerer_job": None,
                 "team_name": None,
-                "retry_reason": None,
+                "state_reason": None,
                 "try_number": 0,
                 "unixname": getuser(),
             },
@@ -4362,7 +4362,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "id": response_data["task_instances"][0]["dag_version"]["id"],
                         "version_number": 1,
                     },
-                    "retry_reason": None,
+                    "state_reason": None,
                 },
                 {
                     "dag_id": "example_python_operator",
@@ -4400,7 +4400,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "id": response_data["task_instances"][1]["dag_version"]["id"],
                         "version_number": 1,
                     },
-                    "retry_reason": None,
+                    "state_reason": None,
                 },
             ],
             "total_entries": 2,
@@ -4472,7 +4472,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "id": response_data["task_instances"][0]["dag_version"]["id"],
                         "version_number": 1,
                     },
-                    "retry_reason": None,
+                    "state_reason": None,
                 },
             ],
             "total_entries": 1,
@@ -4556,7 +4556,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                             "id": response_data["task_instances"][0]["dag_version"]["id"],
                             "version_number": 1,
                         },
-                        "retry_reason": None,
+                        "state_reason": None,
                     },
                     {
                         "dag_id": "example_python_operator",
@@ -4594,7 +4594,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                             "id": response_data["task_instances"][1]["dag_version"]["id"],
                             "version_number": 1,
                         },
-                        "retry_reason": None,
+                        "state_reason": None,
                     },
                 ],
                 "total_entries": 2,
@@ -4662,7 +4662,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                 "created_at": mock.ANY,
                 "dag_display_name": "dag_with_multiple_versions",
             },
-            "retry_reason": None,
+            "state_reason": None,
         }
 
 
@@ -4788,7 +4788,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "trigger": None,
                     "triggerer_job": None,
                     "team_name": None,
-                    "retry_reason": None,
+                    "state_reason": None,
                 }
             ],
             "total_entries": 1,
@@ -5067,7 +5067,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                             "trigger": None,
                             "triggerer_job": None,
                             "team_name": None,
-                            "retry_reason": None,
+                            "state_reason": None,
                         }
                     ],
                     "total_entries": 1,
@@ -5208,7 +5208,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "trigger": None,
                     "triggerer_job": None,
                     "team_name": None,
-                    "retry_reason": None,
+                    "state_reason": None,
                 }
             ],
             "total_entries": 1,
@@ -5274,7 +5274,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "trigger": None,
                     "triggerer_job": None,
                     "team_name": None,
-                    "retry_reason": None,
+                    "state_reason": None,
                 }
             ],
             "total_entries": 1,
@@ -5372,7 +5372,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                         "trigger": None,
                         "triggerer_job": None,
                         "team_name": None,
-                        "retry_reason": None,
+                        "state_reason": None,
                     }
                 ],
                 "total_entries": 1,
@@ -5458,7 +5458,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 "trigger": None,
                 "triggerer_job": None,
                 "team_name": None,
-                "retry_reason": None,
+                "state_reason": None,
             }
 
             _check_task_instance_note(
@@ -5655,7 +5655,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                     "trigger": None,
                     "triggerer_job": None,
                     "team_name": None,
-                    "retry_reason": None,
+                    "state_reason": None,
                 }
             ],
             "total_entries": 1,
@@ -5946,7 +5946,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                             "trigger": None,
                             "triggerer_job": None,
                             "team_name": None,
-                            "retry_reason": None,
+                            "state_reason": None,
                         }
                     ],
                     "total_entries": 1,

@@ -44,6 +44,8 @@ import { BlockingDeps } from "./BlockingDeps";
 import { ExtraLinks } from "./ExtraLinks";
 import { TriggererInfo } from "./TriggererInfo";
 
+type StateReasonSummary = { reason: string; status: "error" | "warning"; title: string };
+
 export const Details = () => {
   const { t: translate } = useTranslation();
   const { renderDuration } = useDurationFormat();
@@ -115,6 +117,34 @@ export const Details = () => {
     return translate("common:none", { defaultValue: "None" });
   };
 
+  const stateReasonSummary = ((): StateReasonSummary | undefined => {
+    const reason = taskInstance?.state_reason;
+
+    if (reason === null || reason === undefined || taskInstance === undefined) {
+      return undefined;
+    }
+
+    const counts = { totalTries: taskInstance.max_tries + 1, tryNumber: taskInstance.try_number };
+
+    if (taskInstance.state === "failed") {
+      return {
+        reason,
+        status: "error",
+        title: translate("taskInstance.stateReasonSummary.failed", counts),
+      };
+    }
+
+    if (taskInstance.state === "up_for_retry") {
+      return {
+        reason,
+        status: "warning",
+        title: translate("taskInstance.stateReasonSummary.upForRetry", counts),
+      };
+    }
+
+    return undefined;
+  })();
+
   // omit kwargs from trigger
   const triggerWithoutKwargs = taskInstance?.trigger
     ? (({ kwargs, ...rest }) => rest)(taskInstance.trigger)
@@ -131,14 +161,14 @@ export const Details = () => {
 
   return (
     <Box p={2}>
-      {taskInstance?.retry_reason === null || taskInstance?.retry_reason === undefined ? undefined : (
+      {stateReasonSummary === undefined ? undefined : (
         <Alert
-          data-testid="retry-reason-alert"
+          data-testid="state-reason-alert"
           mb={2}
-          status={taskInstance.state === "failed" ? "error" : "warning"}
-          title={translate("taskInstance.retryReason")}
+          status={stateReasonSummary.status}
+          title={stateReasonSummary.title}
         >
-          {taskInstance.retry_reason}
+          {stateReasonSummary.reason}
         </Alert>
       )}
       {taskInstance === undefined || tryNumber === undefined || taskInstance.try_number <= 1 ? (
@@ -172,10 +202,10 @@ export const Details = () => {
               </Flex>
             </Table.Cell>
           </Table.Row>
-          {tryInstance?.retry_reason === null || tryInstance?.retry_reason === undefined ? undefined : (
+          {tryInstance?.state_reason === null || tryInstance?.state_reason === undefined ? undefined : (
             <Table.Row>
-              <Table.Cell>{translate("taskInstance.retryReason")}</Table.Cell>
-              <Table.Cell>{tryInstance.retry_reason}</Table.Cell>
+              <Table.Cell>{translate("taskInstance.stateReason")}</Table.Cell>
+              <Table.Cell>{tryInstance.state_reason}</Table.Cell>
             </Table.Row>
           )}
           <Table.Row>
