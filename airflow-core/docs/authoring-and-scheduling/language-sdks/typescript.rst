@@ -323,6 +323,27 @@ already exists changes nothing. Each returns the reference it was called on, so
 Pass a value as an argument when the downstream task needs it, and use ``before`` or ``after`` when
 it only needs to run in order.
 
+Task groups
+~~~~~~~~~~~
+
+``dag.taskGroup(groupId)`` opens a scope with the same ``task`` and ``taskGroup`` methods as the Dag,
+prefixing the id of everything declared in it, as Python's ``prefix_group_id`` does:
+
+.. code-block:: typescript
+
+    const staging = dag.taskGroup("staging");
+    staging.task("stage_rows", stageRows)();        // task id "staging.stage_rows"
+    staging.taskGroup("checks").task("nulls", checkNulls)();  // "staging.checks.nulls"
+
+    staging.before(loaded);                          // staging >> loaded
+
+A group is an edge endpoint in its own right, so ``before`` and ``after`` order a whole group against
+a task or against another group.
+
+Tasks and groups share one id namespace, as they do in Python, so a Dag cannot hold both a task and a
+group called ``staging``. A ``.`` is what separates a group from what it holds, so it cannot appear in
+an id of either.
+
 ``new Dag`` and ``dag.task`` both take a trailing spec of Airflow options:
 ``{ schedule: "@daily", tags: ["etl"] }`` for the Dag, ``{ retries: 2, retryDelay: 30 }`` for a task.
 

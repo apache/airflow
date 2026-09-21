@@ -22,6 +22,7 @@ import {
   Dag,
   finalizeDag,
   getDagOrderEdges,
+  getDagTaskGroups,
   getDagTaskInputs,
   getDagTaskRecords,
   type DagSpec,
@@ -665,10 +666,10 @@ describe("Dag", () => {
       const { refs } = placedDag("d", "a");
 
       expect(() => refs.a!.before(refs.a!)).toThrowError(
-        /before\(\) cannot draw an edge from task "a" of Dag "d" to itself/,
+        /before\(\) cannot draw an edge from node "a" of Dag "d" to itself/,
       );
       expect(() => refs.a!.after(refs.a!)).toThrowError(
-        /after\(\) cannot draw an edge from task "a" of Dag "d" to itself/,
+        /after\(\) cannot draw an edge from node "a" of Dag "d" to itself/,
       );
     });
 
@@ -710,7 +711,7 @@ describe("Dag", () => {
 
       expect(() => draw(here.load!, there.cleanup!)).toThrowError(
         new RegExp(
-          `${verb}\\(\\) cannot draw an edge to Dag "there" task "cleanup" from Dag "here"`,
+          `${verb}\\(\\) cannot draw an edge to Dag "there" node "cleanup" from Dag "here"`,
         ),
       );
     });
@@ -732,7 +733,7 @@ describe("Dag", () => {
       const { refs } = placedDag("d", "load");
 
       expect(() => refs.load!.before(value as unknown as TaskRef)).toThrowError(
-        /before\(\) on Dag "d" takes task references returned by calling a task/,
+        /before\(\) on Dag "d" takes tasks and task groups this Dag handed out/,
       );
     });
 
@@ -755,6 +756,228 @@ describe("Dag", () => {
     it("has no edges before any are drawn", () => {
       const { dag } = placedDag("d", "load");
       expect(getDagOrderEdges(dag)).toEqual([]);
+    });
+  });
+
+  describe("task groups", () => {
+    it("prefixes the id of every task declared in it", () => {
+      const dag = new Dag("grouped");
+      const staging = dag.taskGroup("staging");
+      staging.task("stage_rows", async () => undefined)();
+
+      expect(dag.taskIds).toEqual(["staging.stage_rows"]);
+    });
+
+    it("prefixes a task id defaulted from the handler name", () => {
+      const dag = new Dag("grouped");
+      dag.taskGroup("staging").task(async function stageRows() {})();
+
+      expect(dag.taskIds).toEqual(["staging.stageRows"]);
+    });
+
+    it("nests, joining every enclosing group's id", () => {
+      const dag = new Dag("grouped");
+      const outer = dag.taskGroup("outer");
+      const inner = outer.taskGroup("inner");
+      inner.task("deep", async () => undefined)();
+
+      expect(dag.taskIds).toEqual(["outer.inner.deep"]);
+      expect(inner.groupId).toBe("outer.inner");
+    });
+
+    it("carries the Dag's own identity", () => {
+      const dag = new Dag("grouped");
+      expect(dag.taskGroup("staging").dagId).toBe("grouped");
+    });
+
+    it("records the tree, so nested groups serialize as one", () => {
+      const dag = new Dag("grouped");
+      const outer = dag.taskGroup("outer");
+      outer.task("first", async () => undefined)();
+      const inner = outer.taskGroup("inner");
+      inner.task("second", async () => undefined)();
+
+      expect([...getDagTaskGroups(dag).values()]).toEqual([
+        {
+          groupId: "outer",
+          taskIds: ["outer.first"],
+          childGroupIds: ["outer.inner"],
+        },
+        {
+          groupId: "outer.inner",
+          parentGroupId: "outer",
+          taskIds: ["outer.inner.second"],
+          childGroupIds: [],
+        },
+      ]);
+    });
+
+    it("lets the same handler name be reused across groups", () => {
+      const dag = new Dag("grouped");
+      dag.taskGroup("north").task(async function extract() {})();
+      dag.taskGroup("south").task(async function extract() {})();
+
+      expect(dag.taskIds).toEqual(["north.extract", "south.extract"]);
+    });
+
+    it("lets a task in a group be wired to one outside it", () => {
+      const dag = new Dag("grouped");
+      const extracted = dag.task("extract", async () => 1)();
+      const staged = dag
+        .taskGroup("staging")
+        .task(
+          "stage",
+          async (_: { extracted: number }) => undefined,
+        )({ extracted });
+
+      expect(staged.taskId).toBe("staging.stage");
+      expect(getDagTaskInputs(dag).get("staging.stage")).toEqual({ extracted });
+    });
+
+    describe("as an edge endpoint", () => {
+      it("orders a whole group before a task", () => {
+        const dag = new Dag("grouped");
+        const staging = dag.taskGroup("staging");
+        staging.task("stage", async () => undefined)();
+        const loaded = dag.task("load", async () => undefined)();
+
+        staging.before(loaded);
+
+        expect(getDagOrderEdges(dag)).toEqual([{ upstream: "staging", downstream: "load" }]);
+      });
+
+      it("orders a task before a whole group", () => {
+        const dag = new Dag("grouped");
+        const extracted = dag.task("extract", async () => undefined)();
+        const staging = dag.taskGroup("staging");
+        staging.task("stage", async () => undefined)();
+
+        extracted.before(staging);
+
+        expect(getDagOrderEdges(dag)).toEqual([{ upstream: "extract", downstream: "staging" }]);
+      });
+
+      it("orders one group against another", () => {
+        const dag = new Dag("grouped");
+        const first = dag.taskGroup("first");
+        first.task("a", async () => undefined)();
+        const second = dag.taskGroup("second");
+        second.task("b", async () => undefined)();
+
+        second.after(first);
+
+        expect(getDagOrderEdges(dag)).toEqual([{ upstream: "first", downstream: "second" }]);
+      });
+
+      it("returns its own receiver, as a task does", () => {
+        const dag = new Dag("grouped");
+        const staging = dag.taskGroup("staging");
+        staging.task("stage", async () => undefined)();
+        const loaded = dag.task("load", async () => undefined)();
+
+        expect(staging.before(loaded)).toBe(staging);
+      });
+
+      it("rejects a group from another Dag object with the same ID", () => {
+        const first = new Dag("same_id");
+        const second = new Dag("same_id");
+        const loaded = first.task("load", async () => undefined)();
+        const foreign = second.taskGroup("staging");
+
+        expect(() => loaded.before(foreign)).toThrowError(
+          /before\(\) was given a reference to "staging" that this Dag did not hand out/,
+        );
+      });
+
+      it("rejects a foreign group even when this Dag has one of the same ID", () => {
+        // Matching on the ID alone used to accept it, and the edge was then
+        // drawn at this Dag's own group of that name.
+        const first = new Dag("same_id");
+        const second = new Dag("same_id");
+        first.taskGroup("staging").task("stage", async () => undefined)();
+        const loaded = first.task("load", async () => undefined)();
+        const foreign = second.taskGroup("staging");
+
+        expect(() => loaded.before(foreign)).toThrowError(
+          /before\(\) was given a reference to "staging" that this Dag did not hand out/,
+        );
+        expect(getDagOrderEdges(first)).toEqual([]);
+      });
+    });
+
+    it.each([
+      ["an empty ID", ""],
+      ["a non-string ID", 42],
+    ])("rejects %s", (_label, groupId) => {
+      const dag = new Dag("grouped");
+      expect(() => dag.taskGroup(groupId as string)).toThrowError(
+        /A task group of Dag "grouped" must have a non-empty ID/,
+      );
+    });
+
+    it("rejects a group ID holding the separator, which nesting is for", () => {
+      const dag = new Dag("grouped");
+      expect(() => dag.taskGroup("outer.inner")).toThrowError(
+        /Task group ID "outer.inner" of Dag "grouped" cannot contain "\."; nest groups with taskGroup/,
+      );
+    });
+
+    it.each([
+      [
+        "a task and a group",
+        (dag: Dag) => [() => dag.task("x", async () => undefined), () => dag.taskGroup("x")],
+      ],
+      [
+        "a group and a task",
+        (dag: Dag) => [() => dag.taskGroup("x"), () => dag.task("x", async () => undefined)],
+      ],
+      ["two groups", (dag: Dag) => [() => dag.taskGroup("x"), () => dag.taskGroup("x")]],
+    ])(
+      "rejects %s sharing one ID, since a serialized Dag addresses both by it",
+      (_label, build) => {
+        const dag = new Dag("grouped");
+        const [first, second] = build(dag);
+
+        first!();
+        expect(() => second!()).toThrowError(/"x" is already registered for Dag "grouped"/);
+      },
+    );
+
+    it("allows the same group ID under different parents", () => {
+      const dag = new Dag("grouped");
+      dag
+        .taskGroup("north")
+        .taskGroup("shared")
+        .task("t", async () => undefined)();
+      dag
+        .taskGroup("south")
+        .taskGroup("shared")
+        .task("t", async () => undefined)();
+
+      expect(dag.taskIds).toEqual(["north.shared.t", "south.shared.t"]);
+    });
+
+    it("rejects a group declared after the Dag was read", () => {
+      const dag = new Dag("grouped");
+      dag.task("extract", async () => undefined)();
+      finalizeDag(dag);
+
+      expect(() => dag.taskGroup("late")).toThrowError(
+        /Task group "late" cannot be added to Dag "grouped" after the Dag was read/,
+      );
+    });
+
+    it("holds its tasks to the same every-task-is-called rule", () => {
+      const dag = new Dag("grouped");
+      dag.taskGroup("staging").task("stage", async () => undefined);
+
+      expect(() => finalizeDag(dag)).toThrowError(
+        /Task "staging.stage" of Dag "grouped" is never called/,
+      );
+    });
+
+    it("has no groups before any are declared", () => {
+      expect(getDagTaskGroups(new Dag("plain")).size).toBe(0);
     });
   });
 
@@ -814,13 +1037,25 @@ describe("Dag", () => {
     );
   });
 
-  it("treats a dotted TaskGroup taskId as a single taskId (group.task)", () => {
+  it("rejects a dotted task id, which names a group that does not exist", () => {
+    // A dotted id used to be accepted verbatim, giving a task whose id carries
+    // a group prefix while the Dag holds no such group. `taskGroup(...)` is
+    // what puts a task under a prefix now.
     const dag = new Dag("example_dag");
-    dag.task("transforms.normalize", async () => "ok")();
-    const bundle = new Bundle();
-    bundle.register(dag);
+
+    expect(() => dag.task("transforms.normalize", async () => "ok")).toThrowError(
+      /Task ID "transforms.normalize" of Dag "example_dag" cannot contain "\."/,
+    );
+    expect(dag.taskIds).toEqual([]);
+  });
+
+  it("names a task inside a group without the author writing the prefix", () => {
+    const dag = new Dag("example_dag");
+    dag.taskGroup("transforms").task("normalize", async () => "ok")();
+    const bundle = new Bundle(dag);
+
     expect(bundle.getTaskHandler("example_dag", "transforms.normalize")).toBeDefined();
-    // Should NOT accidentally match the prefix alone
+    // And not the prefix or the leaf on its own.
     expect(bundle.getTaskHandler("example_dag", "transforms")).toBeUndefined();
     expect(bundle.getTaskHandler("example_dag", "normalize")).toBeUndefined();
   });

@@ -25,12 +25,14 @@ import type {
   ConnectionResult,
   DagSpec,
   GetXComOpts,
+  Node,
   SetXComOpts,
   TaskClient,
   Registerable,
   TaskContext,
   TaskFactory,
   TaskFunction,
+  TaskGroupRef,
   TaskInput,
   TaskInputs,
   TaskOptions,
@@ -318,11 +320,24 @@ describe("public API", () => {
     // Variadic, and each returns its own receiver rather than its arguments,
     // return type included.
     expectTypeOf<TaskRef<boolean>["before"]>().toEqualTypeOf<
-      (...downstream: readonly TaskRef[]) => TaskRef<boolean>
+      (...downstream: readonly Node[]) => TaskRef<boolean>
     >();
     expectTypeOf<TaskRef<boolean>["after"]>().toEqualTypeOf<
-      (...upstream: readonly TaskRef[]) => TaskRef<boolean>
+      (...upstream: readonly Node[]) => TaskRef<boolean>
     >();
+    // A group is a scope and an edge endpoint, and nests the same way at
+    // every depth.
+    expectTypeOf<Extract<keyof TaskGroupRef, string>>().toEqualTypeOf<
+      "dagId" | "groupId" | "task" | "taskGroup" | "before" | "after"
+    >();
+    expectTypeOf<TaskGroupRef["groupId"]>().toEqualTypeOf<string>();
+    expectTypeOf<TaskGroupRef["taskGroup"]>().toEqualTypeOf<(groupId: string) => TaskGroupRef>();
+    expectTypeOf<TaskGroupRef["before"]>().toEqualTypeOf<
+      (...downstream: readonly Node[]) => TaskGroupRef
+    >();
+    // Both satisfy Node, which is what lets an edge join either kind.
+    expectTypeOf<TaskRef>().toExtend<Node>();
+    expectTypeOf<TaskGroupRef>().toExtend<Node>();
     // Wiring moved to the factory call, and the spec is the trailing argument
     // itself.
     expectTypeOf<TaskOptions>().toEqualTypeOf<TaskSpec>();
