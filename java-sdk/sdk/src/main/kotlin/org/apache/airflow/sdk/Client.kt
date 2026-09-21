@@ -21,6 +21,9 @@ package org.apache.airflow.sdk
 
 import org.apache.airflow.sdk.execution.Client
 import org.apache.airflow.sdk.execution.comm.StartupDetails
+import java.time.Duration
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
 
 /**
  * A connection registered in Airflow's connection store.
@@ -62,6 +65,14 @@ class Client internal constructor(
      */
     const val XCOM_RETURN_KEY = "return_value"
   }
+
+  /**
+   * Key-value state scoped to the current task instance.
+   *
+   * Unlike XComs, entries survive retries and later runs of the same task, so
+   * they can carry things like an external job ID across attempts.
+   */
+  @JvmField val taskStateStore: TaskStateStore = TaskStateStore(details, impl)
 
   /**
    * Retrieves a connection from the Airflow connection store.
@@ -177,6 +188,63 @@ class Client internal constructor(
     runId = details.ti.runId,
     mapIndex = details.ti.mapIndex ?: -1,
   )
+}
+
+/**
+ * Key-value state scoped to one task instance, shared across its retries and
+ * later runs.
+ *
+ * Values must be JSON-serializable. Keys expire at the time given when they
+ * were stored; a key stored without a retention never expires and is skipped
+ * by Airflow's periodic garbage collection.
+ *
+ * Values are stored in the metadata database as-is; the `[workers]
+ * state_store_backend` used by Python tasks is not applied here.
+ */
+class TaskStateStore internal constructor(
+  private val details: StartupDetails,
+  private val impl: Client,
+) {
+  /**
+   * Reads the value stored under [key].
+   *
+   * @return The stored value, or `null` if the key is not set.
+   * @throws ApiError if the API call fails.
+   */
+  fun get(key: String): Any? = impl.getTaskStateStore(details.ti.id, key)?.value
+
+  /**
+   * Stores [value] under [key], replacing any existing value.
+   *
+   * @param key State key.
+   * @param value Value to store. Must be JSON-serializable.
+   * @param retention How long to keep the key, or `null` to keep it until deleted.
+   * @throws ApiError if the API call fails.
+   */
+  @JvmOverloads fun set(
+    key: String,
+    value: Any,
+    retention: Duration? = null,
+  ) = impl.setTaskStateStore(
+    tiId = details.ti.id,
+    key = key,
+    value = value,
+    expiresAt = retention?.let { OffsetDateTime.now(ZoneOffset.UTC).plus(it) },
+  )
+
+  /**
+   * Deletes the value stored under [key]. Does nothing if the key is not set.
+   *
+   * @throws ApiError if the API call fails.
+   */
+  fun delete(key: String) = impl.deleteTaskStateStore(details.ti.id, key)
+
+  /**
+   * Deletes every key stored for this task instance.
+   *
+   * @throws ApiError if the API call fails.
+   */
+  fun clear() = impl.clearTaskStateStore(details.ti.id)
 }
 
 /**

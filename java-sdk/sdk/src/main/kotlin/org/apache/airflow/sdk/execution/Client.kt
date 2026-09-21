@@ -20,16 +20,24 @@
 package org.apache.airflow.sdk.execution
 
 import kotlinx.coroutines.runBlocking
+import org.apache.airflow.sdk.execution.comm.ClearTaskStateStore
 import org.apache.airflow.sdk.execution.comm.ConnectionResult
+import org.apache.airflow.sdk.execution.comm.DeleteTaskStateStore
 import org.apache.airflow.sdk.execution.comm.DeleteVariable
+import org.apache.airflow.sdk.execution.comm.ErrorResponse
 import org.apache.airflow.sdk.execution.comm.GetConnection
+import org.apache.airflow.sdk.execution.comm.GetTaskStateStore
 import org.apache.airflow.sdk.execution.comm.GetVariable
 import org.apache.airflow.sdk.execution.comm.GetXCom
 import org.apache.airflow.sdk.execution.comm.OKResponse
 import org.apache.airflow.sdk.execution.comm.PutVariable
+import org.apache.airflow.sdk.execution.comm.SetTaskStateStore
 import org.apache.airflow.sdk.execution.comm.SetXCom
+import org.apache.airflow.sdk.execution.comm.TaskStateStoreResult
 import org.apache.airflow.sdk.execution.comm.VariableResult
 import org.apache.airflow.sdk.execution.comm.XComResult
+import java.time.OffsetDateTime
+import java.util.UUID
 
 /**
  * @suppress
@@ -74,6 +82,26 @@ interface Client {
     runId: String,
     mapIndex: Int,
   )
+
+  /** Returns `null` when the key is not stored for the task instance. */
+  fun getTaskStateStore(
+    tiId: UUID,
+    key: String,
+  ): TaskStateStoreResult?
+
+  fun setTaskStateStore(
+    tiId: UUID,
+    key: String,
+    value: Any,
+    expiresAt: OffsetDateTime?,
+  )
+
+  fun deleteTaskStateStore(
+    tiId: UUID,
+    key: String,
+  )
+
+  fun clearTaskStateStore(tiId: UUID)
 }
 
 /**
@@ -156,5 +184,51 @@ class CoordinatorClient(
         it.includePriorDates = includePriorDates
       }
     return runBlocking { exec.communicate<XComResult>(message) }
+  }
+
+  override fun getTaskStateStore(
+    tiId: UUID,
+    key: String,
+  ): TaskStateStoreResult? {
+    val message =
+      GetTaskStateStore().also {
+        it.tiId = tiId
+        it.key = key
+      }
+    return runBlocking {
+      exec.communicateOrNullIf<TaskStateStoreResult>(message, ErrorResponse.ErrorType.TASK_STORE_NOT_FOUND)
+    }
+  }
+
+  override fun setTaskStateStore(
+    tiId: UUID,
+    key: String,
+    value: Any,
+    expiresAt: OffsetDateTime?,
+  ) {
+    val message =
+      SetTaskStateStore().also {
+        it.tiId = tiId
+        it.key = key
+        it.value = value
+        it.expiresAt = expiresAt
+      }
+    runBlocking { exec.communicate<OKResponse>(message) }
+  }
+
+  override fun deleteTaskStateStore(
+    tiId: UUID,
+    key: String,
+  ) {
+    val message =
+      DeleteTaskStateStore().also {
+        it.tiId = tiId
+        it.key = key
+      }
+    runBlocking { exec.communicate<OKResponse>(message) }
+  }
+
+  override fun clearTaskStateStore(tiId: UUID) {
+    runBlocking { exec.communicate<OKResponse>(ClearTaskStateStore().also { it.tiId = tiId }) }
   }
 }

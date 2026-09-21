@@ -612,7 +612,7 @@ prek hook regenerate it.
 | capability: `variable-read-write` | MUST | ✓ | 3.3 |  |
 | capability: `self-contained-bundle` | MUST | ✓ | 3.3 | Airflow metadata embedded in the jar artifact |
 | capability: `retry-policy` | MAY | ✗ | – | no task-facing retry-policy API yet |
-| capability: `task-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
+| capability: `task-state-store` | MAY | ✓ | 3.3 | Client.taskStateStore get/set/delete/clear |
 | capability: `asset-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
 | capability: `asset-event-emit` | MAY | ✗ | – | runtime does not emit asset events yet |
 | capability: `asset-event-read` | MAY | ✗ | – | no task-facing asset-event API yet |

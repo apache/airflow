@@ -239,6 +239,25 @@ class TaskTest {
           runId: String,
           mapIndex: Int,
         ): Unit = throw UnsupportedOperationException("not used in test")
+
+        override fun getTaskStateStore(
+          tiId: UUID,
+          key: String,
+        ) = throw UnsupportedOperationException("not used in test")
+
+        override fun setTaskStateStore(
+          tiId: UUID,
+          key: String,
+          value: Any,
+          expiresAt: OffsetDateTime?,
+        ): Unit = throw UnsupportedOperationException("not used in test")
+
+        override fun deleteTaskStateStore(
+          tiId: UUID,
+          key: String,
+        ): Unit = throw UnsupportedOperationException("not used in test")
+
+        override fun clearTaskStateStore(tiId: UUID): Unit = throw UnsupportedOperationException("not used in test")
       },
     )
 

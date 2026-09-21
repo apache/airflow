@@ -83,8 +83,9 @@ capabilities:
     supported: false
     note: "no task-facing retry-policy API yet"
   task-state-store:
-    supported: false
-    note: "no task-facing state-store API yet"
+    supported: true
+    since: "3.3"
+    note: "Client.taskStateStore get/set/delete/clear"
   asset-state-store:
     supported: false
     note: "no task-facing state-store API yet"
