@@ -1112,7 +1112,9 @@ class TestSnowflakeSqlApiHook:
         """
         Test that _make_api_call_with_retries method respects max retry attempts.
         """
-        hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
+        hook = SnowflakeSqlApiHook(
+            snowflake_conn_id="test_conn", api_retry_args={"wait": tenacity.wait_none()}
+        )
 
         # Mock response that always fails with retryable error
         failed_response = mock.MagicMock()
@@ -1498,7 +1500,9 @@ class TestSnowflakeSqlApiHook:
         """
         Test that _make_api_call_with_retries_async respects max retry attempts.
         """
-        hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
+        hook = SnowflakeSqlApiHook(
+            snowflake_conn_id="test_conn", api_retry_args={"wait": tenacity.wait_none()}
+        )
         mock_request_429 = create_async_request_client_response_error(status_code=429)
 
         # Always returns 429
