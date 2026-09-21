@@ -90,6 +90,14 @@ returned when validation failed; ``error`` carries the provider's type, message 
 provider-side failures. The manifest's ``counts`` keys use the past tense (``succeeded``,
 ``errored``) while row statuses use the bare word; the other buckets spell the same.
 
+A downstream task reads the rows back from ``result_uri`` with
+:class:`~airflow.sdk.ObjectStoragePath` and rejoins them to its inputs on ``index``:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_batch.py
+    :language: python
+    :start-after: [START howto_operator_llm_batch_read_results]
+    :end-before: [END howto_operator_llm_batch_read_results]
+
 Structured output
 ------------------
 
@@ -136,16 +144,62 @@ parameters are templated as usual; keep ``result_path`` stable across attempts o
 instance (``{{ run_id }}`` is fine, ``{{ ts }}`` is not), or a retry looks for its recorded state
 at a location the previous attempt never wrote to.
 
+Provider-specific parameters
+------------------------------
+
+The operator builds each request body from the prompt, the system prompt, the model, the token
+cap and (for structured output) the schema directive, and translates those per provider:
+``max_tokens`` is sent as ``max_completion_tokens`` to OpenAI and as ``max_tokens`` to Anthropic,
+and ``output_type`` becomes ``response_format`` on OpenAI and a forced tool on Anthropic.
+
+Everything else the provider's chat endpoint accepts goes through ``request_params``, which is
+merged into every request body as-is. For an ``openai:`` model that means OpenAI chat-completions
+keys (``temperature``, ``reasoning_effort``, ``user``, ``seed``, ...); for an ``anthropic:`` model
+it means Anthropic Messages keys (``temperature``, ``top_k``, ``metadata``, ``thinking``, ...).
+The operator does not validate these; an unknown key surfaces as a per-request ``error`` row
+from the provider, or as a failed batch when the provider rejects the whole input file.
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_batch.py
+    :language: python
+    :start-after: [START howto_operator_llm_batch_provider_params]
+    :end-before: [END howto_operator_llm_batch_provider_params]
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 35 35
+
+   * - Operator parameter
+     - OpenAI request body
+     - Anthropic request body
+   * - ``system_prompt``
+     - First ``messages`` entry with ``role: system``
+     - ``system``
+   * - ``max_tokens``
+     - ``max_completion_tokens`` (``max_tokens`` is dropped)
+     - ``max_tokens``
+   * - ``output_type``
+     - ``response_format`` of type ``json_schema`` (``strict: false``)
+     - ``tools`` + ``tool_choice`` forcing one tool whose input schema is the type
+   * - ``request_params`` / ``params``
+     - Merged as-is, managed keys win
+     - Merged as-is, managed keys win
+   * - ``completion_window``
+     - Batch-level ``completion_window`` (``"24h"``)
+     - Ignored
+
 Per-request overrides
 -----------------------
 
-A request dict may carry ``system_prompt``, ``max_tokens``, ``params`` (extra body parameters)
-and ``model``. ``model`` is written the same way ``model_id`` is, ``"<provider>:<model>"``, and
-must name the same provider as the batch. Anthropic allows a different model per request;
-OpenAI requires every request in a batch to resolve to the same model and the operator rejects a
-mixed batch before submitting it::
+A request dict may carry ``system_prompt``, ``max_tokens``, ``params`` (extra body parameters
+for that request only, layered over ``request_params``) and ``model``. ``model`` is written the
+same way ``model_id`` is, ``"<provider>:<model>"``, and must name the same provider as the batch.
+Anthropic allows a different model per request; OpenAI requires every request in a batch to
+resolve to the same model and the operator rejects a mixed batch before submitting it.
 
-    {"prompt": "...", "model": "anthropic:claude-opus-5"}
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_batch.py
+    :language: python
+    :start-after: [START howto_operator_llm_batch_per_request]
+    :end-before: [END howto_operator_llm_batch_per_request]
 
 ``request_params`` and a request's ``params`` cannot override the keys the operator manages
 (the model, the messages, the token cap and the structured-output directive).

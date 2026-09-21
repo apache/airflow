@@ -413,6 +413,12 @@ class LLMBatchOperator(BaseOperator):
             return None, None
 
         if record.batch_id and record.input_fingerprint == fingerprint:
+            self.log.info(
+                "Re-attaching to batch %s submitted at %s by a previous attempt of this task instance; "
+                "the input is unchanged, so nothing is resubmitted.",
+                record.batch_id,
+                record.submitted_at,
+            )
             return record.batch_id, record.submitted_at
 
         if record.batch_id:
@@ -647,6 +653,7 @@ class LLMBatchOperator(BaseOperator):
             manifest = self._land(
                 result_path_osp, batch_id=batch_id, key=key, spec=spec, extra_counts=event.get("counts")
             )
+            self._log_landed(manifest)
             self._raise_if_partial(manifest)
             return manifest
 
@@ -654,6 +661,7 @@ class LLMBatchOperator(BaseOperator):
             manifest = self._land(
                 result_path_osp, batch_id=batch_id, key=key, spec=spec, extra_counts=event.get("counts")
             )
+            self._log_landed(manifest)
             lost = manifest["counts"]["cancelled"] + manifest["counts"]["missing"]
             if lost:
                 # The cancel was deliberate (ours or out of band), so there is nothing in flight to
@@ -684,6 +692,18 @@ class LLMBatchOperator(BaseOperator):
 
         # "error": polling gave up without knowing the batch's fate. Keep the state so a retry re-attaches.
         raise LLMBatchJobError(event["message"])
+
+    def _log_landed(self, manifest: dict[str, Any]) -> None:
+        counts = manifest["counts"]
+        summary = ", ".join(f"{name}={value}" for name, value in counts.items() if value)
+        self.log.info(
+            "Landed %d results for batch %s at %s (%s; terminal_reason=%s)",
+            manifest["request_count"],
+            manifest["batch_id"],
+            manifest["result_uri"],
+            summary or "no results",
+            manifest["terminal_reason"],
+        )
 
     def _raise_if_partial(self, manifest: dict[str, Any]) -> None:
         if not self.fail_on_partial_error:
