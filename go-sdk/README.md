@@ -302,10 +302,11 @@ prek hook regenerate it.
 | state: `removed` | MAY | ✓ | 3.3 |  |
 | **Runtime capabilities** |  |  |  |  |
 | capability: `mixed-lang-stub-target` | MUST | ✓ | 3.3 | @task.stub |
+| capability: `taskflow-binding` | MUST | ✗ | – | bind @task.stub literal/XCom args to the native handler |
 | capability: `task-logging` | MUST | ✓ | 3.3 | slog records streamed over the logs socket |
 | capability: `xcom-read-write` | MUST | ✓ | 3.3 | PushXCom / GetXCom |
 | capability: `connection-read` | MUST | ✓ | 3.3 | GetConnection |
-| capability: `variable-read-write` | MUST | ✗ | – | GetVariable only; no write over the comm socket yet |
+| capability: `variable-read-write` | MUST | ✓ | 3.4 |  |
 | capability: `self-contained-bundle` | MUST | ✓ | 3.3 | AFBNDL01 native binary via airflow-go-pack |
 | capability: `retry-policy` | MAY | ✗ | – | no task-facing retry-policy API yet |
 | capability: `task-state-store` | MAY | ✗ | – | no task-facing state-store API yet |

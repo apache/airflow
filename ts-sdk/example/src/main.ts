@@ -22,9 +22,9 @@
 // Both Dags in `dags/` are declared in Python with `@task.stub` tasks routed to the Node
 // coordinator, so this side only supplies the task bodies.
 
-import { Bundle, getClient, TaskHandler } from "apache-airflow-ts-sdk";
+import { Bundle, getClient, getContext, TaskHandler } from "apache-airflow-ts-sdk";
 
-import { buildSummaryMessage, summarize } from "./taskflow.js";
+import { buildSummaryMessage, report, summarize } from "./taskflow.js";
 
 export async function buildMessage() {
   const client = getClient();
@@ -41,6 +41,20 @@ export async function buildMessage() {
     message,
     upstream,
   };
+}
+
+/** Records the run that last wrote it, so a later run can see it changed. */
+const LAST_RUN_VARIABLE = "typescript_example_last_run";
+/** Written and deleted within the same task, to show both write directions. */
+const SCRATCH_VARIABLE = "typescript_example_scratch";
+
+export async function writeAndDeleteVariable() {
+  const client = getClient();
+  const { runId } = getContext();
+
+  await client.setVariable(LAST_RUN_VARIABLE, runId, "Run id of the last typescript_example run");
+  await client.setVariable(SCRATCH_VARIABLE, runId);
+  await client.deleteVariable(SCRATCH_VARIABLE);
 }
 
 export async function readConnection() {
@@ -62,7 +76,9 @@ const bundle = new Bundle();
 bundle.register(
   new TaskHandler("typescript_example", "build_message", buildMessage),
   new TaskHandler("typescript_example", "read_connection", readConnection),
+  new TaskHandler("typescript_example", "write_and_delete_variable", writeAndDeleteVariable),
   new TaskHandler("typescript_taskflow_example", "summarize", summarize),
+  new TaskHandler("typescript_taskflow_example", "report", report),
   new TaskHandler("typescript_taskflow_example", "build_message", buildSummaryMessage),
 );
 await bundle.serve();

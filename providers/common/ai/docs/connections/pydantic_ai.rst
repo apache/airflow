@@ -38,6 +38,11 @@ Model
     dedicated input in the connection form (via ``conn-fields``) and stores its
     value in ``extra["model"]``.
 
+    The ``provider:`` prefix is required here: this generic connection type has
+    no platform of its own (unlike the vendor connection types below), so a
+    bare name (e.g. ``gpt-5.6-sol`` without ``openai:``) raises ``ValueError``
+    naming this connection rather than being resolved automatically.
+
     Examples: ``openai:gpt-5.6-sol``, ``anthropic:claude-sonnet-5``,
     ``bedrock:us.anthropic.claude-opus-4-6-v1:0``, ``google:gemini-2.0-flash``
 
@@ -75,6 +80,12 @@ Extra (JSON, optional)
 
     When using the UI, the "Model" field above writes to this same location
     automatically.
+
+Fallback Connections
+    Other connection IDs to fail over to, in order, while this provider is
+    unavailable. Stored in ``extra["fallback_conn_ids"]``. Entries may name any
+    ``pydanticai`` connection type, so one chain can span vendors. See
+    :doc:`/provider_fallback`.
 
 Examples
 --------
@@ -153,3 +164,12 @@ The hook reads the model from these sources in priority order:
 
 1. ``model_id`` parameter on the hook/operator
 2. ``model`` in the connection's extra JSON (set by the "Model" conn-field in the UI)
+3. When this connection is used as a fallback and neither of the above is set, the
+   *bare* ``model_id`` forwarded from the primary connection (see :doc:`/provider_fallback`) --
+   a forwarded name that already pins a platform is not applied here, since it names a
+   model of the primary's own platform.
+
+Whichever name is chosen, a name that already pins a recognized platform (its segment
+before the first ``:`` is itself a pydantic-ai provider) is used verbatim; a bare name is
+qualified with this connection's platform, and this generic connection type has none,
+so a bare name reaching this step always raises.

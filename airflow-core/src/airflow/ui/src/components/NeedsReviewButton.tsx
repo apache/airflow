@@ -143,7 +143,7 @@ export const NeedsReviewButton = ({
     <NeedsReviewButtonCard
       hitlTIsCount={hitlTIsCount}
       isLoading={isLoading}
-      link="required_actions?response_received=false"
+      link="/required_actions?response_received=false"
     />
   );
 };

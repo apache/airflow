@@ -25,6 +25,27 @@
 Changelog
 ---------
 
+.. note::
+  Configuring ``fallback_conn_ids`` on a connection (or the matching operator/decorator
+  argument) changes what exception a task raises once every connection in the chain fails:
+  it is ``pydantic_ai.exceptions.FallbackExceptionGroup``, not the last provider's own
+  exception. An existing ``RetryRule(exception=ModelHTTPError, ...)`` -- in
+  ``LLMRetryPolicy.fallback_rules`` or a plain ``ExceptionRetryPolicy`` -- stops matching
+  as soon as the connection gains a fallback chain, with no change to the Dag needed to
+  trigger it. Match ``pydantic_ai.exceptions.FallbackExceptionGroup`` explicitly as well,
+  or inspect its ``.exceptions`` attribute for the original per-model errors. See
+  :doc:`retry_policies`, "When the connection also carries a fallback chain".
+
+.. note::
+  ``SQLToolset`` now rejects ``allowed_tables=None`` and ``allowed_tables=[]`` with
+  ``ValueError``. Up to 0.9.0 both were accepted and exposed every table in the schema, so
+  a Dag that builds the list dynamically (a ``Variable.get`` with a ``None`` default, a
+  config file, a filtered comprehension) silently handed the agent the whole schema
+  whenever the lookup came back empty. Such a Dag now fails at import instead. Exposing
+  every table is still the default, but only by omitting the argument: no value you can
+  pass requests it, so a runtime lookup can never widen the allow-list by accident. Dags
+  that passed ``allowed_tables=None`` explicitly should drop the argument.
+
 0.9.0
 .....
 

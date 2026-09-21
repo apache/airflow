@@ -22,7 +22,7 @@ import json
 from collections import Counter
 from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from pydantic import BaseModel, Field, ValidationError
 
@@ -97,6 +97,13 @@ class LLMSchemaCompareOperator(LLMOperator):
     :param prompt: Instructions for the LLM on what to compare and flag.
     :param llm_conn_id: Connection ID for the LLM provider.
     :param model_id: Model identifier (e.g. ``"openai:gpt-5"``).
+    :param fallback_conn_ids: Connection IDs to fail over to, in order, when
+        the primary provider is unavailable. Overrides the ``fallback_conn_ids``
+        set in the connection's extra field. ``None`` (default) reads the
+        connection's own extra field; an explicit ``[]`` disables a chain
+        configured there. See
+        :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook`
+        for how blank entries in the list are dropped.
     :param system_prompt: Instructions included in the LLM system prompt. Defaults to
         ``DEFAULT_SYSTEM_PROMPT`` which contains cross-system type equivalences and
         severity definitions. Passing a value **replaces** the default system prompt
@@ -115,7 +122,7 @@ class LLMSchemaCompareOperator(LLMOperator):
     Human-in-the-Loop approval parameters are inherited from
     :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
     (``require_approval``, ``approval_timeout``, ``on_approval_timeout``,
-    ``allow_modifications``, ``approval_notifiers``).
+    ``allow_modifications``, ``approval_notifiers``, ``approval_assigned_users``).
     The task pauses after the comparison and only returns the result once a
     reviewer approves. The review body shows the compatibility verdict, a
     mismatch severity summary, and the full result JSON.
@@ -128,6 +135,9 @@ class LLMSchemaCompareOperator(LLMOperator):
         "table_names",
         "context_strategy",
     )
+
+    # Runs its own execute() without the confidence gate; a decision_policy is rejected at construction.
+    supports_decision_policy: ClassVar[bool] = False
 
     def __init__(
         self,
@@ -353,8 +363,14 @@ class LLMSchemaCompareOperator(LLMOperator):
 
         return output_result
 
-    def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> Any:
-        output = super().execute_complete(context, generated_output, event)
+    def execute_complete(
+        self,
+        context: Context,
+        generated_output: str,
+        event: dict[str, Any],
+        decision: dict[str, Any] | None = None,
+    ) -> Any:
+        output = super().execute_complete(context, generated_output, event, decision)
         if isinstance(output, dict):
             return output
         try:

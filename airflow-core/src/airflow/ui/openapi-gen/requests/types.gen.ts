@@ -126,12 +126,17 @@ export type AssetExpressionAsset = {
  * persisted; ``BaseAsset.as_expression()`` itself only emits ``uri``/``name``/``group``. It is left
  * optional so a row persisted before id-enrichment (or migrated from the pre-3.0 dataset format)
  * degrades gracefully instead of failing response validation.
+ *
+ * A leaf the caller is not authorized to read is served with ``hidden`` set and ``uri``, ``name``
+ * and ``id`` blanked (see ``airflow.api_fastapi.common.asset_expression``), so the shape of the
+ * schedule stays visible without revealing which asset it waits on.
  */
 export type AssetExpressionAssetInfo = {
-    uri: string;
-    name: string;
+    uri: string | null;
+    name: string | null;
     group: string;
     id?: number | null;
+    hidden?: boolean;
 };
 
 /**
@@ -303,7 +308,7 @@ export type BackfillResponse = {
  * Base info serializer for responses.
  */
 export type BaseInfoResponse = {
-    status: string | null;
+    status: HealthStatus | null;
 };
 
 /**
@@ -1181,9 +1186,9 @@ export type DagBundleResponse = {
  * DagProcessor info serializer for responses.
  */
 export type DagProcessorInfoResponse = {
-    status: string | null;
+    status: HealthStatus | null;
     latest_dag_processor_heartbeat: string | null;
-    detailed_status: string | null;
+    detailed_status: DetailedHealthStatus | null;
     instances?: Array<DagProcessorInstanceInfoResponse> | null;
 };
 
@@ -1191,7 +1196,6 @@ export type DagProcessorInfoResponse = {
  * Dag processor instance info serializer for responses.
  */
 export type DagProcessorInstanceInfoResponse = {
-    status: string | null;
     hostname: string | null;
     latest_dag_processor_heartbeat: string | null;
     bundle_names: Array<(string)> | null;
@@ -1310,6 +1314,11 @@ export type DagVersionResponse = {
  * in the DagWarning model.
  */
 export type DagWarningType = 'asset conflict' | 'duplicate dag id' | 'non-existent pool' | 'runtime varying value';
+
+/**
+ * How much of a component's work has a live instance covering it.
+ */
+export type DetailedHealthStatus = 'healthy' | 'degraded' | 'down';
 
 /**
  * Backfill collection serializer for responses in dry-run mode.
@@ -1509,6 +1518,11 @@ export type HealthInfoResponse = {
     triggerer: TriggererInfoResponse;
     dag_processor?: DagProcessorInfoResponse | null;
 };
+
+/**
+ * Aggregate health of a component: whether it has at least one live instance.
+ */
+export type HealthStatus = 'healthy' | 'unhealthy';
 
 /**
  * Import Error Collection Response.
@@ -1783,9 +1797,9 @@ export type ReprocessBehavior = 'failed' | 'completed' | 'none';
  * Scheduler info serializer for responses.
  */
 export type SchedulerInfoResponse = {
-    status: string | null;
+    status: HealthStatus | null;
     latest_scheduler_heartbeat: string | null;
-    detailed_status: string | null;
+    detailed_status: DetailedHealthStatus | null;
     instances?: Array<SchedulerInstanceInfoResponse> | null;
 };
 
@@ -1793,7 +1807,6 @@ export type SchedulerInfoResponse = {
  * Scheduler instance info serializer for responses.
  */
 export type SchedulerInstanceInfoResponse = {
-    status: string | null;
     hostname: string | null;
     latest_scheduler_heartbeat: string | null;
 };
@@ -2140,9 +2153,9 @@ export type TriggerResponse = {
  * Triggerer info serializer for responses.
  */
 export type TriggererInfoResponse = {
-    status: string | null;
+    status: HealthStatus | null;
     latest_triggerer_heartbeat: string | null;
-    detailed_status: string | null;
+    detailed_status: DetailedHealthStatus | null;
     instances?: Array<TriggererInstanceInfoResponse> | null;
 };
 
@@ -2150,7 +2163,6 @@ export type TriggererInfoResponse = {
  * Triggerer instance info serializer for responses.
  */
 export type TriggererInstanceInfoResponse = {
-    status: string | null;
     hostname: string | null;
     latest_triggerer_heartbeat: string | null;
     team_name: string | null;
