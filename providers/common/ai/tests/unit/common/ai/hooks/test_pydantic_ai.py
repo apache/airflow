@@ -18,13 +18,18 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import re
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
+from pydantic_ai import Agent
+from pydantic_ai.exceptions import FallbackExceptionGroup, ModelAPIError
 from pydantic_ai.models import Model
+from pydantic_ai.models.fallback import FallbackModel
+from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.providers import infer_provider_class
 
@@ -35,7 +40,10 @@ from airflow.providers.common.ai.hooks.pydantic_ai import (
     PydanticAIBedrockHook,
     PydanticAIHook,
     PydanticAIVertexHook,
+    _has_recognized_provider_prefix,
+    _looks_like_unrecognized_provider_prefix,
 )
+from airflow.providers.common.compat.sdk import AirflowNotFoundException
 
 # Matches the `google...` provider key pydantic-ai expects before the `:model-name`
 # separator, e.g. "google-cloud" out of "google-cloud:gemini-2.0-flash".
@@ -240,6 +248,864 @@ class TestPydanticAIHookGetConn:
         mock_infer_model.assert_called_once()
 
 
+class _ConnRegistry:
+    """
+    In-memory stand-in for connection and hook lookup.
+
+    ``_resolve_fallback_models`` calls ``PydanticAIHook.get_connection`` and then
+    ``Connection.get_hook`` on the result, both of which need the metadata DB and
+    provider discovery; this resolves both from a dict instead.
+    """
+
+    def __init__(self) -> None:
+        self.conns: dict[str, Connection] = {}
+        self.hook_classes: dict[str, type[PydanticAIHook]] = {}
+
+    def add(
+        self,
+        conn_id: str,
+        *,
+        conn_type: str = "pydanticai",
+        hook_class: type[PydanticAIHook] = PydanticAIHook,
+        password: str | None = None,
+        extra: dict | None = None,
+    ) -> None:
+        self.conns[conn_id] = Connection(
+            conn_id=conn_id,
+            conn_type=conn_type,
+            password=password,
+            extra=json.dumps(extra) if extra else None,
+        )
+        self.hook_classes[conn_id] = hook_class
+
+    def get_connection(self, conn_id: str) -> Connection:
+        try:
+            return self.conns[conn_id]
+        except KeyError:
+            raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined") from None
+
+    def get_hook(self, conn: Connection, *, hook_params: dict | None = None):
+        """Side effect for the patched ``Connection.get_hook`` -- ``conn`` is bound as ``self``
+        (via ``autospec=True`` on the patch), so the connection to dispatch from is this
+        argument's ``conn_id``, not a value the caller passes in.
+        """
+        if conn.conn_id not in self.conns:
+            raise AirflowNotFoundException(f"The conn_id `{conn.conn_id}` isn't defined")
+        hook_class = self.hook_classes[conn.conn_id]
+        return hook_class(llm_conn_id=conn.conn_id, **(hook_params or {}))
+
+
+@pytest.fixture
+def registry():
+    """Patch connection and hook lookup onto a registry the test populates."""
+    reg = _ConnRegistry()
+    with (
+        patch.object(PydanticAIHook, "get_connection", side_effect=reg.get_connection),
+        # autospec=True is required here: it's what makes the mock bind `self` (the
+        # Connection instance `.get_hook()` was called on) as the side effect's first
+        # argument -- without it, `conn.get_hook()` calls the mock with zero arguments and
+        # `reg.get_hook` would have no way to know which connection dispatched it.
+        patch.object(Connection, "get_hook", side_effect=reg.get_hook, autospec=True),
+    ):
+        yield reg
+
+
+class _InferModelStub:
+    """Resolve every model string to its own recognisable model, and record how it was built."""
+
+    def __init__(self, mock: MagicMock) -> None:
+        self.mock = mock
+        self.models: dict[str, MagicMock] = {}
+
+    def __call__(self, model_name: str, **kwargs) -> MagicMock:
+        return self.models.setdefault(model_name, MagicMock(spec=Model, name=model_name))
+
+    def provider_kwargs_for(self, model_name: str, infer_provider_class: MagicMock) -> dict:
+        """Return the kwargs the provider for *model_name* would be constructed with."""
+        factory = next(
+            call.kwargs["provider_factory"] for call in self.mock.call_args_list if call.args[0] == model_name
+        )
+        infer_provider_class.return_value.reset_mock()
+        factory(model_name.split(":")[0])
+        return infer_provider_class.return_value.call_args.kwargs
+
+
+@pytest.fixture
+def infer_model_stub():
+    """Patch ``infer_model`` so tests can tell the models of a chain apart."""
+    with patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True) as mock:
+        stub = _InferModelStub(mock)
+        mock.side_effect = stub
+        yield stub
+
+
+class TestPydanticAIHookModelProviderResolution:
+    """Bare model names get qualified with a connection's own platform prefix."""
+
+    @pytest.mark.parametrize(
+        ("hook_class", "conn_type", "prefix"),
+        [
+            pytest.param(PydanticAIAzureHook, "pydanticai_azure", "azure", id="azure"),
+            pytest.param(PydanticAIBedrockHook, "pydanticai_bedrock", "bedrock", id="bedrock"),
+            pytest.param(PydanticAIVertexHook, "pydanticai_vertex", "google-cloud", id="vertex"),
+        ],
+    )
+    def test_bare_model_id_gets_platform_prefix(
+        self, registry, infer_model_stub, hook_class, conn_type, prefix
+    ):
+        registry.add("primary", conn_type=conn_type, hook_class=hook_class, extra={"model": "foo"})
+        hook = hook_class(llm_conn_id="primary")
+
+        assert hook.get_conn() is infer_model_stub.models[f"{prefix}:foo"]
+
+    @pytest.mark.parametrize(
+        ("hook_class", "conn_type"),
+        [
+            pytest.param(PydanticAIHook, "pydanticai", id="generic"),
+            pytest.param(PydanticAIAzureHook, "pydanticai_azure", id="azure"),
+            pytest.param(PydanticAIBedrockHook, "pydanticai_bedrock", id="bedrock"),
+            pytest.param(PydanticAIVertexHook, "pydanticai_vertex", id="vertex"),
+        ],
+    )
+    def test_test_sentinel_is_never_platform_prefixed(
+        self, registry, infer_model_stub, hook_class, conn_type
+    ):
+        """The literal ``"test"`` model name is pydantic-ai's dry-run sentinel and must reach
+        ``infer_model`` unprefixed on every connection type, including ones with a platform.
+
+        Mutation canary: dropping the ``model_name == "test"`` early return in
+        ``_qualify_model_name`` makes this raise on the generic hook (no default model
+        provider) and resolve to e.g. ``"azure:test"`` on the vendor hooks -- either way the
+        ``is infer_model_stub.models["test"]`` identity assertion fails.
+        """
+        registry.add("primary", conn_type=conn_type, hook_class=hook_class, extra={"model": "test"})
+        hook = hook_class(llm_conn_id="primary")
+
+        assert hook.get_conn() is infer_model_stub.models["test"]
+
+    def test_prefixed_model_id_used_verbatim(self, registry, infer_model_stub):
+        """A name that already contains ``:`` pins its own platform and is never re-prefixed."""
+        registry.add(
+            "primary",
+            conn_type="pydanticai_azure",
+            hook_class=PydanticAIAzureHook,
+            extra={"model": "openai:gpt-4"},
+        )
+        hook = PydanticAIAzureHook(llm_conn_id="primary")
+
+        assert hook.get_conn() is infer_model_stub.models["openai:gpt-4"]
+
+    def test_generic_connection_bare_name_raises_actionable_error(self, registry, infer_model_stub):
+        """The generic ``pydanticai`` connection type has no platform of its own."""
+        registry.add("primary", extra={"model": "gpt-4"})
+        hook = PydanticAIHook(llm_conn_id="primary")
+
+        with pytest.raises(ValueError, match="primary") as exc_info:
+            hook.get_conn()
+
+        assert "gpt-4" in str(exc_info.value)
+
+    def test_vertex_bare_model_id_ignores_credential_shape(self, registry, infer_model_stub):
+        """Vertex's default platform never depends on which credential fields are set.
+
+        ``api_key`` in this hook's extra can mean either the Generative Language API or
+        Vertex API-key auth, so it cannot decide the platform -- there is deliberately no
+        inference here, only the class-level default.
+        """
+        registry.add(
+            "primary",
+            conn_type="pydanticai_vertex",
+            hook_class=PydanticAIVertexHook,
+            extra={"model": "gemini-2.0-flash", "api_key": "some-key"},
+        )
+        hook = PydanticAIVertexHook(llm_conn_id="primary")
+
+        assert hook.get_conn() is infer_model_stub.models["google-cloud:gemini-2.0-flash"]
+
+    def test_bedrock_bare_model_id_with_embedded_colon_gets_platform_prefix(self, registry, infer_model_stub):
+        """A ``:`` alone doesn't pin a platform -- Bedrock's own ids contain one.
+
+        Bedrock's version-suffixed ids (e.g. ``us.anthropic.claude-opus-4-6-v1:0``) contain
+        a ``:`` that is not a pydantic-ai provider name, so a bare copy of one must still get
+        the ``bedrock:`` prefix, not be treated as already-qualified.
+
+        Mutation canary: reverting ``_qualify_model_name``/``_has_recognized_provider_prefix``
+        to the old ``":" in model_name`` check makes this resolve to the unprefixed
+        ``"us.anthropic.claude-opus-4-6-v1:0"`` instead, failing the ``is`` identity assertion
+        (a different key in ``infer_model_stub.models``).
+        """
+        registry.add(
+            "primary",
+            conn_type="pydanticai_bedrock",
+            hook_class=PydanticAIBedrockHook,
+            extra={"model": "us.anthropic.claude-opus-4-6-v1:0"},
+        )
+        hook = PydanticAIBedrockHook(llm_conn_id="primary")
+
+        assert hook.get_conn() is infer_model_stub.models["bedrock:us.anthropic.claude-opus-4-6-v1:0"]
+
+    def test_prefixed_model_id_with_embedded_colon_used_verbatim(self, registry, infer_model_stub):
+        """A name already pinning a recognized platform is never re-prefixed, even with an
+        embedded ``:`` of its own.
+
+        Mutation canary: dropping the ``infer_provider_class`` recognition check (treating
+        every ``:`` split the same) has no effect on *this* test by itself since the string
+        already starts with a recognized prefix -- what would catch a regression here is a
+        mutation that re-adds prefixing unconditionally (e.g. always prepending
+        ``model_provider`` regardless of ``_has_recognized_provider_prefix``'s result), which
+        would turn the resolved key into
+        ``"bedrock:bedrock:us.anthropic.claude-opus-4-6-v1:0"`` and fail the identity assertion.
+        """
+        registry.add(
+            "primary",
+            conn_type="pydanticai_bedrock",
+            hook_class=PydanticAIBedrockHook,
+            extra={"model": "bedrock:us.anthropic.claude-opus-4-6-v1:0"},
+        )
+        hook = PydanticAIBedrockHook(llm_conn_id="primary")
+
+        assert hook.get_conn() is infer_model_stub.models["bedrock:us.anthropic.claude-opus-4-6-v1:0"]
+
+    def test_generic_connection_unrecognized_prefix_raises_actionable_error(self, registry, infer_model_stub):
+        """A ``:`` whose left segment isn't a real provider must not slip past as "prefixed".
+
+        On the generic connection type (no platform of its own) a name like
+        ``"us.anthropic.claude-opus-4-6-v1:0"`` must raise this hook's own actionable error
+        naming the connection, not be forwarded to pydantic-ai's ``infer_model`` where it
+        would instead raise the less actionable ``UserError: Unknown model``.
+
+        Mutation canary: reverting to the old ``":" in model_name`` check makes this string
+        look "already prefixed" (since it contains a ``:``) and skips the ``ValueError`` raise
+        entirely -- the ``pytest.raises(ValueError, match="primary")`` block would then fail
+        because no exception is raised (the stubbed ``infer_model`` would resolve it instead).
+        """
+        registry.add("primary", extra={"model": "us.anthropic.claude-opus-4-6-v1:0"})
+        hook = PydanticAIHook(llm_conn_id="primary")
+
+        with pytest.raises(ValueError, match="primary") as exc_info:
+            hook.get_conn()
+
+        assert "us.anthropic.claude-opus-4-6-v1:0" in str(exc_info.value)
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True)
+    def test_import_error_from_recognized_provider_counts_as_prefixed(self, mock_infer_provider_class):
+        """A recognized provider name whose optional dependency isn't installed still counts
+        as a platform prefix -- ``infer_provider_class`` raises ``ImportError`` (not
+        ``ValueError``) for a name it recognizes but can't import.
+
+        Mutation canary: changing the ``except ImportError`` branch to ``return False``
+        makes this assert ``True`` fail.
+        """
+        mock_infer_provider_class.side_effect = ImportError("Please install the 'azure' extra")
+
+        assert _has_recognized_provider_prefix("azure:foo") is True
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True)
+    def test_value_error_from_unknown_provider_counts_as_bare(self, mock_infer_provider_class):
+        """An unrecognized name raises ``ValueError`` and is treated as a bare model name --
+        the counterpart to the ``ImportError`` case above, proving the two exceptions are
+        told apart rather than both mapping to the same answer.
+
+        Mutation canary: changing the ``except ValueError`` branch to ``return True``
+        makes this assert ``False`` fail.
+        """
+        mock_infer_provider_class.side_effect = ValueError("Unknown provider: bogus")
+
+        assert _has_recognized_provider_prefix("bogus:foo") is False
+
+    @pytest.mark.parametrize(
+        ("prefix", "expected"),
+        [
+            ("google-vertex", True),
+            ("google-gla", True),
+            ("openi", True),
+            ("us.anthropic.claude-opus-4-6-v1", False),  # Bedrock native id: contains '.'
+            (
+                "azure",
+                True,
+            ),  # shape-only check; caller only invokes this after ruling out recognized prefixes
+        ],
+    )
+    def test_looks_like_unrecognized_provider_prefix(self, prefix, expected):
+        assert _looks_like_unrecognized_provider_prefix(prefix) is expected
+
+    def test_vertex_stale_gateway_prefix_warns_but_still_resolves(self, registry, infer_model_stub, caplog):
+        registry.add(
+            "primary",
+            conn_type="pydanticai_vertex",
+            hook_class=PydanticAIVertexHook,
+            extra={"model": "google-vertex:gemini-2.0-flash", "api_key": "some-key"},
+        )
+        hook = PydanticAIVertexHook(llm_conn_id="primary")
+
+        with caplog.at_level(logging.WARNING):
+            model = hook.get_conn()
+
+        assert model is infer_model_stub.models["google-cloud:google-vertex:gemini-2.0-flash"]
+        assert any("google-vertex" in r.message and "typo" in r.message for r in caplog.records)
+
+    def test_bedrock_native_id_does_not_warn(self, registry, infer_model_stub, caplog):
+        """Mutation canary: dropping the '.' exclusion (or the shape check entirely) makes this
+        assert fail -- the legitimate Bedrock id would start logging a warning on every resolution.
+        """
+        registry.add(
+            "primary",
+            conn_type="pydanticai_bedrock",
+            hook_class=PydanticAIBedrockHook,
+            extra={"model": "us.anthropic.claude-opus-4-6-v1:0"},
+        )
+        hook = PydanticAIBedrockHook(llm_conn_id="primary")
+
+        with caplog.at_level(logging.WARNING):
+            hook.get_conn()
+
+        assert not any("typo" in r.message for r in caplog.records)
+
+    def test_generic_connection_typo_prefix_names_the_bad_segment(self, registry, infer_model_stub):
+        """A colon-bearing name with an unrecognized prefix must name that prefix, not tell the
+        user their already-set 'provider:model' string doesn't exist.
+        """
+        registry.add("primary", extra={"model": "openi:gpt-5"})
+        hook = PydanticAIHook(llm_conn_id="primary")
+
+        with pytest.raises(ValueError, match="primary") as exc_info:
+            hook.get_conn()
+
+        assert "openi" in str(exc_info.value)
+        assert "openi:gpt-5" in str(exc_info.value)
+
+
+class TestPydanticAIHookFallback:
+    def test_no_fallback_returns_the_bare_model(self, registry, infer_model_stub):
+        """Without a chain the resolved model is not wrapped at all."""
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        hook = PydanticAIHook(llm_conn_id="primary")
+
+        assert hook.get_conn() is infer_model_stub.models["openai:gpt-5.6-sol"]
+
+    def test_param_builds_chain_in_order(self, registry, infer_model_stub):
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
+        registry.add("third", extra={"model": "groq:llama-4"})
+
+        hook = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["second", "third"])
+        model = hook.get_conn()
+
+        assert isinstance(model, FallbackModel)
+        assert model.models == [
+            infer_model_stub.models["openai:gpt-5.6-sol"],
+            infer_model_stub.models["anthropic:claude-opus-4-6"],
+            infer_model_stub.models["groq:llama-4"],
+        ]
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.FallbackModel", autospec=True)
+    def test_chain_pins_fallback_on_to_model_api_error(self, mock_fallback_model, registry, infer_model_stub):
+        """The chain must not drift with pydantic-ai's own ``fallback_on`` default.
+
+        Asserts our own call into ``FallbackModel`` -- not pydantic-ai's dispatch logic, which
+        is a third party's private implementation detail -- so deleting the ``fallback_on=``
+        kwarg from the call site turns this red.
+        """
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
+
+        PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["second"]).get_conn()
+
+        assert mock_fallback_model.mock_calls == [
+            call(
+                infer_model_stub.models["openai:gpt-5.6-sol"],
+                infer_model_stub.models["anthropic:claude-opus-4-6"],
+                fallback_on=(ModelAPIError,),
+            )
+        ]
+
+    def test_chain_from_connection_extra(self, registry, infer_model_stub):
+        """A deployment manager can configure failover without touching Dag code."""
+        registry.add(
+            "primary",
+            extra={"model": "openai:gpt-5.6-sol", "fallback_conn_ids": ["second"]},
+        )
+        registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
+
+        model = PydanticAIHook(llm_conn_id="primary").get_conn()
+
+        assert isinstance(model, FallbackModel)
+        assert model.models == [
+            infer_model_stub.models["openai:gpt-5.6-sol"],
+            infer_model_stub.models["anthropic:claude-opus-4-6"],
+        ]
+
+    def test_param_overrides_extra(self, registry, infer_model_stub):
+        registry.add(
+            "primary",
+            extra={"model": "openai:gpt-5.6-sol", "fallback_conn_ids": ["ignored"]},
+        )
+        registry.add("ignored", extra={"model": "groq:llama-4"})
+        registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
+
+        model = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["second"]).get_conn()
+
+        assert isinstance(model, FallbackModel)
+        assert model.models[1] is infer_model_stub.models["anthropic:claude-opus-4-6"]
+
+    def test_empty_list_param_disables_the_extra_chain(self, registry, infer_model_stub):
+        """``[]`` is an explicit opt-out, distinct from ``None`` meaning "read the extra"."""
+        registry.add(
+            "primary",
+            extra={"model": "openai:gpt-5.6-sol", "fallback_conn_ids": ["second"]},
+        )
+        registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
+
+        model = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=[]).get_conn()
+
+        assert model is infer_model_stub.models["openai:gpt-5.6-sol"]
+
+    def test_chain_can_span_providers(self, registry, infer_model_stub):
+        """Each connection resolves through its own hook class, so credentials differ per hop."""
+        registry.add("primary", password="sk-openai", extra={"model": "openai:gpt-5.6-sol"})
+        registry.add(
+            "bedrock_dr",
+            conn_type="pydanticai_bedrock",
+            hook_class=PydanticAIBedrockHook,
+            extra={
+                "model": "bedrock:us.anthropic.claude-opus-4-5",
+                "region_name": "us-east-1",
+                "aws_access_key_id": "AKIA-test",
+                "aws_secret_access_key": "secret",
+            },
+        )
+
+        with patch(
+            "airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True
+        ) as mock_infer_provider_class:
+            mock_infer_provider_class.return_value = MagicMock(return_value=MagicMock())
+            hook = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["bedrock_dr"])
+            model = hook.get_conn()
+
+            assert isinstance(model, FallbackModel)
+            assert model.models == [
+                infer_model_stub.models["openai:gpt-5.6-sol"],
+                infer_model_stub.models["bedrock:us.anthropic.claude-opus-4-5"],
+            ]
+
+            # Each hop is built by its own hook's field mapping: the primary from
+            # password/host, the Bedrock hop from its extra.
+            assert infer_model_stub.provider_kwargs_for("openai:gpt-5.6-sol", mock_infer_provider_class) == {
+                "api_key": "sk-openai"
+            }
+            assert infer_model_stub.provider_kwargs_for(
+                "bedrock:us.anthropic.claude-opus-4-5", mock_infer_provider_class
+            ) == {
+                "region_name": "us-east-1",
+                "aws_access_key_id": "AKIA-test",
+                "aws_secret_access_key": "secret",
+            }
+
+    def test_bare_model_id_forwarded_to_fallback_without_own_model(self, registry, infer_model_stub):
+        """A bare ``model_id`` flows to a fallback with none, qualified with *that* fallback's platform."""
+        registry.add("primary", conn_type="pydanticai_azure", hook_class=PydanticAIAzureHook)
+        registry.add("bedrock_dr", conn_type="pydanticai_bedrock", hook_class=PydanticAIBedrockHook)
+
+        hook = PydanticAIAzureHook(
+            llm_conn_id="primary", model_id="gpt-5-nano", fallback_conn_ids=["bedrock_dr"]
+        )
+        model = hook.get_conn()
+
+        assert isinstance(model, FallbackModel)
+        assert model.models == [
+            infer_model_stub.models["azure:gpt-5-nano"],
+            infer_model_stub.models["bedrock:gpt-5-nano"],
+        ]
+
+    def test_bare_connection_model_forwarded_to_fallback_without_own_model(self, registry, infer_model_stub):
+        """A bare model from the primary's own ``extra`` forwards like a ``model_id`` argument.
+
+        This is the connection-driven shape the docs lead with: neither the model nor the chain
+        is named in Dag code, so forwarding the constructor argument alone never fires.
+
+        Mutation canary: forwarding ``self.model_id`` rather than the primary's configured name
+        makes ``get_conn()`` raise "No model specified for connection 'bedrock_dr'" here, because
+        ``model_id`` is ``None`` in this shape -- failing before either assertion is reached.
+        """
+        registry.add(
+            "primary",
+            conn_type="pydanticai_azure",
+            hook_class=PydanticAIAzureHook,
+            extra={"model": "gpt-5-nano", "fallback_conn_ids": ["bedrock_dr"]},
+        )
+        registry.add("bedrock_dr", conn_type="pydanticai_bedrock", hook_class=PydanticAIBedrockHook)
+
+        model = PydanticAIAzureHook(llm_conn_id="primary").get_conn()
+
+        assert isinstance(model, FallbackModel)
+        assert model.models == [
+            infer_model_stub.models["azure:gpt-5-nano"],
+            infer_model_stub.models["bedrock:gpt-5-nano"],
+        ]
+
+    def test_fallback_own_model_overrides_forwarded(self, registry, infer_model_stub):
+        """A fallback's own ``model`` extra wins over anything forwarded from the primary."""
+        registry.add("primary", conn_type="pydanticai_azure", hook_class=PydanticAIAzureHook)
+        registry.add(
+            "bedrock_dr",
+            conn_type="pydanticai_bedrock",
+            hook_class=PydanticAIBedrockHook,
+            extra={"model": "bedrock:us.anthropic.claude-opus-4-5"},
+        )
+
+        hook = PydanticAIAzureHook(
+            llm_conn_id="primary", model_id="gpt-5-nano", fallback_conn_ids=["bedrock_dr"]
+        )
+        model = hook.get_conn()
+
+        assert isinstance(model, FallbackModel)
+        assert model.models[1] is infer_model_stub.models["bedrock:us.anthropic.claude-opus-4-5"]
+
+    def test_prefixed_model_id_not_forwarded_to_fallback(self, registry, infer_model_stub):
+        """A prefixed ``model_id`` pins the primary's own platform and is unusable on a fallback."""
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        registry.add("second")  # no model of its own
+
+        hook = PydanticAIHook(llm_conn_id="primary", model_id="openai:gpt-5", fallback_conn_ids=["second"])
+        with pytest.raises(ValueError, match="No model specified for connection 'second'"):
+            hook.get_conn()
+
+    def test_bedrock_style_bare_model_id_not_forwarded_across_platforms(self, registry, infer_model_stub):
+        """A primary's bare model id with an embedded ``:`` of its own is a native vendor id, and a
+        native vendor id is never valid on another platform -- it must not be forwarded there.
+
+        Mutation canary: dropping the ``":" not in forwarded_model_id or forwarded_model_provider
+        == self.model_provider`` gate (reverting to just ``not _has_recognized_provider_prefix``)
+        makes the Bedrock id forward to the Azure fallback and this raise never fires --
+        ``pytest.raises`` would report no exception raised.
+        """
+        registry.add("primary", conn_type="pydanticai_bedrock", hook_class=PydanticAIBedrockHook)
+        registry.add("azure_dr", conn_type="pydanticai_azure", hook_class=PydanticAIAzureHook)
+
+        hook = PydanticAIBedrockHook(
+            llm_conn_id="primary",
+            model_id="us.anthropic.claude-opus-4-6-v1:0",
+            fallback_conn_ids=["azure_dr"],
+        )
+        with pytest.raises(ValueError, match="No model specified for connection 'azure_dr'"):
+            hook.get_conn()
+
+    def test_bedrock_style_bare_model_id_forwarded_within_same_platform(self, registry, infer_model_stub):
+        """The cross-platform gate must not block Bedrock-to-Bedrock forwarding of the same shape."""
+        registry.add("primary", conn_type="pydanticai_bedrock", hook_class=PydanticAIBedrockHook)
+        registry.add("bedrock_dr", conn_type="pydanticai_bedrock", hook_class=PydanticAIBedrockHook)
+
+        hook = PydanticAIBedrockHook(
+            llm_conn_id="primary",
+            model_id="us.anthropic.claude-opus-4-6-v1:0",
+            fallback_conn_ids=["bedrock_dr"],
+        )
+        model = hook.get_conn()
+
+        assert isinstance(model, FallbackModel)
+        assert model.models == [
+            infer_model_stub.models["bedrock:us.anthropic.claude-opus-4-6-v1:0"],
+            infer_model_stub.models["bedrock:us.anthropic.claude-opus-4-6-v1:0"],
+        ]
+
+    def test_forwarded_bare_name_error_attributes_to_primary(self, registry, infer_model_stub):
+        """A bare name forwarded from the primary must not blame the fallback for a name it never
+        configured -- the error must name the primary connection that actually set it.
+
+        Mutation canary: dropping ``forwarded_from_conn_id`` threading (reverting
+        ``_qualify_model_name`` to always report the current connection as the source) makes this
+        assert fail: the message would say the name came from 'openai_dr' itself, not 'primary'.
+        """
+        registry.add(
+            "primary",
+            conn_type="pydanticai_bedrock",
+            hook_class=PydanticAIBedrockHook,
+            extra={"model": "claude-opus-4-5", "fallback_conn_ids": ["openai_dr"]},
+        )
+        registry.add("openai_dr")  # generic connection type, no model_provider, no own model
+
+        hook = PydanticAIBedrockHook(llm_conn_id="primary")
+        with pytest.raises(ValueError, match="forwarded from primary connection 'primary'") as exc_info:
+            hook.get_conn()
+
+        assert "openai_dr" in str(exc_info.value)
+        assert "claude-opus-4-5" in str(exc_info.value)
+
+    def test_non_pydanticai_fallback_raises(self, registry, infer_model_stub):
+        """``Connection.get_hook`` dispatches on conn_type alone and can return anything."""
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        registry.add("wrong_type", conn_type="langchain")
+        registry.hook_classes["wrong_type"] = MagicMock  # type: ignore[assignment]
+
+        hook = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["wrong_type"])
+        with pytest.raises(ValueError, match="not a PydanticAIHook"):
+            hook.get_conn()
+
+    def test_nested_chain_raises(self, registry, infer_model_stub):
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        registry.add(
+            "second",
+            extra={"model": "anthropic:claude-opus-4-6", "fallback_conn_ids": ["third"]},
+        )
+        registry.add("third", extra={"model": "groq:llama-4"})
+
+        hook = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["second"])
+        with pytest.raises(ValueError, match="second.*not resolved recursively"):
+            hook.get_conn()
+
+    @pytest.mark.parametrize(
+        ("fallback_conn_ids", "match"),
+        [
+            pytest.param(["second", "second"], "more than once", id="repeated-fallback"),
+            pytest.param(["primary"], "as one of its own fallbacks", id="primary-repeated"),
+        ],
+    )
+    def test_duplicate_conn_id_raises(self, registry, infer_model_stub, fallback_conn_ids, match):
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
+
+        hook = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=fallback_conn_ids)
+        with pytest.raises(ValueError, match=match):
+            hook.get_conn()
+
+    @pytest.mark.parametrize(
+        "fallback_conn_ids",
+        [
+            pytest.param("second,third", id="comma-separated-string"),
+            pytest.param(["second", 3], id="non-string-entry"),
+        ],
+    )
+    def test_malformed_fallback_conn_ids_raises(self, registry, infer_model_stub, fallback_conn_ids):
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+
+        hook = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=fallback_conn_ids)
+        with pytest.raises(ValueError, match="must be a list of connection IDs"):
+            hook.get_conn()
+
+    @pytest.mark.parametrize(
+        "fallback_conn_ids",
+        [
+            pytest.param(["second", ""], id="trailing-blank-entry"),
+            pytest.param(["second", "  "], id="trailing-whitespace-entry"),
+            pytest.param(["second", "\n"], id="trailing-newline-entry"),
+        ],
+    )
+    def test_blank_entries_are_dropped_from_param(self, registry, infer_model_stub, fallback_conn_ids):
+        """The Fallback Connections field is a textarea split on newline whose blur handler
+        only guards the all-blank case, so a trailing blank line is what most saved chains
+        actually look like; it must resolve as a working chain, not raise.
+        """
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
+
+        model = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=fallback_conn_ids).get_conn()
+
+        assert isinstance(model, FallbackModel)
+        assert model.models == [
+            infer_model_stub.models["openai:gpt-5.6-sol"],
+            infer_model_stub.models["anthropic:claude-opus-4-6"],
+        ]
+
+    def test_blank_entries_are_dropped_from_extra(self, registry, infer_model_stub):
+        """Same drop-blank behavior applies when the chain comes from connection extra."""
+        registry.add(
+            "primary",
+            extra={"model": "openai:gpt-5.6-sol", "fallback_conn_ids": ["second", ""]},
+        )
+        registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
+
+        model = PydanticAIHook(llm_conn_id="primary").get_conn()
+
+        assert isinstance(model, FallbackModel)
+        assert model.models == [
+            infer_model_stub.models["openai:gpt-5.6-sol"],
+            infer_model_stub.models["anthropic:claude-opus-4-6"],
+        ]
+
+    def test_blank_only_chain_behaves_like_no_chain(self, registry, infer_model_stub):
+        """Dropping every entry must fall back to the bare model, matching the ``[]`` opt-out."""
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+
+        model = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["", "  "]).get_conn()
+
+        assert model is infer_model_stub.models["openai:gpt-5.6-sol"]
+
+    def test_fallback_entries_are_stripped(self, registry, infer_model_stub):
+        """Whitespace around a kept entry must not leak into the connection lookup."""
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
+
+        model = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["  second  "]).get_conn()
+
+        assert isinstance(model, FallbackModel)
+        assert model.models == [
+            infer_model_stub.models["openai:gpt-5.6-sol"],
+            infer_model_stub.models["anthropic:claude-opus-4-6"],
+        ]
+
+    @pytest.mark.parametrize(
+        "malformed",
+        [
+            pytest.param("", id="empty-string"),
+            pytest.param(0, id="zero"),
+            pytest.param({}, id="empty-dict"),
+            pytest.param(False, id="false"),
+        ],
+    )
+    def test_malformed_fallback_conn_ids_from_extra_raises(self, registry, infer_model_stub, malformed):
+        """Falsy-but-not-``None`` extra values must not be silently treated as "no chain".
+
+        ``None`` is the only value the schema allows to mean "no chain"; any other falsy
+        value that made it into the extra is a misconfiguration and must fail the same way
+        a malformed hook argument does, not disappear into an empty chain.
+        """
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol", "fallback_conn_ids": malformed})
+
+        hook = PydanticAIHook(llm_conn_id="primary")
+        with pytest.raises(ValueError, match="must be a list of connection IDs"):
+            hook.get_conn()
+
+    def test_fallback_without_a_model_names_the_connection(self, registry, infer_model_stub):
+        """The error has to say which hop is misconfigured, not just that one is."""
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        registry.add("second")
+
+        hook = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["second"])
+        with pytest.raises(ValueError, match="No model specified for connection 'second'"):
+            hook.get_conn()
+
+    def test_test_connection_validates_the_whole_chain(self, registry, infer_model_stub):
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        registry.add("second")
+
+        success, message = PydanticAIHook(
+            llm_conn_id="primary", fallback_conn_ids=["second"]
+        ).test_connection()
+
+        assert success is False
+        assert "second" in message
+
+    def test_missing_fallback_conn_is_reported_by_name(self, registry, infer_model_stub):
+        """
+        A typo'd fallback conn_id must surface Airflow's real not-found error, by name.
+
+        The test double has to fail the same way ``BaseHook.get_connection``/``get_hook`` do
+        in production (``AirflowNotFoundException``, not a bare ``KeyError``) for this edge
+        case to be exercised at all. Both exception types happen to embed the conn_id in
+        their message, so asserting on the type -- not just the message -- is what actually
+        pins the fixture to the real behavior.
+        """
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        hook = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["typo_conn"])
+
+        with pytest.raises(AirflowNotFoundException, match="typo_conn"):
+            hook.get_conn()
+
+        success, message = hook.test_connection()
+        assert success is False
+        assert "typo_conn" in message
+
+    def test_chain_log_fires_before_a_mid_resolution_failure(self, registry, infer_model_stub, caplog):
+        """The chain-resolution log has to appear even when a later hop fails to resolve.
+
+        Logging it only after the whole chain resolves would make it absent in exactly the
+        case where it earns its keep: a typo'd fallback conn_id raises before that point, and
+        on the connection-driven path the docs recommend, the Dag never mentions the bad
+        conn_id at all, so the task log is the only place it could show up.
+        """
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        hook = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["typo_conn"])
+
+        with caplog.at_level(logging.INFO):
+            with pytest.raises(AirflowNotFoundException, match="typo_conn"):
+                hook.get_conn()
+
+        assert any("primary -> typo_conn" in r.message for r in caplog.records)
+
+    @pytest.mark.parametrize(
+        "fallback_conn_ids",
+        [
+            pytest.param(None, id="no-chain"),
+            pytest.param(["", "  "], id="blank-only-chain"),
+        ],
+    )
+    def test_no_fallback_chain_does_not_log(self, registry, infer_model_stub, caplog, fallback_conn_ids):
+        """An empty chain -- whether unset or collapsed from blank-only entries -- logs nothing."""
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        hook = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=fallback_conn_ids)
+
+        with caplog.at_level(logging.INFO):
+            hook.get_conn()
+
+        assert not any("fallback chain" in r.message.lower() for r in caplog.records)
+
+    def test_exhausted_chain_from_a_connection_raises_fallback_exception_group(self, registry):
+        """
+        A fully exhausted chain built by ``get_conn()`` surfaces pydantic-ai's own aggregate
+        exception, not the last provider's own exception type. A ``RetryRule`` written against a
+        provider-specific exception has to account for that (see ``docs/retry_policies.rst``).
+        """
+
+        def _always_fails(messages, info):
+            raise ModelAPIError("test-model", "provider outage")
+
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol", "fallback_conn_ids": ["second"]})
+        registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
+
+        with patch(
+            "airflow.providers.common.ai.hooks.pydantic_ai.infer_model",
+            autospec=True,
+            side_effect=lambda model, **kwargs: FunctionModel(_always_fails),
+        ):
+            model = PydanticAIHook(llm_conn_id="primary").get_conn()
+
+        with pytest.raises(FallbackExceptionGroup):
+            Agent(model, instructions="classify").run_sync("hello")
+
+
+class TestPydanticAIHookFallbackConnectionFetchCount:
+    """
+    ``TestPydanticAIHookFallback`` above patches ``Connection.get_hook`` directly (see
+    ``_ConnRegistry.get_hook``), so it never runs the real dispatch that
+    ``_resolve_fallback_models`` goes through -- that is exactly the code path a double
+    connection-fetch per fallback hop would hide in. This mocks only ``get_connection`` and
+    lets ``Connection.get_hook`` run for real, to pin how many times each connection in a
+    fallback chain is actually fetched.
+    """
+
+    def test_fallback_chain_fetches_each_connection_once(self, infer_model_stub):
+        conns = {
+            "primary": Connection(
+                conn_id="primary",
+                conn_type="pydanticai",
+                extra=json.dumps({"model": "openai:gpt-4", "fallback_conn_ids": ["fb1", "fb2"]}),
+            ),
+            "fb1": Connection(
+                conn_id="fb1", conn_type="pydanticai", extra=json.dumps({"model": "anthropic:claude-1"})
+            ),
+            "fb2": Connection(
+                conn_id="fb2", conn_type="pydanticai", extra=json.dumps({"model": "anthropic:claude-2"})
+            ),
+        }
+
+        def _get_connection(conn_id: str) -> Connection:
+            try:
+                return conns[conn_id]
+            except KeyError:
+                raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined") from None
+
+        with patch.object(
+            PydanticAIHook, "get_connection", side_effect=_get_connection
+        ) as mock_get_connection:
+            PydanticAIHook(llm_conn_id="primary").get_conn()
+
+        # 3-connection chain (primary + 2 fallbacks): 1 fetch each = 3 total. Before the
+        # `_seed_connection` fix, each fallback paid 2 fetches (one inside
+        # `PydanticAIHook.get_hook`, discarded, plus one more the first time the new hook's
+        # own `_get_conn_and_extra` ran) = 1 + 2*2 = 5.
+        assert mock_get_connection.call_count == 3
+
+
 class TestPydanticAIHookCreateAgent:
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
@@ -327,6 +1193,24 @@ class TestPydanticAIHookCreateAgent:
             output_type=str,
         )
         mock_agent_cls.assert_not_called()
+
+    def test_create_agent_with_spec_file_raises_when_chain_configured_without_model(self):
+        """A connection-only chain cannot be wired into a spec-file agent silently.
+
+        The spec file's own model can't be wrapped in a ``FallbackModel`` -- it is
+        resolved by pydantic-ai, not by this hook -- so a connection that declares
+        ``fallback_conn_ids`` but no ``model`` must fail loudly here rather than let the
+        chain quietly disappear.
+        """
+        hook = PydanticAIHook(llm_conn_id="test_conn")
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="pydanticai",
+            extra=json.dumps({"fallback_conn_ids": ["second"]}),
+        )
+        with patch.object(hook, "get_connection", autospec=True, return_value=conn):
+            with pytest.raises(ValueError, match="fallback chain is configured for 'test_conn' but no model"):
+                hook.create_agent(spec_file="/path/to/agent.yaml")
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent")
@@ -485,9 +1369,14 @@ class TestPydanticAIHookTestConnection:
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     def test_failed_connection(self, mock_infer_model):
-        mock_infer_model.side_effect = ValueError("Unknown provider 'badprovider'")
+        """A recognized provider prefix with an unresolvable model still reaches ``infer_model``.
 
-        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="badprovider:model")
+        ``model_id`` uses a real provider name (``openai``) so qualification passes it through
+        verbatim; the failure being tested here is pydantic-ai's own, not this hook's.
+        """
+        mock_infer_model.side_effect = ValueError("Unknown model 'nonexistent-model'")
+
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:nonexistent-model")
         conn = Connection(
             conn_id="test_conn",
             conn_type="pydanticai",
@@ -496,7 +1385,7 @@ class TestPydanticAIHookTestConnection:
             success, message = hook.test_connection()
 
         assert success is False
-        assert "Unknown provider" in message
+        assert "Unknown model" in message
 
     def test_failed_connection_no_model(self):
         hook = PydanticAIHook(llm_conn_id="test_conn")

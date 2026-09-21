@@ -63,11 +63,19 @@ Configuring the Connection
 All fields below are ``extra`` (JSON) fields.
 
 Model
-    Google model identifier (e.g. ``google-cloud:gemini-2.0-flash``). The
-    ``google-cloud:`` prefix is required — it is what makes pydantic-ai
-    instantiate the ``GoogleCloudProvider``, which is what accepts this
-    hook's ``project`` / ``location`` / ``service_account_info`` fields (see
-    "Credentials" below).
+    Google model identifier (e.g. ``google-cloud:gemini-2.0-flash``, or the
+    bare ``gemini-2.0-flash``). A bare name is automatically resolved to
+    ``google-cloud:<name>``, instantiating the ``GoogleCloudProvider`` that
+    accepts this hook's ``project`` / ``location`` / ``service_account_info``
+    fields (see "Credentials" below) -- Vertex AI is this connection type's
+    default platform for a bare name, and that default holds regardless of
+    which credential fields are set on the connection: it is **not** inferred
+    from whether ``api_key`` is present, because ``api_key`` here can equally
+    mean Vertex AI Express Mode credentials (see "Credentials" below), so its
+    presence alone cannot tell the two platforms apart. To reach the
+    Generative Language API instead, prefix the model explicitly with
+    ``google:`` -- that spelling routes to a different provider regardless of
+    which fields this connection sets.
 
 GCP Project
     Google Cloud project ID. Falls back to the ``GOOGLE_CLOUD_PROJECT``
@@ -107,6 +115,12 @@ Service Account Info
 
 Custom Endpoint URL
     Override the Google API base URL (optional).
+
+Fallback Connections
+    Other connection IDs to fail over to, in order, while this provider is
+    unavailable. Stored in ``extra["fallback_conn_ids"]``. Entries may name any
+    ``pydanticai`` connection type, so one chain can span vendors. See
+    :doc:`/provider_fallback`.
 
 Credentials
 -----------

@@ -54,6 +54,7 @@ import {
   type RuntimeTaskState,
   type StartupDetails,
 } from "./protocol.js";
+import { getArgNames } from "../sdk/arg-names.js";
 import { listBundleTasks, type Bundle } from "../sdk/bundle.js";
 import { runInTaskScope, type TaskContext } from "../sdk/task.js";
 import type { JsonValue } from "../sdk/client-types.js";
@@ -315,6 +316,7 @@ async function handleTask(
       client,
       signal: ctx.signal,
       logs,
+      argNames: getArgNames(handler),
     });
   } catch (err) {
     // Before the handler ran, so nothing it might have written is at stake.
