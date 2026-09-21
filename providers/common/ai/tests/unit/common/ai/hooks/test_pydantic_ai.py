@@ -1343,7 +1343,7 @@ class TestPydanticAIHookGetEmbedder:
         with patch.object(hook, "get_connection", return_value=conn):
             hook.get_embedder()
 
-        assert mock_infer_provider_class.call_args_list == [call(provider_name), call(provider_name)]
+        mock_infer_provider_class.assert_called_once_with(provider_name)
         mock_infer_provider_class.return_value.assert_called_once_with(**expected_provider_kwargs)
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True)
@@ -1418,11 +1418,8 @@ class TestPydanticAIHookGetEmbedder:
 
         mock_infer_embedding_model.assert_called_once_with("text-embedding-3-small")
 
-    @pytest.mark.parametrize("llm_model_name", ["gpt-4o", "test"])
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
-    def test_prefixless_llm_model_skips_embedding_provider_validation(
-        self, mock_infer_embedding_model, llm_model_name
-    ):
+    def test_test_llm_model_skips_embedding_provider_validation(self, mock_infer_embedding_model):
         embedding_model = MagicMock(spec=EmbeddingModel)
         mock_infer_embedding_model.return_value = embedding_model
         hook = PydanticAIHook(embed_model_id="openai:text-embedding-3-small")
@@ -1430,7 +1427,7 @@ class TestPydanticAIHookGetEmbedder:
             conn_id="pydanticai_default",
             conn_type="pydanticai",
             password="openai-key",
-            extra=json.dumps({"model": llm_model_name}),
+            extra='{"model": "test"}',
         )
 
         with patch.object(hook, "get_connection", return_value=conn):
@@ -1439,6 +1436,24 @@ class TestPydanticAIHookGetEmbedder:
         assert result.model is embedding_model
         assert mock_infer_embedding_model.call_args.args == ("openai:text-embedding-3-small",)
         assert "provider_factory" in mock_infer_embedding_model.call_args.kwargs
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
+    def test_prefixless_llm_model_on_generic_connection_is_rejected(self, mock_infer_embedding_model):
+        hook = PydanticAIHook(embed_model_id="cohere:embed-v4.0")
+        conn = Connection(
+            conn_id="pydanticai_default",
+            conn_type="pydanticai",
+            password="sk-OPENAI-KEY",
+            extra='{"model": "gpt-4o"}',
+        )
+
+        with (
+            patch.object(hook, "get_connection", return_value=conn),
+            pytest.raises(ValueError, match="has no default model provider"),
+        ):
+            hook.get_embedder()
+
+        mock_infer_embedding_model.assert_not_called()
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
     def test_model_with_native_colon_share_embedding_connection(self, mock_infer_embedding_model):
