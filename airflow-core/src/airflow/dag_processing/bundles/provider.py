@@ -52,7 +52,7 @@ class DagBundleProvider(ABC):
 
     @property
     def provides_complete_bundle_list(self) -> bool:
-        """Return whether each provider instance sees the complete active bundle list."""
+        """Return whether each provider instance sees the complete configured bundle list."""
         return True
 
     @abstractmethod
