@@ -201,6 +201,11 @@ class TaskMap(TaskInstanceDependencies):
                 unmapped_ti.state = TaskInstanceState.SKIPPED
             else:
                 dr = unmapped_ti.dag_run
+                # Read the carrier now, while `dr` is still bound to this
+                # session. Later session activity can expire/detach `dr`,
+                # making attribute access raise DetachedInstanceError
+                # (issue #73311).
+                context_carrier = dr.context_carrier if dr is not None else None
                 zero_index_ti_exists = exists_query(
                     TaskInstance.dag_id == task.dag_id,
                     TaskInstance.task_id == task.task_id,
@@ -255,6 +260,9 @@ class TaskMap(TaskInstanceDependencies):
                     DagRun.run_id == run_id,
                 )
             )
+            # Read the carrier now, while `dr` is still bound to this
+            # session; see the note above (issue #73311).
+            context_carrier = dr.context_carrier if dr is not None else None
 
         new_tis: list[TaskInstance] = []
         for index in indexes_to_map:
@@ -267,7 +275,7 @@ class TaskMap(TaskInstanceDependencies):
             )
             task.log.debug("Expanding TIs upserted %s", ti)
             _add_and_prime_mapped_ti(
-                ti, task, dr, session=session, context_carrier=new_task_run_carrier(dr.context_carrier)
+                ti, task, dr, session=session, context_carrier=new_task_run_carrier(context_carrier)
             )
             new_tis.append(ti)
         if new_tis:

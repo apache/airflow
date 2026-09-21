@@ -1,0 +1,1 @@
+Fix scheduler crash from ``DetachedInstanceError`` during mapped task expansion. The Dag run's trace carrier is now read while still bound to the session, and the scheduling error handler no longer touches possibly detached attributes when logging.
