@@ -306,7 +306,7 @@ prek hook regenerate it.
 | capability: `task-logging` | MUST | ✓ | 3.3 | slog records streamed over the logs socket |
 | capability: `xcom-read-write` | MUST | ✓ | 3.3 | PushXCom / GetXCom |
 | capability: `connection-read` | MUST | ✓ | 3.3 | GetConnection |
-| capability: `variable-read-write` | MUST | ✗ | – | GetVariable only; no write over the comm socket yet |
+| capability: `variable-read-write` | MUST | ✓ | 3.4 |  |
 | capability: `self-contained-bundle` | MUST | ✓ | 3.3 | AFBNDL01 native binary via airflow-go-pack |
 | capability: `retry-policy` | MAY | ✗ | – | no task-facing retry-policy API yet |
 | capability: `task-state-store` | MAY | ✗ | – | no task-facing state-store API yet |

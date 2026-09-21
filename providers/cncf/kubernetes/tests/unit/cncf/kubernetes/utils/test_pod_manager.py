@@ -32,6 +32,7 @@ from urllib3.exceptions import HTTPError as BaseHTTPError
 from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiError
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     AsyncPodManager,
+    PodCommandException,
     PodLogsConsumer,
     PodManager,
     PodPhase,
@@ -1223,6 +1224,46 @@ class TestPodManager:
         mock_kubernetes_stream.return_value = mock_client
         ret = self.pod_manager.extract_xcom(pod=mock_pod)
         assert ret == xcom_json
+        assert mock_exec_xcom_kill.call_count == 1
+
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.kubernetes_stream")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom_kill")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running",
+        return_value=True,
+    )
+    def test_extract_xcom_returns_result_when_sidecar_kill_fails(
+        self, mock_container_is_running, mock_exec_xcom_kill, mock_kubernetes_stream
+    ):
+        """A failure to kill the sidecar must not discard the XCom value already read."""
+        xcom_json = """{"a": "true"}"""
+        mock_client = MagicMock()
+        mock_client.peek_stderr.return_value = ""
+        mock_client.read_all.return_value = xcom_json
+        mock_kubernetes_stream.return_value = mock_client
+        mock_exec_xcom_kill.side_effect = PodCommandException("Command failed with stderr: Permission denied")
+        ret = self.pod_manager.extract_xcom(pod=MagicMock())
+        assert ret == xcom_json
+        assert mock_exec_xcom_kill.call_count == 1
+
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.kubernetes_stream")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom_kill")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running",
+        return_value=True,
+    )
+    def test_extract_xcom_reraises_kill_failure_when_not_ignored(
+        self, mock_container_is_running, mock_exec_xcom_kill, mock_kubernetes_stream
+    ):
+        """With ignore_kill_failure=False the kill failure still propagates to the caller."""
+        xcom_json = """{"a": "true"}"""
+        mock_client = MagicMock()
+        mock_client.peek_stderr.return_value = ""
+        mock_client.read_all.return_value = xcom_json
+        mock_kubernetes_stream.return_value = mock_client
+        mock_exec_xcom_kill.side_effect = PodCommandException("Command failed with stderr: Permission denied")
+        with pytest.raises(PodCommandException, match="Permission denied"):
+            self.pod_manager.extract_xcom(pod=MagicMock(), ignore_kill_failure=False)
         assert mock_exec_xcom_kill.call_count == 1
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.kubernetes_stream")

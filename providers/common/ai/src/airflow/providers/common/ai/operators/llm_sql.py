@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 try:
     from airflow.providers.common.ai.utils.sql_validation import (
@@ -108,6 +108,9 @@ class LLMSQLQueryOperator(LLMOperator):
         "schema_context",
     )
 
+    # Runs its own execute() without the confidence gate; a decision_policy is rejected at construction.
+    supports_decision_policy: ClassVar[bool] = False
+
     def __init__(
         self,
         *,
@@ -173,9 +176,15 @@ class LLMSQLQueryOperator(LLMOperator):
 
         return sql
 
-    def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> str:
+    def execute_complete(
+        self,
+        context: Context,
+        generated_output: str,
+        event: dict[str, Any],
+        decision: dict[str, Any] | None = None,
+    ) -> str:
         """Resume after human review, re-validating if the reviewer modified the SQL."""
-        output = super().execute_complete(context, generated_output, event)
+        output = super().execute_complete(context, generated_output, event, decision)
         if output != generated_output:
             _validate_sql(output, allowed_types=self.allowed_sql_types, dialect=self._resolved_dialect)
         return output

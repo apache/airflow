@@ -140,6 +140,8 @@ call.
 ``approval_notifiers``, ``approval_assigned_users``, and the rest of the approval
 behaviour are inherited from
 :ref:`LLMOperator <howto/operator:llm>`.
+``decision_policy`` is not supported here: the operator runs its own ``execute`` without the
+confidence gate and rejects a policy with a bar at construction.
 
 Conditional ETL Based on Schema Compatibility
 ----------------------------------------------

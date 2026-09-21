@@ -36,6 +36,16 @@ Changelog
   or inspect its ``.exceptions`` attribute for the original per-model errors. See
   :doc:`retry_policies`, "When the connection also carries a fallback chain".
 
+.. note::
+  ``SQLToolset`` now rejects ``allowed_tables=None`` and ``allowed_tables=[]`` with
+  ``ValueError``. Up to 0.9.0 both were accepted and exposed every table in the schema, so
+  a Dag that builds the list dynamically (a ``Variable.get`` with a ``None`` default, a
+  config file, a filtered comprehension) silently handed the agent the whole schema
+  whenever the lookup came back empty. Such a Dag now fails at import instead. Exposing
+  every table is still the default, but only by omitting the argument: no value you can
+  pass requests it, so a runtime lookup can never widen the allow-list by accident. Dags
+  that passed ``allowed_tables=None`` explicitly should drop the argument.
+
 0.9.0
 .....
 
