@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,22 +14,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-from airflow.providers.common.compat.sdk import AirflowException
-
-
-class OpenAIBatchJobException(AirflowException):
-    """Raise when OpenAI Batch Job fails to start AFTER processing the request."""
-
-
-class OpenAIBatchTimeout(AirflowException):
-    """Raise when OpenAI Batch Job times out."""
-
-
-class OpenAITriggerEventError(AirflowException):
-    """Raise when a deferred task resumes with a missing or malformed trigger event."""
-
-
-class OpenAIAgentSessionError(AirflowException):
-    """Raise when a Managed Agents session fails or cannot run."""
+#
+---
+name: "[v3-3-test] Scheduled CI upgrade check"
+on:  # yamllint disable-line rule:truthy
+  schedule:
+    # Tue, Thu at 06:00 UTC — the days main does not run, so the two never overlap.
+    - cron: '0 6 * * 2,4'
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  upgrade-v3-3-test:
+    name: "[v3-3-test] Upgrade"
+    uses: ./.github/workflows/upgrade-check.yml
+    with:
+      target-branch: v3-3-test
+    secrets:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
