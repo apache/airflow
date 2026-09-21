@@ -24,6 +24,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/apache/airflow/go-sdk/airflow"
 	"github.com/apache/airflow/go-sdk/pkg/binding"
 	"github.com/apache/airflow/go-sdk/pkg/logging"
 	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
@@ -52,15 +53,15 @@ func (s *TaskSuite) TestReturnValidation() {
 		errContains string
 	}{
 		"no-ret-values": {
-			func() {},
+			func(airflow.Context) {},
 			`func\d+ has 0 return values, must be`,
 		},
 		"too-many-ret-values": {
-			func() (a, b, c int) { return },
+			func(airflow.Context) (a, b, c int) { return },
 			`func\d+ has 3 return values, must be`,
 		},
 		"invalid-ret": {
-			func() (c chan int) { return },
+			func(airflow.Context) (c chan int) { return },
 			`func\d+ last return value to return error but found chan`,
 		},
 	}
@@ -75,134 +76,60 @@ func (s *TaskSuite) TestReturnValidation() {
 	}
 }
 
-func (s *TaskSuite) TestArgumentBinding() {
-	cases := map[string]struct {
-		fn any
-	}{
-		"no-args": {
-			func() error { return nil },
-		},
-		"context": {
-			func(ctx context.Context) error {
-				s.Equal("def", ctx.Value("abc"))
-				return nil
-			},
-		},
-		"context-and-logger": {
-			func(ctx context.Context, logger *slog.Logger) error {
-				s.Equal("def", ctx.Value("abc"))
-				s.NotNil(logger)
-				return nil
-			},
-		},
-		"client": {
-			func(client sdk.Client) error {
-				s.NotNil(client)
-				return nil
-			},
-		},
-		"var-client": {
-			func(client sdk.VariableClient) error {
-				s.NotNil(client)
-				return nil
-			},
-		},
-		"conn-client": {
-			func(client sdk.ConnectionClient) error {
-				s.NotNil(client)
+// probeKey is an unexported context key used to confirm the live task context
+// (not a freshly built one) backs the airflow.Context a task receives.
+type probeKeyType struct{}
 
-				return nil
-			},
-		},
-		"xcom-client": {
-			func(client sdk.XComClient) error {
-				s.NotNil(client)
+var probeKey probeKeyType
 
-				return nil
-			},
-		},
+func (s *TaskSuite) TestExecuteBindsAirflowContext() {
+	mapIndex := 3
+	ti := sdk.TaskInstance{
+		DagID:     "dag1",
+		RunID:     "run1",
+		TaskID:    "task1",
+		MapIndex:  &mapIndex,
+		TryNumber: 2,
 	}
+	dagRun := sdk.DagRun{DagID: "dag1", RunID: "run1"}
 
-	for name, tt := range cases {
-		s.Run(name, func() {
-			task, err := NewTaskFunction(tt.fn)
-			s.Require().NoError(err)
-
-			ctx := context.WithValue(withTaskClient(context.Background()), "abc", "def")
-			logger := slog.New(logging.NewTeeLogger())
-			task.Execute(ctx, logger, nil)
-		})
-	}
-}
-
-// TestClientSubsetInjection checks any subset of sdk.Client is injected, even
-// an unnamed one.
-func (s *TaskSuite) TestClientSubsetInjection() {
-	task, err := NewTaskFunction(func(client interface {
-		GetVariable(ctx context.Context, key string) (string, error)
-	},
-	) error {
-		s.NotNil(client)
+	var got airflow.Context
+	task, err := NewTaskFunction(func(actx airflow.Context) error {
+		got = actx
 		return nil
 	})
 	s.Require().NoError(err)
-	s.Require().
-		NoError(task.Execute(withTaskClient(context.Background()), slog.New(logging.NewTeeLogger()), nil))
-}
 
-func (s *TaskSuite) TestNonInjectableParamsAreRejected() {
-	cases := map[string]struct {
-		fn          any
-		errContains string
-	}{
-		"non-client-method": {
-			func(x interface{ NotAClientMethod() }) error { return nil },
-			"sdk.Client has no method NotAClientMethod",
-		},
-		"wrong-signature": {
-			func(x interface {
-				GetVariable(key string) (string, error)
-			},
-			) error {
-				return nil
-			},
-			"method GetVariable is func(context.Context, string) (string, error) on sdk.Client",
-		},
-		"func-param": {
-			func(cb func()) error { return nil },
-			"cannot receive a task argument",
-		},
-		"context-with-extra-methods": {
-			func(x interface {
-				context.Context
-				TaskInstance() sdk.TaskInstance
-			},
-			) error {
-				return nil
-			},
-			"adds methods on top of context.Context",
-		},
-	}
+	ctx := context.WithValue(
+		withTaskClient(context.Background()),
+		sdkcontext.RuntimeContextKey,
+		sdk.NewTIRunContext(context.Background(), ti, dagRun),
+	)
+	ctx = context.WithValue(ctx, probeKey, "probe-value")
+	logger := slog.New(logging.NewTeeLogger())
+	s.Require().NoError(task.Execute(ctx, logger, nil))
 
-	for name, tt := range cases {
-		s.Run(name, func() {
-			_, err := NewTaskFunction(tt.fn)
-			if s.Assert().Error(err) {
-				s.Assert().Contains(err.Error(), "parameter 0")
-				s.Assert().Contains(err.Error(), tt.errContains)
-			}
-		})
-	}
+	s.Same(logger, got.Logger())
+	s.Equal(ctx.Value(sdkcontext.SdkClientContextKey), got.Client())
+	s.Equal(ti, got.TaskInstance())
+	s.Equal(dagRun, got.DagRun())
+	s.Equal(
+		"probe-value",
+		got.Value(probeKey),
+		"the Context must be backed by the one passed to Execute",
+	)
 }
 
 func (s *TaskSuite) TestExecuteBindsDataParameters() {
 	var gotCountry string
 	var gotMeta map[string]any
-	task, err := NewTaskFunction(func(log *slog.Logger, country string, meta map[string]any) error {
-		gotCountry = country
-		gotMeta = meta
-		return nil
-	})
+	task, err := NewTaskFunction(
+		func(actx airflow.Context, country string, meta map[string]any) error {
+			gotCountry = country
+			gotMeta = meta
+			return nil
+		},
+	)
 	s.Require().NoError(err)
 
 	err = task.Execute(
@@ -219,7 +146,7 @@ func (s *TaskSuite) TestExecuteBindsDataParameters() {
 }
 
 func (s *TaskSuite) TestExecuteWithoutSpecFailsForDataParameters() {
-	task, err := NewTaskFunction(func(country string) error { return nil })
+	task, err := NewTaskFunction(func(actx airflow.Context, country string) error { return nil })
 	s.Require().NoError(err)
 
 	err = task.Execute(
@@ -231,7 +158,7 @@ func (s *TaskSuite) TestExecuteWithoutSpecFailsForDataParameters() {
 }
 
 func (s *TaskSuite) TestExecuteArityMismatch() {
-	task, err := NewTaskFunction(func(country string) error { return nil })
+	task, err := NewTaskFunction(func(actx airflow.Context, country string) error { return nil })
 	s.Require().NoError(err)
 
 	err = task.Execute(
@@ -248,55 +175,8 @@ func (s *TaskSuite) TestExecuteArityMismatch() {
 	}
 }
 
-// probeKey is an unexported context key used to confirm the live task context
-// (not a freshly built one) backs the injected sdk.TIRunContext.
-type probeKeyType struct{}
-
-var probeKey probeKeyType
-
-// TestTIRunContextInjection verifies a task declaring sdk.TIRunContext receives
-// the TaskInstance/DagRun stored on the context, backed by the live task
-// context so it is usable as a context.Context. It must take precedence over
-// the plain context.Context binding, which sdk.TIRunContext also satisfies.
-func (s *TaskSuite) TestTIRunContextInjection() {
-	mapIndex := 3
-	ti := sdk.TaskInstance{
-		DagID:     "dag1",
-		RunID:     "run1",
-		TaskID:    "task1",
-		MapIndex:  &mapIndex,
-		TryNumber: 2,
-	}
-	dagRun := sdk.DagRun{DagID: "dag1", RunID: "run1"}
-	stored := sdk.NewTIRunContext(context.Background(), ti, dagRun)
-
-	var got sdk.TIRunContext
-	task, err := NewTaskFunction(func(ctx sdk.TIRunContext) error {
-		got = ctx
-		return nil
-	})
-	s.Require().NoError(err)
-
-	ctx := context.WithValue(
-		withTaskClient(context.Background()),
-		sdkcontext.RuntimeContextKey,
-		stored,
-	)
-	ctx = context.WithValue(ctx, probeKey, "probe-value")
-	s.Require().NoError(task.Execute(ctx, slog.New(logging.NewTeeLogger()), nil))
-
-	s.Require().NotNil(got, "the task must receive a non-nil TIRunContext")
-	s.Equal(ti, got.TaskInstance())
-	s.Equal(dagRun, got.DagRun())
-	s.Equal(
-		"probe-value",
-		got.Value(probeKey),
-		"the injected context must be backed by the one passed to Execute",
-	)
-}
-
 func (s *TaskSuite) TestExecuteRequiresCoordinatorClient() {
-	task, err := NewTaskFunction(func() error { return nil })
+	task, err := NewTaskFunction(func(airflow.Context) error { return nil })
 	s.Require().NoError(err)
 
 	err = task.Execute(context.Background(), slog.New(logging.NewTeeLogger()), nil)

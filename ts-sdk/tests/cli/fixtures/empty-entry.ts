@@ -17,6 +17,6 @@
  * under the License.
  */
 
-import { DagRegistry, serveDags } from "../../../src/index.js";
+import { Bundle } from "../../../src/index.js";
 
-await serveDags(new DagRegistry());
+await new Bundle().serve();

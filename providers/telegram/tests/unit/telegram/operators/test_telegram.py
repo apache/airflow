@@ -146,7 +146,7 @@ class TestTelegramOperator:
             text="some non empty text - higher precedence",
             telegram_kwargs={"custom_arg": "value", "text": "some text, that will be ignored"},
         )
-        assert hook.template_fields == ("text", "chat_id")
+        assert hook.template_fields == ("text", "chat_id", "telegram_conn_id")
 
     @mock.patch("airflow.providers.telegram.operators.telegram.TelegramHook")
     def test_should_return_templatized_text_field(self, mock_hook):
@@ -175,10 +175,21 @@ class TestTelegramOperator:
         operator.render_template_fields({"chat_id": "1234567"})
         assert operator.chat_id == "1234567"
 
+    def test_telegram_conn_id_is_templated(self):
+        operator = TelegramOperator(
+            telegram_conn_id="{{ conn_id }}",
+            chat_id="-420913222",
+            task_id="telegram",
+            text="text",
+        )
+        assert "telegram_conn_id" in operator.template_fields
+        operator.render_template_fields({"conn_id": "telegram_staging"})
+        assert operator.telegram_conn_id == "telegram_staging"
+
 
 class TestTelegramFileOperator:
     def test_should_return_template_fields(self):
-        assert TelegramFileOperator.template_fields == ("chat_id",)
+        assert TelegramFileOperator.template_fields == ("chat_id", "telegram_conn_id")
 
     def test_should_return_templatized_chat_id_field(self):
         operator = TelegramFileOperator(
@@ -189,3 +200,14 @@ class TestTelegramFileOperator:
         )
         operator.render_template_fields({"chat_id": "1234567"})
         assert operator.chat_id == "1234567"
+
+    def test_telegram_conn_id_is_templated(self):
+        operator = TelegramFileOperator(
+            telegram_conn_id="{{ conn_id }}",
+            chat_id="-420913222",
+            task_id="telegram",
+            file="/tmp/file.txt",
+        )
+        assert "telegram_conn_id" in operator.template_fields
+        operator.render_template_fields({"conn_id": "telegram_staging"})
+        assert operator.telegram_conn_id == "telegram_staging"

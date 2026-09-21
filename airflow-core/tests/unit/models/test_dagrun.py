@@ -40,7 +40,7 @@ from sqlalchemy import (
     select,
     update,
 )
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.orm.exc import StaleDataError
 
 from airflow import settings
@@ -84,7 +84,7 @@ from airflow.task.trigger_rule import TriggerRule
 from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.session import create_session
 from airflow.utils.sqlalchemy import prohibit_commit
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, DagSchedulingState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
@@ -97,8 +97,6 @@ from tests_common.test_utils.taskinstance import create_task_instance, run_task_
 from unit.models import DEFAULT_DATE as _DEFAULT_DATE
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm.session import Session
-
     from airflow.serialization.definitions.dag import SerializedDAG
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
@@ -465,7 +463,7 @@ class TestDagRun:
         with mock.patch.object(dag_run, "execute_dag_callbacks") as execute_dag_callbacks:
             _, callback = dag_run.update_state()
         assert execute_dag_callbacks.mock_calls == [
-            mock.call(dag=dag, success=True, relevant_ti=ANY, reason="success")
+            mock.call(dag=dag, success=True, relevant_ti=ANY, reason="success", session=ANY)
         ]
         # Make sure the correct TI is passed on success
         call_args = execute_dag_callbacks.call_args
@@ -499,7 +497,7 @@ class TestDagRun:
         with mock.patch.object(dag_run, "execute_dag_callbacks") as execute_dag_callbacks:
             _, callback = dag_run.update_state()
         assert execute_dag_callbacks.mock_calls == [
-            mock.call(dag=dag, success=False, relevant_ti=ANY, reason="task_failure")
+            mock.call(dag=dag, success=False, relevant_ti=ANY, reason="task_failure", session=ANY)
         ]
         # Make sure the correct TI is passed on failure
         call_args = execute_dag_callbacks.call_args
@@ -541,7 +539,13 @@ class TestDagRun:
         with mock.patch.object(dr, "execute_dag_callbacks") as execute_dag_callbacks:
             _, callback = dr.update_state(execute_callbacks=True)
         assert execute_dag_callbacks.mock_calls == [
-            mock.call(dag=serialized_dag, success=False, relevant_ti=ti_middle, reason="all_tasks_deadlocked")
+            mock.call(
+                dag=serialized_dag,
+                success=False,
+                relevant_ti=ti_middle,
+                reason="all_tasks_deadlocked",
+                session=ANY,
+            )
         ]
         # Make sure the correct TI is passed on deadlock
         call_args = execute_dag_callbacks.call_args
@@ -1101,6 +1105,12 @@ class TestDagRun:
         runs = fetch().all()
         assert runs == []
 
+        orm_dag.set_scheduling_state(DagSchedulingState.DRAINING)
+        session.commit()
+
+        runs = fetch().all()
+        assert runs == [dr]
+
     @mock.patch("airflow._shared.observability.metrics.stats.timing")
     def test_no_scheduling_delay_for_nonscheduled_runs(self, stats_mock, session, testing_dag_bundle):
         """
@@ -1122,20 +1132,27 @@ class TestDagRun:
         initial_task_states = {dag_task.task_id: TaskInstanceState.SUCCESS}
         dag_run = self.create_dag_run(scheduler_dag, task_states=initial_task_states, session=session)
         dag_run.update_state(session=session)
-        assert call(f"dagrun.{dag.dag_id}.first_task_scheduling_delay") not in stats_mock.mock_calls
+        assert (
+            call("dagrun.first_task_scheduling_delay", mock.ANY, tags=mock.ANY) not in stats_mock.mock_calls
+        )
 
     @pytest.mark.parametrize(
-        ("schedule", "expected"),
+        ("schedule", "export_legacy_names", "expected"),
         [
-            ("*/5 * * * *", True),
-            (None, False),
-            ("@once", False),
+            ("*/5 * * * *", True, True),
+            ("*/5 * * * *", False, True),
+            (None, True, False),
+            ("@once", True, False),
         ],
     )
-    def test_emit_scheduling_delay(self, session, schedule, expected, testing_dag_bundle):
+    def test_emit_scheduling_delay(
+        self, session, schedule, export_legacy_names, expected, testing_dag_bundle
+    ):
         """
         Tests that dag scheduling delay stat is set properly once running scheduled dag.
         dag_run.update_state() invokes the _emit_true_scheduling_delay_stats_for_finished_state method.
+        The legacy ``dagrun.<dag_id>.first_task_scheduling_delay`` name must only come from the metrics
+        registry, so the backend receives it exactly once and only when legacy names are exported.
         """
         dag = DAG(dag_id="test_emit_dag_stats", start_date=DEFAULT_DATE, schedule=schedule)
         dag_task = EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
@@ -1179,26 +1196,30 @@ class TestDagRun:
             ti.set_state(TaskInstanceState.SUCCESS, session=session)
             session.flush()
 
-            with mock.patch("airflow._shared.observability.metrics.stats.timing") as stats_mock:
+            backend = mock.MagicMock(spec=StatsLogger)
+            with (
+                mock.patch("airflow._shared.observability.metrics.stats._get_backend", return_value=backend),
+                mock.patch(
+                    "airflow._shared.observability.metrics.stats._export_legacy_names", export_legacy_names
+                ),
+            ):
                 dag_run.update_state(session=session)
 
-            metric_name = f"dagrun.{dag.dag_id}.first_task_scheduling_delay"
-
+            scheduling_delay_calls = [
+                c for c in backend.timing.call_args_list if "first_task_scheduling_delay" in c.args[0]
+            ]
             if expected:
                 true_delay = ti.start_date - dag_run.run_after
-                sched_delay_stat_call = call(metric_name, true_delay, tags=expected_stat_tags)
-                sched_delay_stat_call_with_tags = call(
-                    "dagrun.first_task_scheduling_delay", true_delay, tags=expected_stat_tags
+                legacy_call = call(
+                    f"dagrun.{dag.dag_id}.first_task_scheduling_delay",
+                    true_delay,
+                    tags={"run_type": DagRunType.SCHEDULED},
                 )
-                assert sched_delay_stat_call in stats_mock.mock_calls
-                assert sched_delay_stat_call_with_tags in stats_mock.mock_calls
+                modern_call = call("dagrun.first_task_scheduling_delay", true_delay, tags=expected_stat_tags)
+                expected_calls = [legacy_call, modern_call] if export_legacy_names else [modern_call]
+                assert scheduling_delay_calls == expected_calls
             else:
-                # Assert that we never passed the metric
-                sched_delay_stat_call = call(
-                    metric_name,
-                    mock.ANY,
-                )
-                assert sched_delay_stat_call not in stats_mock.mock_calls
+                assert scheduling_delay_calls == []
         finally:
             # Don't write anything to the DB
             session.rollback()
@@ -1419,7 +1440,7 @@ class TestDagRun:
         with mock.patch.object(dag_run, "execute_dag_callbacks") as execute_dag_callbacks:
             _, callback = dag_run.update_state()
         assert execute_dag_callbacks.mock_calls == [
-            mock.call(dag=scheduler_dag, success=True, relevant_ti=ANY, reason="success")
+            mock.call(dag=scheduler_dag, success=True, relevant_ti=ANY, reason="success", session=ANY)
         ]
         # Make sure the correct TI is passed on success
         call_args = execute_dag_callbacks.call_args
@@ -1546,16 +1567,71 @@ class TestDagRun:
         deadline = session.execute(select(Deadline)).scalars().one_or_none()
         assert deadline.deadline_time == first_deadline_time
 
+    def test_dagrun_deadline_logs_when_reference_column_is_null(self, session, deadline_test_dag, caplog):
+        scheduler_dag = deadline_test_dag(
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+                interval=datetime.timedelta(minutes=5),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+
+        with caplog.at_level("WARNING"):
+            scheduler_dag.create_dagrun(
+                run_id="manual__null_logical_date",
+                run_type=DagRunType.MANUAL,
+                logical_date=None,
+                data_interval=None,
+                run_after=timezone.utcnow(),
+                start_date=timezone.utcnow(),
+                state=DagRunState.QUEUED,
+                triggered_by=DagRunTriggeredByType.TEST,
+                session=session,
+            )
+
+        assert session.execute(select(Deadline)).scalars().one_or_none() is None
+        assert {
+            "event": "skipping deadline alert because the deadline reference evaluated to None",
+            "dag_id": "test_dag",
+            "run_id": "manual__null_logical_date",
+            "reference_type": "DagRunLogicalDateDeadline",
+            "required_dagrun_column": "logical_date",
+            "log_level": "warning",
+        } in caplog
+        assert not any("Could not find DagRun" in record.message for record in caplog.records)
+
+    def test_dagrun_deadline_does_not_warn_for_average_runtime_without_history(
+        self, session, deadline_test_dag, caplog
+    ):
+        scheduler_dag = deadline_test_dag(
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.AVERAGE_RUNTIME(max_runs=10, min_runs=5),
+                interval=datetime.timedelta(minutes=5),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+
+        with caplog.at_level("WARNING", logger="airflow.serialization.definitions.dag"):
+            self.create_dag_run(
+                dag=scheduler_dag,
+                logical_date=DEFAULT_DATE,
+                session=session,
+            )
+
+        assert session.execute(select(Deadline)).scalars().one_or_none() is None
+        assert {
+            "event": "skipping deadline alert because the deadline reference evaluated to None",
+            "reference_type": "AverageRuntimeDeadline",
+            "log_level": "warning",
+        } not in caplog
+
     @mock.patch.object(Deadline, "prune_deadlines")
     def test_dagrun_deadline_variable_interval_missing_variable_fails(self, _, session, deadline_test_dag):
-        mock_err = mock.Mock()
-        mock_err.error.value = "MISSING_DEADLINE"
-        mock_err.detail = "missing deadline"
 
         with mock.patch.object(
             Variable,
             "get",
-            side_effect=KeyError(mock_err),
+            side_effect=KeyError,
         ):
             future_date = datetime.datetime.now() + datetime.timedelta(days=365)
 
@@ -3980,7 +4056,11 @@ class TestDagRunHandleDagCallback:
         dag.has_on_success_callback = True
 
         dr.execute_dag_callbacks(
-            dag, success=True, relevant_ti=dr.get_task_instance("test_task"), reason="test_success"
+            dag,
+            success=True,
+            relevant_ti=dr.get_task_instance("test_task", session=session),
+            reason="test_success",
+            session=session,
         )
 
         assert called is True
@@ -4012,7 +4092,11 @@ class TestDagRunHandleDagCallback:
         dag.has_on_failure_callback = True
 
         dr.execute_dag_callbacks(
-            dag, success=False, relevant_ti=dr.get_task_instance("test_task"), reason="test_failure"
+            dag,
+            success=False,
+            relevant_ti=dr.get_task_instance("test_task", session=session),
+            reason="test_failure",
+            session=session,
         )
 
         assert called is True
@@ -4048,8 +4132,9 @@ class TestDagRunHandleDagCallback:
         dr.execute_dag_callbacks(
             dag,
             success=False,
-            relevant_ti=dr.get_task_instance("test_task"),
+            relevant_ti=dr.get_task_instance("test_task", session=session),
             reason="test_failure",
+            session=session,
         )
 
         assert call_count == 2
@@ -4073,8 +4158,9 @@ class TestDagRunHandleDagCallback:
         dr.execute_dag_callbacks(
             dag,
             success=False,
-            relevant_ti=dr.get_task_instance("test_task"),
+            relevant_ti=dr.get_task_instance("test_task", session=session),
             reason="test_failure",
+            session=session,
         )
 
         assert context_received is not None
@@ -4083,27 +4169,65 @@ class TestDagRunHandleDagCallback:
         assert context_received["ti"].dag_id == "test_dag"
         assert context_received["ti"].run_id == dr.run_id
 
-    def test_produce_dag_callback_drops_last_ti_without_dag_version(self, dag_maker, session):
-        """A historical TI with dag_version_id=None must not crash callback construction."""
+    @pytest.mark.parametrize("run_keeps_version", [True, False])
+    def test_produce_dag_callback_stands_in_version_for_versionless_last_ti(
+        self, dag_maker, session, run_keeps_version
+    ):
+        """A historical TI with dag_version_id=None still reaches the callback, under a stand-in version."""
         with dag_maker("test_dag", session=session) as dag:
             BashOperator(task_id="test_task", bash_command="echo 1")
 
         dr = dag_maker.create_dagrun()
         dr.dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
-        ti = dr.get_task_instance("test_task")
-        # Simulate a task instance created before the dag_version table existed.
+        run_version_id = dr.created_dag_version_id
+        ti = dr.get_task_instance("test_task", session=session)
         ti.dag_version_id = None
+        if not run_keeps_version:
+            dr.created_dag_version_id = None
+        # Newer than the run's, so the two fallback sources are distinguishable.
+        latest_version = DagVersion.write_dag(
+            dag_id=dr.dag_id, bundle_name="dag_maker", version_number=2, session=session
+        )
         session.flush()
+        assert latest_version.id != run_version_id
 
-        callback = dr.produce_dag_callback(dag=dag, success=False, relevant_ti=ti, reason="task_failure")
+        expected_version_id = run_version_id if run_keeps_version else latest_version.id
+
+        callback = dr.produce_dag_callback(
+            dag=dag, success=False, relevant_ti=ti, reason="task_failure", session=session
+        )
 
         assert callback is not None
-        # last_ti is dropped so the non-null UUID datamodel validation never fires.
+        assert callback.context_from_server is not None
+        last_ti = callback.context_from_server.last_ti
+        assert last_ti is not None
+        assert last_ti.task_id == "test_task"
+        assert last_ti.dag_version_id == expected_version_id
+
+    def test_produce_dag_callback_drops_last_ti_when_dag_has_no_version(self, dag_maker, session):
+        """With no version anywhere to stand in, the callback still fires without last_ti."""
+        with dag_maker("test_dag", session=session) as dag:
+            BashOperator(task_id="test_task", bash_command="echo 1")
+
+        dr = dag_maker.create_dagrun()
+        dr.dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
+        ti = dr.get_task_instance("test_task", session=session)
+        ti.dag_version_id = None
+        dr.created_dag_version_id = None
+        session.flush()
+
+        # Patched here, not as a decorator: dag_maker's setup needs the real lookup.
+        with mock.patch.object(DagVersion, "get_latest_version", autospec=True, return_value=None):
+            callback = dr.produce_dag_callback(
+                dag=dag, success=False, relevant_ti=ti, reason="task_failure", session=session
+            )
+
+        assert callback is not None
         assert callback.context_from_server is not None
         assert callback.context_from_server.last_ti is None
 
     def test_execute_dag_callbacks_without_dag_version(self, dag_maker, session):
-        """The execute=True path must also tolerate a TI with dag_version_id=None."""
+        """The execute=True path must also carry a TI with dag_version_id=None into the context."""
         context_received = None
 
         def on_failure(context):
@@ -4115,20 +4239,68 @@ class TestDagRunHandleDagCallback:
 
         dr = dag_maker.create_dagrun()
         dr.dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
-        ti = dr.get_task_instance("test_task")
+        # dag_maker writes exactly one version, so the run's is also the latest one.
+        expected_version_id = dr.created_dag_version_id
+        ti = dr.get_task_instance("test_task", session=session)
         ti.dag_version_id = None
+        dr.created_dag_version_id = None
         session.flush()
 
         dag.on_failure_callback = on_failure
         dag.has_on_failure_callback = True
 
-        dr.produce_dag_callback(dag=dag, success=False, relevant_ti=ti, reason="task_failure", execute=True)
+        dr.produce_dag_callback(
+            dag=dag,
+            success=False,
+            relevant_ti=ti,
+            reason="task_failure",
+            execute=True,
+            session=session,
+        )
 
-        # Callback still fires with the minimal fallback context (no last_ti template vars).
         assert context_received is not None
         assert context_received["reason"] == "task_failure"
-        assert "ti" not in context_received
-        assert context_received["run_id"] == dr.run_id
+        assert context_received["ti"].task_id == "test_task"
+        assert context_received["ti"].run_id == dr.run_id
+        assert context_received["ti"].dag_version_id == expected_version_id
+
+    @pytest.mark.parametrize("strip_dag_version", [False, True])
+    def test_produce_dag_callback_preserves_callers_transaction(self, dag_maker, session, strip_dag_version):
+        """Executing callbacks must not commit or close the session the caller handed in."""
+
+        def on_failure(context):
+            pass
+
+        with dag_maker("test_dag", session=session, on_failure_callback=on_failure) as dag:
+            BashOperator(task_id="test_task", bash_command="echo 1")
+
+        dr = dag_maker.create_dagrun()
+        dr.dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
+        # get_task_instance would otherwise default the session and close this one.
+        ti = dr.get_task_instance("test_task", session=session)
+        if strip_dag_version:
+            ti.dag_version_id = None
+            dr.created_dag_version_id = None
+        session.flush()
+
+        dag.on_failure_callback = on_failure
+        dag.has_on_failure_callback = True
+
+        with (
+            mock.patch.object(Session, "commit", autospec=True) as mock_commit,
+            mock.patch.object(Session, "close", autospec=True) as mock_close,
+        ):
+            dr.produce_dag_callback(
+                dag=dag,
+                success=False,
+                relevant_ti=ti,
+                reason="task_failure",
+                execute=True,
+                session=session,
+            )
+
+        assert mock_commit.mock_calls == []
+        assert mock_close.mock_calls == []
 
     @pytest.mark.parametrize(
         ("multi_team", "team_name", "expected_tags"),
@@ -4157,7 +4329,7 @@ class TestDagRunHandleDagCallback:
             conf_vars({("core", "multi_team"): multi_team}),
             mock.patch("airflow.models.dag.DagModel.get_team_name", return_value=team_name),
         ):
-            dr.execute_dag_callbacks(dag, success=False)
+            dr.execute_dag_callbacks(dag, success=False, session=session)
 
         mock_incr.assert_any_call("dag.callback_exceptions", tags=expected_tags)
 
@@ -4673,6 +4845,69 @@ def test_get_running_dag_runs_to_examine_eager_loads_dag_tags(dag_maker, session
     assert "dag_model" not in sa_inspect(dr).unloaded
     assert "tags" not in sa_inspect(dr.dag_model).unloaded
     assert dr.stats_tags == {"dag_id": "eager_tag_dag", "run_type": dr.run_type, "env": "prod"}
+
+
+def test_get_running_dag_runs_to_examine_does_not_starve_backfill_runs(dag_maker, session, monkeypatch):
+    """A running backfill DagRun with no scheduling decision yet must not be starved out of the
+    per-loop examine batch by ordinary running DagRuns, regardless of how far back in its backfill's
+    own ordering it sits.
+
+    Regression test for the scheduler ordering backfill DagRuns strictly behind every non-backfill
+    DagRun (via `BackfillDagRun.sort_ordinal` nulls-first), which meant a backfill run could sit
+    RUNNING indefinitely without ever having its task instances scheduled once the number of
+    concurrently running non-backfill DagRuns met or exceeded `max_dagruns_per_loop_to_schedule`.
+    """
+    from airflow.models.backfill import Backfill, BackfillDagRun, ReprocessBehavior
+
+    # Cap the per-loop examine batch well below the number of ordinary running DagRuns below, so the
+    # old behavior (backfill always sorts last) would exclude the backfill DagRun from every batch.
+    examine_limit = 5
+    monkeypatch.setattr(DagRun, "DEFAULT_DAGRUNS_TO_EXAMINE", examine_limit)
+
+    # Plenty of ordinary running DagRuns, each with a real last_scheduling_decision so none of them
+    # compete on the nulls-first tier with the backfill run below.
+    for i in range(examine_limit * 2):
+        with dag_maker(f"busy_dag_{i}", schedule="@daily", session=session):
+            pass
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        dr.last_scheduling_decision = pendulum.now("UTC")
+    session.commit()
+
+    # One backfill DagRun, freshly promoted to RUNNING: no scheduling decision has happened yet, and
+    # its BackfillDagRun.sort_ordinal is deliberately large (deep in its own backfill's own ordering).
+    with dag_maker("starved_backfill_dag", schedule="@daily", session=session) as dag:
+        pass
+    backfill = Backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2021-01-01"),
+        to_date=pendulum.parse("2021-01-10"),
+        max_active_runs=10,
+        dag_run_conf={},
+        reprocess_behavior=ReprocessBehavior.NONE,
+    )
+    session.add(backfill)
+    session.flush()
+    backfill_dr = dag_maker.create_dagrun(
+        run_id="backfill__2021-01-10T00:00:00+00:00",
+        run_type=DagRunType.BACKFILL_JOB,
+        state=DagRunState.RUNNING,
+        backfill_id=backfill.id,
+    )
+    backfill_dr.last_scheduling_decision = None
+    session.add(
+        BackfillDagRun(
+            backfill_id=backfill.id,
+            dag_run_id=backfill_dr.id,
+            logical_date=backfill_dr.logical_date,
+            sort_ordinal=999,
+        )
+    )
+    session.commit()
+
+    examined_dag_ids = {
+        r.dag_id for r in DagRun.get_running_dag_runs_to_examine(session=session, eagerly_load_dag_tags=False)
+    }
+    assert "starved_backfill_dag" in examined_dag_ids
 
 
 class TestClearPartitionRuns:
