@@ -48,7 +48,7 @@ When to use this provider
 (OpenAI, Anthropic, Google, Bedrock, …) is picked by the connection ``llm_conn_id`` points
 at — switching providers later is a connection change, not a Dag rewrite. Most connections
 use the generic ``pydanticai`` type, but Azure OpenAI, Bedrock, and Vertex AI also have their
-own connection types (``pydanticai-azure``, ``pydanticai-bedrock``, ``pydanticai-vertex``) for
+own connection types (``pydanticai_azure``, ``pydanticai_bedrock``, ``pydanticai_vertex``) for
 provider-specific authentication. Existing LangChain
 tools aren't locked out either: pydantic-ai ships ``pydantic_ai.ext.langchain.LangChainToolset``
 upstream, which wraps LangChain tools for a common.ai agent, and the provider's own
@@ -117,10 +117,12 @@ Choosing extras
 
 The provider's extras split into a few groups:
 
-* **Model providers** — ``openai``, ``anthropic``, ``google``, ``bedrock``: pick the one
-  matching your ``llm_conn_id`` connection. Each extra name mirrors the identically named
+* **Model providers** — ``openai``, ``anthropic``, ``google``, ``bedrock``, ``typesafe``:
+  pick the one matching your ``llm_conn_id`` connection. ``typesafe`` differs from the rest
+  in kind: it installs a classifier model that answers typed questions and cannot write
+  text (see :doc:`classifier_models`). Each extra name mirrors the identically named
   ``pydantic-ai-slim`` optional dependency group; pydantic-ai supports more model providers
-  than these four, each under its own extra name, so check the
+  than these, each under its own extra name, so check the
   `pydantic-ai install docs <https://ai.pydantic.dev/install/#slim-install>`__ for the full list.
 * **Agent tooling** — ``mcp``, ``skills``, ``code-mode``, ``shields``: MCP servers, Agent
   Skills, code-mode tool execution, and shield capabilities (input/output guards, tool
@@ -157,10 +159,13 @@ See the Optional dependencies table below for the exact package each extra insta
     LlamaIndex connection <connections/llamaindex>
     Hooks <hooks/index>
     Toolsets <toolsets>
+    Choosing a toolset <choosing_a_toolset>
     Operators <operators/index>
     Examples <examples>
+    Provider fallback <provider_fallback>
     Retry Policies <retry_policies>
     Self-hosted models <self_hosted_models>
+    Classifier models <classifier_models>
     HITL Review <hitl_review>
     Observability <observability>
 
@@ -204,7 +209,7 @@ apache-airflow-providers-common-ai package
 AI/LLM hooks and operators for Airflow pipelines using `pydantic-ai <https://ai.pydantic.dev/>`__.
 
 
-Release: 0.8.0
+Release: 0.9.0
 
 Provider package
 ----------------
@@ -230,7 +235,7 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=3.0.0``
 ``apache-airflow-providers-common-compat``  ``>=1.15.0``
 ``apache-airflow-providers-standard``       ``>=1.12.1``
-``pydantic-ai-slim``                        ``>=2.0.0``
+``pydantic-ai-slim``                        ``>=2.23.0``
 ==========================================  ==================
 
 Optional cross provider package dependencies
@@ -267,11 +272,12 @@ Install them when installing from PyPI. For example:
 ==============  =======================================================================================================================================
 Extra           Dependencies
 ==============  =======================================================================================================================================
-``anthropic``   ``pydantic-ai-slim[anthropic]>=2.0.0``
-``bedrock``     ``pydantic-ai-slim[bedrock]>=2.0.0``
-``google``      ``pydantic-ai-slim[google]>=2.0.0``
-``openai``      ``pydantic-ai-slim[openai]>=2.0.0``
-``mcp``         ``pydantic-ai-slim[mcp]>=2.0.0``
+``anthropic``   ``pydantic-ai-slim[anthropic]>=2.23.0``
+``bedrock``     ``pydantic-ai-slim[bedrock]>=2.23.0``
+``google``      ``pydantic-ai-slim[google]>=2.23.0``
+``openai``      ``pydantic-ai-slim[openai]>=2.23.0``
+``typesafe``    ``typesafe-sdk>=0.6.0``
+``mcp``         ``pydantic-ai-slim[mcp]>=2.23.0``
 ``code-mode``   ``pydantic-ai-harness[codemode]>=0.3.0``
 ``shields``     ``pydantic-ai-shields>=0.3.4``
 ``skills``      ``apache-airflow-providers-git>=0.4.0``, ``pydantic-ai-skills>=1.2.0``
@@ -292,5 +298,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-common-ai 0.8.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.8.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.8.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.8.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-common-ai 0.8.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.8.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.8.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.8.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-common-ai 0.9.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.9.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.9.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.9.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-common-ai 0.9.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.9.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.9.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.9.0-py3-none-any.whl.sha512>`__)

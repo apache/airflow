@@ -27,6 +27,7 @@
   "breadcrumb": "Breadcrumb",
   "browse": {
     "auditLog": "Audit Log",
+    "dagBundles": "Dag Bundles",
     "deadlines": "Deadlines",
     "jobs": "Jobs",
     "requiredActions": "Required Actions",

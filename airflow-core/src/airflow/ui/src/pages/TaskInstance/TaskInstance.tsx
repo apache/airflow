@@ -63,8 +63,8 @@ export const TaskInstance = () => {
     {
       icon: <MdOutlineStorage />,
       label: translate("tabs.storage"),
-      matchPaths: ["task-store", "xcom"],
-      value: "task-state-store",
+      matchPaths: ["task-state-store", "xcom"],
+      value: "xcom",
     },
     { icon: <FiDatabase />, label: translate("tabs.assetEvents"), value: "asset_events" },
     { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
