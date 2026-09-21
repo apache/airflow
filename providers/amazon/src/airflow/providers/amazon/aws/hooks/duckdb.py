@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from urllib.parse import urlsplit
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.version_compat import NOTSET, ArgNotSet
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
 try:
@@ -37,6 +38,9 @@ if TYPE_CHECKING:
     from duckdb import DuckDBPyConnection
 
 CredentialStrategy = Literal["credential_chain", "config", "none"]
+
+#: Used when neither an argument nor the connection extra names an AWS connection.
+DEFAULT_AWS_CONN_ID = "aws_default"
 
 
 class AwsDuckDBHook(DuckDBHook):
@@ -75,9 +79,9 @@ class AwsDuckDBHook(DuckDBHook):
     ``autoinstall_extensions=False`` to forbid the download, in which case the extensions have to be
     present already, either in an ``extension_directory`` or baked into the image.
 
-    :param aws_conn_id: the :ref:`AWS connection <howto/connection:aws>` used to reach S3. Set to
-        ``None`` to fall back to the ambient AWS environment. Explicit only — because ``None`` is a
-        meaningful value here, this one is not read from the DuckDB connection's ``extra``.
+    :param aws_conn_id: the :ref:`AWS connection <howto/connection:aws>` used to reach S3. Defaults to
+        ``aws_default``. Set to ``None`` to use no Airflow connection and let the AWS SDK resolve
+        credentials from the environment instead.
     :param region_name: region for the S3 secret. Defaults to the region from ``aws_conn_id``.
     :param credential_strategy: ``credential_chain``, ``config``, or ``none`` to create no secret at
         all (for a DuckDB database that never touches S3).
@@ -88,17 +92,38 @@ class AwsDuckDBHook(DuckDBHook):
         Defaults to ``endpoint_url`` from the AWS connection extra.
     :param secret_name: name of the DuckDB secret to create.
 
-    As with :class:`~airflow.providers.duckdb.hooks.duckdb.DuckDBHook`, every parameter except
-    ``aws_conn_id`` may also be set in the DuckDB connection ``extra``, and an explicit argument wins.
+    As with :class:`~airflow.providers.duckdb.hooks.duckdb.DuckDBHook`, every parameter may also be set
+    in the DuckDB connection ``extra``, and an explicit argument wins. ``aws_conn_id`` resolves on
+    whether the key is present, so ``{"aws_conn_id": null}`` selects the ambient AWS environment.
     """
 
     #: ``httpfs`` provides the S3 filesystem; ``aws`` provides the credential chain secret provider.
     required_extensions = ("httpfs", "aws")
 
+    # A connection type is what lets DuckDBExecuteQueryOperator reach this hook: the
+    # operator resolves the hook from the connection, so a Dag pointing at a ``duckdb_aws``
+    # connection.
+    conn_type = "duckdb_aws"
+    hook_name = "DuckDB on AWS"
+    default_conn_name = "duckdb_aws_default"
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom UI field behaviour for the DuckDB on AWS connection."""
+        return {
+            "hidden_fields": ["login", "password", "port", "schema"],
+            "relabeling": {"host": "Database path"},
+            "placeholders": {
+                "host": "/tmp/analytics.duckdb (leave empty for an in-memory database)",
+                "extra": '{"credential_strategy": "credential_chain", "region_name": "us-east-1", '
+                '"memory_limit": "2GB", "threads": 4}',
+            },
+        }
+
     def __init__(
         self,
         *args,
-        aws_conn_id: str | None = "aws_default",
+        aws_conn_id: str | None | ArgNotSet = NOTSET,
         region_name: str | None = None,
         credential_strategy: CredentialStrategy | None = None,
         credential_chain: str | None = None,
@@ -107,12 +132,27 @@ class AwsDuckDBHook(DuckDBHook):
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
-        self.aws_conn_id = aws_conn_id
+        self._aws_conn_id = aws_conn_id
         self._region_name = region_name
         self._credential_strategy = credential_strategy
         self._credential_chain = credential_chain
         self._s3_endpoint_url = s3_endpoint_url
         self._secret_name = secret_name
+
+    @property
+    def aws_conn_id(self) -> str | None:
+        """
+        Return the AWS connection to take credentials from, or ``None`` for the ambient environment.
+
+        Resolved by key presence rather than through ``resolve_parameter``, because ``None`` is a
+        valid choice here and not the absence of one: ``{"aws_conn_id": null}`` in the ``extra``
+        asks for no Airflow connection at all.
+        """
+        if not isinstance(self._aws_conn_id, ArgNotSet):
+            return self._aws_conn_id
+        if "aws_conn_id" in self.connection_extra:
+            return self.connection_extra["aws_conn_id"]
+        return DEFAULT_AWS_CONN_ID
 
     @cached_property
     def aws_hook(self) -> AwsBaseHook:

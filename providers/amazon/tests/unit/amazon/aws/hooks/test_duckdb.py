@@ -24,6 +24,8 @@ import pytest
 
 from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.hooks.duckdb import AwsDuckDBHook
+from airflow.providers.duckdb.hooks.duckdb import DuckDBHook
+from airflow.providers.duckdb.operators.duckdb import DuckDBExecuteQueryOperator
 
 GET_CONNECTION = "airflow.providers.amazon.aws.hooks.duckdb.AwsDuckDBHook.get_connection"
 AWS_BASE_HOOK = "airflow.providers.amazon.aws.hooks.duckdb.AwsBaseHook"
@@ -61,6 +63,44 @@ def secret_statement(hook) -> str:
     if not conn.execute.call_args_list:
         return ""
     return conn.execute.call_args_list[-1].args[0]
+
+
+class TestAwsDuckDBHookConnectionType:
+    """The connection type is the integration point: it is how the generic operator reaches this hook."""
+
+    def test_declares_its_own_connection_type(self):
+        assert AwsDuckDBHook.conn_type == "duckdb_aws"
+        assert AwsDuckDBHook.conn_type != DuckDBHook.conn_type
+        assert AwsDuckDBHook.default_conn_name == "duckdb_aws_default"
+
+    def test_reuses_the_duckdb_connection_id_attribute(self):
+        """``Connection.get_hook`` passes the conn id under this name, so it has to keep matching."""
+        assert AwsDuckDBHook.conn_name_attr == DuckDBHook.conn_name_attr
+
+    def test_the_generic_operator_resolves_this_hook_from_the_connection(self):
+        """
+        The whole point of the connection type: no AWS-specific operator.
+
+        A Dag author swaps from local DuckDB to DuckDB on S3 by pointing the same operator at a
+        ``duckdb_aws`` connection.
+        """
+        connection = Connection(conn_id="aws_duck", conn_type=AwsDuckDBHook.conn_type)
+        operator = DuckDBExecuteQueryOperator(task_id="t", sql="SELECT 1", conn_id="aws_duck")
+        with (
+            mock.patch(GET_CONNECTION, return_value=connection),
+            mock.patch(
+                "airflow.providers.duckdb.hooks.duckdb.DuckDBHook.get_connection", return_value=connection
+            ),
+        ):
+            hook = operator.get_db_hook()
+
+        assert isinstance(hook, AwsDuckDBHook)
+        assert hook.get_conn_id() == "aws_duck"
+
+    def test_ui_hides_the_fields_it_does_not_use(self):
+        behaviour = AwsDuckDBHook.get_ui_field_behaviour()
+        assert set(behaviour["hidden_fields"]) == {"login", "password", "port", "schema"}
+        assert behaviour["relabeling"] == {"host": "Database path"}
 
 
 @pytest.mark.usefixtures("no_duckdb_connection")
@@ -232,6 +272,28 @@ class TestAwsDuckDBHookConnectionOverrides:
     def test_credential_chain_can_be_set_on_the_connection(self, aws_base_hook):
         with mock.patch(GET_CONNECTION, return_value=self.duckdb_connection(credential_chain="env;instance")):
             assert "CHAIN 'env;instance'" in secret_statement(AwsDuckDBHook())
+
+    def test_aws_conn_id_defaults_to_aws_default(self, aws_base_hook, no_duckdb_connection):
+        assert AwsDuckDBHook().aws_conn_id == "aws_default"
+
+    def test_aws_conn_id_can_be_set_on_the_connection(self, aws_base_hook):
+        with mock.patch(GET_CONNECTION, return_value=self.duckdb_connection(aws_conn_id="from_extra")):
+            assert AwsDuckDBHook().aws_conn_id == "from_extra"
+
+    def test_aws_conn_id_null_on_the_connection_selects_the_ambient_environment(self, aws_base_hook):
+        """
+        ``None`` is a valid choice rather than the absence of one, so a null in the extra has to stick.
+
+        Resolving it like the other parameters would read it as "not set" and quietly fall back to
+        ``aws_default``, which is the opposite of what was asked for.
+        """
+        with mock.patch(GET_CONNECTION, return_value=self.duckdb_connection(aws_conn_id=None)):
+            assert AwsDuckDBHook().aws_conn_id is None
+
+    @pytest.mark.parametrize("explicit", ["explicit_conn", None], ids=["a-name", "none"])
+    def test_explicit_aws_conn_id_wins_over_the_connection(self, aws_base_hook, explicit):
+        with mock.patch(GET_CONNECTION, return_value=self.duckdb_connection(aws_conn_id="from_extra")):
+            assert AwsDuckDBHook(aws_conn_id=explicit).aws_conn_id == explicit
 
     def test_s3_endpoint_url_can_be_set_on_the_connection(self, aws_base_hook):
         with mock.patch(

@@ -405,10 +405,6 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.amazon.aws.operators.athena"],
             },
             {
-                "integration-name": "DuckDB on AWS",
-                "python-modules": ["airflow.providers.amazon.aws.operators.duckdb"],
-            },
-            {
                 "integration-name": "Amazon Web Services",
                 "python-modules": ["airflow.providers.amazon.aws.operators.base_aws"],
             },
@@ -1236,6 +1232,19 @@ def get_provider_info():
                         "schema": "https",
                         "host": "hooks.chime.aws/incomingwebhook/",
                         "password": "T00000000?token=XXXXXXXXXXXXXXXXXXXXXXXX",
+                    },
+                },
+            },
+            {
+                "hook-class-name": "airflow.providers.amazon.aws.hooks.duckdb.AwsDuckDBHook",
+                "hook-name": "DuckDB on AWS",
+                "connection-type": "duckdb_aws",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["login", "password", "port", "schema"],
+                    "relabeling": {"host": "Database path"},
+                    "placeholders": {
+                        "host": "/tmp/analytics.duckdb (leave empty for an in-memory database)",
+                        "extra": '{\n  "credential_strategy": "credential_chain",\n  "region_name": "us-east-1",\n  "memory_limit": "2GB",\n  "threads": 4\n}\n',
                     },
                 },
             },

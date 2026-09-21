@@ -142,8 +142,8 @@ integrations:
       - /docs/apache-airflow-providers-amazon/operators/athena/athena_sql.rst
     tags: [aws]
   # DuckDB itself is not an AWS service: the generic hook, operator and ``duckdb`` connection type
-  # live in the ``duckdb`` provider. What lives here is only the AWS-specific part — brokering AWS
-  # credentials and endpoints into a DuckDB session.
+  # live in the ``duckdb`` provider. What lives here is only the AWS-specific part, brokering AWS
+  # credentials and endpoints into a DuckDB session configured by its own connection type
   - integration-name: DuckDB on AWS
     external-doc-url: https://duckdb.org/docs/stable/extensions/httpfs/s3api
     how-to-guide:
@@ -441,9 +441,6 @@ operators:
   - integration-name: Amazon Athena
     python-modules:
       - airflow.providers.amazon.aws.operators.athena
-  - integration-name: DuckDB on AWS
-    python-modules:
-      - airflow.providers.amazon.aws.operators.duckdb
   - integration-name: Amazon Web Services
     python-modules:
       - airflow.providers.amazon.aws.operators.base_aws
@@ -1080,6 +1077,26 @@ connection-types:
         schema: https
         host: hooks.chime.aws/incomingwebhook/
         password: T00000000?token=XXXXXXXXXXXXXXXXXXXXXXXX
+  - hook-class-name: airflow.providers.amazon.aws.hooks.duckdb.AwsDuckDBHook
+    hook-name: "DuckDB on AWS"
+    connection-type: duckdb_aws
+    ui-field-behaviour:
+      hidden-fields:
+        - login
+        - password
+        - port
+        - schema
+      relabeling:
+        host: Database path
+      placeholders:
+        host: /tmp/analytics.duckdb (leave empty for an in-memory database)
+        extra: |
+          {
+            "credential_strategy": "credential_chain",
+            "region_name": "us-east-1",
+            "memory_limit": "2GB",
+            "threads": 4
+          }
   - hook-class-name: airflow.providers.amazon.aws.hooks.emr.EmrHook
     hook-name: "Amazon Elastic MapReduce"
     connection-type: emr

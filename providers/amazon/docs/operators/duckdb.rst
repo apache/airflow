@@ -28,6 +28,9 @@ DuckDB is not an AWS service, so the generic hook, operator and ``duckdb`` conne
 auth. Using an Airflow AWS connection to create the DuckDB secret that grants access to S3.
 This means there is no credential wiring needed in the Dag.
 
+You run :class:`~airflow.providers.duckdb.operators.duckdb.DuckDBExecuteQueryOperator` and point it
+at a ``duckdb_aws`` connection when the SQL should reach S3.
+
 Prerequisite Tasks
 ------------------
 
@@ -46,14 +49,26 @@ DuckDB support is an optional extra
     ``autoinstall_extensions=False`` and make the extensions available yourself, either
     in an ``extension_directory`` or baked into your image.
 
-.. _howto/operator:AwsDuckDBOperator:
+.. _howto/connection:duckdb_aws:
 
 Run a DuckDB query against Amazon S3
 ====================================
 
-Use :class:`~airflow.providers.amazon.aws.operators.duckdb.AwsDuckDBOperator` to run SQL against an
-in-process DuckDB database with S3 access. The operator loads the ``httpfs`` and ``aws`` extensions
-and can create an S3 secret from the AWS connection, so the task supplies only SQL:
+Two connections are involved:
+
+* A **DuckDB on AWS** (``duckdb_aws``) connection which configures DuckDB itself, i.e.: *which DuckDB database and with what settings*.
+  Its id is what you pass to
+  :class:`~airflow.providers.duckdb.operators.duckdb.DuckDBExecuteQueryOperator` as ``conn_id``, and its
+  type is also what selects :class:`~airflow.providers.amazon.aws.hooks.duckdb.AwsDuckDBHook`.
+* An **AWS** (``aws``) connection says *which AWS identity*, i.e.: keys or role, region, endpoint, etc. The DuckDB
+  connection points at it through ``aws_conn_id``, which defaults to ``aws_default``.
+
+Credentials stay in the usual AWS connection. The ``duckdb_aws`` connection can be empty (though it must exist) and often
+will be with DuckDB's ability to use in-memory databases. Create it, name it whatever you like, and leave every field blank
+to get an in-memory database.
+
+Given that connection, the hook loads the ``httpfs`` and ``aws`` extensions and creates the S3 secret,
+so the task supplies only SQL:
 
 .. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_duckdb.py
     :language: python
@@ -61,17 +76,25 @@ and can create an S3 secret from the AWS connection, so the task supplies only S
     :start-after: [START howto_operator_aws_duckdb]
     :end-before: [END howto_operator_aws_duckdb]
 
-An Airflow DuckDB connection is not required in all cases. With none configured the operator runs
-against an in-memory database. Configure one only when you need a persistent database file or shared
-engine settings; see the :ref:`DuckDB connection <howto/connection:duckdb>` documentation.
+Pass the id explicitly. With no ``conn_id`` the operator uses ``duckdb_default`` and the vendor-neutral
+hook, which has no S3 access.
 
-Anything :class:`~airflow.providers.amazon.aws.hooks.duckdb.AwsDuckDBHook` accepts can be passed
-through ``hook_params``. Set ``memory_limit`` and ``threads`` explicitly: DuckDB otherwise sizes
-itself from the resources it detects on the host.
+The DuckDB connection carries the database and the engine settings; leave its ``Database path`` empty for
+an in-memory database, which suits a task that reads from S3 and writes back to it. Everything
+:class:`~airflow.providers.amazon.aws.hooks.duckdb.AwsDuckDBHook` accepts can be set in the connection
+``extra``, and ``hook_params`` on the operator overrides it per task. Set ``memory_limit`` and
+``threads`` explicitly: DuckDB otherwise sizes itself from the resources it detects on the host.
 
 .. code-block:: python
 
-    hook_params = {"aws_conn_id": "aws_default", "memory_limit": "2GB", "threads": 4}
+    hook_params = {"memory_limit": "2GB", "threads": 4}
+
+.. note::
+
+    ``aws_conn_id`` resolves on whether the key is present, not on its value, because ``None`` is a
+    valid choice for it rather than the absence of one. Set it to ``null`` in the ``extra`` (or
+    ``None`` in ``hook_params``) to use no Airflow AWS connection at all and let the AWS SDK find
+    credentials in the environment, such as environment variables or an instance role.
 
 Using the hook directly
 =======================
@@ -121,8 +144,9 @@ DuckDB how to authenticate, and the ``credential_strategy`` parameter selects ho
 
 .. code-block:: python
 
-    AwsDuckDBOperator(
+    DuckDBExecuteQueryOperator(
         task_id="query",
+        conn_id="duckdb_aws_default",
         sql="SELECT COUNT(*) FROM read_parquet('s3://my-bucket/data.parquet')",
         hook_params={"aws_conn_id": "aws_static_keys", "credential_strategy": "config"},
     )

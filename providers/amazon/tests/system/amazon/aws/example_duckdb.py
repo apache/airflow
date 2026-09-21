@@ -16,17 +16,19 @@
 # under the License.
 from __future__ import annotations
 
+import json
+import os
 from datetime import datetime
 
 import boto3
 
 from airflow.providers.amazon.aws.hooks.duckdb import AwsDuckDBHook
-from airflow.providers.amazon.aws.operators.duckdb import AwsDuckDBOperator
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateBucketOperator,
     S3CreateObjectOperator,
     S3DeleteBucketOperator,
 )
+from airflow.providers.duckdb.operators.duckdb import DuckDBExecuteQueryOperator
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -56,6 +58,15 @@ widgets,19.99,3
 gadgets,4.50,20
 """
 SAMPLE_FILENAME = "sales.csv"
+
+# The operator picks its hook from the connection type, so pointing it at a ``duckdb_aws`` connection
+# is the whole of the AWS wiring. Defined here as an env var so every task process sees it, and in
+# JSON rather than URI form because a URI scheme cannot contain '_' (RFC 3986).
+DUCKDB_AWS_CONN_ID = AwsDuckDBHook.default_conn_name
+os.environ.setdefault(
+    f"AIRFLOW_CONN_{DUCKDB_AWS_CONN_ID.upper()}",
+    json.dumps({"conn_type": AwsDuckDBHook.conn_type}),
+)
 
 
 @task
@@ -101,8 +112,9 @@ with DAG(
     )
 
     # [START howto_operator_aws_duckdb]
-    summarize_sales = AwsDuckDBOperator(
+    summarize_sales = DuckDBExecuteQueryOperator(
         task_id="summarize_sales",
+        conn_id=DUCKDB_AWS_CONN_ID,
         sql=f"""
             COPY (
                 SELECT category, SUM(price * quantity) AS revenue
