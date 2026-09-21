@@ -1,0 +1,29 @@
+Deadline alert callbacks and intervals are now validated when the Dag is parsed
+
+``DeadlineAlert`` now rejects a ``callback`` that is not exactly ``AsyncCallback`` or
+``SyncCallback``, and an ``interval`` that is not a ``timedelta`` or a ``VariableInterval``.
+Both were previously accepted and written to the database and failed later in the scheduler.
+A Dag that defines either will now fail early at import instead.
+
+**Why:** The scheduler and API server decode stored deadline callbacks and intervals by exact
+class name, so no class named by a Dag author is imported or instantiated there. A *subclass*
+of ``AsyncCallback`` or ``SyncCallback`` would be written but never read back, and honouring
+one on read would require importing the author's class in the scheduler, which is what that
+design prevents.  The write side now refuses it so the author finds out at parse time. Note
+that ``interval=True`` was previously stored verbatim and came back as ``timedelta(seconds=1)``,
+because ``bool`` subclasses ``int``; it is now refused outright.
+
+**Already-stored deadline alerts are not migrated.** An alert already in the database with a
+subclassed callback, or a non-``timedelta`` interval, cannot be decoded:
+
+- Creating a DagRun for the affected Dag version fails. The scheduler logs
+  ``Failed creating DagRun`` and moves to the next Dag, so the Dag stops producing scheduled
+  runs rather than anything crashing.
+- Clearing a task skips the deadline recalculation and logs
+  ``Error while recalculating deadline``, leaving the existing deadline time unchanged.
+
+**Migration:** change the Dag to use ``AsyncCallback`` or ``SyncCallback`` directly, and a
+``timedelta`` or ``VariableInterval`` for the interval. Because the stored alert is matched on
+its reference, interval and callback definition, the edited Dag no longer matches it and fresh
+deadline alert rows are written on the next serialization.  The old rows are left in place and
+are only consulted for DagRuns created against the earlier serialized Dag version.
