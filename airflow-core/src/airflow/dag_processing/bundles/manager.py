@@ -117,12 +117,6 @@ def _guess_best_bundle_for_fileloc(
     return None
 
 
-def _get_configured_bundle_team_names() -> dict[str, str | None]:
-    """Get the team owning each bundle declared by the configured provider."""
-    manager = DagBundlesManager()
-    return {metadata.name: metadata.team_name for metadata in manager._get_provider_bundle_metadata()}
-
-
 def _is_safe_bundle_url(url: str) -> bool:
     """
     Check if a bundle URL is safe to use.
@@ -247,6 +241,10 @@ class DagBundlesManager(LoggingMixin):
             bundle_metadata[name] = DagBundleMetadata(name=name)
 
         return tuple(bundle_metadata.values())
+
+    def get_configured_bundle_team_names(self) -> dict[str, str | None]:
+        """Get the team owning each bundle declared by the configured provider."""
+        return {metadata.name: metadata.team_name for metadata in self._get_provider_bundle_metadata()}
 
     @provide_session
     def sync_bundles_to_db(self, *, deactivate_missing: bool = True, session: Session = NEW_SESSION) -> None:
