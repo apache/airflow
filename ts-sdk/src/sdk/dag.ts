@@ -32,7 +32,7 @@ import { argListValues, isArgList, type ArgList } from "./arg-list.js";
 import { brand, DUPLICATE_COPY_HINT, hasBrand } from "./brand.js";
 import { findTaskCycle, type TaskEdge } from "./cycle.js";
 import type { JsonValue } from "./client-types.js";
-import type { TaskFunction } from "./task.js";
+import { getClient, type TaskFunction } from "./task.js";
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
@@ -408,12 +408,57 @@ export type TaskFactory<TArgs extends object | void = void, TReturn = unknown> =
  */
 export type TaskOptions = TaskSpec;
 
+/**
+ * What `dag.if(condition)` returns: name the task the condition runs.
+ *
+ * ```ts
+ * dag.if(gated).then(loaded).else(reportedEmpty);
+ * ```
+ *
+ * `then` is required, `else` optional. A one-sided condition follows nothing
+ * when it is false, skipping only its own branch rather than the whole
+ * downstream closure the way `ShortCircuitOperator` does — decision 3 of
+ * `airflow-core/adr/lang-sdk/0008-control-flow-constructs.md`.
+ */
+export interface Condition {
+  then(taskRef: TaskRef): ConditionElse;
+}
+
+/** What `.then(...)` returns: the other side, which a one-sided condition omits. */
+export interface ConditionElse {
+  else(taskRef: TaskRef): void;
+}
+
 /** Per-task record a Dag retains: the reference, the handler, and its spec. */
 export interface TaskRecord {
   readonly task: TaskRef;
   readonly fn: TaskFunction;
   readonly spec: TaskSpec;
+  /**
+   * Whether this task decides which of its downstream tasks to skip.
+   *
+   * Serialized as `_can_skip_downstream`, which is what makes Airflow consult
+   * the task's `skipmixin_key` XCom when a skipped downstream is cleared.
+   */
+  readonly canSkipDownstream?: boolean;
 }
+
+/** The branches a condition chooses between, filled in as the chain is written. */
+interface ConditionRecord {
+  whenTrue?: TaskRef;
+  whenFalse?: TaskRef;
+}
+
+/**
+ * The XCom a task deciding skips leaves behind, so clearing a skipped task
+ * re-skips it rather than running it.
+ *
+ * `NotPreviouslySkippedDep` reads this key off each upstream that declares
+ * `_can_skip_downstream`, and skips a task named under `skipped`. Mirrors
+ * `SkipMixin.skip` in `task-sdk/src/airflow/sdk/bases/skipmixin.py`.
+ */
+const SKIPMIXIN_XCOM_KEY = "skipmixin_key";
+const SKIPMIXIN_SKIPPED = "skipped";
 
 /**
  * Internal: what one call to a task factory recorded, by argument name.
@@ -473,6 +518,10 @@ export class Dag {
   // Keyed by the two task ids, so declaring an edge twice records it once, and
   // insertion-ordered so the serialized Dag reads as written.
   readonly #orderEdges = new Map<string, OrderEdge>();
+  // Which tasks decide a branch, so one task cannot decide twice and a
+  // condition with no branch named is reported when the Dag is read.
+  readonly #conditions = new Map<string, ConditionRecord>();
+  readonly #branches = new Map<string, readonly TaskRef[]>();
   // Keyed by full group ID; a group's own record holds what it declares, so
   // the tree is reconstructed by walking from the roots.
   readonly #groups = new Map<string, MutableTaskGroupRecord>();
@@ -537,6 +586,136 @@ export class Dag {
     maybeOptions?: TaskOptions,
   ): TaskFactory<TArgs, TReturn> {
     return this.#addTask(undefined, taskIdOrHandler, handlerOrOptions, maybeOptions);
+  }
+
+  /**
+   * Make an existing task a condition, and name the task each outcome runs —
+   * TypeScript's `if`/`else`, spelled as the Dag's own control flow rather
+   * than after an operator class.
+   *
+   * ```ts
+   * const gated = dag.task("has_rows", async ({ rows }: { rows: number }) => rows > 0)({
+   *   rows: extracted,
+   * });
+   *
+   * dag.if(gated).then(loaded).else(reportedEmpty);
+   * ```
+   *
+   * The condition is an ordinary task whose handler returns a boolean, so the
+   * compiler checks the type and nothing depends on its id or its function
+   * name. It becomes a branch: the side not taken is skipped when the run
+   * reaches it, and stays skipped if it is cleared later.
+   *
+   * A guarded task takes no argument for the control edge — a condition's
+   * boolean is a signal, not data.
+   */
+  if(condition: TaskRef<boolean>): Condition {
+    const taskId = this.#beginBranch(condition, "dag.if");
+    const branches: ConditionRecord = {};
+    this.#conditions.set(taskId, branches);
+    this.#wrapDecider(taskId, async (held: unknown) => {
+      if (typeof held !== "boolean") {
+        throw new Error(
+          `Condition "${taskId}" of Dag "${this.dagId}" returned ${describeValue(held)} ` +
+            "rather than a boolean, so there is no branch to take",
+        );
+      }
+      // The side not taken. A one-sided condition that holds skips nothing.
+      const skipped = held ? branches.whenFalse : branches.whenTrue;
+      return { skip: skipped ? [skipped.taskId] : [], result: held };
+    });
+
+    const named = new Set<"then" | "else">();
+    const name = (side: "then" | "else", taskRef: TaskRef): void => {
+      // `await` on a thenable calls `then(resolve, reject)`. This object only
+      // ever takes a task reference, so saying why beats "not a task".
+      if (typeof taskRef === "function") {
+        throw new Error(
+          `dag.if(...) of Dag "${this.dagId}" was awaited. It builds a branch rather than ` +
+            "doing work, so there is nothing to wait for; drop the await",
+        );
+      }
+      if (named.has(side)) {
+        throw new Error(
+          `Condition "${taskId}" of Dag "${this.dagId}" already has a "${side}" branch; ` +
+            "a condition names each side once",
+        );
+      }
+      this.#validateOwnNode(taskRef, `the "${side}" branch of "${taskId}"`);
+      if (side === "else" && taskRef === branches.whenTrue) {
+        throw new Error(
+          `Both branches of Dag "${this.dagId}" condition "${taskId}" are ` +
+            `"${taskRef.taskId}", so the condition decides nothing; drop the else branch`,
+        );
+      }
+      named.add(side);
+      if (side === "then") branches.whenTrue = taskRef;
+      else branches.whenFalse = taskRef;
+      // The control edge carries no value, so it is an ordinary order-only
+      // edge; what makes it a branch is the skip, which only exists at run time.
+      condition.before(taskRef);
+    };
+
+    const elseStep: ConditionElse = {
+      else: (taskRef) => name("else", taskRef),
+    };
+    return {
+      then: (taskRef) => {
+        name("then", taskRef);
+        return elseStep;
+      },
+    };
+  }
+
+  /**
+   * Check that `condition` is a task of this Dag that no other construct has
+   * already claimed, and return its id.
+   */
+  #beginBranch(condition: TaskRef, verb: string): string {
+    if (this.#finalized) {
+      throw new Error(
+        `${verb}(...) cannot be used on Dag "${this.dagId}" after the Dag was read; ` +
+          "declare every branch while the module is loading",
+      );
+    }
+    this.#validateOwnNode(condition, `the condition given to ${verb}`);
+    const taskId = condition.taskId;
+    if (this.#conditions.has(taskId) || this.#branches.has(taskId)) {
+      throw new Error(
+        `Task "${taskId}" of Dag "${this.dagId}" already decides a branch; ` +
+          "one task decides one way",
+      );
+    }
+    return taskId;
+  }
+
+  /**
+   * Replace a task's handler with one that also sends the skip its decision
+   * implies.
+   *
+   * The decision is read when the task runs, so the branches it chooses
+   * between can still be named after this call — which is what lets the chain
+   * read `dag.if(gate).then(a).else(b)`.
+   */
+  #wrapDecider(
+    taskId: string,
+    decide: (returned: unknown) => Promise<{ skip: string[]; result: unknown }>,
+  ): void {
+    const record = this.#tasks.get(taskId)!;
+    const inner = record.fn;
+    const wrapped: TaskFunction = async (args) => {
+      const { skip, result } = await decide(await inner(args as never));
+      if (skip.length > 0) {
+        const client = getClient();
+        // Written before the skip so a downstream cleared later is re-skipped
+        // by `NotPreviouslySkippedDep` rather than run, which is what Python's
+        // SkipMixin does. Keyed on the task, so its own id is not needed here.
+        await client.setXCom({ key: SKIPMIXIN_XCOM_KEY, value: { [SKIPMIXIN_SKIPPED]: skip } });
+        await client.skipDownstreamTasks(skip);
+      }
+      return result;
+    };
+    this.#tasks.set(taskId, { ...record, canSkipDownstream: true, fn: wrapped });
   }
 
   /**
@@ -749,7 +928,7 @@ export class Dag {
     // The argument is the one that can be foreign: the receiver is a node this
     // Dag handed out, since it is what carries the method.
     const other = verb === "before" ? downstream : upstream;
-    this.#validateOwnNode(other, verb);
+    this.#validateOwnNode(other, `${verb}()`);
     const upstreamId = nodeId(upstream);
     const downstreamId = nodeId(downstream);
     if (upstreamId === downstreamId) {
@@ -768,17 +947,17 @@ export class Dag {
     }
   }
 
-  #validateOwnNode(node: Node, verb: string): void {
+  #validateOwnNode(node: Node, label: string): void {
     const id = nodeId(node);
     if (id === undefined) {
       throw new Error(
-        `${verb}() on Dag "${this.dagId}" takes tasks and task groups this Dag handed out, ` +
+        `${label} on Dag "${this.dagId}" takes tasks and task groups this Dag handed out, ` +
           "not arbitrary values",
       );
     }
     if (node.dagId !== this.dagId) {
       throw new Error(
-        `${verb}() cannot draw an edge to Dag "${node.dagId}" node "${id}" from Dag ` +
+        `${label} cannot reach Dag "${node.dagId}" node "${id}" from Dag ` +
           `"${this.dagId}"; an edge joins two nodes of one Dag`,
       );
     }
@@ -788,7 +967,7 @@ export class Dag {
     // the edge at this Dag's own group of that name.
     if (isTaskRef(node) ? this.#tasks.get(id)?.task !== node : this.#groupRefs.get(id) !== node) {
       throw new Error(
-        `${verb}() was given a reference to "${id}" that this Dag did not hand out; ` +
+        `${label} was given a reference to "${id}" that this Dag did not hand out; ` +
           `it comes from another Dag object with the same ID, or ${DUPLICATE_COPY_HINT}`,
       );
     }
@@ -894,6 +1073,14 @@ export class Dag {
 
   #finalize(): void {
     if (this.#finalized) return;
+    for (const [taskId, branches] of this.#conditions) {
+      if (branches.whenTrue === undefined) {
+        throw new Error(
+          `Condition "${taskId}" of Dag "${this.dagId}" names no branch, so it decides nothing; ` +
+            "give it one with dag.if(condition).then(task)",
+        );
+      }
+    }
     for (const taskId of this.#tasks.keys()) {
       if (!this.#inputs.has(taskId)) {
         throw new Error(
@@ -976,6 +1163,14 @@ const TASK_ID_CHARACTERS = /^[\p{L}\p{N}_.-]+$/u;
  * `keepNames`, so the name survives minification; a bundler that drops names
  * leaves the empty string, which is why the empty string is not an id.
  */
+/** A value as an error message names it: its type, or the literal when short. */
+function describeValue(value: unknown): string {
+  if (value === null) return "null";
+  if (value === undefined) return "undefined";
+  if (typeof value === "object") return Array.isArray(value) ? "an array" : "an object";
+  return `the ${typeof value} ${JSON.stringify(value)}`;
+}
+
 function readFunctionName(handler: unknown): string | undefined {
   if (typeof handler !== "function") return undefined;
   const { name } = handler as { name?: unknown };

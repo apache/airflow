@@ -710,9 +710,7 @@ describe("Dag", () => {
       const { refs: there } = placedDag("there", "cleanup");
 
       expect(() => draw(here.load!, there.cleanup!)).toThrowError(
-        new RegExp(
-          `${verb}\\(\\) cannot draw an edge to Dag "there" node "cleanup" from Dag "here"`,
-        ),
+        new RegExp(`${verb}\\(\\) cannot reach Dag "there" node "cleanup" from Dag "here"`),
       );
     });
 

@@ -107,6 +107,19 @@ export interface TaskClient {
    * @throws {@link Exceptions!ConnectionNotFoundError | ConnectionNotFoundError} when the connection does not exist.
    */
   getConnectionOrThrow(connId: string): Promise<ConnectionResult>;
+
+  /**
+   * Mark downstream tasks of the running task as skipped.
+   *
+   * The mechanism behind `dag.if(...)`: a condition's boolean is a run-time
+   * signal, so which branch a Dag run takes is decided here rather than
+   * recorded in the Dag. Python reaches the same supervisor message through
+   * `skip()` and `skip_all_except()`.
+   *
+   * Each id must name a direct downstream of the running task. Passing none is
+   * a no-op, so a branch that skips nothing needs no guard at the call site.
+   */
+  skipDownstreamTasks(taskIds: readonly string[]): Promise<void>;
 }
 
 /** Error thrown by {@link TaskClient.getVariableOrThrow}. */

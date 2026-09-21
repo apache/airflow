@@ -138,6 +138,43 @@ data is the wiring object itself — `summarize({ north: extractNorth(), south: 
 does. This matches `Before`/`After` in the Go SDK's native Dag interface, spelled to TypeScript
 convention.
 
+### Conditional branching: `if` and `else`
+
+`dag.if(condition)` is TypeScript's spelling of the construct
+[`airflow-core/adr/lang-sdk/0008`](../../airflow-core/adr/lang-sdk/0008-control-flow-constructs.md)
+names after the host language's control flow:
+
+```ts
+const gated = dag.task("has_rows", async ({ rows }: { rows: number }) => rows > 0)({
+  rows: extracted,
+});
+
+dag.if(gated).then(loadIfReady).else(loadFallback);
+```
+
+**The condition is a task reference, not a task id and a function.** `dag.if` takes a `TaskRef` the
+Dag already handed back, whose handler's return type the compiler checks is `boolean`. So nothing
+depends on the task's id or on its function name, and a condition is declared, named and typed the
+same way every other task is. The same reasoning that makes a *case* a reference in that ADR's
+decision 2 applies to the condition itself.
+
+**A `then` chain is a thenable, and is guarded rather than avoided.** An object with a callable
+`then` is a *thenable*: were the object `dag.if` returns to reach an `await`, the runtime would hand
+its `then` a resolve function where a task reference belongs. Two things contain that. `.then(...)`
+returns an object carrying only `.else`, so nothing past the first step is awaitable at all; and
+`.then` rejects a function argument by naming the cause, so an author who does await it reads "this
+builds a branch, drop the await" rather than a type error about references.
+
+**A branch is a real branch to Airflow.** The control edges serialize as ordinary order-only edges
+and carry no branch-candidate field, as that ADR's consequences require. The condition task is
+serialized with `_can_skip_downstream`, and it writes the `skipmixin_key` XCom alongside the skip, so
+clearing a skipped branch re-skips it the way a Python `@task.branch` does rather than running the
+side the condition rejected.
+
+A one-sided `if` is a branch with one candidate — it skips `then` and follows nothing — rather than a
+`ShortCircuitOperator`, which would also skip the whole downstream closure and ignore trigger rules.
+A guarded task takes no argument for the control edge: a condition's boolean is a signal, not data.
+
 ## Consequences
 
 - One authoring surface (`dag.task()` plus its factory) covers the graph and each task's arguments,
