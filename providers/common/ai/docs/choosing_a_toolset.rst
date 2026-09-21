@@ -375,8 +375,10 @@ and any script execution happen on the worker.
 
 **Choose it when** the work is running code the model wrote, rather than calling
 a tool you picked in advance — exploratory analysis, installing a package for one
-task, producing a file. Every other route on this page answers "call this thing";
-this one answers "here is somewhere to work".
+task, a script the model writes, runs, and fixes from its own traceback. Every
+other route on this page answers "call this thing"; this one answers "here is
+somewhere to work". It has its own page, :doc:`sandbox`, with worked scenarios
+and the limitations to read before designing a Dag around it.
 
 Before following this row, check whether the actual need is narrower than that:
 ``code_mode=True`` is a flag on ``AgentOperator``, not a toolset on this table
@@ -384,7 +386,7 @@ Before following this row, check whether the actual need is narrower than that:
 code to call several of them instead of emitting one call per step. It does not
 give the agent somewhere to run arbitrary code of its own, and it avoids the
 ``sbx`` backend's production-readiness, network-isolation, and reclamation
-caveats below — but not the reachability one: the generated code runs in
+caveats below and needs no backend at all — but not the reachability one: the generated code runs in
 Monty's deny-by-default sandbox, but the tools it calls still run in the
 worker, so a credential-bearing toolset on the same agent stays within reach
 whether or not code mode is on. See :ref:`code-mode` and
@@ -392,20 +394,23 @@ whether or not code mode is on. See :ref:`code-mode` and
 
 **What it cannot do**
 
-- The only backend that ships is not built for production. ``SbxSandboxBackend``
-  drives Docker Sandboxes, and its own documentation in this provider says to use
-  it for local development, calling a worker-driven run "off-label use". It wants
-  the ``sbx`` binary on the host, an authenticated Docker account, a one-time
-  ``sbx policy init``, and on Linux KVM or nested virtualization — which an
-  unprivileged container cannot provide. Anything beyond local development means
-  writing another backend behind
-  :class:`~airflow.providers.common.ai.sandbox.SandboxBackend`.
+- Only one of its two backends runs on Kubernetes. ``SbxSandboxBackend`` drives
+  Docker Sandboxes on the worker host, and its own documentation says to use it
+  for local development: it wants the ``sbx`` binary on the host, an
+  authenticated Docker account, a one-time ``sbx policy init``, and on Linux KVM
+  or nested virtualization — which an unprivileged container cannot provide.
+  Production and Kubernetes use
+  :class:`~airflow.providers.common.ai.sandbox.modal.ModalSandboxBackend`, a
+  hosted backend behind the ``modal`` extra that installs nothing on the worker
+  and reclaims a sandbox at its own lifetime if the worker dies. Both implement
+  :class:`~airflow.providers.common.ai.sandbox.SandboxBackend`, and a third
+  vendor can too.
 - It does not contain the agent. Only what these tools do runs in the sandbox;
   the agent loop, the model calls, and every other toolset on the same agent stay
   in the worker with the worker's credentials. It contains model-written code, so
   pairing it with a credential-bearing toolset on the same agent puts the
   credential back within reach. :ref:`sandbox-boundaries` sets this out in full.
-- It cannot enforce network isolation on its own. The backend applies
+- The ``sbx`` backend cannot enforce network isolation on its own. It applies
   ``allow_egress_to`` as a per-sandbox policy rule, but only on top of a
   ``deny-all`` host policy, since a local rule can narrow egress and never
   widen it; ``block_network`` has no per-sandbox enforcement at all. Ask for
@@ -413,26 +418,40 @@ whether or not code mode is on. See :ref:`code-mode` and
   backend raises rather than silently leaving the sandbox less restricted
   than the spec asked for. ``block_network`` defaults to ``True``, so a bare
   ``SandboxSpec()`` with no arguments already asks for it and is refused
-  under the default ``host_network_policy="unknown"``.
-- It does not guarantee reclamation. A failed teardown is logged as a warning
+  under the default ``host_network_policy="unknown"``. On Modal the same default
+  maps onto the sandbox's own ``block_network`` and is enforced exactly; a
+  hostname allowlist there is matched on the TLS handshake name and has to be
+  opted into, for the reasons set out on :doc:`sandbox`.
+- Reclamation depends on the backend. A failed teardown is logged as a warning
   rather than raised, deliberately, so that a teardown blip cannot fail a
-  finished run. Nothing else picks up the slack: the backend that ships has no
-  server-side TTL to fall back on, so a worker killed outright leaves the microVM
-  and its workspace directory behind. They are named ``airflow-sandbox-*`` so an
-  operator can find and remove them — budget for that sweep.
+  finished run. On ``sbx`` nothing else picks up the slack: there is no
+  server-side TTL, so a worker killed outright leaves the microVM and its
+  workspace directory behind, named ``airflow-sandbox-*`` so an operator can find
+  and remove them. On Modal the sandbox ends at its own ``sandbox_timeout``
+  whatever became of the worker.
+- Nothing survives the run, and a file the agent built can leave only through
+  the model's context, which is text-only and capped. Producing an artifact for a
+  downstream task is a ``@task`` driving a backend directly today, not the agent;
+  :doc:`sandbox` has the example.
 
-**A real example.** ``tests/system/common/ai/example_sandbox_toolset_sbx.py``
-in this provider is a runnable Dag against a real ``sbx`` host — the only
-toolset here with a system test. It is reachable from the System Tests entry in
-the sidebar.
+**A real example.** ``example_sandbox_toolset.py`` in this provider's example
+Dags has an agent investigating a revenue anomaly on the Modal backend beside a
+``SQLToolset``, the same agent shape on ``sbx`` for a laptop, and a ``@task``
+producing a file through a sandbox; all three are on :doc:`sandbox`. The two
+system tests, ``example_sandbox_toolset_sbx.py`` and
+``example_sandbox_toolset_modal.py``, run against a real backend and are
+reachable from the System Tests entry in the sidebar.
 
 **Credentials and where it runs.** This route does not end at an
 Airflow connection. Airflow puts none of its context, connections, variables or
 worker environment into the sandbox; only what you pass through
-:class:`~airflow.providers.common.ai.sandbox.SandboxSpec` goes in. Authorization
-is host-level instead — ``sbx login`` and ``sbx policy init``, performed on the
-machine, outside anything Airflow can see. Work runs in a per-session microVM
-on the worker host. Its tool calls act as barriers, as they do for the other
+:class:`~airflow.providers.common.ai.sandbox.SandboxSpec` goes in, and the
+credential that provisions the sandbox never enters it. Authorization to the
+backend sits outside Airflow — ``sbx login`` and ``sbx policy init`` on the
+machine for ``sbx``, or ``MODAL_TOKEN_ID`` and ``MODAL_TOKEN_SECRET`` on the
+worker for Modal. Work runs in a per-run microVM on the worker host with
+``sbx``, or off the worker entirely in Modal's infrastructure. Its tool calls
+act as barriers, as they do for the other
 routes that build their own tools; see :ref:`toolset-call-barriers`.
 
 ``BaseManagedAgentToolset``
@@ -512,14 +531,16 @@ making on purpose rather than inheriting.
      - Worker process
    * - ``SandboxToolset``
      - None from Airflow. Host-level ``sbx login`` and ``sbx policy init``
-     - A microVM on the worker host
+       for ``sbx``; ambient Modal token on the worker for Modal
+     - A microVM on the worker host (``sbx``), or Modal's infrastructure off
+       the worker (Modal)
    * - ``BaseManagedAgentToolset``
      - Undefined by the base class; the subclass decides
      - The vendor's infrastructure
 
 Two rows are worth pausing on. ``SandboxToolset`` deliberately takes no Airflow
-credential — that is the whole point of it, and it substitutes a host-level
-boundary for the connection-level one. ``BaseManagedAgentToolset`` does not
+credential — that is the whole point of it, and it substitutes a backend-level
+boundary, on the host or at the vendor, for the connection-level one. ``BaseManagedAgentToolset`` does not
 substitute anything; it simply leaves the question to whoever writes the
 subclass. Neither is a defect, but in both cases the access decision has moved
 somewhere Airflow cannot see it, and somebody has to make that decision again in

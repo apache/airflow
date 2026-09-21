@@ -54,9 +54,10 @@ tools aren't locked out either: pydantic-ai ships ``pydantic_ai.ext.langchain.La
 upstream, which wraps LangChain tools for a common.ai agent, and the provider's own
 :func:`~airflow.providers.common.ai.toolsets.langchain_bridge.airflow_toolset_to_langchain_tools`
 converts the other way — Airflow-managed toolsets into LangChain tools (see :doc:`toolsets`).
-The AI step is orchestrated by Airflow: the model calls, the agent loop, and any tools all
-run in the Airflow worker, where they get retries, logging, and observability like any other
-task.
+The AI step is orchestrated by Airflow: the model calls, the agent loop, and any tools
+run in the Airflow worker by default, where they get retries, logging, and observability like
+any other task. The exception is :ref:`SandboxToolset <sandbox-limitations>`, which exists so
+that code the *model* writes runs somewhere else.
 
 Use it when a Dag needs:
 
@@ -65,6 +66,7 @@ Use it when a Dag needs:
 * **Branching on a model's decision** — :doc:`LLMBranchOperator <operators/llm_branch>`.
 * **Agents with tools** — :doc:`AgentOperator <operators/agent>` runs a multi-turn agent loop
   in the worker, calling Airflow-defined :doc:`toolsets <toolsets>` (SQL, hooks, MCP servers,
+  a sandboxed shell and filesystem,
   :ref:`Agent Skills <agent-skills>`), optionally collapsed into a single sandboxed
   :ref:`code mode <code-mode>` call, with optional human-in-the-loop review and durable step
   replay — if the task retries after a failure, completed steps are replayed from cache
@@ -159,6 +161,7 @@ See the Optional dependencies table below for the exact package each extra insta
     LlamaIndex connection <connections/llamaindex>
     Hooks <hooks/index>
     Toolsets <toolsets>
+    Sandboxed execution <sandbox>
     Choosing a toolset <choosing_a_toolset>
     Operators <operators/index>
     Examples <examples>
@@ -278,6 +281,7 @@ Extra           Dependencies
 ``openai``      ``pydantic-ai-slim[openai]>=2.23.0``
 ``typesafe``    ``typesafe-sdk>=0.6.0``
 ``mcp``         ``pydantic-ai-slim[mcp]>=2.23.0``
+``modal``       ``modal>=1.5.0``
 ``code-mode``   ``pydantic-ai-harness[codemode]>=0.3.0``
 ``shields``     ``pydantic-ai-shields>=0.3.4``
 ``skills``      ``apache-airflow-providers-git>=0.4.0``, ``pydantic-ai-skills>=1.2.0``

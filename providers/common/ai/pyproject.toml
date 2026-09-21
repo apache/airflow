@@ -93,6 +93,10 @@ dependencies = [
 # openai<3, so a higher floor makes the workspace unsatisfiable. The guide says 2.45+.
 "typesafe" = ["typesafe-sdk>=0.6.0"]
 "mcp" = ["pydantic-ai-slim[mcp]>=2.23.0"]
+# Modal-hosted sandboxes for SandboxToolset, the backend to use where the worker host
+# cannot run microVMs -- Kubernetes, most notably. Needs no host-level installation,
+# only Modal credentials.
+"modal" = ["modal>=1.5.0"]
 # Code mode: collapse tool calls into a single `run_code` tool that the model
 # drives by writing Python, executed in the Monty sandbox (pydantic-monty).
 # Enables AgentOperator(code_mode=True). Monty is pre-1.0; pinned here as an
