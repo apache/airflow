@@ -119,7 +119,14 @@ class TestSkipMixin:
 
         ti = Mock(map_index=-1)
         with pytest.raises(DownstreamTasksSkipped) as exc_info:
-            SkipMixin().skip(ti=ti, tasks=[MagicMock(spec=MappedOperator, task_id="task")])
+            SkipMixin().skip(
+                ti=ti,
+                tasks=[
+                    MagicMock(
+                        spec=MappedOperator, task_id="task", wait_for_past_depends_before_skipping=False
+                    )
+                ],
+            )
         assert exc_info.value.tasks == ["task"]
 
     @pytest.mark.parametrize(
