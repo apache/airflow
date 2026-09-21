@@ -2471,8 +2471,11 @@ class TestDagFileProcessorManager:
                     "other-bundle-b",
                 }
 
+    @mock.patch.object(DagFileProcessorManager, "_reconcile_bundles", autospec=True)
     @mock.patch.object(LateResolvingBundle, "initialize", autospec=True)
-    def test_callback_executes_after_bundle_initialization_recovers(self, mock_initialize, tmp_path):
+    def test_callback_executes_after_bundle_initialization_recovers(
+        self, mock_initialize, _mock_reconcile_bundles, tmp_path
+    ):
         dag_file = tmp_path / "callback_recovery.py"
         dag_file.write_text(
             textwrap.dedent(
