@@ -74,9 +74,9 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
   useEffect(() => {
     if (open) {
       setNote(null);
-      setKeepTaskState(false);
+      setKeepTaskState(keepTaskStateDefault);
     }
-  }, [open]);
+  }, [open, keepTaskStateDefault]);
 
   const { isPending, mutate } = useClearTaskInstances({
     dagId,

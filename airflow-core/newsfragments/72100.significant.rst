@@ -27,7 +27,9 @@ nothing.
 Pass ``keep_task_state=True`` to the clear task instances endpoint, or tick "keep task state" in the
 clear dialog. Use it when nothing about the inputs or the code changed and the task should carry on
 where it stopped, or when an external job is still running and you want the next attempt to
-reconnect rather than submit a duplicate.
+reconnect rather than submit a duplicate. To make "keep task state" the default so you don't have to
+tick it on every clear, turn it on under Settings > Clearing > "Keep task state on clear"; that
+default is per-browser and does not affect anyone else on the same deployment.
 
 Operators with durable execution are worth particular attention. Clearing a *failed* task never runs
 ``on_kill``, so an external job that outlived its worker is still running, and discarding the stored
