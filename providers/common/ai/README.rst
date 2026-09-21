@@ -85,10 +85,10 @@ Optional dependencies
 ==============  =======================================================================================================================================
 Extra           Dependencies
 ==============  =======================================================================================================================================
-``anthropic``   ``pydantic-ai-slim[anthropic]>=2.23.0``
+``anthropic``   ``pydantic-ai-slim[anthropic]>=2.23.0``, ``anthropic>=1.0.0``
 ``bedrock``     ``pydantic-ai-slim[bedrock]>=2.23.0``
 ``google``      ``pydantic-ai-slim[google]>=2.23.0``
-``openai``      ``pydantic-ai-slim[openai]>=2.23.0``
+``openai``      ``pydantic-ai-slim[openai]>=2.23.0``, ``openai>=2.45.0``
 ``mcp``         ``pydantic-ai-slim[mcp]>=2.23.0``
 ``typesafe``    ``typesafe-sdk>=0.6.0``
 ``modal``       ``modal>=1.5.0``
