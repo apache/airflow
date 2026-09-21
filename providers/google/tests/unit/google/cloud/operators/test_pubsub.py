@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from typing import Any
 from unittest import mock
 
@@ -36,8 +37,6 @@ from airflow.providers.google.cloud.operators.pubsub import (
     PubSubPullOperator,
 )
 from airflow.providers.google.cloud.triggers.pubsub import PubsubPullTrigger
-
-pytestmark = pytest.mark.filterwarnings("ignore::airflow.exceptions.AirflowProviderDeprecationWarning")
 
 TASK_ID = "test-task-id"
 TEST_PROJECT = "test-project"
@@ -449,16 +448,24 @@ class TestPubSubPullOperator:
     def _generate_dicts(self, count):
         return [ReceivedMessage.to_dict(m) for m in self._generate_messages(count)]
 
+    @pytest.mark.parametrize("return_immediately", [True, False])
     @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
-    def test_execute_no_messages(self, mock_hook):
+    def test_execute_no_messages(self, mock_hook, return_immediately):
         operator = PubSubPullOperator(
             task_id=TASK_ID,
             project_id=TEST_PROJECT,
             subscription=TEST_SUBSCRIPTION,
+            return_immediately=return_immediately,
         )
 
         mock_hook.return_value.pull.return_value = []
         assert operator.execute({}) == []
+        mock_hook.return_value.pull.assert_called_once_with(
+            project_id=TEST_PROJECT,
+            subscription=TEST_SUBSCRIPTION,
+            max_messages=5,
+            return_immediately=return_immediately,
+        )
 
     @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
     def test_execute_with_ack_messages(self, mock_hook):
@@ -467,6 +474,7 @@ class TestPubSubPullOperator:
             project_id=TEST_PROJECT,
             subscription=TEST_SUBSCRIPTION,
             ack_messages=True,
+            return_immediately=True,
         )
 
         generated_messages = self._generate_messages(5)
@@ -504,6 +512,7 @@ class TestPubSubPullOperator:
             project_id=TEST_PROJECT,
             subscription=TEST_SUBSCRIPTION,
             messages_callback=messages_callback,
+            return_immediately=True,
         )
 
         mock_hook.return_value.pull.return_value = generated_messages
@@ -517,24 +526,10 @@ class TestPubSubPullOperator:
 
         assert response == messages_callback_return_value
 
-    @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
-    def test_execute_with_return_immediately_false(self, mock_hook):
-        operator = PubSubPullOperator(
-            task_id=TASK_ID,
-            project_id=TEST_PROJECT,
-            subscription=TEST_SUBSCRIPTION,
-            return_immediately=False,
-        )
-
-        mock_hook.return_value.pull.return_value = []
-        operator.execute({})
-        mock_hook.return_value.pull.assert_called_once_with(
-            project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, max_messages=5, return_immediately=False
-        )
-
     @pytest.mark.db_test
+    @pytest.mark.parametrize("return_immediately", [True, False])
     @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
-    def test_execute_deferred(self, mock_hook):
+    def test_execute_deferred(self, mock_hook, return_immediately):
         """
         Asserts that a task is deferred and a PubSubPullOperator will be fired
         when the PubSubPullOperator is executed with deferrable=True.
@@ -544,32 +539,13 @@ class TestPubSubPullOperator:
             project_id=TEST_PROJECT,
             subscription=TEST_SUBSCRIPTION,
             deferrable=True,
+            return_immediately=return_immediately,
         )
         with pytest.raises(TaskDeferred) as exc:
             task.execute(mock.MagicMock())
 
         assert isinstance(exc.value.trigger, PubsubPullTrigger)
-        assert exc.value.trigger.return_immediately is True
-
-    @pytest.mark.db_test
-    @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
-    def test_execute_deferred_with_return_immediately_false(self, mock_hook):
-        """
-        Asserts that a task is deferred and a PubSubPullOperator will be fired
-        when the PubSubPullOperator is executed with deferrable=True.
-        """
-        task = PubSubPullOperator(
-            task_id=TASK_ID,
-            project_id=TEST_PROJECT,
-            subscription=TEST_SUBSCRIPTION,
-            return_immediately=False,
-            deferrable=True,
-        )
-        with pytest.raises(TaskDeferred) as exc:
-            task.execute(mock.MagicMock())
-
-        assert isinstance(exc.value.trigger, PubsubPullTrigger)
-        assert exc.value.trigger.return_immediately is False
+        assert exc.value.trigger.return_immediately is return_immediately
 
     @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
     def test_get_openlineage_facets(self, mock_hook):
@@ -577,6 +553,7 @@ class TestPubSubPullOperator:
             task_id=TASK_ID,
             project_id=TEST_PROJECT,
             subscription=TEST_SUBSCRIPTION,
+            return_immediately=True,
         )
 
         generated_messages = self._generate_messages(5)
@@ -635,6 +612,7 @@ class TestPubSubPullOperator:
             subscription=TEST_SUBSCRIPTION,
             deferrable=True,
             messages_callback=messages_callback,
+            return_immediately=True,
         )
         mock_hook.return_value.pull.return_value = received_messages
 
@@ -666,6 +644,7 @@ class TestPubSubPullOperator:
             project_id=TEST_PROJECT,
             subscription=TEST_SUBSCRIPTION,
             deferrable=True,
+            return_immediately=True,
         )
         mock_hook.return_value.pull.return_value = received_messages
 
@@ -676,9 +655,20 @@ class TestPubSubPullOperator:
 
     def test_pubsub_pull_operator_deprecation_warning(self):
         with pytest.warns(AirflowProviderDeprecationWarning, match="return_immediately"):
+            operator = PubSubPullOperator(
+                task_id=TASK_ID,
+                project_id=TEST_PROJECT,
+                subscription=TEST_SUBSCRIPTION,
+            )
+        assert operator.return_immediately is True
+
+    @pytest.mark.parametrize("return_immediately", [True, False])
+    def test_pubsub_pull_operator_no_deprecation_warning_when_explicit(self, return_immediately):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", AirflowProviderDeprecationWarning)
             PubSubPullOperator(
                 task_id=TASK_ID,
                 project_id=TEST_PROJECT,
                 subscription=TEST_SUBSCRIPTION,
-                return_immediately=False,
+                return_immediately=return_immediately,
             )

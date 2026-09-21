@@ -49,7 +49,10 @@ from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.providers.google.cloud.links.pubsub import PubSubSubscriptionLink, PubSubTopicLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.pubsub import PubsubPullTrigger
-from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
+from airflow.providers.google.common.consts import (
+    GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
+    PUBSUB_RETURN_IMMEDIATELY_DEPRECATION_MESSAGE,
+)
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
@@ -758,9 +761,16 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
     """
     Pulls messages from a PubSub subscription and passes them through XCom.
 
-    If the queue is empty, returns empty list - never waits for messages.
-    If you do need to wait, please use :class:`airflow.providers.google.cloud.sensors.PubSubPullSensor`
-    instead.
+    In non-deferrable mode, ``return_immediately=True`` returns an empty list when the
+    queue is empty; ``return_immediately=False`` makes the Pub/Sub API block for a bounded,
+    server-side period for at least one message instead, occupying the worker slot for that
+    duration. In deferrable mode the operator always waits for at least one message no matter how
+    ``return_immediately`` is set:
+    :class:`~airflow.providers.google.cloud.triggers.pubsub.PubsubPullTrigger` re-pulls every
+    ``poll_interval`` until messages arrive — nothing in the operator bounds that wait — and
+    ``return_immediately`` only controls whether each individual pull long-polls. For the
+    poke-based equivalent of this waiting behavior, see
+    :class:`~airflow.providers.google.cloud.sensors.pubsub.PubSubPullSensor`.
 
     .. seealso::
         For more information on how to use this operator and the PubSubPullSensor, take a look at the guide:
@@ -801,13 +811,12 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
     :param deferrable: If True, run the task in the deferrable mode.
     :param poll_interval: Time (seconds) to wait between two consecutive calls to check the job.
         The default is 300 seconds.
-    :param return_immediately: If this field set to true, the system will
-        respond immediately even if it there are no messages available to
-        return in the ``Pull`` response. Otherwise, the system may wait
-        (for a bounded amount of time) until at least one message is available,
-        rather than returning no messages. Warning: setting this field to
-        ``true`` is discouraged because it adversely impacts the performance
-        of ``Pull`` operations. We recommend that users do not set this field.
+    :param return_immediately: Defaults to True, which uses the deprecated Pub/Sub
+        ``returnImmediately`` Pull option and can return zero messages even if there are
+        messages in the backlog. If set to False, the system will instead wait (for a bounded
+        amount of time) until at least one message is available, rather than returning no
+        messages. The default will change to False in the first Google provider major release
+        after March 31, 2027.
     """
 
     template_fields: Sequence[str] = (
@@ -841,15 +850,14 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
         self.poll_interval = poll_interval
-        if return_immediately is not None:
+        if return_immediately is None:
             warnings.warn(
-                "The default value of `return_immediately` will be changed to `False` in a future major release.",
+                PUBSUB_RETURN_IMMEDIATELY_DEPRECATION_MESSAGE,
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            self.return_immediately = return_immediately
-        else:
-            self.return_immediately = True
+            return_immediately = True
+        self.return_immediately = return_immediately
 
     def execute(self, context: Context) -> list:
         if self.deferrable:

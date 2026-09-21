@@ -31,6 +31,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.providers.google.cloud.triggers.pubsub import PubsubPullTrigger
+from airflow.providers.google.common.consts import PUBSUB_RETURN_IMMEDIATELY_DEPRECATION_MESSAGE
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
@@ -51,7 +52,8 @@ class PubSubPullSensor(BaseSensorOperator):
         :ref:`howto/operator:PubSubPullSensor`
 
     .. seealso::
-        If you don't want to wait for at least one message to come, use Operator instead:
+        If you don't want to wait for at least one message to come, use the operator with
+        ``return_immediately=True`` and ``deferrable=False`` instead:
         :class:`~airflow.providers.google.cloud.operators.pubsub.PubSubPullOperator`
 
     This sensor operator will pull up to ``max_messages`` messages from the
@@ -63,9 +65,9 @@ class PubSubPullSensor(BaseSensorOperator):
     acknowledged before being returned, otherwise, downstream tasks will be
     responsible for acknowledging them.
 
-    If you want a non-blocking task that does not to wait for messages, please use
+    If you want a non-blocking task that does not wait for messages, please use
     :class:`~airflow.providers.google.cloud.operators.pubsub.PubSubPullOperator`
-    instead.
+    with ``return_immediately=True`` and ``deferrable=False`` instead.
 
     ``project_id`` and ``subscription`` are templated so you can use
     variables in them.
@@ -75,13 +77,12 @@ class PubSubPullSensor(BaseSensorOperator):
         full subscription path.
     :param max_messages: The maximum number of messages to retrieve per
         PubSub pull request
-    :param return_immediately: If this field set to true, the system will
-        respond immediately even if it there are no messages available to
-        return in the ``Pull`` response. Otherwise, the system may wait
-        (for a bounded amount of time) until at least one message is available,
-        rather than returning no messages. Warning: setting this field to
-        ``true`` is discouraged because it adversely impacts the performance
-        of ``Pull`` operations. We recommend that users do not set this field.
+    :param return_immediately: Defaults to True, which uses the deprecated Pub/Sub
+        ``returnImmediately`` Pull option and can return zero messages even if there are
+        messages in the backlog. If set to False, the system will instead wait (for a bounded
+        amount of time) until at least one message is available, rather than returning no
+        messages. The default will change to False in the first Google provider major release
+        after March 31, 2027.
     :param ack_messages: If True, each message will be acknowledged
         immediately rather than by any downstream tasks
     :param gcp_conn_id: The connection ID to use connecting to
@@ -129,21 +130,20 @@ class PubSubPullSensor(BaseSensorOperator):
         self.project_id = project_id
         self.subscription = subscription
         self.max_messages = max_messages
+        if return_immediately is None:
+            warnings.warn(
+                PUBSUB_RETURN_IMMEDIATELY_DEPRECATION_MESSAGE,
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            return_immediately = True
+        self.return_immediately = return_immediately
         self.ack_messages = ack_messages
         self.messages_callback = messages_callback
         self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
         self.poke_interval = poke_interval
         self._return_value = None
-        if return_immediately is not None:
-            warnings.warn(
-                "The default value of `return_immediately` will be changed to `False` in a future major release.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            self.return_immediately = return_immediately
-        else:
-            self.return_immediately = True
 
     def poke(self, context: Context) -> bool:
         hook = PubSubHook(
