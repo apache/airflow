@@ -35,7 +35,7 @@ from asyncio import (
     wait_for,
     wrap_future,
 )
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import AsyncIterable, Callable, Iterator
 from concurrent.futures import Executor, ThreadPoolExecutor
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any
@@ -189,23 +189,34 @@ class AsyncAwareExecutor(Executor):
         future = self._thread_pool.submit(func, *args, **kwargs)
         return await wrap_future(future, loop=self._loop)
 
-    def map(
+    def map(  # type: ignore[override]
         self,
         fn: Callable[..., Any],
-        *iterables: Iterable[Any],
+        *iterables: AsyncIterable[Any],
         timeout: float | None = None,
-        chunksize: int = 1,
     ) -> Iterator[Any]:
-        """Apply fn to iterables and stream results in completion order."""
-        if chunksize < 1:
-            raise ValueError("chunksize must be >= 1")
+        """
+        Apply ``fn`` to async iterables, zipped, and stream results in completion order.
 
+        Unlike ``concurrent.futures.Executor.map`` the iterables are async: items are pulled and
+        calls submitted from a coroutine on the running loop, never from the main thread between
+        two ``run_until_complete`` calls. At such a moment a call can be parked mid-``asend``
+        holding the supervisor channel's thread lock; a synchronous SDK call pulling the next item
+        (an XCom read behind an iterated task's input) would then take that lock in blocking mode,
+        since no loop is running, while the holder needs the loop to run to release it, and the
+        process freezes with every thread idle. On the running loop an async iterable reads
+        through ``asend``, and a synchronous SDK call from the loop thread meets the SDK's
+        running-loop check and raises ``DeadlockImminentError`` instead of hanging.
+
+        Results are handed to the caller while the loop is paused, which is safe: the caller only
+        consumes them.
+        """
         if self._shutdown:
             raise RuntimeError("cannot schedule new futures after shutdown")
 
         start = time.monotonic()
-        iterator = zip(*iterables)
-        pending: dict[Future[Any], Future[Any]] = {}
+        iterators = [iterable.__aiter__() for iterable in iterables]
+        pending: set[Future[Any]] = set()
         exhausted = False
 
         def _remaining_timeout() -> float | None:
@@ -216,43 +227,42 @@ class AsyncAwareExecutor(Executor):
                 raise TimeoutError()
             return remaining
 
-        def _submit_next() -> bool:
+        async def _next_args() -> tuple[Any, ...] | None:
+            """Return the next argument tuple, or None once any iterable is exhausted (like ``zip``)."""
+            args = []
+            for iterator in iterators:
+                try:
+                    args.append(await iterator.__anext__())
+                except StopAsyncIteration:
+                    return None
+            return tuple(args)
+
+        async def _fill_pending() -> None:
+            """Submit calls until pending reaches max_workers or an iterable is exhausted."""
             nonlocal exhausted
+            while not exhausted and len(pending) < self._max_workers:
+                args = await _next_args()
+                if args is None:
+                    exhausted = True
+                    return
+                pending.add(self.submit(fn, *args))
 
-            if exhausted:
-                return False
-
-            try:
-                args = next(iterator)
-            except StopIteration:
-                exhausted = True
-                return False
-
-            future = self.submit(fn, *args)
-            pending[future] = future
-            return True
-
-        def _fill_pending() -> None:
-            """Submit tasks until pending reaches max_workers or iterator is exhausted."""
-            while len(pending) < self._max_workers and _submit_next():
-                pass
-
-        # Submit up to max_workers tasks initially
-        _fill_pending()
+        # Every pull from the iterables runs on the loop, the initial one included.
+        self._loop.run_until_complete(_fill_pending())
 
         while pending:
-            wait_timeout = _remaining_timeout()
             done, _ = self._loop.run_until_complete(
-                wait(set(pending), timeout=wait_timeout, return_when=FIRST_COMPLETED)
+                wait(pending, timeout=_remaining_timeout(), return_when=FIRST_COMPLETED)
             )
 
             if not done:
                 raise TimeoutError()
 
             for completed in done:
-                pending.pop(completed)
-                _fill_pending()
+                pending.discard(completed)
                 yield completed.result()
+
+            self._loop.run_until_complete(_fill_pending())
 
 
 class TaskExecutor(LoggingMixin):

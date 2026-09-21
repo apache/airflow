@@ -32,6 +32,7 @@ except NameError:
     from exceptiongroup import BaseExceptionGroup
 
 import pytest
+from task_sdk.definitions.conftest import make_xcom_arg
 
 from airflow.sdk import (
     DAG,
@@ -736,6 +737,53 @@ class TestIterableOperator:
 
                 assert context["ti"].task is parent_ti_task
                 assert context["task"] is iterable_op
+
+    def test_execute_consumes_the_expand_input_asynchronously_on_the_running_loop(self):
+        """
+        Regression test for the frozen IterableOperator: sub-task inputs were pulled from the main
+        thread between two runs of the event loop, where a blocking supervisor call deadlocked with
+        the ``asend`` of a sub-task parked mid-call. Inputs must come from ``aiter_values`` and be
+        awaited while the loop runs; the synchronous ``iter_values`` must stay untouched.
+        """
+        loop_running: list[bool] = []
+        original_aiter_values = ListOfDictsExpandInput.aiter_values
+
+        def aiter_values(self, context):
+            async def values():
+                async for value in original_aiter_values(self, context):
+                    loop_running.append(asyncio.get_running_loop().is_running())
+                    yield value
+
+            return values()
+
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}, {"arg1": 3}])
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="exec_async_input")
+
+            with (
+                mock_context(task=iterable_op) as context,
+                patch.object(ListOfDictsExpandInput, "aiter_values", aiter_values),
+                patch.object(
+                    ListOfDictsExpandInput, "iter_values", side_effect=AssertionError("sync iter_values used")
+                ),
+            ):
+                materialized = sorted(iterable_op.execute(context=context))
+
+        assert materialized == [(1, None, None), (2, None, None), (3, None, None)]
+        assert loop_running == [True, True, True]
+
+    def test_execute_pulls_xcom_arg_inputs_through_aresolve(self):
+        """An XComArg input is resolved with ``aresolve`` (``ti.axcom_pull``), never with blocking ``resolve``."""
+        with DAG("test_dag") as dag:
+            xcom_arg = make_xcom_arg([{"arg1": 1}, {"arg1": 2}])
+            xcom_arg.resolve = lambda *a, **kw: pytest.fail("synchronous resolve() used on the loop")
+            expand_input = ListOfDictsExpandInput(xcom_arg)
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="exec_xcom_arg_input")
+
+            with mock_context(task=iterable_op) as context:
+                materialized = sorted(iterable_op.execute(context=context))
+
+        assert materialized == [(1, None, None), (2, None, None)]
 
     def test_execute_dict_of_lists(self):
         """Test executing IterableOperator with DictOfListsExpandInput."""

@@ -21,8 +21,8 @@ import copy
 import os
 import threading
 import warnings
-from collections.abc import Iterable, Iterator, Mapping, Sequence
-from itertools import repeat
+from collections.abc import AsyncIterable, AsyncIterator, Iterable, Iterator, Mapping, Sequence
+from functools import partial
 from typing import TYPE_CHECKING, Any
 
 try:
@@ -469,7 +469,7 @@ class IterableOperator(BaseOperator):
     def _run_tasks(
         self,
         context: Context,
-        tasks: Iterable[IndexedTaskInstance],
+        tasks: AsyncIterable[IndexedTaskInstance],
     ) -> XComIterable | None:
         exceptions: list[Exception] = []
         total = 0
@@ -481,11 +481,13 @@ class IterableOperator(BaseOperator):
             with event_loop() as loop:
                 with AsyncAwareExecutor(loop=loop, max_workers=self.max_workers) as executor:
                     for task, _result, raised in executor.map(
-                        self._run_task,
-                        repeat(executor),
-                        repeat(context),
+                        partial(
+                            self._run_task,
+                            executor,
+                            context,
+                            trust_checkpoints=checkpoints.trust_checkpoints,
+                        ),
                         tasks,
-                        repeat(checkpoints.trust_checkpoints),
                     ):
                         total += 1
                         do_xcom_push = task.do_xcom_push
@@ -689,16 +691,22 @@ class IterableOperator(BaseOperator):
 
     def execute(self, context: Context):
         jinja_env = self.get_template_env(dag=self.dag)
-        tasks = (
-            self._create_task(
-                context=context,
-                index=index,
-                mapped_kwargs=value,
-                jinja_env=jinja_env,
-            )
-            for index, value in enumerate(self.expand_input.iter_values(context=context))
-        )
-        return self._run_tasks(context=context, tasks=tasks)
+
+        async def tasks() -> AsyncIterator[IndexedTaskInstance]:
+            # Consumed by the executor on the running event loop, so the input's XCom reads go
+            # through asend and cannot deadlock with the sub-tasks' own SDK calls (see
+            # AsyncAwareExecutor.map).
+            index = 0
+            async for value in self.expand_input.aiter_values(context=context):
+                yield self._create_task(
+                    context=context,
+                    index=index,
+                    mapped_kwargs=value,
+                    jinja_env=jinja_env,
+                )
+                index += 1
+
+        return self._run_tasks(context=context, tasks=tasks())
 
 
 class MappedIterableOperator(MappedOperator):

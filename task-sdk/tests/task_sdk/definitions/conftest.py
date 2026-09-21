@@ -38,6 +38,12 @@ def run_ti(create_runtime_ti, mock_supervisor_comms):
         log = structlog.get_logger(__name__)
 
         mock_supervisor_comms.send.reset_mock()
+        # Tests can their supervisor replies on the sync ``send``. Answer the async ``asend`` from the
+        # same replies, so a task pulling through the async SDK path (iterated inputs resolve XComArgs
+        # with ``aresolve``) sees them as well.
+        mock_supervisor_comms.asend.side_effect = lambda msg, **kwargs: mock_supervisor_comms.send(
+            msg=msg, **kwargs
+        )
         ti = create_runtime_ti(dag.task_dict[task_id], map_index=map_index)
         run(ti, ti.get_template_context(), log)
 
