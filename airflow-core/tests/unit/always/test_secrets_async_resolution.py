@@ -24,6 +24,8 @@ from contextlib import asynccontextmanager
 from unittest import mock
 
 import pytest
+from sqlalchemy import event
+from sqlalchemy.engine import MappingResult, Result
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from airflow.exceptions import AirflowNotFoundException
@@ -93,7 +95,7 @@ class SyncMetastoreOverride(MetastoreBackend):
         return "sync-override"
 
 
-@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded")
+@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded", autospec=True)
 @pytest.mark.asyncio
 async def test_legacy_signatures_and_empty_values(mock_ensure_secrets_loaded):
     backend = LegacyVariableBackend("")
@@ -103,7 +105,7 @@ async def test_legacy_signatures_and_empty_values(mock_ensure_secrets_loaded):
     assert backend.calls == ["empty"]
 
 
-@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded")
+@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded", autospec=True)
 @pytest.mark.asyncio
 async def test_native_async_method_is_preferred(mock_ensure_secrets_loaded):
     backend = NativeVariableBackend("native")
@@ -113,7 +115,7 @@ async def test_native_async_method_is_preferred(mock_ensure_secrets_loaded):
     assert backend.calls == [("key", None)]
 
 
-@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded")
+@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded", autospec=True)
 @pytest.mark.asyncio
 async def test_first_matching_backend_stops_resolution(mock_ensure_secrets_loaded):
     first = LegacyVariableBackend("first")
@@ -125,7 +127,7 @@ async def test_first_matching_backend_stops_resolution(mock_ensure_secrets_loade
     assert later.calls == []
 
 
-@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded")
+@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded", autospec=True)
 @pytest.mark.asyncio
 async def test_sync_override_wins_over_inherited_async_method(mock_ensure_secrets_loaded):
     backend = SyncMetastoreOverride()
@@ -135,10 +137,10 @@ async def test_sync_override_wins_over_inherited_async_method(mock_ensure_secret
     assert backend.calls == ["key"]
 
 
-@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded")
+@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded", autospec=True)
 @pytest.mark.asyncio
 async def test_internal_type_error_is_not_retried_without_team_name(mock_ensure_secrets_loaded):
-    failing = mock.Mock()
+    failing = mock.create_autospec(BaseSecretsBackend, instance=True)
     failing.get_variable.side_effect = TypeError("backend bug")
     succeeding = NativeVariableBackend("next")
     mock_ensure_secrets_loaded.return_value = [failing, succeeding]
@@ -147,7 +149,7 @@ async def test_internal_type_error_is_not_retried_without_team_name(mock_ensure_
     failing.get_variable.assert_called_once_with(key="key", team_name=None)
 
 
-@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded")
+@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded", autospec=True)
 @pytest.mark.asyncio
 async def test_broken_native_method_is_not_retried_synchronously(mock_ensure_secrets_loaded):
     class BrokenNativeBackend:
@@ -164,7 +166,7 @@ async def test_broken_native_method_is_not_retried_synchronously(mock_ensure_sec
     assert succeeding.calls == ["key"]
 
 
-@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded")
+@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded", autospec=True)
 @pytest.mark.asyncio
 async def test_full_connection_override_is_preserved(mock_ensure_secrets_loaded):
     expected = Connection(conn_id="custom", uri="postgresql://user:password@host/db")
@@ -180,7 +182,7 @@ class JsonConnectionBackend(BaseSecretsBackend):
         return '{"conn_type": "http", "host": "example.com", "password": "secret"}'
 
 
-@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded")
+@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded", autospec=True)
 @pytest.mark.asyncio
 async def test_inherited_connection_deserialization_is_preserved(mock_ensure_secrets_loaded):
     backend = JsonConnectionBackend()
@@ -194,7 +196,7 @@ async def test_inherited_connection_deserialization_is_preserved(mock_ensure_sec
     assert connection.host == "example.com"
 
 
-@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded")
+@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded", autospec=True)
 @pytest.mark.asyncio
 async def test_team_name_is_forwarded(mock_ensure_secrets_loaded):
     backend = NativeVariableBackend("team-value")
@@ -205,7 +207,7 @@ async def test_team_name_is_forwarded(mock_ensure_secrets_loaded):
     assert backend.calls == [("key", "analytics")]
 
 
-@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded")
+@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded", autospec=True)
 @pytest.mark.asyncio
 async def test_variable_miss_is_cached(mock_ensure_secrets_loaded):
     enable_secret_cache()
@@ -220,7 +222,7 @@ async def test_variable_miss_is_cached(mock_ensure_secrets_loaded):
     assert backend.calls == ["missing"]
 
 
-@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded")
+@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded", autospec=True)
 @pytest.mark.asyncio
 async def test_connection_miss_is_not_cached(mock_ensure_secrets_loaded):
     enable_secret_cache()
@@ -234,7 +236,7 @@ async def test_connection_miss_is_not_cached(mock_ensure_secrets_loaded):
     assert backend.calls == ["missing", "missing"]
 
 
-@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded")
+@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded", autospec=True)
 @pytest.mark.asyncio
 async def test_connection_cache_hit_returns_core_connection(mock_ensure_secrets_loaded):
     enable_secret_cache()
@@ -247,7 +249,7 @@ async def test_connection_cache_hit_returns_core_connection(mock_ensure_secrets_
     mock_ensure_secrets_loaded.assert_not_called()
 
 
-@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded")
+@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded", autospec=True)
 @pytest.mark.asyncio
 async def test_connection_match_is_cached(mock_ensure_secrets_loaded):
     enable_secret_cache()
@@ -260,11 +262,11 @@ async def test_connection_match_is_cached(mock_ensure_secrets_loaded):
     assert backend.calls == ["cached"]
 
 
-@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded")
+@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded", autospec=True)
 @pytest.mark.asyncio
 async def test_expired_variable_cache_entry_is_refreshed(mock_ensure_secrets_loaded):
     enable_secret_cache()
-    backend = mock.Mock()
+    backend = mock.create_autospec(BaseSecretsBackend, instance=True)
     backend.get_variable.side_effect = ["first", "second"]
     mock_ensure_secrets_loaded.return_value = [backend]
 
@@ -273,13 +275,13 @@ async def test_expired_variable_cache_entry_is_refreshed(mock_ensure_secrets_loa
     assert await resolve_variable("key") == "second"
 
 
-@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded")
+@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded", autospec=True)
 @pytest.mark.asyncio
 async def test_access_denial_stops_chain_and_does_not_cache(mock_ensure_secrets_loaded):
     enable_secret_cache()
-    denied = mock.Mock()
+    denied = mock.create_autospec(BaseSecretsBackend, instance=True)
     denied.get_variable.side_effect = AirflowSecretsBackendAccessDenied
-    later = mock.Mock()
+    later = mock.create_autospec(BaseSecretsBackend, instance=True)
     mock_ensure_secrets_loaded.return_value = [denied, later]
 
     with pytest.raises(AirflowSecretsBackendAccessDenied):
@@ -290,13 +292,13 @@ async def test_access_denial_stops_chain_and_does_not_cache(mock_ensure_secrets_
         SecretCache.get_variable("protected")
 
 
-@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded")
+@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded", autospec=True)
 @pytest.mark.asyncio
 async def test_connection_access_denial_stops_chain_and_does_not_cache(mock_ensure_secrets_loaded):
     enable_secret_cache()
-    denied = mock.Mock()
+    denied = mock.create_autospec(BaseSecretsBackend, instance=True)
     denied.get_connection.side_effect = AirflowSecretsBackendAccessDenied
-    later = mock.Mock()
+    later = mock.create_autospec(BaseSecretsBackend, instance=True)
     mock_ensure_secrets_loaded.return_value = [denied, later]
 
     with pytest.raises(AirflowSecretsBackendAccessDenied):
@@ -307,7 +309,7 @@ async def test_connection_access_denial_stops_chain_and_does_not_cache(mock_ensu
         SecretCache.get_connection_uri("protected")
 
 
-@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded")
+@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded", autospec=True)
 @pytest.mark.asyncio
 async def test_cancellation_stops_chain_and_does_not_cache(mock_ensure_secrets_loaded):
     enable_secret_cache()
@@ -322,7 +324,7 @@ async def test_cancellation_stops_chain_and_does_not_cache(mock_ensure_secrets_l
         def get_variable(self, key: str) -> str | None:
             raise AssertionError("sync fallback must not run")
 
-    later = mock.Mock()
+    later = mock.create_autospec(BaseSecretsBackend, instance=True)
     mock_ensure_secrets_loaded.return_value = [BlockingBackend(), later]
     task = asyncio.create_task(resolve_variable("cancelled"))
     await started.wait()
@@ -336,7 +338,7 @@ async def test_cancellation_stops_chain_and_does_not_cache(mock_ensure_secrets_l
         SecretCache.get_variable("cancelled")
 
 
-@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded")
+@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded", autospec=True)
 @pytest.mark.asyncio
 async def test_connection_cancellation_stops_chain_and_does_not_cache(mock_ensure_secrets_loaded):
     enable_secret_cache()
@@ -351,7 +353,7 @@ async def test_connection_cancellation_stops_chain_and_does_not_cache(mock_ensur
         def get_connection(self, conn_id: str) -> Connection | None:
             raise AssertionError("sync fallback must not run")
 
-    later = mock.Mock()
+    later = mock.create_autospec(BaseSecretsBackend, instance=True)
     mock_ensure_secrets_loaded.return_value = [BlockingBackend(), later]
     task = asyncio.create_task(resolve_connection("cancelled"))
     await started.wait()
@@ -365,7 +367,7 @@ async def test_connection_cancellation_stops_chain_and_does_not_cache(mock_ensur
         SecretCache.get_connection_uri("cancelled")
 
 
-@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded")
+@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded", autospec=True)
 @pytest.mark.asyncio
 async def test_broken_native_connection_falls_through_without_sync_retry(mock_ensure_secrets_loaded):
     class BrokenNativeBackend:
@@ -383,7 +385,7 @@ async def test_broken_native_connection_falls_through_without_sync_retry(mock_en
     assert succeeding.calls == ["next"]
 
 
-@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded")
+@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded", autospec=True)
 @pytest.mark.parametrize("resolver", [resolve_variable, resolve_connection])
 @pytest.mark.asyncio
 async def test_scoped_lookup_requires_multi_team_mode(mock_ensure_secrets_loaded, resolver):
@@ -404,195 +406,67 @@ def run_until_loop_progresses(
     release.set()
 
 
-@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded")
+@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded", autospec=True)
+@pytest.mark.parametrize("resource", ["variable", "connection"])
+@pytest.mark.parametrize("boundary", ["backend", "cache", "initialization"])
 @pytest.mark.asyncio
-async def test_legacy_backend_yields_event_loop(mock_ensure_secrets_loaded):
+async def test_blocking_resolution_yields_event_loop(
+    mock_ensure_secrets_loaded, resource, boundary, monkeypatch
+):
     loop = asyncio.get_running_loop()
     started = threading.Event()
     progressed = threading.Event()
     release = threading.Event()
-    result: list[bool] = []
+    observed: list[bool] = []
     async_started = asyncio.Event()
-
-    class BlockingBackend:
-        def get_variable(self, key: str) -> str | None:
-            started.set()
-            loop.call_soon_threadsafe(async_started.set)
-            release.wait(timeout=1)
-            return "value"
-
-    mock_ensure_secrets_loaded.return_value = [BlockingBackend()]
-    helper = threading.Thread(
-        target=run_until_loop_progresses,
-        args=(started, progressed, release, result),
+    connection = Connection(conn_id="key", uri="http://example.com")
+    value = "value" if resource == "variable" else connection
+    backend = (
+        LegacyVariableBackend("value") if resource == "variable" else LegacyConnectionBackend(connection)
     )
-    helper.start()
-    task = asyncio.create_task(resolve_variable("key"))
-    await asyncio.wait_for(async_started.wait(), timeout=1)
-    progressed.set()
+    resolver = resolve_variable if resource == "variable" else resolve_connection
+    mock_ensure_secrets_loaded.return_value = [backend]
 
-    assert await task == "value"
-    helper.join(timeout=1)
-    assert result == [True]
-
-
-@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded")
-@pytest.mark.asyncio
-async def test_legacy_connection_backend_yields_event_loop(mock_ensure_secrets_loaded):
-    loop = asyncio.get_running_loop()
-    started = threading.Event()
-    progressed = threading.Event()
-    release = threading.Event()
-    result: list[bool] = []
-    async_started = asyncio.Event()
-
-    class BlockingBackend:
-        def get_connection(self, conn_id: str) -> Connection | None:
-            started.set()
-            loop.call_soon_threadsafe(async_started.set)
-            release.wait(timeout=1)
-            return Connection(conn_id=conn_id, uri="http://example.com")
-
-    mock_ensure_secrets_loaded.return_value = [BlockingBackend()]
-    helper = threading.Thread(
-        target=run_until_loop_progresses,
-        args=(started, progressed, release, result),
-    )
-    helper.start()
-    task = asyncio.create_task(resolve_connection("key"))
-    await asyncio.wait_for(async_started.wait(), timeout=1)
-    progressed.set()
-
-    assert (await task).host == "example.com"
-    helper.join(timeout=1)
-    assert result == [True]
-
-
-@mock.patch("airflow.sdk.SecretCache.get_variable")
-@pytest.mark.asyncio
-async def test_initialized_cache_yields_event_loop(mock_get_variable):
-    loop = asyncio.get_running_loop()
-    started = threading.Event()
-    progressed = threading.Event()
-    release = threading.Event()
-    result: list[bool] = []
-    async_started = asyncio.Event()
-
-    def blocking_cache_get(key: str, team_name: str | None = None) -> str:
+    def blocking_call(*args, **kwargs):
         started.set()
         loop.call_soon_threadsafe(async_started.set)
         release.wait(timeout=1)
-        return "cached"
+        return (
+            [backend]
+            if boundary == "initialization"
+            else (connection.get_uri() if boundary == "cache" and resource == "connection" else value)
+        )
 
-    mock_get_variable.side_effect = blocking_cache_get
-    helper = threading.Thread(
-        target=run_until_loop_progresses,
-        args=(started, progressed, release, result),
-    )
+    if boundary == "initialization":
+        mock_ensure_secrets_loaded.side_effect = blocking_call
+    else:
+        target = backend if boundary == "backend" else SecretCache
+        method = (
+            f"get_{resource}" if boundary == "backend" or resource == "variable" else "get_connection_uri"
+        )
+        monkeypatch.setattr(
+            target, method, mock.create_autospec(getattr(target, method), side_effect=blocking_call)
+        )
+
+    helper = threading.Thread(target=run_until_loop_progresses, args=(started, progressed, release, observed))
     helper.start()
-    task = asyncio.create_task(resolve_variable("key"))
-    await asyncio.wait_for(async_started.wait(), timeout=1)
-    progressed.set()
-
-    assert await task == "cached"
-    helper.join(timeout=1)
-    assert result == [True]
-
-
-@mock.patch("airflow.sdk.SecretCache.get_connection_uri")
-@pytest.mark.asyncio
-async def test_initialized_connection_cache_yields_event_loop(mock_get_connection_uri):
-    loop = asyncio.get_running_loop()
-    started = threading.Event()
-    progressed = threading.Event()
-    release = threading.Event()
-    result: list[bool] = []
-    async_started = asyncio.Event()
-
-    def blocking_cache_get(conn_id: str, team_name: str | None = None) -> str:
-        started.set()
-        loop.call_soon_threadsafe(async_started.set)
-        release.wait(timeout=1)
-        return "http://example.com"
-
-    mock_get_connection_uri.side_effect = blocking_cache_get
-    helper = threading.Thread(
-        target=run_until_loop_progresses,
-        args=(started, progressed, release, result),
-    )
-    helper.start()
-    task = asyncio.create_task(resolve_connection("key"))
-    await asyncio.wait_for(async_started.wait(), timeout=1)
-    progressed.set()
-
-    assert (await task).host == "example.com"
-    helper.join(timeout=1)
-    assert result == [True]
+    task = asyncio.create_task(resolver("key"))
+    try:
+        await asyncio.wait_for(async_started.wait(), timeout=1)
+        progressed.set()
+        result = await task
+        if resource == "variable":
+            assert result == "value"
+        else:
+            assert isinstance(result, Connection)
+            assert result.host == "example.com"
+        assert observed == [True]
+    finally:
+        release.set()
+        helper.join(timeout=1)
 
 
-@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded")
-@pytest.mark.asyncio
-async def test_backend_initialization_yields_event_loop(mock_ensure_secrets_loaded):
-    loop = asyncio.get_running_loop()
-    started = threading.Event()
-    progressed = threading.Event()
-    release = threading.Event()
-    result: list[bool] = []
-    async_started = asyncio.Event()
-
-    def load_backends():
-        started.set()
-        loop.call_soon_threadsafe(async_started.set)
-        release.wait(timeout=1)
-        return [LegacyVariableBackend("value")]
-
-    mock_ensure_secrets_loaded.side_effect = load_backends
-    helper = threading.Thread(
-        target=run_until_loop_progresses,
-        args=(started, progressed, release, result),
-    )
-    helper.start()
-    task = asyncio.create_task(resolve_variable("key"))
-    await asyncio.wait_for(async_started.wait(), timeout=1)
-    progressed.set()
-
-    assert await task == "value"
-    helper.join(timeout=1)
-    assert result == [True]
-
-
-@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded")
-@pytest.mark.asyncio
-async def test_connection_backend_initialization_yields_event_loop(mock_ensure_secrets_loaded):
-    loop = asyncio.get_running_loop()
-    started = threading.Event()
-    progressed = threading.Event()
-    release = threading.Event()
-    result: list[bool] = []
-    async_started = asyncio.Event()
-
-    def load_backends():
-        started.set()
-        loop.call_soon_threadsafe(async_started.set)
-        release.wait(timeout=1)
-        return [LegacyConnectionBackend(Connection(conn_id="key", uri="http://example.com"))]
-
-    mock_ensure_secrets_loaded.side_effect = load_backends
-    helper = threading.Thread(
-        target=run_until_loop_progresses,
-        args=(started, progressed, release, result),
-    )
-    helper.start()
-    task = asyncio.create_task(resolve_connection("key"))
-    await asyncio.wait_for(async_started.wait(), timeout=1)
-    progressed.set()
-
-    assert (await task).host == "example.com"
-    helper.join(timeout=1)
-    assert result == [True]
-
-
-@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded")
+@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded", autospec=True)
 @pytest.mark.asyncio
 async def test_thread_fallback_preserves_contextvars(mock_ensure_secrets_loaded):
     request_context = contextvars.ContextVar("request_context")
@@ -612,12 +486,14 @@ async def test_thread_fallback_preserves_contextvars(mock_ensure_secrets_loaded)
 
 @pytest.mark.db_test
 @pytest.mark.asyncio
-async def test_native_metastore_reads_use_async_session(session, testing_team):
+async def test_native_metastore_reads_use_async_session_without_hydrating_entities(
+    session, testing_team, monkeypatch
+):
     clear_db_connections()
     clear_db_variables()
     session.add_all(
         [
-            Connection(conn_id="native", uri="http://user:password@example.com"),
+            Connection(conn_id="native", uri="http://user:password@example.com", description="description"),
             Connection(
                 conn_id="team-native",
                 uri="http://team-user:password@team.example.com",
@@ -630,6 +506,26 @@ async def test_native_metastore_reads_use_async_session(session, testing_team):
     session.commit()
 
     from airflow import settings
+    from airflow._shared.secrets_masker import mask_secret
+
+    loop_thread = threading.get_ident()
+    mask_threads = []
+    loaded = []
+
+    def mask_in_worker(*args, **kwargs):
+        mask_threads.append(threading.get_ident())
+        assert threading.get_ident() != loop_thread
+        return mask_secret(*args, **kwargs)
+
+    def record_load(target, context):
+        loaded.append(target)
+
+    for target in ["airflow.models.variable", "airflow.models.connection", "airflow.secrets.metastore"]:
+        monkeypatch.setattr(
+            f"{target}.mask_secret", mock.create_autospec(mask_secret, side_effect=mask_in_worker)
+        )
+    event.listen(Variable, "load", record_load)
+    event.listen(Connection, "load", record_load)
 
     # Rebuild the engine on this test's loop, and read the rebound globals through the
     # module: a name imported from ``airflow.settings`` before the call stays bound to the
@@ -650,17 +546,26 @@ async def test_native_metastore_reads_use_async_session(session, testing_team):
             )
     finally:
         await settings.async_engine.dispose()
+        event.remove(Variable, "load", record_load)
+        event.remove(Connection, "load", record_load)
 
+    assert loaded == []
+    assert mask_threads
     assert type(connection) is Connection
     assert connection.host == "example.com"
+    assert connection.password == "password"
+    assert connection.description == "description"
     assert type(team_connection) is Connection
     assert team_connection.host == "team.example.com"
+    assert team_connection.password == "password"
+    assert team_connection.team_name == testing_team.name
+    monkeypatch.undo()
     clear_db_connections()
     clear_db_variables()
 
 
 @pytest.mark.db_test
-@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded")
+@mock.patch("airflow.secrets.async_resolution.ensure_secrets_loaded", autospec=True)
 @pytest.mark.parametrize("operation", ["set", "delete"])
 @pytest.mark.asyncio
 async def test_sync_write_and_delete_invalidate_async_populated_cache(
@@ -671,7 +576,7 @@ async def test_sync_write_and_delete_invalidate_async_populated_cache(
     assert await resolve_variable("cached-key") == "cached-value"
 
     if operation == "set":
-        with mock.patch.object(Variable, "check_for_write_conflict"):
+        with mock.patch.object(Variable, "check_for_write_conflict", autospec=True):
             Variable.set("cached-key", "new-value", session=session)
     else:
         Variable.delete("cached-key", session=session)
@@ -680,19 +585,28 @@ async def test_sync_write_and_delete_invalidate_async_populated_cache(
         SecretCache.get_variable("cached-key")
 
 
-@mock.patch("airflow.secrets.metastore.create_session_async")
+@pytest.fixture
+def empty_async_session():
+    session = mock.AsyncMock(spec=AsyncSession)
+    result = mock.Mock(spec=Result)
+    result.first.return_value = None
+    mappings = mock.Mock(spec=MappingResult)
+    mappings.first.return_value = None
+    result.mappings.return_value = mappings
+    session.execute.return_value = result
+    return session
+
+
+@mock.patch("airflow.secrets.metastore.create_session_async", autospec=True)
 @pytest.mark.parametrize("method_name", ["aget_variable", "aget_connection"])
 @pytest.mark.parametrize("failure", [None, RuntimeError("database failure")], ids=["success", "error"])
 @pytest.mark.asyncio
 async def test_owned_metastore_session_closes_on_success_and_error(
-    mock_create_session_async, failure, method_name
+    mock_create_session_async, failure, method_name, empty_async_session
 ):
     exited = False
-    fake_session = mock.AsyncMock(spec=AsyncSession)
-    if failure is None:
-        fake_session.scalar.return_value = None
-    else:
-        fake_session.scalar.side_effect = failure
+    fake_session = empty_async_session
+    fake_session.execute.side_effect = failure
 
     @asynccontextmanager
     async def session_context():
@@ -714,12 +628,13 @@ async def test_owned_metastore_session_closes_on_success_and_error(
     assert exited
 
 
-@mock.patch("airflow.secrets.metastore.create_session_async")
+@mock.patch("airflow.secrets.metastore.create_session_async", autospec=True)
 @pytest.mark.parametrize("method_name", ["aget_variable", "aget_connection"])
 @pytest.mark.asyncio
-async def test_borrowed_metastore_session_is_not_owned(mock_create_session_async, method_name):
-    fake_session = mock.AsyncMock(spec=AsyncSession)
-    fake_session.scalar.return_value = None
+async def test_borrowed_metastore_session_is_not_owned(
+    mock_create_session_async, method_name, empty_async_session
+):
+    fake_session = empty_async_session
 
     method = getattr(MetastoreBackend(), method_name)
     assert await method("key", session=fake_session) is None
@@ -729,20 +644,20 @@ async def test_borrowed_metastore_session_is_not_owned(mock_create_session_async
     fake_session.close.assert_not_awaited()
 
 
-@mock.patch("airflow.secrets.metastore.create_session_async")
+@mock.patch("airflow.secrets.metastore.create_session_async", autospec=True)
 @pytest.mark.parametrize("method_name", ["aget_variable", "aget_connection"])
 @pytest.mark.asyncio
 async def test_owned_metastore_session_closes_on_cancellation(mock_create_session_async, method_name):
     entered = asyncio.Event()
     exited = asyncio.Event()
-    scalar_started = asyncio.Event()
+    query_started = asyncio.Event()
     fake_session = mock.AsyncMock(spec=AsyncSession)
 
-    async def scalar(statement):
-        scalar_started.set()
+    async def execute(statement):
+        query_started.set()
         await asyncio.Event().wait()
 
-    fake_session.scalar.side_effect = scalar
+    fake_session.execute.side_effect = execute
 
     @asynccontextmanager
     async def session_context():
@@ -756,7 +671,7 @@ async def test_owned_metastore_session_closes_on_cancellation(mock_create_sessio
     method = getattr(MetastoreBackend(), method_name)
     task = asyncio.create_task(method("key"))
     await entered.wait()
-    await scalar_started.wait()
+    await query_started.wait()
 
     task.cancel()
     with pytest.raises(asyncio.CancelledError):

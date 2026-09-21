@@ -79,6 +79,7 @@ from pydantic import ValidationError
 from sqlalchemy import select
 
 from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
+from airflow.api_fastapi.common.db.common import AsyncSessionDep
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken, TokenScope
 from airflow.api_fastapi.execution_api.deps import DepContainer
 
@@ -247,17 +248,14 @@ class ExecutionAPIRoute(APIRoute):
         self.allowed_token_types = frozenset(token_scopes) if token_scopes else frozenset({"execution"})
 
 
-async def get_team_name_dep(token=CurrentTIToken) -> str | None:
+async def get_team_name_dep(*, session: AsyncSessionDep, token=CurrentTIToken) -> str | None:
     """Return the team name associated to the task (if any)."""
     from airflow.configuration import conf
 
     if not conf.getboolean("core", "multi_team"):
         return None
 
-    from airflow.utils.session import create_session_async
-
-    async with create_session_async() as session:
-        return await session.scalar(_team_name_for_ti_stmt(token.id))
+    return await session.scalar(_team_name_for_ti_stmt(token.id))
 
 
 def get_team_name_for_ti(ti_id, session) -> str | None:

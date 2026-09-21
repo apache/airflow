@@ -428,6 +428,8 @@ class InProcessExecutionAPI:
         import httpx
         from a2wsgi import ASGIMiddleware
 
+        from airflow.api_fastapi.common.db.common import _get_async_session
+
         # We choose to own the event loop + executor thread here so that we can have explicit control over
         # their lifecycle.
         loop = asyncio.new_event_loop()
@@ -438,7 +440,17 @@ class InProcessExecutionAPI:
 
         # https://github.com/abersheeran/a2wsgi/discussions/64
         async def start_lifespan(cm: AsyncExitStack, app: FastAPI):
-            cm.push_async_callback(settings.dispose_async_engine)
+            async_engine, session_factory = settings.create_async_session_factory()
+            if async_engine is not None:
+                cm.push_async_callback(async_engine.dispose)
+            if session_factory is not None:
+                app.state.async_session_factory = session_factory
+
+                async def get_async_session():
+                    async with session_factory.begin() as session:
+                        yield session
+
+                app.dependency_overrides[_get_async_session] = get_async_session
             await cm.enter_async_context(app.router.lifespan_context(app))
 
         cm = AsyncExitStack()

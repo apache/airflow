@@ -16,13 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID
 
 import pytest
 import svcs
 from fastapi import APIRouter, FastAPI, Request, Security
 from fastapi.testclient import TestClient
+from sqlalchemy.ext.asyncio import AsyncSession
 from structlog.testing import capture_logs
 
 from airflow.api_fastapi.auth.tokens import JWTValidator
@@ -268,18 +269,23 @@ class TestTiSelfScopeEnforcement:
 
 
 class TestGetTeamNameDep:
-    """Tests for get_team_name_dep avoiding unnecessary async sessions."""
+    """Tests for get_team_name_dep using the request's async session."""
 
+    @pytest.mark.parametrize("multi_team", [False, True])
+    @patch("airflow.configuration.conf.getboolean", autospec=True)
     @pytest.mark.asyncio
-    async def test_returns_none_without_session_when_multi_team_disabled(self):
-        """When multi_team=False, no async session should be created."""
-        token = MagicMock(spec=TIToken)
+    async def test_uses_borrowed_session_only_when_multi_team_enabled(self, getboolean, multi_team):
+        token = MagicMock(spec=TIToken, id=UUID("00000000-0000-0000-0000-000000000001"))
+        session = AsyncMock(spec=AsyncSession)
+        session.scalar.return_value = "analytics"
+        getboolean.return_value = multi_team
 
-        with (
-            patch("airflow.configuration.conf.getboolean", return_value=False),
-            patch("airflow.utils.session.create_session_async") as mock_create_session,
-        ):
-            result = await get_team_name_dep(token=token)
+        result = await get_team_name_dep(session=session, token=token)
 
-        assert result is None
-        mock_create_session.assert_not_called()
+        assert result == ("analytics" if multi_team else None)
+        if multi_team:
+            session.scalar.assert_awaited_once()
+        else:
+            session.scalar.assert_not_awaited()
+        session.commit.assert_not_awaited()
+        session.close.assert_not_awaited()

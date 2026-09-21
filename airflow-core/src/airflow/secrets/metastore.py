@@ -22,15 +22,40 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from sqlalchemy import or_, select
+from starlette.concurrency import run_in_threadpool
 
+from airflow._shared.secrets_masker import mask_secret
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.session import NEW_SESSION, create_session_async, provide_session
 
 if TYPE_CHECKING:
+    from sqlalchemy.engine import RowMapping
     from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
 
     from airflow.models import Connection
+
+
+def _build_connection(values: RowMapping) -> Connection:
+    from airflow.models import Connection
+
+    connection = Connection()
+    for attribute in Connection.__mapper__.column_attrs:
+        setattr(connection, attribute.key, values[attribute.columns[0].key])
+    connection.on_db_load()
+    return connection
+
+
+def _get_variable_value(key: str, value: str, is_encrypted: bool) -> str | None:
+    from airflow.models import Variable
+
+    variable = Variable(key=key)
+    variable._val = value
+    variable.is_encrypted = is_encrypted
+    result = variable.val
+    if value:
+        mask_secret(result, key)
+    return result
 
 
 class MetastoreBackend(BaseSecretsBackend):
@@ -72,17 +97,22 @@ class MetastoreBackend(BaseSecretsBackend):
 
         from airflow.models import Connection
 
-        conn = await session.scalar(
-            select(Connection)
-            .where(
-                Connection.conn_id == conn_id,
-                or_(Connection.team_name == team_name, Connection.team_name.is_(None)),
+        # ORM load hooks decrypt and mask secrets, so materialize the raw row in a worker.
+        row = (
+            (
+                await session.execute(
+                    select(Connection.__table__)
+                    .where(
+                        Connection.conn_id == conn_id,
+                        or_(Connection.team_name == team_name, Connection.team_name.is_(None)),
+                    )
+                    .limit(1)
+                )
             )
-            .limit(1)
+            .mappings()
+            .first()
         )
-        if conn:
-            session.expunge(conn)
-        return conn
+        return await run_in_threadpool(_build_connection, row) if row is not None else None
 
     @provide_session
     def get_variable(
@@ -118,12 +148,17 @@ class MetastoreBackend(BaseSecretsBackend):
 
         from airflow.models import Variable
 
-        variable = await session.scalar(
-            select(Variable)
-            .where(Variable.key == key, or_(Variable.team_name == team_name, Variable.team_name.is_(None)))
-            .limit(1)
+        row = (
+            await session.execute(
+                select(Variable.key, Variable._val.label("val"), Variable.is_encrypted)
+                .where(
+                    Variable.key == key, or_(Variable.team_name == team_name, Variable.team_name.is_(None))
+                )
+                .limit(1)
+            )
+        ).first()
+        return (
+            await run_in_threadpool(_get_variable_value, row.key, row.val, row.is_encrypted)
+            if row is not None
+            else None
         )
-        if variable:
-            session.expunge(variable)
-            return variable.val
-        return None
