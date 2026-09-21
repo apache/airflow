@@ -1534,6 +1534,9 @@ class TestGitDagBundle:
         assert ACCESS_TOKEN not in bare_config.read_text()
         assert Repo(bundle.bare_repo_path).remotes.origin.url == str(repo_path)
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_1_PLUS, reason="Airflow 3.0 has no structlog caplog to assert membership on"
+    )
     @pytest.mark.parametrize("prune_dotgit_folder", [True, False])
     @pytest.mark.parametrize(
         "break_bare_repo",
