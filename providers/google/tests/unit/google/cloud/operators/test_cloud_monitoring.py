@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 from unittest import mock
 
+import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.monitoring_v3 import AlertPolicy, NotificationChannel
 
@@ -90,6 +91,36 @@ TEST_NOTIFICATION_CHANNEL_2 = {
 
 
 class TestCloudMonitoringListAlertPoliciesOperator:
+    @pytest.mark.parametrize(
+        ("format_", "policies"),
+        [
+            ("dict", [TEST_ALERT_POLICY_1, TEST_ALERT_POLICY_2]),
+            ("json", [json.dumps(TEST_ALERT_POLICY_1), json.dumps(TEST_ALERT_POLICY_2)]),
+        ],
+    )
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.cloud_monitoring.CloudMonitoringHook", autospec=True
+    )
+    def test_execute_preserves_formatted_result(self, mock_hook, format_, policies):
+        operator = CloudMonitoringListAlertPoliciesOperator(
+            task_id=TEST_TASK_ID, filter_=TEST_FILTER, format_=format_
+        )
+        mock_hook.return_value.list_alert_policies.return_value = policies
+
+        result = operator.execute(context=mock.MagicMock(spec=dict))
+
+        mock_hook.return_value.list_alert_policies.assert_called_once_with(
+            project_id=None,
+            filter_=TEST_FILTER,
+            format_=format_,
+            order_by=None,
+            page_size=None,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+        assert result is policies
+
     @mock.patch("airflow.providers.google.cloud.operators.cloud_monitoring.CloudMonitoringHook")
     def test_execute(self, mock_hook):
         operator = CloudMonitoringListAlertPoliciesOperator(task_id=TEST_TASK_ID, filter_=TEST_FILTER)
@@ -168,6 +199,36 @@ class TestCloudMonitoringDeleteAlertOperator:
 
 
 class TestCloudMonitoringListNotificationChannelsOperator:
+    @pytest.mark.parametrize(
+        ("format_", "channels"),
+        [
+            ("dict", [TEST_NOTIFICATION_CHANNEL_1, TEST_NOTIFICATION_CHANNEL_2]),
+            ("json", [json.dumps(TEST_NOTIFICATION_CHANNEL_1), json.dumps(TEST_NOTIFICATION_CHANNEL_2)]),
+        ],
+    )
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.cloud_monitoring.CloudMonitoringHook", autospec=True
+    )
+    def test_execute_preserves_formatted_result(self, mock_hook, format_, channels):
+        operator = CloudMonitoringListNotificationChannelsOperator(
+            task_id=TEST_TASK_ID, filter_=TEST_FILTER, format_=format_
+        )
+        mock_hook.return_value.list_notification_channels.return_value = channels
+
+        result = operator.execute(context=mock.MagicMock(spec=dict))
+
+        mock_hook.return_value.list_notification_channels.assert_called_once_with(
+            project_id=None,
+            filter_=TEST_FILTER,
+            format_=format_,
+            order_by=None,
+            page_size=None,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+        assert result is channels
+
     @mock.patch("airflow.providers.google.cloud.operators.cloud_monitoring.CloudMonitoringHook")
     def test_execute(self, mock_hook):
         operator = CloudMonitoringListNotificationChannelsOperator(task_id=TEST_TASK_ID, filter_=TEST_FILTER)
