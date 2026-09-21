@@ -32,6 +32,7 @@ from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.dag_processing.bundles.local import LocalDagBundle
 from airflow.dag_processing.bundles.manager import (
     DagBundlesManager,
+    _get_configured_bundle_team_names,
     _guess_best_bundle_for_fileloc,
 )
 from airflow.dag_processing.bundles.provider import DagBundleMetadata, DagBundleProvider
@@ -204,7 +205,7 @@ TEAM_BUNDLE_CONFIG = [
 
 
 @pytest.mark.parametrize("load_examples", ["False", "True"])
-def test_get_declared_bundle_teams_excludes_example_bundles(load_examples):
+def test_get_configured_bundle_team_names_excludes_example_bundles(load_examples):
     with conf_vars(
         {
             ("core", "load_examples"): load_examples,
@@ -212,15 +213,15 @@ def test_get_declared_bundle_teams_excludes_example_bundles(load_examples):
             ("dag_processor", "dag_bundle_config_list"): json.dumps(TEAM_BUNDLE_CONFIG),
         }
     ):
-        assert DagBundlesManager().get_declared_bundle_teams() == {
+        assert _get_configured_bundle_team_names() == {
             "team-bundle": "team-a",
             "unscoped-bundle": None,
         }
 
 
 @conf_vars({("dag_processor", "dag_bundle_config_list"): "[]"})
-def test_get_declared_bundle_teams_without_config():
-    assert DagBundlesManager().get_declared_bundle_teams() == {}
+def test_get_configured_bundle_team_names_without_config():
+    assert _get_configured_bundle_team_names() == {}
 
 
 def test_get_bundle():
