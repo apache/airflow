@@ -58,10 +58,26 @@ class NotPreviouslySkippedDep(BaseTIDep):
                     # This can happen if the parent task has not yet run.
                     continue
 
-                # Use the parent's map context to look up the XCom. An unmapped parent
-                # (e.g. LatestOnlyOperator) writes XCom with map_index=-1, so we must
-                # query with -1 instead of the child's map_index.
-                xcom_map_index = ti.map_index if parent.is_mapped else -1
+                # Use the parent's map context to look up the XCom.
+                # - A directly-mapped parent shares the child's map_index.
+                # - A parent inside a mapped task group is not itself mapped
+                #   (parent.is_mapped is False) but still runs at each group
+                #   map_index and writes XCom there.  Detect this by checking
+                #   whether a finished parent TI exists at the child's map_index.
+                # - A truly unmapped parent (e.g. LatestOnlyOperator) always
+                #   writes XCom with map_index=-1; no TI at the child's index.
+                if parent.is_mapped:
+                    xcom_map_index = ti.map_index
+                else:
+                    parent_at_same_index = next(
+                        (
+                            t
+                            for t in finished_tis
+                            if t.task_id == parent.task_id and t.map_index == ti.map_index
+                        ),
+                        None,
+                    )
+                    xcom_map_index = ti.map_index if parent_at_same_index is not None else -1
                 prev_result = ti.xcom_pull(
                     task_ids=parent.task_id,
                     key=XCOM_SKIPMIXIN_KEY,
