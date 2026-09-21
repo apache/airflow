@@ -19,8 +19,17 @@
 
 /** @module Authoring */
 
-export { Bundle, Dag, getClient, getContext, TaskHandler, withArgNames } from "../src/index.js";
+export {
+  Bundle,
+  Dag,
+  getClient,
+  getContext,
+  TaskHandler,
+  withArgList,
+  withArgNames,
+} from "../src/index.js";
 export type {
+  ArgList,
   ArgNameMap,
   DagSpec,
   Registerable,
