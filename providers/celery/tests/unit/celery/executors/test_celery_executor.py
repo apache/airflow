@@ -1207,18 +1207,35 @@ def test_celery_tasks_registered_on_import():
 
 @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="ExecuteCallback requires Airflow 3.2+")
 @pytest.mark.parametrize(
-    ("callback_data", "expected_queue"),
+    ("callback_data", "configured_default_queue", "expected_queue"),
     [
-        pytest.param({"path": "tests.callbacks.test_callback", "kwargs": {}}, "default", id="default_queue"),
+        pytest.param(
+            {"path": "tests.callbacks.test_callback", "kwargs": {}}, None, "default", id="default_queue"
+        ),
         pytest.param(
             {"path": "tests.callbacks.test_callback", "kwargs": {}, "queue": "callback_queue"},
+            None,
             "callback_queue",
             id="callback_queue",
+        ),
+        pytest.param(
+            {"path": "tests.callbacks.test_callback", "kwargs": {}},
+            "custom_default_queue",
+            "custom_default_queue",
+            id="configured_default_queue",
+        ),
+        pytest.param(
+            {"path": "tests.callbacks.test_callback", "kwargs": {}, "queue": "callback_queue"},
+            "custom_default_queue",
+            "callback_queue",
+            id="callback_queue_overrides_configured_default_queue",
         ),
     ],
 )
 @mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor._send_workloads")
-def test_process_workloads_routes_execute_callback(mock_send_workloads, callback_data, expected_queue):
+def test_process_workloads_routes_execute_callback(
+    mock_send_workloads, callback_data, configured_default_queue, expected_queue
+):
     """CeleryExecutor routes callback workloads to Celery with the expected queue."""
     from airflow.executors import workloads
     from airflow.executors.workloads.callback import CallbackDTO
@@ -1236,8 +1253,10 @@ def test_process_workloads_routes_execute_callback(mock_send_workloads, callback
         log_path="callback.log",
     )
 
-    executor = celery_executor.CeleryExecutor()
-    executor._process_workloads([workload])
+    config = {("operators", "default_queue"): configured_default_queue} if configured_default_queue else {}
+    with conf_vars(config):
+        executor = celery_executor.CeleryExecutor()
+        executor._process_workloads([workload])
 
     mock_send_workloads.assert_called_once_with([(workload.callback.key, workload, expected_queue, None)])
 

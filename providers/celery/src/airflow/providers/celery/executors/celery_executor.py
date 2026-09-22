@@ -189,8 +189,8 @@ class CeleryExecutor(BaseExecutor):
             if isinstance(workload, ExecuteTask):
                 workloads_to_be_sent.append((workload.ti.key, workload, workload.ti.queue, self.team_name))
             elif AIRFLOW_V_3_2_PLUS and isinstance(workload, ExecuteCallback):
-                # Use default queue for callbacks, or extract from callback data if available.
-                queue = "default"
+                # Use the configured default queue for callbacks, or extract from callback data if available.
+                queue = self.conf.get_mandatory_value("operators", "default_queue")
                 if isinstance(workload.callback.data, dict) and "queue" in workload.callback.data:
                     queue = workload.callback.data["queue"]
                 workloads_to_be_sent.append((workload.callback.key, workload, queue, self.team_name))
