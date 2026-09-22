@@ -274,7 +274,10 @@ def set_is_paused(is_paused: bool, args, dag: DAG | None = None, *, session: Ses
 
     matched_dags = list(session.scalars(query).all())
     if not matched_dags:
-        print(f"No {'un' if is_paused else ''}paused DAGs were found")
+        if args.output in ("table", "plain"):
+            print(f"No {'un' if is_paused else ''}paused DAGs were found")
+        else:
+            AirflowConsole().print_as(data=[], output=args.output)
         return
 
     if not args.yes and args.treat_dag_id_as_regex:
