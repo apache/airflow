@@ -501,32 +501,36 @@ class Trigger(Base):
         return result
 
 
-def _decode_next_kwargs(next_kwargs_raw: Any) -> dict[str, Any]:
+def _split_stored_next_kwargs(next_kwargs_raw: Any) -> tuple[dict[str, Any], bool]:
     """
-    Decode the stored ``next_kwargs`` of a task instance into a plain dict.
+    Return the top-level mapping of the stored ``next_kwargs``, with its values still encoded.
 
-    Deserialize with serde first to provide a compat layer if there are mixed serialized
-    (BaseSerialisation and serde) data, which can happen if a deferred task resumes after upgrade.
+    The values are deliberately left encoded. Only the worker resuming the task needs them as
+    objects; decoding them here would reconstruct task-supplied values in the scheduler, the
+    triggerer and the API server for nothing, since all the caller does is add the event.
 
-    The result is checked here rather than assumed, so callers never have to trust the shape of
-    what comes back out of the stored payload.
+    Two encodings are accepted: serde, which stores a dict as a plain dict of encoded values, and
+    the legacy ``{"__type": "dict", "__var": {...}}`` form of rows written before the switch to
+    serde, which a deferred task may still carry across an upgrade.
 
-    :raise ValueError: The payload did not decode to a dict.
-    :raise Exception: Whatever the two decoders raise on a payload they cannot read -- the stored
-        blob is arbitrary, so the set is open and callers have to treat it as such.
+    :return: The encoded mapping, and whether it came from the legacy form.
+    :raise ValueError: The stored payload is not an encoded dict.
     """
-    from airflow.sdk.serde import deserialize
+    from airflow._shared.serialization import CLASSNAME, OLD_DATA, OLD_DICT, OLD_TYPE, SCHEMA_ID
 
-    try:
-        next_kwargs = deserialize(next_kwargs_raw)
-    except (ImportError, KeyError, AttributeError, TypeError):
-        from airflow.serialization.serialized_objects import BaseSerialization
-
-        next_kwargs = BaseSerialization.deserialize(next_kwargs_raw)
-
-    if not isinstance(next_kwargs, dict):
-        raise ValueError(f"next_kwargs decoded to {type(next_kwargs).__name__}, expected a dict")
-    return next_kwargs
+    if not isinstance(next_kwargs_raw, dict):
+        raise ValueError(f"next_kwargs is stored as {type(next_kwargs_raw).__name__}, expected a dict")
+    if OLD_TYPE in next_kwargs_raw and OLD_DATA in next_kwargs_raw:
+        if next_kwargs_raw[OLD_TYPE] != OLD_DICT or not isinstance(next_kwargs_raw[OLD_DATA], dict):
+            raise ValueError(
+                f"next_kwargs is stored as a legacy {next_kwargs_raw[OLD_TYPE]!r}, expected a dict"
+            )
+        return next_kwargs_raw[OLD_DATA], True
+    if CLASSNAME in next_kwargs_raw or SCHEMA_ID in next_kwargs_raw:
+        raise ValueError(
+            f"next_kwargs is stored as an encoded {next_kwargs_raw.get(CLASSNAME)!r}, expected a dict"
+        )
+    return next_kwargs_raw, False
 
 
 def _fail_unresumable_task_instance(
@@ -581,7 +585,7 @@ def handle_event_submit(event: TriggerEvent, *, task_instance: TaskInstance, ses
     # stored kwargs for a payload the trigger just yielded would point the author at DB state that
     # was never the problem.
     try:
-        next_kwargs = _decode_next_kwargs(next_kwargs_raw)
+        stored_kwargs, is_legacy = _split_stored_next_kwargs(next_kwargs_raw)
     except Exception as exc:
         log.exception(
             "Could not decode the stored next_kwargs of %s; failing it instead of resuming it",
@@ -596,14 +600,20 @@ def handle_event_submit(event: TriggerEvent, *, task_instance: TaskInstance, ses
         )
         return
 
-    # Add event to the plain dict, then serialize everything together so nested
-    # non-primitive values get proper serde encoding.
-    next_kwargs["event"] = event.payload
+    # Encode only the event and add it next to the stored values, keeping the stored encoding. The
+    # Execution API version converter (ModifyDeferredTaskKwargsToJsonValue) handles converting
+    # serde to BaseSerialization format when serving old workers.
     try:
-        # Re-serialize using serde. The Execution API version converter
-        # (ModifyDeferredTaskKwargsToJsonValue) handles converting this to
-        # BaseSerialization format when serving old workers.
-        serialized_next_kwargs = serialize(next_kwargs)
+        if is_legacy:
+            from airflow._shared.serialization import OLD_DATA
+            from airflow.serialization.serialized_objects import BaseSerialization
+
+            serialized_next_kwargs = {
+                **next_kwargs_raw,
+                OLD_DATA: {**stored_kwargs, "event": BaseSerialization.serialize(event.payload)},
+            }
+        else:
+            serialized_next_kwargs = {**stored_kwargs, "event": serialize(event.payload)}
     except Exception as exc:
         log.exception(
             "Could not serialize the event payload for %s; failing it instead of resuming it",
