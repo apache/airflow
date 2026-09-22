@@ -31,7 +31,7 @@ from top level `PyGithub <https://pygithub.readthedocs.io/>`__ methods.
 You can further process the result using
 :class:`result_processor <airflow.providers.github.operators.github.GithubOperator>` Callable as you like.
 
-An example of Listing all Repositories owned by a user, **client.get_user().get_repos()** can be implemented as following:
+An example of listing all repositories owned by a user, **client.get_user().get_repos()** can be implemented as follows:
 
 .. exampleinclude:: /../../github/tests/system/github/example_github.py
     :language: python
@@ -41,7 +41,7 @@ An example of Listing all Repositories owned by a user, **client.get_user().get_
 
 
 
-An example of Listing Tags in a Repository, **client.get_repo(full_name_or_id='apache/airflow').get_tags()** can be implemented as following:
+An example of listing tags in a repository, **client.get_repo(full_name_or_id='apache/airflow').get_tags()** can be implemented as follows:
 
 .. exampleinclude:: /../../github/tests/system/github/example_github.py
     :language: python

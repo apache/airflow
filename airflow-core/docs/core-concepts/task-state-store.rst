@@ -56,7 +56,7 @@ Inside any ``@task``-decorated function or ``BaseOperator.execute()`` method, ta
         my_value = task_state_store.get("my_key", default="my_default_key")
 
         # Set the new value
-        new_value = f"It is {random.randint(1, 12 + 1)} o'clock"
+        new_value = f"It is {random.randint(1, 12)} o'clock"
         task_state_store.set("my_key", new_value)
 
         # Delete the value

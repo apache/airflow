@@ -40,6 +40,7 @@ __all__ = [
     "BaseXCom",
     "BranchMixIn",
     "ChainMapper",
+    "ChainRetryPolicy",
     "Connection",
     "Context",
     "CronDataIntervalTimetable",
@@ -196,6 +197,7 @@ if TYPE_CHECKING:
         YearWindow,
     )
     from airflow.sdk.definitions.retry_policy import (
+        ChainRetryPolicy,
         ExceptionRetryPolicy,
         RetryAction,
         RetryDecision,
@@ -250,6 +252,7 @@ __lazy_imports: dict[str, str] = {
     "BaseXCom": ".bases.xcom",
     "BranchMixIn": ".bases.branch",
     "ChainMapper": ".definitions.partition_mappers.chain",
+    "ChainRetryPolicy": ".definitions.retry_policy",
     "Connection": ".definitions.connection",
     "Context": ".definitions.context",
     "CronDataIntervalTimetable": ".definitions.timetables.interval",

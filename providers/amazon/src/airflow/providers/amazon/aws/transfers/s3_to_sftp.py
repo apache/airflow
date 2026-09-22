@@ -72,7 +72,15 @@ class S3ToSFTPOperator(BaseOperator):
         exist. If False, the operator logs a warning and skips the transfer. Default is True.
     """
 
-    template_fields: Sequence[str] = ("s3_key", "sftp_path", "s3_bucket", "s3_filenames", "sftp_filenames")
+    template_fields: Sequence[str] = (
+        "s3_key",
+        "sftp_path",
+        "s3_bucket",
+        "s3_filenames",
+        "sftp_filenames",
+        "sftp_conn_id",
+        "aws_conn_id",
+    )
 
     def __init__(
         self,

@@ -33,6 +33,7 @@ from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_1_PLUS, AIRFLOW_V_3_1_8_PLUS
+from airflow.providers.fab.www.extensions.init_session import get_remaining_session_lifetime
 
 if AIRFLOW_V_3_1_8_PLUS:
     from airflow.api_fastapi.app import get_cookie_path
@@ -114,9 +115,30 @@ def get_safe_url(url):
     return redirect_url.geturl()
 
 
+def get_token_expiration_seconds() -> int:
+    """
+    Return how long the API token handed to the browser should live.
+
+    The UI only comes back to the auth manager once its token expires, so the token expiry — not
+    the session cookie — is what actually forces a re-authentication. Capping it at whatever is
+    left of the session keeps ``[fab] session_max_lifetime_minutes`` an exact deadline instead of
+    one the user overshoots by up to ``[api_auth] jwt_expiration_time``.
+    """
+    expiration_seconds = conf.getint("api_auth", "jwt_expiration_time")
+    remaining_session_lifetime = get_remaining_session_lifetime()
+    if remaining_session_lifetime is None:
+        return expiration_seconds
+    # Truncate rather than round so the token never survives the deadline. At least a second: a
+    # session already past its deadline is logged out on its next request anyway, and a
+    # non-positive expiry would be rejected as malformed rather than as expired.
+    return max(min(expiration_seconds, int(remaining_session_lifetime)), 1)
+
+
 def redirect(*args, **kwargs):
     if g.user is not None and g.user.is_authenticated:
-        token = get_auth_manager().generate_jwt(g.user)
+        token = get_auth_manager().generate_jwt(
+            g.user, expiration_time_in_seconds=get_token_expiration_seconds()
+        )
         response = make_response(flask_redirect(*args, **kwargs))
 
         secure = request.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))

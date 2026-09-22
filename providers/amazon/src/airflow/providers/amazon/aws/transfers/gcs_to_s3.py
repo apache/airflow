@@ -99,6 +99,8 @@ class GCSToS3Operator(BaseOperator):
         "google_impersonation_chain",
         "gcp_user_project",
         "match_glob",
+        "gcp_conn_id",
+        "dest_aws_conn_id",
     )
     ui_color = "#f0eee4"
 

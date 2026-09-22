@@ -253,7 +253,7 @@ class TriggerDagRunOperator(BaseOperator):
                 self.conf = json.loads(self.conf)
             json.dumps(self.conf)
         except (TypeError, JSONDecodeError):
-            raise ValueError("conf parameter should be JSON Serializable %s", self.conf)
+            raise ValueError(f"conf parameter should be JSON Serializable: {self.conf}")
 
         if self.openlineage_inject_parent_info:
             self.log.debug("Checking if OpenLineage information can be safely injected into dagrun conf.")

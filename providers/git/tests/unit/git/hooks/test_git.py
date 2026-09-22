@@ -17,9 +17,18 @@
 
 from __future__ import annotations
 
+import base64
 import contextlib
+import http.server
 import os
+import pathlib
+import shlex
+import socketserver
+import subprocess
+import tempfile
+import threading
 import warnings
+from unittest import mock
 
 import pytest
 from git import Repo
@@ -57,6 +66,49 @@ CONN_APP_ONLY_INSTALLATION_ID = "git_app_only_installation_id"
 CONN_APP_NO_KEY = "git_app_no_key"
 CONN_APP_INVALID_APP_ID = "git_app_invalid_app_id"
 CONN_APP_INVALID_INSTALLATION_ID = "git_app_invalid_installation_id"
+
+
+@contextlib.contextmanager
+def recording_git_server():
+    """Serve 401s on loopback, recording every credential git sends."""
+    received: list[str] = []
+
+    class Unauthorized(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            header = self.headers.get("Authorization")
+            if header and header.startswith("Basic "):
+                received.append(base64.b64decode(header[6:]).decode())
+            self.send_response(401)
+            self.send_header("WWW-Authenticate", 'Basic realm="git"')
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def log_message(self, *args):
+            pass
+
+    server = socketserver.TCPServer(("127.0.0.1", 0), Unauthorized)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        yield server.server_address[1], received
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def helper_path_from(config_value: str) -> str:
+    """Undo the ``!<quoted path>`` form git needs, the way a shell would."""
+    assert config_value.startswith("!")
+    return shlex.split(config_value[1:])[0]
+
+
+def git_ls_remote(url: str, env: dict[str, str]) -> None:
+    subprocess.run(
+        ["git", "ls-remote", url],
+        capture_output=True,
+        text=True,
+        check=False,
+        env={**os.environ, **env},
+    )
 
 
 @pytest.fixture
@@ -212,11 +264,11 @@ class TestGitHook:
         ("conn_id", "hook_kwargs", "expected_repo_url", "warns_on_default"),
         [
             (CONN_DEFAULT, {}, AIRFLOW_GIT, True),
-            (CONN_HTTPS, {}, f"https://user:{ACCESS_TOKEN}@github.com/apache/airflow.git", False),
+            (CONN_HTTPS, {}, AIRFLOW_HTTPS_URL, False),
             (
                 CONN_HTTPS,
                 {"repo_url": "https://github.com/apache/zzzairflow"},
-                f"https://user:{ACCESS_TOKEN}@github.com/apache/zzzairflow",
+                "https://github.com/apache/zzzairflow",
                 False,
             ),
             (
@@ -225,11 +277,11 @@ class TestGitHook:
                 AIRFLOW_GIT,
                 True,
             ),
-            (CONN_HTTP, {}, f"http://user:{ACCESS_TOKEN}@github.com/apache/airflow.git", False),
+            (CONN_HTTP, {}, AIRFLOW_HTTP_URL, False),
             (
                 CONN_HTTP,
                 {"repo_url": "http://github.com/apache/zzzairflow"},
-                f"http://user:{ACCESS_TOKEN}@github.com/apache/zzzairflow",
+                "http://github.com/apache/zzzairflow",
                 False,
             ),
             (CONN_HTTP_NO_AUTH, {}, AIRFLOW_HTTP_URL, False),
@@ -251,6 +303,18 @@ class TestGitHook:
         with warning_context:
             hook = GitHook(git_conn_id=conn_id, **hook_kwargs)
         assert hook.repo_url == expected_repo_url
+
+    def test_repo_url_is_expanded_during_init(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id="git_tilde_repo",
+                host="~/repo.git",
+                conn_type="git",
+            )
+        )
+
+        hook = GitHook(git_conn_id="git_tilde_repo")
+        assert hook.repo_url == os.path.expanduser("~/repo.git")
 
     def test_env_var_with_configure_hook_env(self, create_connection_without_db):
         with pytest.warns(AirflowProviderDeprecationWarning, match="accept-new"):
@@ -499,6 +563,223 @@ class TestGitHook:
         # Both the askpass script and the temp key file should be cleaned up
         assert not os.path.exists(askpass_path)
 
+    @pytest.mark.parametrize(
+        ("host", "expected_url", "expected_user", "expected_token"),
+        [
+            pytest.param(
+                "https://airflow_cen:CLEARTEXT_TOKEN@gitlab.example.com/pibi/dags.git",
+                "https://gitlab.example.com/pibi/dags.git",
+                "airflow_cen",
+                "CLEARTEXT_TOKEN",
+                id="user-and-password",
+            ),
+            pytest.param(
+                "https://airflow_cen:tok%40en%2F1@gitlab.example.com/pibi/dags.git",
+                "https://gitlab.example.com/pibi/dags.git",
+                "airflow_cen",
+                "tok@en/1",
+                id="percent-encoded-password",
+            ),
+            pytest.param(
+                "https://gitlab.example.com/pibi/dags.git",
+                "https://gitlab.example.com/pibi/dags.git",
+                "user",
+                None,
+                id="no-credentials",
+            ),
+            pytest.param(
+                "https://airflow_cen@gitlab.example.com/pibi/dags.git",
+                "https://airflow_cen@gitlab.example.com/pibi/dags.git",
+                "user",
+                None,
+                id="username-only-is-left-alone",
+            ),
+            pytest.param(
+                "https://gitlab.example.com/pibi/a@b/dags.git",
+                "https://gitlab.example.com/pibi/a@b/dags.git",
+                "user",
+                None,
+                id="at-sign-in-path",
+            ),
+        ],
+    )
+    def test_credentials_embedded_in_the_host_do_not_stay_in_the_url(
+        self, host, expected_url, expected_user, expected_token, create_connection_without_db
+    ):
+        create_connection_without_db(
+            Connection(conn_id="git_embedded_credentials", host=host, conn_type="git")
+        )
+
+        hook = GitHook(git_conn_id="git_embedded_credentials")
+
+        assert hook.repo_url == expected_url
+        assert hook.user_name == expected_user
+        assert hook.auth_token == expected_token
+
+    def test_connection_fields_win_over_credentials_embedded_in_the_host(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id="git_embedded_and_explicit",
+                host="https://embedded_user:embedded_token@gitlab.example.com/pibi/dags.git",
+                login="explicit_user",
+                password="explicit_token",
+                conn_type="git",
+            )
+        )
+
+        hook = GitHook(git_conn_id="git_embedded_and_explicit")
+
+        assert hook.repo_url == "https://gitlab.example.com/pibi/dags.git"
+        assert hook.user_name == "explicit_user"
+        assert hook.auth_token == "explicit_token"
+
+    def test_token_credential_env_and_cleanup(self, create_connection_without_db):
+        token = "tok$with'quote"
+        create_connection_without_db(
+            Connection(
+                conn_id="git_token_credential",
+                host=AIRFLOW_HTTPS_URL,
+                password=token,
+                conn_type="git",
+            )
+        )
+        hook = GitHook(git_conn_id="git_token_credential")
+        helper_path = None
+
+        with mock.patch.dict(os.environ, {"GIT_TERMINAL_PROMPT": "1"}, clear=False):
+            with hook.configure_hook_env():
+                assert hook.env["GIT_CONFIG_COUNT"] == "2"
+                # Entry order is load-bearing: reset (index 0) must precede the helper (index 1).
+                assert hook.env["GIT_CONFIG_KEY_0"] == "credential.https://github.com.helper"
+                assert hook.env["GIT_CONFIG_VALUE_0"] == ""
+                assert hook.env["GIT_CONFIG_KEY_1"] == "credential.https://github.com.helper"
+                assert hook.env["GIT_TERMINAL_PROMPT"] == "0"
+                helper_path = helper_path_from(hook.env["GIT_CONFIG_VALUE_1"])
+                assert os.path.exists(helper_path)
+
+                # The credential is passed in the environment, never written to the script
+                assert token not in pathlib.Path(helper_path).read_text()
+                assert os.environ["AIRFLOW_GIT_TOKEN"] == token
+
+            assert os.environ["GIT_TERMINAL_PROMPT"] == "1"
+            assert "AIRFLOW_GIT_TOKEN" not in os.environ
+            assert "GIT_CONFIG_COUNT" not in hook.env
+
+        assert not os.path.exists(helper_path)
+
+    def test_token_credential_uses_connection_login(self, create_connection_without_db):
+        username = "token_user"
+        create_connection_without_db(
+            Connection(
+                conn_id="my_git_conn_https_with_login",
+                host=AIRFLOW_HTTPS_URL,
+                login=username,
+                password=ACCESS_TOKEN,
+                conn_type="git",
+            )
+        )
+        hook = GitHook(git_conn_id="my_git_conn_https_with_login")
+
+        with hook.configure_hook_env():
+            assert hook.env["AIRFLOW_GIT_USER"] == username
+            assert hook.env["AIRFLOW_GIT_TOKEN"] == ACCESS_TOKEN
+
+    @pytest.mark.parametrize(
+        "extra",
+        [
+            pytest.param({"key_file": "/files/pkey.pem"}, id="key_file"),
+            pytest.param({"private_key": "inline_key"}, id="private_key"),
+            pytest.param({"known_hosts_file": "/files/known_hosts"}, id="known_hosts_file"),
+            pytest.param({"ssh_config_file": "/files/ssh_config"}, id="ssh_config_file"),
+            pytest.param({"host_proxy_cmd": "nc %h %p"}, id="host_proxy_cmd"),
+            pytest.param({"ssh_port": "2222"}, id="ssh_port"),
+        ],
+    )
+    def test_token_credential_env_is_set_alongside_ssh_options(self, extra, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id="git_token_with_ssh_options",
+                host=AIRFLOW_HTTPS_URL,
+                password=ACCESS_TOKEN,
+                conn_type="git",
+                extra={"strict_host_key_checking": "accept-new", **extra},
+            )
+        )
+        hook = GitHook(git_conn_id="git_token_with_ssh_options")
+
+        with hook.configure_hook_env():
+            assert hook.env["AIRFLOW_GIT_TOKEN"] == ACCESS_TOKEN
+            assert hook.env["GIT_TERMINAL_PROMPT"] == "0"
+
+    def test_credential_helper_answers_only_the_repository_host(self, create_connection_without_db):
+        """A submodule url that impersonates the repo host in its username gets nothing.
+
+        git matches the configured credential scope against the url it parsed, so
+        ``http://<repo host>'@evil/x.git`` — whose host is evil — never reaches the helper.
+        """
+        with recording_git_server() as (repo_port, repo_received):
+            with recording_git_server() as (other_port, other_received):
+                create_connection_without_db(
+                    Connection(
+                        conn_id="git_token_credential_scope",
+                        host=f"http://127.0.0.1:{repo_port}/repo.git",
+                        login="token_user",
+                        password=ACCESS_TOKEN,
+                        conn_type="git",
+                    )
+                )
+                hook = GitHook(git_conn_id="git_token_credential_scope")
+
+                with hook.configure_hook_env():
+                    git_ls_remote(f"http://127.0.0.1:{repo_port}/repo.git", hook.env)
+                    git_ls_remote(f"http://127.0.0.1:{repo_port}'@127.0.0.1:{other_port}/x.git", hook.env)
+                    git_ls_remote(f"http://127.0.0.1:{other_port}/x.git", hook.env)
+
+        assert repo_received == [f"token_user:{ACCESS_TOKEN}"]
+        assert ACCESS_TOKEN not in "".join(other_received)
+
+    def test_credential_helper_survives_a_temp_dir_containing_spaces(
+        self, create_connection_without_db, monkeypatch, tmp_path
+    ):
+        """git runs the helper value through a shell, so an unquoted path would split on space."""
+        spaced_tmp = tmp_path / "tmp dir with spaces"
+        spaced_tmp.mkdir()
+        # gettempdir() caches its answer, so TMPDIR alone would not be read by this point
+        monkeypatch.setattr(tempfile, "tempdir", str(spaced_tmp))
+
+        with recording_git_server() as (port, received):
+            create_connection_without_db(
+                Connection(
+                    conn_id="git_spaced_tmpdir",
+                    host=f"http://127.0.0.1:{port}/repo.git",
+                    login="token_user",
+                    password=ACCESS_TOKEN,
+                    conn_type="git",
+                )
+            )
+            hook = GitHook(git_conn_id="git_spaced_tmpdir")
+
+            with hook.configure_hook_env():
+                git_ls_remote(f"http://127.0.0.1:{port}/repo.git", hook.env)
+
+        assert received == [f"token_user:{ACCESS_TOKEN}"]
+
+    def test_token_credential_env_skipped_for_ssh_transport(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id="git_ssh_with_password",
+                host=AIRFLOW_GIT,
+                password=ACCESS_TOKEN,
+                conn_type="git",
+                extra={"key_file": "/files/pkey.pem", "strict_host_key_checking": "accept-new"},
+            )
+        )
+        hook = GitHook(git_conn_id="git_ssh_with_password")
+
+        with hook.configure_hook_env():
+            assert "GIT_CONFIG_COUNT" not in hook.env
+            assert "AIRFLOW_GIT_TOKEN" not in hook.env
+
     # --- GitHub App auth tests ---
 
     def test_only_app_id_without_installation_id_raises(self):
@@ -632,6 +913,34 @@ class TestGitHook:
             hook = GitHook(git_conn_id="git_app_int_check")
         assert hook.github_app_id == app_id
         assert hook.github_installation_id == installation_id
+
+    def test_github_app_token_is_scoped_to_the_repository_host(self, monkeypatch):
+        """The installation token goes through the same host-scoped helper as a connection token."""
+        from datetime import datetime, timedelta, timezone
+
+        monkeypatch.setattr(
+            "airflow.providers.git.hooks.git.GitHook._get_github_app_token",
+            lambda self: (
+                "x-access-token",
+                "ghs_installation_token",
+                datetime.now(timezone.utc) + timedelta(hours=1),
+            ),
+        )
+        with pytest.warns(AirflowProviderDeprecationWarning, match="accept-new"):
+            hook = GitHook(git_conn_id=CONN_APP_INLINE_KEY)
+
+        with hook.configure_hook_env():
+            assert hook.env["GIT_CONFIG_KEY_0"] == "credential.https://github.com.helper"
+            assert hook.env["GIT_CONFIG_VALUE_0"] == ""
+            assert hook.env["GIT_CONFIG_KEY_1"] == "credential.https://github.com.helper"
+            assert hook.env["AIRFLOW_GIT_USER"] == "x-access-token"
+            assert hook.env["AIRFLOW_GIT_TOKEN"] == "ghs_installation_token"
+            # Nothing sensitive reaches the script, and no prompt-matching remains
+            helper_path = helper_path_from(hook.env["GIT_CONFIG_VALUE_1"])
+            assert "ghs_installation_token" not in pathlib.Path(helper_path).read_text()
+            assert "GIT_ASKPASS" not in hook.env
+
+        assert "AIRFLOW_GIT_TOKEN" not in os.environ
 
     def test_github_app_token_refresh_near_expiry(self, monkeypatch):
         """Token is refreshed when near expiry during configure_hook_env."""

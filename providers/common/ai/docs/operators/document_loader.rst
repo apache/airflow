@@ -17,8 +17,8 @@
 
 .. _howto/operator:document_loader:
 
-``DocumentLoaderOperator``
-==========================
+Load documents: ``DocumentLoaderOperator``
+==========================================
 
 Use :class:`~airflow.providers.common.ai.operators.document_loader.DocumentLoaderOperator`
 to parse files into ``list[dict(text, metadata)]`` for downstream embedding

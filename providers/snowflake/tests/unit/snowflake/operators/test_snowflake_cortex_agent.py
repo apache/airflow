@@ -102,4 +102,5 @@ class TestSnowflakeCortexAgentOperator:
             "schema",
             "agent_name",
             "messages",
+            "snowflake_conn_id",
         )

@@ -130,7 +130,9 @@ on:  # yamllint disable-line rule:truthy
         required: true
         type: string
       job-timeout-minutes:
-        description: "How long the job may run before GitHub cancels it"
+        description: >
+          How long the job may run before GitHub cancels it. A caller raises it when its job
+          carries steps expensive enough to squeeze the tests out of the default.
         required: false
         default: 65
         type: number

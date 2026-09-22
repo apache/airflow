@@ -66,3 +66,8 @@ integrations:
   - integration-name: Common Compat
     external-doc-url: https://airflow.apache.org/docs/apache-airflow-providers-common-compat/
     tags: [software]
+
+retry-policies:
+  - integration-name: Common Compat
+    python-modules:
+      - airflow.providers.common.compat._retry_policy

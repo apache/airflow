@@ -25,6 +25,62 @@
                     "argument": "QueryExecution.Status.State"
                 }
             ]
+        },
+        "calculation_complete": {
+        "operation": "GetCalculationExecution",
+        "delay": 30,
+        "maxAttempts": 120,
+        "acceptors": [
+                {
+                "expected": "COMPLETED",
+                "matcher": "path",
+                "state": "success",
+                "argument": "Status.State"
+                },
+                {
+                "expected": "FAILED",
+                "matcher": "path",
+                "state": "failure",
+                "argument": "Status.State"
+                },
+                {
+                "expected": "CANCELED",
+                "matcher": "path",
+                "state": "failure",
+                "argument": "Status.State"
+                }
+            ]
+        },
+        "session_idle": {
+        "operation": "GetSession",
+        "delay": 10,
+        "maxAttempts": 60,
+        "acceptors": [
+                {
+                "expected": "IDLE",
+                "matcher": "path",
+                "state": "success",
+                "argument": "Status.State"
+                },
+                {
+                "expected": "TERMINATED",
+                "matcher": "path",
+                "state": "failure",
+                "argument": "Status.State"
+                },
+                {
+                "expected": "DEGRADED",
+                "matcher": "path",
+                "state": "failure",
+                "argument": "Status.State"
+                },
+                {
+                "expected": "FAILED",
+                "matcher": "path",
+                "state": "failure",
+                "argument": "Status.State"
+                }
+            ]
         }
     }
 }

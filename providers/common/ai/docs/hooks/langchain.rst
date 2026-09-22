@@ -17,8 +17,15 @@
 
 .. _howto/hook:langchain:
 
-``LangChainHook``
-=================
+LangChain models: ``LangChainHook``
+===================================
+
+.. toctree::
+    :titlesonly:
+    :hidden:
+    :maxdepth: 1
+
+    LangChain connection <../connections/langchain>
 
 Use :class:`~airflow.providers.common.ai.hooks.langchain.LangChainHook` to
 bridge an Airflow connection to `LangChain <https://python.langchain.com/>`__
