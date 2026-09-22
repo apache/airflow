@@ -191,6 +191,40 @@ class TestNextKwargsBackwardCompat:
         # datetime must come back as a datetime, not a {"__classname__": ...} dict
         assert result["event"] == TIMESTAMP
 
+    def test_old_version_passes_non_builtin_values_through(
+        self, old_ver_client, session, create_task_instance, monkeypatch
+    ):
+        """Values of other classes are not rebuilt in the API server; the payload is returned as stored."""
+        from airflow.sdk import Asset
+        from airflow.sdk.serde import serialize as serde_serialize
+
+        serde_encoded = serde_serialize({"asset": Asset("resume-data"), "event": TIMESTAMP})
+
+        ti = create_task_instance(
+            task_id="test_next_kwargs_non_builtin",
+            state=State.QUEUED,
+            session=session,
+            start_date=TIMESTAMP,
+        )
+        ti.next_method = "execute_complete"
+        ti.next_kwargs = serde_encoded
+        session.commit()
+
+        constructed = []
+        original_init = Asset.__init__
+
+        def spy(self, *args, **kwargs):
+            constructed.append(True)
+            original_init(self, *args, **kwargs)
+
+        monkeypatch.setattr(Asset, "__init__", spy)
+
+        response = old_ver_client.patch(f"/execution/task-instances/{ti.id}/run", json=RUN_PATCH_BODY)
+
+        assert response.status_code == 200
+        assert constructed == []
+        assert response.json()["next_kwargs"] == serde_encoded
+
     def test_old_version_handles_already_base_serialization_in_db(
         self, old_ver_client, session, create_task_instance
     ):

@@ -109,6 +109,52 @@ class MakeDagRunStartDateNullable(VersionChange):
             response.body["start_date"] = response.body.get("run_after")
 
 
+# serde class names whose deserializers rebuild plain value types. Everything else (attrs,
+# dataclasses, pydantic models, classes with their own ``deserialize``) is rebuilt by calling into
+# the named class.
+_BUILTIN_VALUE_CLASSNAMES = frozenset(
+    {
+        "builtins.frozenset",
+        "builtins.set",
+        "builtins.tuple",
+        "datetime.date",
+        "datetime.datetime",
+        "datetime.timedelta",
+        "decimal.Decimal",
+        "pendulum.date.Date",
+        "pendulum.datetime.DateTime",
+        "pendulum.tz.timezone.FixedTimezone",
+        "pendulum.tz.timezone.Timezone",
+        "uuid.UUID",
+        "zoneinfo.ZoneInfo",
+    }
+)
+
+
+def _holds_only_builtin_values(value: Any) -> bool:
+    """Whether every class named anywhere in an encoded value is a built-in value type."""
+    from airflow._shared.serialization import (
+        CLASSNAME,
+        OLD_DATA,
+        OLD_DICT,
+        OLD_TYPE,
+        OLD_TYPE_TO_FULL_QUALNAME,
+    )
+
+    if isinstance(value, list):
+        return all(_holds_only_builtin_values(item) for item in value)
+    if not isinstance(value, dict):
+        return True
+    if OLD_TYPE in value and OLD_DATA in value:
+        old_type = value[OLD_TYPE]
+        if old_type != OLD_DICT and OLD_TYPE_TO_FULL_QUALNAME.get(old_type) not in _BUILTIN_VALUE_CLASSNAMES:
+            return False
+        return _holds_only_builtin_values(value[OLD_DATA])
+    if CLASSNAME in value and value[CLASSNAME] not in _BUILTIN_VALUE_CLASSNAMES:
+        return False
+    return all(_holds_only_builtin_values(item) for item in value.values())
+
+
 class ModifyDeferredTaskKwargsToJsonValue(VersionChange):
     """Change the types of `trigger_kwargs` and `next_kwargs` in TIDeferredStatePayload to JsonValue."""
 
@@ -134,6 +180,12 @@ class ModifyDeferredTaskKwargsToJsonValue(VersionChange):
         """
         next_kwargs = response.body.get("next_kwargs")
         if next_kwargs is None:
+            return
+
+        # Only built-in value types are rebuilt here. Anything else would be reconstructed by
+        # calling into its class in the API server, which only the worker has any need to do; such
+        # payloads are passed through as stored.
+        if not _holds_only_builtin_values(next_kwargs):
             return
 
         from airflow.sdk.serde import deserialize
