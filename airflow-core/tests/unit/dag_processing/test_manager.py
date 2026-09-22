@@ -381,6 +381,54 @@ class TestDagFileProcessorManager:
     def clear_parse_import_errors(self):
         clear_db_import_errors()
 
+    @pytest.mark.parametrize(
+        ("dag_processor_config", "expected"),
+        [
+            pytest.param(
+                {
+                    ("dag_processor", "execution_api_retries"): "2",
+                    ("dag_processor", "execution_api_retry_wait_min"): "3.0",
+                    ("dag_processor", "execution_api_retry_wait_max"): "5.0",
+                },
+                (2, 3.0, 5.0),
+                id="component-values",
+            ),
+            pytest.param(
+                {
+                    ("dag_processor", "execution_api_retries"): None,
+                    ("dag_processor", "execution_api_retry_wait_min"): None,
+                    ("dag_processor", "execution_api_retry_wait_max"): None,
+                },
+                (4, 0.25, 2.5),
+                id="worker-fallbacks",
+            ),
+            pytest.param(
+                {
+                    ("dag_processor", "execution_api_retries"): None,
+                    ("dag_processor", "execution_api_retry_wait_min"): None,
+                    ("dag_processor", "execution_api_retry_wait_max"): "1.5",
+                },
+                (4, 0.25, 1.5),
+                id="partial-component-values",
+            ),
+        ],
+    )
+    def test_client_uses_dag_processor_retry_configuration(self, mocker, dag_processor_config, expected):
+        worker_config = {
+            ("workers", "execution_api_retries"): "4",
+            ("workers", "execution_api_retry_wait_min"): "0.25",
+            ("workers", "execution_api_retry_wait_max"): "2.5",
+        }
+        with conf_vars(worker_config | dag_processor_config):
+            client_class = mocker.patch("airflow.sdk.api.client.Client", autospec=True)
+            manager = DagFileProcessorManager(max_runs=1)
+
+            manager.client
+
+        assert client_class.call_args.kwargs["retries"] == expected[0]
+        assert client_class.call_args.kwargs["retry_wait_min"] == expected[1]
+        assert client_class.call_args.kwargs["retry_wait_max"] == expected[2]
+
     @pytest.mark.usefixtures("clear_parse_import_errors")
     @conf_vars({("core", "load_examples"): "False"})
     def test_remove_file_clears_import_error(self, tmp_path, configure_testing_dag_bundle):
