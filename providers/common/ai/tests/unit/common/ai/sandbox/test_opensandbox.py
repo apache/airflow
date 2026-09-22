@@ -206,6 +206,15 @@ class TestConnection:
 
 class TestCreate:
     @mock.patch("opensandbox.SandboxSync.create", autospec=True)
+    def test_refuses_an_owner_because_nothing_could_attach(self, create):
+        # The ownership rules ride on per-sandbox metadata the attaching side reads back,
+        # which this backend has no primitive for; refuse before anything is provisioned.
+        with pytest.raises(SandboxTerminalError, match="owner"):
+            OpenSandboxBackend().create(spec=SandboxSpec(owner="dag/run"))
+
+        create.assert_not_called()
+
+    @mock.patch("opensandbox.SandboxSync.create", autospec=True)
     def test_spec_resources_and_timeouts_are_forwarded(self, create):
         create.return_value = _created(_deny_policy("pypi.org"))
         backend = OpenSandboxBackend(
