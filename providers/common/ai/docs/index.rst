@@ -164,7 +164,7 @@ Getting started
     :caption: Reliability and operations
 
     Durable execution <durable_execution>
-    LLM retry policies <retry_policies>
+    Retry policies <retry_policies>
     Observability <observability>
     Securing agent tools <agent_security>
     Troubleshooting <troubleshooting>

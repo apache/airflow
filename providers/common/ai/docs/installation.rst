@@ -70,7 +70,7 @@ The provider runs on Airflow 3.0, but some features need a newer core:
      - Needs
    * - :doc:`Approval gates <approval_gates>` and :doc:`HITL review <hitl_review>`
      - Airflow 3.1
-   * - :doc:`LLM retry policies <retry_policies>`
+   * - :doc:`Retry policies <retry_policies>`
      - Airflow 3.3
    * - :doc:`Durable execution <durable_execution>` without configuring
        ``[common.ai] durable_cache_path`` (the task state store)

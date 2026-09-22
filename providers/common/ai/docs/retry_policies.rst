@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-LLM retry policies
-==================
+Retry policies
+==============
 
 .. note::
     Requires Airflow >= 3.3.0.
