@@ -3128,6 +3128,9 @@ apache-hive = [
 cncf-kubernetes = [
     { name = "apache-airflow-providers-cncf-kubernetes" },
 ]
+common-ai = [
+    { name = "apache-airflow-providers-common-ai" },
+]
 common-messaging = [
     { name = "apache-airflow-providers-common-messaging" },
 ]
@@ -3190,6 +3193,7 @@ dev = [
     { name = "apache-airflow-providers-amazon", extra = ["aiobotocore", "sqlalchemy"] },
     { name = "apache-airflow-providers-apache-hive" },
     { name = "apache-airflow-providers-cncf-kubernetes" },
+    { name = "apache-airflow-providers-common-ai" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-messaging" },
     { name = "apache-airflow-providers-common-sql", extra = ["pandas", "polars"] },
@@ -3227,6 +3231,7 @@ requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-apache-hive", marker = "extra == 'apache-hive'", editable = "providers/apache/hive" },
     { name = "apache-airflow-providers-cncf-kubernetes", marker = "extra == 'cncf-kubernetes'", editable = "providers/cncf/kubernetes" },
+    { name = "apache-airflow-providers-common-ai", marker = "extra == 'common-ai'", editable = "providers/common/ai" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-messaging", marker = "extra == 'common-messaging'", editable = "providers/common/messaging" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
@@ -3265,7 +3270,7 @@ requires-dist = [
     { name = "watchtower", specifier = ">=3.3.1,<4" },
     { name = "xmlsec", marker = "python_full_version < '3.13' and extra == 'python3-saml'", specifier = ">=1.3.14" },
 ]
-provides-extras = ["aiobotocore", "cncf-kubernetes", "s3fs", "msk", "python3-saml", "apache-hive", "exasol", "fab", "ftp", "google", "imap", "microsoft-azure", "mongo", "pandas", "openlineage", "salesforce", "ssh", "standard", "common-messaging", "sqlalchemy"]
+provides-extras = ["aiobotocore", "cncf-kubernetes", "s3fs", "msk", "python3-saml", "apache-hive", "exasol", "fab", "ftp", "google", "imap", "microsoft-azure", "mongo", "pandas", "openlineage", "salesforce", "ssh", "standard", "common-ai", "common-messaging", "sqlalchemy"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -3275,6 +3280,7 @@ dev = [
     { name = "apache-airflow-providers-amazon", extras = ["sqlalchemy"], editable = "providers/amazon" },
     { name = "apache-airflow-providers-apache-hive", editable = "providers/apache/hive" },
     { name = "apache-airflow-providers-cncf-kubernetes", editable = "providers/cncf/kubernetes" },
+    { name = "apache-airflow-providers-common-ai", editable = "providers/common/ai" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-messaging", editable = "providers/common/messaging" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
@@ -5863,6 +5869,9 @@ apache-cassandra = [
 cncf-kubernetes = [
     { name = "apache-airflow-providers-cncf-kubernetes" },
 ]
+common-ai = [
+    { name = "apache-airflow-providers-common-ai" },
+]
 common-messaging = [
     { name = "apache-airflow-providers-common-messaging" },
 ]
@@ -5927,6 +5936,7 @@ dev = [
     { name = "apache-airflow-providers-apache-cassandra" },
     { name = "apache-airflow-providers-apache-kafka" },
     { name = "apache-airflow-providers-cncf-kubernetes" },
+    { name = "apache-airflow-providers-common-ai" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-messaging" },
     { name = "apache-airflow-providers-common-sql", extra = ["pandas", "polars"] },
@@ -5958,6 +5968,7 @@ requires-dist = [
     { name = "apache-airflow-providers-apache-beam", marker = "extra == 'apache-beam'", editable = "providers/apache/beam" },
     { name = "apache-airflow-providers-apache-cassandra", marker = "extra == 'apache-cassandra'", editable = "providers/apache/cassandra" },
     { name = "apache-airflow-providers-cncf-kubernetes", marker = "extra == 'cncf-kubernetes'", editable = "providers/cncf/kubernetes" },
+    { name = "apache-airflow-providers-common-ai", marker = "extra == 'common-ai'", editable = "providers/common/ai" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-messaging", marker = "extra == 'common-messaging'", editable = "providers/common/messaging" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
@@ -6054,7 +6065,7 @@ requires-dist = [
     { name = "tenacity", specifier = ">=8.3.0" },
     { name = "types-protobuf", specifier = ">=5.27.0,!=5.29.1.20250402" },
 ]
-provides-extras = ["apache-beam", "cncf-kubernetes", "fab", "leveldb", "oracle", "facebook", "amazon", "apache-cassandra", "microsoft-azure", "microsoft-mssql", "mongo", "mysql", "openlineage", "postgres", "presto", "salesforce", "sftp", "ssh", "trino", "http", "standard", "common-messaging"]
+provides-extras = ["apache-beam", "cncf-kubernetes", "fab", "leveldb", "oracle", "facebook", "amazon", "apache-cassandra", "microsoft-azure", "microsoft-mssql", "mongo", "mysql", "openlineage", "postgres", "presto", "salesforce", "sftp", "ssh", "trino", "http", "standard", "common-ai", "common-messaging"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -6065,6 +6076,7 @@ dev = [
     { name = "apache-airflow-providers-apache-cassandra", editable = "providers/apache/cassandra" },
     { name = "apache-airflow-providers-apache-kafka", editable = "providers/apache/kafka" },
     { name = "apache-airflow-providers-cncf-kubernetes", editable = "providers/cncf/kubernetes" },
+    { name = "apache-airflow-providers-common-ai", editable = "providers/common/ai" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-messaging", editable = "providers/common/messaging" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },

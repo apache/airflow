@@ -728,7 +728,10 @@ def get_provider_info():
             },
             {
                 "integration-name": "Amazon Bedrock",
-                "python-modules": ["airflow.providers.amazon.aws.hooks.bedrock"],
+                "python-modules": [
+                    "airflow.providers.amazon.aws.hooks.bedrock",
+                    "airflow.providers.amazon.aws.hooks.bedrock_managed_agent",
+                ],
             },
             {
                 "integration-name": "Amazon Chime",
