@@ -26,6 +26,7 @@ import aiohttp
 import pytest
 from requests import exceptions as requests_exceptions
 from requests.models import Response
+from tenacity import wait_none
 
 from airflow.models.connection import Connection
 from airflow.providers.common.compat.sdk import AirflowException
@@ -1462,6 +1463,8 @@ class TestDbtCloudHook:
         self, get_mock, error_factory, retry_qty, retry_delay
     ):
         hook = DbtCloudHook(ACCOUNT_ID_CONN, retry_limit=retry_qty, retry_delay=retry_delay)
+        # The exponential backoff is not what is under test here; skip the real waits.
+        hook.retry_args["wait"] = wait_none()
 
         def fail_cm():
             cm = AsyncMock()

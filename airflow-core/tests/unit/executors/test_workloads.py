@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import dataclasses
 from pathlib import PurePosixPath
+from typing import get_args
 from uuid import uuid4
 
 import jwt
@@ -26,13 +27,58 @@ import pytest
 
 from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.executors import workloads
-from airflow.executors.workloads import TaskInstance, TaskInstanceDTO, base as workloads_base
-from airflow.executors.workloads.base import BaseWorkloadSchema, BundleInfo
+from airflow.executors.workloads import TaskInstance, TaskInstanceDTO, WorkloadType, base as workloads_base
+from airflow.executors.workloads.base import WORKLOAD_TYPE_PRIORITY, BaseWorkloadSchema, BundleInfo
 from airflow.executors.workloads.callback import CallbackDTO, CallbackFetchMethod, ExecuteCallback
 from airflow.executors.workloads.task import ExecuteTask
-from airflow.executors.workloads.types import state_class_for_key
-from airflow.models.callback import CallbackKey
+from airflow.executors.workloads.trigger import RunTrigger
+from airflow.executors.workloads.types import (
+    SchedulerWorkload,
+    WorkloadKey,
+    WorkloadState,
+    state_class_for_key,
+)
+from airflow.models.callback import CallbackKey, ExecutorCallback
+from airflow.models.connection_test import ConnectionTestKey, ConnectionTestRequest, ConnectionTestState
+from airflow.models.taskinstance import TaskInstance as TaskInstanceModel
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.sdk.api.datamodels._generated import TaskInstance as GeneratedTaskInstance
+from airflow.utils.state import CallbackState, TaskInstanceState
+
+# One row per WorkloadType: (schema, key, state enum, ORM model).
+WORKLOAD_FAMILIES: dict[WorkloadType, tuple[type, type, type, type]] = {
+    WorkloadType.EXECUTE_TASK: (ExecuteTask, TaskInstanceKey, TaskInstanceState, TaskInstanceModel),
+    WorkloadType.EXECUTE_CALLBACK: (ExecuteCallback, CallbackKey, CallbackState, ExecutorCallback),
+    # Referenced via the package so pytest does not collect ``TestConnection`` as a test class.
+    WorkloadType.TEST_CONNECTION: (
+        workloads.TestConnection,
+        ConnectionTestKey,
+        ConnectionTestState,
+        ConnectionTestRequest,
+    ),
+}
+
+
+def _union_members(alias) -> set[type]:
+    union = get_args(alias)[0] if hasattr(alias, "__metadata__") else alias
+    return set(get_args(union))
+
+
+def test_workload_families_track_every_workload_type():
+    assert set(WORKLOAD_FAMILIES) == set(WorkloadType)
+    assert set(WORKLOAD_TYPE_PRIORITY) == set(WorkloadType)
+
+    schemas = {row[0] for row in WORKLOAD_FAMILIES.values()}
+    keys = {row[1] for row in WORKLOAD_FAMILIES.values()}
+    states = {row[2] for row in WORKLOAD_FAMILIES.values()}
+    models = {row[3] for row in WORKLOAD_FAMILIES.values()}
+
+    assert {schema.model_fields["type"].default for schema in schemas} == set(WorkloadType)
+    assert _union_members(workloads.ExecutorWorkload) == schemas
+    assert _union_members(workloads.All) == schemas | {RunTrigger}
+    assert _union_members(WorkloadKey) == keys
+    assert _union_members(WorkloadState) == states
+    assert _union_members(SchedulerWorkload) == models
 
 
 def test_task_instance_alias_keeps_backwards_compat():
