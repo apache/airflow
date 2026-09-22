@@ -52,6 +52,7 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.deadline import Deadline
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.task_state_store import TaskStateStoreModel
+from airflow.models.taskreschedule import TaskReschedule
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
@@ -2000,6 +2001,126 @@ class TestSchemaQualifiedTableConfig:
         assert config.bare_table_name == "some_table"
         assert config.table_name == "some_table"
         assert config.orm_model.schema is None
+
+
+@pytest.mark.db_test
+class TestTaskRescheduleCleanup:
+    @pytest.fixture(autouse=True)
+    def clear_airflow_tables(self):
+        drop_tables_with_prefix("_airflow_")
+        yield
+        drop_tables_with_prefix("_airflow_")
+
+    def test_cleanup_task_reschedule(self):
+        base_date = pendulum.DateTime(2023, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        bundle_name = "testing"
+        with create_session() as session:
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+
+            dag_id = f"test-tr-cleanup_{uuid4()}"
+            dag = DAG(dag_id=dag_id)
+            dm = DagModel(dag_id=dag_id, bundle_name=bundle_name)
+            session.add(dm)
+            SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+
+            dag_run = DagRun(
+                dag.dag_id,
+                run_id="run_1",
+                run_type=DagRunType.SCHEDULED,
+                start_date=base_date,
+            )
+            ti = create_task_instance(
+                PythonOperator(task_id="dummy-task", python_callable=print),
+                run_id=dag_run.run_id,
+                dag_version_id=dag_version.id,
+            )
+            ti.dag_id = dag.dag_id
+            ti.start_date = base_date
+            session.add(dag_run)
+            session.add(ti)
+            session.flush()
+
+            tr_old = TaskReschedule(
+                ti_id=ti.id,
+                start_date=base_date,
+                end_date=base_date.add(minutes=1),
+                reschedule_date=base_date.add(minutes=5),
+            )
+            tr_new = TaskReschedule(
+                ti_id=ti.id,
+                start_date=base_date.add(days=10),
+                end_date=base_date.add(days=10, minutes=1),
+                reschedule_date=base_date.add(days=10, minutes=5),
+            )
+            session.add_all([tr_old, tr_new])
+            session.commit()
+
+            run_cleanup(
+                clean_before_timestamp=base_date.add(days=5),
+                table_names=["task_reschedule"],
+                dry_run=False,
+                confirm=False,
+                session=session,
+            )
+
+            remaining = session.scalars(select(TaskReschedule)).all()
+            assert len(remaining) == 1
+            assert remaining[0].id == tr_new.id
+
+    def test_cleanup_task_reschedule_as_task_instance_dependent(self):
+        base_date = pendulum.DateTime(2023, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        bundle_name = "testing"
+        with create_session() as session:
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+
+            dag_id = f"test-tr-cascade_{uuid4()}"
+            dag = DAG(dag_id=dag_id)
+            dm = DagModel(dag_id=dag_id, bundle_name=bundle_name)
+            session.add(dm)
+            SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+
+            dag_run = DagRun(
+                dag.dag_id,
+                run_id="run_1",
+                run_type=DagRunType.SCHEDULED,
+                start_date=base_date,
+            )
+            ti = create_task_instance(
+                PythonOperator(task_id="dummy-task", python_callable=print),
+                run_id=dag_run.run_id,
+                dag_version_id=dag_version.id,
+            )
+            ti.dag_id = dag.dag_id
+            ti.start_date = base_date
+            session.add(dag_run)
+            session.add(ti)
+            session.flush()
+
+            tr = TaskReschedule(
+                ti_id=ti.id,
+                start_date=base_date,
+                end_date=base_date.add(minutes=1),
+                reschedule_date=base_date.add(minutes=5),
+            )
+            session.add(tr)
+            session.commit()
+
+            run_cleanup(
+                clean_before_timestamp=base_date.add(days=5),
+                table_names=["task_instance"],
+                dry_run=False,
+                confirm=False,
+                session=session,
+            )
+
+            assert session.scalar(select(func.count(TaskInstance.id))) == 0
+            assert session.scalar(select(func.count(TaskReschedule.id))) == 0
+            archives = _get_archived_table_names(["task_reschedule"], session)
+            assert len(archives) == 1
 
 
 @pytest.mark.backend("postgres")
