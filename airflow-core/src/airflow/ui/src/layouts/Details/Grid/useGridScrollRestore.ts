@@ -36,14 +36,14 @@ type Params = {
   selectedTaskId?: string;
 };
 
-// Opening a task remounts the Grid and resets its scrollTop to the top. We restore the last
-// position so an ordinary click never jumps the Grid: across that remount the structure is
-// unchanged, so the saved pixel offset still points at the same rows.
+// Navigating into a task swaps the route (Dag/Run/TaskInstance each render their own Grid), so the
+// Grid unmounts and a fresh one mounts scrolled to the top. We restore the last position here so a
+// click doesn't jump the Grid: the rows are unchanged across the remount, so the saved pixel offset
+// still points at the same rows.
 //
-// If the structure did change since we saved (a new version, or groups expanded/collapsed) the
-// saved offset no longer lines up, so we fall back to locating the selected task by id and
-// centering it. Rows are a fixed height, so the index alone gives the offset — this stays correct
-// without depending on the stored pixels.
+// If the rows did change since we saved (a new version, or groups expanded/collapsed) the saved
+// offset no longer lines up, so we fall back to locating the selected task by id and centering it.
+// Rows are a fixed height, so the index alone gives the offset — no dependency on the stored pixels.
 export const useGridScrollRestore = ({
   dagId,
   flatNodes,
