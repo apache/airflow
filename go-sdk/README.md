@@ -169,8 +169,7 @@ upstream object as a single argument.
 
 ### The task context
 
-`airflow.Context` is the first parameter of every task handler -- the Go equivalent of the execution
-context the Python and Java SDKs expose. Everything Airflow gives the task is a method on it:
+`airflow.Context` is the first parameter of every task handler. Everything Airflow gives the task is a method on it:
 
 | Method | What it returns |
 | --- | --- |

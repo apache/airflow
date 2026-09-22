@@ -224,9 +224,8 @@ through its methods:
 
 ``airflow.Context`` is itself a ``context.Context``, so pass it straight to a client call or to
 ``http.NewRequestWithContext``, and select on ``actx.Done()``, which fires when the supervisor asks the task
-to stop. Respect it for long-running work. Cleanup that must outlive that cancellation runs under
-``context.WithoutCancel(actx)``. A helper typed as a plain ``context.Context`` recovers the same surface
-with ``airflow.FromContext``.
+to stop. Respect it for long-running work. Cleanup that must outlive that cancellation runs under ``context.WithoutCancel(actx)``.
+A helper typed as a plain ``context.Context`` recovers the same surface with ``airflow.FromContext``.
 
 Every parameter after the Context is data, filled from the stub Task's TaskFlow call; see
 :ref:`go-sdk/arguments`.
@@ -321,6 +320,11 @@ manual trigger).
 
 Receiving arguments from the stub Task
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A stub Task's arguments reach a Go handler in one of two ways:
+
+1. **Positional binding** -- each data parameter takes the argument in the same position.
+2. **Struct-based (keyword) binding** -- a sole struct parameter takes the arguments by field name.
 
 Every parameter after the ``airflow.Context`` is a **data parameter**, filled in declaration order from the
 arguments of the Python stub Task's TaskFlow call. A literal in the Dag file (``transform("uk", ...)``)
