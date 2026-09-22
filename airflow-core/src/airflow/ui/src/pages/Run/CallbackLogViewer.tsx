@@ -70,7 +70,6 @@ export const CallbackLogViewer = ({ callbackId, dagId, dagRunId }: CallbackLogVi
         {translate("dag:callbackLogs.viewLogs")}
       </Button>
       <Modal
-        contentProps={{ backdrop: true, padding: 4 }}
         onOpenChange={() => setIsOpen(false)}
         open={isOpen}
         scrollBehavior="inside"
