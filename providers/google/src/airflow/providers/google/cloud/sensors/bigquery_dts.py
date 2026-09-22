@@ -43,13 +43,14 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         For more information on how to use this sensor, take a look at the guide:
         :ref:`howto/operator:BigQueryDataTransferServiceTransferRunSensor`
 
-    :param expected_statuses: The expected state of the operation.
+    :param expected_statuses: The expected state of the operation. (templated)
         See:
         https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferOperations#Status
-    :param run_id: ID of the transfer run.
-    :param transfer_config_id: ID of transfer config to be used.
+    :param run_id: ID of the transfer run. (templated)
+    :param transfer_config_id: ID of transfer config to be used. (templated)
     :param project_id: The BigQuery project id where the transfer configuration should be
         created. If set to None or missing, the default project_id from the Google Cloud connection is used.
+        (templated)
     :param retry: A retry object used to retry requests. If `None` is
         specified, requests will not be retried.
     :param request_timeout: The amount of time, in seconds, to wait for the request to

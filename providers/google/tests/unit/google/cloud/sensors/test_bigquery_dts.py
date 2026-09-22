@@ -94,16 +94,17 @@ class TestBigQueryDataTransferServiceTransferRunSensor:
         "airflow.providers.google.cloud.sensors.bigquery_dts.BiqQueryDataTransferServiceHook",
         return_value=MM(get_transfer_run=MM(return_value=MM(state=TransferState.SUCCEEDED))),
     )
-    def test_templated_expected_statuses_normalized_at_poke_time(self, mock_hook):
+    def test_templated_expected_statuses_rendered_before_poke(self, mock_hook):
         op = BigQueryDataTransferServiceTransferRunSensor(
             transfer_config_id=TRANSFER_CONFIG_ID,
             run_id=RUN_ID,
             task_id="id",
             project_id=PROJECT_ID,
-            expected_statuses="{{ var.value.expected_status }}",
+            expected_statuses="{{ expected }}",
         )
-        # Template rendering replaces the Jinja expression with the resolved value before poke.
-        op.expected_statuses = "succeeded"
+        assert op.expected_statuses == "{{ expected }}"
+
+        op.render_template_fields({"expected": "succeeded"})
 
         assert op.poke({}) is True
 
