@@ -38,6 +38,7 @@ import {
 import { SearchBar } from "src/components/SearchBar";
 import Time from "src/components/Time";
 
+import { useConfig } from "src/queries/useConfig";
 import { createErrorToaster } from "src/utils";
 
 type ImportDAGErrorModalProps = {
@@ -47,17 +48,27 @@ type ImportDAGErrorModalProps = {
 
 const PAGE_LIMIT = 15;
 
-const ReparseButton = ({ fileToken }: { readonly fileToken: string }) => {
+const ReparseButton = ({
+  fileToken,
+  onReparsed,
+}: {
+  readonly fileToken: string;
+  readonly onReparsed: () => void;
+}) => {
   const { t: translate } = useTranslation(["components", "dag"]);
 
   const { isPending, mutate } = useDagParsingServiceReparseDagFile({
     onError: (error) => createErrorToaster(error, { titleKey: "dag:parse.toaster.error.title" }, translate),
-    onSuccess: () =>
+    onSuccess: () => {
+      // Reparse is queued for the DAG processor, so the modal cannot know when
+      // it lands; polling starts on the first reparse and stops on close.
+      onReparsed();
       toaster.create({
         description: translate("dag:parse.toaster.success.description"),
         title: translate("dag:parse.toaster.success.title"),
         type: "success",
-      }),
+      });
+    },
   });
 
   return (
@@ -76,6 +87,8 @@ const ReparseButton = ({ fileToken }: { readonly fileToken: string }) => {
 export const DagImportErrorsModal = ({ onClose, open }: ImportDAGErrorModalProps) => {
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
+  const [pollAfterReparse, setPollAfterReparse] = useState(false);
+  const autoRefreshInterval = useConfig("auto_refresh_interval") as number | undefined;
 
   const { data } = useImportErrorServiceGetImportErrors(
     {
@@ -84,7 +97,14 @@ export const DagImportErrorsModal = ({ onClose, open }: ImportDAGErrorModalProps
       offset: PAGE_LIMIT * (page - 1),
     },
     undefined,
-    { enabled: open },
+    {
+      enabled: open,
+      // Reparse is a queued request the dag processor picks up on its next
+      // cycle, so once a reparse has been issued the modal polls until it is
+      // closed. autoRefreshInterval mirrors what the dashboard cards use.
+      refetchInterval:
+        pollAfterReparse && autoRefreshInterval !== undefined ? autoRefreshInterval * 1000 : false,
+    },
   );
 
   const { t: translate } = useTranslation(["dashboard", "components"]);
@@ -92,6 +112,7 @@ export const DagImportErrorsModal = ({ onClose, open }: ImportDAGErrorModalProps
   const onOpenChange = () => {
     setSearchQuery("");
     setPage(1);
+    setPollAfterReparse(false);
     onClose();
   };
 
@@ -158,7 +179,10 @@ export const DagImportErrorsModal = ({ onClose, open }: ImportDAGErrorModalProps
                 </HStack>
               </Accordion.ItemTrigger>
               <Box alignItems="center" display="flex" flexShrink={0} gap={1} pr={2}>
-                <ReparseButton fileToken={importError.file_token} />
+                <ReparseButton
+                  fileToken={importError.file_token}
+                  onReparsed={() => setPollAfterReparse(true)}
+                />
                 <ClipboardRoot value={importError.filename}>
                   <ClipboardIconButton variant="outline" />
                 </ClipboardRoot>
