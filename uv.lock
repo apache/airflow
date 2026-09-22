@@ -315,7 +315,7 @@ members = [
     "apache-airflow-task-sdk",
     "apache-airflow-task-sdk-integration-tests",
 ]
-overrides = [{ name = "openai", specifier = ">=2.45.0,<3" }]
+overrides = [{ name = "openai", specifier = ">=2.47.0,<3" }]
 
 [[package]]
 name = "a2wsgi"
@@ -4704,11 +4704,11 @@ requires-dist = [
     { name = "fastavro", marker = "python_full_version >= '3.14' and extra == 'avro'", specifier = ">=1.12.1" },
     { name = "fastavro", marker = "python_full_version < '3.14' and extra == 'avro'", specifier = ">=1.10.0" },
     { name = "langchain", marker = "extra == 'langchain'", specifier = ">=1.0.0" },
-    { name = "llama-index-core", marker = "extra == 'llamaindex'", specifier = ">=0.13.0" },
+    { name = "llama-index-core", marker = "extra == 'llamaindex'", specifier = ">=0.14.5" },
     { name = "llama-index-embeddings-openai", marker = "extra == 'llamaindex'", specifier = ">=0.6.0" },
-    { name = "llama-index-llms-openai", marker = "extra == 'llamaindex'", specifier = ">=0.6.0" },
+    { name = "llama-index-llms-openai", marker = "extra == 'llamaindex'", specifier = ">=0.6.8" },
     { name = "modal", marker = "extra == 'modal'", specifier = ">=1.5.0" },
-    { name = "openai", marker = "extra == 'openai'", specifier = ">=2.45.0" },
+    { name = "openai", marker = "extra == 'openai'", specifier = ">=2.47.0" },
     { name = "pyarrow", marker = "python_full_version >= '3.14' and extra == 'parquet'", specifier = ">=22.0.0" },
     { name = "pyarrow", marker = "python_full_version < '3.14' and extra == 'parquet'", specifier = ">=18.0.0" },
     { name = "pydantic-ai-harness", extras = ["codemode"], marker = "extra == 'code-mode'", specifier = ">=0.3.0" },
@@ -4739,10 +4739,10 @@ dev = [
     { name = "apache-airflow-providers-standard", editable = "providers/standard" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
     { name = "langchain", specifier = ">=1.0.0" },
-    { name = "llama-index-core", specifier = ">=0.13.0" },
+    { name = "llama-index-core", specifier = ">=0.14.5" },
     { name = "llama-index-embeddings-openai", specifier = ">=0.6.0" },
-    { name = "llama-index-llms-openai", specifier = ">=0.6.0" },
-    { name = "openai", specifier = ">=2.45.0" },
+    { name = "llama-index-llms-openai", specifier = ">=0.6.8" },
+    { name = "openai", specifier = ">=2.47.0" },
     { name = "pydantic-ai-skills", specifier = ">=1.2.0" },
     { name = "pydantic-ai-slim", extras = ["mcp"], specifier = ">=2.33.0" },
     { name = "sqlglot", specifier = ">=30.0.0" },

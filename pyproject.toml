@@ -1452,7 +1452,7 @@ no-build-isolation-package = ["sphinx-redoc"]
 # OpenAI model works against openai 2.x at runtime; the declared floor tracks the SDK's httpx2
 # move. Published wheels are unaffected: overrides only shape uv.lock and the CI image. Drop this
 # once run-llama/llama_index#22939 and BerriAI/litellm#40317 land and both allow openai 3.
-override-dependencies = ["openai>=2.45.0,<3"]
+override-dependencies = ["openai>=2.47.0,<3"]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
 exclude-newer = "4 days"
 
