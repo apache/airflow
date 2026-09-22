@@ -215,7 +215,7 @@ Constructor parameters:
   and pass ``SandboxSpec(block_network=False)`` to match.
 
 What differs between the backends
---------------------------------
+---------------------------------
 
 Swapping the backend is one constructor argument, and tool names, spec and prompt
 do not change. Four behaviours do, so read them before assuming the same Dag
