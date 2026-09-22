@@ -28,7 +28,7 @@ import dataclasses
 import logging
 import os
 from collections.abc import Generator
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
@@ -408,6 +408,20 @@ def _do_delete(
         else:
             print("Performing Delete...")
 
+        if skip_archive:
+            # The archive-and-drop dance below writes every row twice and, with a low
+            # statement timeout, can time out before the DROP -- so leave the archive
+            # out entirely (#42003). Delete the batch's rows in place with a bounded
+            # IN-subquery against the same limited_query, then commit per batch to
+            # release row locks.
+            _delete_directly(
+                limited_query=limited_query,
+                source_table_name=source_table_name,
+                session=session,
+                dialect_name=dialect_name,
+            )
+            continue
+
         # using bulk delete
         # create a new table and copy the rows there
         timestamp_str = re.sub(r"[^\d]", "", timezone.utcnow().isoformat())[:14]
@@ -416,85 +430,98 @@ def _do_delete(
             f"{ARCHIVE_TABLE_PREFIX}{orm_model.name}__{timestamp_str}{suffix}",
         )
         print(f"Moving data to table {target_table_name}")
-        target_table = None
-        # Lets the ``finally`` cleanup below tell the failure path (don't let a
-        # cleanup error mask the original) from the success path (a cleanup error
-        # is a real problem and must propagate).
-        error_raised = False
 
-        try:
-            if dialect_name == "mysql":
-                # MySQL with replication needs this split into two queries, so just do it for all MySQL
-                # ERROR 1786 (HY000): Statement violates GTID consistency: CREATE TABLE ... SELECT.
-                session.execute(text(f"CREATE TABLE {target_table_name} LIKE {source_table_name}"))
-                metadata = reflect_tables([target_table_name], session)
-                target_table = metadata.tables[target_table_name]
-                insert_stm = target_table.insert().from_select(target_table.c, limited_query)
-                logger.debug("insert statement:\n%s", insert_stm.compile())
-                session.execute(insert_stm)
-            else:
-                stmt = CreateTableAs(target_table_name, limited_query.selectable)
-                logger.debug("ctas query:\n%s", stmt.compile())
-                session.execute(stmt)
-            session.commit()
-
-            # delete the rows from the old table
-            metadata = reflect_tables([source_table_name, target_table_name], session)
-            source_table = metadata.tables[source_table_name]
+        if dialect_name == "mysql":
+            # MySQL with replication needs this split into two queries, so just do it for all MySQL
+            # ERROR 1786 (HY000): Statement violates GTID consistency: CREATE TABLE ... SELECT.
+            session.execute(text(f"CREATE TABLE {target_table_name} LIKE {source_table_name}"))
+            metadata = reflect_tables([target_table_name], session)
             target_table = metadata.tables[target_table_name]
-            logger.debug("rows moved; purging from %s", source_table.name)
-            if dialect_name == "sqlite":
-                pk_cols = source_table.primary_key.columns
-                delete = source_table.delete().where(
-                    tuple_(*pk_cols).in_(
-                        select(*[target_table.c[x.name] for x in source_table.primary_key.columns])
-                    )
-                )
-            else:
-                delete = source_table.delete().where(
-                    and_(*[col == target_table.c[col.name] for col in source_table.primary_key.columns])
-                )
-            logger.debug("delete statement:\n%s", delete.compile())
-            session.execute(delete)
-            session.commit()
+            insert_stm = target_table.insert().from_select(target_table.c, limited_query)
+            logger.debug("insert statement:\n%s", insert_stm.compile())
+            session.execute(insert_stm)
+        else:
+            stmt = CreateTableAs(target_table_name, limited_query.selectable)
+            logger.debug("ctas query:\n%s", stmt.compile())
+            session.execute(stmt)
+        session.commit()
 
-        except BaseException:
-            error_raised = True
-            # Roll back the failed transaction so its locks are released before
-            # the archive table is dropped in the ``finally`` block below.
-            # ``rollback()`` itself can raise (e.g. the connection died); suppress
-            # it so it does not shadow the original error being re-raised.
-            with suppress(Exception):
-                session.rollback()
-            raise
-        finally:
-            if target_table is not None and skip_archive:
-                # Drop the archive table on the session's own connection. Binding
-                # the drop to ``session.get_bind()`` (the Engine) would check out a
-                # *second* pooled connection, and on MySQL its ``DROP TABLE`` blocks
-                # indefinitely on the metadata lock still held by this session's
-                # open transaction when the DELETE above failed -- the ``db clean``
-                # hang reported in #66177.
-                try:
-                    target_table.drop(bind=session.connection())
-                    session.commit()
-                except Exception:
-                    # If we are already unwinding from a delete failure, a cleanup
-                    # error here must not replace the original exception (Python
-                    # makes a ``finally``-raised error the top-level one). Log and
-                    # let the original delete error keep propagating. On the success
-                    # path (no delete error), a drop/commit failure is a real
-                    # problem, so re-raise it.
-                    if not error_raised:
-                        raise
-                    logger.warning(
-                        "Failed to drop archive table %s while cleaning up after a "
-                        "delete failure; propagating the original delete error instead.",
-                        target_table_name,
-                        exc_info=True,
-                    )
+        # delete the rows from the old table
+        metadata = reflect_tables([source_table_name, target_table_name], session)
+        source_table = metadata.tables[source_table_name]
+        target_table = metadata.tables[target_table_name]
+        logger.debug("rows moved; purging from %s", source_table.name)
+        if dialect_name == "sqlite":
+            pk_cols = source_table.primary_key.columns
+            delete = source_table.delete().where(
+                tuple_(*pk_cols).in_(
+                    select(*[target_table.c[x.name] for x in source_table.primary_key.columns])
+                )
+            )
+        else:
+            delete = source_table.delete().where(
+                and_(*[col == target_table.c[col.name] for col in source_table.primary_key.columns])
+            )
+        logger.debug("delete statement:\n%s", delete.compile())
+        session.execute(delete)
+        session.commit()
 
     print("Finished Performing Delete")
+
+
+def _delete_directly(
+    *,
+    limited_query: Select,
+    source_table_name: str,
+    session: Session,
+    dialect_name: str,
+) -> None:
+    """
+    DELETE the batch's rows from the source table without an archive copy.
+
+    Used by ``_do_delete`` when ``skip_archive=True``. The IN-subquery references
+    the ``base``-aliased source table (see ``_build_query``) so the extra filters
+    that ``_cleanup_table`` layered on ``limited_query`` still apply.
+    """
+    metadata = reflect_tables([source_table_name], session)
+    source_table = metadata.tables[source_table_name]
+    pk_cols = list(source_table.primary_key.columns)
+    if not pk_cols:
+        raise ValueError(f"Table {source_table_name} has no primary key columns available for cleanup.")
+
+    # ``limited_query`` was built with ``select(text("base.*")).select_from(aliased(orm_model, "base"))``,
+    # so the columns we want to feed the DELETE come from the ``base`` alias, not from the reflected
+    # source table itself.
+    pk_projection = limited_query.with_only_columns(
+        *[literal_column(f"{_BASE_TABLE_ALIAS}.{col.name}").label(col.name) for col in pk_cols]
+    )
+    rows_to_delete = pk_projection.subquery("rows_to_delete")
+
+    if len(pk_cols) == 1:
+        pk_col = pk_cols[0]
+        delete = source_table.delete().where(
+            source_table.c[pk_col.name].in_(select(rows_to_delete.c[pk_col.name]))
+        )
+    elif dialect_name == "sqlite":
+        # SQLite supports row-value IN, so this path matches the archive-flow's SQLite branch.
+        delete = source_table.delete().where(
+            tuple_(*[source_table.c[c.name] for c in pk_cols]).in_(
+                select(*[rows_to_delete.c[c.name] for c in pk_cols])
+            )
+        )
+    else:
+        # MySQL 5.7 rejects the composite tuple IN (SELECT ...) form used above, so translate
+        # the correlated equality join into an EXISTS clause -- the same shape as the archive
+        # branch's ``and_(col == target.c[col.name])`` join.
+        delete = source_table.delete().where(
+            select(literal(1))
+            .select_from(rows_to_delete)
+            .where(and_(*[source_table.c[c.name] == rows_to_delete.c[c.name] for c in pk_cols]))
+            .exists()
+        )
+    logger.debug("direct delete statement:\n%s", delete.compile())
+    session.execute(delete)
+    session.commit()
 
 
 def _subquery_keep_last(

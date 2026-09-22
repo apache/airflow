@@ -22,7 +22,7 @@ import time
 from contextlib import suppress
 from importlib import import_module
 from io import StringIO
-from unittest.mock import MagicMock, call, mock_open, patch
+from unittest.mock import MagicMock, mock_open, patch
 from uuid import uuid4
 
 import pendulum
@@ -671,166 +671,61 @@ class TestDBCleanup:
                 # "dagrun_id" intentionally omitted from extra_columns
             )
 
-    def test_do_delete_rolls_back_before_drop_on_failure(self):
+    def test_do_delete_skip_archive_never_creates_archive_table(self):
+        """``skip_archive=True`` must go through ``_delete_directly`` and never
+        touch the ``_airflow_deleted__*`` archive table (#42003)."""
         session = MagicMock(spec=Session)
         session.get_bind.return_value.dialect.name = "mysql"
-        session.connection.return_value = object()
         session.scalars.return_value.one.side_effect = [1, 0]
-        tracker = MagicMock()
-        tracker.attach_mock(session, "session")
 
-        metadata, source_table, target_table, query = _build_do_delete_test_objects()
-        delete_failure = IntegrityError("DELETE FROM dag_version", {}, Exception("fk violation"))
-        session.execute.side_effect = [None, None, delete_failure]
+        metadata, source_table, _target_table, query = _build_do_delete_test_objects()
 
         with (
             patch("airflow.utils.db_cleanup.reflect_tables", return_value=metadata),
-            patch("airflow.utils.db_cleanup.timezone.utcnow", return_value=_delete_test_timestamp()),
-            patch.object(target_table, "drop") as drop_mock,
-        ):
-            tracker.attach_mock(drop_mock, "drop")
-            with pytest.raises(IntegrityError) as exc_info:
-                _do_delete(
-                    query=query,
-                    orm_model=source_table,
-                    skip_archive=True,
-                    session=session,
-                    batch_size=None,
-                )
-
-        assert exc_info.value is delete_failure
-        session.rollback.assert_called_once_with()
-        session.connection.assert_called_once_with()
-        assert session.get_bind.call_count == 1
-        drop_mock.assert_called_once_with(bind=session.connection.return_value)
-
-        rollback_call_index = tracker.mock_calls.index(call.session.rollback())
-        drop_call_index = tracker.mock_calls.index(call.drop(bind=session.connection.return_value))
-        commit_call_index = tracker.mock_calls.index(call.session.commit(), drop_call_index)
-        assert rollback_call_index < drop_call_index < commit_call_index
-
-    def test_do_delete_propagates_original_error_when_rollback_fails(self):
-        session = MagicMock(spec=Session)
-        session.get_bind.return_value.dialect.name = "mysql"
-        session.connection.return_value = object()
-        session.scalars.return_value.one.side_effect = [1, 0]
-
-        metadata, source_table, target_table, query = _build_do_delete_test_objects()
-        delete_failure = IntegrityError("DELETE FROM dag_version", {}, Exception("fk violation"))
-        session.execute.side_effect = [None, None, delete_failure]
-        session.rollback.side_effect = OperationalError("ROLLBACK", {}, Exception("connection lost"))
-
-        with (
-            patch("airflow.utils.db_cleanup.reflect_tables", return_value=metadata),
-            patch("airflow.utils.db_cleanup.timezone.utcnow", return_value=_delete_test_timestamp()),
-            patch.object(target_table, "drop") as drop_mock,
-        ):
-            with pytest.raises(IntegrityError) as exc_info:
-                _do_delete(
-                    query=query,
-                    orm_model=source_table,
-                    skip_archive=True,
-                    session=session,
-                    batch_size=None,
-                )
-
-        assert exc_info.value is delete_failure
-        session.rollback.assert_called_once_with()
-        drop_mock.assert_called_once_with(bind=session.connection.return_value)
-
-    @pytest.mark.parametrize(
-        ("skip_archive", "expected_commit_count"),
-        [pytest.param(True, 3, id="skip_archive"), pytest.param(False, 2, id="keep_archive")],
-    )
-    def test_do_delete_success_does_not_call_rollback(self, skip_archive, expected_commit_count):
-        session = MagicMock(spec=Session)
-        session.get_bind.return_value.dialect.name = "mysql"
-        session.connection.return_value = object()
-        session.scalars.return_value.one.side_effect = [1, 0]
-        session.execute.side_effect = [None, None, None]
-
-        metadata, source_table, target_table, query = _build_do_delete_test_objects()
-
-        with (
-            patch("airflow.utils.db_cleanup.reflect_tables", return_value=metadata),
-            patch("airflow.utils.db_cleanup.timezone.utcnow", return_value=_delete_test_timestamp()),
-            patch.object(target_table, "drop") as drop_mock,
+            patch("airflow.utils.db_cleanup._delete_directly") as delete_directly_mock,
         ):
             _do_delete(
                 query=query,
                 orm_model=source_table,
-                skip_archive=skip_archive,
+                skip_archive=True,
                 session=session,
                 batch_size=None,
             )
 
+        delete_directly_mock.assert_called_once()
+        kwargs = delete_directly_mock.call_args.kwargs
+        assert kwargs["source_table_name"] == source_table.name
+        assert kwargs["dialect_name"] == "mysql"
+        # No CTAS / INSERT SELECT / DROP executed via session.execute (only the initial COUNT).
+        session.execute.assert_not_called()
         session.rollback.assert_not_called()
-        assert session.commit.call_count == expected_commit_count
-        if skip_archive:
-            session.connection.assert_called_once_with()
-            drop_mock.assert_called_once_with(bind=session.connection.return_value)
-        else:
-            session.connection.assert_not_called()
-            drop_mock.assert_not_called()
 
-    def test_do_delete_original_error_survives_archive_drop_failure(self):
-        """On the failure path, a drop/commit error in the finally block must not
-        replace the original delete error (nailo2c review, #66296)."""
+    def test_do_delete_keep_archive_uses_archive_flow(self):
+        """``skip_archive=False`` keeps the archive-then-delete flow: 2 commits
+        (archive commit + source-delete commit), no ``_delete_directly`` call."""
         session = MagicMock(spec=Session)
         session.get_bind.return_value.dialect.name = "mysql"
-        session.connection.return_value = object()
-        session.scalars.return_value.one.side_effect = [1, 0]
-
-        metadata, source_table, target_table, query = _build_do_delete_test_objects()
-        delete_failure = IntegrityError("DELETE FROM dag_version", {}, Exception("fk violation"))
-        session.execute.side_effect = [None, None, delete_failure]
-        drop_failure = OperationalError("DROP TABLE", {}, Exception("server has gone away"))
-
-        with (
-            patch("airflow.utils.db_cleanup.reflect_tables", return_value=metadata),
-            patch("airflow.utils.db_cleanup.timezone.utcnow", return_value=_delete_test_timestamp()),
-            patch.object(target_table, "drop", side_effect=drop_failure) as drop_mock,
-        ):
-            with pytest.raises(IntegrityError) as exc_info:
-                _do_delete(
-                    query=query,
-                    orm_model=source_table,
-                    skip_archive=True,
-                    session=session,
-                    batch_size=None,
-                )
-
-        assert exc_info.value is delete_failure
-        drop_mock.assert_called_once_with(bind=session.connection.return_value)
-
-    def test_do_delete_success_propagates_archive_drop_error(self):
-        """On the success path, a drop/commit failure is a real error and must
-        still surface (the failure-path guard must not swallow it)."""
-        session = MagicMock(spec=Session)
-        session.get_bind.return_value.dialect.name = "mysql"
-        session.connection.return_value = object()
         session.scalars.return_value.one.side_effect = [1, 0]
         session.execute.side_effect = [None, None, None]
 
-        metadata, source_table, target_table, query = _build_do_delete_test_objects()
-        drop_failure = OperationalError("DROP TABLE", {}, Exception("disk full"))
+        metadata, source_table, _target_table, query = _build_do_delete_test_objects()
 
         with (
             patch("airflow.utils.db_cleanup.reflect_tables", return_value=metadata),
             patch("airflow.utils.db_cleanup.timezone.utcnow", return_value=_delete_test_timestamp()),
-            patch.object(target_table, "drop", side_effect=drop_failure),
+            patch("airflow.utils.db_cleanup._delete_directly") as delete_directly_mock,
         ):
-            with pytest.raises(OperationalError) as exc_info:
-                _do_delete(
-                    query=query,
-                    orm_model=source_table,
-                    skip_archive=True,
-                    session=session,
-                    batch_size=None,
-                )
+            _do_delete(
+                query=query,
+                orm_model=source_table,
+                skip_archive=False,
+                session=session,
+                batch_size=None,
+            )
 
-        assert exc_info.value is drop_failure
+        delete_directly_mock.assert_not_called()
         session.rollback.assert_not_called()
+        assert session.commit.call_count == 2
 
     @patch("airflow.utils.db.reflect_tables")
     def test_skip_archive_failure_will_remove_table(self, reflect_tables_mock):

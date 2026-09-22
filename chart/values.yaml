@@ -3523,11 +3523,16 @@ dags:
     # SSH example: git@github.com:apache/airflow.git
     # HTTPS example: https://github.com/apache/airflow.git
 
+    # For git-sync v3: set ``branch`` and ``rev``. In v4 these two are deprecated
+    # and, if emitted, override ``ref``, so the chart only sends them when
+    # ``ref`` is unset. The default keeps them for v3 compatibility.
     branch: v2-2-stable
     rev: HEAD
 
-    # The git revision (branch, tag, or hash) to check out, v4 only
-    ref: v2-2-stable
+    # The git revision (branch, tag, or hash) to check out, v4 only.
+    # When set, the chart sends only ``GITSYNC_REF`` and omits the deprecated
+    # ``GIT_SYNC_BRANCH`` / ``GIT_SYNC_REV`` so v4 git-sync does not override it.
+    ref: ~
 
     depth: 1
 

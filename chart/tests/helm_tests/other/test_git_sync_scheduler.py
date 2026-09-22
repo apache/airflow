@@ -96,9 +96,7 @@ class TestGitSyncSchedulerTest:
             "imagePullPolicy": "Always",
             "envFrom": [{"secretRef": {"name": "proxy-config"}}],
             "env": [
-                {"name": "GIT_SYNC_REV", "value": "HEAD"},
                 {"name": "GITSYNC_REF", "value": "test-branch"},
-                {"name": "GIT_SYNC_BRANCH", "value": "test-branch"},
                 {"name": "GIT_SYNC_REPO", "value": "https://github.com/apache/airflow.git"},
                 {"name": "GITSYNC_REPO", "value": "https://github.com/apache/airflow.git"},
                 {"name": "GIT_SYNC_DEPTH", "value": "1"},
@@ -168,9 +166,7 @@ class TestGitSyncSchedulerTest:
             "imagePullPolicy": "Always",
             "envFrom": [{"secretRef": {"name": "proxy-config"}}],
             "env": [
-                {"name": "GIT_SYNC_REV", "value": "HEAD"},
                 {"name": "GITSYNC_REF", "value": "test-branch"},
-                {"name": "GIT_SYNC_BRANCH", "value": "test-branch"},
                 {"name": "GIT_SYNC_REPO", "value": "https://github.com/apache/airflow.git"},
                 {"name": "GITSYNC_REPO", "value": "https://github.com/apache/airflow.git"},
                 {"name": "GIT_SYNC_DEPTH", "value": "1"},
@@ -198,6 +194,56 @@ class TestGitSyncSchedulerTest:
                 "timeoutSeconds": 1,
             },
         }
+
+    def test_ref_takes_precedence_over_deprecated_branch_and_rev(self):
+        """When ``ref`` is set, only ``GITSYNC_REF`` should be emitted; the
+        deprecated ``GIT_SYNC_BRANCH`` and ``GIT_SYNC_REV`` would override it
+        under git-sync v4 (see #42918)."""
+        docs = render_chart(
+            values={
+                "executor": "LocalExecutor",
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "branch": "main",
+                        "rev": "HEAD",
+                        "ref": "v1.2.3",
+                    }
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        env = jmespath.search("spec.template.spec.containers[1].env", docs[0])
+        env_names = {item["name"] for item in env}
+        assert {"name": "GITSYNC_REF", "value": "v1.2.3"} in env
+        assert "GIT_SYNC_BRANCH" not in env_names
+        assert "GIT_SYNC_REV" not in env_names
+
+    def test_deprecated_branch_and_rev_are_emitted_when_ref_is_unset(self):
+        """Without ``ref`` (git-sync v3 mode, and the shipped default), the
+        chart still emits ``GIT_SYNC_BRANCH`` and ``GIT_SYNC_REV`` so v3 images
+        keep working."""
+        docs = render_chart(
+            values={
+                "executor": "LocalExecutor",
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "branch": "main",
+                        "rev": "HEAD",
+                        "ref": None,
+                    }
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        env = jmespath.search("spec.template.spec.containers[1].env", docs[0])
+        env_names = {item["name"] for item in env}
+        assert {"name": "GIT_SYNC_BRANCH", "value": "main"} in env
+        assert {"name": "GIT_SYNC_REV", "value": "HEAD"} in env
+        assert "GITSYNC_REF" not in env_names
 
     def test_validate_if_ssh_params_are_added(self):
         docs = render_chart(
