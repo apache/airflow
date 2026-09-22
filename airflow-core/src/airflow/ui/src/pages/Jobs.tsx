@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, VStack } from "@chakra-ui/react";
+import { Box } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
@@ -24,12 +24,14 @@ import { useSearchParams } from "react-router-dom";
 
 import { useJobServiceGetJobs } from "openapi/queries";
 import type { JobResponse, TaskInstanceState } from "openapi/requests/types.gen";
+
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { FilterBar } from "src/components/FilterBar";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
+
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useDocumentTitle, useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
@@ -134,21 +136,21 @@ export const Jobs = () => {
 
   return (
     <Box p={2}>
-      <VStack align="start" gap={4} paddingY="4px">
-        <FilterBar
-          configs={filterConfigs}
-          initialValues={initialValues}
-          onFiltersChange={handleFiltersChange}
-        />
-      </VStack>
       <DataTable
         columns={columns}
         data={data?.jobs ?? []}
         errorMessage={<ErrorAlert error={error} />}
+        filterActions={
+          <FilterBar
+            configs={filterConfigs}
+            initialValues={initialValues}
+            onFiltersChange={handleFiltersChange}
+          />
+        }
         initialState={tableURLState}
         isFetching={isFetching}
         isLoading={isLoading}
-        modelName="common:browse.jobs"
+        modelName="admin:jobs.job"
         onStateChange={setTableURLState}
         total={data?.total_entries}
       />

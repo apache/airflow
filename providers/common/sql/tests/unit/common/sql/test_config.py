@@ -33,6 +33,7 @@ class TestDataSourceConfig:
         ("uri", "expected_type"),
         [
             ("s3://bucket/path", StorageType.S3),
+            ("gs://bucket/path", StorageType.GCS),
             ("file:///path/to/file", StorageType.LOCAL),
         ],
     )
@@ -44,9 +45,37 @@ class TestDataSourceConfig:
         with pytest.raises(ValueError, match="Unsupported storage type for URI"):
             DataSourceConfig(conn_id="test", uri="unknown://bucket/path", table_name="a_table")
 
+    def test_plain_db_table_without_uri_does_not_infer_storage_type(self):
+        config = DataSourceConfig(conn_id="postgres_default", table_name="my_table")
+        assert config.storage_type is None
+        assert config.uri == ""
+
+    def test_plain_db_table_with_blank_table_name_raises_error(self):
+        with pytest.raises(ValueError, match="Table name must be provided for storage type"):
+            DataSourceConfig(conn_id="postgres_default", table_name="   ")
+
     def test_missing_table_name_raises_error(self):
         with pytest.raises(ValueError, match="Table name must be provided for storage type"):
             DataSourceConfig(conn_id="test", uri="s3://bucket/path", table_name="")
+
+    def test_missing_table_name_raises_error_with_explicit_storage_type(self):
+        with pytest.raises(ValueError, match="Table name must be provided for storage type"):
+            DataSourceConfig(conn_id="pg", table_name="", storage_type=StorageType.S3)
+
+    def test_iceberg_with_blank_table_name_raises_error(self):
+        with pytest.raises(ValueError, match="Table name must be provided for storage type"):
+            DataSourceConfig(conn_id="iceberg_conn", table_name="", format="iceberg", db_name="default")
+
+    def test_explicit_storage_type_without_uri_or_format_is_accepted(self):
+        config = DataSourceConfig(conn_id="pg", table_name="my_table", storage_type=StorageType.S3)
+        assert config.storage_type == StorageType.S3
+        assert config.uri == ""
+
+    def test_format_without_uri_raises_error(self):
+        with pytest.raises(ValueError, match="URI must be provided when format is set"):
+            DataSourceConfig(
+                conn_id="test", table_name="my_table", format="parquet", storage_type=StorageType.LOCAL
+            )
 
     def test_parquet_with_partition_cols(self):
         config = DataSourceConfig(

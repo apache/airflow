@@ -92,6 +92,9 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
         Metrics produced by the PipelineJob as system.Metric Artifacts will be associated as metrics
         to the current Experiment Run. Pipeline parameters will be associated as parameters to
         the current Experiment Run.
+    :param reserved_ip_ranges: Optional. A list of names for the reserved IP ranges under the VPC
+        network that can be used for this PipelineJob. If set, the PipelineJob will only use IP
+        addresses from these ranges.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -115,6 +118,7 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
         "pipeline_root",
         "parameter_values",
         "service_account",
+        "gcp_conn_id",
     ]
     operator_extra_links = (VertexAIPipelineJobLink(),)
 
@@ -137,6 +141,7 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
         network: str | None = None,
         create_request_timeout: float | None = None,
         experiment: str | experiment_resources.Experiment | None = None,
+        reserved_ip_ranges: list[str] | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
@@ -160,6 +165,7 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
         self.network = network
         self.create_request_timeout = create_request_timeout
         self.experiment = experiment
+        self.reserved_ip_ranges = reserved_ip_ranges
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
@@ -189,6 +195,7 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
             failure_policy=self.failure_policy,
             service_account=self.service_account,
             network=self.network,
+            reserved_ip_ranges=self.reserved_ip_ranges,
             create_request_timeout=self.create_request_timeout,
             experiment=self.experiment,
         )
@@ -260,6 +267,7 @@ class GetPipelineJobOperator(GoogleCloudBaseOperator):
         "pipeline_job_id",
         "project_id",
         "impersonation_chain",
+        "gcp_conn_id",
     ]
     operator_extra_links = (VertexAIPipelineJobLink(),)
 
@@ -389,6 +397,7 @@ class ListPipelineJobOperator(GoogleCloudBaseOperator):
         "region",
         "project_id",
         "impersonation_chain",
+        "gcp_conn_id",
     ]
     operator_extra_links = [
         VertexAIPipelineJobListLink(),
@@ -476,6 +485,7 @@ class DeletePipelineJobOperator(GoogleCloudBaseOperator):
         "project_id",
         "pipeline_job_id",
         "impersonation_chain",
+        "gcp_conn_id",
     ]
 
     def __init__(

@@ -259,6 +259,13 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("api", "auth_backends"),
         renamed_to=ConfigParameter("fab", "auth_backends"),
     ),
+    ConfigChange(
+        config=ConfigParameter("api", "expose_config"),
+        was_removed=False,
+        is_invalid_if="non-sensitive-only",
+        suggestion="This value is deprecated and treated as `True`. Set `expose_config` to `True` instead; "
+        "sensitive configuration values are always masked.",
+    ),
     # logging
     ConfigChange(
         config=ConfigParameter("logging", "enable_task_context_logger"),

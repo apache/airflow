@@ -17,6 +17,6 @@
  * under the License.
  */
 
-import { startCoordinator } from "../../../src/index.js";
+import { Bundle } from "../../../src/index.js";
 
-await startCoordinator();
+await new Bundle().serve();

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import dataclasses
 from pathlib import PurePosixPath
+from typing import get_args
 from uuid import uuid4
 
 import jwt
@@ -26,13 +27,58 @@ import pytest
 
 from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.executors import workloads
-from airflow.executors.workloads import TaskInstance, TaskInstanceDTO, base as workloads_base
-from airflow.executors.workloads.base import BaseWorkloadSchema, BundleInfo
+from airflow.executors.workloads import TaskInstance, TaskInstanceDTO, WorkloadType, base as workloads_base
+from airflow.executors.workloads.base import WORKLOAD_TYPE_PRIORITY, BaseWorkloadSchema, BundleInfo
 from airflow.executors.workloads.callback import CallbackDTO, CallbackFetchMethod, ExecuteCallback
 from airflow.executors.workloads.task import ExecuteTask
-from airflow.executors.workloads.types import state_class_for_key
-from airflow.models.callback import CallbackKey
+from airflow.executors.workloads.trigger import RunTrigger
+from airflow.executors.workloads.types import (
+    SchedulerWorkload,
+    WorkloadKey,
+    WorkloadState,
+    state_class_for_key,
+)
+from airflow.models.callback import CallbackKey, ExecutorCallback
+from airflow.models.connection_test import ConnectionTestKey, ConnectionTestRequest, ConnectionTestState
+from airflow.models.taskinstance import TaskInstance as TaskInstanceModel
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.sdk.api.datamodels._generated import TaskInstance as GeneratedTaskInstance
+from airflow.utils.state import CallbackState, TaskInstanceState
+
+# One row per WorkloadType: (schema, key, state enum, ORM model).
+WORKLOAD_FAMILIES: dict[WorkloadType, tuple[type, type, type, type]] = {
+    WorkloadType.EXECUTE_TASK: (ExecuteTask, TaskInstanceKey, TaskInstanceState, TaskInstanceModel),
+    WorkloadType.EXECUTE_CALLBACK: (ExecuteCallback, CallbackKey, CallbackState, ExecutorCallback),
+    # Referenced via the package so pytest does not collect ``TestConnection`` as a test class.
+    WorkloadType.TEST_CONNECTION: (
+        workloads.TestConnection,
+        ConnectionTestKey,
+        ConnectionTestState,
+        ConnectionTestRequest,
+    ),
+}
+
+
+def _union_members(alias) -> set[type]:
+    union = get_args(alias)[0] if hasattr(alias, "__metadata__") else alias
+    return set(get_args(union))
+
+
+def test_workload_families_track_every_workload_type():
+    assert set(WORKLOAD_FAMILIES) == set(WorkloadType)
+    assert set(WORKLOAD_TYPE_PRIORITY) == set(WorkloadType)
+
+    schemas = {row[0] for row in WORKLOAD_FAMILIES.values()}
+    keys = {row[1] for row in WORKLOAD_FAMILIES.values()}
+    states = {row[2] for row in WORKLOAD_FAMILIES.values()}
+    models = {row[3] for row in WORKLOAD_FAMILIES.values()}
+
+    assert {schema.model_fields["type"].default for schema in schemas} == set(WorkloadType)
+    assert _union_members(workloads.ExecutorWorkload) == schemas
+    assert _union_members(workloads.All) == schemas | {RunTrigger}
+    assert _union_members(WorkloadKey) == keys
+    assert _union_members(WorkloadState) == states
+    assert _union_members(SchedulerWorkload) == models
 
 
 def test_task_instance_alias_keeps_backwards_compat():
@@ -88,6 +134,25 @@ def test_generate_token_produces_workload_scope(monkeypatch):
 def test_generate_token_without_generator():
     """generate_token should return empty string when no generator is provided."""
     assert BaseWorkloadSchema.generate_token("ti-123", None) == ""
+
+
+def test_token_scope_is_a_class_level_invariant():
+    """Token scope is fixed per workload type, not caller-suppliable."""
+    assert BaseWorkloadSchema.token_scope == "workload"
+    assert ExecuteTask.token_scope == "workload"
+    assert ExecuteCallback.token_scope == "callback"
+
+
+def test_generate_token_uses_subclass_token_scope(monkeypatch):
+    """ExecuteCallback.generate_token should stamp its own 'callback' scope."""
+    monkeypatch.setattr(workloads_base.conf, "getfloat", lambda section, key: 86400.0)
+
+    generator = JWTGenerator(secret_key="test-secret", audience="test", valid_for=60)
+    token = ExecuteCallback.generate_token("cb-123", generator)
+
+    claims = jwt.decode(token, "test-secret", algorithms=["HS512"], audience="test")
+    assert claims["sub"] == "cb-123"
+    assert claims["scope"] == "callback"
 
 
 def test_callback_key_is_frozen_and_hashable():

@@ -58,6 +58,7 @@ from airflow.sdk.api.datamodels._generated import (
     TIRunContext,
 )
 from airflow.sdk.bases.operator import BaseOperator, ExecutorSafeguard
+from airflow.sdk.bases.skipmixin import XCOM_SKIPMIXIN_KEY
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
@@ -302,8 +303,12 @@ class RuntimeTaskInstance(TaskInstance):
         integrate_macros_plugins()
 
         dag_run_conf: dict[str, Any] | None = None
+        macros_accessor = MacrosAccessor()
         if from_server := self._ti_context_from_server:
             dag_run_conf = from_server.dag_run.conf or dag_run_conf
+            macros_accessor = MacrosAccessor(
+                team_name=from_server.dag_run.team_name, multi_team=bool(from_server.multi_team)
+            )
 
         validated_params = process_params(self.task.dag, self.task, dag_run_conf, suppress_exception=False)
 
@@ -322,7 +327,7 @@ class RuntimeTaskInstance(TaskInstance):
                 "ti": self,
                 "outlet_events": OutletEventAccessors(),
                 "inlet_events": InletEventsAccessors(self.task.inlets),
-                "macros": MacrosAccessor(),
+                "macros": macros_accessor,
                 "params": validated_params,
                 # TODO: Make this go through Public API longer term.
                 # "test_mode": task_instance.test_mode,
@@ -902,6 +907,14 @@ def _xcom_push(
     # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
     # consumers
 
+    if key == XCOM_SKIPMIXIN_KEY:
+        # The branch/skip decision is control-plane data the scheduler reads (via
+        # NotPreviouslySkippedDep) to skip mapped or cleared downstream tasks. It must
+        # bypass any custom XCom backend, which could externalize it into a pointer the
+        # scheduler cannot interpret, silently leaving those tasks unskipped (#50491).
+        _xcom_push_to_db(ti, key, value)
+        return
+
     XCom.set(
         key=key,
         value=value,
@@ -1478,10 +1491,10 @@ def _defer_task(
     log.info("Pausing task as DEFERRED. ", dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id)
     classpath, trigger_kwargs = defer.trigger.serialize()
     queue: str | None = None
-    # Currently, only task-associated BaseTrigger instances may have a non-None queue,
-    # and only when triggerer.queues_enabled conf is True.
+    # Only inherit the deferring task's queue when triggerer.queues_enabled conf is True
+    # and the trigger doesn't already manage its own queue (e.g. BaseEventTrigger, CallbackTrigger).
     if conf.getboolean("triggerer", "queues_enabled", fallback=False) and getattr(
-        defer.trigger, "supports_triggerer_queue", True
+        defer.trigger, "trigger_queue_inherited_from_task", True
     ):
         queue = ti.task.queue
 
@@ -1815,6 +1828,8 @@ def _evaluate_retry_policy(
             context=context,
         )
         if decision.reason:
+            # Close the group so the retry policy decision is not hidden inside "Post Execute".
+            log.info("::endgroup::")
             log.info("Retry policy decision", action=decision.action.value, reason=decision.reason)
         return decision
     except Exception:

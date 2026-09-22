@@ -9,8 +9,7 @@
   "config": {
     "columns": {
       "section": "सेक्शन"
-    },
-    "title": "Airflow विन्यास"
+    }
   },
   "connections": {
     "add": "कनेक्शन जोड़ें",

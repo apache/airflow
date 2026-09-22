@@ -43,14 +43,18 @@ Repository URL
     or ``https://github.com/apache/airflow.git`` for HTTPS.
     This can also be passed directly to the hook via the ``repo_url`` parameter.
 
+    A ``user:password@`` embedded in an ``http(s)`` repository URL is stripped out before use and
+    treated as the username/access token; the explicit fields below take precedence over it
+    when both are present.
+
 Username or Access Token name (optional)
     The username for HTTPS authentication or the token name. Defaults to ``user`` if not specified.
-    When using HTTPS with an access token, this value is used as the username in the
-    authenticated URL (e.g. ``https://user:token@github.com/repo.git``).
 
 Access Token (optional)
-    The access token for HTTPS authentication. When provided along with the username,
-    the hook injects the credentials into the repository URL for HTTPS cloning.
+    The access token for HTTPS authentication. The connection's username and token are never written into
+    the repository URL or the bundle's git config; instead they are handed to git through a
+    credential helper scoped to the repository's host (``credential.<scheme>://<host>[:port].helper``).
+    Token authentication over http(s) requires git version 2.31 or higher.
 
 Extra (optional)
     Specify the extra parameters as a JSON dictionary. The following keys are supported:
@@ -115,4 +119,40 @@ Extra (optional)
             "ssh_port": "2222",
             "strict_host_key_checking": "yes",
             "known_hosts_file": "/path/to/known_hosts"
+        }
+
+    **GitHub App authentication:**
+
+    In order to use GitHub App authentication the ``github`` extra needs to be installed:
+
+    .. code-block:: bash
+
+        pip install 'apache-airflow-providers-git[github]'
+
+    * ``github_app_id``: The App ID of your GitHub App. Note that the GitHub App Client ID can also be used.
+    * ``github_installation_id``: The installation ID of your GitHub app.
+    * ``key_file``: Path to a PEM-encoded private key file for your GitHub App.
+    * ``private_key``: An inline PEM-encoded private key string. When provided, the hook writes it
+      to a temporary file and uses it for the GitHub App connection.
+      Mutually exclusive with ``key_file``.
+
+
+    Example with key file:
+
+    .. code-block:: json
+
+        {
+            "github_app_id": "1234567",
+            "github_installation_id": "67890",
+            "key_file": "/path/to/private-key.pem"
+        }
+
+    Example with inline private key:
+
+    .. code-block:: json
+
+        {
+            "github_app_id": "1234567",
+            "github_installation_id": "67890",
+            "private_key": "<content of your PEM-encoded private key>"
         }

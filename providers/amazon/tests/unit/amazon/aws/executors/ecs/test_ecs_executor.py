@@ -52,15 +52,19 @@ from airflow.providers.amazon.aws.executors.ecs.utils import (
     parse_assign_public_ip,
 )
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
-from airflow.providers.common.compat.sdk import AirflowException, conf
+from airflow.providers.common.compat.sdk import AirflowException, conf, timezone
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.state import State, TaskInstanceState
-from airflow.utils.timezone import utcnow
 from airflow.version import version as airflow_version_str
 
 from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
+)
 
 airflow_version = VersionInfo(*map(int, airflow_version_str.split(".")[:3]))
 
@@ -427,6 +431,15 @@ class TestAwsEcsExecutor:
         ser_workload = json.dumps({"test_key": "test_value"})
         workload.model_dump_json.return_value = ser_workload
 
+        if AIRFLOW_V_3_4_PLUS:
+            from airflow.executors.workloads.base import WorkloadType
+
+            workload.type = WorkloadType.EXECUTE_TASK
+            workload.key = workload.ti.key
+            task_queue = mock_executor.executor_queues[WorkloadType.EXECUTE_TASK]
+        else:
+            task_queue = mock_executor.queued_tasks
+
         mock_executor.queue_workload(workload, mock.Mock())
 
         mock_executor.ecs.run_task.return_value = {
@@ -441,11 +454,11 @@ class TestAwsEcsExecutor:
             "failures": [],
         }
 
-        assert mock_executor.queued_tasks[workload.ti.key] == workload
+        assert task_queue[workload.ti.key] == workload
         assert len(mock_executor.pending_workloads) == 0
         assert len(mock_executor.running) == 0
         mock_executor._process_workloads([workload])
-        assert len(mock_executor.queued_tasks) == 0
+        assert len(task_queue) == 0
         assert len(mock_executor.running) == 1
         assert workload.ti.key in mock_executor.running
         assert len(mock_executor.pending_workloads) == 1
@@ -882,7 +895,7 @@ class TestAwsEcsExecutor:
                 {"arn": ARN1, "reason": "Sample Failure", "detail": "UnitTest Failure - Please ignore"}
             ],
         }
-        mock_executor._calculate_next_attempt_time = MagicMock(return_value=utcnow())
+        mock_executor._calculate_next_attempt_time = MagicMock(return_value=timezone.utcnow())
         task_key = mock_airflow_key()
         mock_executor.execute_async(task_key, mock_cmd)
         for _ in range(2):

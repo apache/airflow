@@ -237,6 +237,8 @@
     "deleteWarning": "The task will lose this persisted memory. If the task is using this key to track external work (e.g. an external job ID), it will not be able to resume it.",
     "edit": "Edit Task State Store",
     "emptyStore": "Task state store stores values that persist across retries. Workers can write task state store via the Task SDK.",
+    "entry_one": "Entry",
+    "entry_other": "Entries",
     "expiresAt": {
       "column": "Expires At",
       "custom": "Custom",

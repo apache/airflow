@@ -23,6 +23,7 @@ import textwrap
 from contextlib import redirect_stdout
 
 import pytest
+import yaml
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import plugins_command
@@ -61,12 +62,21 @@ class TestPluginsCommand:
     def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
+    @pytest.mark.parametrize("output", ["table", "plain"])
     @mock_plugin_manager(plugins=[])
-    def test_should_display_no_plugins(self):
+    def test_should_display_no_plugins(self, output):
         with redirect_stdout(io.StringIO()) as temp_stdout:
-            plugins_command.dump_plugins(self.parser.parse_args(["plugins", "--output=json"]))
+            plugins_command.dump_plugins(self.parser.parse_args(["plugins", f"--output={output}"]))
             stdout = temp_stdout.getvalue()
         assert "No plugins loaded" in stdout
+
+    @pytest.mark.parametrize(("output", "loader"), [("json", json.loads), ("yaml", yaml.safe_load)])
+    @mock_plugin_manager(plugins=[])
+    def test_should_display_no_plugins_as_empty_list(self, output, loader):
+        with redirect_stdout(io.StringIO()) as temp_stdout:
+            plugins_command.dump_plugins(self.parser.parse_args(["plugins", f"--output={output}"]))
+            stdout = temp_stdout.getvalue()
+        assert loader(stdout) == []
 
     @pytest.mark.skipif(not flask_appbuilder_installed, reason="Flask AppBuilder is not installed")
     @mock_plugin_manager(plugins=[ComplexAirflowPlugin])
@@ -101,12 +111,16 @@ class TestPluginsCommand:
                 ],
                 "external_views": [
                     {
-                        "destination": "nav",
+                        "destination": "dag",
                         "icon": "https://raw.githubusercontent.com/lucide-icons/lucide/refs/heads/main/icons/plug.svg",
                         "name": "Test IFrame Airflow Docs",
                         "href": "https://airflow.apache.org/",
                         "url_route": "test_iframe_plugin",
                         "category": "browse",
+                        "applies_to": {
+                            "dag_tags": ["ml", "production"],
+                            "dag_ids": ["example_dag"],
+                        },
                     },
                 ],
                 "react_apps": [

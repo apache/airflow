@@ -17,7 +17,7 @@
 
 .. _howto/connection:mcp:
 
-MCP Server Connection
+MCP server connection
 =====================
 
 The MCP connection type configures access to
@@ -66,6 +66,12 @@ Environment (Extra field)
     (see below).
 
     Examples: ``{"MY_SERVER_MODE": "readonly"}``
+
+Timeout (Extra field)
+    Connection init timeout in seconds for the ``stdio`` transport. Ignored
+    for ``http``/``sse``. Default: ``10``.
+
+    Examples: ``30``
 
 Examples
 --------

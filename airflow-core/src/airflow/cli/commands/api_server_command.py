@@ -78,6 +78,7 @@ def _run_api_server_with_gunicorn(
         ssl_key=ssl_key,
         ssl_ca_file=ssl_ca_file,
         ssl_cert_reqs=_ssl_cert_reqs(args),
+        ssl_ciphers=_ssl_ciphers(args),
         log_level=log_level,
         proxy_headers=proxy_headers,
     )
@@ -123,6 +124,7 @@ def _run_api_server_with_uvicorn(
         "ssl_certfile": ssl_cert,
         "ssl_ca_certs": ssl_ca_file,
         "ssl_cert_reqs": _ssl_cert_reqs(args),
+        "ssl_ciphers": _ssl_ciphers(args),
         # HttpAccessLogMiddleware handles access logging; disable uvicorn's built-in access log.
         "access_log": False,
         "log_level": uvicorn_log_level,
@@ -290,3 +292,15 @@ def _ssl_cert_reqs(cli_arguments):
     if cert_reqs == "optional":
         return ssl.CERT_OPTIONAL
     raise ValueError(f"Invalid ssl_cert_reqs option: {cert_reqs}")
+
+
+def _ssl_ciphers(cli_arguments) -> str | None:
+    ciphers = cli_arguments.ssl_ciphers
+    if not ciphers:
+        return None
+    # Reject an unusable cipher list here rather than letting the server fail while binding the socket.
+    try:
+        ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER).set_ciphers(ciphers)
+    except ssl.SSLError as e:
+        raise AirflowConfigException(f"Invalid ssl_ciphers option {ciphers!r}: {e}") from e
+    return ciphers

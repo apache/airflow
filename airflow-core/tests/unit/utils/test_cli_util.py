@@ -33,9 +33,14 @@ import airflow
 from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.exceptions import AirflowException
+from airflow.models.dag import DagModel
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.log import Log
+from airflow.models.team import Team
 from airflow.utils import cli, cli_action_loggers
 from airflow.utils.cli import _search_for_dag_file
+
+from tests_common.test_utils.config import conf_vars
 
 # Mark entire module as db_test because ``action_cli`` wrapper still could use DB on callbacks:
 # - ``cli_action_loggers.on_pre_execution``
@@ -61,6 +66,18 @@ class TestCliUtil:
 
         assert metrics.get("start_datetime") <= timezone.utcnow()
         assert metrics.get("full_command")
+
+    @pytest.mark.parametrize(
+        ("func_name", "namespace", "expected_team_name"),
+        [
+            pytest.param("triggerer", Namespace(team_name="payments"), "payments", id="team-name-option"),
+            pytest.param("team_create", Namespace(name="payments"), "payments", id="teams-positional"),
+            pytest.param("team_list", Namespace(output="table"), None, id="no-team"),
+            pytest.param("dag_list", Namespace(name="not-a-team"), None, id="name-of-something-else"),
+        ],
+    )
+    def test_metrics_build_team_name(self, func_name, namespace, expected_team_name):
+        assert cli._build_metrics(func_name, namespace).get("team_name") == expected_team_name
 
     def test_fail_function(self):
         """
@@ -184,6 +201,47 @@ class TestCliUtil:
         # Replace single quotes to double quotes to avoid json decode error
         command = ast.literal_eval(command)
         assert command == expected_command
+
+    def test_action_log_records_team_name(self, session):
+        namespace = Namespace(team_name="payments")
+        with (
+            mock.patch.object(sys, "argv", ["airflow", "triggerer", "--team-name", "payments"]),
+            mock.patch("airflow.utils.session.create_session") as mock_create_session,
+        ):
+            metrics = cli._build_metrics("triggerer", namespace)
+            mock_create_session.return_value = session.begin_nested()
+            mock_create_session.return_value.bulk_insert_mappings = session.bulk_insert_mappings
+            cli_action_loggers.default_action_log(**metrics)
+
+            log = session.scalar(select(Log).order_by(Log.dttm.desc()))
+
+        assert log.event == "cli_triggerer"
+        assert log.dag_id is None
+        assert log.team_name == "payments"
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_action_log_records_the_team_owning_the_dag(self, session):
+        bundle = DagBundleModel(name="team-bundle")
+        bundle.teams.append(Team(name="payments"))
+        session.add(bundle)
+        session.flush()
+        session.add(DagModel(dag_id="dag_owned_by_a_team", bundle_name="team-bundle", is_stale=False))
+        session.flush()
+
+        namespace = Namespace(dag_id="dag_owned_by_a_team", subcommand="pause")
+        with (
+            mock.patch.object(sys, "argv", ["airflow", "dags", "pause", "dag_owned_by_a_team"]),
+            mock.patch("airflow.utils.session.create_session") as mock_create_session,
+        ):
+            metrics = cli._build_metrics("dag_pause", namespace)
+            mock_create_session.return_value = session.begin_nested()
+            mock_create_session.return_value.bulk_insert_mappings = session.bulk_insert_mappings
+            mock_create_session.return_value.scalar = session.scalar
+            cli_action_loggers.default_action_log(**metrics)
+
+            log = session.scalar(select(Log).where(Log.dag_id == "dag_owned_by_a_team"))
+
+        assert log.team_name == "payments"
 
     def test_setup_locations_relative_pid_path(self):
         relative_pid_path = "fake.pid"

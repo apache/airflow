@@ -8,8 +8,37 @@
     },
     "filters": {
       "eventType": "Event Type"
+    }
+  },
+  "dagBundles": {
+    "active": "Active",
+    "columns": {
+      "active": "Active",
+      "importErrors": "Import Errors",
+      "lastRefreshed": "Last Refreshed",
+      "name": "Name",
+      "version": "Version"
     },
-    "title": "Audit Log"
+    "detail": {
+      "status": "Status"
+    },
+    "files": {
+      "columns": {
+        "file": "File",
+        "lastParsed": "Last Parsed",
+        "parseDuration": "Parse Duration"
+      },
+      "file_one": "File",
+      "file_other": "Files",
+      "importErrorGone": "This import error is no longer recorded. It was probably fixed by a reparse.",
+      "neverParsed": "Never",
+      "showImportError_one": "View error",
+      "showImportError_other": "View {{count}} errors"
+    },
+    "inactive": "Inactive",
+    "neverRefreshed": "Never",
+    "notRefreshedYet": "Not refreshed yet",
+    "notVersioned": "Not versioned"
   },
   "deadlines": {
     "columns": {
@@ -57,6 +86,8 @@
       "successTitle": "XCom Updated",
       "title": "Edit XCom"
     },
+    "entry_one": "XCom Entry",
+    "entry_other": "XCom Entries",
     "key": "Key",
     "title": "XCom",
     "value": "Value"

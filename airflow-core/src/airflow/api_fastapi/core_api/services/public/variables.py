@@ -24,7 +24,6 @@ from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import select
 
-from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.datamodels.common import (
     BulkActionNotOnExistence,
     BulkActionOnExistence,
@@ -42,30 +41,17 @@ from airflow.models.variable import Variable
 
 
 def update_orm_from_pydantic(
-    variable_key: str, patch_body: VariableBody, update_mask: list[str] | None, session: SessionDep
+    old_variable: Variable, patch_body: VariableBody, update_mask: list[str] | None
 ) -> Variable:
     """
     Update an existing Variable.
 
-    :param variable_key: The name of the existing Variable_key to update.
+    :param old_variable: The existing Variable ORM object to update.
     :param patch_body: The patch request body containing fields to update.
     :param update_mask: List of fields to update. If None, all provided fields will be updated.
-    :param session: The database session dependency.
     :return: The updated Variable object.
     :raises HTTPException: If attempting to update restricted fields (e.g., ``key``).
     """
-    # Key field is immutable → cannot be patched
-
-    if patch_body.key != variable_key:
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST, "Invalid body, key from request body doesn't match uri parameter"
-        )
-    old_variable = session.scalar(select(Variable).filter_by(key=variable_key).limit(1))
-    if not old_variable:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND, f"The Variable with key: `{variable_key}` was not found"
-        )
-
     if update_mask:
         fields_to_update = patch_body.model_fields_set & set(update_mask)
         try:
@@ -78,12 +64,6 @@ def update_orm_from_pydantic(
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
     non_update_fields = {"key"}
-
-    if patch_body.key != old_variable.key:
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST,
-            "Invalid body, key from request body doesn't match uri parameter",
-        )
 
     # Apply patch via utility
     return cast(
@@ -141,7 +121,7 @@ class BulkVariableService(BulkService[VariableBody]):
     def handle_bulk_update(self, action: BulkUpdateAction, results: BulkActionResponse) -> None:
         """Bulk Update variables."""
         to_update_keys = {variable.key for variable in action.entities}
-        _, matched_keys, not_found_keys = self.categorize_keys(to_update_keys)
+        existing_variables_dict, matched_keys, not_found_keys = self.categorize_keys(to_update_keys)
         try:
             if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found_keys:
                 raise HTTPException(
@@ -157,7 +137,7 @@ class BulkVariableService(BulkService[VariableBody]):
                 if variable.key not in update_keys:
                     continue
                 updated_variable = update_orm_from_pydantic(
-                    variable.key, variable, action.update_mask, self.session
+                    existing_variables_dict[variable.key], variable, action.update_mask
                 )
 
                 results.success.append(updated_variable.key)

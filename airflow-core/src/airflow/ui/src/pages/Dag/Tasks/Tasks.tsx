@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
@@ -24,12 +23,16 @@ import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskServiceGetTasks } from "openapi/queries";
 import type { TaskResponse } from "openapi/requests/types.gen";
+
+import { RouterLink } from "src/system-components";
+
+import { TaskFilters } from "src/pages/Dag/Tasks/TaskFilters/TaskFilters.tsx";
+
 import { DataTable } from "src/components/DataTable";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { TruncatedText } from "src/components/TruncatedText";
-import { RouterLink } from "src/components/ui";
+
 import { SearchParamsKeys } from "src/constants/searchParams.ts";
-import { TaskFilters } from "src/pages/Dag/Tasks/TaskFilters/TaskFilters.tsx";
 
 type TaskRow = { row: { original: TaskResponse } };
 
@@ -126,20 +129,19 @@ export const Tasks = () => {
   });
 
   return (
-    <Box>
+    <>
       <ErrorAlert error={tasksError} />
-
-      <TaskFilters tasksData={data} />
 
       <DataTable
         columns={columns}
         data={filteredTasks}
         displayMode="card"
+        filterActions={<TaskFilters tasksData={data} />}
         isFetching={isFetching}
         isLoading={isLoading}
         modelName="common:task"
         total={data ? data.total_entries : 0}
       />
-    </Box>
+    </>
   );
 };

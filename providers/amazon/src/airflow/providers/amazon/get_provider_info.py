@@ -34,6 +34,7 @@ def get_provider_info():
                 "how-to-guide": [
                     "/docs/apache-airflow-providers-amazon/operators/athena/athena_boto.rst",
                     "/docs/apache-airflow-providers-amazon/operators/athena/athena_sql.rst",
+                    "/docs/apache-airflow-providers-amazon/operators/athena/athena_spark.rst",
                 ],
                 "tags": ["aws"],
             },
@@ -381,6 +382,11 @@ def get_provider_info():
                 "tags": ["aws"],
             },
             {
+                "integration-name": "Amazon MSK",
+                "external-doc-url": "https://aws.amazon.com/msk/",
+                "tags": ["aws"],
+            },
+            {
                 "integration-name": "Amazon S3 Vectors",
                 "external-doc-url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-vectors.html",
                 "logo": "/docs/integration-logos/Amazon-Simple-Storage-Service-S3_light-bg@4x.png",
@@ -391,7 +397,10 @@ def get_provider_info():
         "operators": [
             {
                 "integration-name": "Amazon Athena",
-                "python-modules": ["airflow.providers.amazon.aws.operators.athena"],
+                "python-modules": [
+                    "airflow.providers.amazon.aws.operators.athena",
+                    "airflow.providers.amazon.aws.operators.athena_spark",
+                ],
             },
             {
                 "integration-name": "Amazon Web Services",
@@ -898,6 +907,7 @@ def get_provider_info():
                     "airflow.providers.amazon.aws.hooks.neptune_analytics",
                 ],
             },
+            {"integration-name": "Amazon MSK", "python-modules": ["airflow.providers.amazon.aws.hooks.msk"]},
         ],
         "bundles": [
             {
@@ -937,6 +947,10 @@ def get_provider_info():
             {
                 "integration-name": "AWS Lambda",
                 "python-modules": ["airflow.providers.amazon.aws.triggers.lambda_function"],
+            },
+            {
+                "integration-name": "Amazon Kinesis Data Stream",
+                "python-modules": ["airflow.providers.amazon.aws.triggers.kinesis"],
             },
             {
                 "integration-name": "Amazon Managed Workflows for Apache Airflow (MWAA)",
@@ -1021,6 +1035,10 @@ def get_provider_info():
             {
                 "integration-name": "AWS Database Migration Service",
                 "python-modules": ["airflow.providers.amazon.aws.triggers.dms"],
+            },
+            {
+                "integration-name": "Amazon QuickSight",
+                "python-modules": ["airflow.providers.amazon.aws.triggers.quicksight"],
             },
         ],
         "transfers": [
@@ -1254,6 +1272,7 @@ def get_provider_info():
             "airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend",
             "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
         ],
+        "email-backends": ["airflow.providers.amazon.aws.utils.emailer.send_email"],
         "logging": [
             "airflow.providers.amazon.aws.log.s3_task_handler.S3TaskHandler",
             "airflow.providers.amazon.aws.log.cloudwatch_task_handler.CloudwatchTaskHandler",

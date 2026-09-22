@@ -21,7 +21,9 @@ import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { TaskInstanceStateCount } from "openapi/requests/types.gen";
+
 import { StateBadge } from "src/components/StateBadge";
+
 import { SearchParamsKeys } from "src/constants/searchParams";
 
 const BAR_WIDTH = 100;
@@ -82,6 +84,7 @@ export const MetricSection = ({
         <Box
           bg={`${state === "no_status" ? "none" : state}.solid`}
           borderLeftRadius={5}
+          borderRightRadius={remainingWidth === 0 ? 5 : 0} // When the state fills the whole bar, round the right side too since this is the only bar displayed
           height={`${BAR_HEIGHT}px`}
           minHeight={2}
           width={`${stateWidth}%`}

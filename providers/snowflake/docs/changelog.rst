@@ -27,6 +27,55 @@
 Changelog
 ---------
 
+6.17.0
+......
+
+.. warning::
+  ``SnowparkContainerJobOperator`` now applies a default ``timeout`` of 24 hours where it
+  previously polled indefinitely, so a task running longer than a day now fails. Increase
+  ``timeout`` to allow more time.
+
+Features
+~~~~~~~~
+
+* ``Add external access integrations to SnowparkContainerJobOperator (#72602)``
+* ``Add deferrable mode to SnowparkContainerJobOperator (#70103)``
+* ``Cancel Snowflake queries when a user kills the deferred task (#69635)``
+
+Misc
+~~~~
+
+* ``Remove redundant _set_context in SnowflakeSqlApiTrigger (#71659)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove the TaskFlow recommendation from the Snowflake documentation (#72090)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix collection error and timeout assertion in Snowpark container tests (#72709)``
+   * ``Sync connection UI metadata in provider.yaml with hook definitions (#72087)``
+   * ``Use common.compat.sdk for the remaining provider timezone imports (#71209)``
+
+6.16.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make 'durable' reach 'default_args' and warn when set below Airflow 3.3 (#71531)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document how clearing tasks works with task state store on durable operators (#71358)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+
 6.16.0
 ......
 

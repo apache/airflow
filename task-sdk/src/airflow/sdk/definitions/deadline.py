@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from abc import ABC
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -24,9 +25,9 @@ from typing import TYPE_CHECKING, Any, overload
 
 import attrs
 
-from airflow.sdk.definitions.callback import AsyncCallback, Callback, SyncCallback
+from airflow.sdk.definitions.callback import DEADLINE_CALLBACK_TYPES, AsyncCallback, SyncCallback
 from airflow.sdk.definitions.variable import Variable
-from airflow.sdk.exceptions import AirflowRuntimeError
+from airflow.sdk.exceptions import AirflowRuntimeError, RemovedInAirflow4Warning
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -150,16 +151,42 @@ class DeadlineAlert:
         self,
         reference: DeadlineReferenceType,
         interval: timedelta | VariableInterval,
-        callback: Callback,
+        callback: AsyncCallback | SyncCallback,
         name: str | None = None,
     ):
+        if isinstance(interval, (int, float)) and not isinstance(interval, bool):
+            # A bare number was never documented or type-hinted, but it parses today because this
+            # check did not exist, and the decoder still reads legacy rows stored as total_seconds().
+            # Normalize so Dags that parse today keep parsing, and warn so the accident does not
+            # become contract.  bool is excluded: it is an int subclass, so True would mean 1 second.
+            warnings.warn(
+                f"Passing a number as a deadline interval is deprecated and will be removed in a "
+                f"future release. Pass timedelta(seconds={interval}) instead.",
+                RemovedInAirflow4Warning,
+                stacklevel=2,
+            )
+            interval = timedelta(seconds=interval)
+        elif isinstance(interval, timedelta):
+            # serde dispatches on qualified class name and registers only datetime.timedelta, so a
+            # subclass such as pendulum.duration() would pass the check below and then fail there.
+            # Rebuilding timedelta subclasses into a timedelta keeps this to one path.
+            interval = timedelta(seconds=interval.total_seconds())
+
+        if not isinstance(interval, (timedelta, VariableInterval)):
+            raise ValueError(
+                f"Interval must be a `timedelta` or a `VariableInterval`, received {type(interval).__name__}."
+            )
+
+        # Serializing blocks subclasses for security reasons, so isinstance is too loose.
+        if type(callback) not in DEADLINE_CALLBACK_TYPES:
+            raise ValueError(
+                f"Callbacks must be `AsyncCallback` or `SyncCallback`, received {type(callback).__name__}."
+            )
+
+        self.callback = callback
         self.reference = reference
         self.interval = interval
         self.name = name
-
-        if not isinstance(callback, (AsyncCallback, SyncCallback)):
-            raise ValueError(f"Callbacks of type {type(callback).__name__} are not currently supported")
-        self.callback = callback
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, DeadlineAlert):
@@ -438,6 +465,13 @@ class VariableInterval:
     key: str
 
     def resolve(self) -> timedelta:
+        warnings.warn(
+            "VariableInterval.resolve() is deprecated and will be removed in a future release. "
+            "Deadline interval resolution is handled internally during deadline evaluation.",
+            RemovedInAirflow4Warning,
+            stacklevel=2,
+        )
+
         try:
             value = Variable.get(self.key)
         except AirflowRuntimeError as e:
@@ -449,8 +483,5 @@ class VariableInterval:
             raise ValueError(
                 f"VariableInterval '{self.key}' must be an integer (seconds), got: {value!r}"
             ) from e
-
-        if seconds <= 0:
-            raise ValueError(f"VariableInterval '{self.key}' must be > 0, got: {seconds}")
 
         return timedelta(seconds=seconds)

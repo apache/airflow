@@ -19,8 +19,10 @@ from __future__ import annotations
 
 from cadwyn import (
     ResponseInfo,
+    VersionChange,
     VersionChangeWithSideEffects,
     convert_response_to_previous_version_for,
+    endpoint,
     schema,
 )
 
@@ -40,3 +42,26 @@ class AddArgBindingsToTIRunContext(VersionChangeWithSideEffects):
     def remove_arg_bindings_field(response: ResponseInfo) -> None:  # type: ignore[misc]
         """Strip ``arg_bindings`` from the run context for older clients."""
         response.body.pop("arg_bindings", None)
+
+
+class AddCallbackRunEndpoint(VersionChange):
+    """Add the callbacks/{callback_id}/run endpoint a worker uses to exchange its single-use callback token."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        endpoint("/callbacks/{callback_id}/run", ["PATCH"]).didnt_exist,
+    )
+
+
+class AddMultiTeamToTIRunContext(VersionChange):
+    """Add ``multi_team`` so a worker can determine multi-team (e.g. for plugin scoping) without needing to trust its own config."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("multi_team").didnt_exist,)
+
+    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
+    def remove_multi_team_field(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Strip ``multi_team`` from the run context for older clients."""
+        response.body.pop("multi_team", None)

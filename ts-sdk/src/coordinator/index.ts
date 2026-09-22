@@ -21,9 +21,10 @@
 //
 // TaskClient and related types are exported from the package root. This
 // barrel only exports coordinator-specific entry points.
+//
+// Dag authors reach the runtime through `bundle.serve()`.
 
-export { startCoordinator, type StartCoordinatorOptions } from "./runtime.js";
 /** Cadwyn schema version this SDK was generated against. Not sent on
- *  the wire — exposed so callers can read it for bundle metadata,
+ *  the wire, but exposed so callers can read it for bundle metadata,
  *  health checks, or to confirm which schema their build is pinned to. */
 export { SUPERVISOR_API_VERSION } from "./protocol.js";
