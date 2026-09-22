@@ -15,8 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Package taskstate holds the roundtrip_task_state task, which round-trips
-// every task state store operation through the supervisor.
+// Package taskstate holds the roundtrip_task_state task used by the Go SDK
+// task state e2e test.
 package taskstate
 
 import (
@@ -28,28 +28,23 @@ import (
 )
 
 const (
-	// RunIDKey holds the run id of the Dag run that wrote it, stored with
-	// sdk.NeverExpire so the entry carries no expiry at all.
+	// RunIDKey holds the run id; the e2e test asserts it has no expiry.
 	RunIDKey = "go_e2e_run_id"
-	// CounterKey holds a structured (map) value, proving a non-scalar survives
-	// the JSON round-trip through the store.
+	// CounterKey holds a map value the e2e test reads back as an object.
 	CounterKey = "go_e2e_counter"
-	// RetainedKey is written with the plain setter, so it expires according to
-	// the deployment's default retention.
+	// RetainedKey uses the default retention; the e2e test asserts it expires.
 	RetainedKey = "go_e2e_retained"
-	// ScratchKey is written and then deleted within the same task.
+	// ScratchKey is deleted by the task; the e2e test asserts it is gone.
 	ScratchKey = "go_e2e_scratch"
 )
 
-// counter is the shape stored under CounterKey, decoded back through
-// UnmarshalJSONTaskState.
 type counter struct {
 	Processed int    `json:"processed"`
 	Cursor    string `json:"cursor"`
 }
 
-// RoundtripTaskState exercises every task state store operation: the two
-// setters, both readers, the not-found path, and delete.
+// RoundtripTaskState exercises every task state store operation except
+// ClearTaskState.
 func RoundtripTaskState(actx airflow.Context) (any, error) {
 	client := actx.Client()
 	runID := actx.DagRun().RunID
@@ -95,8 +90,7 @@ func RoundtripTaskState(actx airflow.Context) (any, error) {
 		return nil, fmt.Errorf("getting %s: want TaskStateNotFound, got: %w", ScratchKey, err)
 	}
 
-	// Deliberately no ClearTaskState call: the e2e test reads the keys written
-	// above once the task has finished, and clearing would wipe them.
+	// No ClearTaskState: the e2e test reads these keys after the task finishes.
 	return map[string]any{
 		"run_id":          runID,
 		"processed":       got.Processed,
