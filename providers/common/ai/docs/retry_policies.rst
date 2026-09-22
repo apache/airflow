@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-LLM Retry Policies
-===================
+LLM retry policies
+==================
 
 .. note::
     Requires Airflow >= 3.3.0.
@@ -61,6 +61,11 @@ text model, so the cheap typed model handles the clear cases and the reasoning
 model the rest, and the rules catch what neither decides. See
 `Escalating to an LLM`_ below. Both work with any LLM provider supported by
 pydantic-ai (OpenAI, Anthropic, Bedrock, Vertex, Ollama, etc.).
+
+This page is about deciding *whether* a failed task should retry. To make an agent's
+retries cheap by replaying the model and tool calls that already succeeded, see
+:doc:`durable_execution`; a retried ``LLMBatchOperator`` re-attaches to its running batch
+instead of paying for it again (:ref:`llm-batch-reattach`).
 
 For the core retry policy concepts, see :doc:`apache-airflow:core-concepts/tasks`.
 If the task also needs to survive a worker crash without losing its progress,

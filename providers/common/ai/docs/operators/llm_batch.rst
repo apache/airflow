@@ -204,6 +204,8 @@ resolve to the same model and the operator rejects a mixed batch before submitti
 ``request_params`` and a request's ``params`` cannot override the keys the operator manages
 (the model, the messages, the token cap and the structured-output directive).
 
+.. _llm-batch-reattach:
+
 Retries re-attach instead of re-submitting
 --------------------------------------------
 

@@ -17,8 +17,8 @@
 
 .. _howto/connection:pydanticai_bedrock:
 
-Pydantic AI (AWS Bedrock) Connection
-=======================================
+Pydantic AI (AWS Bedrock) connection
+====================================
 
 The ``pydanticai_bedrock`` connection type configures access to
 `AWS Bedrock <https://aws.amazon.com/bedrock/>`__ via the pydantic-ai framework.

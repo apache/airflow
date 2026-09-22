@@ -17,8 +17,8 @@
 
 .. _howto/connection:pydanticai_vertex:
 
-Pydantic AI (Google Vertex AI) Connection
-============================================
+Pydantic AI (Google Vertex AI) connection
+=========================================
 
 The ``pydanticai_vertex`` connection type configures access to
 `Google Vertex AI <https://cloud.google.com/vertex-ai>`__ via the pydantic-ai

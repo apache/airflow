@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-End-to-End Pipelines
-=====================
+End-to-end pipelines
+====================
 
 The Dags in this guide combine several patterns from the operator and hook guides into one
 production-shaped pipeline. Each section explains the architecture -- how the Dags are split,
