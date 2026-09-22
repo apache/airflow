@@ -167,6 +167,21 @@ class TestClient:
         )
         assert client.timeout == httpx2.Timeout(120.0)
 
+    @mock.patch("airflow.sdk.api.client.wait_random_exponential")
+    @mock.patch("airflow.sdk.api.client.stop_after_attempt")
+    def test_retry_configuration(self, mock_stop_after_attempt, mock_wait_random_exponential):
+        Client(
+            base_url=None,
+            dry_run=True,
+            token="",
+            retries=7,
+            retry_wait_min=11.0,
+            retry_wait_max=13.0,
+        )
+
+        mock_stop_after_attempt.assert_called_once_with(7)
+        mock_wait_random_exponential.assert_called_once_with(min=11.0, max=13.0)
+
     def test_error_parsing(self):
         responses = [
             httpx2.Response(422, json={"detail": [{"loc": ["#0"], "msg": "err", "type": "required"}]})
@@ -263,6 +278,24 @@ class TestClient:
             response = client.get("http://error")
             assert response.status_code == 200
             assert len(responses) == 1
+
+    def test_retry_log_names_retried_request(self, caplog):
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            return httpx2.Response(500, text="Internal Server Error")
+
+        client = Client(
+            base_url="test://server",
+            token="",
+            transport=httpx2.MockTransport(handle_request),
+            retries=2,
+            retry_wait_min=0,
+            retry_wait_max=0,
+        )
+
+        with pytest.raises(httpx2.HTTPStatusError):
+            client.get("http://error")
+
+        assert any("Client._request_with_retry" in entry["event"] for entry in caplog.entries)
 
     def test_retry_handling_non_retry_error(self):
         with time_machine.travel("2023-01-01T00:00:00Z", tick=False):

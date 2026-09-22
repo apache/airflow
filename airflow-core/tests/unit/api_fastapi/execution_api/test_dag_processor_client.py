@@ -21,12 +21,11 @@ import threading
 from datetime import UTC, datetime
 from unittest import mock
 
-import httpx
+import httpx2
 import jwt
 import pytest
 import uvicorn
 from sqlalchemy import select, update
-from tenacity import wait_none
 from uuid6 import uuid7
 
 from airflow.api_fastapi.app import create_app
@@ -41,7 +40,6 @@ from airflow.dag_processing.api_client import (
 from airflow.jobs.job import Job
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.variable import Variable
-from airflow.sdk.api.client import Client
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
@@ -210,9 +208,9 @@ def test_rotation_stop_and_completion_over_http(
     }
 
 
-class LostAcknowledgmentTransport(httpx.BaseTransport):
+class LostAcknowledgmentTransport(httpx2.BaseTransport):
     def __init__(self):
-        self.transport = httpx.HTTPTransport()
+        self.transport = httpx2.HTTPTransport()
         self.lost = set()
 
     def handle_request(self, request):
@@ -225,20 +223,24 @@ class LostAcknowledgmentTransport(httpx.BaseTransport):
             self.lost.add(request.url.path)
             response.read()
             response.close()
-            raise httpx.ReadError("Lost acknowledgment after commit", request=request)
+            raise httpx2.ReadError("Lost acknowledgment after commit", request=request)
         return response
 
     def close(self):
         self.transport.close()
 
 
-def test_lost_registration_and_completion_responses_over_http(api_url, provision_token, session, monkeypatch):
-    monkeypatch.setattr(Client._request_with_retry.retry, "wait", wait_none())
+def test_lost_registration_and_completion_responses_over_http(api_url, provision_token, session):
     transport = LostAcknowledgmentTransport()
     session.merge(DagBundleModel(name="bundle-a"))
     session.commit()
     with DagProcessorAPIClient(
-        base_url=api_url, token_file=provision_token(), hostname="processor-1", transport=transport
+        base_url=api_url,
+        token_file=provision_token(),
+        hostname="processor-1",
+        transport=transport,
+        retry_wait_min=0,
+        retry_wait_max=0,
     ) as processor:
         job_id = processor.register_job()
         assert session.scalars(select(Job.id)).all() == [job_id]
@@ -248,7 +250,7 @@ def test_lost_registration_and_completion_responses_over_http(api_url, provision
         )
         with processor.use_parse(context):
             assert processor.variables.get("parse-token-key").value == "value"
-            with pytest.raises(httpx.HTTPStatusError) as error:
+            with pytest.raises(httpx2.HTTPStatusError) as error:
                 processor.post(f"jobs/{job_id}/heartbeat")
             assert error.value.response.status_code == 403
         processor.complete_job(TerminalJobState.SUCCESS)
@@ -269,7 +271,7 @@ def test_expired_credentials_fail_until_provisioning_resumes(clock, api_url, pro
         time_machine.shift(700)
         clock.return_value = 700
 
-        with pytest.raises(httpx.HTTPStatusError) as error:
+        with pytest.raises(httpx2.HTTPStatusError) as error:
             processor.heartbeat()
         assert error.value.response.status_code == 403
 
@@ -301,7 +303,7 @@ def test_changed_session_signals_restart_but_allows_drain_and_completion(
         assert session.get(Job, job_id).state == JobState.SUCCESS.value
 
 
-class CompletionFailureTransport(httpx.HTTPTransport):
+class CompletionFailureTransport(httpx2.HTTPTransport):
     def __init__(self, *, commit):
         super().__init__()
         self.commit = commit
@@ -313,23 +315,27 @@ class CompletionFailureTransport(httpx.HTTPTransport):
                 response = super().handle_request(request)
                 response.read()
                 response.close()
-            raise httpx.ReadError("Completion acknowledgment unavailable", request=request)
+            raise httpx2.ReadError("Completion acknowledgment unavailable", request=request)
         return super().handle_request(request)
 
 
 @pytest.mark.parametrize("outcome", ["unaccepted", "accepted", "replaced"])
 @mock.patch("airflow.dag_processing.api_client.monotonic", autospec=True, return_value=0)
 def test_completion_recovery_after_token_expiry(
-    clock, api_url, provision_token, session, time_machine, monkeypatch, outcome
+    clock, api_url, provision_token, session, time_machine, outcome
 ):
-    monkeypatch.setattr(Client._request_with_retry.retry, "wait", wait_none())
     token_file = provision_token()
     transport = CompletionFailureTransport(commit=outcome != "unaccepted")
     with DagProcessorAPIClient(
-        base_url=api_url, token_file=token_file, hostname="processor-1", transport=transport
+        base_url=api_url,
+        token_file=token_file,
+        hostname="processor-1",
+        transport=transport,
+        retry_wait_min=0,
+        retry_wait_max=0,
     ) as processor:
         job_id = processor.register_job()
-        with pytest.raises(httpx.ReadError):
+        with pytest.raises(httpx2.ReadError):
             processor.complete_job(TerminalJobState.SUCCESS)
         time_machine.shift(350)
         clock.return_value = 350
