@@ -36,29 +36,9 @@ class KinesisMessageQueueProvider(BaseMessageQueueProvider):
     """
     Configuration for Amazon Kinesis Data Streams integration with common-messaging.
 
-    [START kinesis_message_queue_provider_description]
-
-    * It uses ``kinesis`` as scheme for identifying Kinesis Data Streams.
-    * For parameter definitions take a look at :class:`~airflow.providers.amazon.aws.triggers.kinesis.KinesisTrigger`.
-
-    .. code-block:: python
-
-        from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
-        from airflow.sdk import Asset, AssetWatcher
-
-        trigger = MessageQueueTrigger(
-            scheme="kinesis",
-            stream_name="my-kinesis-stream",
-            aws_conn_id="aws_default",
-        )
-
-        watcher = AssetWatcher(name="kinesis_watcher", trigger=trigger)
-        asset = Asset("kinesis_stream_asset", watchers=[watcher])
-
-    For a complete example, see:
-    :mod:`tests.system.amazon.aws.example_kinesis_message_queue`
-
-    [END kinesis_message_queue_provider_description]
+    Dispatches ``scheme="kinesis"`` to
+    :class:`~airflow.providers.amazon.aws.triggers.kinesis.KinesisTrigger`, which also defines
+    the accepted parameters.
     """
 
     scheme = "kinesis"
