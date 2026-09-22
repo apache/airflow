@@ -43,7 +43,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence
+    from collections.abc import Iterable, Mapping, Sequence
 
     from sqlalchemy.engine import CursorResult
     from sqlalchemy.orm import Session
@@ -253,6 +253,7 @@ class DagBundlesManager(LoggingMixin):
         self,
         *,
         bundle_metadata: Sequence[DagBundleMetadata] | None = None,
+        bundle_instances: Mapping[str, BaseDagBundle] | None = None,
         deactivate_missing: bool = True,
         session: Session = NEW_SESSION,
     ) -> None:
@@ -272,6 +273,8 @@ class DagBundlesManager(LoggingMixin):
             with a partial config (e.g. one bundle per processor), pass ``False`` so a
             processor does not disable bundles owned by other processors -- otherwise
             the processors repeatedly deactivate each other and never converge.
+        :param bundle_instances: Bundles already constructed by the runtime. When provided,
+            synchronization does not construct any other bundles.
         """
         self.log.debug("Syncing DAG bundles to the database")
 
@@ -279,8 +282,11 @@ class DagBundlesManager(LoggingMixin):
             bundle_metadata = self.get_active_bundle_metadata()
         bundle_metadata_by_name = {metadata.name: metadata for metadata in bundle_metadata}
 
-        def _extract_and_sign_template(bundle_name: str) -> tuple[str | None, dict]:
-            bundle_instance = self.get_bundle(name)
+        def _extract_and_sign_template(
+            bundle_name: str, bundle_instance: BaseDagBundle | None = None
+        ) -> tuple[str | None, dict]:
+            if bundle_instance is None:
+                bundle_instance = self.get_bundle(bundle_name)
             new_template_ = bundle_instance.view_url_template()
             new_params_ = self._extract_template_params(bundle_instance)
             if new_template_:
@@ -312,24 +318,31 @@ class DagBundlesManager(LoggingMixin):
                         f"Team '{metadata.team_name}' configured for Dag bundle '{name}' does not exist."
                     )
 
-            try:
-                new_template, new_params = _extract_and_sign_template(name)
-            except Exception as e:
-                self.log.exception("Error creating bundle '%s': %s", name, e)
-                continue
+            update_template = bundle_instances is None or name in bundle_instances
+            if update_template:
+                try:
+                    new_template, new_params = _extract_and_sign_template(
+                        name, bundle_instances.get(name) if bundle_instances is not None else None
+                    )
+                except Exception as e:
+                    self.log.exception("Error creating bundle '%s': %s", name, e)
+                    if bundle_instances is None:
+                        continue
+                    update_template = False
 
             if bundle := stored.pop(name, None):
                 bundle.active = True
-                if new_template != bundle.signed_url_template:
+                if update_template and new_template != bundle.signed_url_template:
                     bundle.signed_url_template = new_template
                     self.log.debug("Updated URL template for bundle %s", name)
-                if new_params != bundle.template_params:
+                if update_template and new_params != bundle.template_params:
                     bundle.template_params = new_params
                     self.log.debug("Updated template parameters for bundle %s", name)
             else:
                 bundle = DagBundleModel(name=name)
-                bundle.signed_url_template = new_template
-                bundle.template_params = new_params
+                if update_template:
+                    bundle.signed_url_template = new_template
+                    bundle.template_params = new_params
 
                 session.add(bundle)
                 self.log.info("Added new DAG bundle %s to the database", name)
