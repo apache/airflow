@@ -25,6 +25,26 @@
 Changelog
 ---------
 
+0.11.0
+......
+
+Features
+~~~~~~~~
+
+* ``Show Dag bundle versions and refresh times in the UI (#72909)``
+* ``Add jwt auth keycloak provider (#72978)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Return 403 when Keycloak UMA ticket grant returns invalid_grant (#73234)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Remove real sleeps from slow provider unit tests (#73478)``
+
 0.10.0
 ......
 

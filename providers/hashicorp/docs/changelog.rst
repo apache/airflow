@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+4.8.2
+.....
+
+Misc
+~~~~
+
+* ``Bump common-compat lower bound for akeyless, hashicorp and smtp (#72503)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+
 4.8.1
 .....
 

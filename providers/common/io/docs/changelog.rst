@@ -25,6 +25,26 @@
 Changelog
 ---------
 
+1.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix broken class xrefs in standard provider docs (#73360)``
+* ``Fix docs referring to a non-existent MetastoreStateBackend class (#73080)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Prepare providers release 2026-09-22``
+
 1.9.0
 .....
 
