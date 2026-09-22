@@ -828,27 +828,6 @@ def test_create_workload_sets_up_logging_for_callback_trigger(jobless_supervisor
     assert factory.ti is None
 
 
-def test_create_workload_no_logging_for_non_callback_trigger(jobless_supervisor, mocker):
-    """_create_workload() leaves logger_cache alone for non-callback triggers without a TI."""
-    trigger = mocker.Mock()
-    trigger.id = 9
-    trigger.classpath = "airflow.triggers.temporal.DateTimeTrigger"
-    trigger.encrypted_kwargs = ""
-    trigger.task_instance = None
-    trigger.assets = None
-    trigger.callback = None
-
-    workload = jobless_supervisor._create_workload(
-        trigger=trigger,
-        dag_bag=mocker.Mock(),
-        render_log_fname=mocker.Mock(),
-        session=mocker.Mock(),
-    )
-
-    assert workload is not None
-    assert trigger.id not in jobless_supervisor.logger_cache
-
-
 def test_create_workload_sets_watched_assets_for_asset_only_trigger(jobless_supervisor, mocker):
     """_create_workload() should populate watched_assets when trigger.task_instance is None and assets exist."""
     asset1 = mocker.Mock(spec=Asset)

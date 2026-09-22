@@ -848,8 +848,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
             if callback := getattr(trigger, "callback", None):
                 # Callback triggers get dedicated logging so their output is captured to a
-                # file the UI callback log endpoint can read. dag_id is stored on the callback
-                # data; run_id comes from the deadline context injected at miss time.
+                # file the UI callback log endpoint can read.
                 callback_data = callback.data or {}
                 context = (callback_data.get("kwargs") or {}).get("context") or {}
                 dag_run_data = context.get("dag_run") or {}

@@ -30,7 +30,7 @@ from airflow.utils.log.file_task_handler import (
     StructuredLogMessage,
     _get_compatible_log_stream,
     _interleave_logs,
-    _stream_lines_by_chunk,
+    _read_local_log_streams,
 )
 
 if TYPE_CHECKING:
@@ -73,11 +73,6 @@ def read_callback_log(
 
     Tries both executor_callbacks and triggerer_callbacks paths. For each path, tries
     remote storage first (if configured), then falls back to the local filesystem.
-
-    :param dag_id: The Dag ID associated with the callback.
-    :param run_id: The Dag run ID associated with the callback.
-    :param callback_id: The unique callback identifier.
-    :return: Generator of StructuredLogMessage objects.
     """
     relative_paths = _get_callback_log_relative_paths(dag_id, run_id, callback_id)
 
@@ -95,7 +90,6 @@ def read_callback_log(
             sources.extend(local_sources)
             log_streams.extend(local_log_streams)
 
-        # If we found logs at this path, no need to check the next path
         if log_streams:
             break
 
@@ -133,24 +127,4 @@ def _read_callback_local_logs(relative_path: str) -> StreamingLogResponse:
     """Read callback logs from the local filesystem."""
     base_log_folder = os.path.realpath(conf.get("logging", "base_log_folder"))
     log_path = Path(base_log_folder, *(validate_log_path_component(p) for p in relative_path.split("/")))
-
-    sources: list[str] = []
-    log_streams: list[RawLogStream] = []
-
-    for path in sorted(log_path.parent.glob(log_path.name + "*")):
-        # Containment check (defense in depth, e.g. against symlinks escaping the log folder).
-        resolved_path = os.path.realpath(path)
-        try:
-            if os.path.commonpath([base_log_folder, resolved_path]) != base_log_folder:
-                continue
-        except ValueError:
-            continue
-
-        try:
-            log_stream = _stream_lines_by_chunk(open(resolved_path, encoding="utf-8"))
-        except OSError:
-            continue
-        sources.append(os.fspath(path))
-        log_streams.append(log_stream)
-
-    return sources, log_streams
+    return _read_local_log_streams(base_log_folder, log_path)

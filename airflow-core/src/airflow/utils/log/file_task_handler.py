@@ -415,6 +415,41 @@ def _get_compatible_log_stream(
     )
 
 
+def _read_local_log_streams(base_log_folder: str, log_path: Path) -> StreamingLogResponse:
+    """
+    Open the local log files matching ``log_path`` that live inside ``base_log_folder``.
+
+    ``base_log_folder`` must already be canonicalised (``os.path.realpath``) so the
+    containment check below compares two resolved paths.
+    """
+    sources: LogSourceInfo = []
+    log_streams: list[RawLogStream] = []
+    # The glob below can match symlinks as well as regular files, so resolve each
+    # hit and only open the ones that stay inside the base log folder.
+    for path in sorted(log_path.parent.glob(log_path.name + "*")):
+        resolved_path = os.path.realpath(path)
+        try:
+            if os.path.commonpath([base_log_folder, resolved_path]) != base_log_folder:
+                continue
+        except ValueError:
+            # ``os.path.commonpath`` raises ``ValueError`` when the two
+            # paths have nothing in common (e.g. different drives on
+            # Windows); treat that as "not contained" and skip the file.
+            continue
+
+        # Open the resolved path so the file we read is the same one we
+        # just validated above. Append to ``sources`` only after a
+        # successful ``open`` so ``sources`` and ``log_streams`` stay
+        # aligned.
+        try:
+            log_stream = _stream_lines_by_chunk(open(resolved_path, encoding="utf-8"))
+        except OSError:
+            continue
+        sources.append(os.fspath(path))
+        log_streams.append(log_stream)
+    return sources, log_streams
+
+
 class FileTaskHandler(logging.Handler):
     """
     FileTaskHandler is a python log handler that handles and reads task instance logs.
@@ -878,39 +913,7 @@ class FileTaskHandler(logging.Handler):
         self,
         worker_log_path: Path,
     ) -> StreamingLogResponse:
-        sources: LogSourceInfo = []
-        log_streams: list[RawLogStream] = []
-        # The glob below can match symlinks as well as regular files, so
-        # resolve each hit and only open the ones that stay inside the base
-        # log folder. Canonicalising ``self.local_base`` once up front makes
-        # the containment check compare two already-resolved paths.
-        base_log_folder = os.path.realpath(self.local_base)
-        paths = sorted(worker_log_path.parent.glob(worker_log_path.name + "*"))
-        if not paths:
-            return sources, log_streams
-
-        for path in paths:
-            resolved_path = os.path.realpath(path)
-            try:
-                if os.path.commonpath([base_log_folder, resolved_path]) != base_log_folder:
-                    continue
-            except ValueError:
-                # ``os.path.commonpath`` raises ``ValueError`` when the two
-                # paths have nothing in common (e.g. different drives on
-                # Windows); treat that as "not contained" and skip the file.
-                continue
-
-            # Open the resolved path so the file we read is the same one we
-            # just validated above. Append to ``sources`` only after a
-            # successful ``open`` so ``sources`` and ``log_streams`` stay
-            # aligned.
-            try:
-                log_stream = _stream_lines_by_chunk(open(resolved_path, encoding="utf-8"))
-            except OSError:
-                continue
-            sources.append(os.fspath(path))
-            log_streams.append(log_stream)
-        return sources, log_streams
+        return _read_local_log_streams(os.path.realpath(self.local_base), worker_log_path)
 
     def _read_from_logs_server(
         self,

@@ -730,10 +730,10 @@ class TestGetCallbackLogs:
             yield tmp_path
 
     @staticmethod
-    def _write_local_log(log_folder, callback_id, content="callback ran\n", prefix="executor_callbacks"):
-        log_dir = log_folder / prefix / DAG_ID / RUN_MISSED
+    def _write_local_log(log_folder, callback_id):
+        log_dir = log_folder / "executor_callbacks" / DAG_ID / RUN_MISSED
         log_dir.mkdir(parents=True)
-        (log_dir / callback_id).write_text(content)
+        (log_dir / callback_id).write_text("callback ran\n")
 
     def test_returns_logs_from_local_storage(self, test_client, missed_callback_id, log_folder):
         self._write_local_log(log_folder, missed_callback_id)

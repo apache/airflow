@@ -23,7 +23,7 @@ from uuid import UUID
 from fastapi import Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
-from sqlalchemy.orm import contains_eager, joinedload, noload
+from sqlalchemy.orm import contains_eager, noload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
@@ -123,7 +123,7 @@ def get_deadlines(
                 noload(DagRun.deadlines), *eager_load_teams(DagRun.dag_model)
             ),
             contains_eager(Deadline.deadline_alert),
-            joinedload(Deadline.callback),
+            noload(Deadline.callback),
         )
     )
 
@@ -273,7 +273,6 @@ def get_callback_logs(
     """
     dag_id, dag_run_id = path_params
 
-    # A single exists-only check that the callback belongs to this dag run via its Deadline.
     deadline_exists = session.scalar(
         select(Deadline.id)
         .join(Deadline.dagrun)
