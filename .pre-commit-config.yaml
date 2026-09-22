@@ -1073,6 +1073,9 @@ repos:
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['pyyaml', 'rich>=13.6.0']
+      # The three skill-eval hooks below are skipped by id in .github/actions/install-prek/action.yml
+      # (their node environments are ~3.5 GB and never run in CI). Renaming one silently re-enables
+      # its installation there, so update the action alongside any id change.
       - id: run-skill-eval
         name: Run skill-eval against AGENTS.md and cases
         entry: ./dev/skill-evals/eval.py
