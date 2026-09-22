@@ -27,6 +27,7 @@ import { PiFilePy } from "react-icons/pi";
 
 import {
   useDagParsingServiceReparseDagFile,
+  useDagServiceGetDagsUiKey,
   useDashboardServiceDagStatsKey,
   useImportErrorServiceGetImportErrors,
   useImportErrorServiceGetImportErrorsKey,
@@ -59,12 +60,14 @@ const ReparseButton = ({ fileToken }: { readonly fileToken: string }) => {
 
   const { isPending, mutate } = useDagParsingServiceReparseDagFile({
     onError: (error) => createErrorToaster(error, { titleKey: "dag:parse.toaster.error.title" }, translate),
-    // Refresh the modal's list (fixed errors disappear) and the dashboard
-    // stats card (a resolved import promotes into an active Dag).
+    // Refresh the modal's list (fixed errors disappear), the dashboard stats
+    // card (import-error count drops), and the Dags table (a resolved import
+    // promotes into a listed Dag).
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: [useImportErrorServiceGetImportErrorsKey] }),
         queryClient.invalidateQueries({ queryKey: [useDashboardServiceDagStatsKey] }),
+        queryClient.invalidateQueries({ queryKey: [useDagServiceGetDagsUiKey] }),
       ]);
       toaster.create({
         description: translate("dag:parse.toaster.success.description"),
