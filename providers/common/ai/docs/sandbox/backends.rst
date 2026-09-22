@@ -159,6 +159,82 @@ them.
 that is a symlink replaces the link with a regular file and leaves the original
 target untouched, where a shell redirect would follow the link.
 
+.. _sandbox-backend-islo:
+
+Islo (hosted microVM)
+---------------------
+
+:class:`~airflow.providers.common.ai.sandbox.islo.IsloSandboxBackend` runs each
+sandbox in an `islo.dev <https://islo.dev>`__ microVM, provisioned over the API.
+Like Modal and unlike ``sbx``, the worker only speaks HTTP: it needs no local
+daemon and no host virtualization, so it runs from a containerized worker and on
+Kubernetes.
+
+Install the SDK extra:
+
+.. code-block:: bash
+
+    pip install "apache-airflow-providers-common-ai[sandbox-islo]"
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.sandbox import IsloSandboxBackend
+    from airflow.providers.common.ai.toolsets import SandboxToolset
+
+    SandboxToolset(IsloSandboxBackend(islo_conn_id="islo_default"))
+
+Credentials come from an ``islo`` connection (see :doc:`../connections/islo`),
+resolved lazily on first use through
+:class:`~airflow.providers.common.ai.hooks.islo.IsloHook`, so the API key lives in
+your configured secrets backend rather than the worker environment.
+
+Constructor parameters:
+
+- ``islo_conn_id``: Connection ID. Default ``"islo_default"``. Passing ``None``
+  instead hands credential resolution to the SDK, which reads ``ISLO_API_KEY``,
+  ``ISLO_BASE_URL`` and ``ISLO_COMPUTE_URL`` from the worker environment --
+  convenient for a local trial, but it puts the key outside your secrets backend,
+  so prefer a connection in a deployment.
+- ``image``, ``vcpus``, ``memory_mb``: image and sizing. ``None`` (default) uses
+  the server default for each. The server default image is Debian based, and any
+  Debian or Ubuntu based image, including ``python:*-slim``, has the GNU ``find``,
+  ``stat`` and ``tail`` the file operations need; Alpine and other busybox images
+  do not.
+- ``pause_after_idle``: Seconds without a command or file operation after which
+  the server pauses the microVM and stops charging for its compute. Default
+  ``600``; ``None`` disables it.
+- ``auto_resume``: ``"on_activity"`` (default) resumes a paused sandbox on the
+  next tool call, so a long think between calls costs a resume rather than the
+  run; ``"never"`` leaves it paused, and the backend then treats a paused sandbox
+  as unusable.
+- ``delete_after``: Seconds after **creation** at which the server deletes the
+  sandbox, whether or not it is in use. Default ``86400``; ``None`` disables it.
+  This is the backstop for a worker killed mid-run; it is not renewed while the
+  sandbox is busy, so keep it longer than the longest run you expect.
+
+``SandboxSpec.env`` becomes the process environment of every command, and
+``block_network`` maps to the API's ``internet_enabled``. Two things Islo cannot
+do are refused at ``create`` rather than silently dropped: a per-domain
+``allow_egress_to`` (the API turns outbound access on or off, not per host) and a
+``PATH`` entry in ``env`` (the runner sets ``PATH`` for every command itself).
+
+File reads and writes use Islo's native streaming APIs; directory listings and
+command-output bounding run ``sh``, ``tail``, ``stat`` and GNU ``find`` in the
+sandbox. The compute API caps each output stream at 1 MiB and keeps the tail. The
+backend captures each stream to a scratch file in the sandbox and returns only its
+last ``max_output_bytes`` -- where a traceback and the exit status live -- so the
+worker sees a window sized to the caller's budget, a budget above the server cap
+is clamped to it, and total output is bounded by the sandbox's own ephemeral disk
+rather than by worker memory.
+
+The backend enforces the command deadline itself, because the API's
+``timeout_secs`` is accepted but not enforced. Polling rides out transient API
+errors until the deadline. If no terminal state arrives by then, the backend
+deletes the microVM and reports the command as timed out with
+``sandbox_terminated`` set, so the toolset provisions a fresh sandbox for the next
+call; a deletion the API refused is logged and left to the lifecycle policy to
+reclaim rather than failing the task.
+
 sbx (Docker Sandboxes, local)
 -----------------------------
 
@@ -202,23 +278,26 @@ Constructor parameters:
   ``sbx policy init deny-all``, or ``"allow-all"`` to state that egress is open
   and pass ``SandboxSpec(block_network=False)`` to match.
 
-What differs between the two
-----------------------------
+What differs between the backends
+--------------------------------
 
 Swapping the backend is one constructor argument, and tool names, spec and prompt
 do not change. Four behaviours do, so read them before assuming the same Dag
-behaves identically in both places:
+behaves identically everywhere:
 
 - **CPU.** ``sbx`` gives a sandbox every host CPU; Modal defaults to a request of
-  0.125 of one, so set ``cpu``.
+  0.125 of one, so set ``cpu``; Islo uses the server default unless you set
+  ``vcpus``.
 - **Egress allowlists.** ``sbx`` enforces ``allow_egress_to`` at the host policy
   layer; Modal matches TLS handshake names, which is weaker and has to be opted
-  into. ``allow_egress_to_cidrs`` is enforced at the address layer on Modal and
-  refused on ``sbx``, which has no per-sandbox address rule.
-- **Command timeouts.** A timeout destroys an ``sbx`` sandbox and its files; a
-  Modal sandbox survives with its files intact.
+  into; Islo has no per-host form at all and refuses the spec rather than
+  provisioning something weaker. ``allow_egress_to_cidrs`` is enforced at the
+  address layer on Modal and refused on ``sbx``, which has no per-sandbox address
+  rule.
+- **Command timeouts.** A timeout destroys an ``sbx`` or Islo sandbox and its
+  files; a Modal sandbox survives with its files intact.
 - **Symlinks.** ``write_file`` through a symlink follows the link on ``sbx`` and
-  replaces it on Modal.
+  replaces it on Modal and Islo.
 
 Bringing your own backend
 -------------------------

@@ -26,9 +26,15 @@ from airflow.providers.common.ai.sandbox.base import (
     SandboxSpec,
     SandboxTerminalError,
 )
+
+# Both of these import their vendor dependency lazily, on first use, so the
+# package is importable without the optional ``islo`` SDK; a missing SDK
+# surfaces as an actionable error from the backend instead.
+from airflow.providers.common.ai.sandbox.islo import IsloSandboxBackend
 from airflow.providers.common.ai.sandbox.sbx import SbxSandboxBackend
 
 __all__ = [
+    "IsloSandboxBackend",
     "ModalSandboxBackend",
     "SandboxBackend",
     "SandboxError",
