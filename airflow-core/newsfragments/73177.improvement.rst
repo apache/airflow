@@ -1,0 +1,1 @@
+The Trigger Dag control is now a split button: the main part opens the trigger form in one click, while an always-visible caret reveals a menu with "Trigger with config" and, when a previously selected Dag run carried a config, "Trigger again with this config".

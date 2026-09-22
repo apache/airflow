@@ -175,6 +175,8 @@
       }
     },
     "triggerAgainWithConfig": "Trigger again with this config",
+    "triggerOptions": "Trigger options",
+    "triggerWithConfig": "Trigger with config",
     "unpause": "Unpause {{dagDisplayName}} on trigger"
   },
   "trimText": {
