@@ -17,7 +17,12 @@
  * under the License.
  */
 
-import type { ConnectionResult, GetXComOpts, SetXComOpts } from "./client-types.js";
+import type {
+  ConnectionResult,
+  GetXComOpts,
+  SetTaskStateStoreOpts,
+  SetXComOpts,
+} from "./client-types.js";
 
 /**
  * Client for reading and writing Airflow task-time data from a task handler.
@@ -87,6 +92,46 @@ export interface TaskClient {
    * Target fields default to the current task's context.
    */
   setXCom(opts: SetXComOpts): Promise<void>;
+
+  /**
+   * Look up a value in this task instance's state store.
+   *
+   * Returns `null` when the key is missing. Throws on any other error.
+   *
+   * The generic `T` lets callers narrow the return type when the shape is
+   * known.
+   *
+   * @throws {@link TypeError} when `key` is not a string.
+   * @throws {@link RangeError} when `key` is empty.
+   */
+  getTaskStateStore<T = unknown>(key: string): Promise<T | null>;
+
+  /**
+   * Store a value in this task instance's state store, replacing any
+   * existing value for the key.
+   *
+   * @throws {@link TypeError} when `key` is not a string, or `value` is null,
+   * undefined, NaN, or Infinity.
+   * @throws {@link RangeError} when `key` is empty; when `retentionMs` is
+   * negative, NaN, or Infinity; when the deployment's
+   * `AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS` is invalid; or when the
+   * resolved expiry would overflow the wire timestamp (year 9999).
+   */
+  setTaskStateStore(opts: SetTaskStateStoreOpts): Promise<void>;
+
+  /**
+   * Delete a key from this task instance's state store.
+   *
+   * Resolves even when the key does not exist — the Execution API's delete
+   * route is idempotent and does not report a missing key as an error.
+   *
+   * @throws {@link TypeError} when `key` is not a string.
+   * @throws {@link RangeError} when `key` is empty.
+   */
+  deleteTaskStateStore(key: string): Promise<void>;
+
+  /** Delete every key in this task instance's state store. */
+  clearTaskStateStore(): Promise<void>;
 
   /**
    * Look up an Airflow Connection by ID.
