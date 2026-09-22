@@ -24,9 +24,10 @@ in real time. ``AgentOperator`` applies it automatically (see
 ``enable_tool_logging``) through
 :class:`~airflow.providers.common.ai.toolsets.logging.ToolLoggingCapability`.
 Applying the wrapper as a capability means logging covers the assembled
-function toolset, including tools supplied directly to the agent,
-factory-backed toolsets, nested capabilities, and MCP tools. Output tools such
-as ``final_result`` and provider-native tools that execute server-side are not
+function toolset, including tools supplied through ``toolsets=``,
+``agent_params={"tools": [...]}``, and capabilities such as factory-backed
+toolsets, nested capabilities, and MCP toolsets. Output tools such as
+``final_result`` and provider-native tools, including native MCP, are not
 covered by Airflow's real-time tool-call logging.
 
 ``AgentOperator`` adds ``ToolLoggingCapability`` automatically when
