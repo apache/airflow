@@ -217,6 +217,12 @@ airflow = "airflow.__main__:main"
 
 # Lets OpenTelemetry auto-instrumentation and vendor distros select Airflow's id generator
 # with OTEL_PYTHON_ID_GENERATOR=airflow, instead of reaching into a private module.
+# The import path below is load-bearing: the same source is also reachable as
+# airflow.sdk._shared.observability.traces and airflow_shared.observability.traces, and Python
+# gives each path its own class object. The isinstance check in _adopt_existing_tracer_provider
+# therefore only recognises a generator loaded through this path. airflow-core's settings.py is
+# the sole caller of configure_otel today; a caller importing by another path would need a
+# duck-typed check there instead.
 [project.entry-points.opentelemetry_id_generator]
 airflow = "airflow._shared.observability.traces:OverrideableRandomIdGenerator"
 

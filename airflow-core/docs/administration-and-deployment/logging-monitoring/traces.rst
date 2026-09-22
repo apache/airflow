@@ -89,6 +89,13 @@ and logs a warning. That fallback is best-effort only: tracers that were already
 generator they were built with, so their span ids will not be linked. Prefer the environment
 variable.
 
+Either way, Airflow contributes only the id generator. The provider's exporters and span processors
+stay exactly as your distro configured them, and Airflow deliberately does not bolt a second OTLP
+exporter onto a provider it did not build. The deprecated ``[traces]`` endpoint options —
+``otel_host``, ``otel_port``, ``otel_ssl_active`` and ``otel_service`` — therefore have no effect in
+this setup; configure the destination and the service name through your distro instead, normally the
+``OTEL_EXPORTER_OTLP_*`` and ``OTEL_SERVICE_NAME`` environment variables.
+
 Adding Custom Spans in Tasks
 -----------------------------
 

@@ -268,13 +268,22 @@ def _adopt_existing_tracer_provider() -> bool:
         log.warning(
             "A TracerProvider was already installed; patched in %s so Airflow span ids "
             "keep propagating. Set OTEL_PYTHON_ID_GENERATOR=airflow to have it applied "
-            "when the provider is built instead.",
+            "when the provider is built instead. Airflow contributes only the generator "
+            "and leaves that provider's exporters alone, so the deprecated [traces] "
+            "endpoint settings (otel_host, otel_port, otel_ssl_active, otel_service) do "
+            "not apply to it -- configure the destination through your distro.",
             OverrideableRandomIdGenerator.__name__,
         )
     return True
 
 
 def configure_otel(conf: ConfigParser):
+    # Deliberately ahead of the otel_on check. Airflow's span emission sites are not gated on
+    # otel_on -- they go through the module-level proxy tracer, which resolves to whatever global
+    # provider exists. So once somebody else owns the provider, Airflow spans reach it either way
+    # and otel_on decides only whether Airflow builds a provider of its own. Gating the adoption
+    # on it would leave those spans carrying random ids, which is the linkage loss this exists to
+    # prevent.
     if _adopt_existing_tracer_provider():
         return
 
