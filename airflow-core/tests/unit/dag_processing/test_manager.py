@@ -350,7 +350,7 @@ class TestDagFileProcessorManager:
         ret._open_sockets.clear()
         return ret, read_end
 
-    def test_reconcile_unchanged_bundle_metadata_clears_team_cache_after_sync(self):
+    def test_reconcile_unchanged_bundle_metadata_uses_lightweight_sync(self):
         manager = DagFileProcessorManager(max_runs=1)
         manager._bundle_name_to_team_name = {"existing": "old-team"}
         bundle_manager = MagicMock(spec=DagBundlesManager)
@@ -360,9 +360,11 @@ class TestDagFileProcessorManager:
 
         manager._reconcile_bundles(known_files={})
 
-        assert manager._bundle_name_to_team_name == {}
+        assert manager._bundle_name_to_team_name == {"existing": "old-team"}
         bundle_manager.sync_bundles_to_db.assert_called_once_with(
-            bundle_metadata=bundle_metadata, deactivate_missing=True
+            bundle_metadata=bundle_metadata,
+            bundle_instances={},
+            deactivate_missing=True,
         )
 
     def test_reconcile_complete_provider_when_filtered(self):
@@ -384,7 +386,9 @@ class TestDagFileProcessorManager:
         assert manager._dag_bundles == [owned_bundle]
         bundle_manager.get_bundle.assert_called_once_with("owned")
         bundle_manager.sync_bundles_to_db.assert_called_once_with(
-            bundle_metadata=bundle_metadata, deactivate_missing=True
+            bundle_metadata=bundle_metadata,
+            bundle_instances={"owned": owned_bundle},
+            deactivate_missing=True,
         )
 
     def test_reconcile_keeps_loaded_bundles_after_provider_error(self):
@@ -445,22 +449,41 @@ class TestDagFileProcessorManager:
         handle_removed_files.assert_called_once_with(known_files=known_files)
         bundle_manager.get_bundle.assert_called_once_with("added")
         bundle_manager.sync_bundles_to_db.assert_called_once_with(
-            bundle_metadata=bundle_metadata, deactivate_missing=True
+            bundle_metadata=bundle_metadata,
+            bundle_instances={
+                "added": added_bundle,
+            },
+            deactivate_missing=True,
         )
 
     def test_reconcile_retries_failed_bundle_addition(self):
         manager = DagFileProcessorManager(max_runs=1)
         added_metadata = DagBundleMetadata(name="added")
+        added_bundle = MagicMock(spec=BaseDagBundle)
+        added_bundle.name = "added"
 
         bundle_manager = MagicMock(spec=DagBundlesManager)
         bundle_manager.get_active_bundle_metadata.return_value = (added_metadata,)
-        bundle_manager.get_bundle.side_effect = RuntimeError("cannot construct bundle")
+        bundle_manager.get_bundle.side_effect = [RuntimeError("cannot construct bundle"), added_bundle]
         manager._dag_bundles_manager = bundle_manager
 
         manager._reconcile_bundles(known_files={})
+        manager._reconcile_bundles(known_files={})
 
-        assert manager._dag_bundles == []
-        bundle_manager.get_bundle.assert_called_once_with("added")
+        assert manager._dag_bundles == [added_bundle]
+        assert bundle_manager.get_bundle.call_args_list == [mock.call("added"), mock.call("added")]
+        assert bundle_manager.sync_bundles_to_db.call_args_list == [
+            mock.call(
+                bundle_metadata=(added_metadata,),
+                bundle_instances={},
+                deactivate_missing=True,
+            ),
+            mock.call(
+                bundle_metadata=(added_metadata,),
+                bundle_instances={"added": added_bundle},
+                deactivate_missing=True,
+            ),
+        ]
 
     @pytest.fixture
     def clear_parse_import_errors(self):
@@ -556,16 +579,22 @@ class TestDagFileProcessorManager:
         """A processor with no bundle filter owns the full config and may deactivate missing bundles."""
         manager = DagFileProcessorManager(max_runs=1)
         with mock.patch("airflow.dag_processing.manager.DagBundlesManager") as mock_bundles_manager:
+            mock_bundles_manager.return_value.get_active_bundle_metadata.return_value = ()
             manager.sync_bundles()
-        mock_bundles_manager.return_value.sync_bundles_to_db.assert_called_once_with(deactivate_missing=True)
+        mock_bundles_manager.return_value.sync_bundles_to_db.assert_called_once_with(
+            bundle_metadata=(), deactivate_missing=True
+        )
 
     def test_sync_bundles_does_not_deactivate_missing_when_filtered(self):
         """A processor started with ``--bundle-name`` owns a subset and must not deactivate others."""
         manager = DagFileProcessorManager(max_runs=1, bundle_names_to_parse=["only-mine"])
         with mock.patch("airflow.dag_processing.manager.DagBundlesManager") as mock_bundles_manager:
             mock_bundles_manager.return_value.provides_complete_bundle_list = False
+            mock_bundles_manager.return_value.get_active_bundle_metadata.return_value = ()
             manager.sync_bundles()
-        mock_bundles_manager.return_value.sync_bundles_to_db.assert_called_once_with(deactivate_missing=False)
+        mock_bundles_manager.return_value.sync_bundles_to_db.assert_called_once_with(
+            bundle_metadata=(), deactivate_missing=False
+        )
 
     @pytest.mark.parametrize(
         "safe_mode",

@@ -93,6 +93,7 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.dag_processing.bundles.base import BaseDagBundle
+    from airflow.dag_processing.bundles.provider import DagBundleMetadata
     from airflow.sdk.api.client import Client
 
 
@@ -257,6 +258,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     _dag_bundles: list[BaseDagBundle] = attrs.field(factory=list, init=False)
     _dag_bundles_manager: DagBundlesManager | None = attrs.field(default=None, init=False)
+    _bundle_metadata: dict[str, DagBundleMetadata] = attrs.field(factory=dict, init=False)
     _bundle_versions: dict[str, str | None] = attrs.field(factory=dict, init=False)
     _bundle_version_data: dict[str, dict | None] = attrs.field(factory=dict, init=False)
     _multi_team: bool = attrs.field(factory=lambda: conf.getboolean("core", "multi_team"), init=False)
@@ -334,9 +336,12 @@ class DagFileProcessorManager(LoggingMixin):
         # When this processor only parses a subset of bundles, it does not see the full
         # bundle list and must not deactivate bundles owned by other processors.
         dag_bundle_manager = self._get_dag_bundles_manager()
+        bundle_metadata = dag_bundle_manager.get_active_bundle_metadata()
         dag_bundle_manager.sync_bundles_to_db(
-            deactivate_missing=self._can_deactivate_missing_bundles(dag_bundle_manager)
+            bundle_metadata=bundle_metadata,
+            deactivate_missing=self._can_deactivate_missing_bundles(dag_bundle_manager),
         )
+        self._bundle_metadata = {metadata.name: metadata for metadata in bundle_metadata}
         # Best-effort legacy repair: a failure here must not crash DFP startup.
         # Affected Dags self-heal on the next successful parse.
         try:
@@ -990,15 +995,8 @@ class DagFileProcessorManager(LoggingMixin):
             self.log.exception("Error reading active Dag bundle metadata")
             return
 
-        try:
-            dag_bundle_manager.sync_bundles_to_db(
-                bundle_metadata=bundle_metadata,
-                deactivate_missing=self._can_deactivate_missing_bundles(dag_bundle_manager),
-            )
-        except Exception:
-            self.log.exception("Error reconciling Dag bundles")
-        else:
-            self._bundle_name_to_team_name.clear()
+        current_bundle_metadata = {metadata.name: metadata for metadata in bundle_metadata}
+        metadata_changed = current_bundle_metadata != self._bundle_metadata
 
         if self.bundle_names_to_parse:
             bundle_metadata = tuple(
@@ -1008,10 +1006,8 @@ class DagFileProcessorManager(LoggingMixin):
         loaded_bundles_by_name = {bundle.name: bundle for bundle in self._dag_bundles}
         loaded_bundle_names = set(loaded_bundles_by_name)
         active_bundle_names = {metadata.name for metadata in bundle_metadata}
+        runtime_bundles_changed = active_bundle_names != loaded_bundle_names
         # Bundle construction settings are immutable for a name; changes require a new name.
-        if active_bundle_names == loaded_bundle_names:
-            return
-
         removed_bundle_names = loaded_bundle_names - active_bundle_names
         for bundle_name in removed_bundle_names:
             del loaded_bundles_by_name[bundle_name]
@@ -1027,6 +1023,22 @@ class DagFileProcessorManager(LoggingMixin):
                 continue
             loaded_bundles_by_name[metadata.name] = bundle
             added_bundle_names.add(metadata.name)
+
+        try:
+            dag_bundle_manager.sync_bundles_to_db(
+                bundle_metadata=tuple(current_bundle_metadata.values()),
+                bundle_instances={name: loaded_bundles_by_name[name] for name in added_bundle_names},
+                deactivate_missing=self._can_deactivate_missing_bundles(dag_bundle_manager),
+            )
+        except Exception:
+            self.log.exception("Error reconciling Dag bundles")
+        else:
+            self._bundle_metadata = current_bundle_metadata
+            if metadata_changed:
+                self._bundle_name_to_team_name.clear()
+
+        if not runtime_bundles_changed:
+            return
 
         self._dag_bundles = [
             loaded_bundles_by_name[metadata.name]

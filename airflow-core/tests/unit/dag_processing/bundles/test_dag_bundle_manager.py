@@ -425,6 +425,30 @@ def test_sync_bundles_to_db(clear_db, session, caplog):
 
 
 @pytest.mark.db_test
+@pytest.mark.parametrize("row_exists", [False, True])
+@conf_vars({("core", "load_examples"): "False"})
+def test_sync_bundles_to_db_with_runtime_instances_keeps_declared_bundle_active(
+    clear_db, session, row_exists
+):
+    if row_exists:
+        bundle = DagBundleModel(name="declared")
+        bundle.active = False
+        session.add(bundle)
+        session.flush()
+
+    manager = DagBundlesManager()
+    with patch.object(manager, "get_bundle", side_effect=RuntimeError("must not construct")) as get_bundle:
+        manager.sync_bundles_to_db(
+            bundle_metadata=(DagBundleMetadata(name="declared"),),
+            bundle_instances={},
+            session=session,
+        )
+
+    get_bundle.assert_not_called()
+    assert session.get(DagBundleModel, "declared").active is True
+
+
+@pytest.mark.db_test
 @conf_vars(
     {
         ("core", "multi_team"): "True",
