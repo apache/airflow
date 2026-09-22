@@ -32,6 +32,7 @@ import org.apache.airflow.sdk.internal.ArgValues
 import org.apache.airflow.sdk.internal.TaskArgs
 import org.apache.airflow.sdk.internal.TypeRef
 import org.apache.airflow.sdk.internal.foldArgName
+import org.apache.airflow.sdk.internal.registrarName
 import javax.annotation.processing.AbstractProcessor
 import javax.annotation.processing.ProcessingEnvironment
 import javax.annotation.processing.RoundEnvironment
@@ -124,9 +125,12 @@ class BuilderProcessor : AbstractProcessor() {
    * registrar rather than a builder.
    */
   private fun buildHandlers(el: TypeElement): TypeSpec {
+    require(el.enclosingElement !is TypeElement || Modifier.STATIC in el.modifiers) {
+      "Nested class '${el.simpleName}' holding @Builder.TaskHandler methods must be static"
+    }
     val registrar =
       TypeSpec
-        .classBuilder("${el.simpleName}Handlers")
+        .classBuilder(registrarName(ClassName.get(el).reflectionName()).substringAfterLast('.'))
         .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
         .addJavadoc(
           "Registers {@link \$T}'s task handlers against the Dags the Python file owns.\n",

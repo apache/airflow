@@ -19,6 +19,8 @@
 
 package org.apache.airflow.sdk
 
+import org.apache.airflow.sdk.internal.registrarName
+
 /**
  * An immutable snapshot of all [DagDef]s that this JVM process can execute.
  *
@@ -63,13 +65,15 @@ class Bundle(
    *    registrar, because annotation processing did not run over it.
    */
   fun register(handlerClass: Class<*>): Bundle {
+    val name = registrarName(handlerClass.name)
     val registrar =
       try {
-        Class.forName("${handlerClass.name}Handlers", true, handlerClass.classLoader)
+        Class.forName(name, true, handlerClass.classLoader)
       } catch (e: ClassNotFoundException) {
         throw IllegalArgumentException(
-          "No generated registrar for ${handlerClass.name}; does it declare @Builder.TaskHandler " +
-            "methods, and is airflow-sdk-processor on the annotationProcessor path?",
+          "No generated registrar $name for ${handlerClass.name}; does it declare " +
+            "@Builder.TaskHandler methods, and is airflow-sdk-processor on the " +
+            "annotationProcessor path?",
           e,
         )
       }

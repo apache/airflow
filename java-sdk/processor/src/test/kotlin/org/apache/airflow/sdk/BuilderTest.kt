@@ -787,4 +787,82 @@ class BuilderTest {
       "@Builder.TaskHandler on 't' must name the Dag the Python file declares",
     )
   }
+
+  @Test
+  @DisplayName("name the registrar of a nested handler class after the classes enclosing it")
+  fun generateRegistrarForNestedHandlerClass() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        public class TestExample {
+          public static class Inner {
+            @Builder.TaskHandler(dag = "etl", task = "score")
+            public long score(long rows) { return rows; }
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+    assertThat(compilation)
+      .generatedSourceFile("org.apache.airflow.example.TestExample_InnerHandlers")
+      .hasSourceEquivalentTo(
+        "org.apache.airflow.example.TestExample_InnerHandlers",
+        """
+         package org.apache.airflow.example;
+
+         import java.lang.Exception;
+         import java.lang.Long;
+         import java.lang.Override;
+         import org.apache.airflow.sdk.Bundle;
+         import org.apache.airflow.sdk.Client;
+         import org.apache.airflow.sdk.Context;
+         import org.apache.airflow.sdk.Task;
+         import org.apache.airflow.sdk.internal.TaskArgs;
+
+         /**
+          * Registers {@link TestExample.Inner}'s task handlers against the Dags the Python file owns.
+          */
+         public final class TestExample_InnerHandlers {
+           public static void registerInto(Bundle bundle) {
+             bundle.register("etl", "score", Score.class);
+           }
+
+           public static final class Score implements Task {
+             @Override
+             public void execute(Context context, Client client) throws Exception {
+               TaskArgs args = TaskArgs.of(context, client, 1);
+               long rows = args.require(0, Long.class);
+               client.setXCom(new TestExample.Inner().score(rows));
+             }
+           }
+         }
+        """,
+      )
+  }
+
+  @Test
+  @DisplayName("reject handlers on a nested class that is not static")
+  fun rejectHandlersOnInnerClass() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        public class TestExample {
+          public class Inner {
+            @Builder.TaskHandler(dag = "etl")
+            public void t() {}
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "Nested class 'Inner' holding @Builder.TaskHandler methods must be static",
+    )
+  }
 }

@@ -24,6 +24,16 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
 internal class BundleTest {
+  private class NoOp : Task {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ) = Unit
+  }
+
+  /** A class of handlers that the processor generated [BundleTest_NestedHandlers] for. */
+  class Nested
+
   @Test
   @DisplayName("Should index dags by dagId")
   fun shouldIndexDagsByDagId() {
@@ -43,5 +53,52 @@ internal class BundleTest {
       }
 
     Assertions.assertEquals("Dags in bundle have duplicate ID: dag", error.message)
+  }
+
+  @Test
+  @DisplayName("Should find the registrar generated for a nested handler class")
+  fun shouldFindRegistrarOfNestedHandlerClass() {
+    val bundle = Bundle().register(Nested::class.java)
+
+    val etl = bundle.dags.getValue("etl")
+    Assertions.assertEquals(listOf("etl"), bundle.dags.keys.toList())
+    Assertions.assertEquals(listOf("score"), etl.tasks.keys.toList())
+  }
+
+  @Test
+  @DisplayName("Should name the registrar it looked for when there is none")
+  fun shouldNameTheRegistrarItLookedFor() {
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        Bundle().register(NoOp::class.java)
+      }
+
+    Assertions.assertTrue(
+      error.message!!.startsWith(
+        "No generated registrar org.apache.airflow.sdk.BundleTest_NoOpHandlers for ",
+      ),
+      error.message,
+    )
+  }
+}
+
+/**
+ * Stands in for the registrar the annotation processor generates beside
+ * [BundleTest.Nested], to pin the name [Bundle.register] looks up.
+ */
+@Suppress("ktlint:standard:class-naming", "ClassName")
+class BundleTest_NestedHandlers {
+  companion object {
+    @JvmStatic
+    fun registerInto(bundle: Bundle) {
+      bundle.register("etl", "score", NoOpHandler::class.java)
+    }
+  }
+
+  class NoOpHandler : Task {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ) = Unit
   }
 }
