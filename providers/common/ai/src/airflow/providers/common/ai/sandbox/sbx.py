@@ -76,9 +76,11 @@ class SbxSandboxBackend(SandboxBackend):
     driving it from an Airflow worker is off-label use. A production worker would
     need the ``sbx`` binary on the host, an authenticated Docker account
     (``sbx login``), a one-time ``sbx policy init``, and on Linux, KVM or nested
-    virtualization -- which an unprivileged container cannot provide. No hosted
-    backend ships with the provider yet; add one behind :class:`SandboxBackend`
-    if you need Kubernetes.
+    virtualization -- which an unprivileged container cannot provide. If you need
+    Kubernetes, use a hosted backend --
+    :class:`~airflow.providers.common.ai.sandbox.ModalSandboxBackend` or
+    :class:`~airflow.providers.common.ai.sandbox.BoatSandboxBackend`, both of
+    which only talk to an API -- or add your own behind :class:`SandboxBackend`.
 
     **Network policy is layered on a host-level setting, not independent of
     one.** ``sbx`` governs egress through a host-level ``sbx policy``.

@@ -111,6 +111,66 @@ them.
 that is a symlink replaces the link with a regular file and leaves the original
 target untouched, where a shell redirect would follow the link.
 
+.. _sandbox-backend-boat:
+
+Boat (hosted)
+-------------
+
+:class:`~airflow.providers.common.ai.sandbox.boat.BoatSandboxBackend` runs each
+sandbox on `Boat <https://docs.boat.dev/quickstart>`__, the hosted cloud-computer
+API formerly called Ascii Box. The Airflow worker needs only network access and
+an API key: no local daemon, Docker socket, KVM or nested virtualization, so it
+runs from a containerized worker and on Kubernetes.
+
+Install the SDK extra:
+
+.. code-block:: bash
+
+    pip install "apache-airflow-providers-common-ai[sandbox-boat]"
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.sandbox import BoatSandboxBackend, SandboxSpec
+    from airflow.providers.common.ai.toolsets import SandboxToolset
+
+    SandboxToolset(
+        BoatSandboxBackend(boat_conn_id="boat_default"),
+        spec=SandboxSpec(block_network=False),
+    )
+
+Credentials resolve lazily from a generic Airflow connection on first use, so the
+API key can stay in the configured secrets backend:
+
+- ``password``: Boat API key. Required.
+- ``host``: API base URL. Optional; defaults to ``https://boat.dev/api/v1``.
+- Extra ``timeout``: HTTP request timeout in seconds.
+- Extra ``no_env``: whether Boat should withhold account-stored secrets.
+  Defaults to ``true``.
+
+Constructor parameters:
+
+- ``boat_conn_id``: Connection ID. Default ``"boat_default"``. Passing ``None``
+  reads ``BOAT_API_KEY`` and optional ``BOAT_BASE_URL`` from the worker
+  environment instead.
+- ``machine_type``: ``"small"``, ``"default"`` or ``"large"``.
+- ``ttl_seconds``: server-side auto-stop TTL. Default ``3600``.
+- ``ready_timeout``: provisioning deadline. Default ``300``.
+- ``no_env``: explicit override for the connection's ``no_env`` setting.
+
+``SandboxSpec.env`` is passed when the sandbox is created. **Boat cannot enforce
+a deny-all network policy or a per-domain egress allowlist**, so the backend
+refuses ``block_network=True`` and ``allow_egress_to`` rather than silently
+provisioning something weaker than the spec asked for. Since ``block_network``
+defaults to ``True``, that includes a bare ``SandboxSpec()``: pass
+``SandboxSpec(block_network=False)`` to state that open egress is acceptable, or
+use Modal when it is not.
+
+Writes use Boat's native file API. Reads deliberately keep the inherited bounded
+shell implementation, so ``max_bytes`` is enforced inside the guest before file
+contents reach worker memory. Command timeouts are capped at 600 seconds; a
+sandbox whose command times out, or that never becomes ready, is torn down
+immediately, with the server-side TTL as the orphan-cleanup backstop.
+
 sbx (Docker Sandboxes, local)
 -----------------------------
 
@@ -154,22 +214,23 @@ Constructor parameters:
   ``sbx policy init deny-all``, or ``"allow-all"`` to state that egress is open
   and pass ``SandboxSpec(block_network=False)`` to match.
 
-What differs between the two
-----------------------------
+What differs between the backends
+--------------------------------
 
 Swapping the backend is one constructor argument, and tool names, spec and prompt
 do not change. Four behaviours do, so read them before assuming the same Dag
-behaves identically in both places:
+behaves identically everywhere:
 
 - **CPU.** ``sbx`` gives a sandbox every host CPU; Modal defaults to a fraction of
-  one, so set ``cpu``.
+  one, so set ``cpu``; Boat sizes by ``machine_type``.
 - **Egress allowlists.** ``sbx`` enforces ``allow_egress_to`` at the host policy
   layer; Modal matches TLS handshake names, which is weaker and has to be opted
-  into.
-- **Command timeouts.** A timeout destroys an ``sbx`` sandbox and its files; a
-  Modal sandbox survives with its files intact.
+  into; Boat has no form of it at all and refuses the spec rather than
+  provisioning something weaker.
+- **Command timeouts.** A timeout destroys an ``sbx`` or Boat sandbox and its
+  files; a Modal sandbox survives with its files intact.
 - **Symlinks.** ``write_file`` through a symlink follows the link on ``sbx`` and
-  replaces it on Modal.
+  replaces it on Modal and Boat.
 
 Bringing your own backend
 -------------------------

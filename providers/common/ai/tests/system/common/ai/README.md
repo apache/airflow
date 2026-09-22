@@ -17,15 +17,17 @@
  under the License.
 -->
 
-# SandboxToolset system test
+# SandboxToolset system tests
 
-The `example_sandbox_toolset_sbx.py` system test exercises the complete local boundary:
+Each test exercises the complete toolset boundary with a deterministic pydantic-ai model:
 
 1. an Airflow task runs a deterministic pydantic-ai agent;
-2. the agent calls `SandboxToolset` twice;
-3. `SbxSandboxBackend` creates a Docker Sandbox microVM;
-4. the second Python call reads the file written by the first call, proving per-run persistence; and
+2. the agent calls every sandbox tool;
+3. the selected backend creates a sandbox;
+4. later calls read the file written by the first call, proving per-run persistence; and
 5. the agent run tears the sandbox down.
+
+## Docker Sandboxes
 
 Install the `sbx` CLI on every worker that can run this Dag and initialize its network policy once:
 
@@ -39,3 +41,30 @@ Airflow system-test environment whose task process has access to the host `sbx` 
 ```console
 pytest --system providers/common/ai/tests/system/common/ai/example_sandbox_toolset_sbx.py
 ```
+
+## Modal
+
+Install the Modal extra and authenticate, then:
+
+```console
+pip install "apache-airflow-providers-common-ai[modal]"
+modal token new
+pytest --system providers/common/ai/tests/system/common/ai/example_sandbox_toolset_modal.py
+```
+
+## Boat
+
+Install the Boat extra and export a short-lived API key into the task process:
+
+```console
+pip install "apache-airflow-providers-common-ai[sandbox-boat]"
+export BOAT_API_KEY="..."
+pytest --system providers/common/ai/tests/system/common/ai/example_sandbox_toolset_boat.py
+```
+
+With `boat_conn_id=None`, the backend reads this key lazily in the worker process; it is not copied
+into `SandboxSpec.env` or exposed inside the sandbox. The test passes a separate non-secret marker
+through `SandboxSpec.env` and verifies it from a sandbox command, exercises successful and
+non-zero command exits plus write/read/list operations, and requests open egress
+(`SandboxSpec(block_network=False)`) because Boat cannot enforce a deny-all network policy.
+A 15-minute server-side TTL is the cleanup backstop if worker-side teardown cannot run.

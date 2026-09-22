@@ -45,9 +45,10 @@ The provider's extras split into a few groups:
   the built-in adapter talks to; pydantic-ai supports more model providers
   than these, each under its own extra name, so check the
   `pydantic-ai install docs <https://ai.pydantic.dev/install/#slim-install>`__ for the full list.
-* **Agent tooling** — ``mcp``, ``skills``, ``code-mode``, ``shields``, ``modal``: MCP servers,
-  Agent Skills, code-mode tool execution, shield capabilities (input/output guards, tool
-  guards, cost tracking), and the hosted Modal backend for :doc:`sandboxed execution <sandbox/index>`.
+* **Agent tooling** — ``mcp``, ``skills``, ``code-mode``, ``shields``, ``modal``,
+  ``sandbox-boat``: MCP servers, Agent Skills, code-mode tool execution, shield
+  capabilities (input/output guards, tool guards, cost tracking), and the hosted Modal and
+  Boat backends for :doc:`sandboxed execution <sandbox/index>`.
 * **Document loading** — ``pdf``, ``docx``, ``avro``, ``parquet``: file formats for
   document pipelines.
 * **Retrieval / SQL** — ``sql``, ``common.sql``, ``langchain``, ``llamaindex``: RAG and
