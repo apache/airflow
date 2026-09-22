@@ -298,6 +298,20 @@ export const UseDagBundleServiceGetDagBundlesKeyFn = ({ limit, offset, orderBy }
   offset?: number;
   orderBy?: string[];
 } = {}, queryKey?: Array<unknown>) => [useDagBundleServiceGetDagBundlesKey, ...(queryKey ?? [{ limit, offset, orderBy }])];
+export type DagBundleServiceGetDagBundleDefaultResponse = Awaited<ReturnType<typeof DagBundleService.getDagBundle>>;
+export type DagBundleServiceGetDagBundleQueryResult<TData = DagBundleServiceGetDagBundleDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useDagBundleServiceGetDagBundleKey = "DagBundleServiceGetDagBundle";
+export const UseDagBundleServiceGetDagBundleKeyFn = ({ bundleName }: {
+  bundleName: string;
+}, queryKey?: Array<unknown>) => [useDagBundleServiceGetDagBundleKey, ...(queryKey ?? [{ bundleName }])];
+export type DagBundleServiceGetDagBundleFilesDefaultResponse = Awaited<ReturnType<typeof DagBundleService.getDagBundleFiles>>;
+export type DagBundleServiceGetDagBundleFilesQueryResult<TData = DagBundleServiceGetDagBundleFilesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useDagBundleServiceGetDagBundleFilesKey = "DagBundleServiceGetDagBundleFiles";
+export const UseDagBundleServiceGetDagBundleFilesKeyFn = ({ bundleName, limit, offset }: {
+  bundleName: string;
+  limit?: number;
+  offset?: number;
+}, queryKey?: Array<unknown>) => [useDagBundleServiceGetDagBundleFilesKey, ...(queryKey ?? [{ bundleName, limit, offset }])];
 export type DagStatsServiceGetDagStatsDefaultResponse = Awaited<ReturnType<typeof DagStatsService.getDagStats>>;
 export type DagStatsServiceGetDagStatsQueryResult<TData = DagStatsServiceGetDagStatsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagStatsServiceGetDagStatsKey = "DagStatsServiceGetDagStats";

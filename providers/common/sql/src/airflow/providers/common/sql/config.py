@@ -47,6 +47,7 @@ class StorageType(str, Enum):
     """Storage types for Data Fusion."""
 
     S3 = "s3"
+    GCS = "gcs"
     LOCAL = "local"
 
 
@@ -114,6 +115,8 @@ class DataSourceConfig:
         """Extract storage type."""
         if self.uri.startswith("s3://"):
             return StorageType.S3
+        if self.uri.startswith("gs://"):
+            return StorageType.GCS
         if self.uri.startswith("file://"):
             return StorageType.LOCAL
         raise ValueError(f"Unsupported storage type for URI: {self.uri}")

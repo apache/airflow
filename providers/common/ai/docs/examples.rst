@@ -52,6 +52,20 @@ Single-prompt tasks
    * - :doc:`operators/llm_sql`
      - ``@task.llm_sql`` generating SQL from a natural-language question.
 
+Batch processing
+-----------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Guide
+     - What it shows
+   * - :doc:`operators/llm_batch`
+     - ``@task.llm_batch`` submitting many prompts as one OpenAI/Anthropic batch job, with
+       structured output and manifest-based results
+       (`example_llm_batch.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_llm_batch.py>`__).
+
 Agents & tools
 --------------
 
@@ -138,12 +152,18 @@ Reliability
    * - Guide
      - What it shows
    * - :doc:`retry_policies`
-     - Classifying task failures with an LLM to decide retry, fail, or delay. Source:
+     - Classifying task failures with an LLM into categories you define, then deriving
+       retry, fail, or delay from the category; and the same on a classifier model with a
+       confidence bar. Source:
        `example_llm_retry_policy.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_llm_retry_policy.py>`__.
    * - :doc:`provider_fallback`
      - Failing over to another vendor inside one task attempt, and drilling the chain
        without waiting for an outage. Source:
        `example_llm_fallback.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_llm_fallback.py>`__.
+   * - :doc:`classifier_models`
+     - Routing a failure with a model that answers typed questions instead of writing
+       text, and escalating when its confidence is low. Source:
+       `example_classifier_model.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_classifier_model.py>`__.
 
 .. toctree::
     :hidden:

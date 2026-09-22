@@ -73,7 +73,7 @@ export AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{"typescript": "ts"}'
 
 Copy both files in `dags/` into your Airflow Dags folder.
 
-The example also uses one Variable and one Connection:
+The example also reads one Variable and one Connection:
 
 ```bash
 airflow variables set typescript_example_greeting "hello from Airflow"
@@ -83,6 +83,9 @@ airflow connections add typescript_example_http \
   --conn-login user \
   --conn-password pass
 ```
+
+`write_and_delete_variable` writes the Variables it needs: it records the run id in
+`typescript_example_last_run` and deletes the `typescript_example_scratch` Variable it has just written.
 
 Then start Airflow and trigger the Dag:
 

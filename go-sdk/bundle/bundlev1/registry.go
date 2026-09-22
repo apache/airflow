@@ -32,19 +32,18 @@ type (
 		// AddTask registers fn as a task, deriving the task_id from fn's own
 		// name (so it must match the @task.stub name in the Python dag).
 		//
-		// fn is an ordinary Go function whose parameters are injected by type
-		// and may appear in any order. Recognised parameters are:
-		//   - airflow.Context: everything below on one value, plus the
-		//     identity of the task instance and its Dag run
-		//   - context.Context: cancelled when the task is asked to stop
-		//   - *slog.Logger: writes to the task's Airflow log
-		//   - sdk.Client (or a narrower sdk.VariableClient / sdk.ConnectionClient /
-		//     sdk.XComClient): access to Variables, Connections, and XCom
+		// fn is an ordinary Go function that takes an airflow.Context first.
+		// The Context is the task's context.Context, cancelled when the task is
+		// asked to stop. It carries the task's logger, the client for Variables,
+		// Connections and XCom, and the identity of the task instance and its
+		// Dag run. Every parameter after the Context is data, filled from the
+		// arguments of the Python stub's TaskFlow call.
 		//
 		// fn must return either error or (result, error): a non-nil error fails
 		// the task, and a non-nil first result is pushed as the task's
-		// return-value XCom. Passing a non-function, or a function whose return
-		// signature does not match, panics at registration time.
+		// return-value XCom. Passing a non-function, or a function whose
+		// parameters or return signature do not match, panics at registration
+		// time.
 		AddTask(fn any)
 
 		// AddTaskWithName is like AddTask but sets task_id explicitly instead of

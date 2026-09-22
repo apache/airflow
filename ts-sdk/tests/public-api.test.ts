@@ -347,6 +347,10 @@ describe("public API", () => {
     expectTypeOf<TaskClient["getXCom"]>().toEqualTypeOf<
       <T = unknown>(opts: GetXComOpts) => Promise<T | null>
     >();
+    expectTypeOf<TaskClient["setVariable"]>().toEqualTypeOf<
+      (key: string, value: string, description?: string | null) => Promise<void>
+    >();
+    expectTypeOf<TaskClient["deleteVariable"]>().toEqualTypeOf<(key: string) => Promise<void>>();
   });
 
   it("rejects wire-format names and non-JSON XCom values", () => {

@@ -33,6 +33,7 @@ class TestDataSourceConfig:
         ("uri", "expected_type"),
         [
             ("s3://bucket/path", StorageType.S3),
+            ("gs://bucket/path", StorageType.GCS),
             ("file:///path/to/file", StorageType.LOCAL),
         ],
     )
