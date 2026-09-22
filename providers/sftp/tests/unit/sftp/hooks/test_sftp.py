@@ -828,7 +828,7 @@ class TestSFTPHookAsync:
                 22,
                 "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFe8P8lk5HFfL/rMlcCMHQhw1cg+uZtlK5rXQk2C4pOY user@host",
             ),
-            (2222, "AAAAC3NzaC1lZDI1NTE5AAAAIFe8P8lk5HFfL/rMlcCMHQhw1cg+uZtlK5rXQk2C4pOY"),
+            (2222, TEST_HOST_KEY),
             (
                 2222,
                 "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBDDsXFe87LsBA1Hfi+mtw"
@@ -860,7 +860,10 @@ class TestSFTPHookAsync:
         await hook._get_conn()
 
         host_key_parts = mock_host_key.split()
-        expected_host_key = " ".join(host_key_parts[:2]) if len(host_key_parts) >= 2 else mock_host_key
+        # A bare key is RSA; asyncssh does not accept the two-field `host key` form.
+        expected_host_key = (
+            " ".join(host_key_parts[:2]) if len(host_key_parts) >= 2 else f"ssh-rsa {mock_host_key}"
+        )
         assert hook.known_hosts == f"localhost {expected_host_key}".encode()
 
     @patch("asyncssh.connect", new_callable=AsyncMock)
@@ -959,6 +962,74 @@ class TestSFTPHookAsync:
         hook = SFTPHookAsync()
         with pytest.raises(ValueError, match="Host key check was skipped, but `host_key` value was given"):
             await hook._get_conn()
+
+    @patch("asyncssh.connect", new_callable=AsyncMock)
+    @patch("airflow.providers.sftp.hooks.sftp.get_async_connection")
+    @pytest.mark.asyncio
+    async def test_constructor_no_host_key_check_applies_without_extras(
+        self, mock_get_connection, mock_connect
+    ):
+        """The constructor opt-out applies even when the connection has no extras at all."""
+        mock_get_connection.return_value = Connection(
+            conn_id="sftp_default", conn_type="sftp", host="localhost", login="username"
+        )
+
+        hook = SFTPHookAsync(no_host_key_check=True)
+        await hook._get_conn()
+
+        assert mock_connect.call_args.kwargs["known_hosts"] is None
+
+    @patch("asyncssh.connect", new_callable=AsyncMock)
+    @patch("asyncssh.import_private_key")
+    @patch("airflow.providers.sftp.hooks.sftp.get_async_connection")
+    @pytest.mark.asyncio
+    async def test_constructor_no_host_key_check_false_resolves_conflicting_extras(
+        self, mock_get_connection, mock_import_private_key, mock_connect
+    ):
+        """``no_host_key_check=False`` wins over the extra, so a connection's `host_key` is used."""
+        mock_get_connection.return_value = MockAirflowConnectionWithHostKey(
+            host_key=TEST_HOST_KEY, no_host_key_check=True
+        )
+
+        hook = SFTPHookAsync(no_host_key_check=False)
+        await hook._get_conn()
+
+        assert hook.known_hosts == f"localhost ssh-rsa {TEST_HOST_KEY}".encode()
+
+    @patch("asyncssh.connect", new_callable=AsyncMock)
+    @patch("airflow.providers.sftp.hooks.sftp.get_async_connection")
+    @pytest.mark.asyncio
+    async def test_constructor_no_host_key_check_true_with_host_key_raises(
+        self, mock_get_connection, mock_connect
+    ):
+        mock_get_connection.return_value = MockAirflowConnectionWithHostKey(
+            host_key=TEST_HOST_KEY, no_host_key_check=False
+        )
+
+        hook = SFTPHookAsync(no_host_key_check=True)
+        with pytest.raises(ValueError, match="Host key check was skipped, but `host_key` value was given"):
+            await hook._get_conn()
+
+    @patch("asyncssh.connect", new_callable=AsyncMock)
+    @patch("asyncssh.import_private_key")
+    @patch("airflow.providers.sftp.hooks.sftp.get_async_connection")
+    @pytest.mark.asyncio
+    async def test_host_key_entry_uses_host_override(
+        self, mock_get_connection, mock_import_private_key, mock_connect
+    ):
+        """The known_hosts entry names the host actually connected to, not the connection's host."""
+        mock_get_connection.return_value = MockAirflowConnectionWithHostKey(
+            host_key=f"ssh-rsa {TEST_HOST_KEY}", no_host_key_check=False
+        )
+
+        hook = SFTPHookAsync(host="override.example")
+        await hook._get_conn()
+
+        assert mock_connect.call_args.kwargs["host"] == "override.example"
+        assert (
+            mock_connect.call_args.kwargs["known_hosts"]
+            == f"override.example ssh-rsa {TEST_HOST_KEY}".encode()
+        )
 
     @patch("paramiko.SSHClient.connect")
     @patch("asyncssh.import_private_key")

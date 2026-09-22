@@ -681,7 +681,10 @@ class SSHHookAsync(BaseHook):
                 )
             if len(host_key_parts) >= 2:
                 host_key = " ".join(host_key_parts[:2])
-            self.known_hosts = f"{conn.host} {host_key}".encode()
+            else:
+                # A bare key is RSA, as on the sync hook; asyncssh needs the type spelled out.
+                host_key = f"ssh-rsa {host_key}"
+            self.known_hosts = f"{self.host or conn.host} {host_key}".encode()
 
     async def _get_conn(self):
         """
