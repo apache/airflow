@@ -594,10 +594,17 @@ def _(task: SerializedMappedOperator | TaskSDKMappedOperator, run_id: str, *, se
 
     # See get_parse_time_mapped_ti_count: a batched task's count is fixed by batch_size alone.
     if isinstance(task, SerializedMappedOperator):
-        if (batch_size := task.resolve_batch_size(run_id, session=session)) > 0:
-            return _get_parent_count() * batch_size
-    elif task.batch_size > 0:
-        return _get_parent_count() * task.batch_size
+        batch_size = task.resolve_batch_size(run_id, session=session)
+    elif isinstance(task.batch_size, int):
+        batch_size = task.batch_size
+    else:
+        # A runtime batch size lives in task_map and is only resolvable through the serialized
+        # operator; SDK objects only reach here from tests that skip serialization.
+        raise TypeError(
+            f"runtime batch size of {task.task_id!r} can only be resolved on a serialized operator"
+        )
+    if batch_size > 0:
+        return _get_parent_count() * batch_size
 
     exp_input = task._get_specified_expand_input()
     # TODO (GH-52141): 'task' here should be scheduler-bound and returns scheduler expand input.
