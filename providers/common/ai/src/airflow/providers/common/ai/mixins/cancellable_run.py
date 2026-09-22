@@ -21,8 +21,10 @@ from __future__ import annotations
 import threading
 from typing import TYPE_CHECKING, Any
 
+from pydantic_ai import CancellationToken
+
 if TYPE_CHECKING:
-    from pydantic_ai import Agent, AgentRunResult, CancellationToken
+    from pydantic_ai import Agent, AgentRunResult
 
 
 class CancellableAgentRunMixin:
@@ -33,6 +35,10 @@ class CancellableAgentRunMixin:
     cancel it. Cancelling makes ``run_sync`` raise ``RunCancelled`` and unwind, giving the
     agent's toolsets a chance to exit (tearing down a provisioned sandbox, for one) before
     SIGKILL rather than leaving the run to die mid-flight.
+
+    This needs the Task SDK to call ``on_kill`` on SIGTERM, which lands in Airflow 3.0.4 and
+    3.1.0. On 3.0.0 to 3.0.3 the handler is absent, so a kill runs the pre-existing path (the
+    run continues until SIGKILL).
     """
 
     # Set only while a run is in flight. Read by on_kill from the signal handler.
@@ -45,8 +51,6 @@ class CancellableAgentRunMixin:
         self, agent: Agent[Any, Any], user_prompt: Any, **run_kwargs: Any
     ) -> AgentRunResult[Any]:
         """Call ``agent.run_sync`` under a fresh cancellation token held for :meth:`on_kill`."""
-        from pydantic_ai import CancellationToken
-
         self._cancellation_token = CancellationToken()
         try:
             return agent.run_sync(user_prompt, cancellation_token=self._cancellation_token, **run_kwargs)

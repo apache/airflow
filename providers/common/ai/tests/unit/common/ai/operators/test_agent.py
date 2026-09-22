@@ -1188,43 +1188,25 @@ class TestAgentOperatorMessageHistory:
 
 
 class TestAgentOperatorCancellation:
-    """A killed task cancels the run (RunCancelled) and unwinds cleanly."""
+    """A killed run raises RunCancelled and propagates to fail the task."""
 
-    @pytest.mark.parametrize(
-        ("message_history", "expects_transcript"),
-        [
-            pytest.param([], True, id="session-emits-partial-transcript"),
-            pytest.param(None, False, id="single-turn-emits-nothing"),
-        ],
-    )
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_run_cancelled_emits_message_history_then_reraises(
-        self, mock_hook_cls, message_history, expects_transcript
-    ):
-        """RunCancelled propagates. A message_history session first emits its partial transcript."""
+    def test_run_cancelled_propagates_without_emitting_history(self, mock_hook_cls):
+        """RunCancelled is not swallowed, and no partial transcript is salvaged to XCom even for a
+        message_history session: a retry clears the TI's XCom before it starts, so nothing reads it."""
         from pydantic_ai import RunCancelled
 
-        partial_history = _sample_history()
         mock_agent = MagicMock(spec=["run_sync", "instrument"])
-        mock_agent.run_sync.side_effect = RunCancelled("killed", messages=partial_history)
+        mock_agent.run_sync.side_effect = RunCancelled("killed", messages=_sample_history())
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
-        op = AgentOperator(task_id="t", prompt="run", llm_conn_id="c", message_history=message_history)
+        op = AgentOperator(task_id="t", prompt="run", llm_conn_id="c", message_history=[])
         context = _make_context()
         with pytest.raises(RunCancelled):
             op.execute(context=context)
 
-        history_pushes = [
-            c.kwargs["value"]
-            for c in context["task_instance"].xcom_push.call_args_list
-            if c.kwargs["key"] == "message_history"
-        ]
-        if expects_transcript:
-            # The pushed value is the cancelled run's own partial transcript, not just any push.
-            expected = ModelMessagesTypeAdapter.dump_json(partial_history).decode()
-            assert history_pushes == [expected]
-        else:
-            assert history_pushes == []
+        pushed_keys = {c.kwargs["key"] for c in context["task_instance"].xcom_push.call_args_list}
+        assert "message_history" not in pushed_keys
 
 
 class TestAgentOperatorHITLArgumentChecks:

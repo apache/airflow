@@ -559,29 +559,21 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
 
         storage = self._durable_storage
         counter = self._durable_counter
-        # A killed run raises RunCancelled (see run_agent_sync). Emit the partial
-        # transcript for a message_history session before re-raising. The durable
-        # cache cleanup below is skipped on the raise, preserving it for the retry.
-        from pydantic_ai import RunCancelled
+        # A killed run raises RunCancelled (see run_agent_sync), which propagates to fail the
+        # task. The durable cache cleanup below is skipped on the raise, preserving it for retry.
+        if self.durable and storage is not None and counter is not None:
+            from pydantic_ai.models import infer_model
 
-        try:
-            if self.durable and storage is not None and counter is not None:
-                from pydantic_ai.models import infer_model
+            from airflow.providers.common.ai.durable.caching_model import CachingModel
 
-                from airflow.providers.common.ai.durable.caching_model import CachingModel
-
-                if agent.model is None:
-                    raise ValueError("Agent model must be set when durable=True")
-                resolved_model = infer_model(agent.model)
-                caching_model = CachingModel(resolved_model, storage=storage, counter=counter)
-                with agent.override(model=caching_model):
-                    result = self.run_agent_sync(agent, self.prompt, **run_kwargs)
-            else:
+            if agent.model is None:
+                raise ValueError("Agent model must be set when durable=True")
+            resolved_model = infer_model(agent.model)
+            caching_model = CachingModel(resolved_model, storage=storage, counter=counter)
+            with agent.override(model=caching_model):
                 result = self.run_agent_sync(agent, self.prompt, **run_kwargs)
-        except RunCancelled as cancelled:
-            if self.message_history is not None:
-                self._emit_message_history(context, cancelled)
-            raise
+        else:
+            result = self.run_agent_sync(agent, self.prompt, **run_kwargs)
 
         log_run_summary(self.log, result)
         self._emit_run_metadata(context, result)
@@ -659,7 +651,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         return ModelMessagesTypeAdapter.validate_python(raw)
 
     def _emit_message_history(self, context: Context, result: Any) -> None:
-        """Push the post-run transcript (partial if cancelled) to XCom for the next turn to resume."""
+        """Push the full post-run transcript to XCom for the next turn to resume."""
         # Lazy import: see _resolve_message_history.
         from pydantic_ai.messages import ModelMessagesTypeAdapter
 

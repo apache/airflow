@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import threading
 import time
-from unittest.mock import ANY, MagicMock
+from unittest.mock import DEFAULT, MagicMock
 
 import pytest
 from pydantic_ai import CancellationToken
@@ -29,15 +29,26 @@ from airflow.providers.common.ai.operators.llm import LLMOperator
 
 
 class TestRunAgentSync:
-    def test_forwards_cancellation_token_and_clears_after_success(self):
+    def test_forwards_held_cancellation_token_and_clears_after_success(self):
         mixin = CancellableAgentRunMixin()
         agent = MagicMock(spec=["run_sync"])
+        held: dict[str, object] = {}
+
+        def capture(*args, **kwargs):
+            # Capture the token the mixin holds mid-run: that is the one on_kill would cancel.
+            held["token"] = mixin._cancellation_token
+            return DEFAULT
+
+        agent.run_sync.side_effect = capture
 
         result = mixin.run_agent_sync(agent, "prompt", usage_limits=None)
 
         assert result is agent.run_sync.return_value
-        agent.run_sync.assert_called_once_with("prompt", cancellation_token=ANY, usage_limits=None)
-        assert isinstance(agent.run_sync.call_args.kwargs["cancellation_token"], CancellationToken)
+        passed = agent.run_sync.call_args.kwargs["cancellation_token"]
+        assert isinstance(passed, CancellationToken)
+        # run_sync must receive the exact token on_kill cancels, not just some CancellationToken.
+        assert passed is held["token"]
+        agent.run_sync.assert_called_once_with("prompt", cancellation_token=passed, usage_limits=None)
         # The token is dropped once the run returns so a later on_kill is a no-op.
         assert mixin._cancellation_token is None
 

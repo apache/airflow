@@ -115,7 +115,7 @@ No single layer is sufficient — they work together.
        not stop an agent reaching connections through some other tool. It also
        does not sanitize what the code computes or returns. Custom images can
        carry secrets and a backend you add can expose its own identity. The
-       ``sbx`` backend leaks orphaned microVMs if the worker is killed, and its
+       ``sbx`` backend leaks orphaned microVMs if the worker is killed outright (SIGKILL), and its
        CPU allocation defaults to every host CPU; the Modal backend reclaims its
        sandboxes on a server-side timeout, and if you opt into
        ``egress_enforcement="sni"`` its hostname allowlist is enforced at the TLS
