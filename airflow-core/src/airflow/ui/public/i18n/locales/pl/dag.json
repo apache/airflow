@@ -53,7 +53,6 @@
     }
   },
   "deadlineStatus": {
-    "actual": "Rzeczywisty",
     "expected": "Oczekiwany",
     "finishedEarly": "Zakończono {{duration}} przed terminem",
     "finishedLate": "Zakończono {{duration}} po terminie",
@@ -65,7 +64,6 @@
     "missedCount_one": "{{count}} Niedotrzymany termin",
     "missedCount_other": "{{count}} Niedotrzymanych terminów",
     "mixedCount": "Niedotrzymane: {{missedCount}}, Nadchodzące: {{upcomingCount}}",
-    "stillRunning": "Nadal w trakcie",
     "upcoming": "Nadchodzący",
     "upcomingCount_few": "{{count}} Nadchodzące terminy",
     "upcomingCount_many": "{{count}} Nadchodzących terminów",

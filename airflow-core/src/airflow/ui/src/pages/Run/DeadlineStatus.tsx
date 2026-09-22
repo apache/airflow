@@ -24,7 +24,6 @@ import { useTranslation } from "react-i18next";
 import { FiAlertTriangle, FiCheck, FiClock } from "react-icons/fi";
 
 import { useDeadlinesServiceGetDagDeadlineAlerts, useDeadlinesServiceGetDeadlines } from "openapi/queries";
-import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
 
 import { Tooltip } from "src/system-components";
 
@@ -59,12 +58,6 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps
     dagId,
     limit: 100,
   });
-
-  const alertMap = new Map<string, DeadlineAlertResponse>();
-
-  for (const deadlineAlert of alertData?.deadline_alerts ?? []) {
-    alertMap.set(deadlineAlert.id, deadlineAlert);
-  }
 
   if (isLoadingDeadlines || isLoadingAlerts) {
     return undefined;
@@ -134,7 +127,6 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps
           </Badge>
         </Button>
         <DeadlineStatusModal
-          alertMap={alertMap}
           dagId={dagId}
           dagRunId={dagRunId}
           onClose={() => setIsModalOpen(false)}
@@ -145,15 +137,13 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps
     );
   }
 
-  // Single deadline — show inline with Expected / Actual dates and precise duration.
+  // Single deadline — show inline with the expected date and precise duration.
   const [dl] = deadlines;
 
   if (dl === undefined) {
     return undefined;
   }
 
-  const alert = dl.alert_id !== undefined && dl.alert_id !== null ? alertMap.get(dl.alert_id) : undefined;
-  const completionRule = translateCompletionRule(translate, alert, locale);
   const deadlineTime = dayjs(dl.deadline_time);
 
   let actualDurationLabel: string | undefined;
@@ -186,31 +176,14 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps
           <CallbackLogViewer callbackId={dl.callback_id} dagId={dagId} dagRunId={dagRunId} />
         )}
       </HStack>
-      {completionRule === undefined ? undefined : (
-        <Text color="fg.muted" fontSize="xs">
-          {completionRule}
-        </Text>
-      )}
       <HStack gap={1}>
         <Text color="fg.muted" fontSize="xs">
           {translate("deadlineStatus.expected")}:
         </Text>
         <Time datetime={dl.deadline_time} fontSize="xs" />
       </HStack>
-      <HStack gap={1}>
-        <Text color="fg.muted" fontSize="xs">
-          {translate("deadlineStatus.actual")}:
-        </Text>
-        {runEndDate === undefined ? (
-          <Text color="fg.muted" fontSize="xs">
-            {translate("deadlineStatus.stillRunning")}
-          </Text>
-        ) : (
-          <Time datetime={runEndDate} fontSize="xs" />
-        )}
-      </HStack>
       {actualDurationLabel === undefined ? undefined : (
-        <Text color="fg.error" fontSize="xs" pl={1}>
+        <Text color="fg.error" fontSize="xs">
           {actualDurationLabel}
         </Text>
       )}

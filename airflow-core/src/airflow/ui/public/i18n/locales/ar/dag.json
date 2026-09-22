@@ -56,7 +56,6 @@
     }
   },
   "deadlineStatus": {
-    "actual": "الفعلي",
     "expected": "المتوقّع",
     "finishedEarly": "اكتمل قبل الموعد النهائي بـ{{duration}}",
     "finishedLate": "اكتمل بعد الموعد النهائي بـ{{duration}}",
@@ -70,7 +69,6 @@
     "missedCount_two": "موعدان نهائيان فائتان",
     "missedCount_zero": "لا توجد مواعيد نهائية فائتة",
     "mixedCount": "{{missedCount}} فائتة، {{upcomingCount}} قادمة",
-    "stillRunning": "لا يزال قيد التشغيل",
     "upcoming": "قادمة",
     "upcomingCount_few": "{{count}} مواعيد نهائية قادمة",
     "upcomingCount_many": "{{count}} موعداً نهائياً قادماً",

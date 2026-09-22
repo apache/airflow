@@ -51,7 +51,6 @@
     }
   },
   "deadlineStatus": {
-    "actual": "Werkelijk",
     "expected": "Verwacht",
     "finishedEarly": "Voltooid {{duration}} voor de deadline",
     "finishedLate": "Voltooid {{duration}} na de deadline",
@@ -61,7 +60,6 @@
     "missedCount_one": "{{count}} Gemiste deadline",
     "missedCount_other": "{{count}} Gemiste deadlines",
     "mixedCount": "{{missedCount}} gemist, {{upcomingCount}} opkomend",
-    "stillRunning": "Nog bezig",
     "upcoming": "Opkomend",
     "upcomingCount_one": "{{count}} opkomende deadline",
     "upcomingCount_other": "{{count}} opkomende deadlines"

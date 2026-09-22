@@ -52,7 +52,6 @@
     }
   },
   "deadlineStatus": {
-    "actual": "בפועל",
     "expected": "צפוי",
     "finishedEarly": "הסתיים {{duration}} לפני המועד האחרון",
     "finishedLate": "הסתיים {{duration}} אחרי המועד האחרון",
@@ -63,7 +62,6 @@
     "missedCount_other": "{{count}} מועדים שפוספסו",
     "missedCount_two": "{{count}} מועדים שפוספסו",
     "mixedCount": "{{missedCount}} פוספסו, {{upcomingCount}} קרובים",
-    "stillRunning": "עדיין רץ",
     "upcoming": "קרוב",
     "upcomingCount_one": "מועד אחד קרוב",
     "upcomingCount_other": "{{count}} מועדים קרובים",

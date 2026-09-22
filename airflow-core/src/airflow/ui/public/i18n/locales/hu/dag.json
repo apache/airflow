@@ -51,7 +51,6 @@
     }
   },
   "deadlineStatus": {
-    "actual": "Tényleges",
     "expected": "Várható",
     "finishedEarly": "Határidő előtt befejezve. Ennyivel: {{duration}}",
     "finishedLate": "Határidőn túli befejezés. Elhúzódás: {{duration}}",
@@ -61,7 +60,6 @@
     "missedCount_one": "Elmulasztott határidők : {{count}}",
     "missedCount_other": "Elmulasztott határidők : {{count}}",
     "mixedCount": "{{missedCount}} elmulasztott, {{upcomingCount}} közelgő",
-    "stillRunning": "Még fut",
     "upcoming": "Közelgő",
     "upcomingCount_one": "Közelgő határidők : {{count}}",
     "upcomingCount_other": "Közelgő határidők : {{count}}"

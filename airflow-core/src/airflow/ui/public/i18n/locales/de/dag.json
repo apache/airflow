@@ -52,7 +52,6 @@
     }
   },
   "deadlineStatus": {
-    "actual": "Tatsächlich",
     "expected": "Erwartet",
     "finishedEarly": "{{duration}} vor der Frist abgeschlossen",
     "finishedLate": "{{duration}} nach der Frist abgeschlossen",
@@ -62,7 +61,6 @@
     "missedCount_one": "{{count}} verpasste Frist",
     "missedCount_other": "{{count}} verpasste Fristen",
     "mixedCount": "{{missedCount}} verpasst, {{upcomingCount}} bevorstehend",
-    "stillRunning": "Noch laufend",
     "upcoming": "Bevorstehend",
     "upcomingCount_one": "{{count}} bevorstehende Frist",
     "upcomingCount_other": "{{count}} bevorstehende Fristen"

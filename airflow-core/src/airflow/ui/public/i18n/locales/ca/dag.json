@@ -52,7 +52,6 @@
     }
   },
   "deadlineStatus": {
-    "actual": "Real",
     "expected": "Esperat",
     "finishedEarly": "Finalitzat {{duration}} abans del termini",
     "finishedLate": "Finalitzat {{duration}} després del termini",
@@ -62,7 +61,6 @@
     "missedCount_one": "{{count}} Termini no complert",
     "missedCount_other": "{{count}} Terminis no complerts",
     "mixedCount": "{{missedCount}} No complerts, {{upcomingCount}} Propers",
-    "stillRunning": "Encara s'està executant",
     "upcoming": "Propers",
     "upcomingCount_one": "{{count}} Termini proper",
     "upcomingCount_other": "{{count}} Terminis propers"
