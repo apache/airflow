@@ -35,7 +35,7 @@ reclaiming sandboxes.
     print(client.sandboxes.list_sandboxes(name_prefix="airflow-sandbox-", limit=20))
 
 The hook owns its own ``islo`` connection type so the connection form is
-labelled for the service it configures.
+labeled for the service it configures.
 
 Connection Configuration
 ------------------------
