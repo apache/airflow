@@ -35,6 +35,7 @@ except ImportError:
 from airflow.models.dag import DAG
 from airflow.providers.influxdb.hooks.influxdb3 import InfluxDB3Hook
 from airflow.providers.influxdb.operators.influxdb3 import InfluxDB3Operator
+from airflow.providers.influxdb.sensors.influxdb3 import InfluxDB3Sensor
 
 
 @task(task_id="write_data")
@@ -66,6 +67,17 @@ deferrable_query_task = InfluxDB3Operator(
 )
 # [END howto_operator_influxdb3_deferrable]
 
+# [START howto_sensor_influxdb3]
+wait_for_data = InfluxDB3Sensor(
+    task_id="wait_for_data",
+    sql="""SELECT 1 FROM "temperature" WHERE time > now() - INTERVAL '1 hour' LIMIT 1""",
+    influxdb3_conn_id="influxdb3_default",
+    poke_interval=60,
+    timeout=3600,
+    deferrable=True,
+)
+# [END howto_sensor_influxdb3]
+
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "influxdb3_example_dag"
 
@@ -77,7 +89,7 @@ with DAG(
     tags=["example", "influxdb3"],
 ) as dag:
     write_task = write_to_influxdb3()
-    write_task >> [query_task, deferrable_query_task]
+    write_task >> wait_for_data >> [query_task, deferrable_query_task]
 
     from tests_common.test_utils.watcher import watcher
 
