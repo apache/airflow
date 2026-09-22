@@ -34,10 +34,12 @@ you use. Each is a parameter on the operator or decorator.
   approves, edits or rejects the output.
 - :doc:`hitl_review`: ``enable_hitl_review=True`` opens an iterative review loop on an agent,
   with a chat UI and REST API for the reviewer.
+- :doc:`tool_approval`: a tool marked with pydantic-ai's approval API pauses the agent before
+  the call runs, until a person approves or rejects it.
 
-The last two are different tools for different jobs: an approval gate is a one-shot decision on
-one output, a HITL review is a conversation with a running agent. Each page opens with the
-other in a *see also* note.
+The last three are different tools for different jobs: an approval gate is a one-shot decision on
+one output, a HITL review is a conversation with a running agent, and a tool approval is a
+decision on one action before it happens.
 
 Making retries cheap with ``durable=True`` is a reliability feature and lives under
 :doc:`operations`.
@@ -52,3 +54,4 @@ Making retries cheap with ``durable=True`` is a reliability feature and lives un
     Code mode <code_mode>
     Approve outputs <approval_gates>
     Review agent sessions <hitl_review>
+    Approve tool calls <tool_approval>

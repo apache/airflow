@@ -19,18 +19,28 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 from collections.abc import Iterable, Sequence
 from dataclasses import replace
 from datetime import timedelta
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, NoReturn
 
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
+from pydantic_ai import DeferredToolRequests, DeferredToolResults, ToolDenied
 from pydantic_ai.capabilities import Toolset
+from pydantic_ai.messages import ModelMessagesTypeAdapter
 from pydantic_ai.toolsets.abstract import AbstractToolset
+from pydantic_ai.usage import RunUsage
 
+from airflow.providers.common.ai.exceptions import (
+    ToolApprovalAlreadyRequestedError,
+    ToolApprovalError,
+    UnsupportedToolDeferralError,
+)
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
+from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin, normalize_assigned_users
 from airflow.providers.common.ai.mixins.cancellable_run import CancellableAgentRunMixin
 from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
 from airflow.providers.common.ai.observability import (
@@ -47,8 +57,16 @@ from airflow.providers.common.compat.sdk import (
     BaseOperator,
     BaseOperatorLink,
     conf,
+    redact,
 )
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
+from airflow.providers.standard.exceptions import HITLTimeoutError, HITLTriggerEventError
+
+if AIRFLOW_V_3_3_PLUS:
+    # Per-tool approval parks the task in AWAITING_INPUT, which older cores do not have.
+    from airflow.sdk.exceptions import TaskAwaitingInput
+    from airflow.sdk.execution_time.context import NEVER_EXPIRE
+    from airflow.sdk.execution_time.hitl import upsert_hitl_detail
 
 try:
     # See LLMOperator: new enough cores register declared ``output_type`` classes
@@ -68,6 +86,17 @@ if TYPE_CHECKING:
     from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
     from airflow.providers.common.compat.sdk import TaskInstanceKey
     from airflow.sdk import Context
+    from airflow.sdk.execution_time.context import TaskStateStoreAccessor
+    from airflow.sdk.execution_time.hitl import HITLUser
+
+# Task state store keys: the transcript of a run paused for tool approval, and a marker that
+# this task instance has asked once. The store is keyed by Dag run, task and map index, so the
+# marker survives retries and clears, as the task instance's single approval request does.
+_TOOL_APPROVAL_TRANSCRIPT_KEY = "common_ai_tool_approval_transcript"
+_TOOL_APPROVAL_REQUESTED_KEY = "common_ai_tool_approval_requested"
+# How long the transcript outlives a timed pause, so a resume that runs late still finds it.
+_TRANSCRIPT_RETENTION_MARGIN = timedelta(days=1)
+_RUN_USAGE_ADAPTER: TypeAdapter[RunUsage] = TypeAdapter(RunUsage)
 
 
 class HITLReviewLink(BaseOperatorLink):
@@ -280,6 +309,31 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         operator blocks until a terminal action).
     :param hitl_poll_interval: Seconds between XCom polls
         while waiting for a human response.  Default ``10``.
+
+    **Per-tool approval** (Airflow 3.3+):
+
+    Mark the tools a human must approve with pydantic-ai's own API --
+    ``toolset.approval_required(...)``, or ``requires_approval=True`` on a function
+    tool -- and the task pauses before running them. The pending calls, with their
+    arguments, appear on the **Required Actions** page; the task waits in the
+    ``awaiting_input`` state without holding a worker slot. On **Approve** the calls
+    run and the agent carries on. On **Reject** the agent is told the call was denied
+    (with the reviewer's reason, when given) and carries on without it. A task
+    instance asks at most once per Dag run, across retries and clears; a second
+    request fails the task. ``usage_limits`` applies to both sides of the pause.
+    Not available together with ``durable``, ``enable_hitl_review``, ``code_mode``,
+    or a ``SandboxToolset``; there, a tool that requires approval fails the task as
+    before.
+
+    :param tool_approval_timeout: How long the pause waits for a decision.
+        ``None`` (default) waits indefinitely. Must be positive.
+    :param on_tool_approval_timeout: What a timed-out pause does: ``"fail"``
+        (default) fails the task, ``"deny"`` rejects the pending calls so the agent
+        carries on without them, and needs a ``tool_approval_timeout``. There is no
+        approve-on-timeout.
+    :param tool_approval_assigned_users: Users allowed to decide. ``None`` (default)
+        leaves it to anyone who can act on the task's Required Actions.
+
     :param serialize_output: If ``True`` and ``output_type`` is a Pydantic
         ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
         ``model_dump()`` before being pushed to XCom. Default ``False`` --
@@ -328,6 +382,9 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         hitl_timeout: timedelta | None = None,
         hitl_poll_interval: float = 10.0,
         serialize_output: bool = False,
+        tool_approval_timeout: timedelta | None = None,
+        on_tool_approval_timeout: Literal["fail", "deny"] = "fail",
+        tool_approval_assigned_users: HITLUser | Iterable[HITLUser] | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -393,6 +450,20 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         self.hitl_timeout = hitl_timeout
         self.hitl_poll_interval = hitl_poll_interval
 
+        if on_tool_approval_timeout not in ("fail", "deny"):
+            raise ValueError(
+                f"on_tool_approval_timeout must be 'fail' or 'deny', got {on_tool_approval_timeout!r}."
+            )
+        if tool_approval_timeout is not None and tool_approval_timeout <= timedelta(0):
+            raise ValueError(f"tool_approval_timeout must be positive, got {tool_approval_timeout!r}.")
+        if on_tool_approval_timeout == "deny" and tool_approval_timeout is None:
+            raise ValueError("on_tool_approval_timeout='deny' needs a tool_approval_timeout to fire.")
+        self.tool_approval_timeout = tool_approval_timeout
+        self.on_tool_approval_timeout = on_tool_approval_timeout
+        self.tool_approval_assigned_users = normalize_assigned_users(
+            tool_approval_assigned_users, param="tool_approval_assigned_users"
+        )
+
     def _reject_sandbox_without_continuity(self, *, durable: bool, enable_hitl_review: bool) -> None:
         """
         Refuse a ``SandboxToolset`` under a feature that assumes the sandbox outlives the run.
@@ -413,11 +484,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         capabilities, since those are the compositions the documentation recommends.
         A toolset resolved per run from a callable cannot be inspected here.
         """
-        candidates = list(self.toolsets or [])
-        for capability in self.agent_params.get("capabilities") or ():
-            if _is_concrete_toolset_capability(capability):
-                candidates.append(capability.toolset)
-        if find_toolset(candidates, SandboxToolset) is None:
+        if find_toolset(self._declared_toolsets(), SandboxToolset) is None:
             return
         flag = "durable=True" if durable else "enable_hitl_review=True"
         why = (
@@ -535,10 +602,57 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         if capabilities:
             extra_kwargs["capabilities"] = capabilities
         return self.llm_hook.create_agent(
-            output_type=self.output_type,
+            output_type=self._agent_output_type(),
             instructions=self.system_prompt,
             **extra_kwargs,
         )
+
+    def _supports_tool_approval(self) -> bool:
+        """
+        Whether a tool that requires approval pauses the task instead of failing it.
+
+        Each excluded feature assumes the run finishes in one go: durable replay counts
+        steps across a single run, HITL review and code mode wrap the run, and a
+        sandbox is destroyed when the run ends, so its files would be gone on resume.
+        """
+        if not AIRFLOW_V_3_3_PLUS or self.durable or self.enable_hitl_review or self.code_mode:
+            return False
+        return find_toolset(self._declared_toolsets(), SandboxToolset) is None
+
+    def _agent_output_type(self) -> Any:
+        """
+        Return ``output_type``, plus ``DeferredToolRequests`` when tool approval is supported.
+
+        pydantic-ai drops ``DeferredToolRequests`` from the output schema the model sees;
+        it only lets the run end on a tool call awaiting approval. ``self.output_type`` is
+        left alone because it is part of the serialized Dag.
+        """
+        if not self._supports_tool_approval():
+            return self.output_type
+        declared = self.output_type if isinstance(self.output_type, (list, tuple)) else [self.output_type]
+        return [*declared, DeferredToolRequests]
+
+    def _declared_toolsets(self) -> list[AbstractToolset[Any]]:
+        """Toolsets passed via ``toolsets=``, ``agent_params["toolsets"]`` and concrete ``Toolset`` capabilities."""
+        candidates = [
+            toolset
+            for toolset in (*(self.toolsets or []), *(self.agent_params.get("toolsets") or []))
+            if isinstance(toolset, AbstractToolset)
+        ]
+        for capability in self.agent_params.get("capabilities") or ():
+            if _is_concrete_toolset_capability(capability):
+                candidates.append(capability.toolset)
+        return candidates
+
+    def _toolset_ids(self) -> list[str]:
+        """Ids of every leaf toolset, which for SQL and MCP toolsets name the connection."""
+        # Declared order, not sorted: two toolsets that swapped connections must not compare equal.
+        return [
+            leaf.id
+            for toolset in self._declared_toolsets()
+            for leaf in iter_toolsets(toolset)
+            if leaf.id is not None
+        ]
 
     def _build_durable_toolsets(
         self, toolsets: list[AbstractToolset], storage: DurableStorageProtocol, counter: DurableStepCounter
@@ -623,6 +737,12 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         # Coerced first so a bad rendered value fails before the expensive setup below.
         usage_limits = coerce_usage_limits(self.usage_limits)
 
+        # A try that paused and then ended some other way (marked failed while waiting, a failed
+        # request) leaves its transcript behind; a fresh run never reads it. ``.get``: a context
+        # built by hand in a unit test has no task state store, and nothing to clean up.
+        if self._supports_tool_approval() and (store := context.get("task_state_store")) is not None:
+            self._delete_approval_transcript(store)
+
         self._durable_storage = None
         self._durable_counter = None
 
@@ -664,7 +784,13 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         else:
             result = self.run_agent_sync(agent, self.prompt, **run_kwargs)
 
+        return self._complete_run(context, result)
+
+    def _complete_run(self, context: Context, result: Any) -> Any:
+        """Finish a run, or pause it when the agent is waiting on a tool call to be approved."""
         log_run_summary(self.log, result)
+        if isinstance(result.output, DeferredToolRequests):
+            self._pause_for_tool_approval(context, result)
         self._emit_run_metadata(context, result)
 
         if self._durable_counter is not None:
@@ -717,6 +843,191 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             self._durable_storage.cleanup()
         return output
 
+    def _pause_for_tool_approval(self, context: Context, result: Any) -> NoReturn:
+        """
+        Park the task until a human approves or rejects the tool calls the agent is waiting on.
+
+        The transcript goes to the task state store, not the continuation kwargs: it holds tool
+        results such as query rows, which do not belong on the task instance row. The
+        continuation carries its hash, so the resume refuses a transcript that changed while
+        the task waited, and the rendered toolset ids, so it refuses to run approved calls
+        against a connection id the reviewer did not see.
+
+        A task instance asks at most once. Airflow keeps one approval request per task
+        instance, across retries and clears, and a repeat request keeps the first one's
+        subject and body, so the reviewer would approve a new call while reading the old one.
+        """
+        requests: DeferredToolRequests = result.output
+        if requests.calls:
+            raise UnsupportedToolDeferralError(
+                "The agent called tools that need external execution "
+                f"({', '.join(call.tool_name for call in requests.calls)}); AgentOperator only "
+                "supports tools that need approval."
+            )
+        pending_names = ", ".join(call.tool_name for call in requests.approvals)
+        if not self._supports_tool_approval():
+            # DeferredToolRequests in a user-set output_type reaches here where approval is off.
+            raise UnsupportedToolDeferralError(
+                f"The agent called tools that need approval ({pending_names}), but tool approval "
+                "needs Airflow 3.3+ and is not available with durable, enable_hitl_review, "
+                "code_mode or a SandboxToolset."
+            )
+        store = context["task_state_store"]
+        if store.get(_TOOL_APPROVAL_REQUESTED_KEY):
+            raise ToolApprovalAlreadyRequestedError(
+                f"The agent asked for a second tool approval ({pending_names}), but this task "
+                "instance already asked once in this Dag run. Airflow keeps one approval request per "
+                "task instance and would show the reviewer the earlier request's details, so the task "
+                "fails instead of pausing. Have the agent ask for the gated calls in one step, give "
+                "each irreversible action its own task, or trigger a new Dag run."
+            )
+        transcript = ModelMessagesTypeAdapter.dump_json(result.all_messages()).decode()
+        retention = (
+            self.tool_approval_timeout + _TRANSCRIPT_RETENTION_MARGIN
+            if self.tool_approval_timeout is not None
+            else NEVER_EXPIRE
+        )
+        store.set(_TOOL_APPROVAL_TRANSCRIPT_KEY, transcript, retention=retention)
+
+        # Tool arguments can carry credentials (an HTTP header, an MCP token); mask them first.
+        pending = "\n\n".join(
+            f"**{call.tool_name}**\n\n```json\n"
+            f"{json.dumps(redact(call.args_as_dict()), indent=2, default=str)}\n```"
+            for call in requests.approvals
+        )
+        upsert_hitl_detail(
+            ti_id=context["task_instance"].id,
+            options=[LLMApprovalMixin.APPROVE, LLMApprovalMixin.REJECT],
+            subject=f"Approve tool call for task `{self.task_id}`",
+            body=f"The agent wants to run:\n\n{pending}",
+            defaults=[LLMApprovalMixin.REJECT] if self.on_tool_approval_timeout == "deny" else None,
+            multiple=False,
+            params={
+                "reason": {
+                    # "null" in the type is what makes the field optional in the review form (a
+                    # plain "string" forces a reason before Approve can be clicked); the empty
+                    # default renders as an empty box, where some UI versions show a null one
+                    # as "[object Object]".
+                    "value": "",
+                    "description": "Sent to the agent when you reject the call (optional).",
+                    "schema": {"type": ["string", "null"]},
+                },
+            },
+            assigned_users=self.tool_approval_assigned_users,
+        )
+        # Only once the request exists: a failed request must not block the retry from asking.
+        store.set(_TOOL_APPROVAL_REQUESTED_KEY, True, retention=NEVER_EXPIRE)
+        self.log.info("Waiting for approval of %s", pending_names)
+        raise TaskAwaitingInput(
+            method_name="resume_after_tool_approval",
+            kwargs={
+                "tool_call_ids": [call.tool_call_id for call in requests.approvals],
+                "usage": _RUN_USAGE_ADAPTER.dump_python(result.usage, mode="json"),
+                "transcript_sha256": hashlib.sha256(transcript.encode()).hexdigest(),
+                "toolset_ids": self._toolset_ids(),
+            },
+            timeout=self.tool_approval_timeout,
+        )
+
+    def _delete_approval_transcript(self, store: TaskStateStoreAccessor) -> None:
+        # Best-effort: the transcript holds tool results, but failing the task over its cleanup
+        # would be worse, and the row goes with the Dag run anyway.
+        try:
+            store.delete(_TOOL_APPROVAL_TRANSCRIPT_KEY)
+        except Exception:
+            self.log.warning("Could not delete the tool approval transcript", exc_info=True)
+
+    def resume_after_tool_approval(
+        self,
+        context: Context,
+        tool_call_ids: list[str],
+        usage: dict[str, Any],
+        transcript_sha256: str,
+        toolset_ids: list[str],
+        event: dict[str, Any],
+    ) -> Any:
+        """Continue a run paused by :meth:`_pause_for_tool_approval` with the reviewer's decision."""
+        store = context["task_state_store"]
+        try:
+            return self._resume_after_tool_approval(
+                context, store, tool_call_ids, usage, transcript_sha256, toolset_ids, event
+            )
+        finally:
+            # Whatever the outcome. A second pause fails closed before writing a new transcript.
+            self._delete_approval_transcript(store)
+
+    def _resume_after_tool_approval(
+        self,
+        context: Context,
+        store: TaskStateStoreAccessor,
+        tool_call_ids: list[str],
+        usage: dict[str, Any],
+        transcript_sha256: str,
+        toolset_ids: list[str],
+        event: dict[str, Any],
+    ) -> Any:
+        if "error" in event:
+            if event.get("error_type") == "timeout":
+                raise HITLTimeoutError(f"Tool approval timed out: {event['error']}")
+            raise HITLTriggerEventError(event)
+        if (current := self._toolset_ids()) != toolset_ids:
+            raise ToolApprovalError(
+                f"The agent's toolsets changed while it waited for approval (paused with {toolset_ids}, "
+                f"resumed with {current}), so the approved calls would reach a connection the reviewer "
+                "did not see."
+            )
+        transcript = store.get(_TOOL_APPROVAL_TRANSCRIPT_KEY)
+        if not isinstance(transcript, str) or (
+            hashlib.sha256(transcript.encode()).hexdigest() != transcript_sha256
+        ):
+            raise ToolApprovalError(
+                "The transcript saved when the task paused for tool approval is missing or was modified."
+            )
+
+        approval: bool | ToolDenied
+        if event.get("timedout"):
+            # on_tool_approval_timeout="deny": nobody refused, so do not tell the agent a person did.
+            approval = ToolDenied(
+                "No reviewer answered within the approval timeout, so this call was not run."
+            )
+            self.log.info(
+                "Tool calls denied: nobody answered within tool_approval_timeout=%s",
+                self.tool_approval_timeout,
+            )
+        elif LLMApprovalMixin.APPROVE in event["chosen_options"]:
+            approval = True
+            self.log.info("Tool calls approved by %s", LLMApprovalMixin._describe_responder(event))
+        else:
+            reason = (event.get("params_input") or {}).get("reason")
+            # Only a typed reason reaches the agent; an untouched field can come back as None, "",
+            # or, from some UI versions, the whole parameter spec.
+            if not isinstance(reason, str) or not reason.strip():
+                reason = "A reviewer denied this tool call."
+            approval = ToolDenied(reason)
+            self.log.info("Tool calls rejected by %s", LLMApprovalMixin._describe_responder(event))
+
+        agent = self._build_agent()
+        ti = context["task_instance"]
+        self._run_identity_attrs = build_run_identity_attributes(ti)
+        stamp_identity_on_agent_spans(agent, self._run_identity_attrs)
+        # The full transcript, not a trimmed one: pydantic-ai reads its last request to skip
+        # the calls that already ran in the paused step. No new prompt: it would land after
+        # the tool results as a second user turn.
+        result = self.run_agent_sync(
+            agent,
+            None,
+            message_history=ModelMessagesTypeAdapter.validate_json(transcript),
+            deferred_tool_results=DeferredToolResults(
+                approvals={tool_call_id: approval for tool_call_id in tool_call_ids}
+            ),
+            usage=_RUN_USAGE_ADAPTER.validate_python(usage),
+            usage_limits=coerce_usage_limits(self.usage_limits),
+            # pydantic-ai refuses a run_id already in the history; the task-instance id stays
+            # the prefix, so the resumed run still joins back to the task.
+            run_id=f"{ti.id}-resumed",
+        )
+        return self._complete_run(context, result)
+
     def _resolve_message_history(self) -> list[ModelMessage] | None:
         """
         Deserialize :attr:`message_history` into a list of pydantic-ai messages.
@@ -731,19 +1042,12 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         if isinstance(raw, (str, bytes)) and not raw.strip():
             # A template that renders to empty (no prior XCom) starts a fresh session.
             return []
-        # pydantic-ai is imported lazily here to match this module's pattern of
-        # keeping pydantic-ai out of DAG-parse-time imports.
-        from pydantic_ai.messages import ModelMessagesTypeAdapter
-
         if isinstance(raw, (str, bytes)):
             return ModelMessagesTypeAdapter.validate_json(raw)
         return ModelMessagesTypeAdapter.validate_python(raw)
 
     def _emit_message_history(self, context: Context, result: Any) -> None:
         """Push the full post-run transcript to XCom for the next turn to resume."""
-        # Lazy import: see _resolve_message_history.
-        from pydantic_ai.messages import ModelMessagesTypeAdapter
-
         transcript = ModelMessagesTypeAdapter.dump_json(result.all_messages()).decode()
         context["task_instance"].xcom_push(key="message_history", value=transcript)
 
