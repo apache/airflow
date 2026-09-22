@@ -63,6 +63,7 @@ from airflow.executors.executor_constants import MOCK_EXECUTOR
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.executor_utils import ExecutorName
 from airflow.executors.local_executor import LocalExecutor
+from airflow.executors.workloads import WorkloadType
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import SCHEDULER_DAG_CACHE_SIZE, SchedulerJobRunner
 from airflow.models.asset import (
@@ -797,6 +798,15 @@ class TestSchedulerJob:
             self.job_runner._process_executor_events(executor=executor, session=session)
             callback_lookups = [c for c in spy_get.call_args_list if c.args and c.args[0] is Callback]
             assert callback_lookups == []
+
+    def test_process_executor_events_raises_on_unknown_key_type(self, session):
+        """An unrecognised key must fail loudly, matching run_workload and state_class_for_key."""
+        executor = MockExecutor(do_update=False)
+        self.job_runner = SchedulerJobRunner(Job(), executors=[executor])
+        executor.event_buffer["not-a-workload-key"] = (TaskInstanceState.SUCCESS, None)
+
+        with pytest.raises(TypeError, match="Unknown workload key type in event buffer"):
+            self.job_runner._process_executor_events(executor=executor, session=session)
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
@@ -5416,6 +5426,57 @@ class TestSchedulerJob:
             )
             is not None
         )
+
+    @pytest.mark.parametrize("ti_state", [TaskInstanceState.QUEUED, TaskInstanceState.SCHEDULED])
+    def test_process_executor_events_queued_ti_retry_preserves_history(self, ti_state, dag_maker, session):
+        """
+        Regression test for #65366 / #67238.
+
+        When an executor reports FAILED for a TI that is QUEUED or SCHEDULED
+        (killed externally before it could start), the scheduler calls handle_failure()
+        which must call prepare_db_for_next_try() so that TaskInstanceHistory is recorded
+        with the correct hostname and start_date.
+        """
+        dag_id = "test_queued_ti_retry_history"
+        task_id = "dummy"
+        hostname = "worker-node-42"
+
+        with dag_maker(dag_id=dag_id, fileloc="/test_path/"):
+            task = EmptyOperator(task_id=task_id, retries=2)
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task.task_id, session=session)
+        ti.state = ti_state
+        ti.hostname = hostname
+        ti.start_date = DEFAULT_DATE
+        ti.try_number = 1
+        ti.max_tries = 2
+        session.merge(ti)
+        session.commit()
+
+        old_ti_id = ti.id
+
+        executor = MockExecutor(do_update=False)
+        executor.event_buffer[ti.key] = TaskInstanceState.FAILED, None
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[executor])
+        self.job_runner._process_executor_events(executor=executor, session=session)
+
+        session.expire_all()
+        ti.refresh_from_db(session=session)
+
+        assert ti.state == State.UP_FOR_RETRY
+        assert ti.id != old_ti_id, "prepare_db_for_next_try must assign a new UUID"
+
+        from airflow.models.taskinstancehistory import TaskInstanceHistory
+
+        tih = session.scalar(
+            select(TaskInstanceHistory).where(TaskInstanceHistory.task_instance_id == old_ti_id)
+        )
+        assert tih is not None, "TaskInstanceHistory must be created for non-RUNNING retry"
+        assert tih.hostname == hostname
+        assert tih.start_date == DEFAULT_DATE
 
     def test_adopt_or_reset_orphaned_tasks_external_triggered_dag(self, dag_maker, session):
         dag_id = "test_reset_orphaned_tasks_external_triggered_dag"
@@ -13508,7 +13569,7 @@ def scheduler_job_runner_for_connection_tests(session):
     executor.name = ExecutorName(
         module_path="airflow.executors.local_executor.LocalExecutor", alias="LocalExecutor"
     )
-    executor.queued_connection_tests.clear()
+    executor.executor_queues[WorkloadType.TEST_CONNECTION].clear()
     yield _make_scheduler_runner_for_connection_tests([executor])
     session.execute(delete(ConnectionTestRequest))
     session.commit()
@@ -13534,7 +13595,14 @@ class TestDispatchConnectionTests:
         session.expire_all()
         ct = session.get(ConnectionTestRequest, ct.id)
         assert ct.state == ConnectionTestState.QUEUED
-        assert len(scheduler_job_runner_for_connection_tests.executor.queued_connection_tests) == 1
+        assert (
+            len(
+                scheduler_job_runner_for_connection_tests.executor.executor_queues[
+                    WorkloadType.TEST_CONNECTION
+                ]
+            )
+            == 1
+        )
 
     @mock.patch.dict(
         os.environ,
@@ -13596,7 +13664,7 @@ class TestDispatchConnectionTests:
 
         runner._enqueue_connection_tests(session=session)
 
-        queued = list(runner.executor.queued_connection_tests.values())
+        queued = list(runner.executor.executor_queues[WorkloadType.TEST_CONNECTION].values())
         assert len(queued) == 1
         assert queued[0].team_name == expected_workload_team
 
@@ -13635,7 +13703,7 @@ class TestDispatchConnectionTests:
     ):
         """Failure message names the executor that was tried, not 'no executor'."""
         unsupporting_executor = BaseExecutor()
-        unsupporting_executor.supports_connection_test = False
+        unsupporting_executor.supported_workload_types = frozenset({WorkloadType.EXECUTE_TASK})
         unsupporting_executor.name = ExecutorName(
             module_path="airflow.executors.base_executor.BaseExecutor", alias="celery"
         )
@@ -13783,11 +13851,11 @@ class TestDispatchConnectionTests:
 
         executor_a = LocalExecutor()
         executor_a.name = ExecutorName(module_path="path.to.ExecutorA", alias="executor_a")
-        executor_a.queued_connection_tests.clear()
+        executor_a.executor_queues[WorkloadType.TEST_CONNECTION].clear()
 
         executor_b = LocalExecutor()
         executor_b.name = ExecutorName(module_path="path.to.ExecutorB", alias="executor_b")
-        executor_b.queued_connection_tests.clear()
+        executor_b.executor_queues[WorkloadType.TEST_CONNECTION].clear()
 
         runner = _make_scheduler_runner_for_connection_tests([executor_a, executor_b])
 
@@ -13797,8 +13865,8 @@ class TestDispatchConnectionTests:
 
         runner._enqueue_connection_tests(session=session)
 
-        assert len(executor_b.queued_connection_tests) == 1
-        assert len(executor_a.queued_connection_tests) == 0
+        assert len(executor_b.executor_queues[WorkloadType.TEST_CONNECTION]) == 1
+        assert len(executor_a.executor_queues[WorkloadType.TEST_CONNECTION]) == 0
 
     @mock.patch.dict(
         os.environ,
@@ -13814,11 +13882,11 @@ class TestDispatchConnectionTests:
 
         executor_a = LocalExecutor()
         executor_a.name = ExecutorName(module_path="path.to.ExecutorA", alias="executor_a")
-        executor_a.queued_connection_tests.clear()
+        executor_a.executor_queues[WorkloadType.TEST_CONNECTION].clear()
 
         executor_b = LocalExecutor()
         executor_b.name = ExecutorName(module_path="path.to.ExecutorB", alias="executor_b")
-        executor_b.queued_connection_tests.clear()
+        executor_b.executor_queues[WorkloadType.TEST_CONNECTION].clear()
 
         runner = _make_scheduler_runner_for_connection_tests([executor_a, executor_b])
 
@@ -13830,8 +13898,8 @@ class TestDispatchConnectionTests:
 
         runner._enqueue_connection_tests(session=session)
 
-        assert len(executor_b.queued_connection_tests) == 1
-        assert len(executor_a.queued_connection_tests) == 0
+        assert len(executor_b.executor_queues[WorkloadType.TEST_CONNECTION]) == 1
+        assert len(executor_a.executor_queues[WorkloadType.TEST_CONNECTION]) == 0
 
     def test_dispatch_executor_matched_by_class_name(self, session):
         """When executor is specified by class name only, the matching executor is selected."""
@@ -13840,11 +13908,11 @@ class TestDispatchConnectionTests:
 
         executor_a = LocalExecutor()
         executor_a.name = ExecutorName(module_path="path.to.ExecutorA", alias="executor_a")
-        executor_a.queued_connection_tests.clear()
+        executor_a.executor_queues[WorkloadType.TEST_CONNECTION].clear()
 
         executor_b = LocalExecutor()
         executor_b.name = ExecutorName(module_path="path.to.ExecutorB", alias="executor_b")
-        executor_b.queued_connection_tests.clear()
+        executor_b.executor_queues[WorkloadType.TEST_CONNECTION].clear()
 
         runner = _make_scheduler_runner_for_connection_tests([executor_a, executor_b])
 
@@ -13854,8 +13922,8 @@ class TestDispatchConnectionTests:
 
         runner._enqueue_connection_tests(session=session)
 
-        assert len(executor_b.queued_connection_tests) == 1
-        assert len(executor_a.queued_connection_tests) == 0
+        assert len(executor_b.executor_queues[WorkloadType.TEST_CONNECTION]) == 1
+        assert len(executor_a.executor_queues[WorkloadType.TEST_CONNECTION]) == 0
 
     @mock.patch.dict(
         os.environ,
@@ -13869,7 +13937,9 @@ class TestDispatchConnectionTests:
     ):
         """When the resolved executor does not support connection tests, the test is failed gracefully."""
         executor = scheduler_job_runner_for_connection_tests.executor
-        executor.supports_connection_test = False
+        executor.supported_workload_types = frozenset(
+            {WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK}
+        )
 
         ct = ConnectionTestRequest(conn_type="test_type", connection_id="test_conn")
         session.add(ct)

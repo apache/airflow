@@ -1443,7 +1443,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if state in (CallbackState.FAILED, CallbackState.SUCCESS):
                     callback_keys_with_events.append(key)
             else:
-                cls.logger().error("Unknown workload key type in event buffer: %r", key)
+                raise TypeError(f"Unknown workload key type in event buffer: {key!r}")
 
         # Handle callback state events
         for callback_id in callback_keys_with_events:
@@ -4156,7 +4156,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ct.result_message = reason
                 self.log.warning("Failing connection test %s: %s", ct.id, reason)
                 continue
-            if not executor.supports_connection_test:
+            if workloads.WorkloadType.TEST_CONNECTION not in executor.supported_workload_types:
                 exec_name = executor.name
                 name = ct.executor or (exec_name and (exec_name.alias or exec_name.module_path))
                 reason = f"Executor '{name}' does not support connection testing"
@@ -4227,7 +4227,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             key = ConnectionTestKey(id=str(ct.id))
             for executor in self.executors:
-                if executor.supports_connection_test:
+                if workloads.WorkloadType.TEST_CONNECTION in executor.supported_workload_types:
                     executor.fail_connection_test(key)
 
         session.flush()

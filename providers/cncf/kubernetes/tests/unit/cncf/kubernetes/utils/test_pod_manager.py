@@ -1342,8 +1342,8 @@ class TestPodManager:
         mock_pod = MagicMock()
         mock_container_is_running.return_value = False
         mock_container_is_terminated.return_value = False
-        with pytest.raises(AirflowException):
-            self.pod_manager.await_xcom_sidecar_container_start(pod=mock_pod, timeout=10, log_interval=5)
+        with pytest.raises(AirflowException), mock.patch("time.sleep"):
+            self.pod_manager.await_xcom_sidecar_container_start(pod=mock_pod, timeout=0, log_interval=5)
         mock_container_is_running.assert_any_call(mock_pod, "airflow-xcom-sidecar")
         mock_container_is_terminated.assert_any_call(mock_pod, "airflow-xcom-sidecar")
 

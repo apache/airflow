@@ -40,6 +40,8 @@
   "createdAssetEvent_other": "Created $t(common:assetEvent_other)",
   "dag_one": "Dag",
   "dag_other": "Dags",
+  "dagBundle_one": "Dag Bundle",
+  "dagBundle_other": "Dag Bundles",
   "dagDetails": {
     "activeRuns": "Active Runs",
     "catchup": "Catchup",

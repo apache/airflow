@@ -102,8 +102,9 @@ Where it fits in this provider
      - The downstream task ids are already presented to the model as a constrained set of
        choices, which is exactly the shape a classifier model answers. Setting
        ``model_id`` is the only change, as long as there are two or more downstream tasks
-       -- a one-option pick is refused. The other caveat is below: the operator cannot see
-       the confidence, so it will branch on an unsure answer without telling you.
+       -- a one-option pick is refused. Describe each branch in ``branches`` and set a
+       ``decision_policy`` so an unsure pick goes to a person instead of branching; see
+       :doc:`operators/llm_branch`.
    * - :class:`~airflow.providers.common.ai.operators.llm.LLMOperator` /
        :class:`~airflow.providers.common.ai.operators.agent.AgentOperator` with a typed
        ``output_type``
@@ -112,12 +113,13 @@ Where it fits in this provider
        becomes the question, and describe each option, which is what tells them apart. An
        option with no description is read from its name alone.
    * - :doc:`LLMRetryPolicy <retry_policies>`
-     - No
-     - Three of ``ErrorClassification``'s four fields are shapes a classifier model
-       refuses: ``category`` and ``reasoning`` are bare ``str``, and
-       ``suggested_delay_seconds`` is an unbounded ``int``. Only ``should_retry`` fits.
-       Making the class answerable would need a ``Literal`` category, a rubric delay, and
-       no explanation at all.
+     - Yes
+     - The model names one of the policy's ``categories`` and nothing else; retry or
+       fail, the delay and the confidence bar come from each category's entry in the
+       worker. Set ``model_id`` and ``min_confidence``, and an unsure answer goes to
+       ``fallback_rules`` and then the task's own retry behaviour, instead of ending the
+       task on the model's say-so. This is the surface where
+       the model's speed and price matter most: it runs on every task failure.
    * - Agents with toolsets
      - Partly
      - Which tool the text calls for is itself a pick, so a classifier model can make it.
@@ -129,20 +131,21 @@ Where it fits in this provider
 Reading the confidence
 ----------------------
 
-The confidence lives in ``provider_details`` on the model response, which no operator
-exposes on XCom by default -- ``AgentOperator`` carries it inside the ``message_history``
-transcript when that is enabled. It is reported per output field, and a bare output type is
-reported under ``"response"``. A bounded ``float`` field reports none at all, because there
-the probability is the answer.
+The confidence lives in ``provider_details`` on the model response. It is reported per
+output field, and a bare output type is reported under ``"response"``. A bounded ``float``
+field reports none at all, because there the probability is the answer.
 
-This matters most for branching, because a branch is taken inside the operator before any
-downstream task can look at it. Given two repair paths that both fit the evidence, a
-classifier model splits its probability between them, and the branch is then decided by
-whichever side of a near-even split came out ahead. The confidence reports that faithfully;
-it is just not somewhere Airflow can act on yet, so a near-tie routes on a margin the
-operator cannot show you. Treat ``LLMBranchOperator`` on a classifier model as suited to
-branches whose options are genuinely distinct, and put anything closer than that behind a
-task that reads the confidence itself:
+Two surfaces act on it for you. :class:`~airflow.providers.common.ai.operators.llm_branch.LLMBranchOperator`
+and :class:`~airflow.providers.common.ai.operators.llm.LLMOperator` take a
+``decision_policy`` whose ``min_confidence`` sends an unsure answer to a person, or fails
+the task, before anything downstream runs on it, and record the confidence, the
+probabilities and the bar in the ``decision`` XCom (see :doc:`operators/llm_branch`).
+:doc:`LLMRetryPolicy <retry_policies>` takes the same ``min_confidence`` and hands an unsure
+answer to its deterministic fallback rules. In the branch operator and the retry policy, a
+per-option bar lets the choice whose wrong pick costs most demand more certainty than the rest.
+
+Outside those, read it yourself. ``AgentOperator`` carries it inside the ``message_history``
+transcript when that is enabled, and a hook-level call has it on the result:
 
 .. code-block:: python
 

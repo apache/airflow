@@ -78,10 +78,13 @@ dependencies = [
 # The optional dependencies should be modified in place in the generated file
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
-"anthropic" = ["pydantic-ai-slim[anthropic]>=2.23.0"]
+# @task.llm_batch talks to the provider batch APIs through the vendor SDKs directly, since
+# pydantic-ai has no batch abstraction. anthropic 1.0.0 is the first stable major; openai
+# 2.45.0 is the floor pydantic-ai-slim[openai]>=2.23.0 already imposes.
+"anthropic" = ["pydantic-ai-slim[anthropic]>=2.23.0", "anthropic>=1.0.0"]
 "bedrock" = ["pydantic-ai-slim[bedrock]>=2.23.0"]
 "google" = ["pydantic-ai-slim[google]>=2.23.0"]
-"openai" = ["pydantic-ai-slim[openai]>=2.23.0"]
+"openai" = ["pydantic-ai-slim[openai]>=2.23.0", "openai>=2.45.0"]
 # TypeSafe Jev: answers typed questions (pick one of N, a bounded score, a yes/no
 # probability) and cannot emit text, so it fits a branch or a classification but not a
 # summary. It arrives through pydantic-ai's own ``typesafe:`` provider, so the hook needs
@@ -160,6 +163,10 @@ dev = [
     "llama-index-core>=0.13.0",
     "llama-index-embeddings-openai>=0.6.0",
     "llama-index-llms-openai>=0.6.0",
+    # @task.llm_batch's OpenAI/Anthropic adapters call these SDKs directly. The dev group
+    # needs them so the adapter tests, which build real SDK models, run instead of skipping.
+    "openai>=2.45.0",
+    "anthropic>=1.0.0",
 ]
 
 # To build docs:
