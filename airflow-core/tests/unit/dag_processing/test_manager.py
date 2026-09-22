@@ -1845,6 +1845,7 @@ class TestDagFileProcessorManager:
                     "file": "/opt/airflow/dags/test_dag.py",
                     "bundle_path": "/opt/airflow/dags",
                     "bundle_name": "testing",
+                    "team_name": None,
                     "callback_requests": [],
                     "type": "DagFileParseRequest",
                 },
@@ -1866,6 +1867,7 @@ class TestDagFileProcessorManager:
                     "file": "/opt/airflow/dags/dag_callback_dag.py",
                     "bundle_path": "/opt/airflow/dags",
                     "bundle_name": "testing",
+                    "team_name": None,
                     "callback_requests": [
                         {
                             "filepath": "dag_callback_dag.py",
@@ -3386,10 +3388,10 @@ class TestDagFileProcessorManager:
         assert len(team2.dag_bundles) == 0
 
     @mock.patch.object(DagFileProcessorProcess, "start")
-    def test_create_process_passes_bundle_name_to_process_start(
+    def test_create_process_passes_bundle_metadata_to_process_start(
         self, mock_process_start, configure_testing_dag_bundle
     ):
-        """Test that DagFileProcessorManager._create_process() passes bundle_name to DagFileProcessorProcess.start()"""
+        """Test that process creation passes the bundle name and resolved team."""
         with configure_testing_dag_bundle("/tmp"):
             manager = DagFileProcessorManager(max_runs=1)
             manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
@@ -3402,13 +3404,13 @@ class TestDagFileProcessorManager:
         # Mock the process creation
         mock_process_start.return_value = self.mock_processor()[0]
 
-        # Call _create_process (only takes one parameter: dag_file)
-        manager._create_process(file_info)
+        manager._create_process(file_info, team_name="team-a")
 
         # Verify DagFileProcessorProcess.start was called with correct bundle_name
         mock_process_start.assert_called_once()
         call_kwargs = mock_process_start.call_args.kwargs
         assert call_kwargs["bundle_name"] == "testing"
+        assert call_kwargs["team_name"] == "team-a"
 
     @mock.patch("airflow.dag_processing.manager.stats.initialize")
     def test_stats_initialize_called_on_run(self, stats_init_mock, tmp_path, configure_testing_dag_bundle):
@@ -4153,6 +4155,7 @@ class TestMultiTeamMetrics:
 
         manager._start_new_processes()
 
+        manager._create_process.assert_called_once_with(dag_file, team_name="team_alpha")
         mock_incr.assert_any_call(
             "dag_processing.processes",
             tags={"file_path": "dag_file.py", "action": "start", "team_name": "team_alpha"},

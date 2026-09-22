@@ -661,6 +661,16 @@ def test_example_dags_bundle_added():
 
 @conf_vars(
     {
+        ("core", "load_examples"): "True",
+        ("dag_processor", "dag_bundle_config_list"): "[]",
+    }
+)
+def test_example_dags_not_added_without_configured_bundles():
+    assert DagBundlesManager().get_all_bundle_names() == []
+
+
+@conf_vars(
+    {
         (
             "dag_processor",
             "dag_bundle_provider",

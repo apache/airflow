@@ -1441,7 +1441,7 @@ class DagFileProcessorManager(LoggingMixin):
         client.base_url = "http://in-process.invalid./"
         return client
 
-    def _create_process(self, dag_file: DagFileInfo) -> DagFileProcessorProcess:
+    def _create_process(self, dag_file: DagFileInfo, team_name: str | None = None) -> DagFileProcessorProcess:
         id = uuid7()
 
         callback_to_execute_for_file = self._callback_to_execute.pop(dag_file, [])
@@ -1452,6 +1452,7 @@ class DagFileProcessorManager(LoggingMixin):
             path=dag_file.absolute_path,
             bundle_path=cast("Path", dag_file.bundle_path),
             bundle_name=dag_file.bundle_name,
+            team_name=team_name,
             dag_file_rel_path=str(dag_file.rel_path),
             callbacks=callback_to_execute_for_file,
             selector=self.selector,
@@ -1471,7 +1472,7 @@ class DagFileProcessorManager(LoggingMixin):
             if file in self._processors:
                 continue
 
-            processor = self._create_process(file)
+            processor = self._create_process(file, team_name=bundle_to_team.get(file.bundle_name))
             stats.incr(
                 "dag_processing.processes",
                 tags=prune_dict(
