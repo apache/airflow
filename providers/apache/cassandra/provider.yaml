@@ -64,6 +64,7 @@ versions:
   - 1.0.1
   - 1.0.0
 
+# cassandra-driver does not yet support Python 3.14.
 excluded-python-versions:
   - "3.14"
 

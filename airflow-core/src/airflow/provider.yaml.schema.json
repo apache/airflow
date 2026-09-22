@@ -52,14 +52,19 @@
             ]
         },
         "excluded-python-versions": {
-            "description": "List of python versions excluded for that provider",
+            "description": "Python minors on which the provider is unavailable. Each minor is removed from the provider test matrix and guarded by a python_version marker in the root package extras. A rationale comment is required directly above this key.",
             "type": "array",
             "items": {
                 "type": "string"
             }
         },
+        "min-python-version": {
+            "description": "Full X.Y.Z Python floor used in generated provider metadata and python_full_version markers in the root package extras. The X.Y minor must equal Airflow core's lowest supported Python minor; providers needing a higher minor must wait for the core floor to move. A rationale comment is required directly above this key.",
+            "type": "string",
+            "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
         "excluded-platforms": {
-            "description": "List of platforms (e.g. linux/arm64, darwin/arm64) excluded for that provider. Used to skip providers whose native dependencies are unavailable on a given architecture: linux/* values also drop the provider from that CI test matrix, while every value contributes a platform_machine install marker.",
+            "description": "Platforms (e.g. linux/arm64, darwin/arm64) on which the provider is unavailable. Matching CI platforms are removed from the test matrix, and every value contributes a platform_machine marker to the root package extras. A rationale comment is required directly above this key.",
             "type": "array",
             "items": {
                 "type": "string"

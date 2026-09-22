@@ -24,14 +24,19 @@
 from __future__ import annotations
 
 import pathlib
+import re
 import sys
 
 from common_prek_utils import (
+    AIRFLOW_ROOT_PATH,
+    DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     get_provider_base_dir_from_path,
     initialize_breeze_prek,
     run_command_via_breeze_run,
     validate_cmd_result,
 )
+
+MIN_PYTHON_VERSION_PATTERN = re.compile(r"^\d+\.\d+\.\d+$")
 
 
 def _resolve_provider_yaml_files(raw_files: list[str]) -> list[str]:
@@ -63,10 +68,48 @@ def _resolve_provider_yaml_files(raw_files: list[str]) -> list[str]:
     return sorted(result)
 
 
-if __name__ == "__main__":
-    initialize_breeze_prek(__name__, __file__)
+def get_min_python_version_error(provider_yaml_path: pathlib.Path) -> str | None:
+    """Return an actionable error when a provider's Python floor cannot fit the uv workspace."""
+    for line in provider_yaml_path.read_text().splitlines():
+        if line.startswith("min-python-version:"):
+            value = line.partition(":")[2].split("#", maxsplit=1)[0].strip().strip("'\"")
+            break
+    else:
+        return None
 
+    try:
+        display_path = provider_yaml_path.resolve().relative_to(AIRFLOW_ROOT_PATH)
+    except ValueError:
+        display_path = provider_yaml_path
+    if not MIN_PYTHON_VERSION_PATTERN.fullmatch(value):
+        return (
+            f"{display_path}: min-python-version {value!r} must be a full X.Y.Z version. "
+            f"Set it to a patch release in Python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION}."
+        )
+    major_minor = value.rsplit(".", maxsplit=1)[0]
+    if major_minor != DEFAULT_PYTHON_MAJOR_MINOR_VERSION:
+        return (
+            f"{display_path}: min-python-version {value!r} is outside Airflow's lowest supported "
+            f"Python minor {DEFAULT_PYTHON_MAJOR_MINOR_VERSION}. uv workspaces use the intersection "
+            "of members' requires-python values, so this floor would break every job on the lower "
+            f"minor. Use a {DEFAULT_PYTHON_MAJOR_MINOR_VERSION}.x floor or wait for core's floor to "
+            f"move."
+        )
+    return None
+
+
+if __name__ == "__main__":
     files_to_test = _resolve_provider_yaml_files(sys.argv[1:])
+    min_python_version_errors = [
+        error
+        for file in files_to_test
+        if (error := get_min_python_version_error(pathlib.Path(file))) is not None
+    ]
+    if min_python_version_errors:
+        print("\n".join(min_python_version_errors), file=sys.stderr)
+        sys.exit(1)
+
+    initialize_breeze_prek(__name__, __file__)
     cmd_result = run_command_via_breeze_run(
         ["python3", "/opt/airflow/scripts/in_container/run_provider_yaml_files_check.py", *files_to_test],
         backend="sqlite",

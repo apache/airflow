@@ -272,6 +272,25 @@ your provider:
       - hook-class-name: airflow.providers.<PROVIDER>.hooks.<PROVIDER>.NewProviderHook
         connection-type: provider_connection_type
 
+Provider compatibility exceptions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Three optional ``provider.yaml`` fields describe environments where a provider cannot be installed:
+
+* ``min-python-version`` sets a full ``X.Y.Z`` Python floor in the generated provider metadata and adds
+  a ``python_full_version`` marker to the provider dependencies in the root package extras. Its ``X.Y``
+  must be Airflow core's lowest supported Python minor. A provider that needs a higher minor must wait
+  for the core floor to move.
+* ``excluded-python-versions`` removes the provider from the CI matrix and tests for each listed Python
+  minor and adds ``python_version`` markers that prevent the root package extras from installing it on
+  those minors.
+* ``excluded-platforms`` removes the provider from matching platform test matrices and adds
+  ``platform_machine`` markers that prevent the root package extras from installing it there.
+
+Each field is an exception to normal provider support. Put a contiguous ``#`` comment block explaining
+the reason directly above the key. The ``check-provider-yaml-exception-rationales`` prek hook enforces
+this form.
+
 
 Building documentation locally
 -------------------------------

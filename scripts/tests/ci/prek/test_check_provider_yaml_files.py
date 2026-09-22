@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import pytest
-from ci.prek.check_provider_yaml_files import _resolve_provider_yaml_files
+from ci.prek.check_provider_yaml_files import _resolve_provider_yaml_files, get_min_python_version_error
 
 
 def _touch(path):
@@ -82,3 +82,25 @@ class TestResolveProviderYamlFiles:
         result = _resolve_provider_yaml_files(raw_files)
 
         assert result == expected
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        pytest.param("3.10.1", None, id="patch-in-core-floor-minor"),
+        pytest.param("3.10", "must be a full X.Y.Z version", id="missing-patch"),
+        pytest.param("3.11.0", "uv workspaces use the intersection", id="higher-minor"),
+    ],
+)
+def test_get_min_python_version_error(tmp_path, value, expected):
+    provider_yaml = tmp_path / "provider.yaml"
+    provider_yaml.write_text(f'min-python-version: "{value}"\n')
+
+    error = get_min_python_version_error(provider_yaml)
+
+    if expected is None:
+        assert error is None
+    else:
+        assert str(provider_yaml) in error
+        assert repr(value) in error
+        assert expected in error

@@ -22,6 +22,7 @@ from pathlib import Path
 import pytest
 
 from airflow_breeze.global_constants import REGULAR_DOC_PACKAGES
+from airflow_breeze.utils import packages
 from airflow_breeze.utils.packages import (
     PipRequirements,
     apply_version_suffix_to_non_provider_pyproject_tomls,
@@ -268,6 +269,16 @@ def test_validate_provider_info_with_schema():
 )
 def test_get_min_airflow_version(provider_id: str, min_version: str):
     assert get_min_airflow_version(provider_id) == min_version
+
+
+def test_provider_python_floor_drives_generated_metadata(monkeypatch):
+    provider_details = get_provider_details("asana")._replace(min_python_version="3.10.1")
+    monkeypatch.setattr(packages, "get_provider_details", lambda provider_id: provider_details)
+
+    assert packages.get_python_requires("asana") == ">=3.10.1"
+    context = get_provider_jinja_context("asana", current_release_version="1.0.0", version_suffix="")
+    assert context["REQUIRES_PYTHON"] == ">=3.10.1"
+    assert "3.10" in context["SUPPORTED_PYTHON_VERSIONS"]
 
 
 @pytest.mark.parametrize(
