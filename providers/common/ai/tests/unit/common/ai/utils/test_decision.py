@@ -16,9 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from dataclasses import dataclass
+from typing import Any
+from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic import TypeAdapter
 from pydantic_ai.messages import ModelResponse
 
 from airflow.providers.common.ai.exceptions import LowConfidenceError as ExportedLowConfidenceError
@@ -33,8 +36,10 @@ from airflow.providers.common.ai.utils.decision import (
     check_uncertain_action,
     decision_record,
     describe_confidence,
+    described_choices,
     finalize_record,
     initial_decided_by,
+    picked_key,
     policy_fails,
     policy_record,
     review_reason,
@@ -248,3 +253,59 @@ class TestRecords:
         assert ExportedLowConfidenceError is LowConfidenceError
         assert ExportedDecisionPolicy is DecisionPolicy
         assert BranchOption("x").template_fields == ("description",)
+
+
+@dataclass(frozen=True)
+class _FakeChoice:
+    """pydantic-ai 2.46's ``Choice(description=None, *, value=UNSET)``, as far as the builder uses it."""
+
+    description: str | None = None
+
+
+@dataclass(frozen=True)
+class _FakeChoices:
+    """pydantic-ai 2.46's ``Choices(choices, *, name=None, description=None)``, recording the call shape."""
+
+    choices: Any
+    name: str | None = None
+
+
+class TestDescribedChoices:
+    """CI runs on a pydantic-ai without ``Choices``, so the 2.46+ call shape is pinned against a stand-in."""
+
+    @patch("airflow.providers.common.ai.utils.decision.Choices", _FakeChoices)
+    @patch("airflow.providers.common.ai.utils.decision.Choice", _FakeChoice)
+    def test_choices_gets_the_keys_with_descriptions_in_order(self):
+        built = described_choices("Options", {"b": "Second.", "a": None})
+
+        assert built == _FakeChoices({"b": _FakeChoice("Second."), "a": _FakeChoice(None)}, name="Options")
+
+    @patch("airflow.providers.common.ai.utils.decision.Choices", _FakeChoices)
+    @patch("airflow.providers.common.ai.utils.decision.Choice", _FakeChoice)
+    def test_choices_gets_a_plain_list_when_nothing_is_described(self):
+        assert described_choices("Options", {"b": None, "a": None}) == _FakeChoices(
+            ["b", "a"], name="Options"
+        )
+
+    @patch("airflow.providers.common.ai.utils.decision.Choices", None)
+    @patch("airflow.providers.common.ai.utils.decision.Choice", None)
+    def test_enum_fallback_keeps_keys_as_values_and_emits_the_described_schema(self):
+        built = described_choices(
+            "Options", {"_sunder_": "Reserved by Enum.", "mro": None, "plain key": None}
+        )
+
+        assert [member.value for member in built] == ["_sunder_", "mro", "plain key"]
+        assert picked_key(built("mro")) == "mro"
+        assert TypeAdapter(built).json_schema()["anyOf"] == [
+            {"const": "_sunder_", "type": "string", "description": "Reserved by Enum."},
+            {"const": "mro", "type": "string"},
+            {"const": "plain key", "type": "string"},
+        ]
+
+    @patch("airflow.providers.common.ai.utils.decision.Choices", None)
+    @patch("airflow.providers.common.ai.utils.decision.Choice", None)
+    def test_enum_fallback_without_descriptions_is_a_plain_enum(self):
+        built = described_choices("Options", {"x": None, "y": None})
+
+        assert TypeAdapter(built).json_schema()["enum"] == ["x", "y"]
+        assert picked_key("x") == "x"

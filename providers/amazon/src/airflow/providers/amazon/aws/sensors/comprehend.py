@@ -135,6 +135,9 @@ class ComprehendStartPiiEntitiesDetectionJobCompletedSensor(ComprehendBaseSensor
                     waiter_delay=int(self.poke_interval),
                     waiter_max_attempts=self.max_retries,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="poke",
             )
@@ -220,6 +223,9 @@ class ComprehendCreateDocumentClassifierCompletedSensor(AwsBaseSensor[Comprehend
                     waiter_delay=int(self.poke_interval),
                     waiter_max_attempts=self.max_retries,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="poke",
             )
