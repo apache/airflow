@@ -24,7 +24,6 @@ from unittest import mock
 
 import httpx2
 import pytest
-from tenacity import wait_none
 from uuid6 import uuid7
 
 from airflow.api_fastapi.execution_api.datamodels.dag_parsing import (
@@ -40,7 +39,7 @@ from airflow.dag_processing.api_client import (
     DagProcessorRegistrationRetired,
     DagProcessorSecretsComms,
 )
-from airflow.sdk.api.client import API_RETRIES, Client
+from airflow.sdk.api.client import API_RETRIES
 from airflow.sdk.api.datamodels import _generated
 from airflow.sdk.execution_time import task_runner
 from airflow.sdk.execution_time.comms import GetVariable, GetXCom, MaskSecret, VariableResult
@@ -52,11 +51,6 @@ def token_file(tmp_path):
     path = tmp_path / "processor.jwt"
     path.write_text("session-1\n")
     return path
-
-
-@pytest.fixture(autouse=True)
-def no_retry_wait(monkeypatch):
-    monkeypatch.setattr(Client._request_with_retry.retry, "wait", wait_none())
 
 
 @pytest.fixture
@@ -72,6 +66,9 @@ def make_client(token_file, clock):
     def create(*responses, **kwargs):
         pending = iter(responses)
         requests = []
+
+        kwargs.setdefault("retry_wait_min", 0)
+        kwargs.setdefault("retry_wait_max", 0)
 
         def handle(request):
             requests.append(request)

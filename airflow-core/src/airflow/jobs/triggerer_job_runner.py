@@ -685,7 +685,22 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
         triggerer_id = self.job.id if self.job is not None else None
         in_process_api = InProcessExecutionAPI(triggerer_id=triggerer_id)
-        client = Client(base_url=None, token="", dry_run=True, transport=in_process_api.transport)
+        worker_retries = conf.getint("workers", "execution_api_retries")
+        worker_retry_wait_min = conf.getfloat("workers", "execution_api_retry_wait_min")
+        worker_retry_wait_max = conf.getfloat("workers", "execution_api_retry_wait_max")
+        client = Client(
+            base_url=None,
+            token="",
+            dry_run=True,
+            transport=in_process_api.transport,
+            retries=conf.getint("triggerer", "execution_api_retries", fallback=worker_retries),
+            retry_wait_min=conf.getfloat(
+                "triggerer", "execution_api_retry_wait_min", fallback=worker_retry_wait_min
+            ),
+            retry_wait_max=conf.getfloat(
+                "triggerer", "execution_api_retry_wait_max", fallback=worker_retry_wait_max
+            ),
+        )
         # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
         client.base_url = "http://in-process.invalid./"
         if triggerer_id is not None:
