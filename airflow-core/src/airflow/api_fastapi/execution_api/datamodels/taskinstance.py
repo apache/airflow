@@ -447,6 +447,12 @@ class TIRunContext(BaseModel):
     ``None`` for regular tasks and for stub tasks that declare no parameters.
     """
 
+    log_id_template: str | None = None
+    """
+    Elasticsearch/OpenSearch log id template pinned to this Dag run (``LogTemplate.elasticsearch_id``),
+    so remote log writers use the template that was in effect when the run was created.
+    """
+
 
 class PrevSuccessfulDagRunResponse(BaseModel):
     """Schema for response with previous successful DagRun information for Task Template Context."""
