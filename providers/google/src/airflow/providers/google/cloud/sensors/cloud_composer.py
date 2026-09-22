@@ -465,49 +465,25 @@ class CloudComposerExternalTaskSensor(BaseSensorOperator):
                 "use `composer_external_task_id` or `composer_external_task_ids` or `composer_external_task_group_id`."
             )
 
-        # check the requested states are all valid states for the target type, be it dag or task
         if composer_external_task_ids or composer_external_task_group_id:
-            if not total_states <= set(State.task_states):
+            if not self._total_states <= set(State.task_states):
                 raise ValueError(
                     "Valid values for `allowed_states`, `skipped_states` and `failed_states` "
-                    "when `composer_external_task_id` or `composer_external_task_ids` or `composer_external_task_group_id` "
-                    f"is not `None`: {State.task_states}"
+                    "when `composer_external_task_id` or `composer_external_task_ids` or "
+                    f"`composer_external_task_group_id` is not `None`: {State.task_states}"
                 )
-        elif not total_states <= set(State.dag_states):
+        elif not self._total_states <= set(State.dag_states):
             raise ValueError(
                 "Valid values for `allowed_states`, `skipped_states` and `failed_states` "
-                f"when `composer_external_task_id` and `composer_external_task_group_id` is `None`: {State.dag_states}"
+                f"when `composer_external_task_id` and `composer_external_task_group_id` is `None`: "
+                f"{State.dag_states}"
             )
 
-        self.execution_range = execution_range
-        self.composer_external_dag_id = composer_external_dag_id
-        self.composer_external_task_id = composer_external_task_id
         self.composer_external_task_ids = composer_external_task_ids
-        self.composer_external_task_group_id = composer_external_task_group_id
-        self.gcp_conn_id = gcp_conn_id
-        self.impersonation_chain = impersonation_chain
-        self.deferrable = deferrable
-        self.poll_interval = poll_interval
-
-    def _get_logical_dates(self, context) -> tuple[datetime, datetime]:
-        logical_date = context.get("logical_date", None)
-        if logical_date is None:
-            raise RuntimeError(
-                "logical_date is None. Please make sure the sensor is not used in an asset-triggered Dag. "
-                "CloudComposerDAGRunSensor was designed to be used in time-based scheduled Dags only, "
-                "and asset-triggered Dags do not have logical_date. "
-            )
-        if isinstance(self.execution_range, timedelta):
-            if self.execution_range < timedelta(0):
-                return logical_date, logical_date - self.execution_range
-            return logical_date - self.execution_range, logical_date
-        if isinstance(self.execution_range, list) and len(self.execution_range) > 0:
-            return self.execution_range[0], self.execution_range[1] if len(
-                self.execution_range
-            ) > 1 else logical_date
-        return logical_date - timedelta(1), logical_date
+        self._external_task_ids_normalized = True
 
     def poke(self, context: Context) -> bool:
+        self._normalize_external_task_ids()
         start_date, end_date = self._get_logical_dates(context)
 
         task_instances = self._get_task_instances(
@@ -732,6 +708,7 @@ class CloudComposerExternalTaskSensor(BaseSensorOperator):
         super().execute(context)
 
     def execute_complete(self, context: Context, event: dict):
+        self._normalize_external_task_ids()
         if event and event["status"] == "error":
             raise AirflowException(event["message"])
         if event and event["status"] == "failed":
