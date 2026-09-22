@@ -1106,8 +1106,10 @@ class TestKubernetesExecutor:
             session.commit()
 
             workload = ExecuteTask.make(ti)
-            executor.queue_workload(workload, session=session)
-            executor._process_workloads([workload])
+            # Enqueue the pod-creation job directly: `BaseExecutor.queue_workload` only accepts
+            # `ExecuteTask` from Airflow 3.1, and the provider compat jobs also run this on 3.0.
+            executor.execute_async(key=ti.key, command=[workload], queue=ti.queue, executor_config={})
+            executor.running.add(ti.key)
 
             ti.state = TaskInstanceState.SUCCESS
             session.merge(ti)
