@@ -23,6 +23,7 @@ from unittest import mock
 
 import pytest
 from pydantic_ai import Agent
+from pydantic_ai._run_context import RunContext
 from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.messages import ModelResponse, RetryPromptPart, TextPart, ToolCallPart, ToolReturnPart
 from pydantic_ai.models.function import FunctionModel
@@ -98,8 +99,9 @@ class FakeClient:
 
 
 async def call(toolset: BaseManagedAgentToolset, prompt: str = "what is the number?") -> Any:
-    tools = await toolset.get_tools(ctx=None)
-    return await toolset.call_tool(toolset._tool_name, {"prompt": prompt}, None, tools[toolset._tool_name])
+    ctx = mock.MagicMock(spec=RunContext)
+    tools = await toolset.get_tools(ctx)
+    return await toolset.call_tool(toolset._tool_name, {"prompt": prompt}, ctx, tools[toolset._tool_name])
 
 
 class TestBaseManagedAgentToolsetConstruction:
@@ -241,19 +243,19 @@ class TestCallTool:
         assert "fake.cloud" in caplog.text
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.common.ai.toolsets.managed_agent.Stats", autospec=True)
-    async def test_every_answer_is_counted_by_tool_and_platform(self, mock_stats):
+    @mock.patch("airflow.providers.common.ai.toolsets.managed_agent.Stats.incr", autospec=True)
+    async def test_every_answer_is_counted_by_tool_and_platform(self, mock_incr):
         await call(FakeManagedAgentToolset(tool_name="ask_bookings"))
-        mock_stats.incr.assert_called_once_with(
+        mock_incr.assert_called_once_with(
             "managed_agent.served", tags={"tool": "ask_bookings", "platform": "fake.cloud"}
         )
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.common.ai.toolsets.managed_agent.Stats", autospec=True)
-    async def test_a_failed_call_is_not_counted_as_served(self, mock_stats):
+    @mock.patch("airflow.providers.common.ai.toolsets.managed_agent.Stats.incr", autospec=True)
+    async def test_a_failed_call_is_not_counted_as_served(self, mock_incr):
         with pytest.raises(RuntimeError):
             await call(FakeManagedAgentToolset(raises=RuntimeError("503")))
-        mock_stats.incr.assert_not_called()
+        mock_incr.assert_not_called()
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -328,11 +330,11 @@ class TestManagedAgentToolset:
         assert "Connection 'standby' not found" in caplog.text
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.common.ai.toolsets.managed_agent.Stats", autospec=True)
-    async def test_a_failover_group_is_counted_under_the_failover_platform(self, mock_stats):
+    @mock.patch("airflow.providers.common.ai.toolsets.managed_agent.Stats.incr", autospec=True)
+    async def test_a_failover_group_is_counted_under_the_failover_platform(self, mock_incr):
         group = FailoverManagedAgentClient([FakeClient("a"), FakeClient("b")])
         await call(ManagedAgentToolset(group, tool_name="ask"), "q")
-        mock_stats.incr.assert_called_once_with(
+        mock_incr.assert_called_once_with(
             "managed_agent.served", tags={"tool": "ask", "platform": "failover"}
         )
 

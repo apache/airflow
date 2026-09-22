@@ -171,35 +171,35 @@ class TestInvoke:
 class TestMetrics:
     """A failover is a success-shaped event, so the counter is the only signal that a primary is down."""
 
-    @mock.patch("airflow.providers.common.ai.managed_agents.failover.Stats", autospec=True)
-    def test_primary_success_emits_nothing_here(self, mock_stats):
+    @mock.patch("airflow.providers.common.ai.managed_agents.failover.Stats.incr", autospec=True)
+    def test_primary_success_emits_nothing_here(self, mock_incr):
         # The toolset counts answers; the group counts only transitions.
         FailoverManagedAgentClient([FakeClient("a"), FakeClient("b")]).invoke(REQUEST)
-        mock_stats.incr.assert_not_called()
+        mock_incr.assert_not_called()
 
-    @mock.patch("airflow.providers.common.ai.managed_agents.failover.Stats", autospec=True)
-    def test_failover_is_counted_by_platform_pair(self, mock_stats):
+    @mock.patch("airflow.providers.common.ai.managed_agents.failover.Stats.incr", autospec=True)
+    def test_failover_is_counted_by_platform_pair(self, mock_incr):
         group = FailoverManagedAgentClient(
             [FakeClient("a", raises=RuntimeError("503")), FakeClient("b", platform="other.cloud")]
         )
         group.invoke(REQUEST)
-        mock_stats.incr.assert_called_once_with(
+        mock_incr.assert_called_once_with(
             "managed_agent.failover", tags={"from_platform": "fake.cloud", "to_platform": "other.cloud"}
         )
 
-    @mock.patch("airflow.providers.common.ai.managed_agents.failover.Stats", autospec=True)
-    def test_unresolvable_identity_tags_as_unknown(self, mock_stats):
+    @mock.patch("airflow.providers.common.ai.managed_agents.failover.Stats.incr", autospec=True)
+    def test_unresolvable_identity_tags_as_unknown(self, mock_incr):
         group = FailoverManagedAgentClient(
             [FakeClient("a", raises=RuntimeError("503"), ref_raises=RuntimeError("x")), FakeClient("b")]
         )
         group.invoke(REQUEST)
-        assert mock_stats.incr.call_args.kwargs["tags"]["from_platform"] == "unknown"
+        assert mock_incr.call_args.kwargs["tags"]["from_platform"] == "unknown"
 
-    @mock.patch("airflow.providers.common.ai.managed_agents.failover.Stats", autospec=True)
-    def test_rejection_is_not_a_failover(self, mock_stats):
+    @mock.patch("airflow.providers.common.ai.managed_agents.failover.Stats.incr", autospec=True)
+    def test_rejection_is_not_a_failover(self, mock_incr):
         group = FailoverManagedAgentClient(
             [FakeClient("a", raises=ManagedAgentRejected("x")), FakeClient("b")]
         )
         with pytest.raises(ManagedAgentRejected):
             group.invoke(REQUEST)
-        mock_stats.incr.assert_not_called()
+        mock_incr.assert_not_called()

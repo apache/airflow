@@ -77,9 +77,9 @@ class BedrockAgentCoreManagedAgentHook(BedrockAgentCoreHook, BaseManagedAgentHoo
     ``{"prompt": ...}`` and a request carrying ``messages`` as ``{"messages": [...]}``, both as
     ``application/json``. The container behind the runtime defines its own response shape, so the
     answer text is taken from the first of ``output``, ``result``, ``text`` or ``response`` that
-    holds a string, or from ``text_key`` when the container's contract is known; otherwise the
-    whole JSON body is returned as text. The decoded body is always available on
-    ``ManagedAgentResponse.raw``.
+    holds a string, or from the ``text_key`` vendor option when the container's contract is
+    known; otherwise the whole JSON body is returned as text. The decoded body is always
+    available on ``ManagedAgentResponse.raw``.
 
     A remote invocation may have unknown effects, so this hook disables botocore's retries unless
     the connection or the caller configured them, and lets failures propagate to Airflow's
@@ -97,31 +97,25 @@ class BedrockAgentCoreManagedAgentHook(BedrockAgentCoreHook, BaseManagedAgentHoo
         claims = BedrockAgentCoreManagedAgentHook(aws_conn_id="aws_prod", region_name="us-east-1").agent(
             "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/claims"
         )
-        toolset = ManagedAgentToolset(claims, tool_name="ask_claims_agent", description="...")
+        toolset = ManagedAgentToolset(
+            claims, tool_name="ask_claims_agent", description="...", vendor_options={"text_key": "answer"}
+        )
 
-    :param text_key: Key of the response body that holds the answer text, when the container's
-        contract is known. Overrides the default lookup; a body without a string there is an error.
-    :param max_response_bytes: Upper bound on the response body read into worker memory.
+    Two ``vendor_options`` are read by the hook itself rather than forwarded to
+    ``InvokeAgentRuntime``: ``text_key`` names the response field that holds the answer text when
+    the container's contract is known (a body without a string there is an error), and
+    ``max_response_bytes`` bounds the body read into worker memory (default 1 MiB). Every other
+    option is passed to the API call as is.
 
-    Additional arguments (such as ``aws_conn_id`` and ``config``) are passed down to
+    Arguments (such as ``aws_conn_id`` and ``config``) are passed down to
     :class:`~airflow.providers.amazon.aws.hooks.bedrock.BedrockAgentCoreHook`; the connection's
     ``config_kwargs`` apply as they do for every other AWS hook.
     """
 
     agent_platform = "aws.bedrock_agentcore"
 
-    def __init__(
-        self,
-        *args: Any,
-        text_key: str | None = None,
-        max_response_bytes: int = _MAX_RESPONSE_BYTES,
-        **kwargs: Any,
-    ) -> None:
-        if max_response_bytes <= 0:
-            raise ValueError("max_response_bytes must be positive.")
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self.text_key = text_key
-        self.max_response_bytes = max_response_bytes
         self._clients: dict[float | None, Any] = {}
         self._clients_lock = threading.Lock()
 
@@ -147,6 +141,14 @@ class BedrockAgentCoreManagedAgentHook(BedrockAgentCoreHook, BaseManagedAgentHoo
             {"prompt": request.prompt} if request.prompt is not None else {"messages": request.as_messages()}
         )
         kwargs: dict[str, Any] = dict(request.vendor_options)
+        text_key = kwargs.pop("text_key", None)
+        if text_key is not None and not isinstance(text_key, str):
+            raise ValueError(f"vendor_options['text_key'] must be a string, got {text_key!r}.")
+        max_response_bytes = kwargs.pop("max_response_bytes", _MAX_RESPONSE_BYTES)
+        if not isinstance(max_response_bytes, int) or max_response_bytes <= 0:
+            raise ValueError(
+                f"vendor_options['max_response_bytes'] must be a positive integer, got {max_response_bytes!r}."
+            )
         if request.session_id is not None:
             kwargs["runtimeSessionId"] = request.session_id
         try:
@@ -157,14 +159,14 @@ class BedrockAgentCoreManagedAgentHook(BedrockAgentCoreHook, BaseManagedAgentHoo
                 accept="application/json",
                 **kwargs,
             )
-            body = self._read_json_body(agent, response)
+            body = self._read_json_body(agent, response, max_response_bytes)
         except ClientError as exc:
             if exc.response.get("Error", {}).get("Code") in _TERMINAL_ERROR_CODES:
                 raise ManagedAgentInvocationError(f"{self._where(agent)}: {exc}") from exc
             raise  # throttling, conflicts, server errors: Airflow's task retry is the right layer
         raw = {key: value for key, value in response.items() if key != "response"} | {"response": body}
         return ManagedAgentResponse(
-            text=self._text(agent, body),
+            text=self._text(agent, body, text_key),
             raw=raw,
             structured=None if isinstance(body, str) else body,
             session_id=response.get("runtimeSessionId"),
@@ -197,7 +199,7 @@ class BedrockAgentCoreManagedAgentHook(BedrockAgentCoreHook, BaseManagedAgentHoo
     def _where(self, agent: str) -> str:
         return f"AgentCore agent {agent} via connection {self.aws_conn_id!r}"
 
-    def _read_json_body(self, agent: str, response: dict[str, Any]) -> Any:
+    def _read_json_body(self, agent: str, response: dict[str, Any], max_response_bytes: int) -> Any:
         with closing(response["response"]) as stream:
             content_type = response.get("contentType", "").split(";", 1)[0].strip().lower()
             if content_type != "application/json":
@@ -205,10 +207,10 @@ class BedrockAgentCoreManagedAgentHook(BedrockAgentCoreHook, BaseManagedAgentHoo
                     f"{self._where(agent)} returned {content_type or 'no Content-Type'}; "
                     "this hook handles application/json only."
                 )
-            data = stream.read(self.max_response_bytes + 1)
-        if len(data) > self.max_response_bytes:
+            data = stream.read(max_response_bytes + 1)
+        if len(data) > max_response_bytes:
             raise ManagedAgentInvocationError(
-                f"{self._where(agent)} returned more than max_response_bytes={self.max_response_bytes}."
+                f"{self._where(agent)} returned more than max_response_bytes={max_response_bytes}."
             )
         try:
             return json.loads(data)
@@ -217,12 +219,12 @@ class BedrockAgentCoreManagedAgentHook(BedrockAgentCoreHook, BaseManagedAgentHoo
                 f"{self._where(agent)} returned a body that is not JSON: {exc}"
             ) from exc
 
-    def _text(self, agent: str, body: Any) -> str:
-        if self.text_key is not None:
-            value = body.get(self.text_key) if isinstance(body, dict) else None
+    def _text(self, agent: str, body: Any, text_key: str | None) -> str:
+        if text_key is not None:
+            value = body.get(text_key) if isinstance(body, dict) else None
             if not isinstance(value, str):
                 raise ManagedAgentInvocationError(
-                    f"{self._where(agent)} returned no string at text_key={self.text_key!r}."
+                    f"{self._where(agent)} returned no string at text_key={text_key!r}."
                 )
             return value
         if isinstance(body, str):

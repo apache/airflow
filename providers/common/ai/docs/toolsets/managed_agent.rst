@@ -97,7 +97,7 @@ directly::
 ``ManagedAgentRequest.vendor_options`` carries anything the contract does not
 type through to the vendor call; ``ManagedAgentToolset(vendor_options=...)``
 sends the same options on every request, for per-agent settings such as Agent
-Engine's ``class_method``. Hooks reject options that would re-target the call,
+Engine's ``class_method`` or AgentCore's ``text_key``. Hooks reject options that would re-target the call,
 such as another agent identity, account or connection, and refuse a
 ``session_id`` when the agent keeps no conversation state.
 
