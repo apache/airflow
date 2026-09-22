@@ -114,6 +114,13 @@ class SandboxExecResult:
     dropped bytes while reading that stream, before any model-facing formatting.
     ``sandbox_terminated`` means the backend destroyed the sandbox to stop the
     command, so the toolset must provision a fresh one before the next call.
+
+    ``applied_timeout`` is the deadline the backend actually gave the command,
+    when that differs from the one it was asked for -- a backend may have to
+    shorten it, for instance to fit what is left of a sandbox's life. ``None``
+    means the requested deadline was used as given. The toolset reports this
+    rather than the request, so a model that times out is told the budget it
+    really had and can ask for something that fits.
     """
 
     exit_code: int
@@ -123,6 +130,7 @@ class SandboxExecResult:
     stdout_truncated: bool = False
     stderr_truncated: bool = False
     sandbox_terminated: bool = False
+    applied_timeout: float | None = None
 
 
 class SandboxBackend(ABC):
@@ -192,9 +200,10 @@ class SandboxBackend(ABC):
     # needing coreutils at all.
     # ------------------------------------------------------------------
 
-    # Reserved exit status for "the path is not readable", distinct from any
-    # status the guest's own command might return.
+    # Reserved exit statuses for "the path is not readable" and "the path is a
+    # directory", distinct from any status the guest's own command might return.
     _MISSING_PATH_STATUS = 66
+    _IS_DIRECTORY_STATUS = 67
 
     def read_file(self, sandbox: str, path: str, *, max_bytes: int) -> bytes:
         """
@@ -209,9 +218,13 @@ class SandboxBackend(ABC):
         # against anything ``stat`` reports as zero-length -- character devices,
         # FIFOs, procfs -- which stream without end when read. ``stat`` failing
         # is an error in its own right: without the explicit exit, a missing
-        # path yields an empty ``base64`` and reads back as an empty file.
+        # path yields an empty ``base64`` and reads back as an empty file. A
+        # directory needs its own check for the same reason: ``stat`` succeeds
+        # on it, ``head`` fails but the pipeline's status is ``base64``'s, so
+        # without it a directory reads back as an empty file too.
         script = (
             f"sz=$(stat -Lc %s -- {quoted} 2>/dev/null) || exit {self._MISSING_PATH_STATUS}; "
+            f"[ -d {quoted} ] && exit {self._IS_DIRECTORY_STATUS}; "
             f'printf "%s\n" "$sz"; '
             f"head -c {max_bytes + 1} -- {quoted} | base64"
         )
@@ -222,6 +235,8 @@ class SandboxBackend(ABC):
         )
         if result.exit_code == self._MISSING_PATH_STATUS:
             raise SandboxError(f"{path!r} does not exist in the sandbox, or is not readable.")
+        if result.exit_code == self._IS_DIRECTORY_STATUS:
+            raise SandboxError(f"{path!r} is a directory. Use list_directory to see what is in it.")
         if result.exit_code:
             raise SandboxError(result.stderr.strip() or f"Could not read {path!r}.")
         reported, _, encoded = result.stdout.partition("\n")

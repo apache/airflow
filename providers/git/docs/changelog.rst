@@ -19,6 +19,17 @@
 Changelog
 ---------
 
+.. warning::
+  Token authentication over ``http(s)`` now hands the credential to git through a credential
+  helper configured with ``GIT_CONFIG_COUNT``, which requires git 2.31 or newer. On git 2.31+, a
+  token connection also resets any deployment-wide ``credential.helper`` for that host, so a
+  deployment previously relying on its global helper switches to the connection's token and can
+  start failing auth if that token is stale. On older git the helper is never configured: the
+  clone then fails with git's generic ``could not read Username ... terminal prompts disabled``,
+  or, where the deployment configures its own credential helper, authenticates with that
+  helper's credential instead of the connection's token. Upgrade git on the Dag processor and on
+  workers before upgrading this provider, or switch the connection to SSH key authentication.
+
 0.5.0
 .....
 

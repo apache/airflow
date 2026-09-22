@@ -242,8 +242,9 @@ HITL interface.  Optionally allow the reviewer to edit the output before
 approving with ``allow_modifications=True``, and set a deadline with
 ``approval_timeout``.
 
-Human-in-the-loop review needs Airflow 3.1+. On an older core the operator raises
-``AirflowOptionalProviderFeatureException`` when it is constructed, so the Dag file
+Human-in-the-loop review needs Airflow 3.1+, whether ``require_approval`` or a
+``decision_policy`` with ``on_uncertain="review"`` opens it. On an older core the
+operator raises ``AirflowOptionalProviderFeatureException`` when it is constructed, so the Dag file
 fails to import, and with it every Dag defined in that file. A dynamically mapped
 task (``.expand()``) is only constructed when it runs, so there the same error
 surfaces as a task failure -- still before the model is called.
@@ -292,6 +293,41 @@ user row id as a string, not the username.  This needs Airflow 3.1+.  On Airflow
 clearing the task re-runs it against the existing review row, so a changed
 list does not take effect.
 
+Reviewing Uncertain Output
+--------------------------
+
+A classifier model such as TypeSafe's reports a confidence for every field
+of a structured output, in ``provider_details`` on the model response. It is a
+summary of how concentrated the model's probability distribution was, not the
+probability that the field is right. ``decision_policy=DecisionPolicy(min_confidence=0.7)``
+(import ``DecisionPolicy`` from ``airflow.providers.common.ai.operators.llm``)
+is the bar the least confident field has to clear for the operator to return
+the output by itself. Only fields that reported a confidence are compared: a
+field whose type reports none (a bounded float, where the probability is the
+answer) is not gated, and the record's ``confidence`` map shows which fields
+were. Under the bar, the policy's ``on_uncertain`` applies: ``"review"``
+(default) sends the output to human review through the same approval flow as
+``require_approval``, with the same ``approval_timeout``,
+``on_approval_timeout`` and notifier settings; ``"fail"`` fails the task with
+``LowConfidenceError`` (from ``airflow.providers.common.ai.exceptions``), which
+Airflow retries like any other failure unless a retry rule says otherwise. A
+text model reports no confidence for any field, which counts as uncertain, so
+switching the connection does not silently switch off a control you set.
+``require_approval=True`` keeps its meaning and always asks, and
+``on_uncertain="review"`` needs Airflow 3.1+ like it does. The policy is
+honoured by ``LLMOperator`` and ``LLMBranchOperator``; the SQL, schema-compare
+and file-analysis operators run their own ``execute`` and reject a policy with a
+bar at construction.
+
+With or without a bar, the operator pushes a ``decision`` XCom carrying the
+model name, the per-field ``confidence`` and ``probabilities`` (empty for a text
+model), the bar that applied, why the output went to review if it did, who
+decided, and the gate configuration in force.
+A pending record is checkpointed with the paused task and finalized from that
+copy on resume, not from the XCom. See :ref:`LLMBranchOperator <howto/operator:llm_branch>` for the
+record's fields; there ``proposed`` and ``action`` name the branches, while
+here they are ``null`` and the output itself is the return value.
+
 Parameters
 ----------
 
@@ -302,6 +338,11 @@ Parameters
 - ``system_prompt``: System-level instructions for the agent. Supports Jinja templating.
 - ``output_type``: Expected output type (default: ``str``). Set to a Pydantic ``BaseModel``
   for structured output.
+- ``decision_policy``: A ``DecisionPolicy(min_confidence=..., on_uncertain=...)``.
+  ``min_confidence`` is the confidence the least confident reporting field needs for
+  the operator to return the output without a person, from 0 to 1; no reported
+  confidence counts as uncertain. ``on_uncertain`` is ``"review"`` (default) or
+  ``"fail"``. Default ``None``: no gate.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai ``Agent``
   constructor (e.g. ``retries``, ``model_settings``, ``tools``). Supports Jinja templating.
 - ``usage_limits``: Optional pydantic-ai ``UsageLimits`` enforced on the run, or a
@@ -313,8 +354,9 @@ Parameters
 - ``approval_timeout``: Maximum time to wait for a review (``timedelta``).  ``None``
   means wait indefinitely.  Default ``None``.
 - ``on_approval_timeout``: Outcome when ``approval_timeout`` expires without a
-  review: ``"fail"`` (default), ``"approve"``, or ``"reject"``.  Requires
-  ``require_approval=True`` and a positive ``approval_timeout``.
+  review: ``"fail"`` (default), ``"approve"``, or ``"reject"``.  Requires a
+  review path (``require_approval=True`` or a ``decision_policy`` that reviews)
+  and a positive ``approval_timeout``.
 - ``allow_modifications``: If ``True``, the reviewer can edit the output before
   approving.  Default ``False``.
 - ``approval_notifiers``: Notifier, or list of notifiers, called once the review
