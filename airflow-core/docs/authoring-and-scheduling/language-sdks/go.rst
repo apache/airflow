@@ -340,10 +340,6 @@ declared type cannot fill the Go type, the task fails before its body runs.
         return nil
     }
 
-Stub parameters the Dag author left at their Python defaults are the exception: they reach the wire but need
-no Go parameter, so adding a defaulted parameter to a stub does not break the Go functions already bound to
-it.
-
 When a task's **sole** data parameter is a struct, its fields bind **by name** instead of by position --
 keyword arguments rather than positional ones. Being the only data parameter is the opt-in; there is no
 marker to add.
@@ -366,6 +362,10 @@ An exported field binds the argument matching its own Go name, folding case and 
 <https://github.com/apache/airflow/blob/main/go-sdk/README.md>`__ has the full binding rules, including
 how unmatched fields and arguments are treated and when an untagged struct is decoded whole from a single
 argument instead.
+
+Stub parameters the Dag author left at their Python defaults are the exception to both shapes: they reach
+the wire but need no Go parameter, so adding a defaulted parameter to a stub does not break the Go
+functions already bound to it.
 
 .. _go-sdk/types:
 
