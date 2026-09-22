@@ -513,6 +513,36 @@ other reference:
         # Your tasks here
         ...
 
+The ``DeadlineReference.<ClassName>`` shorthand hands you an instance constructed with no arguments,
+so a parameterized reference gets one carrying its defaults.  You may optionally import the class and
+instantiate it yourself, for example if you want to pass values:
+
+.. code-block:: python
+
+    from datetime import timedelta
+    from airflow.sdk import AsyncCallback, DAG, DeadlineAlert
+
+    from my_deadline_references import MyQueuedReference
+
+    with DAG(
+        dag_id="custom_reference_imported_directly",
+        deadline=DeadlineAlert(
+            reference=MyQueuedReference(),
+            interval=timedelta(hours=2),
+            callback=AsyncCallback(my_callback),
+        ),
+    ):
+        # Your tasks here
+        ...
+
+.. note::
+
+    The shorthand is keyed on the class name alone, so two custom references with the same class name
+    in different modules cannot both have it.  When that happens, neither one gets it and a warning
+    naming both classes is logged; import the class directly as above instead.  Both references
+    remain fully usable, and the scheduler still resolves either of them: only the shorthand is
+    withheld.
+
 Multiple Deadline Alerts
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
