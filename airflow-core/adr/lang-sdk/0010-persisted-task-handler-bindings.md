@@ -554,14 +554,6 @@ argument error instead of catching it as an import error.
 **Validation fails.** Record the import error; leave every existing row untouched. `bindings=None`
 already expresses "do not reconcile", so this needs no additional mechanism.
 
-Leaving the rows is not laxity. `DagModel.has_import_errors` is a scheduling gate — new Dag runs are
-blocked ([`dags_needing_dagruns`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/airflow-core/src/airflow/models/dag.py#L799), via `dags_needing_dagruns`) and so are manual
-triggers ([`trigger_dag_run`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/airflow-core/src/airflow/api_fastapi/core_api/routes/public/dag_run.py#L772),
-[`trigger_dag_run`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/airflow-core/src/airflow/api_fastapi/execution_api/routes/dag_runs.py#L110), [`clear_dag_run`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/airflow-core/src/airflow/api_fastapi/execution_api/routes/dag_runs.py#L199)). What it does not gate is the tasks of a run
-that was *already* in flight, which the queueing query admits on `DR.state == RUNNING` alone. Keeping
-the last-known-good binding lets those runs finish, and is symmetric with how a `.py` that stops
-importing keeps its last good `SerializedDagModel` rather than having it deleted.
-
 **A stub task has no binding at all.** The scheduler fails it with the reason rather than queueing a
 workload that would die on the worker at `ValueError("dag_path is required")`, far from the cause.
 
@@ -575,19 +567,16 @@ definition whose author can act) naming both artifact paths, since the fix is in
 - Dag ids are never recorded at build time, so dynamic Dag rendering works: whatever the artifact
   registers when the Dag processor asks it is what gets recorded.
 - `jars_root` / `executables_root` / `bundles_root` are removed. Artifacts inherit download, refresh
-  and versioning from `DagBundle`. Deployments that mount artifacts themselves point a
-  `LocalDagBundle` at the mount.
+  and versioning from `DagBundle`. Deployments that mount artifacts themselves point a `LocalDagBundle` at the mount.
 - Two new tables and one migration. `lang_sdk_task_handler` is reconciled on every parse of a file
   that owns rows in it; `lang_sdk_task_handler_artifact` is a cache with no per-file eviction.
 - The artifact bundle is a second bundle on the execution path. `ExecuteTask` and `StartupDetails`
-  each grow one optional `SDKTaskHandlerRef`, and the worker performs a second `initialize()`. Workload
-  payloads grow by roughly one `BundleInfo`.
+  each grow one optional `SDKTaskHandlerRef`, and the worker performs a second `initialize()`. Workload payloads grow by roughly one `BundleInfo`.
 - `DagFileParseRequest` and `DagFileParsingResult` each gain a field, and `ToSDKTaskHandlerProcessor`
   becomes a fifth union the supervisor-schema registry introspects. Both messages already appear in
-  the generated schemas of all three SDKs, so the snapshot is regenerated and the two prek hooks
-  guarding it run.
-- Every Lang SDK must answer `SDKTaskHandlerParseRequest`.
-- A misrouted queue becomes an import error instead of a runtime failure. Today a stub task on a
+  the generated schemas of all three SDKs, so the snapshot is regenerated and the two prek hooks guarding it run.
+- Every Lang SDK runtime must answer `SDKTaskHandlerParseRequest`.
+- A misrouted queue becomes an import error at Dag-parsing stage instead of a runtime failure. Today a stub task on a
   queue absent from `queue_to_coordinator` silently falls back to the Python coordinator
   ([`for_queue`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/execution_time/coordinator.py#L280-L284)) and dies in
   `_StubOperator.execute()`.
