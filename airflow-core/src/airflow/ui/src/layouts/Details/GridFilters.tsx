@@ -21,15 +21,24 @@ import { FilterBar } from "src/components/FilterBar";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
-const searchParamKeys: Array<FilterableSearchParamsKeys> = [
-  SearchParamsKeys.RUN_ID_PATTERN,
-  SearchParamsKeys.STATE,
-  SearchParamsKeys.RUN_TYPE,
-  SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN,
-  SearchParamsKeys.RUN_AFTER_RANGE,
-];
+type Props = {
+  readonly showGanttDateFilters?: boolean;
+};
 
-export const GridFilters = () => {
+export const GridFilters = ({ showGanttDateFilters = false }: Props) => {
+  const searchParamKeys: Array<FilterableSearchParamsKeys> = [
+    SearchParamsKeys.RUN_ID_PATTERN,
+    SearchParamsKeys.STATE,
+    SearchParamsKeys.RUN_TYPE,
+    SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN,
+    SearchParamsKeys.RUN_AFTER_RANGE,
+  ];
+
+  if (showGanttDateFilters) {
+    // Task-level start/end date window read by the Gantt query; the run filters above ignore it.
+    searchParamKeys.push(SearchParamsKeys.START_DATE_RANGE, SearchParamsKeys.END_DATE_RANGE);
+  }
+
   const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(searchParamKeys);
 
   return (
