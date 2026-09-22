@@ -1343,6 +1343,16 @@ class TestSparkSubmitHook:
                 ("spark-submit\t--conf\tHivePassword='abc'",),
                 "spark-submit\t--conf\tHivePassword='******'",
             ),
+            # Multiple sensitive keys inside a single token (reviewer-identified blind spot):
+            # the old anchored regex missed the second key after a closed quote.
+            (
+                ["Config(secret=\"x\",password=hunter2)"],
+                'Config(secret="******",password=******',
+            ),
+            (
+                ["--conf", "spark.a.secret='x',spark.b.password=hunter2"],
+                "--conf spark.a.secret='******',spark.b.password=******",
+            ),
         ],
     )
     @pytest.mark.db_test
