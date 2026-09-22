@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-``LoggingToolset``
-==================
+Tool call logging: ``LoggingToolset``
+=====================================
 
 :class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` is a
 ``WrapperToolset`` that intercepts ``call_tool()`` to log each tool invocation

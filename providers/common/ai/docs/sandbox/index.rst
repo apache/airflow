@@ -68,6 +68,7 @@ Pages in this section
 ---------------------
 
 .. toctree::
+    :titlesonly:
     :maxdepth: 1
 
     Configuration and lifecycle <configuration>

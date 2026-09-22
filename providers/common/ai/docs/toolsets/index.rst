@@ -83,6 +83,22 @@ The hook, SQL, DataFusion, MCP, Agent Skills and managed-agent guides each have 
 example that exists in this repository, and where its credentials and its work come
 from. :doc:`../sandbox/index` carries the same section for ``SandboxToolset``.
 
+Toolset guides
+--------------
+
+.. toctree::
+    :titlesonly:
+
+    Airflow hooks as tools <hook>
+    SQL databases <sql>
+    Files with DataFusion <datafusion>
+    MCP servers <mcp>
+    Agent Skills <skills>
+    Sandboxed execution <../sandbox/index>
+    Vendor-managed agents <managed_agent>
+    LangChain tools <langchain>
+    Tool call logging <logging>
+
 The toolsets
 ------------
 

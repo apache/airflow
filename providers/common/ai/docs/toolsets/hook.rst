@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-``HookToolset``
-===============
+Airflow hooks as tools: ``HookToolset``
+=======================================
 
 Generic adapter that exposes selected methods of any Airflow Hook as
 pydantic-ai tools via introspection. Requires an explicit ``allowed_methods``

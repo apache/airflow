@@ -90,7 +90,10 @@ Fallback Connections
 Examples
 --------
 
-**OpenAI**
+.. _conn-example-openai:
+
+OpenAI
+^^^^^^
 
 .. code-block:: json
 
@@ -100,7 +103,10 @@ Examples
         "extra": "{\"model\": \"openai:gpt-5.6-sol\"}"
     }
 
-**Anthropic**
+.. _conn-example-anthropic:
+
+Anthropic
+^^^^^^^^^
 
 .. code-block:: json
 
@@ -110,7 +116,10 @@ Examples
         "extra": "{\"model\": \"anthropic:claude-opus-4-6\"}"
     }
 
-**Ollama (local)**
+.. _conn-example-ollama:
+
+Ollama (local)
+^^^^^^^^^^^^^^
 
 .. code-block:: json
 
@@ -120,7 +129,10 @@ Examples
         "extra": "{\"model\": \"openai:llama3\"}"
     }
 
-**AWS Bedrock**
+.. _conn-example-bedrock:
+
+AWS Bedrock
+^^^^^^^^^^^
 
 Leave password empty and configure ``AWS_PROFILE`` or IAM role in the environment:
 
@@ -136,7 +148,10 @@ credential chain are unchanged. For AWS-specific fields with dedicated UI
 inputs (region, IAM keys, profile, bearer token, timeouts) instead of raw
 ``extra`` JSON, use the :doc:`pydantic_ai_bedrock` connection type.
 
-**Google Vertex AI / Gemini API**
+.. _conn-example-google:
+
+Google Vertex AI / Gemini API
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Leave password empty and configure ``GOOGLE_API_KEY`` (or ``GEMINI_API_KEY``)
 in the environment:

@@ -17,8 +17,8 @@
 
 .. _howto/examples:
 
-All example Dags
-================
+Example Dags
+============
 
 Every operator, decorator and integration has a runnable Dag under
 `example_dags <https://github.com/apache/airflow/tree/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags>`__,
