@@ -41,6 +41,7 @@ from airflow.dag_processing.dagbag import (
     DagBag,
     _capture_with_reraise,
     _validate_executor_fields,
+    _validate_plugin_scheduling_classes,
 )
 from airflow.exceptions import UnknownExecutorException
 from airflow.executors.executor_loader import ExecutorLoader
@@ -53,6 +54,7 @@ from airflow.sdk import DAG, BaseOperator
 from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.mock_plugins import mock_plugin_manager
 from unit import cluster_policies
 from unit.models import TEST_DAGS_FOLDER
 
@@ -1465,3 +1467,107 @@ class TestBundlePathSysPath:
 
         assert str(tmp_path) not in dag.description
         assert sys.path == syspath_before
+
+
+class TestValidatePluginSchedulingClasses:
+    """A team-scoped plugin's scheduling classes must not be usable by other teams' Dags.
+
+    Unlike executors or pools, a timetable is imported and instantiated by the Dag author,
+    so this parse-time check is the only thing enforcing the team boundary.
+    """
+
+    @staticmethod
+    def _timetable_class():
+        from airflow.timetables.simple import NullTimetable
+
+        class TeamTimetable(NullTimetable):
+            """Stands in for a timetable a plugin ships."""
+
+        return TeamTimetable
+
+    @staticmethod
+    def _plugin(name, team_name, timetable_class):
+        from airflow.plugins_manager import AirflowPlugin
+
+        plugin = AirflowPlugin()
+        plugin.name = name
+        plugin.team_name = team_name
+        plugin.timetables = [timetable_class]
+        return plugin
+
+    @staticmethod
+    def _bundle(team_name):
+        """Patch target returning a bundle config owned by ``team_name``."""
+        bundle_config = mock.MagicMock()
+        bundle_config.team_name = team_name
+        manager = mock.MagicMock()
+        manager._bundle_config = {"test_bundle": bundle_config}
+        return manager
+
+    def _dag_using(self, timetable_class):
+        with DAG("test-dag", schedule=timetable_class()) as dag:
+            BaseOperator(task_id="t1")
+        return dag
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
+    def test_owning_team_may_use_its_own_timetable(self, mock_manager_class):
+        timetable_class = self._timetable_class()
+        mock_manager_class.return_value = self._bundle("team_a")
+        dag = self._dag_using(timetable_class)
+
+        with mock_plugin_manager(plugins=[self._plugin("team_a_plugin", "team_a", timetable_class)]):
+            _validate_plugin_scheduling_classes(dag, bundle_name="test_bundle")
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
+    def test_another_team_may_not_use_it(self, mock_manager_class):
+        timetable_class = self._timetable_class()
+        mock_manager_class.return_value = self._bundle("team_b")
+        dag = self._dag_using(timetable_class)
+
+        with mock_plugin_manager(plugins=[self._plugin("team_a_plugin", "team_a", timetable_class)]):
+            with pytest.raises(ValueError, match="team_a"):
+                _validate_plugin_scheduling_classes(dag, bundle_name="test_bundle")
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
+    def test_teamless_dag_may_not_use_it(self, mock_manager_class):
+        """A team's classes are not available to global Dags either."""
+        timetable_class = self._timetable_class()
+        mock_manager_class.return_value = self._bundle(None)
+        dag = self._dag_using(timetable_class)
+
+        with mock_plugin_manager(plugins=[self._plugin("team_a_plugin", "team_a", timetable_class)]):
+            with pytest.raises(ValueError, match="team_a"):
+                _validate_plugin_scheduling_classes(dag, bundle_name="test_bundle")
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
+    def test_global_plugin_timetable_is_available_to_every_team(self, mock_manager_class):
+        timetable_class = self._timetable_class()
+        mock_manager_class.return_value = self._bundle("team_b")
+        dag = self._dag_using(timetable_class)
+
+        with mock_plugin_manager(plugins=[self._plugin("global_plugin", None, timetable_class)]):
+            _validate_plugin_scheduling_classes(dag, bundle_name="test_bundle")
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
+    def test_timetable_no_plugin_registered_is_unrestricted(self, mock_manager_class):
+        """Airflow's own timetables are not registered by any plugin, so they always pass."""
+        timetable_class = self._timetable_class()
+        mock_manager_class.return_value = self._bundle("team_b")
+        dag = self._dag_using(timetable_class)
+
+        with mock_plugin_manager(plugins=[]):
+            _validate_plugin_scheduling_classes(dag, bundle_name="test_bundle")
+
+    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
+    def test_nothing_is_rejected_when_multi_team_is_off(self, mock_manager_class):
+        timetable_class = self._timetable_class()
+        mock_manager_class.return_value = self._bundle("team_b")
+        dag = self._dag_using(timetable_class)
+
+        with mock_plugin_manager(plugins=[self._plugin("team_a_plugin", "team_a", timetable_class)]):
+            _validate_plugin_scheduling_classes(dag, bundle_name="test_bundle")

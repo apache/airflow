@@ -520,6 +520,46 @@ def is_extra_link_visible_to_team(link: Any, team_name: str | None) -> bool:
 
 
 @cache
+def _get_scheduling_class_teams() -> dict[type, frozenset[str | None]]:
+    """
+    Map every plugin-registered scheduling class to the teams that registered it.
+
+    Covers the registries a Dag author uses by importing the class and instantiating it
+    themselves, so the reference is not mediated by any team-aware lookup: timetables,
+    partition mappers, windows, deadline references and priority weight strategies.
+
+    Keyed by class, as in :func:`_get_extra_link_class_teams`; a class registered by
+    several plugins maps to all of their teams and is resolved least restrictively.
+    """
+    teams: dict[type, set[str | None]] = {}
+    for plugin in _get_plugins()[0]:
+        for scheduling_class in (
+            *plugin.timetables,
+            *plugin.partition_mappers,
+            *plugin.windows,
+            *plugin.deadline_references,
+            *plugin.priority_weight_strategies,
+        ):
+            teams.setdefault(scheduling_class, set()).add(plugin.team_name)
+    return {scheduling_class: frozenset(team_names) for scheduling_class, team_names in teams.items()}
+
+
+def owning_teams_of_scheduling_class(obj: Any) -> frozenset[str | None] | None:
+    """
+    Teams whose plugins registered ``obj``'s class as a scheduling class.
+
+    ``None`` means no plugin registered this class, which in practice means it is one of
+    Airflow's own: a custom class has to be registered by a plugin to survive
+    deserialization at all. There is then no plugin ownership to honour, so callers treat
+    it as unrestricted.
+
+    Accepts an instance or the class itself.
+    """
+    scheduling_class = obj if isinstance(obj, type) else type(obj)
+    return _get_scheduling_class_teams().get(scheduling_class)
+
+
+@cache
 def get_timetables_plugins() -> dict[str, type[Timetable]]:
     """Collect and get timetable classes registered by plugins."""
     log.debug("Initialize extra timetables plugins")
