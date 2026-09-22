@@ -190,20 +190,19 @@ class DataFusionToolset(AbstractToolset[Any]):
             return json.dumps({"error": str(ex)})
 
     def _get_schema(self, table_name: str) -> str:
-        engine = self._get_engine()
-        # session_context lookup is required here instead of engine.registered_tables,
-        # because registered_tables only tracks tables registered via datasource config.
-        # When allow_writes is enabled, the agent may create temporary in-memory tables
-        # that would not be captured there.
-        if not engine.session_context.table_exist(table_name):
-            return json.dumps({"error": f"Table {table_name!r} is not available"})
-        # Intentionally using session_context instead of engine.get_schema() —
-        # the latter returns a pre-formatted string intended for other operators,
-        # not a JSON-compatible format.
-        # TODO: refactor engine.get_schema() to return JSON and update this accordingly
-        table = engine.session_context.table(table_name)
-        columns = [{"name": f.name, "type": str(f.type)} for f in table.schema()]
-        return json.dumps(columns)
+        try:
+            engine = self._get_engine()
+            # session_context lookup is required here instead of engine.registered_tables,
+            # because registered_tables only tracks tables registered via datasource config.
+            # When allow_writes is enabled, the agent may create temporary in-memory tables
+            # that would not be captured there.
+            if not engine.session_context.table_exist(table_name):
+                return json.dumps({"error": f"Table {table_name!r} is not available"})
+            columns = engine.get_schema(table_name)
+            return json.dumps(columns)
+        except Exception as ex:
+            log.warning("get_schema failed for table %r: %s", table_name, ex)
+            return json.dumps({"error": str(ex)})
 
     def _query(self, sql: str) -> str:
         try:

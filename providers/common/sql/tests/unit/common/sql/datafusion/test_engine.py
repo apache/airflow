@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -384,8 +385,7 @@ class TestDataFusionEngine:
         engine = DataFusionEngine()
         engine.df_ctx = MagicMock(spec=SessionContext)
         mock_table = MagicMock()
-        mock_schema = MagicMock()
-        mock_schema.__str__ = lambda self: "id: int64, name: string"
+        mock_schema = [SimpleNamespace(name="id", type="int64"), SimpleNamespace(name="name", type="string")]
         mock_table.schema.return_value = mock_schema
         engine.df_ctx.table.return_value = mock_table
 
@@ -393,7 +393,7 @@ class TestDataFusionEngine:
 
         engine.df_ctx.table.assert_called_once_with("test_table")
         mock_table.schema.assert_called_once()
-        assert result == "id: int64, name: string"
+        assert result == [{"name": "id", "type": "int64"}, {"name": "name", "type": "string"}]
 
     @patch.object(DataFusionEngine, "_get_connection_config")
     def test_get_schema_with_local_csv(self, mock_get_conn):
@@ -417,7 +417,6 @@ class TestDataFusionEngine:
 
             result = engine.get_schema("test_csv")
 
-            assert "name: string" in result
-            assert "age: int64" in result
+            assert result == [{"name": "name", "type": "string"}, {"name": "age", "type": "int64"}]
         finally:
             os.unlink(csv_path)
