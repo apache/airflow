@@ -24,7 +24,7 @@ from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from pydantic import BaseModel
-from pydantic_ai import Agent
+from pydantic_ai import Agent, DeferredToolRequests
 from pydantic_ai.capabilities import Toolset
 from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.messages import (
@@ -636,8 +636,10 @@ class TestAgentOperatorExecute:
         mock_hook_cls.get_hook.assert_called_once_with(
             "my_llm", hook_params={"model_id": None, "fallback_conn_ids": None}
         )
+        # On 3.3+ the agent may also end on a tool call awaiting approval.
+        expected_output_type = [str, DeferredToolRequests] if AIRFLOW_V_3_3_PLUS else str
         mock_hook_cls.get_hook.return_value.create_agent.assert_called_once_with(
-            output_type=str, instructions="You are helpful."
+            output_type=expected_output_type, instructions="You are helpful."
         )
         mock_agent.run_sync.assert_called_once_with(
             "What is the answer?", usage_limits=None, run_id="ti-1", cancellation_token=ANY
