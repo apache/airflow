@@ -1346,7 +1346,7 @@ class TestSparkSubmitHook:
             # Multiple sensitive keys inside a single token (reviewer-identified blind spot):
             # the old anchored regex missed the second key after a closed quote.
             (
-                ["Config(secret=\"x\",password=hunter2)"],
+                ['Config(secret="x",password=hunter2)'],
                 'Config(secret="******",password=******',
             ),
             (

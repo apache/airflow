@@ -80,7 +80,8 @@ def _mask_sensitive_kv(match: re.Match[str]) -> str:
 
 
 def _find_open_quote_key(token: str) -> tuple[int, int, str] | None:
-    """Find a sensitive ``key=<quote>`` in *token* where the quote never closes.
+    """
+    Find a sensitive ``key=<quote>`` in *token* where the quote never closes.
 
     Returns ``(key_start, eq_index, quote_char)`` if found, else ``None``.
     """
