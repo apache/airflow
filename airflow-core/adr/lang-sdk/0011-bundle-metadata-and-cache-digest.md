@@ -121,15 +121,4 @@ something; consumers compare for equality and interpret nothing.
 - The canonical schema drops the identifier mapping entirely, the coordinator task execution side will rely on persisted rel_path instead of discovering the artifact every time.
 - The packer no longer needs to execute the artifact at all. `supervisor_schema_version` is a compile-time constant of the SDK.
 
-## References
 
-- [ADR-0010](0010-persisted-task-handler-bindings.md) — what consumes the digest, and why the inventory is unused
-- [ADR-0003](0003-pure-java-dags.md) — the Java build-time inventory that was designed and never built
-- [`go-sdk ADR-0001`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/adr/0001-bundle-packing-options.md) — why the inventory was runtime-introspected, not AST-scanned
-- [`go-sdk ADR-0004`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/adr/0004-self-contained-executable-bundle.md) — the Go artifact format
-- [`go-sdk ADR-0005`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/adr/0005-retire-go-edge-worker.md) — the footer-required statement
-- [`footer.go`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/go-sdk/internal/bundlefooter/footer.go) — the normative Go trailer layout
-- [`bundle-encoder.ts`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/ts-sdk/src/cli/bundle-encoder.ts) — the TypeScript container format and its per-region digests
-- [`executable-bundle-spec.rst`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/docs/executable-bundle-spec.rst) — the Go-shaped spec to amend
-- [`ts-bundle-spec.rst`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/docs/ts-bundle-spec.rst) — the TypeScript spec, which uses `task_handlers` already
-- [`airflow-metadata.schema.json`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/docs/airflow-metadata.schema.json) — the schema to amend
