@@ -19,10 +19,34 @@
 ``apache-airflow-providers-common-ai``
 ##################################################
 
-The ``common.ai`` provider is the vendor-neutral way to put LLM and agent steps in a Dag.
+Run model calls and tool-using agents as Airflow tasks. A task can classify, extract,
+summarize or route with any model vendor, or hand a model a set of tools built from your
+Airflow connections and let it work. Airflow supplies what a script does not: the API key
+comes from a connection, a failed call retries, a run can pause for a person to approve the
+output, the result lands in XCom for the next task, and the whole thing runs on a schedule.
+
+Start here
+----------
+
+- :doc:`quickstart` — install, connect a vendor, run a two-task Dag and check its output.
+- :doc:`use_cases/index` — ten jobs a data team already has, each with the Dag that does it.
+- :doc:`model_providers` — which vendors work, and the extra, connection and prefix for each.
+
+This is the Dag the quick start runs. The ``summarize`` task sends the release notes to the
+model on the ``pydanticai_default`` connection; ``publish`` receives the answer like any
+other upstream result:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_quickstart.py
+    :language: python
+    :start-after: [START howto_quickstart_llm]
+    :end-before: [END howto_quickstart_llm]
+
+Point ``pydanticai_default`` at OpenAI, Anthropic, Google, Bedrock or a self-hosted server
+and the Dag does not change. :doc:`concepts` explains the ideas behind the provider in one
+page.
 
 When to use this provider
---------------------------
+-------------------------
 
 .. list-table::
    :header-rows: 1
@@ -49,29 +73,9 @@ When to use this provider
      - The vendor's own provider
      - e.g. :doc:`apache-airflow-providers-anthropic:index`
 
-``common.ai`` is built on `pydantic-ai <https://ai.pydantic.dev/>`__: the connection picks the
-model vendor, and Airflow runs the AI step like any other task. :doc:`concepts` explains the
-ideas behind the provider in one page; :doc:`operators/index` lists what each operator is for.
-
 As a rule of thumb: if Airflow should *run* the AI step (and the model should stay
 swappable), use ``common.ai``; if the Dag *submits work to* a vendor-managed service and
 waits for the result, use that vendor's provider.
-
-For example, this ``LLMOperator`` call is unchanged whether ``llm_conn_id`` points at an
-OpenAI, Anthropic, or other pydantic-ai-supported connection:
-
-.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm.py
-    :language: python
-    :start-after: [START howto_operator_llm_basic]
-    :end-before: [END howto_operator_llm_basic]
-
-Getting started
----------------
-
-* :doc:`installation` — which extra to install for your model vendor.
-* :doc:`quickstart` — a connection and a first ``@task.llm`` in three steps.
-* :doc:`concepts` — connections, operators, toolsets, hooks and XCom in one page.
-* :doc:`use_cases/index` — jobs a data team already has, each with the Dag that does it.
 
 .. toctree::
     :titlesonly:
