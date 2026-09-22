@@ -651,7 +651,7 @@ class TestDBCleanup:
         assert orphan_id not in remaining  # old and unreferenced -> pruned
 
     @pytest.mark.parametrize(
-        "extra_unreferenced, expected_count",
+        ("extra_unreferenced", "expected_count"),
         [
             pytest.param(0, "1 of 1", id="whole-batch-skipped"),
             pytest.param(1, "1 of 2", id="partial-skip"),
