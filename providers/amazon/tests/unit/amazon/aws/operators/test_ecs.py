@@ -428,7 +428,8 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         mock_ti = mock.MagicMock()
         mock_context = {"ti": mock_ti, "task_instance": mock_ti}
 
-        result = self.ecs.execute(mock_context)
+        with mock.patch("airflow.providers.amazon.aws.operators.ecs.sleep"):
+            result = self.ecs.execute(mock_context)
 
         assert result is None
         assert (
@@ -860,7 +861,10 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         mock_ti = mock.MagicMock()
         mock_context = {"ti": mock_ti, "task_instance": mock_ti}
 
-        with pytest.raises(TaskDeferred) as deferred:
+        with (
+            pytest.raises(TaskDeferred) as deferred,
+            mock.patch("airflow.providers.amazon.aws.operators.ecs.sleep"),
+        ):
             self.ecs.execute(mock_context)
 
         assert deferred.value.trigger.region_name == "task-region"

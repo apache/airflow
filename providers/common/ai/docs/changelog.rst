@@ -26,6 +26,25 @@ Changelog
 ---------
 
 .. note::
+  ``LLMBranchOperator`` and ``LLMOperator`` now push a ``decision`` XCom on every run, next to
+  ``return_value``, with the model's pick, the action taken, the confidence and probabilities
+  when the model reports them, and the ``decision_policy`` that applied. ``LLMBranchOperator``
+  also offers the downstream task IDs to the model in sorted order (it was set order, which
+  differed between workers), gained ``branches`` as a template field, and builds its option
+  type from pydantic-ai's ``Choices`` on 2.46+ or an equivalent enum whose member names are
+  generated; the option values are still the task IDs, so ``do_branch`` receives the same
+  strings as before.
+
+.. note::
+  ``execute_complete`` on ``LLMOperator``, ``LLMBranchOperator``, ``LLMSQLQueryOperator`` and
+  ``LLMSchemaCompareOperator`` gained a keyword argument, ``decision``. ``LLMOperator`` and
+  ``LLMBranchOperator`` pass it on resume, so a subclass of either that overrides
+  ``execute_complete`` with the old three-argument signature raises ``TypeError`` when the
+  reviewed task resumes; add ``decision=None`` to the override. The other two accept the
+  keyword but do not pass it yet. A review that was already pending when you upgraded
+  resumes without it and is unaffected.
+
+.. note::
   Configuring ``fallback_conn_ids`` on a connection (or the matching operator/decorator
   argument) changes what exception a task raises once every connection in the chain fails:
   it is ``pydantic_ai.exceptions.FallbackExceptionGroup``, not the last provider's own

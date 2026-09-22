@@ -20,22 +20,19 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable, Mapping, Sequence
-from enum import Enum
 from typing import TYPE_CHECKING, Any
-
-try:
-    from pydantic_ai import Choice, Choices  # type: ignore[attr-defined]
-except ImportError:  # pydantic-ai < 2.46.0: build the same schema from an Enum instead
-    Choice = Choices = None  # type: ignore[assignment,misc]
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.policies.decision import BranchOption, DecisionPolicy
 from airflow.providers.common.ai.utils.decision import (
+    BARE_OUTPUT_FIELD,
     ModelConfidence,
     check_uncertain_action,
     decision_record,
     describe_confidence,
+    described_choices,
     initial_decided_by,
+    picked_key,
     policy_record,
     review_reason,
     threshold_for,
@@ -61,14 +58,10 @@ def _branch_choices(
     Build the type the model picks a branch from: one option per downstream task ID.
 
     Sorted so every worker sends the model the same option order: ``downstream_task_ids``
-    is a set, and set order follows string hashing, which differs between processes.
-
-    With a description on any branch the options render as ``anyOf`` of ``{const,
-    description}`` instead of a bare ``enum`` list. That is the one JSON Schema shape that
-    carries a description per value, and it is what both a text model's tool schema and
-    pydantic-ai's TypeSafe adapter read an option's meaning from. On pydantic-ai 2.46+ the
-    type is its ``Choices``; before that, an ``Enum`` whose schema hook emits the same shape.
-    Either way the model has to answer with one of the task IDs.
+    is a set, and set order follows string hashing, which differs between processes. The
+    option type itself comes from :func:`~airflow.providers.common.ai.utils.decision.described_choices`,
+    so the model has to answer with one of the task IDs and reads each one's description
+    from the schema.
     """
     task_ids = sorted(downstream_task_ids)
     unknown = sorted(set(configured) - set(task_ids))
@@ -77,33 +70,7 @@ def _branch_choices(
             f"branches for {task_id!r} names {unknown}, which are not downstream tasks. "
             f"Downstream tasks: {task_ids}."
         )
-    if Choices is not None:
-        if not descriptions:
-            return Choices(task_ids, name="DownstreamTasks")
-        return Choices({name: Choice(descriptions.get(name)) for name in task_ids}, name="DownstreamTasks")
-
-    enum_cls: type[Enum] = Enum("DownstreamTasks", {name: name for name in task_ids})  # type: ignore[misc]
-    if not descriptions:
-        return enum_cls
-
-    def json_schema(cls: type[Enum], core_schema: Any, handler: Any) -> dict[str, Any]:
-        options: list[dict[str, Any]] = []
-        for member in cls:
-            option: dict[str, Any] = {"const": member.value, "type": "string"}
-            if text := descriptions.get(member.value):
-                option["description"] = text
-            options.append(option)
-        return {"anyOf": options, "title": cls.__name__}
-
-    # pydantic looks this hook up on the type when it builds the schema, so attaching it to the
-    # functional-API enum is the same as defining it in a class body.
-    setattr(enum_cls, "__get_pydantic_json_schema__", classmethod(json_schema))
-    return enum_cls
-
-
-def _picked(value: Any) -> str:
-    """Return the task ID a picked option stands for: ``Choices`` answers with the key, the Enum fallback with a member."""
-    return value.value if isinstance(value, Enum) else str(value)
+    return described_choices("DownstreamTasks", {name: descriptions.get(name) for name in task_ids})
 
 
 class LLMBranchOperator(LLMOperator, BranchMixIn):
@@ -268,7 +235,7 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
 
         # The output type validated the pick, so it is a task ID (or IDs) in either encoding.
         branches: str | list[str] = (
-            [_picked(item) for item in output] if isinstance(output, list) else _picked(output)
+            [picked_key(item) for item in output] if isinstance(output, list) else picked_key(output)
         )
 
         if not branches:
@@ -281,7 +248,7 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
         picked = [branches] if isinstance(branches, str) else branches
         policy = self.decision_policy
         threshold = threshold_for(policy.min_confidence, self._branch_bars, picked)
-        confidence = model_confidence.confidence.get("response")
+        confidence = model_confidence.confidence.get(BARE_OUTPUT_FIELD)
         review = review_reason(
             require_approval=self.require_approval, threshold=threshold, confidence=confidence
         )
@@ -317,7 +284,7 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
                 f"```\nPrompt: {self.prompt}\n\nChosen branch(es): {chosen}\n```"
             )
             if review != "require_approval" or model_confidence.confidence:
-                body += "\n\n" + describe_confidence(model_confidence, "response", threshold)
+                body += "\n\n" + describe_confidence(model_confidence, BARE_OUTPUT_FIELD, threshold)
             modification_schema = (
                 {"type": "array", "items": {"type": "string", "enum": choices}, "examples": choices}
                 if self.allow_multiple_branches
