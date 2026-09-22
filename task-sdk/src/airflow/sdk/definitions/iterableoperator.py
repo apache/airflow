@@ -805,6 +805,6 @@ def is_batch_size_source(task: BaseOperator) -> bool:
         return False
     for task_id in task.downstream_task_ids:
         size = getattr(task.dag.task_dict.get(task_id), "batch_size", None)
-        if isinstance(size, XComArg) and size.operator.task_id == task.task_id:
+        if isinstance(size, XComArg) and any(op.task_id == task.task_id for op, _ in size.iter_references()):
             return True
     return False
