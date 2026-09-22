@@ -486,6 +486,16 @@ def test_client_delegates_to_make_client_and_caches_result(supervisor_builder, m
     make_client.assert_called_once_with(supervisor)
 
 
+def test_make_client_uses_triggerer_retry_configuration(supervisor_builder, mocker):
+    supervisor = supervisor_builder()
+    client_class = mocker.patch("airflow.sdk.api.client.Client", autospec=True)
+    mocker.patch("airflow.jobs.triggerer_job_runner.in_process_api_server", autospec=True)
+
+    supervisor.make_client()
+
+    assert client_class.call_args.kwargs["retry_config_section"] == "triggerer"
+
+
 def test_run_context_exits_when_subprocess_dies(supervisor_builder, mocker):
     """Breaking out of the loop on a dead subprocess still unwinds run_context."""
     from contextlib import contextmanager

@@ -62,6 +62,8 @@ from airflow.sdk.execution_time.comms import (
     TaskRescheduleStartDate,
 )
 
+from tests_common.test_utils.config import conf_vars
+
 if TYPE_CHECKING:
     from time_machine import TimeMachineFixture
 
@@ -142,6 +144,101 @@ class TestClient:
             base_url="test://server", token="", transport=httpx.MockTransport(handle_request), timeout=120.0
         )
         assert client.timeout == httpx.Timeout(120.0)
+
+    @pytest.mark.parametrize(
+        ("retry_config_section", "overrides", "expected_retries", "expected_wait_min", "expected_wait_max"),
+        [
+            pytest.param(
+                "workers",
+                {
+                    ("workers", "execution_api_retries"): "7",
+                    ("workers", "execution_api_retry_wait_min"): "11.0",
+                    ("workers", "execution_api_retry_wait_max"): "13.0",
+                },
+                7,
+                11.0,
+                13.0,
+                id="workers-use-worker-configuration",
+            ),
+            pytest.param(
+                "triggerer",
+                {
+                    ("workers", "execution_api_retries"): "7",
+                    ("workers", "execution_api_retry_wait_min"): "11.0",
+                    ("workers", "execution_api_retry_wait_max"): "13.0",
+                    ("triggerer", "execution_api_retries"): "2",
+                    ("triggerer", "execution_api_retry_wait_min"): "3.0",
+                    ("triggerer", "execution_api_retry_wait_max"): "5.0",
+                },
+                2,
+                3.0,
+                5.0,
+                id="component-overrides-workers",
+            ),
+            pytest.param(
+                "dag_processor",
+                {
+                    ("workers", "execution_api_retries"): "4",
+                    ("workers", "execution_api_retry_wait_min"): "0.25",
+                    ("workers", "execution_api_retry_wait_max"): "2.5",
+                    ("dag_processor", "execution_api_retries"): None,
+                    ("dag_processor", "execution_api_retry_wait_min"): None,
+                    ("dag_processor", "execution_api_retry_wait_max"): None,
+                },
+                4,
+                0.25,
+                2.5,
+                id="component-falls-back-to-workers",
+            ),
+            pytest.param(
+                "triggerer",
+                {
+                    ("workers", "execution_api_retries"): "4",
+                    ("workers", "execution_api_retry_wait_min"): "0.25",
+                    ("workers", "execution_api_retry_wait_max"): "2.5",
+                    ("triggerer", "execution_api_retries"): None,
+                    ("triggerer", "execution_api_retry_wait_min"): "0.5",
+                    ("triggerer", "execution_api_retry_wait_max"): None,
+                },
+                4,
+                0.5,
+                2.5,
+                id="component-overrides-only-minimum-wait",
+            ),
+            pytest.param(
+                "dag_processor",
+                {
+                    ("workers", "execution_api_retries"): "4",
+                    ("workers", "execution_api_retry_wait_min"): "0.25",
+                    ("workers", "execution_api_retry_wait_max"): "2.5",
+                    ("dag_processor", "execution_api_retries"): None,
+                    ("dag_processor", "execution_api_retry_wait_min"): None,
+                    ("dag_processor", "execution_api_retry_wait_max"): "1.5",
+                },
+                4,
+                0.25,
+                1.5,
+                id="component-overrides-only-maximum-wait",
+            ),
+        ],
+    )
+    @mock.patch("airflow.sdk.api.client.wait_random_exponential")
+    @mock.patch("airflow.sdk.api.client.stop_after_attempt")
+    def test_component_retry_configuration(
+        self,
+        mock_stop_after_attempt,
+        mock_wait_random_exponential,
+        retry_config_section,
+        overrides,
+        expected_retries,
+        expected_wait_min,
+        expected_wait_max,
+    ):
+        with conf_vars(overrides):
+            Client(base_url=None, dry_run=True, token="", retry_config_section=retry_config_section)
+
+        mock_stop_after_attempt.assert_called_once_with(expected_retries)
+        mock_wait_random_exponential.assert_called_once_with(min=expected_wait_min, max=expected_wait_max)
 
     def test_error_parsing(self):
         responses = [
