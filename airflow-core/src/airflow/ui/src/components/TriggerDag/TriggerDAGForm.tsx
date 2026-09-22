@@ -93,12 +93,41 @@ const TriggerDAGForm = ({
     },
   });
 
-  // Apply a config to the form and param store, resetting the other fields to their defaults.
-  // Only 'conf' (parameters) is ever restored, never logicalDate, runId, or partitionKey, to avoid 409 conflicts.
-  // Shared by the prefill effect below (re-trigger with a prior run's config) and RecentConfigSelect.
-  const applyConf = useCallback(
-    (confObj: Record<string, unknown> | undefined) => {
-      const confString = confObj ? JSON.stringify(confObj, undefined, 2) : "";
+  // Push a conf into the param store. Seed the initial params only once they are available,
+  // but always push the conf so a run's configuration propagates even
+  // for Dags with no declared params or before params load.
+  const syncConfToStore = useCallback(
+    (confString: string) => {
+      if (
+        Object.keys(initialParamsDict.paramsDict).length > 0 &&
+        Object.keys(initialParamDict).length === 0
+      ) {
+        setInitialParamDict(initialParamsDict.paramsDict);
+      }
+      setConf(confString);
+    },
+    [initialParamDict, initialParamsDict.paramsDict, setConf, setInitialParamDict],
+  );
+
+  // Selecting a recent configuration mid-edit only swaps the conf; whatever the user already
+  // typed into logical date, run id, note or data interval is kept.
+  const applyRecentConf = useCallback(
+    (confObj: Record<string, unknown>) => {
+      const confString = JSON.stringify(confObj, undefined, 2);
+
+      reset((prevValues) => ({ ...prevValues, conf: confString }));
+      syncConfToStore(confString);
+    },
+    [reset, syncConfToStore],
+  );
+
+  // Pre-fill form when prefillConfig is provided. This runs on open, before any user input, so
+  // the whole form is reset. Only 'conf' is copied from the prior run; its runId and logicalDate
+  // are deliberately dropped, because POST /dagRuns rejects a run whose id or logical date
+  // already exists with 409 Conflict.
+  useEffect(() => {
+    if (prefillConfig && open) {
+      const confString = prefillConfig.conf ? JSON.stringify(prefillConfig.conf, undefined, 2) : "";
 
       reset({
         conf: confString,
@@ -110,31 +139,14 @@ const TriggerDAGForm = ({
         note: "",
         partitionKey: undefined,
       });
-      // Also update the param store to keep it in sync. Seed the initial params (for stable
-      // section ordering) only once they are available, but always push the conf so a run's
-      // configuration propagates even for Dags with no declared params or before params load.
       if (confString) {
-        if (
-          Object.keys(initialParamsDict.paramsDict).length > 0 &&
-          Object.keys(initialParamDict).length === 0
-        ) {
-          setInitialParamDict(initialParamsDict.paramsDict);
-        }
-        setConf(confString);
+        syncConfToStore(confString);
       }
-    },
-    [initialParamDict, initialParamsDict.paramsDict, isPartitioned, reset, setConf, setInitialParamDict],
-  );
-
-  // Pre-fill form when prefillConfig is provided (priority over conf)
-  useEffect(() => {
-    if (prefillConfig && open) {
-      applyConf(prefillConfig.conf);
       setHasAppliedPrefill(true);
     } else if (!open) {
       setHasAppliedPrefill(false);
     }
-  }, [prefillConfig, open, applyConf]);
+  }, [prefillConfig, open, isPartitioned, reset, syncConfToStore]);
 
   // Automatically reset form when conf is fetched (only if no prefillConfig)
   useEffect(() => {
@@ -243,7 +255,7 @@ const TriggerDAGForm = ({
             <Spacer />
           </>
         ) : undefined}
-        <RecentConfigSelect dagId={dagId} onSelectConf={applyConf} open={open} />
+        <RecentConfigSelect dagId={dagId} onSelectConf={applyRecentConf} open={open} />
         <ConfigForm
           control={control}
           errors={errors}

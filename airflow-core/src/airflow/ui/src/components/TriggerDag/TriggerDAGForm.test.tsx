@@ -272,4 +272,40 @@ describe("TriggerDAGForm", () => {
       expect(configJson.value).toContain('"From recent"');
     });
   });
+
+  it("keeps user-entered run id and note when a recent configuration is selected", async () => {
+    const { container } = render(
+      <TriggerDAGForm
+        dagDisplayName="Params Trigger UI"
+        dagId="example_params_trigger_ui"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned={false}
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={vi.fn()}
+        open
+        prefillConfig={undefined}
+      />,
+      { wrapper: Wrapper },
+    );
+
+    fireEvent.click(screen.getByText("Advanced Options"));
+    const runIdInput = await screen.findByLabelText("runId");
+
+    fireEvent.change(runIdInput, { target: { value: "my_custom_run" } });
+
+    const recentConfigSelect = screen.getByTestId("recent-config-select");
+
+    fireEvent.click(within(recentConfigSelect).getByRole("combobox"));
+    await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("run_recent"));
+
+    await waitFor(() =>
+      expect(container.querySelector<HTMLInputElement>('input[name="element_message"]')?.value).toBe(
+        "From recent",
+      ),
+    );
+    expect(screen.getByLabelText("runId")).toHaveValue("my_custom_run");
+  });
 });
