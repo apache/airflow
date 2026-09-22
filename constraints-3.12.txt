@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-09-22T05:24:46.690970
+# This constraints file was automatically generated on 2026-09-22T09:08:17.918796
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -212,7 +212,7 @@ asyncssh==2.24.0
 atlasclient==1.0.0
 atlassian-python-api==5.0.5
 attrs==26.1.0
-azure-ai-projects==2.4.0
+azure-ai-projects==2.6.1
 azure-batch==15.1.0
 azure-common==1.1.28
 azure-core==1.41.0
