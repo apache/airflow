@@ -99,11 +99,22 @@ class SandboxSpec:
     :param allow_egress_to: Hostnames the sandbox may reach when
         ``block_network`` is ``True``. An empty or unset value with
         ``block_network=True`` means no egress at all.
+    :param allow_egress_to_cidrs: IPv4 address ranges, in CIDR notation such as
+        ``"203.0.113.0/24"`` or ``"203.0.113.7/32"``, the sandbox may reach when
+        ``block_network`` is ``True``, on any port and protocol. This is the
+        right field for one service at a fixed public address; it cannot serve
+        a package registry behind a CDN, whose addresses rotate, and a hosted
+        backend cannot reach private (RFC 1918) addresses at all. A backend that
+        enforces it does so at the address layer, which is a stronger guarantee
+        than a hostname list gives, so it needs no opt-in. Both lists may be set
+        together; how a backend combines them, and what that costs, is the
+        backend's to document.
     """
 
     env: Mapping[str, str] | None = None
     block_network: bool = True
     allow_egress_to: Sequence[str] | None = None
+    allow_egress_to_cidrs: Sequence[str] | None = None
 
 
 @dataclass(frozen=True)

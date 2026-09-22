@@ -97,6 +97,54 @@ Entries must be bare hostnames or one leading ``*.`` label; a URL, a ``host:port
 an address or a single-label name is refused, because Modal applies the list without
 checking it and any of those would silently match nothing.
 
+**An address allowlist is enforced properly, and needs no opt-in.**
+``allow_egress_to_cidrs`` maps onto Modal's ``outbound_cidr_allowlist``, which
+decides on the destination address for any port and protocol. Measured on
+2026-09-22 with ``["1.1.1.1/32"]``: the listed address connected on 443 and on 53,
+an unlisted address timed out on both, and ``block_network`` with the list set was
+refused at create, as with the hostname list. This is the right mode for one
+service at a fixed public address, which is the case the hostname list serves
+worst. It cannot serve a package registry behind a CDN, whose addresses rotate
+faster than a sandbox lives.
+
+.. code-block:: python
+
+    SandboxToolset(
+        ModalSandboxBackend(),
+        spec=SandboxSpec(block_network=True, allow_egress_to_cidrs=["203.0.113.0/24", "198.51.100.7/32"]),
+    )
+
+Four things to know about it:
+
+- **The address has to be public, and IPv4.** Private ranges are unreachable from a
+  Modal sandbox whatever the allowlist says: measured, connections to ``10.20.0.1``,
+  ``172.16.0.1``, ``192.168.1.1`` and the cloud metadata address timed out both under
+  an open network and with those ranges on the allowlist, so a service on your own private
+  network cannot be reached this way; it needs a public address, or a way onto your
+  network that Modal provides and this backend does not configure. Modal's allowlist
+  also rejects IPv6 ranges outright, and the sandbox has no IPv6 route, so an IPv6
+  entry is refused here with the reason.
+
+- **Hostnames still resolve.** Modal's own resolver inside the sandbox answers
+  every lookup, so ``pypi.org`` resolves to its addresses and a connection to them
+  then times out. The tool description tells the model this so a successful lookup
+  is not read as a reachable host. DNS is therefore still a channel out, as it is
+  under the hostname list; only ``block_network=True`` with no allowlist closes it.
+- **Entries are canonical CIDR.** A bare address is written as ``/32``. A range with
+  host bits set, such as ``203.0.113.1/24``, is refused rather than widened to
+  ``203.0.113.0/24``, because that is not what was written. A hostname, a
+  URL or a ``host:port`` is refused, since Modal would accept it and match nothing.
+  ``0.0.0.0/0`` and ``::/0`` are refused too: an allowlist of every address is an
+  open network, and ``block_network=False`` is how to ask for one.
+- **Combining the two lists weakens the address one.** Modal applies them
+  together, and traffic matching either passes. Measured, adding ``pypi.org`` to the
+  hostname list beside ``["1.1.1.1/32"]`` made a TCP connection to ``8.8.8.8:443``
+  succeed, because port 443 is then routed by handshake name for every address. So
+  a combined spec has the address list's guarantee on every port except 443, and
+  the hostname list's caveats there. The hostname half keeps its
+  ``egress_enforcement="sni"`` opt-in when combined, and the backend logs a warning
+  at create naming the weakening.
+
 **What the image needs.** ``write_file`` and ``list_directory`` use Modal's own
 filesystem API, served by a helper Modal injects into the sandbox, so they need
 nothing from the image. ``read_file`` deliberately does not: Modal's read API takes
@@ -165,7 +213,8 @@ behaves identically in both places:
   one, so set ``cpu``.
 - **Egress allowlists.** ``sbx`` enforces ``allow_egress_to`` at the host policy
   layer; Modal matches TLS handshake names, which is weaker and has to be opted
-  into.
+  into. ``allow_egress_to_cidrs`` is enforced at the address layer on Modal and
+  refused on ``sbx``, which has no per-sandbox address rule.
 - **Command timeouts.** A timeout destroys an ``sbx`` sandbox and its files; a
   Modal sandbox survives with its files intact.
 - **Symlinks.** ``write_file`` through a symlink follows the link on ``sbx`` and

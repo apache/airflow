@@ -389,7 +389,9 @@ is the list to read before designing a Dag around an agent with a sandbox.
   ``AgentOperator`` raises. :ref:`Lifecycle <sandbox-lifecycle>`.
 - **A run that outlives** ``sandbox_timeout`` **fails the task.**
   :ref:`Lifecycle <sandbox-lifecycle>`.
-- **The hostname allowlist is a weak control** and refused unless opted into.
+- **The hostname allowlist is a weak control** and refused unless opted into. The
+  address allowlist is enforced properly but cannot serve a package registry whose
+  addresses rotate.
   :ref:`Modal <sandbox-backend-modal>`.
 - **Commands run as root and** ``workdir`` **is not a jail.**
   :ref:`Modal <sandbox-backend-modal>`.
