@@ -115,6 +115,7 @@ from airflow.api_fastapi.common.parameters.misc import (
 )
 from airflow.api_fastapi.common.parameters.range import (
     DateTimeQuery as DateTimeQuery,
+    NullableDatetimeRangeFilter as NullableDatetimeRangeFilter,
     OptionalDateTimeQuery as OptionalDateTimeQuery,
     Range as Range,
     RangeFilter as RangeFilter,

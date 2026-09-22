@@ -5304,6 +5304,14 @@ export class GanttService {
      * @param data The data for the request.
      * @param data.dagId
      * @param data.runId
+     * @param data.startDateGte
+     * @param data.startDateGt
+     * @param data.startDateLte
+     * @param data.startDateLt
+     * @param data.endDateGte
+     * @param data.endDateGt
+     * @param data.endDateLte
+     * @param data.endDateLt
      * @returns GanttResponse Successful Response
      * @throws ApiError
      */
@@ -5314,6 +5322,16 @@ export class GanttService {
             path: {
                 dag_id: data.dagId,
                 run_id: data.runId
+            },
+            query: {
+                start_date_gte: data.startDateGte,
+                start_date_gt: data.startDateGt,
+                start_date_lte: data.startDateLte,
+                start_date_lt: data.startDateLt,
+                end_date_gte: data.endDateGte,
+                end_date_gt: data.endDateGt,
+                end_date_lte: data.endDateLte,
+                end_date_lt: data.endDateLt
             },
             errors: {
                 404: 'Not Found',
