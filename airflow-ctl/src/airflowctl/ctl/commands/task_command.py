@@ -141,4 +141,6 @@ def state(args, api_client=NEW_API_CLIENT) -> None:
             sys.exit(1)
         raise
 
+    # Unset states print as None to stay drop-in compatible with the deprecated
+    # `airflow tasks state`, which prints its nullable `ti.state` column directly.
     print(task_instance.state.value if task_instance.state else None)
