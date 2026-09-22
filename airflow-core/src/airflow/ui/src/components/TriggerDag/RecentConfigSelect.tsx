@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { createListCollection, Flex, Select, type SelectValueChangeDetails, Text } from "@chakra-ui/react";
 import { useMemo, useState } from "react";
+
+import { createListCollection, Flex, Select, type SelectValueChangeDetails, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import { useDagRunServiceGetDagRuns } from "openapi/queries";
