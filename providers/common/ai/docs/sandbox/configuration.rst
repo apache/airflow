@@ -42,8 +42,8 @@ being in force.
         ),
     )
 
-**Network.** Three modes exist. ``block_network=True``, the default, drops all
-outbound traffic including name resolution. On Modal it maps onto the sandbox's
+**Network.** ``block_network=True``, the default, drops all outbound traffic
+including name resolution. On Modal it maps onto the sandbox's
 own ``block_network`` flag. ``sbx`` has no per-sandbox enforcement of it at all:
 egress there is a host-level ``sbx policy``, so the backend honors the default by
 refusing to provision unless the Deployment Manager has declared
@@ -56,8 +56,14 @@ since a local rule can narrow egress and never widen it, and Modal matches
 hostnames in the TLS handshake, which is weaker than it sounds and has to be
 opted into with ``egress_enforcement="sni"`` (see
 :ref:`the Modal backend <sandbox-backend-modal>` for exactly what it does and does
-not stop). ``block_network=False`` opens outbound access; on Modal the cloud
-metadata endpoint and private address ranges stay unreachable even then.
+not stop). ``allow_egress_to_cidrs`` names address ranges instead, and on Modal it
+is enforced on the destination address for any port, so it needs no opt-in; it is
+the mode for one service at a fixed public IPv4 address, and ``sbx`` refuses it. A
+private address is unreachable from a hosted sandbox whether or not it is listed.
+The two lists can be set together, and traffic matching either is allowed, which
+weakens the address list on port 443.
+``block_network=False`` opens outbound access; on Modal the cloud metadata
+endpoint and private address ranges stay unreachable even then.
 
 **Packages.** A default sandbox has the Python standard library and no network,
 so an agent that reaches for ``pip install`` gets a DNS failure in a few seconds.

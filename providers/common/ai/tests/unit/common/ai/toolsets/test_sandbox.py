@@ -210,6 +210,41 @@ class TestNetworkNote:
         assert "plain HTTP" in description
 
     @pytest.mark.asyncio
+    async def test_an_address_allowlist_names_the_ranges_and_that_names_still_resolve(self):
+        # Measured: hostnames resolve under a CIDR list, but only listed addresses answer.
+        # Without saying so the model reads a successful lookup as a reachable host.
+        toolset = SandboxToolset(
+            _RecordingBackend(),
+            spec=SandboxSpec(block_network=True, allow_egress_to_cidrs=["10.20.0.0/16", "203.0.113.7/32"]),
+        )
+
+        description = (await toolset.get_tools(_ctx()))["run_command"].tool_def.description
+        assert "10.20.0.0/16, 203.0.113.7/32" in description
+        assert "on any port" in description
+        assert "hostnames still resolve" in description
+        assert "plain HTTP" not in description, "plain HTTP is only a trap under the hostname list"
+
+    @pytest.mark.asyncio
+    async def test_both_lists_are_described_together(self):
+        toolset = SandboxToolset(
+            _RecordingBackend(),
+            spec=SandboxSpec(
+                block_network=True, allow_egress_to=["pypi.org"], allow_egress_to_cidrs=["10.20.0.0/16"]
+            ),
+        )
+
+        description = (await toolset.get_tools(_ctx()))["run_command"].tool_def.description
+        assert (
+            "over HTTPS on port 443 only: pypi.org; and these address ranges, on any port: 10.20.0.0/16"
+            in (description)
+        )
+        # Plain HTTP fails for the hosts but not for the ranges, which take any port, so the
+        # blanket "plain HTTP to any host will fail" of the hosts-only note would be wrong here.
+        assert "plain HTTP to them fails" in description
+        assert "address ranges accept any port" in description
+        assert "plain HTTP to any host" not in description
+
+    @pytest.mark.asyncio
     async def test_an_open_sandbox_says_so(self):
         toolset = SandboxToolset(_RecordingBackend(), spec=SandboxSpec(block_network=False))
 

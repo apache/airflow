@@ -71,10 +71,11 @@ Getting started
 * :doc:`installation` — which extra to install for your model vendor.
 * :doc:`quickstart` — a connection and a first ``@task.llm`` in three steps.
 * :doc:`concepts` — connections, operators, toolsets, hooks and XCom in one page.
+* :doc:`use_cases/index` — jobs a data team already has, each with the Dag that does it.
 
 .. toctree::
+    :titlesonly:
     :hidden:
-    :maxdepth: 1
     :caption: Basics
 
     Home <self>
@@ -82,106 +83,33 @@ Getting started
     Security <security>
 
 .. toctree::
+    :titlesonly:
     :hidden:
-    :maxdepth: 1
     :caption: Getting started
 
     Installation <installation>
     Quick start <quickstart>
     Core concepts <concepts>
-    Structured output <structured_output>
 
 .. toctree::
+    :titlesonly:
     :hidden:
-    :maxdepth: 1
-    :caption: Models and providers
+    :caption: Guides
 
-    Pydantic AI connection <connections/pydantic_ai>
-    Azure OpenAI <connections/pydantic_ai_azure>
-    AWS Bedrock <connections/pydantic_ai_bedrock>
-    Google Vertex AI <connections/pydantic_ai_vertex>
-    Self-hosted models <self_hosted_models>
-    Classifier models <classifier_models>
-    Provider fallback <provider_fallback>
-    PydanticAIHook <hooks/pydantic_ai>
-    LangChainHook <hooks/langchain>
+    What you can build <use_cases/index>
+    Models and providers <model_providers>
+    Operators <operators/index>
+    Toolsets <toolsets/index>
+    LLM and agent features <features>
+    Document and RAG pipelines <rag_pipelines>
+    Reliability and operations <operations>
 
 .. toctree::
+    :titlesonly:
     :hidden:
-    :maxdepth: 1
-    :caption: Operators
-
-    Choosing an operator <operators/index>
-    LLMOperator <operators/llm>
-    LLMBranchOperator <operators/llm_branch>
-    LLMFileAnalysisOperator <operators/llm_file_analysis>
-    LLMSQLQueryOperator <operators/llm_sql>
-    LLMSchemaCompareOperator <operators/llm_schema_compare>
-    LLMBatchOperator <operators/llm_batch>
-    AgentOperator <operators/agent>
-    Approval gates <approval_gates>
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
-    :caption: Toolsets
-
-    Choosing a toolset <toolsets/index>
-    HookToolset <toolsets/hook>
-    SQLToolset <toolsets/sql>
-    DataFusionToolset <toolsets/datafusion>
-    LoggingToolset <toolsets/logging>
-    MCPToolset <toolsets/mcp>
-    AgentSkillsToolset <toolsets/skills>
-    Managed agent toolsets <toolsets/managed_agent>
-    LangChain bridge <toolsets/langchain>
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
-    :caption: Running agents
-
-    Message history <message_history>
-    Guardrails <guardrails>
-    Code mode <code_mode>
-    Sandboxed execution <sandbox/index>
-    HITL review <hitl_review>
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
-    :caption: Document and RAG pipelines
-
-    DocumentLoaderOperator <operators/document_loader>
-    LlamaIndexEmbeddingOperator <operators/llamaindex_embedding>
-    LlamaIndexRetrievalOperator <operators/llamaindex_retrieval>
-    LlamaIndex connection <connections/llamaindex>
-    LlamaIndexHook <hooks/llamaindex>
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
-    :caption: Reliability and operations
-
-    Durable execution <durable_execution>
-    Retry policies <retry_policies>
-    Observability <observability>
-    Securing agent tools <agent_security>
-    Troubleshooting <troubleshooting>
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
-    :caption: Examples
-
-    Examples by scenario <examples>
-    End-to-end pipelines <end_to_end_pipelines>
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
     :caption: References
 
+    Example Dags <examples>
     Configuration <configurations-ref>
     Python API <_api/airflow/providers/common/ai/index>
 

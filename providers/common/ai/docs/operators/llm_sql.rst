@@ -17,8 +17,8 @@
 
 .. _howto/operator:llm_sql_query:
 
-``LLMSQLQueryOperator``
-========================
+Natural language to SQL: ``LLMSQLQueryOperator``
+================================================
 
 Use :class:`~airflow.providers.common.ai.operators.llm_sql.LLMSQLQueryOperator` to generate
 SQL queries from natural language using an LLM.

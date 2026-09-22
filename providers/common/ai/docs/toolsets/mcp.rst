@@ -15,10 +15,11 @@
     specific language governing permissions and limitations
     under the License.
 
-``MCPToolset``
-==============
+MCP servers: ``MCPToolset``
+===========================
 
 .. toctree::
+    :titlesonly:
     :hidden:
     :maxdepth: 1
 

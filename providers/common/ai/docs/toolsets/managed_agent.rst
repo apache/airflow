@@ -17,8 +17,8 @@
 
 .. _managed-agent-toolsets:
 
-Managed agent toolsets
-======================
+Vendor-managed agents: ``BaseManagedAgentToolset``
+==================================================
 
 Cloud vendors now run agents on your behalf — Snowflake Cortex Agents, Amazon
 Bedrock AgentCore runtimes, Azure AI Foundry hosted agents, Vertex AI Agent

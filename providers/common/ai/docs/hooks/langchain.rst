@@ -17,10 +17,11 @@
 
 .. _howto/hook:langchain:
 
-``LangChainHook``
-=================
+LangChain models: ``LangChainHook``
+===================================
 
 .. toctree::
+    :titlesonly:
     :hidden:
     :maxdepth: 1
 

@@ -20,7 +20,8 @@
 Core concepts
 =============
 
-Five ideas carry the whole provider. Each has a page of its own; this page is the map.
+The provider connects Airflow to a model through a connection, runs the call or the agent
+loop inside a task, gives agents tools through toolsets, and returns results through XCom.
 
 Connections choose the model
 ----------------------------

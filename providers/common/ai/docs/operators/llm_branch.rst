@@ -17,8 +17,8 @@
 
 .. _howto/operator:llm_branch:
 
-``LLMBranchOperator``
-=====================
+Branch on an answer: ``LLMBranchOperator``
+==========================================
 
 Use :class:`~airflow.providers.common.ai.operators.llm_branch.LLMBranchOperator`
 for LLM-driven branching — where the LLM decides which downstream task(s) to

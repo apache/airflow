@@ -17,16 +17,14 @@
 
 .. _howto/examples:
 
-Examples
-========
+Example Dags
+============
 
-Every operator, decorator, and integration in this provider has a runnable Dag under
-`example_dags <https://github.com/apache/airflow/tree/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags>`__.
-This page groups them by scenario. Guides embed the same Dags inline where a step-by-step
-walkthrough exists; the rest are linked directly to source below.
+Every operator, decorator and integration has a runnable Dag under
+`example_dags <https://github.com/apache/airflow/tree/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags>`__,
+listed here by operator. Guides embed the Dags they walk through; the rest link to source.
 
-New to the provider? Start with :doc:`operators/index` to pick an operator, then come back here
-for a worked example of the pattern you need.
+For what to build rather than how, start at :doc:`use_cases/index`.
 
 Single-prompt tasks
 --------------------
@@ -38,17 +36,21 @@ Single-prompt tasks
    * - Guide
      - What it shows
    * - :doc:`operators/llm`
-     - ``@task.llm`` for text, structured output, classification, and dynamic task mapping over
-       LLM results
+     - Summarize and extract entities, grade incident severity, and
+       :doc:`triage a queue of support tickets <use_cases/triage_support_tickets>` one mapped
+       task at a time
        (`example_llm.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_llm.py>`__,
        `example_llm_classification.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_llm_classification.py>`__,
        `example_llm_analysis_pipeline.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_llm_analysis_pipeline.py>`__).
    * - :doc:`operators/llm_branch`
-     - ``@task.llm_branch`` picking which downstream task runs.
+     - Let the model pick which downstream task runs, and
+       :doc:`route a failed task to rerun, page or ignore <use_cases/route_pipeline_failures>`
+       with a confidence bar.
    * - :doc:`operators/llm_file_analysis`
      - ``@task.llm_file_analysis`` reasoning over files, images, and PDFs.
    * - :doc:`operators/llm_schema_compare`
-     - ``@task.llm_schema_compare`` comparing two schemas with an LLM.
+     - Compare two schemas and
+       :doc:`block a load when they drifted <use_cases/gate_loads_on_schema_drift>`.
    * - :doc:`operators/llm_sql`
      - ``@task.llm_sql`` generating SQL from a natural-language question.
 
@@ -62,8 +64,9 @@ Batch processing
    * - Guide
      - What it shows
    * - :doc:`operators/llm_batch`
-     - ``@task.llm_batch`` submitting many prompts as one OpenAI/Anthropic batch job, with
-       structured output and manifest-based results
+     - :doc:`Classify thousands of reviews at half the price <use_cases/classify_reviews_in_bulk>`
+       through one OpenAI or Anthropic batch job, with structured output and results landed on
+       object storage
        (`example_llm_batch.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_llm_batch.py>`__).
 
 Agents & tools
@@ -90,9 +93,10 @@ Agents & tools
      - Connecting an agent to an MCP server through an Airflow connection.
    * - :doc:`hitl_review`
      - Adding a human-in-the-loop review gate to agent output.
-   * - `example_langchain_tool_agent.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_langchain_tool_agent.py>`__
+   * - :doc:`use_cases/research_agent_with_review`
      - A LangChain ReAct agent that decides its own tool calls, composed with ``LLMOperator`` for
-       report formatting and AIP-90 HITL review.
+       report formatting and AIP-90 HITL review
+       (`example_langchain_tool_agent.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_langchain_tool_agent.py>`__).
 
 Retrieval & document processing
 --------------------------------
@@ -112,35 +116,40 @@ Retrieval & document processing
    * - :doc:`hooks/llamaindex`
      - ``LlamaIndexHook`` plus the embedding and retrieval operators.
 
-End-to-end scenarios
----------------------
+By use case
+-----------
 
-Production-shaped Dags that combine several of the patterns above into one pipeline. See
-:doc:`end_to_end_pipelines` for the architecture behind each one.
+Dags written around a job. Each has a page under :doc:`use_cases/index` with the Dag
+embedded and steps to run it.
 
 .. list-table::
    :header-rows: 1
    :widths: 30 70
 
-   * - Example
-     - What it shows
-   * - `example_llamaindex_rag.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_llamaindex_rag.py>`__
-     - Three RAG shapes with LlamaIndex: a single load-embed-retrieve-answer Dag, a production-shaped
-       split into scheduled indexing plus on-demand query Dags, and multi-source RAG.
-   * - `example_llamaindex_10k.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_llamaindex_10k.py>`__,
-       `example_langchain_10k.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_langchain_10k.py>`__
-     - SEC 10-K financial analysis against live EDGAR filings: one Dag indexes filings on a
-       schedule, the other decomposes a comparison question at runtime and fans out retrieval with
-       Dynamic Task Mapping. One variant per RAG library.
-   * - `example_llm_survey_analysis.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_llm_survey_analysis.py>`__
-     - Natural-language querying of a CSV via ``LLMSQLQueryOperator`` and ``AnalyticsOperator``,
-       interactive and scheduled variants.
-   * - `example_llm_survey_agentic.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_llm_survey_agentic.py>`__
-     - The same survey data, analyzed by fanning a multi-dimensional research question into an
-       agentic multi-query synthesis pipeline.
-   * - `example_aip_progress_tracker.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_aip_progress_tracker.py>`__
-     - The same use case -- tracking Airflow Improvement Proposal progress -- solved two ways, a
-       deterministic pipeline and an autonomous agent, to compare the tradeoff.
+   * - Use case
+     - Source
+   * - :doc:`use_cases/ask_questions_over_pdfs`
+     - `example_llamaindex_rag.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_llamaindex_rag.py>`__: a weekly indexing Dag
+       plus an on-demand query Dag, with single-Dag and multi-source variants.
+   * - :doc:`use_cases/compare_10k_filings`
+     - `example_llamaindex_10k.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_llamaindex_10k.py>`__ and
+       `example_langchain_10k.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_langchain_10k.py>`__: live SEC EDGAR filings,
+       per-company retrieval fan-out, human review at both ends. One variant per RAG library.
+   * - :doc:`use_cases/monthly_report_from_a_csv`
+     - `example_llm_survey_analysis.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_llm_survey_analysis.py>`__: download,
+       schema check, generated SQL, email; plus an interactive variant with HITL.
+       `example_llm_survey_agentic.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_llm_survey_agentic.py>`__ fans a
+       multi-dimensional question out one SQL query per dimension.
+   * - :doc:`use_cases/explain_revenue_anomaly`
+     - `example_sandbox_toolset.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_sandbox_toolset.py>`__: an agent with a
+       read-only warehouse toolset and a sandbox for the arithmetic.
+   * - :doc:`use_cases/weekly_status_report`
+     - `example_aip_progress_tracker.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_aip_progress_tracker.py>`__: the same
+       report built as a deterministic pipeline with a hallucination check and as one
+       autonomous agent.
+   * - :doc:`use_cases/research_agent_with_review`
+     - `example_langchain_tool_agent.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_langchain_tool_agent.py>`__: a LangChain
+       ReAct agent between a question-review gate and a report-approval gate.
 
 Reliability
 -----------
