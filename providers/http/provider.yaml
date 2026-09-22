@@ -137,4 +137,3 @@ connection-types:
           type:
             - boolean
             - "null"
-          default: false

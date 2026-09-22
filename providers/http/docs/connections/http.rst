@@ -64,6 +64,8 @@ Use DNS SRV Lookup (optional)
     first, weighted random within the same priority. If a connection to a target cannot be established,
     the request fails over to the next target.
 
+    Resolving SRV records requires the ``srv`` extra: ``pip install apache-airflow-providers-http[srv]``.
+
 Extra (optional)
     Specify headers and default requests parameters in json format.
     Following default requests parameters are taken into account:
