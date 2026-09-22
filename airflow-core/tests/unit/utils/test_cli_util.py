@@ -259,6 +259,21 @@ class TestCliUtil:
                 "airflow celery flower -p 8888",
                 False,
             ),
+            (
+                "airflow keycloak-auth-manager create-scopes --username admin --password s3cr3t",
+                "airflow keycloak-auth-manager create-scopes --username admin --password ********",
+                False,
+            ),
+            (
+                "airflow keycloak-auth-manager create-scopes --username admin --password=s3cr3t",
+                "airflow keycloak-auth-manager create-scopes --username admin --password=********",
+                False,
+            ),
+            (
+                "airflow api-server -p 8080",
+                "airflow api-server -p 8080",
+                False,
+            ),
         ],
     )
     def test_cli_create_user_supplied_password_is_masked(

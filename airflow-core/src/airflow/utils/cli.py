@@ -206,6 +206,10 @@ def _build_metrics(func_name, namespace):
     sub_commands_to_check_for_sensitive_fields = {"users", "connections"}
     sub_commands_to_check_for_sensitive_key = {"variables"}
     sensitive_fields = {"-p", "--password", "--conn-password"}
+    # The long spellings name a password on every subcommand, including ones contributed by
+    # providers (``keycloak-auth-manager ... --password``), so they are masked everywhere. ``-p``
+    # is only a password on the subcommands above; elsewhere it is e.g. ``--port``.
+    always_sensitive_fields = {"--password", "--conn-password"}
     full_command = list(sys.argv)
     sub_command = full_command[1] if len(full_command) > 1 else None
     # For cases when value under sub_commands_to_check_for_sensitive_key have sensitive info
@@ -218,14 +222,20 @@ def _build_metrics(func_name, namespace):
         value = getattr(namespace, "value", None)
         if key and value and _secrets_masker().should_hide_value_for_key(key):
             full_command = [MASKED_VALUE if arg == value else arg for arg in full_command]
-    elif sub_command in sub_commands_to_check_for_sensitive_fields:
+    else:
+        fields = (
+            sensitive_fields
+            if sub_command in sub_commands_to_check_for_sensitive_fields
+            else always_sensitive_fields
+        )
         for idx, command in enumerate(full_command):
-            if command in sensitive_fields:
+            if command in fields:
                 # For cases when password is passed as "--password xyz" (with space between key and value)
-                full_command[idx + 1] = MASKED_VALUE
+                if idx + 1 < len(full_command):
+                    full_command[idx + 1] = MASKED_VALUE
             else:
                 # For cases when password is passed as "--password=xyz" (with '=' between key and value)
-                for sensitive_field in sensitive_fields:
+                for sensitive_field in fields:
                     if command.startswith(f"{sensitive_field}="):
                         full_command[idx] = f"{sensitive_field}={MASKED_VALUE}"
 
