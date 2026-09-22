@@ -35,6 +35,12 @@ both a relative margin (``REL_THRESHOLD``) and an absolute floor
 (``MIN_ABS_INCREASE_MINUTES`` / ``JOB_MIN_ABS_INCREASE_MINUTES``) so short jobs
 with noisy timings do not trigger spurious alerts.
 
+Per-job alerts have a third gate, because a median over the latest window still
+reports a job that had two slow nights and then recovered. With
+``JOB_REQUIRE_SUSTAINED`` (the default) *every* run in the latest window must clear
+the relative threshold on its own, not just their median, so a blip that has already
+passed is not announced as a regression (:func:`is_sustained`).
+
 Steps that build, pull or push images (``IMAGE_WORK_STEP_PREFIXES`` — preparing the
 CI/PROD image in a test job, and the build+push of the image-cache jobs) occasionally
 balloon on a one-off cache miss, so their time is *excluded* from the run and per-job
@@ -57,6 +63,9 @@ Environment variables (optional):
   REL_THRESHOLD             - Relative increase over baseline to flag, e.g. 0.25 = 25% (default: 0.25)
   MIN_ABS_INCREASE_MINUTES  - Absolute floor for the overall-run alert (default: 5)
   JOB_MIN_ABS_INCREASE_MINUTES - Absolute floor for per-job alerts (default: 3)
+  JOB_REQUIRE_SUSTAINED     - Require every run in the latest window to be above the
+                              relative threshold, not just their median ("true"/"false",
+                              default: true)
   IMAGE_BUILD_PERSISTENCE_DAYS - Only report a slow image build once it has stayed
                               elevated for at least this many days (default: 2)
   ANALYZE_JOBS              - Whether to fetch per-job durations ("true"/"false", default: true)
@@ -189,6 +198,37 @@ def median(values: list[float]) -> float:
     return (ordered[mid - 1] + ordered[mid]) / 2
 
 
+# How many recent runs the report shows per flagged job, and in its recent-runs list.
+# Enough to see the swing a job normally has; more turns the Slack message into a table.
+RECENT_VALUES_SHOWN = 8
+
+
+def usual_range(values: list[float]) -> tuple[float, float]:
+    """Return the middle half (25th-75th percentile, nearest rank) of ``values``.
+
+    Reported as the band a job usually lands in. The middle half rather than min-max
+    because a window that happens to contain one cache-cold 58-minute night would
+    otherwise claim that night as "usual" and make the alert unreadable.
+    """
+    ordered = sorted(values)
+    last = len(ordered) - 1
+    return ordered[min(int(0.25 * len(ordered)), last)], ordered[min(int(0.75 * len(ordered)), last)]
+
+
+def is_sustained(latest_values: list[float], baseline: float, rel_threshold: float) -> bool:
+    """Whether *every* run in the latest window is itself above the relative threshold.
+
+    The median of the latest window is not enough on its own. A job that ran 25m, 33m,
+    34m has a latest median of 33m against a 25m baseline — but its most recent run was
+    back at baseline, so the two slow nights were a blip, not a trend. Requiring each run
+    in the window to clear the threshold is what separates that from a real regression,
+    where every run after the change is slow (verified against 17 canary runs of
+    2026-09-12..21: it keeps the constraints-check regressions and drops the DB-test and
+    image-build blips).
+    """
+    return all(value >= baseline * (1 + rel_threshold) for value in latest_values)
+
+
 def format_duration(seconds: float) -> str:
     """Format a duration in seconds as e.g. ``29m 41s``."""
     total = int(round(seconds))
@@ -196,6 +236,46 @@ def format_duration(seconds: float) -> str:
     if minutes == 0:
         return f"{secs}s"
     return f"{minutes}m {secs:02d}s"
+
+
+def format_duration_compact(seconds: float) -> str:
+    """Format a duration for a series of many values, e.g. ``33m``.
+
+    Whole minutes: a reader scanning a job's last runs is judging a swing of minutes,
+    and the seconds turn the series into a wall of digits.
+    """
+    if seconds < 60:
+        return f"{int(round(seconds))}s"
+    return f"{int(round(seconds / 60))}m"
+
+
+def format_duration_series(values: list[float]) -> str:
+    """Render newest-first durations as ``33m · 31m · 42m``."""
+    return " · ".join(format_duration_compact(value) for value in values)
+
+
+def format_usual_range(band: tuple[float, float] | None) -> str:
+    """Render a baseline band as ``, usually 16m 00s–23m 00s``, or nothing when absent."""
+    if not band:
+        return ""
+    low, high = band
+    return f", usually {format_duration(low)}–{format_duration(high)}"
+
+
+def format_run_timestamp(created_at: str | None) -> str:
+    """Format a run's start as ``Sep 21 13:58`` (UTC), or empty when unparsable."""
+    started = parse_iso(created_at)
+    return started.strftime("%b %d %H:%M") if started else ""
+
+
+def adjusted_run_duration(run: dict) -> float:
+    """A run's wall-clock with its image-build time removed, as the trend measures it.
+
+    Runs carry the adjusted value once :func:`main` has their jobs; falling back to the
+    raw wall-clock keeps the report readable when jobs were not fetched at all
+    (``ANALYZE_JOBS=false``).
+    """
+    return run.get("adjusted_duration", run["duration"])
 
 
 def format_duration_delta(seconds: float) -> str:
@@ -348,11 +428,14 @@ def detect_regression(
     baseline_values: list[float],
     rel_threshold: float,
     min_abs_increase_seconds: float,
+    require_sustained: bool = False,
 ) -> dict | None:
     """Compare latest durations against a baseline window.
 
     Returns a dict describing the regression when the latest median is above the
-    baseline median by both the relative threshold and the absolute floor, else None.
+    baseline median by the relative threshold and the absolute floor — and, when
+    ``require_sustained`` is set, when every run in the latest window clears the
+    relative threshold too — else None.
     """
     if not latest_values or not baseline_values:
         return None
@@ -360,12 +443,17 @@ def detect_regression(
     baseline = median(baseline_values)
     increase = latest - baseline
     rel_increase = increase / baseline if baseline > 0 else 0.0
-    if increase >= min_abs_increase_seconds and rel_increase >= rel_threshold:
+    if (
+        increase >= min_abs_increase_seconds
+        and rel_increase >= rel_threshold
+        and (not require_sustained or is_sustained(latest_values, baseline, rel_threshold))
+    ):
         return {
             "latest": latest,
             "baseline": baseline,
             "increase": increase,
             "rel_increase": rel_increase,
+            "usual_range": usual_range(baseline_values),
         }
     return None
 
@@ -386,12 +474,15 @@ def analyze_jobs(
     min_baseline_runs: int,
     rel_threshold: float,
     min_abs_increase_seconds: float,
+    require_sustained: bool,
 ) -> list[dict]:
     """Return the jobs whose latest duration regressed, image-build time excluded.
 
     The comparison uses :func:`calculate_work_duration` (wall-clock minus the image-build
     step) on both sides, so an occasional image rebuild spike does not flag a job
-    that did not actually get slower.
+    that did not actually get slower. Each job must additionally have been slow on every
+    run of the latest window (:func:`is_sustained`), so a job that has already recovered
+    does not fill the report.
     """
     latest_job_durations: dict[str, list[float]] = {}
     for run in latest_runs:
@@ -409,10 +500,13 @@ def analyze_jobs(
         if len(baseline_values) < min_baseline_runs:
             continue
         regression = detect_regression(
-            latest_values, baseline_values, rel_threshold, min_abs_increase_seconds
+            latest_values, baseline_values, rel_threshold, min_abs_increase_seconds, require_sustained
         )
         if regression:
             regression["job"] = name
+            # Newest first, latest window then baseline: the reader sees the step the alert
+            # is about with the run-to-run swing it stands out from underneath it.
+            regression["recent_values"] = (latest_values + baseline_values)[:RECENT_VALUES_SHOWN]
             regressions.append(regression)
 
     regressions.sort(key=lambda r: r["rel_increase"], reverse=True)
@@ -549,13 +643,18 @@ def format_slack_message(
         )
 
     if job_regressions:
-        lines = ["*Jobs that got slower (image build excluded):*"]
+        lines = ["*Jobs that got slower (image build excluded, slow on every recent run):*"]
         for reg in job_regressions[:15]:
             lines.append(
                 f"• *{escape_slack_mrkdwn(reg['job'])}* — "
                 f"{format_duration(reg['baseline'])} → *{format_duration(reg['latest'])}* "
-                f"(+{round(reg['rel_increase'] * 100, 1)}%)"
+                f"(+{round(reg['rel_increase'] * 100, 1)}%"
+                f"{format_usual_range(reg.get('usual_range'))})"
             )
+            if reg.get("recent_values"):
+                lines.append(
+                    f"    _last runs (newest first): {format_duration_series(reg['recent_values'])}_"
+                )
         text = "\n".join(lines)
         if len(text) > 2900:
             text = text[:2900] + "\n_...truncated_"
@@ -574,8 +673,22 @@ def format_slack_message(
             )
 
     if recent_runs:
+        run_values = [adjusted_run_duration(run) for run in recent_runs]
+        run_lines = [
+            f"*Last {min(len(recent_runs), RECENT_VALUES_SHOWN)} runs "
+            f"(image build excluded; median {format_duration(median(run_values))}"
+            f"{format_usual_range(usual_range(run_values))}):*"
+        ]
+        for run in recent_runs[:RECENT_VALUES_SHOWN]:
+            run_lines.append(
+                f"• <{run['html_url']}|#{run['run_number']}> "
+                f"{format_run_timestamp(run.get('created_at'))} — "
+                f"{format_duration(adjusted_run_duration(run))} "
+                f"(wall-clock {format_duration(run['duration'])})"
+            )
         latest_run = recent_runs[0]
         blocks.append({"type": "divider"})
+        blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": "\n".join(run_lines)}})
         blocks.append(
             {
                 "type": "context",
@@ -627,7 +740,8 @@ def write_step_summary(
         "## ⏱️ CI Duration Trend",
         "",
         f"Workflow `{workflow}` on `{branch}` — baseline from {baseline_count} preceding runs. "
-        "Image-build time is excluded from run/job durations and tracked separately.",
+        "Image-build time is excluded from run/job durations and tracked separately. "
+        "A job is only listed when every run in the latest window was slow, not just their median.",
         "",
     ]
 
@@ -660,13 +774,16 @@ def write_step_summary(
         lines += [
             "### ⚠️ Slower jobs",
             "",
-            "| Job | Baseline | Latest | Increase |",
-            "|-----|----------|--------|----------|",
+            "| Job | Baseline | Latest | Increase | Usually | Last runs (newest first) |",
+            "|-----|----------|--------|----------|---------|--------------------------|",
         ]
         for reg in job_regressions[:25]:
+            low, high = reg.get("usual_range") or (0.0, 0.0)
             lines.append(
                 f"| {reg['job']} | {format_duration(reg['baseline'])} | "
-                f"{format_duration(reg['latest'])} | +{round(reg['rel_increase'] * 100, 1)}% |"
+                f"{format_duration(reg['latest'])} | +{round(reg['rel_increase'] * 100, 1)}% | "
+                f"{format_duration(low)}–{format_duration(high)} | "
+                f"{format_duration_series(reg.get('recent_values', []))} |"
             )
         lines.append("")
     else:
@@ -676,12 +793,14 @@ def write_step_summary(
         lines += [
             "### Recent run durations",
             "",
-            "| Run | Event | Duration |",
-            "|-----|-------|----------|",
+            "| Run | Started (UTC) | Image build excluded | Wall-clock |",
+            "|-----|---------------|----------------------|------------|",
         ]
         for run in recent_runs[:15]:
             lines.append(
-                f"| [#{run['run_number']}]({run['html_url']}) | {run['event']} | "
+                f"| [#{run['run_number']}]({run['html_url']}) | "
+                f"{format_run_timestamp(run.get('created_at'))} | "
+                f"{format_duration(adjusted_run_duration(run))} | "
                 f"{format_duration(run['duration'])} |"
             )
         lines.append("")
@@ -701,6 +820,7 @@ def main() -> None:
     rel_threshold = env_float("REL_THRESHOLD", 0.25)
     min_abs_increase_seconds = env_float("MIN_ABS_INCREASE_MINUTES", 5.0) * 60
     job_min_abs_increase_seconds = env_float("JOB_MIN_ABS_INCREASE_MINUTES", 3.0) * 60
+    job_require_sustained = env_bool("JOB_REQUIRE_SUSTAINED", True)
     image_build_persistence_days = env_float("IMAGE_BUILD_PERSISTENCE_DAYS", 2.0)
     do_analyze_jobs = env_bool("ANALYZE_JOBS", True)
     only_successful = env_bool("ONLY_SUCCESSFUL", True)
@@ -733,9 +853,13 @@ def main() -> None:
         image_build = calculate_image_build_seconds(jobs_by_run_id.get(run["id"], {})) or 0.0
         return max(run["duration"] - image_build, 0.0)
 
+    # Stored on the run so the report can show the same figure the trend is measured on.
+    for run in runs:
+        run["adjusted_duration"] = calculate_adjusted_run_duration(run)
+
     overall_regression = detect_regression(
-        [calculate_adjusted_run_duration(r) for r in latest_runs],
-        [calculate_adjusted_run_duration(r) for r in baseline_runs],
+        [adjusted_run_duration(r) for r in latest_runs],
+        [adjusted_run_duration(r) for r in baseline_runs],
         rel_threshold,
         min_abs_increase_seconds,
     )
@@ -759,6 +883,7 @@ def main() -> None:
             min_baseline_runs,
             rel_threshold,
             job_min_abs_increase_seconds,
+            job_require_sustained,
         )
         print(f"Jobs that regressed: {len(job_regressions)}")
 
