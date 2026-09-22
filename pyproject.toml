@@ -1442,6 +1442,17 @@ ci-image = [
 # floor; `scripts/ci/prek/upgrade_important_versions.py` deliberately skips it.
 required-version = ">=0.11.8"
 no-build-isolation-package = ["sphinx-redoc"]
+# pydantic-ai-slim[openai]>=2.33 declares openai>=3 (>=3.8 from 2.39), while
+# llama-index-llms-openai (<=0.8.1) and litellm (<=1.102.0, pulled in by the Google provider's
+# google-cloud-aiplatform[evaluation]) still cap openai below 3. Without this override the
+# workspace lock cannot move pydantic-ai-slim past 2.31, which is incompatible with anthropic
+# 1.x, so the Anthropic path could not run in the CI image at all. Holding openai on 2.x is the
+# pairing constraints-main already ships and the one `pip check` in the image build accepts
+# (pip ignores extra-gated requirements, but not llama-index's unconditional cap). pydantic-ai's
+# OpenAI model works against openai 2.x at runtime; the declared floor tracks the SDK's httpx2
+# move. Published wheels are unaffected: overrides only shape uv.lock and the CI image. Drop this
+# once run-llama/llama_index#22939 and BerriAI/litellm#40317 land and both allow openai 3.
+override-dependencies = ["openai>=2.47.0,<3"]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
 exclude-newer = "4 days"
 
