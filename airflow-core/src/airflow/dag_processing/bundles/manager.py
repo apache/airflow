@@ -233,6 +233,8 @@ class DagBundlesManager(LoggingMixin):
     def get_active_bundle_metadata(self) -> tuple[DagBundleMetadata, ...]:
         """Get metadata for all active Dag bundles, including example bundles."""
         bundle_metadata = {metadata.name: metadata for metadata in self._get_provider_bundle_metadata()}
+        if not bundle_metadata:
+            return ()
 
         # Airflow owns example Dag bundles; configured providers do not need to include them.
         for name in self._example_dag_bundle_paths:
