@@ -45,6 +45,7 @@ from airflow_e2e_tests.constants import (
     GO_SDK_DAGS_PATH,
     GO_SDK_EXAMPLE_BUNDLE_PKG,
     GO_SDK_ROOT_PATH,
+    GO_SDK_STATE_STORE_RETENTION_DAYS,
     JAVA_COMPOSE_PATH,
     JAVA_DOCKERFILE_PATH,
     JAVA_SDK_EXAMPLE_DAGS_PATH,
@@ -646,6 +647,12 @@ def _setup_go_sdk_integration(dot_env_file, tmp_dir):
         "AIRFLOW_VAR_MY_VARIABLE=test_value\n"
     )
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
+
+    # Config file, not an env var: the supervisor copies the worker environment into the Go
+    # subprocess, so an env var would reach Go even without the propagation under test.
+    (tmp_dir / "config" / "airflow.cfg").write_text(
+        f"[state_store]\ndefault_retention_days = {GO_SDK_STATE_STORE_RETENTION_DAYS}\n"
+    )
 
 
 def _setup_openlineage_integration(dot_env_file, tmp_dir, compose_file_names):

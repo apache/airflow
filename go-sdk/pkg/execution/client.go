@@ -18,16 +18,18 @@
 package execution
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
 	"os"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vmihailenco/msgpack/v5"
 
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 	"github.com/apache/airflow/go-sdk/sdk"
@@ -43,13 +45,11 @@ const (
 	errCodeTaskStoreNotFound  = "TASK_STORE_NOT_FOUND"
 )
 
-// Airflow's config is not readable from a language SDK runtime, so the supervisor
-// resolves it and passes it in the environment at launch (see
-// task-sdk/src/airflow/sdk/coordinators/_subprocess.py).
+// A language SDK runtime cannot read Airflow config, so the supervisor passes
+// this setting at launch (task-sdk/src/airflow/sdk/coordinators/_subprocess.py).
 const defaultRetentionDaysEnv = "AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS"
 
-// Fallback for a runtime not started by the coordinator (unit tests, a binary run
-// by hand). Matches config.yml's [state_store] default_retention_days default.
+// Matches config.yml's [state_store] default_retention_days default.
 const fallbackRetentionDays = 30
 
 // translateApiError converts a supervisor *ApiError whose Err field matches
@@ -71,11 +71,8 @@ func translateApiError(err error, code string, sentinel error, key string) error
 // over the comm socket using msgpack-framed IPC instead of HTTP.
 type CoordinatorClient struct {
 	comm *CoordinatorComm
-	// tiID is bound at construction rather than taken per call because the
-	// Execution API confines the task state store to the caller's own task
-	// instance (the "ti:self" scope). A per-call task instance would advertise
-	// an addressing freedom the API does not grant. PushXCom takes an
-	// sdk.TaskInstance for the opposite reason: XCom is genuinely cross-task.
+	// Bound at construction, not per call: the Execution API scopes the task
+	// state store to the caller's own task instance ("ti:self").
 	tiID string
 }
 
@@ -89,15 +86,10 @@ func NewCoordinatorClient(comm *CoordinatorComm, tiID string) *CoordinatorClient
 	}
 }
 
-// resolveDefaultExpiry computes the expiry a SetTaskState key gets when the
-// caller does not choose one. A nil expiry means "never expires", matching
-// Python's default_retention_days=0, which disables time-based cleanup. It is
-// an untyped nil so msgpack encodes it as null.
-//
-// A misconfigured deployment is reported rather than papered over, so a Go task
-// fails the same way a Python one does instead of silently retaining keys for a
-// different period. Only an absent value falls back: that means the runtime was
-// not launched by the coordinator, which has no Python counterpart.
+// resolveDefaultExpiry returns nil ("never expires") for a retention of 0.
+// Only an absent env value falls back (the runtime was not launched by the
+// coordinator); a malformed one fails as it does in Python rather than silently
+// retaining keys for a different period.
 func resolveDefaultExpiry(now time.Time) (any, error) {
 	days := fallbackRetentionDays
 	if raw := os.Getenv(defaultRetentionDaysEnv); raw != "" {
@@ -113,9 +105,7 @@ func resolveDefaultExpiry(now time.Time) (any, error) {
 	return now.UTC().AddDate(0, 0, days), nil
 }
 
-// parseRetentionDays mirrors the Python config parser's getint, which also
-// accepts a float spelling of a whole number ("7.0"), and the range check
-// airflow.sdk.execution_time.context applies to the parsed value.
+// parseRetentionDays accepts "7.0" because Python's getint does.
 func parseRetentionDays(raw string) (int, error) {
 	days, err := strconv.Atoi(raw)
 	if err != nil {
@@ -354,10 +344,8 @@ func (c *CoordinatorClient) UnmarshalJSONTaskState(
 	if err != nil {
 		return err
 	}
-	// The wire form is msgpack, so the value arrives as a decoded Go value
-	// (map, slice, number) rather than the JSON text UnmarshalJSONVariable
-	// gets. Round-tripping it through JSON is what lets encoding/json fill
-	// the caller's typed pointer.
+	// The value arrives already decoded from msgpack, not as JSON text, so it
+	// is re-marshaled before encoding/json can fill a typed pointer.
 	b, err := json.Marshal(val)
 	if err != nil {
 		return fmt.Errorf("marshaling task state value: %w", err)
@@ -384,8 +372,7 @@ func (c *CoordinatorClient) SetTaskStateWithRetention(
 ) error {
 	var expiry any
 	switch {
-	// Must precede any arithmetic on now: NeverExpire is the maximum
-	// time.Duration, so adding it overflows.
+	// Checked before any arithmetic: adding NeverExpire overflows.
 	case retention == sdk.NeverExpire:
 		expiry = nil
 	case retention <= 0:
@@ -400,7 +387,6 @@ func (c *CoordinatorClient) SetTaskStateWithRetention(
 	return c.sendSetTaskState(ctx, key, value, expiry)
 }
 
-// sendSetTaskState writes one SetTaskStateStore frame on behalf of both setters.
 func (c *CoordinatorClient) sendSetTaskState(
 	ctx context.Context,
 	key string,
@@ -410,7 +396,7 @@ func (c *CoordinatorClient) sendSetTaskState(
 	if value == nil {
 		return fmt.Errorf("cannot set task state key %q to nil", key)
 	}
-	if err := validateJSONRepresentable(reflect.ValueOf(value)); err != nil {
+	if err := validateJSONRepresentable(value); err != nil {
 		return fmt.Errorf("cannot set task state key %q: %w", key, err)
 	}
 
@@ -440,78 +426,70 @@ func (c *CoordinatorClient) ClearTaskState(ctx context.Context) error {
 	return err
 }
 
-// timeType is rejected by validateJSONRepresentable: msgpack encodes a
-// time.Time as its timestamp extension, which the supervisor decodes to a
-// datetime and Pydantic then refuses as a task state value.
-var timeType = reflect.TypeFor[time.Time]()
+// validateJSONRepresentable checks what the frame encoder actually emits, not
+// the Go value: a reflection walk has to mirror the encoder's field rules (tags,
+// "-", omitempty, embedding, marshalers) and misjudges values wherever it drifts.
+func validateJSONRepresentable(value any) error {
+	var buf bytes.Buffer
+	if err := newFrameEncoder(&buf).Encode(value); err != nil {
+		return fmt.Errorf("%T is not JSON representable: %w", value, err)
+	}
+	dec := msgpack.NewDecoder(&buf)
+	// The default map decoder fails opaquely on non-string keys.
+	dec.SetMapDecoder(func(d *msgpack.Decoder) (any, error) {
+		return d.DecodeUntypedMap()
+	})
+	decoded, err := dec.DecodeInterface()
+	if err != nil {
+		return fmt.Errorf("%T is not JSON representable: %w", value, err)
+	}
+	return validateDecodedValue(decoded)
+}
 
-// validateJSONRepresentable reports whether v survives the round trip into the
-// supervisor's JsonValue: string, number, bool, list, and object, nested
-// freely. It mirrors the Pydantic validation Python applies to the same value,
-// so a bad value is rejected here with a useful message instead of costing a
-// round trip and coming back as an opaque API error.
-//
-// A Go struct is allowed because msgpack encodes it as a map, which arrives as
-// a JSON object; the types rejected below are the ones that arrive as
-// something JSON has no spelling for.
-func validateJSONRepresentable(v reflect.Value) error {
-	if v.Type() == timeType {
+func validateDecodedValue(v any) error {
+	switch v := v.(type) {
+	case nil, string, bool,
+		int, int8, int16, int32, int64,
+		uint, uint8, uint16, uint32, uint64:
+		return nil
+	case float32:
+		return checkFinite(float64(v))
+	case float64:
+		return checkFinite(v)
+	case time.Time:
 		return fmt.Errorf(
 			"time.Time is not JSON representable; store value.Format(time.RFC3339) " +
 				"and parse it back with time.Parse",
 		)
-	}
-	switch v.Kind() {
-	case reflect.String, reflect.Bool,
-		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return nil
-	case reflect.Float32, reflect.Float64:
-		if f := v.Float(); math.IsNaN(f) || math.IsInf(f, 0) {
-			return fmt.Errorf(
-				"value must be a finite number; NaN and Inf are not JSON representable",
-			)
-		}
-		return nil
-	case reflect.Interface, reflect.Pointer:
-		if v.IsNil() {
-			return nil
-		}
-		return validateJSONRepresentable(v.Elem())
-	case reflect.Slice, reflect.Array:
-		// A byte slice encodes to msgpack binary, which arrives as Python bytes.
-		if v.Type().Elem().Kind() == reflect.Uint8 && v.Kind() == reflect.Slice {
-			return fmt.Errorf(
-				"[]byte is not JSON representable; encode it, for example with base64.StdEncoding.EncodeToString",
-			)
-		}
-		for i := range v.Len() {
-			if err := validateJSONRepresentable(v.Index(i)); err != nil {
+	case []byte:
+		return fmt.Errorf(
+			"[]byte is not JSON representable; encode it, for example with base64.StdEncoding.EncodeToString",
+		)
+	case []any:
+		for _, elem := range v {
+			if err := validateDecodedValue(elem); err != nil {
 				return err
 			}
 		}
 		return nil
-	case reflect.Map:
-		if v.Type().Key().Kind() != reflect.String {
-			return fmt.Errorf("map keys must be strings, got %s", v.Type().Key())
-		}
-		for _, k := range v.MapKeys() {
-			if err := validateJSONRepresentable(v.MapIndex(k)); err != nil {
-				return err
+	case map[any]any:
+		for k, elem := range v {
+			if _, ok := k.(string); !ok {
+				return fmt.Errorf("map keys must be strings, got %T", k)
 			}
-		}
-		return nil
-	case reflect.Struct:
-		for i := range v.NumField() {
-			if !v.Type().Field(i).IsExported() {
-				continue
-			}
-			if err := validateJSONRepresentable(v.Field(i)); err != nil {
+			if err := validateDecodedValue(elem); err != nil {
 				return err
 			}
 		}
 		return nil
 	default:
-		return fmt.Errorf("%s is not JSON representable", v.Type())
+		return fmt.Errorf("%T is not JSON representable", v)
 	}
+}
+
+func checkFinite(f float64) error {
+	if math.IsNaN(f) || math.IsInf(f, 0) {
+		return fmt.Errorf("value must be a finite number; NaN and Inf are not JSON representable")
+	}
+	return nil
 }

@@ -14,25 +14,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""E2E test for the Go SDK ``task_state_dag`` example.
+"""E2E test for the Go SDK ``task_state_dag`` example (``go-sdk/example/bundle/taskstate``).
 
-``roundtrip_task_state`` (Go, ``go-sdk/example/bundle/taskstate``) exercises the
-task state store in a single run: it writes ``go_e2e_run_id`` with
-``sdk.NeverExpire``, a structured value under ``go_e2e_counter``, ``go_e2e_retained``
-with the deployment's default retention, and a ``go_e2e_scratch`` key it deletes
-again. Every assertion below reads the API-visible store rather than the task's
-XCom summary, so the data is proven to have reached the database.
+Assertions read the API-visible store rather than the task's XCom summary, so the data is
+proven to have reached the database.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from http import HTTPStatus
 
 import pytest
 import requests
 
+from airflow_e2e_tests.constants import GO_SDK_STATE_STORE_RETENTION_DAYS
 from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
 
 _GO_TASK_TIMEOUT = 300
@@ -56,7 +53,6 @@ class _CompletedRun:
 
 @pytest.fixture(scope="module")
 def completed_run() -> _CompletedRun:
-    """Trigger ``task_state_dag`` once and wait for it to finish."""
     client = AirflowClient()
     resp = client.trigger_dag(_DAG_ID, json={"logical_date": datetime.now(timezone.utc).isoformat()})
     run_id = resp["dag_run_id"]
@@ -66,8 +62,8 @@ def completed_run() -> _CompletedRun:
     return _CompletedRun(client=client, run_id=run_id, state=state, ti_states=ti_states)
 
 
-def _parse_expiry(expires_at: str) -> datetime:
-    return datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+def _parse_timestamp(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
 def test_task_succeeded(completed_run: _CompletedRun):
@@ -108,10 +104,11 @@ def test_deleted_key_is_gone(completed_run: _CompletedRun):
 
 def test_default_retention_applied(completed_run: _CompletedRun):
     entry = completed_run.state_store("go_e2e_retained")
-    expires_at = entry.get("expires_at")
-    # Only end-to-end proof that [state_store] default_retention_days travelled from conf.get() in
-    # task-sdk/src/airflow/sdk/coordinators/_subprocess.py, through the injected
-    # AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS environment variable, into the Go runtime and onto
-    # the wire. The exact number of days is the deployment's to decide, so it is deliberately not asserted.
-    assert expires_at is not None, entry
-    assert _parse_expiry(expires_at) > datetime.now(timezone.utc), entry
+    assert entry.get("expires_at") is not None, entry
+    gap = _parse_timestamp(entry["expires_at"]) - _parse_timestamp(entry["updated_at"])
+    expected = timedelta(days=GO_SDK_STATE_STORE_RETENTION_DAYS)
+    assert abs(gap - expected) <= timedelta(minutes=5), (
+        f"expected ~{GO_SDK_STATE_STORE_RETENTION_DAYS} days, got {gap / timedelta(days=1):.1f} days; "
+        "if ~30, the Go runtime used its fallback, so the supervisor did not propagate "
+        f"[state_store] default_retention_days. entry: {entry!r}"
+    )

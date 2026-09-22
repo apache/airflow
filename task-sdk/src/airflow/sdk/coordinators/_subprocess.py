@@ -304,10 +304,8 @@ class _PopenActivitySubprocess(ActivitySubprocess):
             stdout_r, stdout_w = tracker.track(*socket.socketpair())
             stderr_r, stderr_w = tracker.track(*socket.socketpair())
 
-            # A language SDK runtime cannot read Airflow's config, so pass the resolved
-            # values via the environment at launch. For the log levels this is also the
-            # only workable moment: StartupDetails arrives too late, logs might already
-            # have been produced by then.
+            # A language SDK runtime cannot read Airflow's config, so pass resolved values
+            # via the environment at launch; for log levels StartupDetails would be too late.
             env = {
                 **os.environ,
                 "AIRFLOW__LOGGING__LOGGING_LEVEL": conf.get("logging", "logging_level", fallback="INFO"),

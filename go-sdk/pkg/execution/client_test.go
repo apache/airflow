@@ -34,7 +34,6 @@ import (
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
-// testTIID is the task instance the coordinator client under test is bound to.
 const testTIID = "0199e0e5-1b2c-7c3d-8e4f-5a6b7c8d9e0f"
 
 // TestCoordinatorClientGetVariableEnvOverride verifies that an
@@ -458,12 +457,8 @@ func TestCoordinatorClientGetXComMapIndex(t *testing.T) {
 	}
 }
 
-// TestResolveDefaultExpiry verifies the supervisor-supplied retention is
-// honoured, that 0 days means "never expires", and that a misconfigured
-// deployment is reported instead of silently getting the shipped default —
-// matching the ValueError Python's TaskStateStoreAccessor.set raises. Only an
-// absent variable falls back, since that means the coordinator did not launch
-// this runtime and so has no Python counterpart.
+// Only an absent value may fall back; a malformed one must fail as Python's
+// TaskStateStoreAccessor.set does rather than silently use the shipped default.
 func TestResolveDefaultExpiry(t *testing.T) {
 	now := time.Date(2026, 6, 9, 12, 0, 0, 0, time.UTC)
 
@@ -486,8 +481,7 @@ func TestResolveDefaultExpiry(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			// t.Setenv registers the restore; Unsetenv then gives the genuinely
-			// absent variable the fallback path is about.
+			// Setenv registers the restore; only a truly unset variable falls back.
 			t.Setenv(defaultRetentionDaysEnv, tc.env)
 			if tc.unset {
 				require.NoError(t, os.Unsetenv(defaultRetentionDaysEnv))
@@ -509,10 +503,6 @@ func TestResolveDefaultExpiry(t *testing.T) {
 	}
 }
 
-// TestCoordinatorClientSetTaskStateRejectsMisconfiguredRetention verifies a
-// deployment whose default_retention_days is unusable fails the task rather
-// than quietly writing a key with a different lifetime, and that nothing
-// reaches the supervisor.
 func TestCoordinatorClientSetTaskStateRejectsMisconfiguredRetention(t *testing.T) {
 	t.Setenv(defaultRetentionDaysEnv, "-1")
 
@@ -529,10 +519,7 @@ func TestCoordinatorClientSetTaskStateRejectsMisconfiguredRetention(t *testing.T
 	assert.Zero(t, requestBuf.Len(), "a rejected write must not reach the supervisor")
 }
 
-// TestCoordinatorClientSetTaskStateRejectsNonJSONValues verifies values the
-// supervisor's JsonValue would refuse are caught here, where the caller gets a
-// message naming the problem, rather than after a round trip as an opaque API
-// error. Mirrors Python's test_set_datetime_raises_validation_error.
+// Mirrors Python's test_set_datetime_raises_validation_error.
 func TestCoordinatorClientSetTaskStateRejectsNonJSONValues(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -552,6 +539,7 @@ func TestCoordinatorClientSetTaskStateRejectsNonJSONValues(t *testing.T) {
 		{name: "NaN", value: math.NaN(), wantErr: "finite number"},
 		{name: "Inf", value: math.Inf(1), wantErr: "finite number"},
 		{name: "byte slice", value: []byte("raw"), wantErr: "[]byte is not JSON representable"},
+		{name: "byte array", value: [16]byte{}, wantErr: "[]byte is not JSON representable"},
 		{
 			name:    "non-string map key",
 			value:   map[int]string{1: "a"},
@@ -575,18 +563,20 @@ func TestCoordinatorClientSetTaskStateRejectsNonJSONValues(t *testing.T) {
 	}
 }
 
-// TestCoordinatorClientSetTaskStateAcceptsJSONShapes guards the rejection above
-// from over-reaching: a struct encodes to a msgpack map, which the supervisor
-// sees as a JSON object, so it stays a legal task state value.
 func TestCoordinatorClientSetTaskStateAcceptsJSONShapes(t *testing.T) {
 	type checkpoint struct {
 		Processed int      `msgpack:"processed"`
 		Cursors   []string `msgpack:"cursors"`
 	}
+	type skippedTime struct {
+		When time.Time `json:"-"`
+		Name string    `json:"name"`
+	}
 	values := map[string]any{
-		"struct": checkpoint{Processed: 3, Cursors: []string{"a"}},
-		"nested": map[string]any{"rows": []any{1, "two", 3.5, true, nil}},
-		"scalar": "plain",
+		"struct":                    checkpoint{Processed: 3, Cursors: []string{"a"}},
+		"struct skipping time.Time": skippedTime{When: time.Now(), Name: "x"},
+		"nested":                    map[string]any{"rows": []any{1, "two", 3.5, true, nil}},
+		"scalar":                    "plain",
 	}
 
 	for name, value := range values {
@@ -608,9 +598,6 @@ func TestCoordinatorClientSetTaskStateAcceptsJSONShapes(t *testing.T) {
 	}
 }
 
-// TestCoordinatorClientGetTaskState verifies the GetTaskStateStore frame is
-// addressed to the client's own task instance and that the supervisor's value
-// is returned as decoded.
 func TestCoordinatorClientGetTaskState(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -649,8 +636,6 @@ func TestCoordinatorClientGetTaskState(t *testing.T) {
 	}
 }
 
-// TestCoordinatorClientGetTaskStateNotFound verifies TASK_STORE_NOT_FOUND is
-// translated into the SDK sentinel task code matches on.
 func TestCoordinatorClientGetTaskStateNotFound(t *testing.T) {
 	responsePayload := encodeResponseFrame(t, 0, nil, map[string]any{
 		"type":   "ErrorResponse",
@@ -670,8 +655,6 @@ func TestCoordinatorClientGetTaskStateNotFound(t *testing.T) {
 	assert.Contains(t, err.Error(), "missing")
 }
 
-// TestCoordinatorClientGetTaskStateErrorPassThrough verifies a generic
-// supervisor error stays an *ApiError instead of masquerading as a miss.
 func TestCoordinatorClientGetTaskStateErrorPassThrough(t *testing.T) {
 	responsePayload := encodeResponseFrame(t, 0, nil, map[string]any{
 		"type":   "ErrorResponse",
@@ -694,8 +677,6 @@ func TestCoordinatorClientGetTaskStateErrorPassThrough(t *testing.T) {
 	assert.Equal(t, "API_SERVER_ERROR", apiErr.Err)
 }
 
-// TestCoordinatorClientUnmarshalJSONTaskState verifies a structured value
-// decoded from msgpack still reaches a caller-supplied typed pointer.
 func TestCoordinatorClientUnmarshalJSONTaskState(t *testing.T) {
 	type checkpoint struct {
 		Cursor string `json:"cursor"`
@@ -738,9 +719,7 @@ func TestCoordinatorClientUnmarshalJSONTaskState(t *testing.T) {
 	})
 }
 
-// TestCoordinatorClientSetTaskState verifies the SetTaskStateStore frame always
-// carries expires_at, sending null when the deployment disables expiry: the
-// supervisor validates SetTaskStateStore with a required expires_at field.
+// expires_at is sent even when null: the supervisor requires the field.
 func TestCoordinatorClientSetTaskState(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -784,9 +763,6 @@ func TestCoordinatorClientSetTaskState(t *testing.T) {
 	}
 }
 
-// TestCoordinatorClientSetTaskStateWithRetention verifies a caller-chosen
-// lifetime reaches the wire, that NeverExpire is handled before any arithmetic
-// that would overflow, and that a non-positive retention is rejected locally.
 func TestCoordinatorClientSetTaskStateWithRetention(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -836,8 +812,6 @@ func TestCoordinatorClientSetTaskStateWithRetention(t *testing.T) {
 	}
 }
 
-// TestCoordinatorClientSetTaskStateRejectsNilValue verifies both setters refuse
-// a nil value locally rather than letting the supervisor reject the round trip.
 func TestCoordinatorClientSetTaskStateRejectsNilValue(t *testing.T) {
 	tests := []struct {
 		name string
@@ -872,8 +846,6 @@ func TestCoordinatorClientSetTaskStateRejectsNilValue(t *testing.T) {
 	}
 }
 
-// TestCoordinatorClientDeleteTaskState verifies the DeleteTaskStateStore frame
-// sent to the supervisor.
 func TestCoordinatorClientDeleteTaskState(t *testing.T) {
 	responsePayload := encodeResponseFrame(
 		t,
@@ -900,8 +872,6 @@ func TestCoordinatorClientDeleteTaskState(t *testing.T) {
 	}, rawToMap(t, sent.Body))
 }
 
-// TestCoordinatorClientClearTaskState verifies the ClearTaskStateStore frame
-// carries no key: it wipes the whole store for this task instance.
 func TestCoordinatorClientClearTaskState(t *testing.T) {
 	responsePayload := encodeResponseFrame(
 		t,
@@ -929,8 +899,6 @@ func TestCoordinatorClientClearTaskState(t *testing.T) {
 	assert.NotContains(t, sentMap, "key")
 }
 
-// TestCoordinatorClientTaskStateWriteErrors verifies every task state write
-// surfaces a supervisor ErrorResponse to the task.
 func TestCoordinatorClientTaskStateWriteErrors(t *testing.T) {
 	tests := []struct {
 		name string

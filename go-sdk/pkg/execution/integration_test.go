@@ -550,8 +550,7 @@ func TestRunTaskInjectsAirflowContext(t *testing.T) {
 	assert.Equal(t, end, *dagRun.DataIntervalEnd)
 }
 
-// The task state store a handler reaches through actx.Client() must be
-// addressed to the task instance the supervisor started, not to an empty id.
+// Guards against the runtime binding the task state store to an empty task instance id.
 func TestRunTaskBindsTaskStateStoreClient(t *testing.T) {
 	const tiID = "0199e0e5-1b2c-7c3d-8e4f-5a6b7c8d9e0f"
 

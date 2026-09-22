@@ -37,9 +37,8 @@ gets the client from it:
 interface. That documents what the helper touches and makes it easy to pass a
 fake in unit tests.
 
-[TaskStateStoreClient] is the durable-execution piece: a key/value store scoped
-to the task instance rather than the attempt, so a task can record its progress
-and resume from it after a crash or a retry.
+[TaskStateStoreClient] keeps values across attempts of the same task instance,
+so a task can resume its progress after a retry.
 
 To publish a result, return a value from the task function: the runtime pushes
 it as the task's return-value XCom, so most tasks never call [XComClient]
