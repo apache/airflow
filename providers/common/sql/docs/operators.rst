@@ -365,8 +365,9 @@ resolved in this order:
 
 Azure Storage
 -------------
-Use a ``conn_id`` pointing to a ``wasb`` connection. Credentials are resolved in
-this order:
+Use an ``az://`` URI with a ``conn_id`` pointing to a ``wasb`` connection.
+``abfs://`` and ``abfss://`` URIs are not recognized yet. Credentials are
+resolved in this order:
 
 1. Azure AD service principal -- ``tenant_id`` extra, with ``login`` as the
    client ID and ``password`` as the client secret
