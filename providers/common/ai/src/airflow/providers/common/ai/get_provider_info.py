@@ -76,6 +76,7 @@ def get_provider_info():
                 "external-doc-url": "https://modal.com/docs/guide/sandbox",
                 "tags": ["service"],
             },
+            {"integration-name": "Boat", "external-doc-url": "https://docs.boat.dev/", "tags": ["service"]},
         ],
         "hooks": [
             {

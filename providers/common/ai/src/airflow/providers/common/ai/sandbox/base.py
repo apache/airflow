@@ -68,6 +68,8 @@ _FILE_OP_OUTPUT_CAP = 1024 * 1024
 
 
 def _validate_positive_finite(value: float, name: str) -> None:
+    if isinstance(value, bool):
+        raise ValueError(f"{name} must be a positive finite number, got {value!r}.")
     if not math.isfinite(value) or value <= 0:
         raise ValueError(f"{name} must be a positive finite number, got {value!r}.")
 
