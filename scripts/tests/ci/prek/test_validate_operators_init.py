@@ -175,6 +175,12 @@ class TestConstructorFieldLogic:
                 id="verbatim-copy-via-bare-replace",
             ),
             pytest.param(
+                "self.foo = foo\n"
+                "self.start_trigger_args = copy.replace(self.start_trigger_args, trigger_kwargs={'foo': self.foo})",
+                0,
+                id="verbatim-copy-via-copy-replace",
+            ),
+            pytest.param(
                 "self.foo = foo\nself.start_trigger_args = factory.StartTriggerArgs(trigger_kwargs={'foo': self.foo})",
                 1,
                 id="start-trigger-args-constructor-must-be-a-bare-name",
@@ -189,6 +195,11 @@ class TestConstructorFieldLogic:
                 "self.foo = foo\nself.start_trigger_args = StartTriggerArgs(trigger_kwargs=helper.dict(foo=self.foo))",
                 1,
                 id="trigger-kwargs-dict-must-be-the-builtin",
+            ),
+            pytest.param(
+                "self.foo = foo\nself.start_trigger_args = StartTriggerArgs('cls', {'foo': self.foo})",
+                1,
+                id="positional-trigger-kwargs-are-not-inspected",
             ),
         ],
     )
