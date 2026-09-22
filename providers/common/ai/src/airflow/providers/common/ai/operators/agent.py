@@ -40,7 +40,7 @@ from airflow.providers.common.ai.observability import (
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
 from airflow.providers.common.ai.utils.logging import log_run_summary, wrap_toolsets_for_logging
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
-from airflow.providers.common.ai.utils.toolsets import find_toolset, iter_toolsets
+from airflow.providers.common.ai.utils.toolsets import iter_toolsets
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.compat.sdk import (
     AirflowOptionalProviderFeatureException,
@@ -181,10 +181,13 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         ``conn_name_attr``) are templated, e.g.
         ``SQLToolset(db_conn_id="warehouse_{{ var.value.environment }}")`` per
         environment, or ``"tenant_{{ task.op_kwargs.customer }}"`` per map index of
-        a mapped ``@task.agent``. Each task instance renders its own copy and logs
-        the rendered toolset id; the toolset object in the Dag file is not
-        modified. Derive the connection ID from values the Dag controls rather than
-        ``params`` or ``dag_run.conf``, which whoever triggers the Dag controls.
+        a mapped ``@task.agent``, and so is ``SandboxToolset.attach_to``, which is
+        how ``SandboxToolset(attach_to="{{ ti.xcom_pull('provision') }}")``
+        receives the sandbox an upstream task created. Each task instance renders
+        its own copy and logs the rendered toolset id; the toolset object in the
+        Dag file is not modified. Derive the connection ID from values the Dag
+        controls rather than ``params`` or ``dag_run.conf``, which whoever triggers
+        the Dag controls.
     :param enable_tool_logging: When ``True`` (default), wraps each toolset in a
         ``LoggingToolset`` that logs tool calls with timing at INFO level and
         arguments at DEBUG level. Set to ``False`` to disable.
@@ -228,9 +231,10 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         retry; put tools you need replayed in ``toolsets=``. Provider-native
         capabilities such as ``WebSearch`` and ``Thinking`` execute inside the
         model call and are covered by model-response caching.
-        Cannot be combined with a ``SandboxToolset`` (raises): a sandbox is
-        destroyed when the run ends, so replayed tool results would describe
-        files that no longer exist.
+        Cannot be combined with a ``SandboxToolset`` (raises), attached or
+        not: a replayed tool result describes a workspace state the replay did
+        not reproduce, and the first call that misses the cache runs against
+        whatever the sandbox holds now.
     :param code_mode: When ``True``, wraps the agent's tools in a single
         ``run_code`` tool powered by the Monty sandbox (pydantic-ai-harness
         ``CodeMode``). Instead of one model round-trip per tool call, the model
@@ -267,9 +271,13 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         can approve, reject, or request changes via the plugin's REST API
         at ``/hitl-review`` or through the **HITL Review** extra link
         on the task instance.  Default ``False``. Cannot be combined with a
-        ``SandboxToolset`` (raises): regeneration after feedback is a second
-        run, which starts from an empty sandbox while its history describes
-        the first run's files.
+        ``SandboxToolset`` that provisions its own sandbox (raises):
+        regeneration after feedback is a second run, which would start from an
+        empty sandbox while its history describes the first run's files. A
+        ``SandboxToolset`` attached to a sandbox another task owns
+        (``attach_to``) is fine, since both runs find the same files, as long
+        as the reviewer answers inside that sandbox's lifetime: the wait spends
+        the provisioning backend's ``sandbox_timeout``.
     :param max_hitl_iterations: Maximum outputs shown to the reviewer (1 =
         initial output). When the reviewer requests changes at
         iteration >= this limit, the task fails with ``HITLMaxIterationsError``
@@ -408,6 +416,12 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
           second agent run, which gets an empty sandbox while its message history still
           describes the files the first run wrote.
 
+        A toolset attached to a sandbox another task owns (``attach_to``) keeps its
+        files across runs, so HITL review is allowed with it: the regenerated run finds
+        what the first run wrote. Durable replay stays refused even then, because a
+        replayed tool result is not re-executed, so the workspace does not move with the
+        transcript; a cached ``write_file`` on a retry leaves no file behind.
+
         The toolset is looked for inside wrappers and combinations (``.prefixed()``,
         ``.filtered()``, several toolsets passed together) and inside ``Toolset``
         capabilities, since those are the compositions the documentation recommends.
@@ -417,19 +431,26 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         for capability in self.agent_params.get("capabilities") or ():
             if _is_concrete_toolset_capability(capability):
                 candidates.append(capability.toolset)
-        if find_toolset(candidates, SandboxToolset) is None:
-            return
-        flag = "durable=True" if durable else "enable_hitl_review=True"
-        why = (
-            "cached tool results would be replayed against a sandbox that no longer exists"
-            if durable
-            else "a regenerated run would start from an empty sandbox while its history describes "
-            "files from the first run"
-        )
-        raise ValueError(
-            f"{flag} cannot be used with a SandboxToolset: {why}. "
-            f"Drop {flag}, or move the sandbox work into its own task."
-        )
+        sandboxes = [
+            nested
+            for toolset in candidates
+            for nested in iter_toolsets(toolset)
+            if isinstance(nested, SandboxToolset)
+        ]
+        if durable and sandboxes:
+            raise ValueError(
+                "durable=True cannot be used with a SandboxToolset: cached tool results would be "
+                "replayed without touching the sandbox, so the workspace would not match the "
+                "transcript. Drop durable=True, or move the sandbox work into its own task."
+            )
+        if enable_hitl_review and any(sandbox.attach_to is None for sandbox in sandboxes):
+            raise ValueError(
+                "enable_hitl_review=True cannot be used with a SandboxToolset that provisions its own "
+                "sandbox: a regenerated run would start from an empty sandbox while its history "
+                "describes files from the first run. Attach the toolset to a sandbox another task "
+                "provisioned (attach_to=...), drop enable_hitl_review=True, or move the sandbox work "
+                "into its own task."
+            )
 
     def _do_render_template_fields(
         self,
@@ -447,13 +468,14 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
 
     def _render_toolsets(self, context: Context, jinja_env: jinja2.Environment, seen_oids: set[int]) -> None:
         """
-        Render the connection IDs of toolsets that declare ``agent_template_fields``.
+        Render the fields of toolsets that declare ``agent_template_fields``.
 
         ``toolsets`` is not itself a template field: serializing it would put each
         toolset's repr -- which for pydantic-ai's dataclass toolsets embeds function
         addresses -- into the Dag hash and the rendered-fields view. Instead, each leaf
-        toolset that opts in (``SQLToolset``, ``MCPToolset``, ``HookToolset``) is
-        rendered here, found with pydantic-ai's ``visit_and_replace`` inside
+        toolset that opts in (``SQLToolset``, ``MCPToolset``, ``HookToolset``, and
+        ``SandboxToolset`` for the handle it attaches to) is rendered here, found with
+        pydantic-ai's ``visit_and_replace`` inside
         ``.prefixed()`` / ``.filtered()`` wrappers, ``Toolset`` capabilities, and a
         ``toolsets`` list passed through ``agent_params``. A ``Toolset`` capability
         backed by a callable factory is resolved per run and is not rendered.

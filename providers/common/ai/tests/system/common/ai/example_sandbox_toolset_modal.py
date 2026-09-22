@@ -26,7 +26,10 @@ hitting its deadline leaves the sandbox and its files intact (which is where Mod
 differs from ``sbx``), that the default spec really does deny egress, that none of
 Airflow's own environment crosses the boundary, and that teardown terminates the
 sandbox. A second task checks the address allowlist: a listed address connects on
-any port, an unlisted one is dropped, and hostnames still resolve.
+any port, an unlisted one is dropped, and hostnames still resolve. A third
+provisions a sandbox itself, attaches two agent runs to it in turn, refuses a run
+presenting the wrong owner, reads the agent's file out after the runs, and
+destroys it.
 """
 
 from __future__ import annotations
@@ -315,8 +318,141 @@ def example_sandbox_toolset_modal():
             raise RuntimeError(f"Unexpected agent output: {result.output!r}")
         return result.output
 
+    @task
+    def run_attached_sandbox_agent(**context) -> str:
+        """
+        A task-owned sandbox: provisioned here, used by two agent runs, collected here.
+
+        What only a live sandbox can show: that the environment the provisioning task
+        injected is visible to the agent, that the second run (which is what HITL
+        regeneration is) finds the first run's file, that a run presenting the wrong
+        owner is refused before it runs anything, that the file is readable through the
+        backend after the runs have ended, and that the runs left the sandbox standing.
+        """
+        # Keep task-only dependencies out of the Dag-parsing process.
+        import modal
+        from pydantic_ai import Agent
+        from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart, ToolCallPart
+        from pydantic_ai.models.function import AgentInfo, FunctionModel
+
+        from airflow.providers.common.ai.sandbox import ModalSandboxBackend, SandboxSpec, dag_run_owner
+        from airflow.providers.common.ai.sandbox.base import HOLDER_TAG
+        from airflow.providers.common.ai.toolsets import SandboxToolset
+
+        injected = "injected-by-provision"
+        report = "/workspace/from-run-1.txt"
+
+        def scripted(steps: list[tuple[str, str]]) -> FunctionModel:
+            """A model that issues each command in turn and checks the expected marker in its result."""
+
+            def model_function(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+                run_command = next(t for t in info.function_tools if t.name == "run_command")
+                description = run_command.description or ""
+                if "set up by an earlier task" not in description:
+                    raise RuntimeError(
+                        f"The tool description does not say whose sandbox it is: {description!r}"
+                    )
+                if "of its lifetime" not in description:
+                    raise RuntimeError(f"The tool description does not state the clock: {description!r}")
+                if "NO network access" not in description:
+                    # The provisioning task denied egress; the attaching side has to learn that
+                    # from the sandbox itself, since it never sees the spec.
+                    raise RuntimeError(
+                        f"The tool description does not carry the network policy: {description!r}"
+                    )
+                returns = [
+                    str(part.content)
+                    for message in messages
+                    for part in message.parts
+                    if part.part_kind in ("tool-return", "retry-prompt")
+                ]
+                for index, (command, expected) in enumerate(steps):
+                    if len(returns) == index:
+                        return ModelResponse(
+                            parts=[
+                                ToolCallPart(
+                                    tool_name="run_command",
+                                    args={"command": command},
+                                    tool_call_id=f"c{index}",
+                                )
+                            ]
+                        )
+                    if expected not in returns[index]:
+                        raise RuntimeError(f"Step {index} expected {expected!r} in {returns[index]!r}")
+                return ModelResponse(parts=[TextPart(content="attached e2e passed")])
+
+            return FunctionModel(model_function)
+
+        def attached_agent(model: FunctionModel, **toolset_kwargs) -> Agent:
+            return Agent(
+                model,
+                instructions="Use the sandbox tools as requested.",
+                toolsets=[
+                    SandboxToolset(
+                        ModalSandboxBackend(app_name="airflow-sandbox-system-test"),
+                        max_command_timeout=60.0,
+                        **toolset_kwargs,
+                    )
+                ],
+            )
+
+        backend = ModalSandboxBackend(app_name="airflow-sandbox-system-test", sandbox_timeout=600)
+        sandbox = backend.create(
+            spec=SandboxSpec(env={"INJECTED": injected}, block_network=True, owner=dag_run_owner(context))
+        )
+        try:
+            # Run 1 sees what the provisioning task injected, and leaves a file behind.
+            first = attached_agent(
+                scripted([(f"echo $INJECTED | tee {report}", injected)]),
+                attach_to=sandbox,
+            ).run_sync("Record the injected value.")
+            if first.output != "attached e2e passed":
+                raise RuntimeError(f"Unexpected first output: {first.output!r}")
+            tags = backend.read_tags(sandbox)
+            if HOLDER_TAG in tags:
+                raise RuntimeError(f"The run ended but the sandbox is still marked held: {tags}")
+
+            # Run 2 is a fresh toolset against the same handle, as HITL regeneration is.
+            second = attached_agent(
+                scripted([(f"cat {report}", injected)]),
+                attach_to=sandbox,
+            ).run_sync("Read the file the previous run wrote.")
+            if second.output != "attached e2e passed":
+                raise RuntimeError(f"Unexpected second output: {second.output!r}")
+
+            # A run presenting the wrong owner is refused before any tool runs.
+            try:
+                attached_agent(scripted([("id", "uid")]), attach_to=sandbox, owner="someone-else").run_sync(
+                    "Try."
+                )
+            except Exception as e:
+                if "not owned by 'someone-else'" not in str(e):
+                    raise RuntimeError(f"Expected an ownership refusal, got: {e!r}") from e
+            else:
+                raise RuntimeError("A run with the wrong owner attached to the sandbox")
+
+            # Collect: the file is read through the backend after both runs ended.
+            collected = backend.read_file(sandbox, report, max_bytes=1024).decode().strip()
+            if collected != injected:
+                raise RuntimeError(f"Collected {collected!r}, expected {injected!r}")
+        finally:
+            backend.destroy(sandbox)
+
+        handle = modal.Sandbox.from_id(sandbox)
+        deadline = time.monotonic() + 120
+        while time.monotonic() < deadline:
+            if handle.poll() is not None:
+                break
+            time.sleep(5)
+        else:
+            raise RuntimeError(
+                f"Sandbox {sandbox} was still running 120s after the collecting task destroyed it"
+            )
+        return "attached e2e passed"
+
     run_sandbox_agent()
     run_address_allowlist_agent()
+    run_attached_sandbox_agent()
 
 
 dag = example_sandbox_toolset_modal()

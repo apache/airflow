@@ -29,8 +29,11 @@ Three shapes, each a job a data team actually runs:
    which is how the same Dag moves from a laptop to production.
 3. A plain ``@task`` drives a backend directly to convert a file the Dag already
    knows how to convert. No model is involved. This is the shape for producing an
-   artifact today, because a file inside an agent's sandbox can only leave through
-   the model's context.
+   artifact when the Dag knows the job.
+4. A ``@task`` provisions the sandbox, an agent attaches to it, and another
+   ``@task`` reads the report the agent wrote and destroys the sandbox. The task
+   that creates the sandbox decides what goes in, in ordinary Python at run time,
+   and a file the agent built comes out without crossing the model's context.
 """
 
 from __future__ import annotations
@@ -40,9 +43,9 @@ from datetime import datetime, timezone
 from pydantic import BaseModel
 
 from airflow.providers.common.ai.operators.agent import AgentOperator
-from airflow.providers.common.ai.sandbox import SandboxSpec, SbxSandboxBackend
+from airflow.providers.common.ai.sandbox import SandboxSpec, SbxSandboxBackend, dag_run_owner
 from airflow.providers.common.ai.toolsets import SandboxToolset
-from airflow.providers.common.compat.sdk import ObjectStoragePath, dag, task
+from airflow.providers.common.compat.sdk import ObjectStoragePath, TriggerRule, dag, task
 
 try:
     from airflow.providers.common.ai.toolsets.sql import SQLToolset
@@ -280,3 +283,92 @@ def example_sandbox_task_artifact():
 
 
 example_sandbox_task_artifact()
+
+
+# ---------------------------------------------------------------------------
+# 4. Provision the sandbox in a task, let the agent attach, collect the file.
+# ---------------------------------------------------------------------------
+
+if modal is not None:
+
+    @dag(
+        schedule=None,
+        start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        catchup=False,
+        tags=["example", "sandbox"],
+        params={
+            "input_uri": "file:///tmp/airflow-sandbox-example/orders.csv",
+            "report_uri": "file:///tmp/airflow-sandbox-example/orders-report.md",
+        },
+    )
+    def example_sandbox_attach():
+        """
+        An agent writes a report file inside a sandbox a task created, and a task reads it out.
+
+        The toolset's own sandbox is provisioned on the first tool call from a spec fixed
+        in the Dag file, and destroyed when the run ends. Here the sandbox belongs to the
+        Dag instead: ``provision`` creates it at run time, so anything it needs can come
+        from a connection or object storage, ``analyse`` attaches to it, and ``collect``
+        reads the file the agent wrote after the run has ended, then destroys it.
+        """
+
+        # [START howto_sandbox_attach]
+        @task
+        def provision(input_uri: str, **context) -> str:
+            backend = ModalSandboxBackend(
+                image=modal.Image.from_registry("python:3.12-slim").pip_install("pandas"),
+                sandbox_timeout=1800,
+            )
+            # Owned by this Dag run: the agent task attaches by presenting the same run,
+            # and a sandbox from any other run, or a wrong id pulled from XCom, is refused.
+            sandbox = backend.create(spec=SandboxSpec(block_network=True, owner=dag_run_owner(context)))
+            # The worker's credentials fetch the input. The sandbox receives the bytes,
+            # not the credential, which is the shape to prefer whenever it is possible.
+            backend.write_file(sandbox, "/workspace/orders.csv", ObjectStoragePath(input_uri).read_bytes())
+            return sandbox
+
+        analyse = AgentOperator(
+            task_id="analyse",
+            prompt=(
+                "/workspace/orders.csv holds this month's orders. Work out revenue by country and the "
+                "three largest customers, and write the findings as Markdown to /workspace/report.md."
+            ),
+            system_prompt=(
+                "You have a sandbox with Python and pandas and no network. Read the run_command tool "
+                "description: it says whose sandbox this is and how long it has. Write scripts to "
+                "files and run them; fix tracebacks rather than guessing."
+            ),
+            llm_conn_id="pydanticai_default",
+            toolsets=[
+                # The handle travels from ``provision`` by XCom. The toolset uses that sandbox
+                # for the run and leaves it standing when the run ends.
+                SandboxToolset(ModalSandboxBackend(), attach_to="{{ ti.xcom_pull(task_ids='provision') }}"),
+            ],
+        )
+
+        @task(trigger_rule=TriggerRule.ALL_DONE)
+        def collect(sandbox: str | None, report_uri: str) -> str:
+            if not sandbox:
+                # ALL_DONE also fires when ``provision`` itself failed. The backend would
+                # refuse the missing handle legibly, but the destroy in the finally below
+                # would then refuse it again and mask the first message.
+                raise RuntimeError("provision created no sandbox, so there is nothing to collect.")
+            backend = ModalSandboxBackend()
+            try:
+                # The artifact is this task's output, so a missing report fails it. The
+                # budget is what the worker can hold, not a model's context.
+                report = backend.read_file(sandbox, "/workspace/report.md", max_bytes=16 * MIB)
+            finally:
+                # Ours to destroy, whatever became of the agent. Modal logs a terminate that
+                # fails and reclaims the sandbox at its lifetime, so teardown cannot fail us.
+                backend.destroy(sandbox)
+            target = ObjectStoragePath(report_uri)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(report)
+            return str(target)
+
+        sandbox = provision("{{ params.input_uri }}")
+        sandbox >> analyse >> collect(sandbox, "{{ params.report_uri }}")
+        # [END howto_sandbox_attach]
+
+    example_sandbox_attach()

@@ -52,7 +52,19 @@ Constructor parameters:
   ``None`` lets Modal choose. An unrecognized ``region`` or ``cloud`` fails the
   task rather than falling back.
 - ``tags``: Extra Modal tags on every sandbox, e.g. ``{"dag_id": "my_dag"}``.
+  The backend's own ``airflow_`` keys overwrite a tag of the same name.
 - ``egress_enforcement``: ``"strict"`` (default) or ``"sni"``. See below.
+
+**A sandbox can be provisioned by one task and used by another.** Modal finds a
+sandbox by id from any process, so this backend implements
+:class:`~airflow.providers.common.ai.sandbox.AttachableSandboxBackend`: a
+``@task`` calls ``create`` and later ``destroy``, and a ``SandboxToolset`` with
+``attach_to`` uses the sandbox in between. The ownership rules ride on Modal tags,
+``airflow_owner`` from ``SandboxSpec.owner``, ``airflow_holder`` while a run holds
+the sandbox, ``airflow_expires_at`` so the attaching side knows the clock and
+``airflow_network`` so it knows the policy, and ``Sandbox.list(tags=...)`` finds
+them. Reading tags back needs ``modal>=1.5.2``, which is the extra's floor. How
+to use it is on :ref:`Configuration <sandbox-attach>`.
 
 **Network policy.** ``block_network=True`` maps exactly onto Modal's own
 ``block_network``, which drops all outbound traffic including DNS. A spec that
@@ -219,6 +231,12 @@ behaves identically in both places:
   Modal sandbox survives with its files intact.
 - **Symlinks.** ``write_file`` through a symlink follows the link on ``sbx`` and
   replaces it on Modal.
+- **Attaching.** A Modal sandbox can be provisioned by one task and used by an
+  agent in another (:ref:`sandbox-attach`). An ``sbx`` microVM lives on the worker
+  that created it and cannot be reached from another task, so ``sbx`` refuses
+  ``SandboxSpec.owner`` and the toolset refuses ``attach_to`` for it.
+
+.. _sandbox-byo:
 
 Bringing your own backend
 -------------------------
@@ -268,3 +286,21 @@ Four rules for an implementation:
   becomes a bounded prompt back to the model.
 - If you cannot enforce something the ``SandboxSpec`` asks for, **raise**. Never
   provision a weaker sandbox than the Dag author asked for.
+
+**If your sandboxes can be found again from another process**, subclass
+:class:`~airflow.providers.common.ai.sandbox.AttachableSandboxBackend` instead,
+and a ``@task`` can provision a sandbox for an agent task to attach to
+(:ref:`sandbox-attach`). It adds two methods, ``read_tags`` and ``write_tags``,
+over whatever key-value metadata the vendor keeps on a sandbox, and the ownership
+rules are written once on the base class on top of them. Three things the base
+class relies on: ``read_tags`` raises ``SandboxTerminalError`` for a sandbox that
+does not exist or has ended; ``write_tags`` replaces the whole set, because
+releasing a claim is a rewrite without the holder key; and ``create`` stamps
+``SandboxSpec.owner`` under ``OWNER_TAG``, the sandbox's end time as Unix seconds
+under ``EXPIRES_AT_TAG``, and the network policy under ``NETWORK_TAG`` using
+``encode_network_policy(spec)``, all importable from
+``airflow.providers.common.ai.sandbox.base``. If the vendor lets a caller of your
+backend set metadata too, make your reserved keys overwrite theirs. Stamping the
+working directory under ``WORKDIR_TAG`` is optional; without it the attaching
+backend asks the sandbox. The toolset shortens ``run_command`` to the remaining
+lifetime itself; a backend clamps only if its own file operations need it.

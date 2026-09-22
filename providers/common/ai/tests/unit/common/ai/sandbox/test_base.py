@@ -18,10 +18,16 @@ from __future__ import annotations
 
 import inspect
 import subprocess
+from types import SimpleNamespace
 
 import pytest
+import time_machine
 
 from airflow.providers.common.ai.sandbox.base import (
+    EXPIRES_AT_TAG,
+    HOLDER_TAG,
+    NETWORK_TAG,
+    OWNER_TAG,
     SandboxBackend,
     SandboxError,
     SandboxExecResult,
@@ -30,7 +36,12 @@ from airflow.providers.common.ai.sandbox.base import (
     SandboxTerminalError,
     _new_sandbox_name,
     _validate_positive_finite,
+    dag_run_owner,
+    decode_network_policy,
+    encode_network_policy,
 )
+
+from unit.common.ai.sandbox.fake_tags import TaggedBackend
 
 
 class TestValidation:
@@ -61,6 +72,7 @@ class TestSandboxSpec:
         assert spec.block_network is True
         assert spec.env is None
         assert spec.allow_egress_to is None
+        assert spec.owner is None
 
     def test_is_frozen_so_a_backend_cannot_mutate_the_authors_intent(self):
         spec = SandboxSpec()
@@ -239,3 +251,154 @@ class TestDefaultFileOperations:
     def test_listing_a_missing_directory_is_an_error(self, local, tmp_path):
         with pytest.raises(SandboxError):
             local.list_directory("s", str(tmp_path / "nope"))
+
+
+class TestDagRunOwner:
+    def test_names_the_dag_and_the_run(self):
+        context = {"ti": SimpleNamespace(dag_id="my_dag", run_id="manual__2026-01-01T00:00:00+00:00")}
+
+        assert dag_run_owner(context) == "my_dag/manual__2026-01-01T00:00:00+00:00"
+
+
+class _RacingBackend(TaggedBackend):
+    """A store in which someone else's claim lands between our check and our write."""
+
+    def write_tags(self, sandbox, tags):
+        super().write_tags(sandbox, {**tags, HOLDER_TAG: "someone/faster"})
+
+
+class TestNetworkPolicyTag:
+    @pytest.mark.parametrize(
+        "spec",
+        [
+            SandboxSpec(),
+            SandboxSpec(block_network=False),
+            SandboxSpec(allow_egress_to=["pypi.org"], allow_egress_to_cidrs=["203.0.113.0/24"]),
+        ],
+    )
+    def test_round_trips_the_network_fields_and_nothing_else(self, spec):
+        decoded = decode_network_policy(encode_network_policy(spec))
+
+        assert decoded == SandboxSpec(
+            block_network=spec.block_network,
+            allow_egress_to=list(spec.allow_egress_to) if spec.allow_egress_to else None,
+            allow_egress_to_cidrs=list(spec.allow_egress_to_cidrs) if spec.allow_egress_to_cidrs else None,
+        )
+
+    def test_the_encoding_is_stable(self):
+        # Sorted keys and no whitespace: the same policy stamps the same string.
+        assert encode_network_policy(SandboxSpec()) == (
+            '{"allow_egress_to":[],"allow_egress_to_cidrs":[],"block_network":true}'
+        )
+
+    @pytest.mark.parametrize("value", [None, "", "not json", '{"block_network": true}', "[1, 2]"])
+    def test_anything_else_decodes_to_nothing(self, value):
+        # Better to say nothing about the network than to describe one nobody asked for.
+        assert decode_network_policy(value) is None
+
+
+class TestAttachablePolicy:
+    """
+    The ownership rules, written once on the base class over two tag primitives.
+
+    What they stop: a run reaching the wrong sandbox by mistake, including through a bad
+    XCom, and two runs sharing one workspace. What they do not stop, and do not claim
+    to: anyone holding the vendor credential, who can rewrite the tags.
+    """
+
+    def test_a_bare_handle_is_never_enough(self):
+        backend = TaggedBackend({"sb": {}})
+
+        with pytest.raises(SandboxTerminalError, match="carries no owner"):
+            backend.attach("sb", owner="dag/run", holder="dag/task")
+
+    def test_the_wrong_owner_is_refused_and_named(self):
+        backend = TaggedBackend({"sb": {OWNER_TAG: "other_dag/run"}})
+
+        with pytest.raises(SandboxTerminalError, match="not owned by 'dag/run'.*'other_dag/run'"):
+            backend.attach("sb", owner="dag/run", holder="dag/task")
+        assert HOLDER_TAG not in backend.tags["sb"], "a refused attach must leave no claim"
+
+    def test_a_sandbox_held_by_another_task_is_refused(self):
+        backend = TaggedBackend({"sb": {OWNER_TAG: "o", HOLDER_TAG: "dag/other_task"}})
+
+        with pytest.raises(SandboxTerminalError, match="already held by 'dag/other_task'"):
+            backend.attach("sb", owner="o", holder="dag/task")
+
+    def test_the_same_holder_may_attach_again(self):
+        # A retry of the agent task is the same holder, and the previous attempt may
+        # have died without releasing. It must find its files, not a locked door.
+        backend = TaggedBackend({"sb": {OWNER_TAG: "o", HOLDER_TAG: "dag/task"}})
+
+        backend.attach("sb", owner="o", holder="dag/task")
+
+        assert backend.tags["sb"][HOLDER_TAG] == "dag/task"
+
+    def test_attaching_marks_the_holder_and_keeps_every_other_tag(self):
+        backend = TaggedBackend({"sb": {OWNER_TAG: "o", "team": "data"}})
+
+        backend.attach("sb", owner="o", holder="dag/task")
+
+        assert backend.tags["sb"] == {OWNER_TAG: "o", "team": "data", HOLDER_TAG: "dag/task"}
+
+    def test_a_claim_that_lost_the_race_is_refused_not_kept(self):
+        # No conditional write exists, so the write is read back: whoever lost sees the
+        # other holder and backs off instead of both runs proceeding in silence.
+        backend = _RacingBackend({"sb": {OWNER_TAG: "o"}})
+
+        with pytest.raises(SandboxTerminalError, match="claimed by 'someone/faster' while 'dag/task'"):
+            backend.attach("sb", owner="o", holder="dag/task")
+
+    @time_machine.travel(1_000_000, tick=False)
+    def test_the_remaining_lifetime_comes_from_the_stamped_expiry(self):
+        backend = TaggedBackend({"sb": {OWNER_TAG: "o", EXPIRES_AT_TAG: str(1_000_000 + 600)}})
+
+        assert backend.attach("sb", owner="o", holder="h").remaining_lifetime == 600.0
+
+    @time_machine.travel(1_000_000, tick=False)
+    def test_an_expired_stamp_reports_zero_not_a_negative_number(self):
+        backend = TaggedBackend({"sb": {OWNER_TAG: "o", EXPIRES_AT_TAG: str(1_000_000 - 60)}})
+
+        assert backend.attach("sb", owner="o", holder="h").remaining_lifetime == 0.0
+
+    @pytest.mark.parametrize("tags", [{OWNER_TAG: "o"}, {OWNER_TAG: "o", EXPIRES_AT_TAG: "soon"}])
+    def test_no_usable_expiry_means_no_claim_about_the_lifetime(self, tags):
+        backend = TaggedBackend({"sb": tags})
+
+        assert backend.attach("sb", owner="o", holder="h").remaining_lifetime is None
+
+    def test_the_network_policy_comes_back_as_a_spec(self):
+        stamped = encode_network_policy(SandboxSpec(allow_egress_to_cidrs=["203.0.113.7/32"]))
+        backend = TaggedBackend({"sb": {OWNER_TAG: "o", NETWORK_TAG: stamped}})
+
+        attached = backend.attach("sb", owner="o", holder="h")
+
+        assert attached.network == SandboxSpec(block_network=True, allow_egress_to_cidrs=["203.0.113.7/32"])
+
+    def test_no_network_stamp_means_no_claim_about_the_network(self):
+        backend = TaggedBackend({"sb": {OWNER_TAG: "o"}})
+
+        assert backend.attach("sb", owner="o", holder="h").network is None
+
+    def test_release_clears_only_the_callers_claim(self):
+        backend = TaggedBackend({"sb": {OWNER_TAG: "o", HOLDER_TAG: "someone_else"}})
+
+        backend.release("sb", holder="h")
+
+        assert backend.tags["sb"][HOLDER_TAG] == "someone_else"
+
+    def test_release_is_idempotent(self):
+        backend = TaggedBackend({"sb": {OWNER_TAG: "o", HOLDER_TAG: "h"}})
+
+        backend.release("sb", holder="h")
+        backend.release("sb", holder="h")
+
+        assert backend.tags["sb"] == {OWNER_TAG: "o"}
+
+    def test_a_missing_sandbox_is_terminal_for_both(self):
+        backend = TaggedBackend({})
+
+        with pytest.raises(SandboxTerminalError):
+            backend.attach("sb", owner="o", holder="h")
+        with pytest.raises(SandboxTerminalError):
+            backend.release("sb", holder="h")
