@@ -481,8 +481,10 @@ constructor:
                 self.start_trigger_args, trigger_kwargs={"job": self.job}
             )
 
-A copy under a different key, a transformed value, or a template field passed as ``timeout`` or
-``next_kwargs`` is never rendered and is still flagged.
+A transformed value, a copy under a key that is not a template field of the operator, and a template
+field passed as ``timeout`` or ``next_kwargs`` are never rendered and are still flagged. A copy under
+the name of a *different* template field is rendered, under that key, but is flagged as well — the
+entry no longer holds the field its key names.
 
 The reason for doing it is that we are working on a cleaning up our code to have
 `prek hook <../scripts/ci/prek/validate_operators_init.py>`_

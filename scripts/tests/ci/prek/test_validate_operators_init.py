@@ -156,6 +156,12 @@ class TestConstructorFieldLogic:
             pytest.param(
                 "self.foo = foo\nself.start_trigger_args = StartTriggerArgs(trigger_kwargs={}, timeout=foo)",
                 1,
+                id="bare-field-name-in-a-non-rendered-start-trigger-args-field",
+            ),
+            pytest.param(
+                "self.foo = foo\n"
+                "self.start_trigger_args = StartTriggerArgs(trigger_kwargs={}, next_kwargs={'foo': self.foo})",
+                1,
                 id="other-start-trigger-args-fields-are-not-rendered",
             ),
             pytest.param(
@@ -229,6 +235,19 @@ class TestConstructorFieldLogic:
                 self.conf = conf
         """
         assert _logic_findings(code, ["conf"]) == 0
+
+    def test_trigger_kwargs_copy_of_another_template_field_is_flagged(self):
+        # "bar" is rendered under the key "bar", so the value copied here is the wrong field.
+        code = """
+        class MyOperator(BaseOperator):
+            template_fields = ("foo", "bar")
+
+            def __init__(self, foo=None, bar=None, **kwargs):
+                self.foo = foo
+                self.bar = bar
+                self.start_trigger_args = StartTriggerArgs(trigger_kwargs={"foo": self.bar})
+        """
+        assert _logic_findings(code, ["foo", "bar"]) == 1
 
     def test_unbound_module_name_matching_field_is_not_flagged(self):
         code = """

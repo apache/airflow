@@ -358,7 +358,9 @@ still belongs in ``execute()``:
 ``start_trigger_args.trigger_kwargs`` under the field's own name. The scheduler sends the task straight to
 the triggerer, which renders those entries itself, and ``execute()`` never runs. The key has to match the
 field name and be an attribute of the trigger; nothing else in ``StartTriggerArgs`` is rendered, so a
-transformed value or a different key is still invalid:
+transformed value, or a key that is not a template field, is still invalid. Storing one field's value
+under another template field's key is rendered, under that key, but is invalid too — the entry no
+longer holds the field its key names:
 
 .. code-block:: python
 

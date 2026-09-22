@@ -339,6 +339,7 @@ def _collect_sanctioned_uses(ctor: ast.FunctionDef, template_fields: list[str]) 
                     # The triggerer renders only the trigger_kwargs entries whose key is both an
                     # operator template field and a trigger attribute (airflow/triggers/base.py),
                     # so only a verbatim copy under the field's own name is safe un-rendered.
+                    # trigger_cls is a string, so the trigger-attribute half is the author's to keep.
                     for key, item in _iter_trigger_kwargs_items(value):
                         if key in template_fields and _target_name(item) == key:
                             sanctioned.add(id(item))
