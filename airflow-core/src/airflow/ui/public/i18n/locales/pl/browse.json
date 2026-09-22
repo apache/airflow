@@ -10,6 +10,40 @@
       "eventType": "Typ zdarzenia"
     }
   },
+  "dagBundles": {
+    "active": "Aktywna",
+    "columns": {
+      "active": "Aktywna",
+      "importErrors": "Błędy importu",
+      "lastRefreshed": "Ostatnie odświeżenie",
+      "name": "Nazwa",
+      "version": "Wersja"
+    },
+    "detail": {
+      "status": "Stan"
+    },
+    "files": {
+      "columns": {
+        "file": "Plik",
+        "lastParsed": "Ostatnia analiza",
+        "parseDuration": "Czas parsowania"
+      },
+      "file_few": "Pliki",
+      "file_many": "Plików",
+      "file_one": "Plik",
+      "file_other": "Pliki",
+      "importErrorGone": "Ten błąd importu nie jest już rejestrowany. Prawdopodobnie został naprawiony przez ponowne przetworzenie.",
+      "neverParsed": "Nigdy",
+      "showImportError_few": "Zobacz {{count}} błędy",
+      "showImportError_many": "Zobacz {{count}} błędów",
+      "showImportError_one": "Zobacz błąd",
+      "showImportError_other": "Zobacz {{count}} błędy"
+    },
+    "inactive": "Nieaktywna",
+    "neverRefreshed": "Nigdy",
+    "notRefreshedYet": "Jeszcze nieodświeżona",
+    "notVersioned": "Bez wersjonowania"
+  },
   "deadlines": {
     "columns": {
       "alertName": "Nazwa alertu",

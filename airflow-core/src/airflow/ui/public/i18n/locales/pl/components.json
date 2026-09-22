@@ -125,6 +125,12 @@
     "taskGroup": "Grupa zadań",
     "zoomToTask": "Powiększ do wybranego zadania"
   },
+  "jsonPreview": {
+    "items_few": "{{count}} elementy",
+    "items_many": "{{count}} elementów",
+    "items_one": "1 element",
+    "items_other": "{{count}} elementy"
+  },
   "limitedList": "+{{count}} więcej",
   "limitedList.allItems": "Wszystkie {{count}} elementy:",
   "limitedList.allTags_few": "Wszystkie tagi ({{count}})",
