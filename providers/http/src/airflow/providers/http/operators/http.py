@@ -317,31 +317,33 @@ class HttpOperator(BaseOperator):
         """
         if event["status"] == "success":
             response = HttpResponseSerializer.deserialize(event["response"])
-
-            self.paginate_async(context=context, response=response, previous_responses=paginated_responses)
-            return self.process_response(context=context, response=response)
+            return self.paginate_async(
+                context=context, response=response, previous_responses=paginated_responses
+            )
         raise AirflowException(f"Unexpected error in the operation: {event['message']}")
 
     def paginate_async(
         self, context: Context, response: Response, previous_responses: None | list[Response] = None
     ):
-        if self.pagination_function:
-            all_responses = previous_responses or []
-            all_responses.append(response)
+        if not self.pagination_function:
+            return self.process_response(context=context, response=response)
 
-            next_page_params = self.pagination_function(response)
-            if not next_page_params:
-                return self.process_response(context=context, response=all_responses)
-            self.defer(
-                trigger=HttpTrigger(
-                    http_conn_id=self.http_conn_id,
-                    auth_type=serialize_auth_type(self._resolve_auth_type()),
-                    method=self.method,
-                    **self._merge_next_page_parameters(next_page_params),
-                ),
-                method_name="execute_complete",
-                kwargs={"paginated_responses": all_responses},
-            )
+        all_responses = previous_responses or []
+        all_responses.append(response)
+
+        next_page_params = self.pagination_function(response)
+        if not next_page_params:
+            return self.process_response(context=context, response=all_responses)
+        self.defer(
+            trigger=HttpTrigger(
+                http_conn_id=self.http_conn_id,
+                auth_type=serialize_auth_type(self._resolve_auth_type()),
+                method=self.method,
+                **self._merge_next_page_parameters(next_page_params),
+            ),
+            method_name="execute_complete",
+            kwargs={"paginated_responses": all_responses},
+        )
 
     def _merge_next_page_parameters(self, next_page_params: dict) -> dict:
         """

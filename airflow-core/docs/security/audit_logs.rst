@@ -89,7 +89,7 @@ While both logging systems are crucial for system management, they serve distinc
      - Short to medium-term (days to weeks)
    * - **Query Patterns**
      - "Who cleared the task instance for re-execution?"
-     - No query made except is a log aggregation framework is used. Usually logs are read on a per task execution basis and will describe: "Why did this task execution fail?"
+     - No query is made unless a log aggregation framework is used. Usually logs are read on a per task execution basis and will describe: "Why did this task execution fail?"
 
 
 Accessing Audit Logs
@@ -486,16 +486,16 @@ Effective audit log analysis requires understanding the various methods availabl
 .. code-block:: bash
 
     # Get all audit logs
-    curl -X GET "http://localhost:8080/api/v1/eventLogs"
+    curl -X GET "http://localhost:8080/api/v2/eventLogs"
 
     # Filter by event type
-    curl -X GET "http://localhost:8080/api/v1/eventLogs?event=trigger_dag_run"
+    curl -X GET "http://localhost:8080/api/v2/eventLogs?event=trigger_dag_run"
 
     # Filter by DAG
-    curl -X GET "http://localhost:8080/api/v1/eventLogs?dag_id=example_dag"
+    curl -X GET "http://localhost:8080/api/v2/eventLogs?dag_id=example_dag"
 
     # Filter by date range
-    curl -X GET "http://localhost:8080/api/v1/eventLogs?after=2024-01-01T00:00:00Z&before=2024-12-31T23:59:59Z"
+    curl -X GET "http://localhost:8080/api/v2/eventLogs?after=2024-01-01T00:00:00Z&before=2024-12-31T23:59:59Z"
 
 **Database Query Examples**:
 
@@ -544,10 +544,10 @@ Event logs (operational logs) are typically accessed through different methods d
 .. code-block:: bash
 
     # Get task instance logs
-    curl -X GET "http://localhost:8080/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}"
+    curl -X GET "http://localhost:8080/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}"
 
     # Get task logs with metadata
-    curl -X GET "http://localhost:8080/api/v1/dags/example_dag/dagRuns/2024-01-01T00:00:00+00:00/taskInstances/example_task/logs/1?full_content=true"
+    curl -X GET "http://localhost:8080/api/v2/dags/example_dag/dagRuns/2024-01-01T00:00:00+00:00/taskInstances/example_task/logs/1?full_content=true"
 
 **Python Logging Integration**:
 

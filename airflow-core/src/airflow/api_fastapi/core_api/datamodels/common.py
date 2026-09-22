@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import enum
 import logging
+from collections.abc import Mapping
 from typing import Annotated, Any, Generic, Literal, TypeVar, Union
 
 from pydantic import BeforeValidator, Discriminator, Field, Tag, TypeAdapter, ValidationError
@@ -50,12 +51,17 @@ class AssetExpressionAssetInfo(BaseModel):
     persisted; ``BaseAsset.as_expression()`` itself only emits ``uri``/``name``/``group``. It is left
     optional so a row persisted before id-enrichment (or migrated from the pre-3.0 dataset format)
     degrades gracefully instead of failing response validation.
+
+    A leaf the caller is not authorized to read is served with ``hidden`` set and ``uri``, ``name``
+    and ``id`` blanked (see ``airflow.api_fastapi.common.asset_expression``), so the shape of the
+    schedule stays visible without revealing which asset it waits on.
     """
 
-    uri: str
-    name: str
+    uri: str | None
+    name: str | None
     group: str
     id: int | None = None
+    hidden: bool = False
 
 
 class AssetExpressionAliasInfo(BaseModel):
@@ -219,8 +225,16 @@ class BulkDeleteAction(BulkBaseAction[T]):
     action_on_non_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
 
 
-def _action_discriminator(action: Any) -> str:
-    return BulkAction(action["action"]).value
+def _action_discriminator(action: Any) -> str | None:
+    """Select a bulk action variant, returning ``None`` for anything unrecognised."""
+    value = action.get("action") if isinstance(action, Mapping) else getattr(action, "action", None)
+    try:
+        return BulkAction(value).value
+    except ValueError:
+        return None
+
+
+_BULK_ACTION_TAGS = ", ".join(repr(action.value) for action in BulkAction)
 
 
 class BulkBody(StrictBaseModel, Generic[T]):
@@ -233,7 +247,11 @@ class BulkBody(StrictBaseModel, Generic[T]):
                 Annotated[BulkUpdateAction[T], Tag(BulkAction.UPDATE.value)],
                 Annotated[BulkDeleteAction[T], Tag(BulkAction.DELETE.value)],
             ],
-            Discriminator(_action_discriminator),
+            Discriminator(
+                _action_discriminator,
+                custom_error_type="bulk_action_invalid",
+                custom_error_message=f"Each entry needs an 'action' of {_BULK_ACTION_TAGS}",
+            ),
         ]
     ]
 

@@ -523,6 +523,11 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             return False
         if resp.status_code == 400:
             error = json.loads(resp.text)
+            # Keycloak's uma-ticket grant often returns 400 invalid_grant (not 401)
+            # when the nested access token used as bearer is expired or invalid.
+            if error.get("error") == "invalid_grant":
+                log.debug("Received invalid_grant from Keycloak: %s", resp.text)
+                return False
             if is_team_resource and error.get("error") == "invalid_resource":
                 # filter_authorized_dag_ids will return this error if team resources have not been added to the Keycloak Client.
                 log.warning(
@@ -664,6 +669,38 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             results = executor.map(check, requests)
         return all(results)
 
+    def filter_authorized_assets(
+        self,
+        *,
+        assets: Sequence[AssetDetails],
+        user: KeycloakAuthManagerUser,
+        method: ResourceMethod = "GET",
+    ) -> set[str]:
+        candidates = [details for details in assets if details.id is not None]
+        cache_key = (
+            user.get_id(),
+            method,
+            frozenset(cast("str", details.id) for details in candidates),
+        )
+
+        def query_keycloak() -> set[str]:
+            if not candidates:
+                return set()
+            max_workers = min(
+                len(candidates), conf.getint(CONF_SECTION_NAME, CONF_REQUESTS_POOL_SIZE_KEY, fallback=10)
+            )
+
+            def check(details: AssetDetails) -> tuple[str, bool]:
+                return cast("str", details.id), self.is_authorized_asset(
+                    method=method, user=user, details=details
+                )
+
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                results = executor.map(check, candidates)
+            return {asset_id for asset_id, authorized in results if authorized}
+
+        return single_flight(cache_key, query_keycloak)
+
     def filter_authorized_connections(
         self,
         *,
@@ -789,6 +826,9 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             return set()
         if resp.status_code == 400:
             error = json.loads(resp.text)
+            if error.get("error") == "invalid_grant":
+                log.debug("Received invalid_grant from Keycloak: %s", resp.text)
+                return set()
             raise AirflowException(
                 f"Request not recognized by Keycloak. {error.get('error')}. {error.get('error_description')}"
             )

@@ -27,7 +27,12 @@ if [[ ${PYTHON_VERSION=} != "" ]]; then
 fi
 
 python -m pip install --upgrade "pip==${PIP_VERSION}"
+# A leftover global tool install would shadow the venv script below via ~/.local/bin.
 uv tool uninstall apache-airflow-breeze >/dev/null 2>&1 || true
+# `uv sync --locked` installs exactly what dev/breeze/uv.lock pins. `uv tool install` re-resolved
+# against the index instead, so any third-party release landing mid-day silently changed breeze's
+# dependencies — and with them the breeze command hashes every PR is checked against.
 # shellcheck disable=SC2086
-uv tool install ${PYTHON_ARG} --force --editable ./dev/breeze/
+uv sync ${PYTHON_ARG} --project ./dev/breeze/ --locked
+echo "$(pwd)/dev/breeze/.venv/bin" >> "${GITHUB_PATH}"
 echo '/home/runner/.local/bin' >> "${GITHUB_PATH}"

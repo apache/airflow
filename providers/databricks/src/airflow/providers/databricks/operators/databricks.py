@@ -329,12 +329,34 @@ _RUN_NOW_PARAM_SLOTS_CONFLICTING_WITH_JOB_PARAMETERS = (
 )
 
 
+def _get_forwardable_dag_params(params: Mapping[str, Any]) -> dict[str, Any]:
+    """Return the Dag params that can be forwarded to Databricks."""
+    # A Param that resolves to None has no value to forward, and the Databricks payload has no
+    # slot for null. The dict() round-trip is what resolves each Param: ParamsDict.items() yields
+    # the Param objects themselves, none of which would ever compare equal to None.
+    return {key: value for key, value in dict(params).items() if value is not None}
+
+
 def _inject_airflow_params_into_task(task: dict, params: dict) -> None:
     """Set dict-shaped per-task parameter fields from ``params`` if they are not already set."""
     for task_key, field in _DICT_PARAM_FIELD_BY_TASK.items():
         task_def = task.get(task_key)
         if isinstance(task_def, dict) and not task_def.get(field):
             task_def[field] = dict(params)
+
+
+def _inject_openlineage_context_into_task_parameters(task: dict, context: Context) -> None:
+    """Inject OpenLineage context into each dict-shaped parameter field supported by a task."""
+    from airflow.providers.databricks.utils.openlineage import (
+        inject_openlineage_context_into_databricks_job_parameters,
+    )
+
+    for task_key, field in _DICT_PARAM_FIELD_BY_TASK.items():
+        task_def = task.get(task_key)
+        if isinstance(task_def, dict):
+            task_def[field] = inject_openlineage_context_into_databricks_job_parameters(
+                job_parameters=task_def.get(field) or {}, context=context
+            )
 
 
 def _coerce_json_to_dict(json: Any) -> dict[str, Any]:
@@ -437,11 +459,16 @@ class DatabricksCreateJobsOperator(BaseOperator):
         Array of objects (JobTaskSettings).
     :param job_clusters: A list of job cluster specifications that can be shared and reused by
         tasks of this job. Array of objects (JobCluster).
+    :param environments: A list of task execution environments that the serverless tasks of this
+        job reference through their ``environment_key``. Array of objects (JobEnvironment).
     :param email_notifications: Object (JobEmailNotifications).
     :param webhook_notifications: Object (WebhookNotifications).
     :param notification_settings: Optional notification settings.
     :param timeout_seconds: An optional timeout applied to each run of this job.
     :param schedule: Object (CronSchedule).
+    :param trigger: A configuration to trigger a run when certain conditions are met, such as a
+        file arriving in an external location, a monitored table being updated, or a periodic
+        interval elapsing. Object (TriggerSettings).
     :param max_concurrent_runs: An optional maximum allowed number of concurrent runs of the job.
     :param git_source: An optional specification for a remote repository containing the notebooks
         used by this job's notebook tasks. Object (GitSource).
@@ -452,6 +479,15 @@ class DatabricksCreateJobsOperator(BaseOperator):
         .. seealso::
             This will only be used on create. In order to reset ACL consider using the Databricks
             UI.
+    :param performance_target: Optional performance mode for runs of this job on serverless compute.
+        Either ``PERFORMANCE_OPTIMIZED`` (prioritizes fast startup and execution) or
+        ``STANDARD`` (enables cost-efficient execution of serverless workloads). The API drops any
+        other value instead of rejecting it, so a mistyped ``STANDARD`` raises no error and the run
+        falls back to the more expensive default, ``PERFORMANCE_OPTIMIZED``. This field will be
+        templated.
+
+        .. seealso::
+            https://docs.databricks.com/api/workspace/jobs/create
     :param databricks_conn_id: Reference to the
         :ref:`Databricks connection <howto/connection:databricks>`. (templated)
     :param polling_period_seconds: Controls the rate which we poll for the result of
@@ -468,7 +504,8 @@ class DatabricksCreateJobsOperator(BaseOperator):
         If ``parameters`` is not set in ``json`` and the operator's ``params`` dict is non-empty,
         the operator's ``params`` are automatically converted to job-level ``parameters`` (a list
         of ``{"name": k, "default": v}`` entries) so that Airflow Dag params can be forwarded as
-        Databricks job parameters without hardcoding them in ``json``.
+        Databricks job parameters without hardcoding them in ``json``. Params whose value is
+        ``None`` are skipped.
 
     """
 
@@ -480,14 +517,17 @@ class DatabricksCreateJobsOperator(BaseOperator):
         "tags",
         "tasks",
         "job_clusters",
+        "environments",
         "email_notifications",
         "webhook_notifications",
         "notification_settings",
         "timeout_seconds",
         "schedule",
+        "trigger",
         "max_concurrent_runs",
         "git_source",
         "access_control_list",
+        "performance_target",
         "databricks_conn_id",
     )
     # Databricks brand color (blue) under white text
@@ -503,14 +543,17 @@ class DatabricksCreateJobsOperator(BaseOperator):
         tags: dict[str, str] | None = None,
         tasks: list[dict] | None = None,
         job_clusters: list[dict] | None = None,
+        environments: list[dict] | None = None,
         email_notifications: dict | None = None,
         webhook_notifications: dict | None = None,
         notification_settings: dict | None = None,
         timeout_seconds: int | None = None,
         schedule: dict | None = None,
+        trigger: dict | None = None,
         max_concurrent_runs: int | None = None,
         git_source: dict | None = None,
         access_control_list: list[dict] | None = None,
+        performance_target: str | None = None,
         databricks_conn_id: str = "databricks_default",
         polling_period_seconds: int = 30,
         databricks_retry_limit: int = 3,
@@ -526,14 +569,17 @@ class DatabricksCreateJobsOperator(BaseOperator):
         self.tags = tags
         self.tasks = tasks
         self.job_clusters = job_clusters
+        self.environments = environments
         self.email_notifications = email_notifications
         self.webhook_notifications = webhook_notifications
         self.notification_settings = notification_settings
         self.timeout_seconds = timeout_seconds
         self.schedule = schedule
+        self.trigger = trigger
         self.max_concurrent_runs = max_concurrent_runs
         self.git_source = git_source
         self.access_control_list = access_control_list
+        self.performance_target = performance_target
         self.databricks_conn_id = databricks_conn_id
         self.polling_period_seconds = polling_period_seconds
         self.databricks_retry_limit = databricks_retry_limit
@@ -547,14 +593,17 @@ class DatabricksCreateJobsOperator(BaseOperator):
             "tags": self.tags,
             "tasks": self.tasks,
             "job_clusters": self.job_clusters,
+            "environments": self.environments,
             "email_notifications": self.email_notifications,
             "webhook_notifications": self.webhook_notifications,
             "notification_settings": self.notification_settings,
             "timeout_seconds": self.timeout_seconds,
             "schedule": self.schedule,
+            "trigger": self.trigger,
             "max_concurrent_runs": self.max_concurrent_runs,
             "git_source": self.git_source,
             "access_control_list": self.access_control_list,
+            "performance_target": self.performance_target,
         }
 
     def _get_merged_json(self) -> dict[str, Any]:
@@ -575,8 +624,8 @@ class DatabricksCreateJobsOperator(BaseOperator):
         if "name" not in json:
             raise AirflowException("Missing required parameter: name")
         job_id = self._hook.find_job_id_by_name(json["name"])
-        if not json.get("parameters") and self.params:
-            json["parameters"] = [{"name": k, "default": v} for k, v in dict(self.params).items()]
+        if not json.get("parameters") and (forwardable_params := _get_forwardable_dag_params(self.params)):
+            json["parameters"] = [{"name": k, "default": v} for k, v in forwardable_params.items()]
         if job_id is None:
             return self._hook.create_job(json)
         self._hook.reset_job(str(job_id), json)
@@ -673,6 +722,12 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
 
         .. seealso::
             https://docs.databricks.com/dev-tools/api/2.0/jobs.html#managedlibrarieslibrary
+    :param environments: A list of task execution environments that the serverless tasks of this
+        run reference through their ``environment_key``. Array of objects (JobEnvironment).
+        This field will be templated.
+
+        .. seealso::
+            https://docs.databricks.com/api/workspace/jobs/submit#environments
     :param run_name: The run name used for this task.
         By default this will be set to the Airflow ``task_id``. This ``task_id`` is a
         required parameter of the superclass ``BaseOperator``.
@@ -681,7 +736,7 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         requests. If a run with the provided token already exists, the request does not create a new run but
         returns the ID of the existing run instead.  This token must have at most 64 characters.
     :param access_control_list: optional list of dictionaries representing Access Control List (ACL) for
-        a given job run.  Each dictionary consists of following field - specific subject (``user_name`` for
+        a given job run.  Each dictionary consists of the following fields - specific subject (``user_name`` for
         users, or ``group_name`` for groups), and ``permission_level`` for that subject.  See Jobs API
         documentation for more details.
     :param wait_for_termination: if we should wait for termination of the job run. ``True`` by default.
@@ -706,8 +761,10 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         supported task types are retrieved.
     :param performance_target: Optional performance mode for the run on serverless compute.
         Either ``PERFORMANCE_OPTIMIZED`` (prioritizes fast startup and execution) or
-        ``STANDARD`` (enables cost-efficient execution of serverless workloads). This field
-        will be templated.
+        ``STANDARD`` (enables cost-efficient execution of serverless workloads). The API drops any
+        other value instead of rejecting it, so a mistyped ``STANDARD`` raises no error and the run
+        falls back to the more expensive default, ``PERFORMANCE_OPTIMIZED``. This field will be
+        templated.
 
         .. seealso::
             https://docs.databricks.com/api/workspace/jobs/submit
@@ -716,8 +773,8 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         .. seealso::
             https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit
     :param openlineage_inject_parent_job_info: If True, injects OpenLineage parent job information
-        into the ``new_cluster`` ``spark_conf`` so the Spark job emits a ``parentRunFacet`` linking
-        back to the Airflow task. Defaults to the
+        into dict-shaped task parameters and the ``new_cluster`` ``spark_conf`` so the Databricks
+        job can emit a ``parentRunFacet`` linking back to the Airflow task. Defaults to the
         ``openlineage.spark_inject_parent_job_info`` config value.
     :param openlineage_inject_transport_info: If True, injects OpenLineage transport configuration
         into the ``new_cluster`` ``spark_conf`` so the Spark job sends OL events to the same backend
@@ -734,7 +791,7 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         ``sql_task.parameters``, ``run_job_task.job_parameters``. Tasks whose only parameter
         field is ``List[str]`` (``spark_jar_task``, ``spark_python_task``, ``spark_submit_task``)
         are skipped because there is no canonical mapping from a key/value dict to a positional
-        argument list.
+        argument list. Params whose value is ``None`` are skipped.
     """
 
     external_id_key = "databricks_run_id"
@@ -752,6 +809,7 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         "new_cluster",
         "existing_cluster_id",
         "libraries",
+        "environments",
         "run_name",
         "timeout_seconds",
         "idempotency_token",
@@ -780,6 +838,7 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         new_cluster: dict[str, object] | None = None,
         existing_cluster_id: str | None = None,
         libraries: list[dict[str, Any]] | None = None,
+        environments: list[dict[str, Any]] | None = None,
         run_name: str | None = None,
         timeout_seconds: int | None = None,
         databricks_conn_id: str = "databricks_default",
@@ -820,6 +879,7 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         self.new_cluster = new_cluster
         self.existing_cluster_id = existing_cluster_id
         self.libraries = libraries
+        self.environments = environments
         self.run_name = run_name
         self.timeout_seconds = timeout_seconds
         self.idempotency_token = idempotency_token
@@ -852,6 +912,7 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
             "new_cluster": self.new_cluster,
             "existing_cluster_id": self.existing_cluster_id,
             "libraries": self.libraries,
+            "environments": self.environments,
             "run_name": self.run_name,
             "timeout_seconds": self.timeout_seconds,
             "idempotency_token": self.idempotency_token,
@@ -921,23 +982,40 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
             json["pipeline_task"]["pipeline_id"] = self._hook.find_pipeline_id_by_name(pipeline_name)
             del json["pipeline_task"]["pipeline_name"]
 
-        if self.params:
-            params_dump = dict(self.params)
+        if forwardable_params := _get_forwardable_dag_params(self.params):
             tasks = json.get("tasks")
             if isinstance(tasks, list):
                 for task in tasks:
                     if isinstance(task, dict):
-                        _inject_airflow_params_into_task(task, params_dump)
+                        _inject_airflow_params_into_task(task, forwardable_params)
             else:
-                _inject_airflow_params_into_task(json, params_dump)
+                _inject_airflow_params_into_task(json, forwardable_params)
 
         if self.openlineage_inject_parent_job_info or self.openlineage_inject_transport_info:
-            self.log.info("Automatic injection of OpenLineage information into Spark properties is enabled.")
+            self.log.info("Automatic injection of OpenLineage information is enabled.")
             json = self._inject_openlineage_properties_into_databricks_job(json, context)
 
         return cast("dict[str, Any]", normalise_json_content(json))
 
     def _inject_openlineage_properties_into_databricks_job(self, json: dict, context: Context) -> dict:
+        if self.openlineage_inject_parent_job_info:
+            try:
+                context_json = copy.deepcopy(json)
+                tasks = context_json.get("tasks")
+                if isinstance(tasks, list):
+                    for task in tasks:
+                        if isinstance(task, dict):
+                            _inject_openlineage_context_into_task_parameters(task, context)
+                else:
+                    _inject_openlineage_context_into_task_parameters(context_json, context)
+                json = context_json
+            except Exception as e:
+                self.log.warning(
+                    "An error occurred while trying to inject OpenLineage context. "
+                    "Databricks task parameters have not been modified by OpenLineage.",
+                    exc_info=e,
+                )
+
         try:
             from airflow.providers.databricks.utils.openlineage import (
                 inject_openlineage_properties_into_databricks_job,
@@ -1087,6 +1165,7 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         - ``jar_params``
         - ``spark_submit_params``
         - ``idempotency_token``
+        - ``performance_target``
         - ``repair_run``
         - ``databricks_repair_reason_new_settings``
         - ``cancel_previous_runs``
@@ -1186,6 +1265,15 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
     :param idempotency_token: an optional token that can be used to guarantee the idempotency of job run
         requests. If a run with the provided token already exists, the request does not create a new run but
         returns the ID of the existing run instead.  This token must have at most 64 characters.
+    :param performance_target: Optional performance mode for this run on serverless compute, overriding
+        the performance target defined at the job level. Either ``PERFORMANCE_OPTIMIZED`` (prioritizes
+        fast startup and execution) or ``STANDARD`` (enables cost-efficient execution of serverless
+        workloads). The API drops any other value instead of rejecting it, so a mistyped ``STANDARD``
+        raises no error and the run falls back to the more expensive default, ``PERFORMANCE_OPTIMIZED``.
+        This field will be templated.
+
+        .. seealso::
+            https://docs.databricks.com/api/workspace/jobs/runnow
     :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
         By default and in the common case this will be ``databricks_default``. To use
         token based authentication, provide the key ``token`` in the extra field for the
@@ -1202,6 +1290,10 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
     :param wait_for_termination: if we should wait for termination of the job run. ``True`` by default.
     :param deferrable: Run operator in the deferrable mode.
+    :param openlineage_inject_parent_job_info: If True, injects the standardized OpenLineage parent-run
+        context into the ``OPENLINEAGE_CONTEXT`` job parameter so Databricks tasks can link their
+        OpenLineage events back to the Airflow task. Defaults to the
+        ``openlineage.spark_inject_parent_job_info`` config value.
     :param repair_run: Repair the databricks run in case of failure.
     :param databricks_repair_reason_new_settings: A dict of reason and new_settings JSON object for which
             to repair the run. `None` by default. `None` means to repair at all cases with existing job
@@ -1221,7 +1313,8 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         If ``job_parameters`` is not set in ``json`` and the operator's ``params`` dict is
         non-empty, the operator's ``params`` are automatically forwarded as ``job_parameters``
         so that Airflow Dag params can be passed dynamically to Databricks runs without
-        hardcoding them in ``json``. Set ``forward_dag_params=False`` to disable this.
+        hardcoding them in ``json``. Params whose value is ``None`` are skipped. Set
+        ``forward_dag_params=False`` to disable this.
         Note that the Databricks API does not permit ``job_parameters`` to be used in combination
         with ``notebook_params``, ``python_params``, ``jar_params``, ``spark_submit_params``,
         ``python_named_params``, or ``dbt_commands``; auto-forwarding is automatically skipped
@@ -1243,6 +1336,7 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         "jar_params",
         "spark_submit_params",
         "idempotency_token",
+        "performance_target",
         "databricks_conn_id",
     )
     template_ext: Sequence[str] = (".json-tpl",)
@@ -1265,6 +1359,7 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         spark_submit_params: list[str] | None = None,
         python_named_params: dict[str, str] | None = None,
         idempotency_token: str | None = None,
+        performance_target: str | None = None,
         databricks_conn_id: str = "databricks_default",
         polling_period_seconds: int = 30,
         databricks_retry_limit: int = 3,
@@ -1273,6 +1368,9 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         do_xcom_push: bool = True,
         wait_for_termination: bool = True,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        openlineage_inject_parent_job_info: bool = conf.getboolean(
+            "openlineage", "spark_inject_parent_job_info", fallback=False
+        ),
         repair_run: bool = False,
         databricks_repair_reason_new_settings: dict[str, Any] | None = None,
         cancel_previous_runs: bool = False,
@@ -1297,6 +1395,7 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         self.jar_params = jar_params
         self.spark_submit_params = spark_submit_params
         self.idempotency_token = idempotency_token
+        self.performance_target = performance_target
         self.databricks_conn_id = databricks_conn_id
         self.polling_period_seconds = polling_period_seconds
         self.databricks_retry_limit = databricks_retry_limit
@@ -1304,6 +1403,7 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         self.databricks_retry_args = databricks_retry_args
         self.wait_for_termination = wait_for_termination
         self.deferrable = deferrable
+        self.openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
         self.repair_run = repair_run
         self.databricks_repair_reason_new_settings = databricks_repair_reason_new_settings or {}
         self.cancel_previous_runs = cancel_previous_runs
@@ -1325,6 +1425,7 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
             "jar_params": self.jar_params,
             "spark_submit_params": self.spark_submit_params,
             "idempotency_token": self.idempotency_token,
+            "performance_target": self.performance_target,
         }
 
     def _get_merged_json(self) -> dict[str, Any]:
@@ -1350,13 +1451,13 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
 
     def execute(self, context: Context):
         if self.deferrable:
-            json = self._prepare_run_now_json()
+            json = self._prepare_run_now_json(context)
             self.run_id = self._hook.run_now(json)
             _handle_deferrable_databricks_operator_execution(self, self._hook, self.log, context)
         else:
             return self.execute_resumable(context)
 
-    def _build_run_now_payload(self) -> dict[str, Any]:
+    def _build_run_now_payload(self, context: Context) -> dict[str, Any]:
         # Utility to build the run payload: merge, validate, resolve job_name -> job_id, inject params.
         # Kept separate from cancel_previous_runs so the reconnect path can rebuild the payload
         # (for repair_run) without re-cancelling the run it is reconnecting to.
@@ -1375,18 +1476,51 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
             json["job_id"] = job_id
             del json["job_name"]
 
+        return self._inject_run_now_job_parameters(json, context)
+
+    def _inject_run_now_job_parameters(self, json: dict[str, Any], context: Context) -> dict[str, Any]:
         if (
             self.forward_dag_params
             and not json.get("job_parameters")
-            and self.params
             and not any(k in json for k in _RUN_NOW_PARAM_SLOTS_CONFLICTING_WITH_JOB_PARAMETERS)
+            and (forwardable_params := _get_forwardable_dag_params(self.params))
         ):
-            json["job_parameters"] = dict(self.params)
+            json["job_parameters"] = forwardable_params
+
+        if self.openlineage_inject_parent_job_info:
+            if any(k in json for k in _RUN_NOW_PARAM_SLOTS_CONFLICTING_WITH_JOB_PARAMETERS):
+                self.log.info(
+                    "Skipping OpenLineage parent job information injection because the Databricks "
+                    "run uses a legacy parameter slot that cannot be combined with job_parameters."
+                )
+            else:
+                json = self._inject_openlineage_properties_into_databricks_job(json, context)
 
         return json
 
-    def _prepare_run_now_json(self) -> dict[str, Any]:
-        json = self._build_run_now_payload()
+    def _inject_openlineage_properties_into_databricks_job(
+        self, json: dict[str, Any], context: Context
+    ) -> dict[str, Any]:
+        try:
+            from airflow.providers.databricks.utils.openlineage import (
+                inject_openlineage_context_into_databricks_job_parameters,
+            )
+
+            json = dict(json)
+            json["job_parameters"] = inject_openlineage_context_into_databricks_job_parameters(
+                job_parameters=json.get("job_parameters", {}), context=context
+            )
+            return json
+        except Exception as e:
+            self.log.warning(
+                "An error occurred while trying to inject OpenLineage context. "
+                "Databricks job parameters have not been modified by OpenLineage.",
+                exc_info=e,
+            )
+            return json
+
+    def _prepare_run_now_json(self, context: Context) -> dict[str, Any]:
+        json = self._build_run_now_payload(context)
         if self.cancel_previous_runs:
             if (job_id := json.get("job_id")) is None:
                 raise ValueError(
@@ -1398,7 +1532,7 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         return json
 
     def submit_job(self, context: Context) -> int:
-        json = self._prepare_run_now_json()
+        json = self._prepare_run_now_json(context)
         # Set run_id the instant the run exists so on_kill can cancel it even if the worker dies
         # before polling begins.
         self.run_id = self._hook.run_now(json)
@@ -1441,7 +1575,7 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         # in the poll helper). _build_run_now_payload resolves job_name -> job_id but omits
         # cancel_previous_runs, which would otherwise cancel the run we are reconnecting to.
         if not getattr(self, "_merged_json", None):
-            self._merged_json = self._build_run_now_payload()
+            self._merged_json = self._build_run_now_payload(context)
         # The run already exists here (fresh submit logged in submit_job, or reconnect logged by the
         # mixin), so the poll helper must not announce a submission.
         _handle_databricks_operator_execution(self, self._hook, self.log, context, announce_submission=False)
@@ -1480,7 +1614,7 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
                 # of reading a mutated self.json: on a deferral resume this is a fresh process, so any
                 # value written to self.json in execute() is gone. _get_merged_json() also recovers a
                 # job_parameters supplied via the named ``job_parameters=`` argument, not only inside json=.
-                merged = self._get_merged_json()
+                merged = self._inject_run_now_job_parameters(self._get_merged_json(), context)
                 if "job_parameters" in merged:
                     repair_json["job_parameters"] = merged["job_parameters"]
                 self._hook.repair_run(repair_json)
