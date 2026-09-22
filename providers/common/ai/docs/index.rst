@@ -74,8 +74,8 @@ Getting started
 * :doc:`use_cases/index` — jobs a data team already has, each with the Dag that does it.
 
 .. toctree::
+    :titlesonly:
     :hidden:
-    :maxdepth: 1
     :caption: Basics
 
     Home <self>
@@ -83,116 +83,33 @@ Getting started
     Security <security>
 
 .. toctree::
+    :titlesonly:
     :hidden:
-    :maxdepth: 1
     :caption: Getting started
 
     Installation <installation>
     Quick start <quickstart>
     Core concepts <concepts>
-    Structured output <structured_output>
 
 .. toctree::
+    :titlesonly:
     :hidden:
-    :maxdepth: 1
-    :caption: What you can build
+    :caption: Guides
 
-    Overview <use_cases/index>
-    Triage support tickets <use_cases/triage_support_tickets>
-    Route pipeline failures <use_cases/route_pipeline_failures>
-    Block a load on schema drift <use_cases/gate_loads_on_schema_drift>
-    Explain a revenue anomaly <use_cases/explain_revenue_anomaly>
-    Monthly report from a CSV <use_cases/monthly_report_from_a_csv>
-    Compare 10-K filings <use_cases/compare_10k_filings>
-    Ask questions over PDFs <use_cases/ask_questions_over_pdfs>
-    Weekly status report <use_cases/weekly_status_report>
-    Classify reviews in bulk <use_cases/classify_reviews_in_bulk>
-    Research agent with review <use_cases/research_agent_with_review>
+    What you can build <use_cases/index>
+    Models and providers <model_providers>
+    Operators <operators/index>
+    Toolsets <toolsets/index>
+    LLM and agent features <features>
+    Document and RAG pipelines <rag_pipelines>
+    Reliability and operations <operations>
 
 .. toctree::
+    :titlesonly:
     :hidden:
-    :maxdepth: 1
-    :caption: Models and providers
-
-    Pydantic AI connection <connections/pydantic_ai>
-    Azure OpenAI <connections/pydantic_ai_azure>
-    AWS Bedrock <connections/pydantic_ai_bedrock>
-    Google Vertex AI <connections/pydantic_ai_vertex>
-    Self-hosted models <self_hosted_models>
-    Classifier models <classifier_models>
-    Provider fallback <provider_fallback>
-    PydanticAIHook <hooks/pydantic_ai>
-    LangChainHook <hooks/langchain>
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
-    :caption: Operators
-
-    Choosing an operator <operators/index>
-    LLMOperator <operators/llm>
-    LLMBranchOperator <operators/llm_branch>
-    LLMFileAnalysisOperator <operators/llm_file_analysis>
-    LLMSQLQueryOperator <operators/llm_sql>
-    LLMSchemaCompareOperator <operators/llm_schema_compare>
-    LLMBatchOperator <operators/llm_batch>
-    AgentOperator <operators/agent>
-    Approval gates <approval_gates>
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
-    :caption: Toolsets
-
-    Choosing a toolset <toolsets/index>
-    HookToolset <toolsets/hook>
-    SQLToolset <toolsets/sql>
-    DataFusionToolset <toolsets/datafusion>
-    LoggingToolset <toolsets/logging>
-    MCPToolset <toolsets/mcp>
-    AgentSkillsToolset <toolsets/skills>
-    Managed agent toolsets <toolsets/managed_agent>
-    LangChain bridge <toolsets/langchain>
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
-    :caption: Running agents
-
-    Message history <message_history>
-    Guardrails <guardrails>
-    Code mode <code_mode>
-    Sandboxed execution <sandbox/index>
-    HITL review <hitl_review>
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
-    :caption: Document and RAG pipelines
-
-    DocumentLoaderOperator <operators/document_loader>
-    LlamaIndexEmbeddingOperator <operators/llamaindex_embedding>
-    LlamaIndexRetrievalOperator <operators/llamaindex_retrieval>
-    LlamaIndex connection <connections/llamaindex>
-    LlamaIndexHook <hooks/llamaindex>
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
-    :caption: Reliability and operations
-
-    Durable execution <durable_execution>
-    Retry policies <retry_policies>
-    Observability <observability>
-    Securing agent tools <agent_security>
-    Troubleshooting <troubleshooting>
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
     :caption: References
 
-    All example Dags <examples>
+    Example Dags <examples>
     Configuration <configurations-ref>
     Python API <_api/airflow/providers/common/ai/index>
 

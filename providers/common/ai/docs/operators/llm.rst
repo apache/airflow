@@ -17,8 +17,8 @@
 
 .. _howto/operator:llm:
 
-``LLMOperator``
-===============
+Single prompts: ``LLMOperator`` and ``@task.llm``
+=================================================
 
 Use :class:`~airflow.providers.common.ai.operators.llm.LLMOperator` for
 general-purpose LLM calls — summarization, extraction, classification,

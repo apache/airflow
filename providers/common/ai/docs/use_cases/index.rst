@@ -106,3 +106,18 @@ can be built from the patterns shown on the pages above.
     Dags with ``HITLEntryOperator`` or ``ApprovalOperator`` pause under ``airflow dags test``
     until someone answers from Required Actions in the UI of an api-server on the same
     metadata database. ``airflow standalone`` gives you one.
+
+.. toctree::
+    :titlesonly:
+    :hidden:
+
+    Triage support tickets <triage_support_tickets>
+    Route pipeline failures <route_pipeline_failures>
+    Block a load on schema drift <gate_loads_on_schema_drift>
+    Explain a revenue anomaly <explain_revenue_anomaly>
+    Monthly report from a CSV <monthly_report_from_a_csv>
+    Compare 10-K filings <compare_10k_filings>
+    Ask questions over PDFs <ask_questions_over_pdfs>
+    Weekly status report <weekly_status_report>
+    Classify reviews in bulk <classify_reviews_in_bulk>
+    Research agent with review <research_agent_with_review>

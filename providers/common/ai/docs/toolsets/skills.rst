@@ -17,8 +17,8 @@
 
 .. _agent-skills:
 
-``AgentSkillsToolset``
-======================
+Agent Skills: ``AgentSkillsToolset``
+====================================
 
 :class:`~airflow.providers.common.ai.toolsets.skills.AgentSkillsToolset` loads
 `Agent Skills <https://agentskills.io>`__ -- ``SKILL.md`` bundles (instructions,

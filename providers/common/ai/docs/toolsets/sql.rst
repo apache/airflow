@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-``SQLToolset``
-==============
+SQL databases: ``SQLToolset``
+=============================
 
 Curated toolset wrapping
 :class:`~airflow.providers.common.sql.hooks.sql.DbApiHook` with four tools:

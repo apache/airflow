@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-LangChain bridge
-================
+LangChain tools in both directions
+==================================
 
 Tools bridge in both directions between common.ai's toolsets and LangChain.
 

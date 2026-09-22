@@ -17,8 +17,8 @@
 
 .. _howto/hook:pydantic_ai:
 
-PydanticAIHook
-==============
+Using the hook directly: ``PydanticAIHook``
+===========================================
 
 Use :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook` to interact
 with LLM providers via `pydantic-ai <https://ai.pydantic.dev/>`__.
