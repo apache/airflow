@@ -171,6 +171,8 @@ runs:
         path: /tmp/cache-prek.tar.gz
         if-no-files-found: 'error'
         retention-days: '2'
+        # The payload is already gzipped; the default level 6 would compress it a second time.
+        compression-level: '0'
       if: >
         inputs.save-cache == 'true'
         && (steps.restore-prek-tar.outputs.tar-restored != 'true' || github.event_name != 'pull_request')
