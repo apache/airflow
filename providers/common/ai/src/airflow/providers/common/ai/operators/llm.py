@@ -422,9 +422,14 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         try:
             ti = context["task_instance"]
         except (KeyError, TypeError):
+            ti = None
+        push = getattr(ti, "xcom_push", None)
+        if not callable(push):
+            # A hand-built context (a dict, or no task instance at all) has nowhere to push to; the
+            # record is inspection output, so the run goes on without it.
             self.log.warning("No task instance in the context; the decision record was not pushed to XCom.")
             return
-        ti.xcom_push(key=DECISION_XCOM_KEY, value=record)
+        push(key=DECISION_XCOM_KEY, value=record)
 
     def _finalize_decision(
         self, context: Context, event: dict[str, Any], decision: dict[str, Any] | None, *, action: Any

@@ -84,7 +84,7 @@ class HttpSensor(BaseSensorOperator):
         default is ``False``
     """
 
-    template_fields: Sequence[str] = ("endpoint", "request_params", "headers")
+    template_fields: Sequence[str] = ("endpoint", "request_params", "headers", "http_conn_id")
 
     def __init__(
         self,

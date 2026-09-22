@@ -273,13 +273,13 @@ def get_provider_info():
                     "hidden-fields": ["schema", "port", "login", "host", "password"],
                     "relabeling": {},
                     "placeholders": {
-                        "extra": '{"model": "google-cloud:gemini-2.0-flash", "project": "my-project", "location": "us-central1"}  — add service_account_info (object) for SA auth; omit both to use Application Default Credentials'
+                        "extra": '{"model": "google-cloud:gemini-2.5-flash", "project": "my-project", "location": "us-central1"}  — add service_account_info (object) for SA auth; omit both to use Application Default Credentials'
                     },
                 },
                 "conn-fields": {
                     "model": {
                         "label": "Model",
-                        "description": "Google model identifier (e.g. google-cloud:gemini-2.0-flash)",
+                        "description": "Google model identifier (e.g. google-cloud:gemini-2.5-flash)",
                         "schema": {"type": ["string", "null"]},
                     },
                     "fallback_conn_ids": {

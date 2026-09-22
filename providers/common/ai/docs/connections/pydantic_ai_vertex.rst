@@ -17,8 +17,8 @@
 
 .. _howto/connection:pydanticai_vertex:
 
-Pydantic AI (Google Vertex AI) Connection
-============================================
+Pydantic AI (Google Vertex AI) connection
+=========================================
 
 The ``pydanticai_vertex`` connection type configures access to
 `Google Vertex AI <https://cloud.google.com/vertex-ai>`__ via the pydantic-ai
@@ -63,8 +63,8 @@ Configuring the Connection
 All fields below are ``extra`` (JSON) fields.
 
 Model
-    Google model identifier (e.g. ``google-cloud:gemini-2.0-flash``, or the
-    bare ``gemini-2.0-flash``). A bare name is automatically resolved to
+    Google model identifier (e.g. ``google-cloud:gemini-2.5-flash``, or the
+    bare ``gemini-2.5-flash``). A bare name is automatically resolved to
     ``google-cloud:<name>``, instantiating the ``GoogleCloudProvider`` that
     accepts this hook's ``project`` / ``location`` / ``service_account_info``
     fields (see "Credentials" below) -- Vertex AI is this connection type's
@@ -152,7 +152,7 @@ environment:
 
     {
         "conn_type": "pydanticai_vertex",
-        "extra": "{\"model\": \"google-cloud:gemini-2.0-flash\", \"project\": \"my-gcp-project\", \"location\": \"us-central1\"}"
+        "extra": "{\"model\": \"google-cloud:gemini-2.5-flash\", \"project\": \"my-gcp-project\", \"location\": \"us-central1\"}"
     }
 
 **Inline service account**
@@ -161,5 +161,5 @@ environment:
 
     {
         "conn_type": "pydanticai_vertex",
-        "extra": "{\"model\": \"google-cloud:gemini-2.0-flash\", \"project\": \"my-gcp-project\", \"location\": \"us-central1\", \"service_account_info\": {\"type\": \"service_account\", \"project_id\": \"my-gcp-project\", \"private_key\": \"<contents of the service account JSON key's private_key field>\", \"client_email\": \"sa@my-gcp-project.iam.gserviceaccount.com\"}}"
+        "extra": "{\"model\": \"google-cloud:gemini-2.5-flash\", \"project\": \"my-gcp-project\", \"location\": \"us-central1\", \"service_account_info\": {\"type\": \"service_account\", \"project_id\": \"my-gcp-project\", \"private_key\": \"<contents of the service account JSON key's private_key field>\", \"client_email\": \"sa@my-gcp-project.iam.gserviceaccount.com\"}}"
     }

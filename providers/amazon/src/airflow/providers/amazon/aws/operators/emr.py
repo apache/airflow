@@ -766,6 +766,7 @@ class EmrCreateJobFlowOperator(AwsBaseOperator[EmrHook]):
         "job_flow_overrides",
         "waiter_delay",
         "waiter_max_attempts",
+        "emr_conn_id",
     )
     template_ext: Sequence[str] = (".json",)
     template_fields_renderers = {"job_flow_overrides": "json"}

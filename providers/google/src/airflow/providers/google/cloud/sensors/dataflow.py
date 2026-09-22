@@ -70,7 +70,10 @@ class DataflowJobStatusSensor(BaseSensorOperator):
     :param poll_interval: Time (seconds) to wait between two consecutive calls to check the job.
     """
 
-    template_fields: Sequence[str] = ("job_id",)
+    template_fields: Sequence[str] = (
+        "job_id",
+        "gcp_conn_id",
+    )
 
     def __init__(
         self,
@@ -192,7 +195,10 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
 
     """
 
-    template_fields: Sequence[str] = ("job_id",)
+    template_fields: Sequence[str] = (
+        "job_id",
+        "gcp_conn_id",
+    )
 
     def __init__(
         self,
@@ -322,7 +328,10 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
     :param poll_interval: Time (seconds) to wait between two consecutive calls to check the job.
     """
 
-    template_fields: Sequence[str] = ("job_id",)
+    template_fields: Sequence[str] = (
+        "job_id",
+        "gcp_conn_id",
+    )
 
     def __init__(
         self,
@@ -452,7 +461,10 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
     :param poll_interval: Time (seconds) to wait between two consecutive calls to check the job.
     """
 
-    template_fields: Sequence[str] = ("job_id",)
+    template_fields: Sequence[str] = (
+        "job_id",
+        "gcp_conn_id",
+    )
 
     def __init__(
         self,

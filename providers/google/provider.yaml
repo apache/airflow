@@ -268,11 +268,11 @@ integrations:
       - /docs/apache-airflow-providers-google/operators/cloud/cloud_sql.rst
     logo: /docs/integration-logos/Cloud-SQL.png
     tags: [gcp]
-  - integration-name: Google Cloud Stackdriver
-    external-doc-url: https://cloud.google.com/products/operations/
+  - integration-name: Google Cloud Monitoring
+    external-doc-url: https://cloud.google.com/monitoring/
     how-to-guide:
-      - /docs/apache-airflow-providers-google/operators/cloud/stackdriver.rst
-    logo: /docs/integration-logos/Google-Cloud-Stackdriver.png
+      - /docs/apache-airflow-providers-google/operators/cloud/cloud_monitoring.rst
+    logo: /docs/integration-logos/Cloud-Monitoring.png
     tags: [gcp]
   - integration-name: Google Cloud Storage (GCS)
     external-doc-url: https://cloud.google.com/storage/
@@ -561,9 +561,9 @@ operators:
   - integration-name: Google Cloud Speech-to-Text
     python-modules:
       - airflow.providers.google.cloud.operators.speech_to_text
-  - integration-name: Google Cloud Stackdriver
+  - integration-name: Google Cloud Monitoring
     python-modules:
-      - airflow.providers.google.cloud.operators.stackdriver
+      - airflow.providers.google.cloud.operators.cloud_monitoring
   - integration-name: Google Cloud Tasks
     python-modules:
       - airflow.providers.google.cloud.operators.tasks
@@ -840,9 +840,9 @@ hooks:
   - integration-name: Google Cloud Speech-to-Text
     python-modules:
       - airflow.providers.google.cloud.hooks.speech_to_text
-  - integration-name: Google Cloud Stackdriver
+  - integration-name: Google Cloud Monitoring
     python-modules:
-      - airflow.providers.google.cloud.hooks.stackdriver
+      - airflow.providers.google.cloud.hooks.cloud_monitoring
   - integration-name: Google Cloud Tasks
     python-modules:
       - airflow.providers.google.cloud.hooks.tasks
@@ -1455,8 +1455,8 @@ extra-links:
   - airflow.providers.google.cloud.links.bigtable.BigtableTablesLink
   - airflow.providers.google.cloud.links.spanner.SpannerDatabaseLink
   - airflow.providers.google.cloud.links.spanner.SpannerInstanceLink
-  - airflow.providers.google.cloud.links.stackdriver.StackdriverNotificationsLink
-  - airflow.providers.google.cloud.links.stackdriver.StackdriverPoliciesLink
+  - airflow.providers.google.cloud.links.cloud_monitoring.CloudMonitoringNotificationsLink
+  - airflow.providers.google.cloud.links.cloud_monitoring.CloudMonitoringPoliciesLink
   - airflow.providers.google.cloud.links.kubernetes_engine.KubernetesEngineClusterLink
   - airflow.providers.google.cloud.links.kubernetes_engine.KubernetesEnginePodLink
   - airflow.providers.google.cloud.links.kubernetes_engine.KubernetesEngineJobLink

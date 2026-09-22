@@ -70,6 +70,7 @@ from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_1_PLUS,
     AIRFLOW_V_3_2_PLUS,
     AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
 )
 
 try:
@@ -1633,9 +1634,12 @@ class TestKubernetesExecutor:
 
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubeConfig")
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor.sync")
-    @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
+    @mock.patch(
+        "airflow.executors.base_executor.BaseExecutor."
+        + ("trigger_workloads" if AIRFLOW_V_3_4_PLUS else "trigger_tasks")
+    )
     @mock.patch(f"{stats_reference}.gauge")
-    def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync, mock_kube_config):
+    def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger, mock_sync, mock_kube_config):
         executor = self.kubernetes_executor
         executor.heartbeat()
         calls = [
@@ -1656,6 +1660,40 @@ class TestKubernetesExecutor:
             ),
         ]
         mock_stats_gauge.assert_has_calls(calls)
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3+")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor.execute_async"
+    )
+    def test_process_workloads(self, mock_execute_async):
+        """Test that _process_workloads dequeues an ExecuteTask and hands it to execute_async."""
+        from airflow.executors.workloads import ExecuteTask
+
+        executor = self.kubernetes_executor
+        key = TaskInstanceKey("dag", "task", "run_id", 1, -1)
+        workload = mock.Mock(spec=ExecuteTask)
+        workload.ti = mock.Mock()
+        workload.ti.key = key
+        workload.ti.queue = "default"
+        workload.ti.executor_config = None
+
+        if AIRFLOW_V_3_4_PLUS:
+            from airflow.executors.workloads.base import WorkloadType
+
+            workload.type = WorkloadType.EXECUTE_TASK
+            workload.key = key
+            task_queue = executor.executor_queues[WorkloadType.EXECUTE_TASK]
+        else:
+            task_queue = executor.queued_tasks
+        task_queue[key] = workload
+
+        executor._process_workloads([workload])
+
+        assert len(task_queue) == 0
+        assert key in executor.running
+        mock_execute_async.assert_called_once_with(
+            key=key, command=[workload], queue="default", executor_config={}
+        )
 
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
