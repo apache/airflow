@@ -69,3 +69,26 @@ Delivery semantics and considerations:
 * **Shard iterator type**: When no checkpoint exists, ``LATEST`` only sees records that arrive after the watcher starts polling. If the watcher is down or new shards are discovered, earlier records may be skipped. Use ``TRIM_HORIZON`` to process from the oldest available record.
 * **Checkpointing**: Checkpointing shard progress is supported when a single asset is watched in an Airflow runtime providing an asset state store.
 * **Best-effort delivery**: Delivery is best-effort. In the event of triggerer restarts or transient failures, records may be re-delivered or missed around failure windows. It does not provide exactly-once guarantees.
+
+.. _howto/triggers:KinesisMessageQueueTrigger:
+
+Amazon Kinesis Data Streams Message Queue Trigger
+-------------------------------------------------
+
+Implemented by :class:`~airflow.providers.amazon.aws.triggers.kinesis.KinesisTrigger`
+
+Dispatched by :class:`~airflow.providers.common.messaging.triggers.msg_queue.MessageQueueTrigger` for ``scheme="kinesis"``
+
+Wait for records in a stream
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Below is an example of how you can configure an Airflow Dag to be triggered by records published to an
+Amazon Kinesis data stream.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_kinesis_message_queue.py
+    :language: python
+    :start-after: [START howto_trigger_kinesis_message_queue]
+    :end-before: [END howto_trigger_kinesis_message_queue]
+
+For how to use the trigger, refer to the documentation of the
+:ref:`Messaging Trigger <howto/trigger:MessageQueueTrigger>`
