@@ -60,6 +60,14 @@ class TestPiiAnonymizer:
                 "postgresql+psycopg2://postgres/airflow",
                 "postgresql+psycopg2://postgres/airflow",
             ),
+            (
+                f"sqlite:///{os.path.expanduser('~/airflow/airflow.db')}",
+                "sqlite:///${HOME}/airflow/airflow.db",
+            ),
+            (
+                "sqlite:///relative.db",
+                "sqlite:///relative.db",
+            ),
         ],
     )
     def test_should_remove_pii_from_url(self, before, after):
