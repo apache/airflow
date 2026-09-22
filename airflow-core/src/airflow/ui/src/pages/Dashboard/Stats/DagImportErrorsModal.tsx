@@ -19,12 +19,18 @@
 import { useState } from "react";
 
 import { Box, ClipboardRoot, Heading, HStack, Text } from "@chakra-ui/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { AiOutlineFileSync } from "react-icons/ai";
 import { LuFileWarning } from "react-icons/lu";
 import { PiFilePy } from "react-icons/pi";
 
-import { useDagParsingServiceReparseDagFile, useImportErrorServiceGetImportErrors } from "openapi/queries";
+import {
+  useDagParsingServiceReparseDagFile,
+  useDashboardServiceDagStatsKey,
+  useImportErrorServiceGetImportErrors,
+  useImportErrorServiceGetImportErrorsKey,
+} from "openapi/queries";
 
 import {
   Accordion,
@@ -49,15 +55,23 @@ const PAGE_LIMIT = 15;
 
 const ReparseButton = ({ fileToken }: { readonly fileToken: string }) => {
   const { t: translate } = useTranslation(["components", "dag"]);
+  const queryClient = useQueryClient();
 
   const { isPending, mutate } = useDagParsingServiceReparseDagFile({
     onError: (error) => createErrorToaster(error, { titleKey: "dag:parse.toaster.error.title" }, translate),
-    onSuccess: () =>
+    // Refresh the modal's list (fixed errors disappear) and the dashboard
+    // stats card (a resolved import promotes into an active Dag).
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: [useImportErrorServiceGetImportErrorsKey] }),
+        queryClient.invalidateQueries({ queryKey: [useDashboardServiceDagStatsKey] }),
+      ]);
       toaster.create({
         description: translate("dag:parse.toaster.success.description"),
         title: translate("dag:parse.toaster.success.title"),
         type: "success",
-      }),
+      });
+    },
   });
 
   return (
