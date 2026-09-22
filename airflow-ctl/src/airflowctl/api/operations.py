@@ -108,6 +108,7 @@ def _build_query_params(**values: Any) -> dict[str, Any]:
 
 def _has_json_body(response: httpx.Response) -> bool:
     """Check whether a response declares a JSON body."""
+    # Kept in sync with airflow.sdk.api.client._has_json_body.
     # Media types are case-insensitive and may carry parameters (RFC 9110), so a proxy in
     # front of the API server that rewrites "application/json" into
     # "application/json; charset=utf-8" must not defeat the check — otherwise the friendly
