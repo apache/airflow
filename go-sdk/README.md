@@ -102,7 +102,7 @@ A task is an ordinary Go function whose first parameter is an [`airflow.Context`
 An optional `(any, error)` return becomes the task's XCom; an `error` return marks the task failed.
 
 Every parameter after the Context is a **data parameter**, filled in declaration order from the
-arguments of the Python stub Dag's TaskFlow call. A literal in the Dag file (`transform("uk", ...)`)
+arguments of the Python stub Task's TaskFlow call. A literal in the Dag file (`transform("uk", ...)`)
 decodes straight into the parameter; an upstream task's output (`transform(..., extract())`) is
 pulled from that task's XCom in the current Dag run. If the argument count doesn't match, or an
 argument's declared type can't fill the Go type, the task fails before its body runs.
@@ -146,7 +146,7 @@ type CombineInput struct {
     Threshold float64
 }
 
-// The stub Dag calls combine(region_code="uk", threshold=0.5).
+// The Python stub Task calls combine(region_code="uk", threshold=0.5).
 func Combine(actx airflow.Context, input CombineInput) (any, error) {
     return nil, nil
 }

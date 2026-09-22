@@ -126,7 +126,7 @@ the task is a method on it, so the signature stays the same whatever the task us
 .. note::
 
   As with the other language SDKs, XCom *dependencies* are declared in the Python stub Dag (they define task
-  order). An upstream task's value reaches a downstream task either through a parameter, when the stub Dag
+  order). An upstream task's value reaches a downstream task either through a parameter, when the stub Task
   passes it in the TaskFlow call (see :ref:`go-sdk/arguments`), or by reading it explicitly with
   ``actx.Client().GetXCom``.
 
@@ -228,7 +228,7 @@ to stop. Respect it for long-running work. Cleanup that must outlive that cancel
 ``context.WithoutCancel(actx)``. A helper typed as a plain ``context.Context`` recovers the same surface
 with ``airflow.FromContext``.
 
-Every parameter after the Context is data, filled from the stub Dag's TaskFlow call; see
+Every parameter after the Context is data, filled from the stub Task's TaskFlow call; see
 :ref:`go-sdk/arguments`.
 
 An optional ``(any, error)`` return value becomes the task's ``return_value`` XCom. A non-nil ``error`` (or a
@@ -319,18 +319,18 @@ manual trigger).
 
 .. _go-sdk/arguments:
 
-Receiving arguments from the stub Dag
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Receiving arguments from the stub Task
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Every parameter after the ``airflow.Context`` is a **data parameter**, filled in declaration order from the
-arguments of the Python stub Dag's TaskFlow call. A literal in the Dag file (``transform("uk", ...)``)
+arguments of the Python stub Task's TaskFlow call. A literal in the Dag file (``transform("uk", ...)``)
 decodes straight into the parameter; an upstream task's output (``transform(..., extract())``) is pulled
 from that task's XCom in the current Dag run. If the argument count does not match, or an argument's
 declared type cannot fill the Go type, the task fails before its body runs.
 
 .. code-block:: go
 
-    // The stub Dag calls transform("uk", extract()).
+    // The Python stub Task calls transform("uk", extract()).
     func transform(actx airflow.Context, country string, extracted map[string]any) error {
         actx.Logger().InfoContext(actx, "transforming", "country", country)
         return nil
@@ -351,7 +351,7 @@ marker to add.
         Threshold float64
     }
 
-    // The stub Dag calls combine(region_code="uk", threshold=0.5).
+    // The Python stub Task calls combine(region_code="uk", threshold=0.5).
     func Combine(actx airflow.Context, input CombineInput) (any, error) {
         return nil, nil
     }
