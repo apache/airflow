@@ -398,6 +398,7 @@ class TestDataFusionEngine:
     def test_get_credentials_azure_with_shared_key(self):
         mock_conn = MagicMock()
         mock_conn.conn_type = "wasb"
+        mock_conn.host = None
         mock_conn.login = "myaccount"
         mock_conn.password = "mykey"
         mock_conn.extra_dejson = {}
@@ -411,6 +412,7 @@ class TestDataFusionEngine:
     def test_get_credentials_azure_with_shared_access_key_extra(self):
         mock_conn = MagicMock()
         mock_conn.conn_type = "wasb"
+        mock_conn.host = None
         mock_conn.login = "myaccount"
         mock_conn.password = None
         mock_conn.extra_dejson = {"shared_access_key": "extra-key"}
@@ -424,6 +426,7 @@ class TestDataFusionEngine:
     def test_get_credentials_azure_with_service_principal(self):
         mock_conn = MagicMock()
         mock_conn.conn_type = "wasb"
+        mock_conn.host = None
         mock_conn.login = "client-id"
         mock_conn.password = "client-secret"
         mock_conn.extra_dejson = {"tenant_id": "tenant-id"}
@@ -439,11 +442,31 @@ class TestDataFusionEngine:
         }
         assert extra_config == {}
 
+    def test_get_credentials_azure_with_service_principal_and_host_prefers_host_account(self):
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.host = "realaccount.blob.core.windows.net"
+        mock_conn.login = "11111111-2222-3333-4444-555555555555"
+        mock_conn.password = "client-secret"
+        mock_conn.extra_dejson = {"tenant_id": "tenant-id"}
+        engine = DataFusionEngine()
+
+        credentials, extra_config = engine._get_credentials(mock_conn)
+
+        assert credentials == {
+            "account": "realaccount",
+            "client_id": "11111111-2222-3333-4444-555555555555",
+            "client_secret": "client-secret",
+            "tenant_id": "tenant-id",
+        }
+        assert extra_config == {}
+
     def test_get_credentials_azure_tenant_id_without_login_falls_back(self):
         """A partial service-principal config (tenant_id alone) must not be forwarded --
         DataFusion's binding panics on a partial client_id/client_secret/tenant_id combination."""
         mock_conn = MagicMock()
         mock_conn.conn_type = "wasb"
+        mock_conn.host = None
         mock_conn.login = None
         mock_conn.password = None
         mock_conn.extra_dejson = {"tenant_id": "tenant-id"}
@@ -457,6 +480,7 @@ class TestDataFusionEngine:
     def test_get_credentials_azure_with_sas_token(self):
         mock_conn = MagicMock()
         mock_conn.conn_type = "wasb"
+        mock_conn.host = None
         mock_conn.login = "myaccount"
         mock_conn.password = None
         mock_conn.extra_dejson = {"sas_token": "?sv=2020-08-04&sp=rl&sig=abc"}
@@ -473,6 +497,7 @@ class TestDataFusionEngine:
     def test_get_credentials_azure_without_credentials_uses_ambient_auth(self):
         mock_conn = MagicMock()
         mock_conn.conn_type = "wasb"
+        mock_conn.host = None
         mock_conn.login = "myaccount"
         mock_conn.password = None
         mock_conn.extra_dejson = {}
@@ -490,6 +515,7 @@ class TestDataFusionEngine:
     def test_get_credentials_azure_rejects_unsupported_identity_fields(self, unsupported_field):
         mock_conn = MagicMock()
         mock_conn.conn_type = "wasb"
+        mock_conn.host = None
         mock_conn.extra_dejson = {unsupported_field: "some-value"}
         engine = DataFusionEngine()
 
@@ -499,6 +525,7 @@ class TestDataFusionEngine:
     def test_get_credentials_azure_rejects_url_form_sas_token(self):
         mock_conn = MagicMock()
         mock_conn.conn_type = "wasb"
+        mock_conn.host = None
         mock_conn.login = "myaccount"
         mock_conn.password = None
         mock_conn.extra_dejson = {"sas_token": "https://myaccount.blob.core.windows.net/?sv=2020-08-04"}

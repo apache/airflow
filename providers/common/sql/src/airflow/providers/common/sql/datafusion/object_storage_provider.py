@@ -118,7 +118,7 @@ class AzureObjectStorageProvider(ObjectStorageProvider):
     def create_object_store(self, path: str, connection_config: ConnectionConfig | None = None):
         """Create an Azure object store using DataFusion's MicrosoftAzure."""
         if connection_config is None:
-            raise ValueError(f"connection_config must be provided for {self.get_storage_type}")
+            raise ValueError(f"connection_config must be provided for {self.get_storage_type.value}")
 
         try:
             credentials = connection_config.credentials
