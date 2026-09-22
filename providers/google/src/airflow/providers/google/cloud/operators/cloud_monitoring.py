@@ -50,8 +50,10 @@ class CloudMonitoringListAlertPoliciesOperator(GoogleCloudBaseOperator):
         :ref:`howto/operator:CloudMonitoringListAlertPoliciesOperator`
 
     :param format_: (Optional) Desired output format of the result. The
-        supported formats are "dict", "json" and None which returns
-        python dictionary, stringified JSON and protobuf respectively.
+        supported formats are "dict" and "json", which return python
+        dictionaries and stringified JSON respectively. If None (default),
+        the protobuf objects returned by the API are converted to python
+        dictionaries so that the result can be stored in XCom.
     :param filter_:  If provided, this field specifies the criteria that must be met by alert
         policies to be included in the response.
         For more details, see https://cloud.google.com/monitoring/api/v3/sorting-and-filtering.
@@ -147,6 +149,8 @@ class CloudMonitoringListAlertPoliciesOperator(GoogleCloudBaseOperator):
             context=context,
             project_id=self.project_id or self.hook.project_id,
         )
+        if self.format_ is not None:
+            return result
         return [AlertPolicy.to_dict(policy) for policy in result]
 
 
@@ -481,8 +485,10 @@ class CloudMonitoringListNotificationChannelsOperator(GoogleCloudBaseOperator):
         :ref:`howto/operator:CloudMonitoringListNotificationChannelsOperator`
 
     :param format_: (Optional) Desired output format of the result. The
-        supported formats are "dict", "json" and None which returns
-        python dictionary, stringified JSON and protobuf respectively.
+        supported formats are "dict" and "json", which return python
+        dictionaries and stringified JSON respectively. If None (default),
+        the protobuf objects returned by the API are converted to python
+        dictionaries so that the result can be stored in XCom.
     :param filter_:  If provided, this field specifies the criteria that
         must be met by notification channels to be included in the response.
         For more details, see https://cloud.google.com/monitoring/api/v3/sorting-and-filtering.
@@ -578,6 +584,8 @@ class CloudMonitoringListNotificationChannelsOperator(GoogleCloudBaseOperator):
             context=context,
             project_id=self.project_id or self.hook.project_id,
         )
+        if self.format_ is not None:
+            return channels
         return [NotificationChannel.to_dict(channel) for channel in channels]
 
 

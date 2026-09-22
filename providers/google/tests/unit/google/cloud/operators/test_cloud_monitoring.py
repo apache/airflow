@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 from unittest import mock
 
+import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.monitoring_v3 import AlertPolicy, NotificationChannel
 
@@ -117,6 +118,36 @@ class TestCloudMonitoringListAlertPoliciesOperator:
             }
         ]
 
+    @pytest.mark.parametrize(
+        ("format_", "hook_result"),
+        [
+            pytest.param("dict", [TEST_ALERT_POLICY_1, TEST_ALERT_POLICY_2], id="dict"),
+            pytest.param(
+                "json",
+                [json.dumps(TEST_ALERT_POLICY_1), json.dumps(TEST_ALERT_POLICY_2)],
+                id="json",
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_monitoring.CloudMonitoringHook")
+    def test_execute_with_format(self, mock_hook, format_, hook_result):
+        operator = CloudMonitoringListAlertPoliciesOperator(
+            task_id=TEST_TASK_ID, filter_=TEST_FILTER, format_=format_
+        )
+        mock_hook.return_value.list_alert_policies.return_value = hook_result
+        result = operator.execute(context=mock.MagicMock())
+        mock_hook.return_value.list_alert_policies.assert_called_once_with(
+            project_id=None,
+            filter_=TEST_FILTER,
+            format_=format_,
+            order_by=None,
+            page_size=None,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+        assert result == hook_result
+
 
 class TestCloudMonitoringEnableAlertPoliciesOperator:
     @mock.patch("airflow.providers.google.cloud.operators.cloud_monitoring.CloudMonitoringHook")
@@ -213,6 +244,36 @@ class TestCloudMonitoringListNotificationChannelsOperator:
                 }
             ],
         ]
+
+    @pytest.mark.parametrize(
+        ("format_", "hook_result"),
+        [
+            pytest.param("dict", [TEST_NOTIFICATION_CHANNEL_1, TEST_NOTIFICATION_CHANNEL_2], id="dict"),
+            pytest.param(
+                "json",
+                [json.dumps(TEST_NOTIFICATION_CHANNEL_1), json.dumps(TEST_NOTIFICATION_CHANNEL_2)],
+                id="json",
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_monitoring.CloudMonitoringHook")
+    def test_execute_with_format(self, mock_hook, format_, hook_result):
+        operator = CloudMonitoringListNotificationChannelsOperator(
+            task_id=TEST_TASK_ID, filter_=TEST_FILTER, format_=format_
+        )
+        mock_hook.return_value.list_notification_channels.return_value = hook_result
+        result = operator.execute(context=mock.MagicMock())
+        mock_hook.return_value.list_notification_channels.assert_called_once_with(
+            project_id=None,
+            filter_=TEST_FILTER,
+            format_=format_,
+            order_by=None,
+            page_size=None,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+        assert result == hook_result
 
 
 class TestCloudMonitoringEnableNotificationChannelsOperator:
