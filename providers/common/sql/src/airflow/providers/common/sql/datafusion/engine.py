@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 from typing import TYPE_CHECKING, Any
+from urllib.parse import parse_qsl, urlsplit
 
 from datafusion import SessionContext
 
@@ -219,7 +220,7 @@ class DataFusionEngine(LoggingMixin):
                             "credentials (AZURE_* environment variables, managed identity, workload "
                             "identity, or az login) are used."
                         )
-                credentials = {"account": conn.login}
+                credentials = {"account": self._resolve_wasb_account(conn.host, conn.login)}
                 tenant_id = extra_dejson.get("tenant_id")
                 sas_token = extra_dejson.get("sas_token")
                 if tenant_id and conn.login and conn.password:
@@ -234,8 +235,6 @@ class DataFusionEngine(LoggingMixin):
                             "A URL-form `sas_token` is not supported for DataFusion Azure Blob Storage "
                             "access; provide the SAS token as a query string instead."
                         )
-                    from urllib.parse import parse_qsl
-
                     credentials["sas_query_pairs"] = parse_qsl(sas_token.lstrip("?"))
                 else:
                     credentials["access_key"] = (
@@ -253,6 +252,28 @@ class DataFusionEngine(LoggingMixin):
     def _remove_none_values(params: dict[str, Any]) -> dict[str, Any]:
         """Filter out None values from the dictionary."""
         return {k: v for k, v in params.items() if v is not None}
+
+    @staticmethod
+    def _resolve_wasb_account(host: str | None, login: str | None) -> str:
+        """
+        Return the storage account name the way WasbHook resolves it.
+
+        From ``host`` when set (its netloc's first label), falling back to ``login`` only when
+        ``host`` is empty -- login holds the service-principal client_id in that auth mode, not
+        the account name. Reimplemented locally rather than importing
+        ``airflow.providers.microsoft.azure.utils.parse_blob_account_url``, to avoid pulling the
+        microsoft-azure provider's full Azure SDK dependency stack into common-sql for one string
+        operation that only needs the stdlib.
+        """
+        netloc = urlsplit(host if host else f"https://{login}.blob.core.windows.net/").netloc
+        if not netloc:
+            # No scheme was given (e.g. a bare DNS name); urlsplit put it all in the path instead.
+            netloc = urlsplit(f"https://{host}").netloc
+        if "." not in netloc:
+            # Only an Active Directory ID was given, not a full URL or DNS name.
+            netloc = f"{login}.blob.core.windows.net"
+        # Azure storage account names are capped at 24 characters.
+        return netloc.split(".", 1)[0][:24]
 
     def get_schema(self, table_name: str):
         """Get the schema of a table."""
