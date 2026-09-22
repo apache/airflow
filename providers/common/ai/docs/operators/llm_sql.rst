@@ -17,8 +17,8 @@
 
 .. _howto/operator:llm_sql_query:
 
-``LLMSQLQueryOperator``
-========================
+Natural language to SQL: ``LLMSQLQueryOperator``
+================================================
 
 Use :class:`~airflow.providers.common.ai.operators.llm_sql.LLMSQLQueryOperator` to generate
 SQL queries from natural language using an LLM.
@@ -160,6 +160,8 @@ modified query is re-validated against the same safety rules automatically.
 ``approval_timeout``, ``approval_notifiers``, ``approval_assigned_users``, and
 the rest of the approval behaviour are inherited from
 :ref:`LLMOperator <howto/operator:llm>`.
+``decision_policy`` is not supported here: the operator runs its own ``execute`` without the
+confidence gate and rejects a policy with a bar at construction.
 
 SQL Safety Validation
 ---------------------

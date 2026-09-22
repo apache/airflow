@@ -17,8 +17,8 @@
 
 .. _howto/operator:llm_file_analysis:
 
-``LLMFileAnalysisOperator`` & ``@task.llm_file_analysis``
-=========================================================
+Analyze files and images: ``LLMFileAnalysisOperator``
+=====================================================
 
 Use :class:`~airflow.providers.common.ai.operators.llm_file_analysis.LLMFileAnalysisOperator`
 or the ``@task.llm_file_analysis`` decorator to analyze files from object storage
@@ -160,6 +160,9 @@ Parameters
   ``model_dump()`` before being pushed to XCom. Default ``False`` -- the
   Pydantic instance flows through XCom unchanged. Set to ``True`` when a
   downstream consumer needs the dict shape.
+
+``decision_policy`` is not supported here: the operator runs its own ``execute``
+without the confidence gate and rejects a policy with a bar at construction.
 
 This operator also inherits ``LLMOperator``'s HITL review parameters --
 ``require_approval``, ``approval_timeout``, ``on_approval_timeout``,

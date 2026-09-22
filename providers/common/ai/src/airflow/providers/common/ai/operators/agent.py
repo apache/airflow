@@ -26,6 +26,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from pydantic import BaseModel
+from pydantic_ai.capabilities import Toolset
 
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
@@ -33,8 +34,10 @@ from airflow.providers.common.ai.observability import (
     build_run_identity_attributes,
     stamp_identity_on_agent_spans,
 )
+from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
 from airflow.providers.common.ai.utils.logging import log_run_summary, wrap_toolsets_for_logging
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
+from airflow.providers.common.ai.utils.toolsets import find_toolset
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.compat.sdk import (
     AirflowOptionalProviderFeatureException,
@@ -199,6 +202,9 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         retry; put tools you need replayed in ``toolsets=``. Provider-native
         capabilities such as ``WebSearch`` and ``Thinking`` execute inside the
         model call and are covered by model-response caching.
+        Cannot be combined with a ``SandboxToolset`` (raises): a sandbox is
+        destroyed when the run ends, so replayed tool results would describe
+        files that no longer exist.
     :param code_mode: When ``True``, wraps the agent's tools in a single
         ``run_code`` tool powered by the Monty sandbox (pydantic-ai-harness
         ``CodeMode``). Instead of one model round-trip per tool call, the model
@@ -234,7 +240,10 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         iterative review loop after the first generation.  A human reviewer
         can approve, reject, or request changes via the plugin's REST API
         at ``/hitl-review`` or through the **HITL Review** extra link
-        on the task instance.  Default ``False``.
+        on the task instance.  Default ``False``. Cannot be combined with a
+        ``SandboxToolset`` (raises): regeneration after feedback is a second
+        run, which starts from an empty sandbox while its history describes
+        the first run's files.
     :param max_hitl_iterations: Maximum outputs shown to the reviewer (1 =
         initial output). When the reviewer requests changes at
         iteration >= this limit, the task fails with ``HITLMaxIterationsError``
@@ -350,10 +359,51 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
             # surface the final message history.
             raise ValueError("message_history and enable_hitl_review=True cannot be used together.")
 
+        if durable or enable_hitl_review:
+            self._reject_sandbox_without_continuity(durable=durable, enable_hitl_review=enable_hitl_review)
+
         self.enable_hitl_review = enable_hitl_review
         self.max_hitl_iterations = max_hitl_iterations
         self.hitl_timeout = hitl_timeout
         self.hitl_poll_interval = hitl_poll_interval
+
+    def _reject_sandbox_without_continuity(self, *, durable: bool, enable_hitl_review: bool) -> None:
+        """
+        Refuse a ``SandboxToolset`` under a feature that assumes the sandbox outlives the run.
+
+        A sandbox is provisioned on the first tool call and destroyed when the run
+        ends, so nothing in it survives into a retry or a second run. Two features
+        assume otherwise, and each produces a wrong answer rather than an error:
+
+        * ``durable=True`` replays cached tool results on a retry without calling the
+          backend, so a replayed ``write_file`` reports success while no sandbox exists,
+          and the first call that misses the cache runs against a fresh, empty one.
+        * ``enable_hitl_review=True`` regenerates after reviewer feedback by starting a
+          second agent run, which gets an empty sandbox while its message history still
+          describes the files the first run wrote.
+
+        The toolset is looked for inside wrappers and combinations (``.prefixed()``,
+        ``.filtered()``, several toolsets passed together) and inside ``Toolset``
+        capabilities, since those are the compositions the documentation recommends.
+        A toolset resolved per run from a callable cannot be inspected here.
+        """
+        candidates = list(self.toolsets or [])
+        for capability in self.agent_params.get("capabilities") or ():
+            if isinstance(capability, Toolset) and not callable(capability.toolset):
+                candidates.append(capability.toolset)
+        if find_toolset(candidates, SandboxToolset) is None:
+            return
+        flag = "durable=True" if durable else "enable_hitl_review=True"
+        why = (
+            "cached tool results would be replayed against a sandbox that no longer exists"
+            if durable
+            else "a regenerated run would start from an empty sandbox while its history describes "
+            "files from the first run"
+        )
+        raise ValueError(
+            f"{flag} cannot be used with a SandboxToolset: {why}. "
+            f"Drop {flag}, or move the sandbox work into its own task."
+        )
 
     @cached_property
     def llm_hook(self) -> PydanticAIHook:
@@ -418,7 +468,6 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         # pydantic-ai (and the pydantic-ai-importing CachingToolset) are imported
         # lazily to keep them out of DAG-parse-time imports, matching
         # ``_build_durable_toolsets`` and the rest of this module.
-        from pydantic_ai.capabilities import Toolset
         from pydantic_ai.toolsets.abstract import AbstractToolset
 
         from airflow.providers.common.ai.durable.caching_toolset import CachingToolset

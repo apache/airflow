@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+.. note::
+    ``PubSubPullOperator``, ``PubSubPullSensor`` and ``PubsubPullTrigger`` now emit a deprecation
+    warning when ``return_immediately`` is left unset -- including ``google+pubsub`` asset
+    watchers built with ``MessageQueueTrigger``, where the warning surfaces in Dag processor
+    logs rather than task logs. It currently defaults to ``True``, which relies on the deprecated
+    Pub/Sub ``returnImmediately`` Pull option and can return zero messages even when a backlog
+    exists. The default will change to ``False`` in the first Google provider major release after
+    March 31, 2027 -- pass ``return_immediately=True`` explicitly to keep the current behaviour.
+
+    Deferrable ``PubSubPullSensor`` now respects ``return_immediately`` as well. It previously
+    dropped the argument when handing off to ``PubsubPullTrigger``, so the trigger always behaved
+    as ``True``. A Dag already using ``PubSubPullSensor(deferrable=True, return_immediately=False)``
+    will see its triggerer start long-polling on each pull instead of returning immediately.
+
 22.5.0
 ......
 

@@ -55,7 +55,7 @@ class Neo4jSensor(BaseSensorOperator):
     :param fail_on_empty: When True, raises if the query returns no rows.
     """
 
-    template_fields: Sequence[str] = ("cypher", "parameters")
+    template_fields: Sequence[str] = ("cypher", "parameters", "neo4j_conn_id")
     template_fields_renderers = {"cypher": "sql", "parameters": "json"}
 
     def __init__(

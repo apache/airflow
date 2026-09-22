@@ -106,6 +106,7 @@ class HttpOperator(BaseOperator):
         "endpoint",
         "data",
         "headers",
+        "http_conn_id",
     )
     template_fields_renderers = {"headers": "json", "data": "py"}
     template_ext: Sequence[str] = ()

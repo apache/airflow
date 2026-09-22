@@ -17,7 +17,7 @@
 
 .. _howto/connection:pydanticai:
 
-Pydantic AI Connection
+Pydantic AI connection
 ======================
 
 The `Pydantic AI <https://ai.pydantic.dev/>`__ connection type configures access
@@ -44,7 +44,7 @@ Model
     naming this connection rather than being resolved automatically.
 
     Examples: ``openai:gpt-5.6-sol``, ``anthropic:claude-sonnet-5``,
-    ``bedrock:us.anthropic.claude-opus-4-6-v1:0``, ``google:gemini-2.0-flash``
+    ``bedrock:us.anthropic.claude-opus-4-6-v1:0``, ``google:gemini-2.5-flash``
 
     See `Anthropic's models overview <https://platform.claude.com/docs/en/about-claude/models/overview#latest-models-comparison>`__
     for the current list of Claude model IDs across the Claude API, Amazon Bedrock, and Google Cloud.
@@ -90,7 +90,10 @@ Fallback Connections
 Examples
 --------
 
-**OpenAI**
+.. _conn-example-openai:
+
+OpenAI
+^^^^^^
 
 .. code-block:: json
 
@@ -100,7 +103,10 @@ Examples
         "extra": "{\"model\": \"openai:gpt-5.6-sol\"}"
     }
 
-**Anthropic**
+.. _conn-example-anthropic:
+
+Anthropic
+^^^^^^^^^
 
 .. code-block:: json
 
@@ -110,7 +116,10 @@ Examples
         "extra": "{\"model\": \"anthropic:claude-opus-4-6\"}"
     }
 
-**Ollama (local)**
+.. _conn-example-ollama:
+
+Ollama (local)
+^^^^^^^^^^^^^^
 
 .. code-block:: json
 
@@ -120,7 +129,10 @@ Examples
         "extra": "{\"model\": \"openai:llama3\"}"
     }
 
-**AWS Bedrock**
+.. _conn-example-bedrock:
+
+AWS Bedrock
+^^^^^^^^^^^
 
 Leave password empty and configure ``AWS_PROFILE`` or IAM role in the environment:
 
@@ -136,7 +148,10 @@ credential chain are unchanged. For AWS-specific fields with dedicated UI
 inputs (region, IAM keys, profile, bearer token, timeouts) instead of raw
 ``extra`` JSON, use the :doc:`pydantic_ai_bedrock` connection type.
 
-**Google Vertex AI / Gemini API**
+.. _conn-example-google:
+
+Google Vertex AI / Gemini API
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Leave password empty and configure ``GOOGLE_API_KEY`` (or ``GEMINI_API_KEY``)
 in the environment:
@@ -145,7 +160,7 @@ in the environment:
 
     {
         "conn_type": "pydanticai",
-        "extra": "{\"model\": \"google:gemini-2.0-flash\"}"
+        "extra": "{\"model\": \"google:gemini-2.5-flash\"}"
     }
 
 This connects to the Gemini API (Google AI Studio), not Vertex AI — pydantic-ai's

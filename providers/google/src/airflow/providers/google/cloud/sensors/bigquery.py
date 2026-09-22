@@ -66,6 +66,7 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         "dataset_id",
         "table_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     ui_color = "#f0eee4"
 
@@ -175,6 +176,7 @@ class BigQueryRoutineExistenceSensor(BaseSensorOperator):
         "dataset_id",
         "routine_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     ui_color = "#f0eee4"
 
@@ -241,6 +243,7 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         "table_id",
         "partition_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     ui_color = "#f0eee4"
 
@@ -356,6 +359,7 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
         "dataset_id",
         "table_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     ui_color = "#f0eee4"

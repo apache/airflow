@@ -22,7 +22,7 @@ import json
 from collections import Counter
 from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from pydantic import BaseModel, Field, ValidationError
 
@@ -135,6 +135,9 @@ class LLMSchemaCompareOperator(LLMOperator):
         "table_names",
         "context_strategy",
     )
+
+    # Runs its own execute() without the confidence gate; a decision_policy is rejected at construction.
+    supports_decision_policy: ClassVar[bool] = False
 
     def __init__(
         self,
@@ -360,8 +363,14 @@ class LLMSchemaCompareOperator(LLMOperator):
 
         return output_result
 
-    def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> Any:
-        output = super().execute_complete(context, generated_output, event)
+    def execute_complete(
+        self,
+        context: Context,
+        generated_output: str,
+        event: dict[str, Any],
+        decision: dict[str, Any] | None = None,
+    ) -> Any:
+        output = super().execute_complete(context, generated_output, event, decision)
         if isinstance(output, dict):
             return output
         try:
