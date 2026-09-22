@@ -121,3 +121,5 @@ Where to go next
   files, generating SQL, batch processing.
 - :doc:`operators/agent` gives the model tools built from Airflow hooks, SQL databases or
   MCP servers, so it can act instead of only answering.
+- :doc:`local_development` shows how to iterate on an agent in a notebook and test the
+  Dag without an API key.
