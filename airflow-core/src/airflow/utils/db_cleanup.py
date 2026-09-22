@@ -484,14 +484,23 @@ def _do_delete(
             # found. The SELECT includes the same NOT EXISTS guard, so the skipped row is
             # excluded on the next pass too and the loop drains naturally. With --batch-size
             # set, continuing lets subsequent batches clean rows unaffected by the race.
-            if deleted == 0:
-                logger.warning(
-                    "Some rows from %s are still referenced by another table and were not "
-                    "deleted; they remain in %s and will be retried on the next cleanup run.",
-                    source_table_name,
-                    target_table_name if not skip_archive else "the archive (which is being dropped)",
-                )
-                continue
+            #
+            # Compare against the archive rather than testing ``deleted == 0``: the archive
+            # holds exactly the rows this pass found, so any shortfall is a skipped row. A
+            # partial skip is the likely case and is also the harmful one, because the
+            # archive has already committed a copy of a row that is still live.
+            if skip_if_referenced:
+                archived = session.scalars(select(func.count()).select_from(target_table)).one()
+                if deleted < archived:
+                    logger.warning(
+                        "%s of %s rows from %s are still referenced by another table and were "
+                        "not deleted; they remain in %s and will be retried on the next cleanup run.",
+                        archived - deleted,
+                        archived,
+                        source_table_name,
+                        target_table_name if not skip_archive else "the archive (which is being dropped)",
+                    )
+                    continue
 
         except BaseException:
             error_raised = True
