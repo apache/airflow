@@ -970,6 +970,7 @@ class CloudDataTransferServiceS3ToGCSOperator(GoogleCloudBaseOperator):
         "object_conditions",
         "google_impersonation_chain",
         "aws_role_arn",
+        "aws_conn_id",
     )
     ui_color = "#e09411"
 

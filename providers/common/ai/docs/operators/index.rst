@@ -121,3 +121,17 @@ Use this provider when a Dag needs:
   and :doc:`LlamaIndexRetrievalOperator <llamaindex_retrieval>` retrieves the closest
   chunks for an :doc:`LLMOperator <llm>` prompt (see the table above for the
   full set).
+
+Operator guides
+---------------
+
+.. toctree::
+    :titlesonly:
+
+    Single prompts <llm>
+    Branch on an answer <llm_branch>
+    Analyze files and images <llm_file_analysis>
+    Natural language to SQL <llm_sql>
+    Detect schema drift <llm_schema_compare>
+    Batch processing <llm_batch>
+    Agents with tools <agent>

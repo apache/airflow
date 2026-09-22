@@ -38,7 +38,8 @@ Choosing extras
 The provider's extras split into a few groups:
 
 * **Model providers** — ``openai``, ``anthropic``, ``google``, ``bedrock``, ``typesafe``:
-  pick the one matching your ``llm_conn_id`` connection. ``typesafe`` differs from the rest
+  pick the one matching your ``llm_conn_id`` connection (:doc:`model_providers` maps
+  vendors to extras, prefixes and connection types). ``typesafe`` differs from the rest
   in kind: it installs a classifier model that answers typed questions and cannot write
   text (see :doc:`classifier_models`). The first four mirror the identically named
   ``pydantic-ai-slim`` optional dependency groups, and ``typesafe`` adds the ``typesafe-sdk``

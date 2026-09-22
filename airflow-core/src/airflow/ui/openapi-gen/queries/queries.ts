@@ -2285,10 +2285,10 @@ export const useAssetServiceCreateAssetEvent = <TData = Common.AssetServiceCreat
 */
 export const useAssetServiceMaterializeAsset = <TData = Common.AssetServiceMaterializeAssetMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
   assetId: number;
-  requestBody?: MaterializeAssetBody;
+  requestBody: MaterializeAssetBody;
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   assetId: number;
-  requestBody?: MaterializeAssetBody;
+  requestBody: MaterializeAssetBody;
 }, TContext>({ mutationFn: ({ assetId, requestBody }) => AssetService.materializeAsset({ assetId, requestBody }) as unknown as Promise<TData>, ...options });
 /**
 * Create Backfill

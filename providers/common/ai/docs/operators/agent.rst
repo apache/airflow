@@ -17,8 +17,8 @@
 
 .. _howto/operator:agent:
 
-``AgentOperator`` & ``@task.agent``
-===================================
+Agents with tools: ``AgentOperator`` and ``@task.agent``
+========================================================
 
 Use :class:`~airflow.providers.common.ai.operators.agent.AgentOperator` or
 the ``@task.agent`` decorator to run an LLM agent with **tools** — the agent

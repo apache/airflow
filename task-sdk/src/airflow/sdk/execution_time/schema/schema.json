@@ -5121,6 +5121,11 @@
           ],
           "default": null,
           "title": "Arg Bindings"
+        },
+        "multi_team": {
+          "default": false,
+          "title": "Multi Team",
+          "type": "boolean"
         }
       },
       "required": [

@@ -113,6 +113,7 @@ class TestVendorContract:
             "cloud",
             "block_network",
             "outbound_domain_allowlist",
+            "outbound_cidr_allowlist",
         ):
             assert name in parameters, f"Sandbox.create no longer takes {name!r}"
 
@@ -352,6 +353,146 @@ class TestSpecEnforcement:
 
         assert "block_network" not in sandbox.create_kwargs
         assert sandbox.create_kwargs["env"] is None
+
+
+class TestAddressAllowlist:
+    """
+    ``allow_egress_to_cidrs`` maps onto Modal's address-layer allowlist.
+
+    Measured live on 2026-09-22 with ``outbound_cidr_allowlist=["1.1.1.1/32"]``: the listed
+    address connected on 443 and 53, an unlisted one timed out on both, and hostnames still
+    resolved through Modal's own resolver. That enforcement has no caveat for the author
+    to accept, so unlike the hostname list it needs no opt-in.
+    """
+
+    def test_maps_to_the_cidr_allowlist_without_an_opt_in(self, backend, fake):
+        _, sandbox = _created(backend, fake, SandboxSpec(allow_egress_to_cidrs=["10.20.0.0/16"]))
+
+        assert sandbox.create_kwargs["outbound_cidr_allowlist"] == ["10.20.0.0/16"]
+        # Modal rejects the two together, and an allowlist alone already denies the rest.
+        assert "block_network" not in sandbox.create_kwargs
+        assert "outbound_domain_allowlist" not in sandbox.create_kwargs
+
+    def test_combines_with_a_hostname_allowlist_under_sni(self, backend_class, fake):
+        """Modal applies the two lists additively, so both are passed when both are given."""
+        backend = backend_class(egress_enforcement="sni")
+
+        _, sandbox = _created(
+            backend,
+            fake,
+            SandboxSpec(allow_egress_to=["pypi.org"], allow_egress_to_cidrs=["203.0.113.7/32"]),
+        )
+
+        assert sandbox.create_kwargs["outbound_cidr_allowlist"] == ["203.0.113.7/32"]
+        assert sandbox.create_kwargs["outbound_domain_allowlist"] == ["pypi.org"]
+
+    def test_the_hostname_half_still_needs_the_opt_in(self, backend, fake):
+        """Adding an address list does not launder the hostname list past its opt-in."""
+        with pytest.raises(SandboxTerminalError, match="egress_enforcement='sni'"):
+            backend.create(
+                spec=SandboxSpec(allow_egress_to=["pypi.org"], allow_egress_to_cidrs=["10.0.0.0/8"])
+            )
+        assert fake.Sandbox.created == []
+
+    def test_the_refusal_names_the_address_list_as_the_way_out(self, backend):
+        with pytest.raises(SandboxTerminalError, match="allow_egress_to_cidrs"):
+            backend.create(spec=SandboxSpec(allow_egress_to=["pypi.org"]))
+
+    def test_without_block_network_is_contradictory(self, backend, fake):
+        with pytest.raises(SandboxTerminalError, match="block_network"):
+            backend.create(spec=SandboxSpec(block_network=False, allow_egress_to_cidrs=["10.0.0.0/8"]))
+        assert fake.Sandbox.created == []
+
+    @pytest.mark.parametrize(
+        ("entry", "canonical"),
+        [
+            ("203.0.113.7", "203.0.113.7/32"),
+            ("203.0.113.7/32", "203.0.113.7/32"),
+            ("203.0.113.0/24", "203.0.113.0/24"),
+        ],
+    )
+    def test_normalises_entries_to_canonical_cidr(self, backend, fake, entry, canonical):
+        """A bare address means that one address, and is written as such for Modal."""
+        _, sandbox = _created(backend, fake, SandboxSpec(allow_egress_to_cidrs=[entry]))
+
+        assert sandbox.create_kwargs["outbound_cidr_allowlist"] == [canonical]
+
+    @pytest.mark.parametrize(
+        "entry",
+        [
+            "pypi.org",
+            "https://10.0.0.1",
+            "10.0.0.1:443",
+            "10.0.0.1/8",
+            "10.0.0.0/33",
+            "",
+            "*",
+            443,
+            # Modal's allowlist rejects IPv6 at create ("does not support IPv6 CIDRs",
+            # measured 2026-09-22) and the sandbox has no IPv6 route, so refuse it here
+            # with the reason rather than letting the task fail on the vendor's message.
+            "2001:db8::",
+            "2001:db8::/32",
+            "::/0",
+            "fe80::1%eth0",
+        ],
+    )
+    def test_refuses_an_entry_that_is_not_an_ipv4_cidr(self, backend, fake, entry):
+        """
+        Modal sends these strings on unvalidated and matches them against the address.
+
+        A hostname or URL would match nothing while reading as a restriction, and a range
+        with host bits set names a different network from the one written.
+        """
+        with pytest.raises(SandboxTerminalError, match="IPv4 address ranges"):
+            backend.create(spec=SandboxSpec(allow_egress_to_cidrs=[entry]))
+        assert fake.Sandbox.created == []
+
+    def test_refuses_a_bare_string_instead_of_a_list(self, backend, fake):
+        with pytest.raises(SandboxTerminalError, match="not one string"):
+            backend.create(spec=SandboxSpec(allow_egress_to_cidrs="10.0.0.0/8"))
+        assert fake.Sandbox.created == []
+
+    def test_refuses_a_range_that_matches_every_address(self, backend, fake):
+        """An allowlist of everything is an open network that reads as a restriction."""
+        with pytest.raises(SandboxTerminalError, match="restricts nothing"):
+            backend.create(spec=SandboxSpec(allow_egress_to_cidrs=["203.0.113.0/24", "0.0.0.0/0"]))
+        assert fake.Sandbox.created == []
+
+    def test_combining_with_hostnames_warns_that_port_443_is_no_longer_confined(
+        self, backend_class, fake, caplog
+    ):
+        """
+        Modal admits traffic matching either list, and the hostname list admits TLS on 443
+        to every address whose handshake names a listed host. Measured: 8.8.8.8:443 timed
+        out under 1.1.1.1/32 alone and connected once pypi.org was added beside it.
+        """
+        caplog.set_level(logging.WARNING, logger="airflow.providers.common.ai.sandbox.modal")
+        backend = backend_class(egress_enforcement="sni")
+
+        _created(
+            backend, fake, SandboxSpec(allow_egress_to=["pypi.org"], allow_egress_to_cidrs=["1.1.1.1/32"])
+        )
+
+        assert "port 443 is admitted to ANY address" in caplog.text
+        assert "1.1.1.1/32" in caplog.text
+
+    def test_an_address_list_alone_does_not_warn(self, backend, fake, caplog):
+        caplog.set_level(logging.WARNING, logger="airflow.providers.common.ai.sandbox.modal")
+
+        _created(backend, fake, SandboxSpec(allow_egress_to_cidrs=["1.1.1.1/32"]))
+
+        assert not caplog.records
+
+    def test_surrounding_whitespace_is_tolerated(self, backend, fake):
+        _, sandbox = _created(backend, fake, SandboxSpec(allow_egress_to_cidrs=[" 10.20.0.0/16 "]))
+
+        assert sandbox.create_kwargs["outbound_cidr_allowlist"] == ["10.20.0.0/16"]
+
+    def test_an_empty_list_means_no_egress(self, backend, fake):
+        _, sandbox = _created(backend, fake, SandboxSpec(allow_egress_to_cidrs=[]))
+
+        assert sandbox.create_kwargs["block_network"] is True
 
 
 class TestEnvironment:

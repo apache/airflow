@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-``DataFusionToolset``
-=====================
+Files with DataFusion: ``DataFusionToolset``
+============================================
 
 Curated toolset wrapping
 :class:`~airflow.providers.common.sql.datafusion.engine.DataFusionEngine`
