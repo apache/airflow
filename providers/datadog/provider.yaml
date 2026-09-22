@@ -74,6 +74,11 @@ sensors:
     python-modules:
       - airflow.providers.datadog.sensors.datadog
 
+triggers:
+  - integration-name: Datadog
+    python-modules:
+      - airflow.providers.datadog.triggers.datadog
+
 hooks:
   - integration-name: Datadog
     python-modules:
