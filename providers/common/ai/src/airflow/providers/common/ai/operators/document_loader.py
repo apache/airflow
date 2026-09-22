@@ -298,13 +298,14 @@ class DocumentLoaderOperator(BaseOperator):
         if backend == "python-docx":
             return self._parse_docx_stream(io.BytesIO(raw))
 
-        text = self._decode(raw, source_hint=f"<bytes:{ext}>")
+        source_hint = f"<bytes:{ext}>"
+        text = self._decode(raw, source_hint=source_hint)
         if backend == "csv":
             return self._parse_csv_text(text)
         if backend == "json":
             return self._parse_json_text(text)
         if backend == "jsonl":
-            return self._parse_json_lines_text(text)
+            return self._parse_json_lines_text(text, source_hint=source_hint)
         return [{"text": text, "metadata": {}}]
 
     def _parse_file(self, file_path: Path, ext: str) -> list[dict[str, Any]]:
@@ -380,9 +381,9 @@ class DocumentLoaderOperator(BaseOperator):
         return [self._json_item_to_doc(data, item_index=None)]
 
     def _parse_json_lines(self, file_path: Path) -> list[dict[str, Any]]:
-        return self._parse_json_lines_text(self._read_text(file_path))
+        return self._parse_json_lines_text(self._read_text(file_path), source_hint=str(file_path))
 
-    def _parse_json_lines_text(self, text: str) -> list[dict[str, Any]]:
+    def _parse_json_lines_text(self, text: str, *, source_hint: str) -> list[dict[str, Any]]:
         documents: list[dict[str, Any]] = []
         # split("\n") rather than splitlines(): JSON Lines is defined with \n, while splitlines()
         # also breaks on U+2028/U+2029/U+0085, which are legal unescaped characters inside a JSON
@@ -393,7 +394,10 @@ class DocumentLoaderOperator(BaseOperator):
             try:
                 item = json.loads(line)
             except json.JSONDecodeError as e:
-                raise ValueError(f"Invalid JSON on line {line_number}, column {e.colno}: {e.msg}") from e
+                raise ValueError(
+                    f"Failed to parse {source_hint}: "
+                    f"invalid JSON on line {line_number}, column {e.colno}: {e.msg}"
+                ) from e
             documents.append(self._json_item_to_doc(item, item_index=len(documents)))
         return documents
 
