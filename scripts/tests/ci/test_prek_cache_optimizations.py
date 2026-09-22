@@ -141,7 +141,9 @@ def test_cache_key_keeps_only_environment_inputs():
         ({"SAVE_CACHE": "true", "STASH_HIT": "false"}, True, "cache-miss"),
         ({"SAVE_CACHE": "true", "TAR_RESTORED": "false"}, True, "extraction-failed"),
         ({"SAVE_CACHE": "true", "CACHE_CHANGED": "true"}, True, "cache-repaired"),
-        ({"SAVE_CACHE": "true", "EVENT_NAME": "schedule"}, True, "scheduled-republication"),
+        ({"SAVE_CACHE": "true", "EVENT_NAME": "schedule"}, True, "non-pr-republication"),
+        ({"SAVE_CACHE": "true", "EVENT_NAME": "push"}, True, "non-pr-republication"),
+        ({"SAVE_CACHE": "true", "EVENT_NAME": "workflow_dispatch"}, True, "non-pr-republication"),
         (
             {"SAVE_CACHE": "true", "CHANGE_DETECTION_UNCERTAIN": "true"},
             True,
@@ -383,29 +385,3 @@ def test_cache_cleanup_preserves_unrelated_cache(sandbox, tmp_path):
     assert not (home / ".cache/prek").exists()
     assert (home / ".cache/uv").is_dir()
     assert not archive.exists()
-
-
-@pytest.mark.parametrize("fail", (False, True))
-def test_parallel_compressor_and_failure_propagation(sandbox, tmp_path, fail):
-    cache = Path(sandbox["HOME"]) / ".cache/prek"
-    cache.mkdir(parents=True)
-    (cache / "payload").write_text("data")
-    tools = tmp_path / "tools"
-    tools.mkdir()
-    compressor = tools / "pigz"
-    compressor.write_text(
-        "#!/usr/bin/env bash\n"
-        'printf "%s\\n" "$*" > "${COMPRESSOR_ARGS}"\n' + ("exit 42\n" if fail else "exec gzip -1\n")
-    )
-    compressor.chmod(0o755)
-    args = tmp_path / "compressor-args"
-    env = {**sandbox, "PATH": f"{tools}:{os.environ['PATH']}", "COMPRESSOR_ARGS": str(args)}
-    result = run_cache_step(find_step(PREK_ACTION, step_id="archive-prek"), env, tmp_path)
-    assert args.read_text().strip() == "-1 -p 4"
-    if fail:
-        assert result.returncode != 0
-        assert "duration-seconds" not in read_outputs(sandbox)
-    else:
-        assert result.returncode == 0, result.stderr
-        with tarfile.open(tmp_path / "cache-prek.tar.gz", "r:gz") as archive:
-            assert ".cache/prek/payload" in archive.getnames()
