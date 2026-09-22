@@ -1057,6 +1057,15 @@ export const UseDeadlinesServiceGetDagDeadlineAlertsKeyFn = ({ dagId, limit, off
   orderBy?: string[];
   versionNumber?: number;
 }, queryKey?: Array<unknown>) => [useDeadlinesServiceGetDagDeadlineAlertsKey, ...(queryKey ?? [{ dagId, limit, offset, orderBy, versionNumber }])];
+export type DeadlinesServiceGetCallbackLogsDefaultResponse = Awaited<ReturnType<typeof DeadlinesService.getCallbackLogs>>;
+export type DeadlinesServiceGetCallbackLogsQueryResult<TData = DeadlinesServiceGetCallbackLogsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useDeadlinesServiceGetCallbackLogsKey = "DeadlinesServiceGetCallbackLogs";
+export const UseDeadlinesServiceGetCallbackLogsKeyFn = ({ accept, callbackId, dagId, dagRunId }: {
+  accept?: "application/json" | "*/*" | "application/x-ndjson";
+  callbackId: string;
+  dagId: string;
+  dagRunId: string;
+}, queryKey?: Array<unknown>) => [useDeadlinesServiceGetCallbackLogsKey, ...(queryKey ?? [{ accept, callbackId, dagId, dagRunId }])];
 export type StructureServiceStructureDataDefaultResponse = Awaited<ReturnType<typeof StructureService.structureData>>;
 export type StructureServiceStructureDataQueryResult<TData = StructureServiceStructureDataDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useStructureServiceStructureDataKey = "StructureServiceStructureData";

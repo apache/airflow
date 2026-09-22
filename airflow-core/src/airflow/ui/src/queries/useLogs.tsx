@@ -109,7 +109,7 @@ type ParseLogsProps = {
   tryNumber: number;
 };
 
-const parseLogs = ({
+export const parseLogs = ({
   data,
   logLevelFilters,
   showSource,
