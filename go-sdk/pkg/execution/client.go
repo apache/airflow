@@ -393,9 +393,6 @@ func (c *CoordinatorClient) sendSetTaskState(
 	value any,
 	expiry any,
 ) error {
-	if value == nil {
-		return fmt.Errorf("cannot set task state key %q to nil", key)
-	}
 	if err := validateJSONRepresentable(value); err != nil {
 		return fmt.Errorf("cannot set task state key %q: %w", key, err)
 	}
@@ -442,6 +439,11 @@ func validateJSONRepresentable(value any) error {
 	decoded, err := dec.DecodeInterface()
 	if err != nil {
 		return fmt.Errorf("%T is not JSON representable: %w", value, err)
+	}
+	// Checked after decoding: a typed nil such as a nil *string is not == nil,
+	// yet it still encodes to null, which the Execution API rejects.
+	if decoded == nil {
+		return errors.New("value must not be nil")
 	}
 	return validateDecodedValue(decoded)
 }
