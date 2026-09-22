@@ -272,8 +272,8 @@ repos:
       - id: sync-java-sdk-supervisor-schema
         name: Sync Java SDK supervisor schema with configured version
         description: "Download the Supervisor Schema when Java SDK's bundled schema.json drifts"
-        entry: ./java-sdk/gradlew -p ./java-sdk :sdk:syncSupervisorSchema
-        language: system
+        entry: ./scripts/ci/prek/sync_java_sdk_supervisor_schema.py
+        language: python
         pass_filenames: false
         files: >
           (?x)
