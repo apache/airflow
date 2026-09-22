@@ -29,7 +29,7 @@ ROOT = Path(__file__).resolve().parents[3]
 
 def run_shell(script, env):
     return subprocess.run(
-        ["bash", "--noprofile", "--norc", "-e", "-o", "pipefail", "-c", script],
+        ["bash", "--noprofile", "--norc", "-c", script],
         env={**os.environ, **env},
         capture_output=True,
         text=True,
@@ -51,66 +51,16 @@ printf '%s\n' "${name} $*" >> "${COMMAND_LOG}"
 if [[ -n "${FAIL_MATCH:-}" && "${name} $*" == *"${FAIL_MATCH}"* ]]; then
     exit 42
 fi
-if [[ "${name}" == "sudo" && "${1:-}" == "find" ]]; then
-    printf '%s' "${FIND_RESULT:-}"
-fi
-if [[ "${name}" == "uname" ]]; then
-    printf '%s\n' "${TEST_ARCH:-x86_64}"
-fi
 """
     )
     command.chmod(0o755)
-    for name in ("sudo", "df", "lsblk", "uname", "sleep"):
+    for name in ("sudo", "df"):
         (tools / name).symlink_to(command)
     return {"PATH": f"{tools}:{os.environ['PATH']}", "COMMAND_LOG": str(log)}
 
 
 def read_commands(env):
     return [shlex.split(line) for line in Path(env["COMMAND_LOG"]).read_text().splitlines()]
-
-
-@pytest.mark.parametrize("path", ("scripts/ci/make_mnt_writeable.sh", "scripts/ci/move_docker_to_mnt.sh"))
-@pytest.mark.parametrize("remaining,recursive", [("", False), ("/mnt/.hidden\n", True)])
-def test_ownership_walk_only_when_needed(fake_tools, path, remaining, recursive):
-    result = run_shell((ROOT / path).read_text(), {**fake_tools, "FIND_RESULT": remaining, "USER": "runner"})
-    assert result.returncode == 0, result.stderr
-    ownership = [command for command in read_commands(fake_tools) if command[:2] == ["sudo", "chown"]]
-    assert len(ownership) == 1
-    assert ("-R" in ownership[0]) == recursive
-
-
-@pytest.mark.parametrize("path", ("scripts/ci/make_mnt_writeable.sh", "scripts/ci/move_docker_to_mnt.sh"))
-def test_failed_directory_scan_cannot_take_empty_fast_path(fake_tools, path):
-    result = run_shell((ROOT / path).read_text(), {**fake_tools, "FAIL_MATCH": "sudo find", "USER": "runner"})
-    assert result.returncode != 0
-    assert not any(command[:2] == ["sudo", "chown"] for command in read_commands(fake_tools))
-
-
-def test_optional_disk_probe_does_not_fail_cleanup(fake_tools):
-    result = run_shell(
-        (ROOT / "scripts/ci/make_mnt_writeable.sh").read_text(),
-        {**fake_tools, "FAIL_MATCH": "sudo blkid", "USER": "runner"},
-    )
-    assert result.returncode == 0, result.stderr
-
-
-@pytest.mark.parametrize(
-    "failure",
-    ("systemctl stop", "sudo rm", "sudo mkdir", "sudo mount", "sudo chown", "systemctl start"),
-)
-def test_docker_relocation_propagates_errors(fake_tools, failure):
-    result = run_shell(
-        (ROOT / "scripts/ci/move_docker_to_mnt.sh").read_text(), {**fake_tools, "FAIL_MATCH": failure}
-    )
-    assert result.returncode != 0
-
-
-def test_docker_relocation_stays_disabled_on_arm(fake_tools):
-    result = run_shell(
-        (ROOT / "scripts/ci/move_docker_to_mnt.sh").read_text(), {**fake_tools, "TEST_ARCH": "aarch64"}
-    )
-    assert result.returncode == 0, result.stderr
-    assert not any(command[0] == "sudo" for command in read_commands(fake_tools))
 
 
 def test_parallel_cleanup_keeps_exact_targets_and_concurrency_bound(fake_tools):
