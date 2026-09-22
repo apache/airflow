@@ -17,13 +17,19 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import warnings
 from unittest import mock
 
 import pytest
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.models import Connection
 from airflow.providers.ssh.hooks.ssh import SSHHookAsync
+
+
+def _connection(extra: dict, host: str = "test.host") -> Connection:
+    return Connection(conn_id="test_conn", conn_type="ssh", host=host, extra=json.dumps(extra))
 
 
 class TestSSHHookAsync:
@@ -76,35 +82,40 @@ class TestSSHHookAsync:
     def test_parse_extras_no_host_key_check_defaults_to_false(self):
         """A connection that omits ``no_host_key_check`` keeps host key verification enabled."""
         hook = SSHHookAsync(ssh_conn_id="test_conn")
-        mock_conn = mock.MagicMock()
-        mock_conn.extra_dejson = {}
-        mock_conn.host = "test.host"
 
-        hook._parse_extras(mock_conn)
+        hook._parse_extras(_connection({}))
         assert hook.known_hosts != "none"
 
     def test_parse_extras_honours_deprecated_alias(self):
         """``ignore_hostkey_verification`` keeps working on the async path too."""
         hook = SSHHookAsync(ssh_conn_id="test_conn")
-        mock_conn = mock.MagicMock()
-        mock_conn.extra_dejson = {"ignore_hostkey_verification": True}
-        mock_conn.host = "test.host"
 
         with pytest.warns(AirflowProviderDeprecationWarning, match="ignore_hostkey_verification"):
-            hook._parse_extras(mock_conn)
+            hook._parse_extras(_connection({"ignore_hostkey_verification": True}))
         assert hook.known_hosts == "none"
 
     def test_parse_extras_canonical_key_wins_over_alias(self):
         """``no_host_key_check`` takes precedence and suppresses the deprecation warning."""
         hook = SSHHookAsync(ssh_conn_id="test_conn")
-        mock_conn = mock.MagicMock()
-        mock_conn.extra_dejson = {"no_host_key_check": False, "ignore_hostkey_verification": True}
-        mock_conn.host = "test.host"
 
         with warnings.catch_warnings():
             warnings.simplefilter("error", AirflowProviderDeprecationWarning)
-            hook._parse_extras(mock_conn)
+            hook._parse_extras(_connection({"no_host_key_check": False, "ignore_hostkey_verification": True}))
         assert hook.known_hosts != "none"
+
+    def test_parse_extras_host_key_uses_host_override(self):
+        """The known_hosts entry names the host actually connected to, not the connection's host."""
+        hook = SSHHookAsync(ssh_conn_id="test_conn", host="override.example")
+
+        hook._parse_extras(_connection({"host_key": "ssh-ed25519 AAAAC3..."}, host="connection.example"))
+        assert hook.known_hosts == b"override.example ssh-ed25519 AAAAC3..."
+
+    def test_parse_extras_bare_host_key_is_rsa(self):
+        """A bare base64 host key is RSA, as on the sync hook, and asyncssh needs the type."""
+        hook = SSHHookAsync(ssh_conn_id="test_conn")
+
+        hook._parse_extras(_connection({"host_key": "AAAAB3NzaC1yc2E"}))
+        assert hook.known_hosts == b"test.host ssh-rsa AAAAB3NzaC1yc2E"
 
     def test_parse_extras_host_key(self):
         """Test parsing host_key from connection extras."""
