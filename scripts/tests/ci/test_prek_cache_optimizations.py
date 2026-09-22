@@ -126,7 +126,7 @@ def read_commands(env):
 
 def test_cache_key_keeps_only_environment_inputs():
     step = find_step(PREK_ACTION, step_id="cache-key")
-    assert "cache-prek-v12-${PLATFORM}" in step["run"]
+    assert "cache-prek-v13-${PLATFORM}" in step["run"]
     assert "python${PYTHON_VERSION}" in step["run"]
     assert "uv${UV_VERSION}" in step["run"]
     assert "prek${PREK_VERSION}" in step["run"]
@@ -137,7 +137,6 @@ def test_cache_key_keeps_only_environment_inputs():
     ("inputs", "expected_save", "expected_reason"),
     [
         ({}, False, "reader"),
-        ({"SAVE_CACHE": "true", "INSTALLATION_SUCCEEDED": "false"}, False, "installation-failed"),
         ({"SAVE_CACHE": "true", "STASH_HIT": "false"}, True, "cache-miss"),
         ({"SAVE_CACHE": "true", "TAR_RESTORED": "false"}, True, "extraction-failed"),
         ({"SAVE_CACHE": "true", "CACHE_CHANGED": "true"}, True, "cache-repaired"),
@@ -158,7 +157,6 @@ def test_cache_refresh_policy(sandbox, inputs, expected_save, expected_reason):
         "SAVE_CACHE": "false",
         "STASH_HIT": "true",
         "TAR_RESTORED": "true",
-        "INSTALLATION_SUCCEEDED": "true",
         "CACHE_CHANGED": "false",
         "CHANGE_DETECTION_UNCERTAIN": "false",
         "EVENT_NAME": "pull_request",
@@ -171,14 +169,66 @@ def test_cache_refresh_policy(sandbox, inputs, expected_save, expected_reason):
 
 
 def test_restored_hooks_are_always_validated(sandbox, fake_tools):
+    marker = Path(sandbox["HOME"]) / ".cache/prek/hooks/python-existing/.prek-hook.json"
+    marker.parent.mkdir(parents=True)
+    marker.write_text('{"schema_version":1}')
     step = find_step(PREK_ACTION, step_id="install-hooks")
     assert "if" not in step
     result = run_shell(step["run"], {**sandbox, **fake_tools, "WRITE_LOG_ONLY": "true"})
     assert result.returncode == 0, result.stderr
-    assert ["prek", "install-hooks"] in read_commands(fake_tools)
+    assert [
+        "prek",
+        "install-hooks",
+        "--skip",
+        "run-skill-eval",
+        "--skip",
+        "run-skill-eval-codex",
+        "--skip",
+        "view-skill-eval",
+    ] in read_commands(fake_tools)
     assert read_outputs(sandbox)["installation-succeeded"] == "true"
     assert read_outputs(sandbox)["cache-changed"] == "false"
     assert read_outputs(sandbox)["change-detection-uncertain"] == "false"
+
+
+@pytest.mark.parametrize("cache_state", ("missing", "empty", "renamed-markers", "log-only"))
+@pytest.mark.parametrize("save_cache", ("true", "false"))
+def test_markerless_cache_refresh_policy(sandbox, fake_tools, cache_state, save_cache):
+    cache = Path(sandbox["HOME"]) / ".cache/prek"
+    if cache_state == "empty":
+        cache.mkdir(parents=True)
+    elif cache_state == "renamed-markers":
+        marker = cache / "environments/python-one/.new-marker.json"
+        marker.parent.mkdir(parents=True)
+        marker.write_text("{}")
+    result = run_shell(
+        find_step(PREK_ACTION, step_id="install-hooks")["run"],
+        {**sandbox, **fake_tools, "WRITE_LOG_ONLY": str(cache_state == "log-only").lower()},
+    )
+    assert result.returncode == 0, result.stderr
+    outputs = read_outputs(sandbox)
+    uncertain = cache_state in ("renamed-markers", "log-only")
+    assert outputs["cache-changed"] == "false"
+    assert outputs["change-detection-uncertain"] == str(uncertain).lower()
+
+    result = run_shell(
+        find_step(PREK_ACTION, step_id="cache-policy")["run"],
+        {
+            **sandbox,
+            "SAVE_CACHE": save_cache,
+            "STASH_HIT": "true",
+            "TAR_RESTORED": "true",
+            "CACHE_CHANGED": outputs["cache-changed"],
+            "CHANGE_DETECTION_UNCERTAIN": outputs["change-detection-uncertain"],
+            "EVENT_NAME": "pull_request",
+        },
+    )
+    assert result.returncode == 0, result.stderr
+    outputs = read_outputs(sandbox)
+    assert outputs["save"] == str(uncertain and save_cache == "true").lower()
+    assert outputs["reason"] == (
+        "reader" if save_cache == "false" else "change-detection-uncertain" if uncertain else "unchanged"
+    )
 
 
 def test_change_detection_spans_failed_then_successful_attempts(sandbox, fake_tools):
@@ -187,7 +237,7 @@ def test_change_detection_spans_failed_then_successful_attempts(sandbox, fake_to
         {**sandbox, **fake_tools, "FAIL_ATTEMPTS": "1", "WRITE_MARKER_ATTEMPT": "1"},
     )
     assert result.returncode == 0, result.stderr
-    assert read_commands(fake_tools).count(["prek", "install-hooks"]) == 2
+    assert len([cmd for cmd in read_commands(fake_tools) if cmd[:2] == ["prek", "install-hooks"]]) == 2
     assert read_outputs(sandbox)["cache-changed"] == "true"
 
 
@@ -201,12 +251,14 @@ def test_unreadable_installation_metadata_is_uncertain(sandbox, fake_tools):
 
 
 def test_hook_install_failure_remains_fatal(sandbox, fake_tools):
+    assert "if" not in find_step(PREK_ACTION, step_id="cache-policy")
+    assert "continue-on-error" not in find_step(PREK_ACTION, step_id="install-hooks")
     result = run_shell(
         find_step(PREK_ACTION, step_id="install-hooks")["run"],
         {**sandbox, **fake_tools, "FAIL_MATCH": "prek install-hooks"},
     )
     assert result.returncode != 0
-    assert read_commands(fake_tools).count(["prek", "install-hooks"]) == 4
+    assert len([cmd for cmd in read_commands(fake_tools) if cmd[:2] == ["prek", "install-hooks"]]) == 4
     assert read_outputs(sandbox)["installation-succeeded"] == "false"
 
 
@@ -228,6 +280,9 @@ def test_marker_snapshot_uses_relative_paths_and_exact_contents(tmp_path):
 def test_repaired_archive_is_reused_without_another_save(sandbox, fake_tools, tmp_path):
     cache = Path(sandbox["HOME"]) / ".cache/prek"
     (cache / "hooks/python-incomplete").mkdir(parents=True)
+    marker = cache / "hooks/python-existing/.prek-hook.json"
+    marker.parent.mkdir(parents=True)
+    marker.write_text('{"schema_version":1}')
     install_step = find_step(PREK_ACTION, step_id="install-hooks")
     policy_step = find_step(PREK_ACTION, step_id="cache-policy")
 
@@ -242,7 +297,6 @@ def test_repaired_archive_is_reused_without_another_save(sandbox, fake_tools, tm
         "SAVE_CACHE": "true",
         "STASH_HIT": "true",
         "TAR_RESTORED": "true",
-        "INSTALLATION_SUCCEEDED": "true",
         "CACHE_CHANGED": "true",
         "CHANGE_DETECTION_UNCERTAIN": "false",
         "EVENT_NAME": "pull_request",

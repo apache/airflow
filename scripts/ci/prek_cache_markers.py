@@ -49,7 +49,11 @@ def snapshot_markers(cache_dir: Path) -> dict[str, str]:
 
 def main() -> None:
     cache_dir, output_file = map(Path, sys.argv[1:])
-    Path(output_file).write_text(json.dumps(snapshot_markers(cache_dir), sort_keys=True))
+    snapshot = snapshot_markers(cache_dir)
+    # Marker names are prek internals; an unrecognised layout must not look unchanged.
+    if not snapshot and cache_dir.is_dir() and any(cache_dir.iterdir()):
+        sys.exit("Populated prek cache contains no recognised installation markers")
+    Path(output_file).write_text(json.dumps(snapshot, sort_keys=True))
 
 
 if __name__ == "__main__":
