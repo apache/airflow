@@ -116,17 +116,21 @@ export const DeadlineStatusModal = ({
           {deadlines.map((dl) => {
             const deadlineTime = dayjs(dl.deadline_time);
 
-            let actualDurationLabel: string | undefined;
+            let missedStatusLabel: string | undefined;
 
-            if (dl.missed && runEndDate !== undefined) {
-              const diff = dayjs(runEndDate).diff(deadlineTime);
-              const dur = renderDuration(Math.abs(diff) / 1000);
+            if (dl.missed) {
+              if (runEndDate === undefined) {
+                missedStatusLabel = translate("deadlineStatus.stillRunning");
+              } else {
+                const diff = dayjs(runEndDate).diff(deadlineTime);
+                const dur = renderDuration(Math.abs(diff) / 1000);
 
-              if (dur !== undefined) {
-                actualDurationLabel =
-                  diff >= 0
-                    ? translate("deadlineStatus.finishedLate", { duration: dur })
-                    : translate("deadlineStatus.finishedEarly", { duration: dur });
+                if (dur !== undefined) {
+                  missedStatusLabel =
+                    diff >= 0
+                      ? translate("deadlineStatus.finishedLate", { duration: dur })
+                      : translate("deadlineStatus.finishedEarly", { duration: dur });
+                }
               }
             }
 
@@ -152,9 +156,9 @@ export const DeadlineStatusModal = ({
                   </Text>
                   <Time datetime={dl.deadline_time} fontSize="xs" />
                 </HStack>
-                {actualDurationLabel === undefined ? undefined : (
+                {missedStatusLabel === undefined ? undefined : (
                   <Text color="fg.error" fontSize="xs">
-                    {actualDurationLabel}
+                    {missedStatusLabel}
                   </Text>
                 )}
               </VStack>
