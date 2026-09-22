@@ -291,19 +291,19 @@ When to choose it
 -----------------
 
 **Choose it when** the work is running code the model wrote, rather than calling
-a tool you picked in advance — exploratory analysis, installing a package for one
+a tool you picked in advance: exploratory analysis, installing a package for one
 task, a script the model writes, runs, and fixes from its own traceback. Every
 other toolset route answers "call this thing"; this one answers "here is
 somewhere to work". This page has the worked scenarios above and
 the limitations below to read before designing a Dag around it.
 
 Before reaching for it, check whether the actual need is narrower than that:
-``code_mode=True`` is a flag on ``AgentOperator``, not a toolset
-— it changes how the model invokes the tools it already has, letting it write
+``code_mode=True`` is a flag on ``AgentOperator``, not a toolset. It changes
+how the model invokes the tools it already has, letting it write
 code to call several of them instead of emitting one call per step. It does not
 give the agent somewhere to run arbitrary code of its own, and it avoids the
 ``sbx`` backend's production-readiness, network-isolation, and reclamation
-caveats on :doc:`backends` and needs no backend at all — but not the reachability one: the generated code runs in
+caveats on :doc:`backends` and needs no backend at all, but not the reachability one: the generated code runs in
 Monty's deny-by-default sandbox, but the tools it calls still run in the
 worker, so a credential-bearing toolset on the same agent stays within reach
 whether or not code mode is on. See :ref:`code-mode` and
@@ -315,7 +315,7 @@ whether or not code mode is on. See :ref:`code-mode` and
   Docker Sandboxes on the worker host, and its own documentation says to use it
   for local development: it wants the ``sbx`` binary on the host, an
   authenticated Docker account, a one-time ``sbx policy init``, and on Linux KVM
-  or nested virtualization — which an unprivileged container cannot provide.
+  or nested virtualization, which an unprivileged container cannot provide.
   Production and Kubernetes use
   :class:`~airflow.providers.common.ai.sandbox.modal.ModalSandboxBackend`, a
   hosted backend behind the ``modal`` extra that installs nothing on the worker
@@ -364,7 +364,7 @@ Airflow connection. Airflow puts none of its context, connections, variables or
 worker environment into the sandbox; only what you pass through
 :class:`~airflow.providers.common.ai.sandbox.SandboxSpec` goes in, and the
 credential that provisions the sandbox never enters it. Authorization to the
-backend sits outside Airflow — ``sbx login`` and ``sbx policy init`` on the
+backend sits outside Airflow: ``sbx login`` and ``sbx policy init`` on the
 machine for ``sbx``, or ``MODAL_TOKEN_ID`` and ``MODAL_TOKEN_SECRET`` on the
 worker for Modal. Work runs in a per-run microVM on the worker host with
 ``sbx``, or off the worker entirely in Modal's infrastructure. Its tool calls

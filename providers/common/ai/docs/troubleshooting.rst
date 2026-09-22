@@ -65,6 +65,30 @@ An ``ImportError`` for ``pydantic_ai.models.<vendor>`` or the vendor SDK
     types. Chains are also not resolved recursively, so a fallback connection may not
     declare its own ``fallback_conn_ids``; list every vendor directly on the primary.
 
+.. _troubleshooting-conn-type-rename:
+
+A connection of type ``pydanticai-azure``, ``pydanticai-bedrock`` or ``pydanticai-vertex`` no longer resolves
+    These connection types are spelled with an underscore: ``pydanticai_azure``,
+    ``pydanticai_bedrock`` and ``pydanticai_vertex``.
+
+    Connections stored as a URI or as JSON need no change: ``-`` is how ``_`` is encoded
+    in a URI scheme, so the hyphenated form is decoded to the underscore form on read.
+    That covers ``AIRFLOW_CONN_*`` environment variables and secrets backends such as
+    HashiCorp Vault, AWS Secrets Manager and GCP Secret Manager.
+
+    A connection whose type is stored verbatim does need updating, because the hyphen is
+    preserved and no longer matches a registered hook. That means rows in the metadata
+    database, including any created through the UI, and connections imported in object
+    form from a local file:
+
+    .. code-block:: bash
+
+        airflow connections get <conn_id> -o json    # confirm conn_type is 'pydanticai-azure'
+        airflow connections delete <conn_id>
+        airflow connections add <conn_id> --conn-type pydanticai_azure ...
+
+    In the UI, edit the connection and re-pick its type.
+
 Operator construction errors
 ----------------------------
 

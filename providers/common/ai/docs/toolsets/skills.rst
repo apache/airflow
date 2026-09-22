@@ -123,7 +123,7 @@ When to choose it
 -----------------
 
 **Choose it when** what the agent is missing is procedural knowledge rather than
-an endpoint — how this team writes a report, which checks run before a release,
+an endpoint: how this team writes a report, which checks run before a release,
 what the house conventions are. A skill is a directory of instructions and
 optional scripts, and
 :class:`~airflow.providers.common.ai.toolsets.skills.AgentSkillsToolset` makes it
@@ -139,7 +139,7 @@ discoverable. See :ref:`agent-skills` for the layout.
   ``pydantic-ai-skills>=1.2.0``, which the ``skills`` extra already pins.)
 - It does not move script execution anywhere safer. The toolset's own wording for
   ``exclude_tools`` calls ``run_skill_script`` "on-worker script execution", and
-  nothing in this toolset routes those scripts into a sandbox — so unless you
+  nothing in this toolset routes those scripts into a sandbox, so unless you
   exclude the tool, a skill's scripts run in the worker process with the worker's
   reach. If that is not acceptable, exclude the tool or put the work behind
   ``SandboxToolset`` instead.

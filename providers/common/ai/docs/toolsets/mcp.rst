@@ -56,15 +56,94 @@ Parameters
   When set, it overrides the connection's static ``password`` for the
   ``Authorization`` header. Called once, the first time this toolset
   establishes a connection -- use it for short-lived or minted tokens (e.g. a
-  Snowflake managed MCP server authenticated with a key-pair JWT). See
-  :ref:`howto/connection:mcp`.
+  Snowflake managed MCP server authenticated with a key-pair JWT). See below.
 - ``env_provider``: Optional zero-argument callable returning a
   ``dict[str, str]`` merged over the connection's ``Extra.env`` (winning on key
   conflicts) for the ``stdio`` subprocess environment -- use it when the
   credential a local stdio MCP server needs lives in a different connection, or
   is minted fresh per call (e.g. a Splunk/Vault token), rather than storing it
-  statically here. Called once, the first time this toolset establishes a
-  connection. See :ref:`howto/connection:mcp`.
+  statically on the connection. Called once, the first time this toolset
+  establishes a connection. See below.
+
+Short-lived or minted tokens
+----------------------------
+
+Some MCP endpoints require a freshly minted, short-lived token rather than a
+static one. For example, `Snowflake managed MCP servers
+<https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-agents-mcp>`__
+are best authenticated with a `key-pair JWT
+<https://docs.snowflake.com/en/user-guide/key-pair-auth>`__: the private key never
+leaves your environment and the signed JWT expires after about an hour, so it
+cannot be stored as a static connection ``password``. The same applies to OAuth /
+refresh tokens, Workload Identity Federation, and GitHub App installation tokens.
+
+For these, pass a ``token_provider`` callable to ``MCPHook`` or ``MCPToolset``
+instead of a static token. It is called once, the first time a given hook or
+toolset instance establishes a connection (the result is then cached for that
+instance's lifetime), and its return value is used as the bearer token, so a
+fresh token is minted (and registered with secret masking so it does not leak
+into task logs) without ever being written to the connection:
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.toolsets.mcp import MCPToolset
+
+
+    def mint_snowflake_jwt() -> str:
+        # Sign a short-lived JWT from the Snowflake connection's key-pair.
+        ...
+
+
+    toolset = MCPToolset(
+        mcp_conn_id="snowflake_managed_mcp",
+        token_provider=mint_snowflake_jwt,
+    )
+
+``token_provider`` is resolved in Dag code (it is a Python callable, not a stored
+connection field), so the signing key stays in your environment and is never baked
+into the serialized Dag.
+
+Secrets in stdio subprocess environments
+-----------------------------------------
+
+The ``stdio`` transport runs the MCP server as a local subprocess, and many such
+servers read credentials from their own environment rather than accepting them
+as arguments -- for example, a server that reaches Splunk needs a Splunk API key
+in ``SPLUNK_API_KEY``. ``Extra.env`` (like the rest of ``extra``) is Fernet-encrypted
+at rest, the same as ``password``, so it is a fine place for a static value that
+genuinely belongs to the MCP connection.
+
+Use ``env_provider`` instead when the credential has no stable static form to
+store on the connection at all -- the same situation ``token_provider`` exists for on
+HTTP/SSE:
+
+- **It lives in a different connection.** A server that reaches Splunk needs a
+  Splunk credential, not a credential for the MCP server itself; duplicating
+  it into the MCP connection's ``Extra.env`` means two places to rotate and a
+  real chance the copies drift.
+- **It's minted fresh per call** -- an OAuth token, a Vault lease, an
+  STS-assumed role -- so there is no fixed value to store anywhere, on the MCP
+  connection or any other.
+
+``env_provider`` is called once, the first time a given hook or toolset instance
+establishes a connection (the result is then cached for that instance's
+lifetime). Its return value is merged over ``Extra.env`` (``env_provider`` keys
+win on conflicts), and -- as a secondary benefit -- every value it returns is
+explicitly registered with secret masking regardless of key name, unlike
+``Extra.env``, which is only masked in the Connections UI/API and task logs if
+the key name happens to match a fixed set of sensitive-looking names
+(``api_key``, ``token``, ``secret``, ``password``, etc.).
+
+The example below covers the first case -- the Splunk credential is already
+managed as its own Airflow connection:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_mcp.py
+    :language: python
+    :start-after: [START howto_toolset_mcp_env_provider]
+    :end-before: [END howto_toolset_mcp_env_provider]
+
+Like ``token_provider``, ``env_provider`` is resolved in Dag code, so the secret is
+fetched at task-execution time and never baked into the serialized Dag.
 
 Using multiple MCP servers
 --------------------------
@@ -84,8 +163,8 @@ Using multiple MCP servers
 Direct pydantic-ai MCP toolsets
 -------------------------------
 
-For prototyping or when you want full PydanticAI control, you can pass
-``MCPToolset`` instances directly — no Airflow connection needed:
+For prototyping or when you want full pydantic-ai control, you can pass
+``MCPToolset`` instances directly, no Airflow connection needed:
 
 .. code-block:: python
 
@@ -102,7 +181,7 @@ For prototyping or when you want full PydanticAI control, you can pass
         ],
     )
 
-This works because PydanticAI's ``MCPToolset`` implements ``AbstractToolset``.
+This works because pydantic-ai's ``MCPToolset`` implements ``AbstractToolset``.
 The tradeoff: URLs and credentials are hardcoded in Dag code instead of being
 managed through Airflow connections and secret backends.
 
@@ -111,8 +190,8 @@ When to choose it
 
 **Choose it when** someone already publishes a server built for agents that
 covers your target. You inherit a tool surface that was designed to be called by
-a model — retry semantics and error wording are decided upstream, and a
-destructive tool can simply be absent — instead of maintaining a per-API wrapper
+a model (retry semantics and error wording are decided upstream, and a
+destructive tool can simply be absent) instead of maintaining a per-API wrapper
 yourself.
 
 **What it cannot do**
@@ -133,12 +212,12 @@ yourself.
 - It cannot guarantee the credential came from a connection. ``mcp_conn_id`` is
   the default path, but ``token_provider`` and ``env_provider`` are your own
   callables and are free to read an environment variable, a file, or an entirely
-  different secret store. That is the point of them — it also means the
+  different secret store. That is the point of them, but it also means the
   connection is no longer the whole story for anyone auditing the Dag.
 - ``stdio`` transport is not isolation. It starts a child process on the worker
   host. It is not a sandbox, and when no environment is supplied the child
   inherits a small allowlist of variables rather than the full parent
-  environment — so it is both less contained and less predictable than it looks.
+  environment, so it is both less contained and less predictable than it looks.
 
 **A real example.** ``example_mcp.py`` drives setup from a connection:
 
@@ -156,7 +235,7 @@ and puts several servers on one agent, prefixed so their tool names stay apart:
 
 No MCP server for object storage ships with this provider. If one exists for
 your target, it is a third route alongside the hook and DataFusion routes (:doc:`hook`,
-:doc:`datafusion`) — and the two questions in :ref:`Choosing a toolset <howto/toolsets>` settle
+:doc:`datafusion`), and the two questions in :ref:`Choosing a toolset <howto/toolsets>` settle
 it. Its tool list is the server's rather than
 yours, and its token comes from wherever ``mcp_conn_id`` or your own callable
 says. So where a hook already reaches the same target, the hook wins; the server
