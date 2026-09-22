@@ -97,6 +97,7 @@ Toolset guides
     Sandboxed execution <../sandbox/index>
     Vendor-managed agents <managed_agent>
     LangChain tools <langchain>
+    Strands Agents <strands>
     Tool call logging <logging>
 
 The toolsets

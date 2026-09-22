@@ -31,8 +31,6 @@ to a LangChain agent or chain.
 
 from __future__ import annotations
 
-import asyncio
-import concurrent.futures
 from typing import TYPE_CHECKING, Any
 
 from pydantic import ValidationError
@@ -41,29 +39,11 @@ from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.usage import RunUsage
 
-if TYPE_CHECKING:
-    from collections.abc import Coroutine
+from airflow.providers.common.ai.utils.coroutines import run_coroutine_sync
 
+if TYPE_CHECKING:
     from langchain_core.tools import StructuredTool
     from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
-
-
-def _run_coro_sync(coro: Coroutine[Any, Any, Any]) -> Any:
-    """
-    Run an awaitable to completion from synchronous code.
-
-    LangChain's ``StructuredTool.func`` is synchronous and is what an Airflow
-    ``@task`` calls, but a pydantic-ai toolset's ``get_tools`` / ``call_tool``
-    are coroutines. When no event loop is running we drive the coroutine with
-    :func:`asyncio.run`; if one is already running in this thread (an async
-    caller) we run it in a worker thread to avoid nesting loops.
-    """
-    try:
-        asyncio.get_running_loop()
-    except RuntimeError:
-        return asyncio.run(coro)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-        return pool.submit(asyncio.run, coro).result()
 
 
 def airflow_toolset_to_langchain_tools(
@@ -139,7 +119,7 @@ def airflow_toolset_to_langchain_tools(
     # real LLM (the bridge never runs the model, only the tools).
     ctx: RunContext[Any] = RunContext(deps=deps, model=TestModel(), usage=RunUsage())
 
-    toolset_tools = _run_coro_sync(toolset.get_tools(ctx))
+    toolset_tools = run_coroutine_sync(toolset.get_tools(ctx))
 
     return [
         _build_structured_tool(toolset, name, toolset_tool, ctx, StructuredTool)
@@ -187,7 +167,7 @@ def _build_structured_tool(
         except ValidationError as e:
             return _handle_retry(e)
         try:
-            result = _run_coro_sync(toolset.call_tool(name, validated, ctx, toolset_tool))
+            result = run_coroutine_sync(toolset.call_tool(name, validated, ctx, toolset_tool))
         except ModelRetry as e:
             return _handle_retry(e)
         retries["count"] = 0
