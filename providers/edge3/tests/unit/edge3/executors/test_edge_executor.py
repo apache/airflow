@@ -39,7 +39,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_3_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_3_PLUS, AIRFLOW_V_3_4_PLUS
 
 if AIRFLOW_V_3_3_PLUS:
     from airflow.executors.workloads import CallbackFetchMethod, ExecuteCallback, TaskInstanceDTO
@@ -621,6 +621,11 @@ class TestEdgeExecutorMultiTeam:
 
 @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="ExecuteTypeBody union requires Airflow 3.3+")
 class TestQueueWorkload:
+    @staticmethod
+    def _event(state):
+        """Event buffer value shape depends on Airflow core (3.4+ adds workload_run_id)."""
+        return (state, None, None) if AIRFLOW_V_3_4_PLUS else (state, None)
+
     @pytest.fixture(autouse=True)
     def setup(self):
         with create_session() as session:
@@ -722,7 +727,7 @@ class TestQueueWorkload:
         executor.sync()
 
         reported_states = TaskInstanceState if isinstance(workload, ExecuteTask) else CallbackState
-        assert executor.get_event_buffer() == {workload.key: (reported_states(reported_state), None, None)}
+        assert executor.get_event_buffer() == {workload.key: self._event(reported_states(reported_state))}
 
     def test_sync_keeps_slot_while_worker_claims_job(self):
         executor = EdgeExecutor()
@@ -747,7 +752,7 @@ class TestQueueWorkload:
             session.commit()
         executor.sync()
 
-        assert executor.get_event_buffer() == {workload.ti.key: (TaskInstanceState.RUNNING, None, None)}
+        assert executor.get_event_buffer() == {workload.ti.key: self._event(TaskInstanceState.RUNNING)}
 
     def test_sync_reports_job_that_finishes_after_being_marked_removed(self):
         executor = EdgeExecutor()
@@ -764,7 +769,7 @@ class TestQueueWorkload:
                 session.commit()
             executor.sync()
 
-        assert executor.get_event_buffer() == {workload.key: (CallbackState.SUCCESS, None, None)}
+        assert executor.get_event_buffer() == {workload.key: self._event(CallbackState.SUCCESS)}
 
     @pytest.mark.parametrize(
         "unhandled_state",
@@ -803,7 +808,7 @@ class TestQueueWorkload:
             session.commit()
         executor.sync()
 
-        assert executor.get_event_buffer() == {workload.key: (TaskInstanceState.RUNNING, None, None)}
+        assert executor.get_event_buffer() == {workload.key: self._event(TaskInstanceState.RUNNING)}
 
     @pytest.mark.parametrize(
         "finished_state", [TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.REMOVED]
