@@ -468,6 +468,8 @@ class TestAssetsOperations:
     def test_materialize(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/assets/{self.asset_id}/materialize"
+            # The endpoint requires a request body, so the client must send one.
+            assert json.loads(request.content) == {}
             return httpx.Response(200, json=json.loads(self.dag_run_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
