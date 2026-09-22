@@ -48,11 +48,13 @@ from task_sdk.execution_time.schema._mock_version_bundle import (
     _SupervisorResponse,
 )
 
+from airflow.sdk.execution_time.comms import TaskState
 from airflow.sdk.execution_time.schema import (
     SchemaVersionMigrator,
     get_schema_version_migrator,
     resolve_body_class,
 )
+from airflow.utils.state import TaskInstanceState
 
 
 class _MockBody(BaseModel):
@@ -472,35 +474,30 @@ class TestRealBundleArgBindingsDowngrade:
         assert defaulted.value_schema.root == {"type": "integer", "format": "int64"}
 
 
-class TestRealBundleRetryReasonUpgrade:
+class TestRealBundleRetryReason:
     """
     Drive the *real* supervisor bundle through the ``retry_reason`` migration.
 
-    ``TaskState`` flows foreign-runtime -> supervisor, the opposite direction from
-    ``arg_bindings`` above, so a runtime pinned to an older schema is exercised
-    through ``upgrade`` rather than ``downgrade``.
+    ``TaskState`` flows foreign-runtime -> supervisor, so ``upgrade`` is the direction a
+    pinned runtime travels. Only ``downgrade`` re-validates against the versioned class,
+    so that is the direction that fails if ``AddRetryReasonToTaskState`` is dropped.
     """
 
     @pytest.fixture
     def real_migrator(self) -> SchemaVersionMigrator:
         return get_schema_version_migrator()
 
-    def test_upgrade_fills_missing_retry_reason_with_none(self, real_migrator):
-        from airflow.sdk.execution_time.comms import TaskState
+    def test_downgrade_strips_retry_reason_for_previous_version(self, real_migrator):
+        msg = TaskState(state=TaskInstanceState.FAILED, retry_reason="auth error, do not retry")
+        out = real_migrator.downgrade(msg, "2026-06-16").model_dump()
+        assert "retry_reason" not in out
 
+    def test_downgrade_keeps_retry_reason_at_head(self, real_migrator):
+        msg = TaskState(state=TaskInstanceState.FAILED, retry_reason="auth error, do not retry")
+        out = real_migrator.downgrade(msg, "2026-10-30").model_dump()
+        assert out["retry_reason"] == "auth error, do not retry"
+
+    def test_upgrade_fills_missing_retry_reason_with_none(self, real_migrator):
         body = {"type": "TaskState", "state": "failed", "end_date": None, "rendered_map_index": None}
         out = real_migrator.upgrade(body, TaskState, "2026-06-16")
         assert out["retry_reason"] is None
-
-    def test_upgrade_keeps_retry_reason_at_head(self, real_migrator):
-        from airflow.sdk.execution_time.comms import TaskState
-
-        body = {
-            "type": "TaskState",
-            "state": "failed",
-            "end_date": None,
-            "rendered_map_index": None,
-            "retry_reason": "auth error, do not retry",
-        }
-        out = real_migrator.upgrade(body, TaskState, "2026-10-30")
-        assert out["retry_reason"] == "auth error, do not retry"

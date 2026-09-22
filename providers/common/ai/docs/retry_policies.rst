@@ -144,8 +144,13 @@ the run.
 to the task instance's ``retry_reason`` (truncated to 500 characters, see
 below). On a RETRY the value is cleared once the next attempt starts running.
 A FAIL is terminal, so there is no next attempt to clear it and the reason
-stays on the row. When the model asked to retry but no attempts were left, the
-stored reason ends with a ``; retries exhausted (N of M)`` note.
+stays on the row. Only the model's own words are stored -- attempt counts are
+left to whatever displays the reason.
+
+The recorded value is exposed by the REST API as ``state_reason`` on a task
+instance and on each try, and the Task Instance page in the UI shows it under
+**Reason for state**. Recording it on a FAIL requires Airflow 3.4.0; on earlier
+versions only the RETRY outcome is recorded.
 
 Two limits are worth knowing about:
 

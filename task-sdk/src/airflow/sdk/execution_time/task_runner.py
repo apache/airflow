@@ -1935,12 +1935,10 @@ def _finalize_task_failure(
         if retry_reason is not None:
             retry_kwargs["retry_reason"] = retry_reason[:500]
         return RetryTask(**retry_kwargs), TaskInstanceState.UP_FOR_RETRY
-    if retry_reason is not None and ti._ti_context_from_server is not None:
-        max_tries = ti._ti_context_from_server.max_tries
-        if max_tries > 0:
-            # max_tries is the retry count, not the attempt count -- total attempts is max_tries + 1.
-            suffix = f"; retries exhausted ({ti.try_number} of {max_tries + 1})"
-            retry_reason = f"{retry_reason[: 500 - len(suffix)]}{suffix}"
+    if retry_reason is not None:
+        # Policy's own words only: attempt counts belong to whoever renders this, which has
+        # try_number and max_tries alongside and need not guess when retries was never set.
+        retry_reason = retry_reason[:500]
         log.info("Retry policy decision", action="fail", reason=retry_reason)
     return (
         TaskState(

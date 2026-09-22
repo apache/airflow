@@ -1217,33 +1217,41 @@ def test_retry_policy_fail_persists_reason(create_runtime_ti, mock_supervisor_co
     assert msg.retry_reason == "do not retry"
 
 
-def test_retry_policy_retry_exhausted_persists_combined_reason(create_runtime_ti, mock_supervisor_comms):
-    """A policy-chosen RETRY that hits an exhausted budget still fails, with both reasons recorded."""
+@pytest.mark.parametrize(
+    ("task_id", "retries", "try_number"),
+    [
+        pytest.param("retry_exhausted", 2, 3, id="budget-exhausted"),
+        # `retries` defaults to 0, so this branch is reached on the very first attempt.
+        pytest.param("retry_no_budget", 0, 1, id="no-budget-configured"),
+    ],
+)
+def test_retry_policy_retry_without_budget_persists_policy_reason(
+    create_runtime_ti, mock_supervisor_comms, task_id, retries, try_number
+):
+    """A policy-chosen RETRY that cannot run fails, recording the reason with no counts appended."""
 
     class _AlwaysFails(BaseOperator):
         def execute(self, context):
             raise RuntimeError("boom")
 
     task = _AlwaysFails(
-        task_id="retry_exhausted",
-        retries=2,
+        task_id=task_id,
+        retries=retries,
         retry_policy=ExceptionRetryPolicy(
             rules=[RetryRule(exception=RuntimeError, action=RetryAction.RETRY, reason="rate limit")]
         ),
     )
-    ti = create_runtime_ti(task=task, try_number=3)
+    ti = create_runtime_ti(task=task, try_number=try_number)
 
     state, msg, error = run(ti, ti.get_template_context(), mock.MagicMock())
 
     assert state == TaskInstanceState.FAILED
     assert isinstance(msg, TaskState)
-    assert msg.retry_reason == "rate limit; retries exhausted (3 of 3)"
+    assert msg.retry_reason == "rate limit"
 
 
-def test_retry_policy_retry_exhausted_reason_is_truncated_with_suffix_kept(
-    create_runtime_ti, mock_supervisor_comms
-):
-    """A long reason is truncated to 500 chars total, with the exhausted-suffix always kept."""
+def test_retry_policy_retry_exhausted_reason_is_truncated(create_runtime_ti, mock_supervisor_comms):
+    """A long reason is truncated to the column width."""
 
     class _AlwaysFails(BaseOperator):
         def execute(self, context):
@@ -1263,9 +1271,7 @@ def test_retry_policy_retry_exhausted_reason_is_truncated_with_suffix_kept(
 
     assert state == TaskInstanceState.FAILED
     assert isinstance(msg, TaskState)
-    assert msg.retry_reason is not None
-    assert len(msg.retry_reason) == 500
-    assert msg.retry_reason.endswith("; retries exhausted (3 of 3)")
+    assert msg.retry_reason == "z" * 500
 
 
 def test_plain_retries_exhausted_has_no_reason(create_runtime_ti, mock_supervisor_comms):
