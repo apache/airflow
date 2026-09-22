@@ -104,7 +104,7 @@ def _get_serdag(
     if dag_version_id is not None:
         serdag = dag_bag.get_dag(dag_version_id, session=session)
         if serdag is None:
-            log.error("No serialized dag found", dag_id=dag_id, version_id=dag_version_id)
+            log.warning("No serialized dag found", dag_id=dag_id, version_id=dag_version_id)
         return serdag
 
     # Fallback: pre-3.0 upgrade — pick the oldest DagVersion for this dag_id.
@@ -115,7 +115,7 @@ def _get_serdag(
         return None
     serdag = dag_bag.get_dag(oldest_version_id, session=session)
     if serdag is None:
-        log.error("No serialized dag found", dag_id=dag_id, version_id=oldest_version_id)
+        log.warning("No serialized dag found", dag_id=dag_id, version_id=oldest_version_id)
     return serdag
 
 
@@ -429,21 +429,22 @@ def _build_ti_summaries(
         return None
 
     serdag = _get_serdag(dag_bag, dag_id, dag_version_id, session)
-    if TYPE_CHECKING:
-        assert serdag
 
     def get_node_summaries() -> Iterable[dict[str, Any]]:
         yielded_task_ids: set[str] = set()
-        for node, _ in _find_aggregates(
-            node=serdag.task_group,
-            parent_node=None,
-            ti_details=ti_details,
-        ):
-            if node["type"] in {"task", "mapped_task"}:
-                yielded_task_ids.add(node["task_id"])
-                if node["type"] == "task":
-                    node["child_states"] = None
-            yield node
+        # serdag is None once `airflow db clean` removes the version's serialized Dag row. Leaving
+        # yielded_task_ids empty then routes every task through the flat-node path below.
+        if serdag is not None:
+            for node, _ in _find_aggregates(
+                node=serdag.task_group,
+                parent_node=None,
+                ti_details=ti_details,
+            ):
+                if node["type"] in {"task", "mapped_task"}:
+                    yielded_task_ids.add(node["task_id"])
+                    if node["type"] == "task":
+                        node["child_states"] = None
+                yield node
         missing_task_ids = set(ti_details.keys()) - yielded_task_ids
         for task_id in sorted(missing_task_ids):
             detail = ti_details[task_id]

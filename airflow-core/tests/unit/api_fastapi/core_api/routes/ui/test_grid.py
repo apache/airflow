@@ -23,7 +23,7 @@ from operator import attrgetter
 
 import pendulum
 import pytest
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
@@ -31,6 +31,7 @@ from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagrun import DagRun, DagRunNote
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
@@ -1259,6 +1260,55 @@ class TestGetGridDataEndpoint:
         summaries = self._parse_ndjson(response)
         assert len(summaries) == 1
         assert summaries[0]["run_id"] == "run_1"
+
+    def test_grid_ti_summaries_stream_continues_past_cleaned_dag_version(self, session, test_client):
+        """A run whose version was cleaned still streams, and does not cut the runs after it."""
+        cleaned_version = session.scalar(
+            select(DagVersion).where(DagVersion.dag_id == DAG_ID_5, DagVersion.version_number == 1)
+        )
+        session.execute(
+            delete(SerializedDagModel).where(SerializedDagModel.dag_version_id == cleaned_version.id)
+        )
+        session.commit()
+
+        response = test_client.get(
+            f"/grid/ti_summaries/{DAG_ID_5}", params={"run_ids": ["run_5_1", "run_5_2"]}
+        )
+        assert response.status_code == 200
+        summaries = {summary["run_id"]: summary for summary in self._parse_ndjson(response)}
+        assert set(summaries) == {"run_5_1", "run_5_2"}
+        assert {node["task_id"] for node in summaries["run_5_1"]["task_instances"]} == {
+            "task_a",
+            "task_b",
+            "task_c",
+            "task_d",
+            "task_f",
+        }
+        # The run on the surviving version is unaffected.
+        assert {node["task_id"] for node in summaries["run_5_2"]["task_instances"]} == {
+            "task_a",
+            "task_b",
+            "task_c",
+            "task_d",
+            "task_e",
+        }
+
+    def test_grid_ti_summaries_stream_without_serialized_dag_flattens_groups(self, session, test_client):
+        """With no structure to walk, a grouped Dag's tasks come back as flat leaf nodes."""
+        session.execute(delete(SerializedDagModel).where(SerializedDagModel.dag_id == DAG_ID))
+        session.commit()
+
+        response = test_client.get(f"/grid/ti_summaries/{DAG_ID}", params={"run_ids": ["run_1"]})
+        assert response.status_code == 200
+        [summary] = self._parse_ndjson(response)
+        assert {node["task_id"]: node["state"] for node in summary["task_instances"]} == {
+            TASK_ID: "success",
+            "mapped_task_group.subtask": "success",
+            f"{TASK_GROUP_ID}.{MAPPED_TASK_ID}": "success",
+            f"{TASK_GROUP_ID}.{INNER_TASK_GROUP}.{INNER_TASK_GROUP_SUB_TASK}": "success",
+            MAPPED_TASK_ID_2: "success",
+        }
+        assert all(node["child_states"] is None for node in summary["task_instances"])
 
     def test_grid_ti_summaries_stream_empty_run_ids(self, session, test_client):
         """Streaming endpoint with no run_ids returns an empty body."""
