@@ -299,15 +299,28 @@ class SandboxToolset(AbstractToolset[Any]):
         """
         if not self._spec.block_network:
             return "This sandbox has outbound network access."
-        allowed = list(self._spec.allow_egress_to or ())
-        if not allowed:
+        hosts = list(self._spec.allow_egress_to or ())
+        cidrs = list(self._spec.allow_egress_to_cidrs or ())
+        if not hosts and not cidrs:
             return (
                 "This sandbox has NO network access, including DNS, so installing packages "
                 "or downloading anything will fail. Work with what the image already has."
             )
+        by_name = f"these hosts, over HTTPS on port 443 only: {', '.join(hosts)}"
+        by_address = f"these address ranges, on any port: {', '.join(cidrs)}"
+        if hosts and cidrs:
+            return (
+                f"This sandbox reaches only {by_name}; and {by_address}. Anything else will fail. "
+                "The hosts accept HTTPS only, so plain HTTP to them fails; the address ranges accept "
+                "any port. Hostnames resolve, but only listed hosts and addresses answer."
+            )
+        if hosts:
+            return (
+                f"This sandbox reaches only {by_name}. Anything else, and plain HTTP to any host, will fail."
+            )
         return (
-            "This sandbox reaches only these hosts, over HTTPS on port 443: "
-            f"{', '.join(allowed)}. Anything else, and plain HTTP to any host, will fail."
+            f"This sandbox reaches only {by_address}. Anything else will fail; hostnames still resolve, "
+            "but only those addresses answer."
         )
 
     async def get_tools(self, ctx: RunContext[Any]) -> dict[str, ToolsetTool[Any]]:
