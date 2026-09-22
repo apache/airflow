@@ -20,6 +20,12 @@
 ``LangChainHook``
 =================
 
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+
+    LangChain connection <../connections/langchain>
+
 Use :class:`~airflow.providers.common.ai.hooks.langchain.LangChainHook` to
 bridge an Airflow connection to `LangChain <https://python.langchain.com/>`__
 chat and embedding models. The hook reads credentials (API key, optional base

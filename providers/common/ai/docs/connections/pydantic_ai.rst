@@ -17,7 +17,7 @@
 
 .. _howto/connection:pydanticai:
 
-Pydantic AI Connection
+Pydantic AI connection
 ======================
 
 The `Pydantic AI <https://ai.pydantic.dev/>`__ connection type configures access

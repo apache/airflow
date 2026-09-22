@@ -29,7 +29,7 @@ The hook manages API credentials from an Airflow connection and creates pydantic
 .. seealso::
     :ref:`Connection configuration <howto/connection:pydanticai>`
 
-Basic Usage
+Basic usage
 -----------
 
 Use the hook in a ``@task`` function to call an LLM:
@@ -39,7 +39,7 @@ Use the hook in a ``@task`` function to call an LLM:
     :start-after: [START howto_hook_pydantic_ai_basic]
     :end-before: [END howto_hook_pydantic_ai_basic]
 
-Overriding the Model
+Overriding the model
 --------------------
 
 The model can be specified at three levels (highest priority first):
@@ -56,7 +56,7 @@ The model can be specified at three levels (highest priority first):
     # Override with a specific model
     hook = PydanticAIHook(llm_conn_id="my_llm", model_id="anthropic:claude-opus-4-6")
 
-Structured Output
+Structured output
 -----------------
 
 Pydantic-ai's structured output works naturally through the hook.
@@ -67,8 +67,8 @@ Define a Pydantic model for the expected output shape, then pass it as ``output_
     :start-after: [START howto_hook_pydantic_ai_structured_output]
     :end-before: [END howto_hook_pydantic_ai_structured_output]
 
-Loading Agent Config from a Spec File
---------------------------------------
+Loading agent config from a spec file
+-------------------------------------
 
 Instead of hard-coding model name, instructions, and settings in Python, you can
 store them in a YAML or JSON `AgentSpec

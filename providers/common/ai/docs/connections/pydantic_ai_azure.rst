@@ -17,8 +17,8 @@
 
 .. _howto/connection:pydanticai_azure:
 
-Pydantic AI (Azure OpenAI) Connection
-======================================
+Pydantic AI (Azure OpenAI) connection
+=====================================
 
 The ``pydanticai_azure`` connection type configures access to
 `Azure OpenAI <https://azure.microsoft.com/en-us/products/ai-services/openai-service>`__
