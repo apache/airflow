@@ -104,6 +104,8 @@ class GCSToSFTPOperator(BaseOperator):
         "source_object",
         "destination_path",
         "impersonation_chain",
+        "gcp_conn_id",
+        "sftp_conn_id",
     )
     ui_color = "#f0eee4"
 

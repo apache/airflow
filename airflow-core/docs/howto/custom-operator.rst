@@ -400,6 +400,13 @@ Thus, the following example is valid:
 
 The limitations above are enforced by a prek hook named 'validate-operators-init'.
 
+Connection ids are template fields too. Every ``*conn_id`` argument an operator, sensor or notifier
+accepts must be listed in its ``template_fields``, so users can pass ``conn_id="{{ params.conn_id }}"``.
+Because ``template_fields`` is a plain class attribute, a subclass that redefines it must spread the
+parent's fields (``template_fields = (*ParentOperator.template_fields, "extra")``) or the parent's
+connection ids stop being rendered. This is enforced for providers by a prek hook named
+'check-conn-id-templated'.
+
 Add template fields with subclassing
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 A common use case for creating a custom operator is for simply augmenting existing ``template_fields``.
