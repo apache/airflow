@@ -68,6 +68,7 @@ const RenderedTemplatesContent = () => {
                       <Box borderRadius="md" fontSize="sm" m={0} overflowX="auto" p={2}>
                         <SyntaxHighlighter
                           language={language}
+                          lineProps={{ style: { display: "block" } }}
                           PreTag="pre"
                           showLineNumbers
                           style={style}
