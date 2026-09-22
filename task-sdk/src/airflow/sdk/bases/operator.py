@@ -200,25 +200,50 @@ def coerce_resources(resources: dict[str, Any] | None) -> Resources | None:
     return Resources(**resources)
 
 
+def _thread_event_loop() -> AbstractEventLoop | None:
+    """
+    Return the event loop set for the current thread, if any, without creating one.
+
+    ``asyncio.get_event_loop()`` creates (and since Python 3.12 warns about, since 3.14 refuses) a loop
+    when none is set, so the policy's per-thread state is inspected instead.  Event loop policies are
+    deprecated in Python 3.14, hence the guards: without one, no loop is reported and the caller creates
+    its own.
+    """
+    get_event_loop_policy = getattr(asyncio, "get_event_loop_policy", None)
+    if get_event_loop_policy is None:
+        return None
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        policy = get_event_loop_policy()
+    return getattr(getattr(policy, "_local", None), "_loop", None)
+
+
 @contextlib.contextmanager
 def event_loop() -> Generator[AbstractEventLoop]:
-    new_event_loop = False
-    loop = None
+    """
+    Yield an event loop to run coroutines to completion from synchronous code.
+
+    A running loop, or an open loop already set for the current thread, is reused and left untouched.
+    Otherwise a loop is created for the duration of the block and closed afterwards, without going
+    through ``asyncio.get_event_loop()``: since Python 3.12 that emits
+    ``DeprecationWarning: There is no current event loop`` when it has to create a loop, Python 3.14
+    raises ``RuntimeError`` instead, and the implicitly created loop is never closed.
+    """
+    owned = False
     try:
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_closed():
-                raise RuntimeError
-        except RuntimeError:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = _thread_event_loop()  # type: ignore[assignment]
+        if loop is None or loop.is_closed():
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            new_event_loop = True
+            owned = True
+    try:
         yield loop
     finally:
-        if new_event_loop and loop is not None:
-            with contextlib.suppress(AttributeError):
-                loop.close()
-                asyncio.set_event_loop(None)
+        if owned:
+            loop.close()
+            asyncio.set_event_loop(None)
 
 
 class _PartialDescriptor:
