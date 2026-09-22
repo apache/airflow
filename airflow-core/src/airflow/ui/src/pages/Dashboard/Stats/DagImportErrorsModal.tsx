@@ -60,9 +60,6 @@ const ReparseButton = ({ fileToken }: { readonly fileToken: string }) => {
 
   const { isPending, mutate } = useDagParsingServiceReparseDagFile({
     onError: (error) => createErrorToaster(error, { titleKey: "dag:parse.toaster.error.title" }, translate),
-    // Refresh the modal's list (fixed errors disappear), the dashboard stats
-    // card (import-error count drops), and the Dags table (a resolved import
-    // promotes into a listed Dag).
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: [useImportErrorServiceGetImportErrorsKey] }),
