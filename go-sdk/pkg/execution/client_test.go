@@ -724,9 +724,14 @@ func TestCoordinatorClientSetTaskState(t *testing.T) {
 	tests := []struct {
 		name           string
 		retentionDays  string
+		wantRetention  time.Duration
 		wantExpiresNil bool
 	}{
-		{name: "deployment retention is applied", retentionDays: "7"},
+		{
+			name:          "deployment retention is applied",
+			retentionDays: "7",
+			wantRetention: 7 * 24 * time.Hour,
+		},
 		{name: "zero retention sends null", retentionDays: "0", wantExpiresNil: true},
 	}
 
@@ -743,7 +748,9 @@ func TestCoordinatorClientSetTaskState(t *testing.T) {
 			comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
 			client := NewCoordinatorClient(comm, testTIID)
 
+			before := time.Now()
 			require.NoError(t, client.SetTaskState(context.Background(), "job_id", "abc123"))
+			after := time.Now()
 
 			sent, err := readFrame(&requestBuf)
 			require.NoError(t, err)
@@ -757,7 +764,9 @@ func TestCoordinatorClientSetTaskState(t *testing.T) {
 			if tc.wantExpiresNil {
 				assert.Nil(t, sentMap["expires_at"])
 			} else {
-				assert.NotNil(t, sentMap["expires_at"])
+				got, ok := sentMap["expires_at"].(time.Time)
+				require.True(t, ok, "expires_at must be a timestamp, got %T", sentMap["expires_at"])
+				assert.WithinRange(t, got, before.Add(tc.wantRetention), after.Add(tc.wantRetention))
 			}
 		})
 	}
@@ -787,9 +796,11 @@ func TestCoordinatorClientSetTaskStateWithRetention(t *testing.T) {
 			comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
 			client := NewCoordinatorClient(comm, testTIID)
 
+			before := time.Now()
 			err := client.SetTaskStateWithRetention(
 				context.Background(), "job_id", "abc123", tc.retention,
 			)
+			after := time.Now()
 			if tc.wantErr {
 				require.Error(t, err)
 				assert.Zero(t, requestBuf.Len(), "a rejected retention must send no frame")
@@ -806,7 +817,9 @@ func TestCoordinatorClientSetTaskStateWithRetention(t *testing.T) {
 			if tc.wantExpiresNil {
 				assert.Nil(t, sentMap["expires_at"])
 			} else {
-				assert.NotNil(t, sentMap["expires_at"])
+				got, ok := sentMap["expires_at"].(time.Time)
+				require.True(t, ok, "expires_at must be a timestamp, got %T", sentMap["expires_at"])
+				assert.WithinRange(t, got, before.Add(tc.retention), after.Add(tc.retention))
 			}
 		})
 	}
@@ -828,6 +841,20 @@ func TestCoordinatorClientSetTaskStateRejectsNilValue(t *testing.T) {
 			call: func(client *CoordinatorClient) error {
 				return client.SetTaskStateWithRetention(
 					context.Background(), "job_id", nil, time.Hour,
+				)
+			},
+		},
+		{
+			name: "SetTaskState typed nil",
+			call: func(client *CoordinatorClient) error {
+				return client.SetTaskState(context.Background(), "job_id", (*string)(nil))
+			},
+		},
+		{
+			name: "SetTaskStateWithRetention typed nil",
+			call: func(client *CoordinatorClient) error {
+				return client.SetTaskStateWithRetention(
+					context.Background(), "job_id", (*string)(nil), time.Hour,
 				)
 			},
 		},
