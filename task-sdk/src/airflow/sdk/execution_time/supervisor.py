@@ -495,11 +495,13 @@ ObjC runtime state; if the child then triggers ObjC class initialization
 (e.g. via ``socket.getaddrinfo`` -> system DNS resolver -> proxy lookup), the
 runtime detects the corrupted state and crashes with SIGABRT.
 
-Calling ``os.execv`` immediately after ``os.fork`` replaces the child's address
-space, giving it clean ObjC state.  Before exec, the supervisor ``dup2``s the
-socketpairs onto fixed FDs the exec'd child reconstructs: 0 (requests/stdin),
-1 (stdout), 2 (stderr), 3 (structured logs).  ``os.set_inheritable`` clears
-``FD_CLOEXEC`` on those FDs so they survive the upcoming exec.
+Starting a fresh interpreter via ``os.posix_spawn`` gives it clean ObjC state --
+and, unlike ``fork()`` followed by ``execv()``, never runs
+``os.register_at_fork()``/``pthread_atfork()`` handlers at all.  The socketpairs
+are remapped onto fixed FDs the spawned child reconstructs, via ``posix_spawn``'s
+own ``file_actions`` (``POSIX_SPAWN_DUP2``): 0 (requests/stdin), 1 (stdout),
+2 (stderr), 3 (structured logs) -- no separate ``set_inheritable`` call is
+needed, since the remapping runs as part of the spawn itself.
 
 Task execution (``ActivitySubprocess``), the DAG processor
 (``DagFileProcessorProcess``) and the triggerer (``TriggerRunnerSupervisor``)
@@ -569,17 +571,18 @@ _CHILD_EXEC_BOOTSTRAP = _CHILD_EXEC_PRELUDE + (
 
 def _child_exec_main():
     """
-    Entry point for the child process when using fork+exec.
+    Entry point for the child process when using ``os.posix_spawn``.
 
-    After exec, FDs 0/1/2/3 are the requests/stdout/stderr/log sockets the parent
-    placed there via dup2.  The target to run is named in ``_AIRFLOW_CHILD_TARGET``
-    (``module:qualname``); it is rehydrated and handed to :func:`_fork_main`, which
-    sets up the structured log channel from FD 3 exactly as the bare-fork path does.
+    FDs 0/1/2/3 are the requests/stdout/stderr/log sockets ``posix_spawn``'s own
+    ``file_actions`` (``POSIX_SPAWN_DUP2``) remapped there as part of the spawn.
+    The target to run is named in ``_AIRFLOW_CHILD_TARGET`` (``module:qualname``);
+    it is rehydrated and handed to :func:`_fork_main`, which sets up the structured
+    log channel from FD 3 exactly as the bare-fork path does.
     """
     # The bootstrap already restored PR_SET_DUMPABLE before importing Airflow; this is the
-    # logged fallback (execve had reset what supervise_task() set before the fork).
+    # logged fallback (posix_spawn's own exec had reset what supervise_task() set beforehand).
     _make_process_nondumpable()
-    # FDs 0, 1, 2 were dup2'd onto the socketpairs before exec.
+    # FDs 0, 1, 2 were remapped onto the socketpairs by posix_spawn's file_actions.
     child_requests = socket(fileno=0)
     child_stdout = socket(fileno=1)
     child_stderr = socket(fileno=2)
@@ -761,7 +764,9 @@ class WatchedSubprocess:
 
         if use_exec:
             # file_actions run as part of the spawn itself -- no forked child to run
-            # imperative dup2 code in.
+            # imperative dup2 code in. All four source FDs here are guaranteed >= 3
+            # (0/1/2 are already open in every launch path), so no dup2 target below
+            # clobbers a source that hasn't been placed onto its own target FD yet.
             file_actions = [
                 (os.POSIX_SPAWN_DUP2, child_requests.fileno(), 0),
                 (os.POSIX_SPAWN_DUP2, child_stdout.fileno(), 1),
