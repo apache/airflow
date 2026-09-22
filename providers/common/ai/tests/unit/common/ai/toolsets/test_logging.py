@@ -21,8 +21,6 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from pydantic_ai import RunContext
-from pydantic_ai.exceptions import ApprovalRequired
-from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 from pydantic_ai.exceptions import (
     ApprovalRequired,
     CallDeferred,
@@ -31,6 +29,7 @@ from pydantic_ai.exceptions import (
     SkipToolValidation,
 )
 from pydantic_ai.toolsets import FunctionToolset
+from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset, ToolLoggingCapability
 

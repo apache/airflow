@@ -29,7 +29,6 @@ from unittest.mock import ANY, MagicMock, PropertyMock, call, patch
 import pytest
 from pydantic import BaseModel
 from pydantic_ai import Agent, DeferredToolRequests
-from pydantic_ai.capabilities import Toolset
 from pydantic_ai.capabilities import MCP, PrefixTools, Toolset
 from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.messages import (
