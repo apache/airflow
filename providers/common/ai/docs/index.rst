@@ -202,6 +202,7 @@ Getting started
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
+
 .. toctree::
     :hidden:
     :maxdepth: 1
@@ -209,10 +210,12 @@ Getting started
 
     Detailed list of commits <commits>
 
+
 apache-airflow-providers-common-ai package
 ------------------------------------------------------
 
 AI/LLM hooks and operators for Airflow pipelines using `pydantic-ai <https://ai.pydantic.dev/>`__.
+
 
 Release: 0.9.0
 
@@ -255,6 +258,7 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
     pip install apache-airflow-providers-common-ai[common.sql]
 
+
 ============================================================================================================  ==============
 Dependent package                                                                                             Extra
 ============================================================================================================  ==============
@@ -271,6 +275,7 @@ Install them when installing from PyPI. For example:
 .. code-block:: bash
 
     pip install apache-airflow-providers-common-ai[anthropic]
+
 
 ==============  =======================================================================================================================================
 Extra           Dependencies
