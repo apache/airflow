@@ -1,8 +1,8 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { UseQueryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
-import { DagRunState, DagWarningType } from "../requests/types.gen";
+import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagBundleService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { DagRunState, DagSchedulingState, DagWarningType, ReprocessBehavior } from "../requests/types.gen";
 import * as Common from "./common";
 /**
 * Get Assets
@@ -257,19 +257,61 @@ export const useBackfillServiceListBackfillDagRunsSuspense = <TData = Common.Bac
 * @param data The data for the request.
 * @param data.limit
 * @param data.offset
+* @param data.fromDateGte
+* @param data.fromDateGt
+* @param data.fromDateLte
+* @param data.fromDateLt
+* @param data.toDateGte
+* @param data.toDateGt
+* @param data.toDateLte
+* @param data.toDateLt
+* @param data.createdAtGte
+* @param data.createdAtGt
+* @param data.createdAtLte
+* @param data.createdAtLt
+* @param data.completedAtGte
+* @param data.completedAtGt
+* @param data.completedAtLte
+* @param data.completedAtLt
+* @param data.maxActiveRunsGte
+* @param data.maxActiveRunsGt
+* @param data.maxActiveRunsLte
+* @param data.maxActiveRunsLt
+* @param data.reprocessBehavior
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
 * @param data.dagId
 * @param data.active
 * @returns BackfillCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useBackfillServiceListBackfillsUiSuspense = <TData = Common.BackfillServiceListBackfillsUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ active, dagId, limit, offset, orderBy }: {
+export const useBackfillServiceListBackfillsUiSuspense = <TData = Common.BackfillServiceListBackfillsUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }: {
   active?: boolean;
+  completedAtGt?: string;
+  completedAtGte?: string;
+  completedAtLt?: string;
+  completedAtLte?: string;
+  createdAtGt?: string;
+  createdAtGte?: string;
+  createdAtLt?: string;
+  createdAtLte?: string;
   dagId?: string;
+  fromDateGt?: string;
+  fromDateGte?: string;
+  fromDateLt?: string;
+  fromDateLte?: string;
   limit?: number;
+  maxActiveRunsGt?: number;
+  maxActiveRunsGte?: number;
+  maxActiveRunsLt?: number;
+  maxActiveRunsLte?: number;
   offset?: number;
   orderBy?: string[];
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseBackfillServiceListBackfillsUiKeyFn({ active, dagId, limit, offset, orderBy }, queryKey), queryFn: () => BackfillService.listBackfillsUi({ active, dagId, limit, offset, orderBy }) as TData, ...options });
+  reprocessBehavior?: ReprocessBehavior;
+  toDateGt?: string;
+  toDateGte?: string;
+  toDateLt?: string;
+  toDateLte?: string;
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseBackfillServiceListBackfillsUiKeyFn({ active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }, queryKey), queryFn: () => BackfillService.listBackfillsUi({ active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }) as TData, ...options });
 /**
 * Get Connection
 * Get a connection entry.
@@ -519,6 +561,70 @@ export const useDagSourceServiceGetDagSourceSuspense = <TData = Common.DagSource
   versionNumber?: number;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagSourceServiceGetDagSourceKeyFn({ accept, dagId, versionNumber }, queryKey), queryFn: () => DagSourceService.getDagSource({ accept, dagId, versionNumber }) as TData, ...options });
 /**
+* Get Dag Bundles
+* List the Dag bundles Airflow knows about.
+*
+* Reports the version of each bundle Airflow currently holds and when a Dag processor last
+* refreshed it, so whoever deployed the code can tell whether it has been picked up yet.
+*
+* A bundle is visible to a user who can read at least one Dag recorded against it. A bundle
+* holding no registered Dag at all has nothing to authorize against, so it is listed only for a
+* user holding the admin-by-default ``AccessView.IMPORT_ERRORS_ALL`` for that bundle's team --
+* the same view, scoped the same way, that governs import errors for a file that never
+* registered a Dag.
+* @param data The data for the request.
+* @param data.limit
+* @param data.offset
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `name, version, last_refreshed, active`
+* @returns DagBundleCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useDagBundleServiceGetDagBundlesSuspense = <TData = Common.DagBundleServiceGetDagBundlesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ limit, offset, orderBy }: {
+  limit?: number;
+  offset?: number;
+  orderBy?: string[];
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagBundleServiceGetDagBundlesKeyFn({ limit, offset, orderBy }, queryKey), queryFn: () => DagBundleService.getDagBundles({ limit, offset, orderBy }) as TData, ...options });
+/**
+* Get Dag Bundle
+* Get a Dag bundle.
+* @param data The data for the request.
+* @param data.bundleName
+* @returns DagBundleDetailResponse Successful Response
+* @throws ApiError
+*/
+export const useDagBundleServiceGetDagBundleSuspense = <TData = Common.DagBundleServiceGetDagBundleDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ bundleName }: {
+  bundleName: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagBundleServiceGetDagBundleKeyFn({ bundleName }, queryKey), queryFn: () => DagBundleService.getDagBundle({ bundleName }) as TData, ...options });
+/**
+* Get Dag Bundle Files
+* List the files in a Dag bundle, ordered by path.
+*
+* A file is listed when the caller can read at least one Dag it defines. A file that recorded an
+* import error without registering any Dag is listed too, on the same admin-by-default terms as
+* ``GET /importErrors`` -- a file that fails before defining a Dag has no Dag to authorize on,
+* and it is the case this page most needs to show.
+*
+* ``dag_count`` counts live Dags only. Dag rows are never deleted: a file that fails to import
+* has every Dag in it marked stale, and so does a file dropped from the bundle. A file therefore
+* stays listed on the strength of a live Dag *or* an import error, so a file that has just broken
+* does not vanish from the page someone opened to find out why, while a file deleted long ago
+* drops out instead of lingering forever.
+*
+* Parse times come from the Dags in the file rather than the file itself, which is the only
+* record Airflow keeps: a file whose every Dag was removed keeps no parse time of its own.
+* @param data The data for the request.
+* @param data.bundleName
+* @param data.limit
+* @param data.offset
+* @returns DagBundleFileCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useDagBundleServiceGetDagBundleFilesSuspense = <TData = Common.DagBundleServiceGetDagBundleFilesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ bundleName, limit, offset }: {
+  bundleName: string;
+  limit?: number;
+  offset?: number;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagBundleServiceGetDagBundleFilesKeyFn({ bundleName, limit, offset }, queryKey), queryFn: () => DagBundleService.getDagBundleFiles({ bundleName, limit, offset }) as TData, ...options });
+/**
 * Get Dag Stats
 * Get Dag statistics.
 * @param data The data for the request.
@@ -709,6 +815,7 @@ export const useDagServiceGetDagTagsSuspense = <TData = Common.DagServiceGetDagT
 * @param data.dagDisplayNamePrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
 * @param data.excludeStale
 * @param data.paused
+* @param data.schedulingState
 * @param data.hasImportErrors Filter Dags by having import errors. Only Dags that have been successfully loaded before will be returned.
 * @param data.lastDagRunState
 * @param data.dagRunState Filter Dags that have any DagRun in the given state.
@@ -723,7 +830,7 @@ export const useDagServiceGetDagTagsSuspense = <TData = Common.DagServiceGetDagT
 * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useDagServiceGetDagsUiSuspense = <TData = Common.DagServiceGetDagsUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode, teams, timetableType }: {
+export const useDagServiceGetDagsUiSuspense = <TData = Common.DagServiceGetDagsUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, schedulingState, tags, tagsMatchMode, teams, timetableType }: {
   assetDependency?: string;
   bundleName?: string;
   bundleVersion?: string;
@@ -745,11 +852,12 @@ export const useDagServiceGetDagsUiSuspense = <TData = Common.DagServiceGetDagsU
   orderBy?: string[];
   owners?: string[];
   paused?: boolean;
+  schedulingState?: DagSchedulingState;
   tags?: string[];
   tagsMatchMode?: "any" | "all";
   teams?: string[];
   timetableType?: string[];
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagServiceGetDagsUiKeyFn({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode, teams, timetableType }, queryKey), queryFn: () => DagService.getDagsUi({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode, teams, timetableType }) as TData, ...options });
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagServiceGetDagsUiKeyFn({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, schedulingState, tags, tagsMatchMode, teams, timetableType }, queryKey), queryFn: () => DagService.getDagsUi({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, schedulingState, tags, tagsMatchMode, teams, timetableType }) as TData, ...options });
 /**
 * Get Dag Timetable Types
 * Get timetable types used by readable Dags.

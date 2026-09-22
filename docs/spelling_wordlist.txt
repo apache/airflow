@@ -3,6 +3,7 @@ abc
 AbstractFileSystem
 AbstractToolset
 accessor
+accessors
 AccessSecretVersionResponse
 aci
 Ack
@@ -242,6 +243,7 @@ chatbot
 chatbots
 CheckOperator
 checkpointed
+checkpointing
 checksums
 childs
 chmod
@@ -473,6 +475,7 @@ dependant
 DependencyMixin
 Deprecations
 deprecations
+deprioritize
 deps
 deques
 deregister
@@ -487,6 +490,8 @@ deserializer
 deserializes
 deserializing
 dest
+destructures
+destructuring
 dev
 devel
 DevOps
@@ -769,6 +774,7 @@ gsuite
 gte
 Gunicorn
 gunicorn
+gVisor
 gz
 Gzip
 gzipped
@@ -796,6 +802,7 @@ hiveserver
 hmsclient
 hoc
 homebrew
+honoured
 hookimpl
 hookspec
 HostAliases
@@ -912,6 +919,7 @@ jdk
 jenkins
 JenkinsRequest
 Jetson
+Jev
 Jiajie
 Jinja
 jinja
@@ -1036,6 +1044,7 @@ logstash
 longblob
 lookups
 loopback
+lowercased
 lshift
 lte
 lxml
@@ -1327,6 +1336,7 @@ pretify
 prev
 Proc
 proc
+procfs
 productionalize
 ProductSearchClient
 profiler
@@ -1341,6 +1351,7 @@ protobuf
 provisioner
 proxied
 proxies
+proxying
 psql
 psrp
 psycopg
@@ -1446,6 +1457,8 @@ requeue
 requeued
 requeues
 requeuing
+rerank
+reranking
 reserialize
 Reserializing
 resetdb
@@ -1571,6 +1584,7 @@ SlackHook
 SlackResponse
 slas
 smtp
+SNI
 SnowflakeHook
 Snowpark
 snowpark
@@ -1603,6 +1617,7 @@ Splunk
 Sql
 sql
 sqla
+sqladmin
 Sqlalchemy
 sqlalchemy
 sqlglot
@@ -1628,6 +1643,7 @@ Stackdriver
 stackdriver
 stacklevel
 stacktrace
+Starlette
 starttls
 stateful
 StatefulSet
@@ -1832,6 +1848,7 @@ uncompress
 undeploy
 undeployed
 Undeploys
+unescaped
 unicode
 unicodecsv
 unindent

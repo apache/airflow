@@ -17,7 +17,7 @@
 
 .. _howto/connection:langchain:
 
-LangChain Connection
+LangChain connection
 ====================
 
 The ``langchain`` connection type configures access to LLM providers via

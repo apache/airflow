@@ -26,9 +26,9 @@ import type { BundleManifest } from "../../src/coordinator/manifest.js";
 // but two UTF-16 units, so it separates code-point from .length counting.
 const ASTRAL_LETTER = "𠀀";
 
-function warningsFor(dags: BundleManifest["dags"]): string[] {
+function warningsFor(taskHandlers: BundleManifest["task_handlers"]): string[] {
   const warnings: string[] = [];
-  warnOnSuspiciousIds(dags, (message) => warnings.push(message));
+  warnOnSuspiciousIds(taskHandlers, (message) => warnings.push(message));
   return warnings;
 }
 

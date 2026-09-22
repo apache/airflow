@@ -33,6 +33,7 @@ def get_provider_info():
                 "how-to-guide": [
                     "/docs/apache-airflow-providers-common-ai/operators/agent.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm.rst",
+                    "/docs/apache-airflow-providers-common-ai/operators/llm_batch.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm_file_analysis.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm_branch.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm_sql.rst",
@@ -69,6 +70,11 @@ def get_provider_info():
                 "integration-name": "Docker Sandboxes",
                 "external-doc-url": "https://docs.docker.com/ai/sandboxes/",
                 "tags": ["software"],
+            },
+            {
+                "integration-name": "Modal",
+                "external-doc-url": "https://modal.com/docs/guide/sandbox",
+                "tags": ["service"],
             },
         ],
         "hooks": [
@@ -149,20 +155,25 @@ def get_provider_info():
                         "label": "Model",
                         "description": "Model in provider:name format (e.g. anthropic:claude-sonnet-5, openai:gpt-5)",
                         "schema": {"type": ["string", "null"]},
-                    }
+                    },
+                    "fallback_conn_ids": {
+                        "label": "Fallback Connections",
+                        "description": "Connection IDs to fail over to, in order, while this provider is unavailable.",
+                        "schema": {"type": ["array", "null"], "items": {"type": "string"}},
+                    },
                 },
             },
             {
                 "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIAzureHook",
                 "hook-name": "Pydantic AI (Azure OpenAI)",
-                "connection-type": "pydanticai-azure",
+                "connection-type": "pydanticai_azure",
                 "external-services": ["Azure OpenAI"],
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login"],
                     "relabeling": {"password": "API Key", "host": "Azure Endpoint"},
                     "placeholders": {
-                        "host": "https://<resource>.openai.azure.com",
-                        "extra": '{"model": "azure:gpt-4o", "api_version": "2024-07-01-preview"}',
+                        "host": "https://<resource>.openai.azure.com/openai/v1",
+                        "extra": '{"model": "azure:gpt-4o"}',
                     },
                 },
                 "conn-fields": {
@@ -171,9 +182,14 @@ def get_provider_info():
                         "description": "Azure model identifier (e.g. azure:gpt-4o)",
                         "schema": {"type": ["string", "null"]},
                     },
+                    "fallback_conn_ids": {
+                        "label": "Fallback Connections",
+                        "description": "Connection IDs to fail over to, in order, while this provider is unavailable.",
+                        "schema": {"type": ["array", "null"], "items": {"type": "string"}},
+                    },
                     "api_version": {
                         "label": "API Version",
-                        "description": "Azure OpenAI API version (e.g. 2024-07-01-preview). Falls back to OPENAI_API_VERSION.",
+                        "description": "Azure OpenAI API version (e.g. 2024-07-01-preview). Set when the endpoint path does not end in /v1 and the host is not *.models.ai.azure.com. Falls back to OPENAI_API_VERSION.",
                         "schema": {"type": ["string", "null"]},
                     },
                 },
@@ -181,7 +197,7 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIBedrockHook",
                 "hook-name": "Pydantic AI (AWS Bedrock)",
-                "connection-type": "pydanticai-bedrock",
+                "connection-type": "pydanticai_bedrock",
                 "external-services": ["AWS Bedrock"],
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login", "host", "password"],
@@ -195,6 +211,11 @@ def get_provider_info():
                         "label": "Model",
                         "description": "Bedrock model identifier (e.g. bedrock:us.anthropic.claude-opus-4-5)",
                         "schema": {"type": ["string", "null"]},
+                    },
+                    "fallback_conn_ids": {
+                        "label": "Fallback Connections",
+                        "description": "Connection IDs to fail over to, in order, while this provider is unavailable.",
+                        "schema": {"type": ["array", "null"], "items": {"type": "string"}},
                     },
                     "region_name": {
                         "label": "AWS Region",
@@ -246,20 +267,25 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIVertexHook",
                 "hook-name": "Pydantic AI (Google Vertex AI)",
-                "connection-type": "pydanticai-vertex",
+                "connection-type": "pydanticai_vertex",
                 "external-services": ["Google Vertex AI"],
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login", "host", "password"],
                     "relabeling": {},
                     "placeholders": {
-                        "extra": '{"model": "google-cloud:gemini-2.0-flash", "project": "my-project", "location": "us-central1"}  — add service_account_info (object) for SA auth; omit both to use Application Default Credentials'
+                        "extra": '{"model": "google-cloud:gemini-2.5-flash", "project": "my-project", "location": "us-central1"}  — add service_account_info (object) for SA auth; omit both to use Application Default Credentials'
                     },
                 },
                 "conn-fields": {
                     "model": {
                         "label": "Model",
-                        "description": "Google model identifier (e.g. google-cloud:gemini-2.0-flash)",
+                        "description": "Google model identifier (e.g. google-cloud:gemini-2.5-flash)",
                         "schema": {"type": ["string", "null"]},
+                    },
+                    "fallback_conn_ids": {
+                        "label": "Fallback Connections",
+                        "description": "Connection IDs to fail over to, in order, while this provider is unavailable.",
+                        "schema": {"type": ["array", "null"], "items": {"type": "string"}},
                     },
                     "project": {
                         "label": "GCP Project",
@@ -358,12 +384,12 @@ def get_provider_info():
                 "hook-class-name": "airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook",
                 "hook-name": "LlamaIndex",
                 "connection-type": "llamaindex",
-                "external-services": ["OpenAI", "Ollama", "vLLM"],
+                "external-services": ["OpenAI"],
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login"],
                     "relabeling": {"password": "API Key"},
                     "placeholders": {
-                        "host": "https://api.openai.com/v1 (optional, for custom endpoints / Ollama)",
+                        "host": "https://api.openai.com/v1 (optional, for an OpenAI-compatible proxy)",
                         "extra": '{"embed_model": "text-embedding-3-small", "llm_model": "gpt-4o"}',
                     },
                 },
@@ -387,6 +413,7 @@ def get_provider_info():
                 "python-modules": [
                     "airflow.providers.common.ai.operators.agent",
                     "airflow.providers.common.ai.operators.llm",
+                    "airflow.providers.common.ai.operators.llm_batch",
                     "airflow.providers.common.ai.operators.llm_file_analysis",
                     "airflow.providers.common.ai.operators.llm_branch",
                     "airflow.providers.common.ai.operators.llm_sql",
@@ -397,9 +424,19 @@ def get_provider_info():
                 ],
             }
         ],
+        "triggers": [
+            {
+                "integration-name": "Common AI",
+                "python-modules": ["airflow.providers.common.ai.triggers.llm_batch"],
+            }
+        ],
         "task-decorators": [
             {"class-name": "airflow.providers.common.ai.decorators.agent.agent_task", "name": "agent"},
             {"class-name": "airflow.providers.common.ai.decorators.llm.llm_task", "name": "llm"},
+            {
+                "class-name": "airflow.providers.common.ai.decorators.llm_batch.llm_batch_task",
+                "name": "llm_batch",
+            },
             {
                 "class-name": "airflow.providers.common.ai.decorators.llm_file_analysis.llm_file_analysis_task",
                 "name": "llm_file_analysis",

@@ -3150,7 +3150,17 @@
       "title": "InactiveAssetsResult",
       "type": "object"
     },
-    "JsonValue": {},
+    "JsonValue": {
+      "title": "JsonValue",
+      "type": [
+        "object",
+        "array",
+        "string",
+        "number",
+        "boolean",
+        "null"
+      ]
+    },
     "LazyDeserializedDAG": {
       "description": "Lazily build information from the serialized DAG structure.\n\nAn object that will present \"enough\" of the DAG like interface to update DAG db models etc, without having\nto deserialize the full DAG and Task hierarchy.",
       "properties": {

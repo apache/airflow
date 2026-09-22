@@ -34,7 +34,7 @@ type Props = {
   readonly stats: Array<{ key?: string; label: string; value: ReactNode | string }>;
   readonly subTitle?: ReactNode | string;
   readonly title: ReactNode | string;
-  readonly type: "asset" | "dag" | "dagRun" | "task" | "taskGroup" | "taskInstance";
+  readonly type: "asset" | "dag" | "dagBundle" | "dagRun" | "task" | "taskGroup" | "taskInstance";
 };
 
 export const HeaderCard = ({ actions, icon, state, stats, subTitle, title, type }: Props) => {

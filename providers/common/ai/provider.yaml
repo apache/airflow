@@ -23,10 +23,11 @@ description: |
 
 state: ready
 lifecycle: incubation
-source-date-epoch: 1787011200
+source-date-epoch: 1788976455
 build-system: hatchling
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 0.9.0
   - 0.8.0
   - 0.7.0
   - 0.6.0
@@ -43,6 +44,7 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-common-ai/operators/agent.rst
       - /docs/apache-airflow-providers-common-ai/operators/llm.rst
+      - /docs/apache-airflow-providers-common-ai/operators/llm_batch.rst
       - /docs/apache-airflow-providers-common-ai/operators/llm_file_analysis.rst
       - /docs/apache-airflow-providers-common-ai/operators/llm_branch.rst
       - /docs/apache-airflow-providers-common-ai/operators/llm_sql.rst
@@ -67,6 +69,9 @@ integrations:
   - integration-name: Docker Sandboxes
     external-doc-url: https://docs.docker.com/ai/sandboxes/
     tags: [software]
+  - integration-name: Modal
+    external-doc-url: https://modal.com/docs/guide/sandbox
+    tags: [service]
 
 hooks:
   - integration-name: Pydantic AI
@@ -179,9 +184,18 @@ connection-types:
           type:
             - string
             - 'null'
+      fallback_conn_ids:
+        label: Fallback Connections
+        description: "Connection IDs to fail over to, in order, while this provider is unavailable."
+        schema:
+          type:
+            - array
+            - 'null'
+          items:
+            type: string
   - hook-class-name: airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIAzureHook
     hook-name: "Pydantic AI (Azure OpenAI)"
-    connection-type: pydanticai-azure
+    connection-type: pydanticai_azure
     external-services:
       - Azure OpenAI
     ui-field-behaviour:
@@ -193,8 +207,8 @@ connection-types:
         password: API Key
         host: Azure Endpoint
       placeholders:
-        host: "https://<resource>.openai.azure.com"
-        extra: '{"model": "azure:gpt-4o", "api_version": "2024-07-01-preview"}'
+        host: "https://<resource>.openai.azure.com/openai/v1"
+        extra: '{"model": "azure:gpt-4o"}'
     conn-fields:
       model:
         label: Model
@@ -203,16 +217,27 @@ connection-types:
           type:
             - string
             - 'null'
+      fallback_conn_ids:
+        label: Fallback Connections
+        description: "Connection IDs to fail over to, in order, while this provider is unavailable."
+        schema:
+          type:
+            - array
+            - 'null'
+          items:
+            type: string
       api_version:
         label: API Version
-        description: "Azure OpenAI API version (e.g. 2024-07-01-preview). Falls back to OPENAI_API_VERSION."
+        description: >-
+          Azure OpenAI API version (e.g. 2024-07-01-preview). Set when the endpoint path does not end
+          in /v1 and the host is not *.models.ai.azure.com. Falls back to OPENAI_API_VERSION.
         schema:
           type:
             - string
             - 'null'
   - hook-class-name: airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIBedrockHook
     hook-name: "Pydantic AI (AWS Bedrock)"
-    connection-type: pydanticai-bedrock
+    connection-type: pydanticai_bedrock
     external-services:
       - AWS Bedrock
     ui-field-behaviour:
@@ -234,6 +259,15 @@ connection-types:
           type:
             - string
             - 'null'
+      fallback_conn_ids:
+        label: Fallback Connections
+        description: "Connection IDs to fail over to, in order, while this provider is unavailable."
+        schema:
+          type:
+            - array
+            - 'null'
+          items:
+            type: string
       region_name:
         label: AWS Region
         description: "AWS region (e.g. us-east-1). Falls back to AWS_DEFAULT_REGION env var."
@@ -299,7 +333,7 @@ connection-types:
             - 'null'
   - hook-class-name: airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIVertexHook
     hook-name: "Pydantic AI (Google Vertex AI)"
-    connection-type: pydanticai-vertex
+    connection-type: pydanticai_vertex
     external-services:
       - Google Vertex AI
     ui-field-behaviour:
@@ -311,17 +345,26 @@ connection-types:
         - password
       relabeling: {}
       placeholders:
-        extra: '{"model": "google-cloud:gemini-2.0-flash", "project": "my-project", "location":
+        extra: '{"model": "google-cloud:gemini-2.5-flash", "project": "my-project", "location":
           "us-central1"}  — add service_account_info (object) for SA auth; omit both to use Application
           Default Credentials'
     conn-fields:
       model:
         label: Model
-        description: "Google model identifier (e.g. google-cloud:gemini-2.0-flash)"
+        description: "Google model identifier (e.g. google-cloud:gemini-2.5-flash)"
         schema:
           type:
             - string
             - 'null'
+      fallback_conn_ids:
+        label: Fallback Connections
+        description: "Connection IDs to fail over to, in order, while this provider is unavailable."
+        schema:
+          type:
+            - array
+            - 'null'
+          items:
+            type: string
       project:
         label: GCP Project
         description: "Google Cloud project ID. Falls back to GOOGLE_CLOUD_PROJECT env var."
@@ -445,8 +488,6 @@ connection-types:
     connection-type: llamaindex
     external-services:
       - OpenAI
-      - Ollama
-      - vLLM
     ui-field-behaviour:
       hidden-fields:
         - schema
@@ -455,7 +496,7 @@ connection-types:
       relabeling:
         password: API Key
       placeholders:
-        host: "https://api.openai.com/v1 (optional, for custom endpoints / Ollama)"
+        host: "https://api.openai.com/v1 (optional, for an OpenAI-compatible proxy)"
         extra: '{"embed_model": "text-embedding-3-small", "llm_model": "gpt-4o"}'
     conn-fields:
       embed_model:
@@ -484,6 +525,7 @@ operators:
     python-modules:
       - airflow.providers.common.ai.operators.agent
       - airflow.providers.common.ai.operators.llm
+      - airflow.providers.common.ai.operators.llm_batch
       - airflow.providers.common.ai.operators.llm_file_analysis
       - airflow.providers.common.ai.operators.llm_branch
       - airflow.providers.common.ai.operators.llm_sql
@@ -491,6 +533,11 @@ operators:
       - airflow.providers.common.ai.operators.document_loader
       - airflow.providers.common.ai.operators.llamaindex_embedding
       - airflow.providers.common.ai.operators.llamaindex_retrieval
+
+triggers:
+  - integration-name: Common AI
+    python-modules:
+      - airflow.providers.common.ai.triggers.llm_batch
 
 toolsets:
   - integration-name: Common AI
@@ -515,6 +562,8 @@ task-decorators:
     name: agent
   - class-name: airflow.providers.common.ai.decorators.llm.llm_task
     name: llm
+  - class-name: airflow.providers.common.ai.decorators.llm_batch.llm_batch_task
+    name: llm_batch
   - class-name: airflow.providers.common.ai.decorators.llm_file_analysis.llm_file_analysis_task
     name: llm_file_analysis
   - class-name: airflow.providers.common.ai.decorators.llm_branch.llm_branch_task
