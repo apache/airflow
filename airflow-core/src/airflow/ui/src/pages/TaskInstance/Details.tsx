@@ -46,6 +46,11 @@ import { TriggererInfo } from "./TriggererInfo";
 
 type StateReasonSummary = { reason: string; status: "error" | "warning"; title: string };
 
+// The reason is only cleared once the task next reaches RUNNING, so a cleared task still carries
+// the previous attempt's reason. Both the banner and the per-try row key off the state to avoid
+// explaining a state the task is no longer in.
+const STATES_WITH_REASON = ["failed", "up_for_retry"];
+
 export const Details = () => {
   const { t: translate } = useTranslation();
   const { renderDuration } = useDurationFormat();
@@ -120,7 +125,12 @@ export const Details = () => {
   const stateReasonSummary = ((): StateReasonSummary | undefined => {
     const reason = taskInstance?.state_reason;
 
-    if (reason === null || reason === undefined || taskInstance === undefined) {
+    if (
+      reason === null ||
+      reason === undefined ||
+      taskInstance === undefined ||
+      !STATES_WITH_REASON.includes(taskInstance.state ?? "")
+    ) {
       return undefined;
     }
 
@@ -144,6 +154,15 @@ export const Details = () => {
 
     return undefined;
   })();
+
+  // Keyed off the selected try's own state, so an earlier failed try keeps its reason while the
+  // current one is running again.
+  const tryStateReason =
+    tryInstance?.state_reason !== null &&
+    tryInstance?.state_reason !== undefined &&
+    STATES_WITH_REASON.includes(tryInstance.state ?? "")
+      ? tryInstance.state_reason
+      : undefined;
 
   // omit kwargs from trigger
   const triggerWithoutKwargs = taskInstance?.trigger
@@ -202,10 +221,10 @@ export const Details = () => {
               </Flex>
             </Table.Cell>
           </Table.Row>
-          {tryInstance?.state_reason === null || tryInstance?.state_reason === undefined ? undefined : (
+          {tryStateReason === undefined ? undefined : (
             <Table.Row>
               <Table.Cell>{translate("taskInstance.stateReason")}</Table.Cell>
-              <Table.Cell>{tryInstance.state_reason}</Table.Cell>
+              <Table.Cell>{tryStateReason}</Table.Cell>
             </Table.Row>
           )}
           <Table.Row>

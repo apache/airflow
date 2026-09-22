@@ -125,15 +125,28 @@ describe("Details state reason", () => {
   });
 
   // The reason is only cleared once the task next reaches RUNNING, so a cleared task keeps a
-  // reason describing the previous attempt. Gating on state is what stops it being shown.
+  // reason describing the previous attempt. Gating on state is what stops it being shown, and it
+  // has to cover the row as well as the banner or the stale text just moves down the page.
   it.each(["queued", "running", "success", null] as const)(
-    "does not render the banner for a %s task that still carries a reason",
+    "renders neither the banner nor the row for a %s task that still carries a reason",
     (state) => {
       renderDetails(buildTaskInstance({ state, state_reason: "auth error, do not retry" }));
 
       expect(screen.queryByTestId("state-reason-alert")).not.toBeInTheDocument();
+      expect(screen.queryByText(i18n.t("common:taskInstance.stateReason"))).not.toBeInTheDocument();
+      expect(screen.queryByText("auth error, do not retry")).not.toBeInTheDocument();
     },
   );
+
+  it("keeps an earlier failed try's reason while the task is running again", () => {
+    renderDetails(buildTaskInstance({ state: "running", state_reason: null }), {
+      state: "failed",
+      state_reason: "try 1: auth error",
+    });
+
+    expect(screen.queryByTestId("state-reason-alert")).not.toBeInTheDocument();
+    expect(screen.getByText("try 1: auth error")).toBeInTheDocument();
+  });
 
   it("titles the banner with the try counts so it is distinct from the per-try row", () => {
     renderDetails(
