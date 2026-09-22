@@ -1429,9 +1429,7 @@ class TestExternalTaskSensorV3:
         assert op.external_dates_filter == expected_date.isoformat()
 
     @pytest.mark.execution_timeout(10)
-    def test_external_dag_sensor_poke_log_includes_configured_timezone(
-        self, monkeypatch, caplog, dag_maker
-    ):
+    def test_external_dag_sensor_poke_log_includes_configured_timezone(self, monkeypatch, caplog, dag_maker):
         monkeypatch.setattr(
             "airflow.providers.standard.sensors.external_task.conf.get_mandatory_value",
             lambda *_: "Asia/Seoul",
