@@ -155,13 +155,14 @@ class TestInvoke:
 
     def test_text_key_overrides_the_default_lookup(self, invoke_agent_runtime):
         respond(invoke_agent_runtime, {"output": "wrong", "answer": "right"})
-        assert hook(text_key="answer").agent(ARN).invoke(ManagedAgentRequest(prompt="x")).text == "right"
+        request = ManagedAgentRequest(prompt="x", vendor_options={"text_key": "answer"})
+        assert hook().agent(ARN).invoke(request).text == "right"
 
     @pytest.mark.parametrize("body", [{"output": "something"}, "just a string"], ids=["dict", "str"])
     def test_missing_text_key_is_terminal_not_silent(self, invoke_agent_runtime, body):
         respond(invoke_agent_runtime, body)
         with pytest.raises(ManagedAgentInvocationError, match="text_key='answer'"):
-            hook(text_key="answer").agent(ARN).invoke(ManagedAgentRequest(prompt="x"))
+            hook().agent(ARN).invoke(ManagedAgentRequest(prompt="x", vendor_options={"text_key": "answer"}))
 
     def test_a_body_that_is_not_json_is_terminal(self, invoke_agent_runtime):
         respond(invoke_agent_runtime, "ignored")
@@ -236,5 +237,22 @@ class TestInvoke:
     def test_oversized_body_is_terminal_and_closed(self, invoke_agent_runtime):
         stream = respond(invoke_agent_runtime, "x" * 64)
         with pytest.raises(ManagedAgentInvocationError, match="max_response_bytes=32"):
-            hook(max_response_bytes=32).agent(ARN).invoke(ManagedAgentRequest(prompt="x"))
+            hook().agent(ARN).invoke(
+                ManagedAgentRequest(prompt="x", vendor_options={"max_response_bytes": 32})
+            )
         assert stream.closed
+
+    @pytest.mark.parametrize(
+        "options",
+        [
+            {"text_key": 7},
+            {"max_response_bytes": 0},
+            {"max_response_bytes": "big"},
+            {"max_response_bytes": 1.5},
+        ],
+        ids=["text_key-not-str", "zero-bytes", "bytes-not-int", "bytes-float"],
+    )
+    def test_malformed_hook_options_are_rejected_before_the_call(self, invoke_agent_runtime, options):
+        with pytest.raises(ValueError, match="vendor_options"):
+            hook().agent(ARN).invoke(ManagedAgentRequest(prompt="x", vendor_options=options))
+        invoke_agent_runtime.assert_not_called()

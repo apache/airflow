@@ -86,7 +86,8 @@ class ManagedAgentRequest:
     One request to a managed agent.
 
     Exactly one of ``prompt`` and ``messages`` must be set. Everything the contract does not
-    type travels in ``vendor_options``, which the hook passes through to the vendor call.
+    type travels in ``vendor_options``. A hook may read some of them itself and passes the rest
+    through to the vendor call.
     Hooks reject options that would re-target the call (the agent identity, the connection),
     because a model-facing caller must not be able to change what it is talking to.
     """

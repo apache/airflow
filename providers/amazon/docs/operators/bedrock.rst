@@ -126,8 +126,8 @@ installs ``apache-airflow-providers-common-ai`` and therefore requires Airflow 3
 The agent is the runtime ARN and the session is AgentCore's ``runtimeSessionId``, which the
 service requires to be 33 to 256 characters long. A prompt is
 sent as ``{"prompt": ...}`` in an ``application/json`` payload; the container behind the
-runtime defines the response shape, so pass ``text_key`` when you know which field holds the
-answer. The hook disables botocore retries unless the connection or caller configured them,
+runtime defines the response shape, so pass ``text_key`` in ``vendor_options`` when you know which
+field holds the answer. The hook disables botocore retries unless the connection or caller configured them,
 because an invocation's effects are unknown, and raises a terminal error for non-JSON responses
 or bodies over the size limit rather than returning something misleading.
 
@@ -143,6 +143,7 @@ or bodies over the size limit rather than returning something misleading.
         claims,
         tool_name="ask_claims_agent",
         description="Reviews an insurance claim and returns a coverage determination.",
+        vendor_options={"text_key": "determination"},
     )
 
 For long-running invocations run as a pipeline step in their own right, use
