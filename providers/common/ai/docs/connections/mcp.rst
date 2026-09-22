@@ -17,7 +17,7 @@
 
 .. _howto/connection:mcp:
 
-MCP Server Connection
+MCP server connection
 =====================
 
 The MCP connection type configures access to

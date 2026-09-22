@@ -15,32 +15,18 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package bundlev1server
+// Command foreignitem tries to register a type that package airflow did not define.
+// It must not compile. TestRegisterableRejectsForeignTypes builds it and expects that failure.
+package main
 
-import (
-	"testing"
+import "github.com/apache/airflow/go-sdk/airflow"
 
-	"github.com/stretchr/testify/assert"
-)
+type foreignItem struct{}
 
-func TestDecideMode(t *testing.T) {
-	tests := []struct {
-		name     string
-		metadata bool
-		comm     string
-		logs     string
-		want     serveMode
-	}{
-		{name: "metadata", metadata: true, want: modeAirflowMetadata},
-		{name: "coordinator", comm: "127.0.0.1:1", logs: "127.0.0.1:2", want: modeCoordinator},
-		{name: "no flags", want: modeCoordinatorUsageError},
-		{name: "comm only", comm: "127.0.0.1:1", want: modeCoordinatorUsageError},
-		{name: "logs only", logs: "127.0.0.1:2", want: modeCoordinatorUsageError},
-	}
+// An unexported method name belongs to the package that declares it, so this method is not
+// the registerable method of airflow.Registerable even though it is spelled the same.
+func (foreignItem) registerable() {}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, decideMode(tt.metadata, tt.comm, tt.logs))
-		})
-	}
+func main() {
+	airflow.Bundle().Register(foreignItem{})
 }

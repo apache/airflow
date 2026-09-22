@@ -49,67 +49,9 @@ When to use this provider
      - The vendor's own provider
      - e.g. :doc:`apache-airflow-providers-anthropic:index`
 
-``common.ai`` is built on `pydantic-ai <https://ai.pydantic.dev/>`__, so the model vendor
-(OpenAI, Anthropic, Google, Bedrock, …) is picked by the connection ``llm_conn_id`` points
-at — switching providers later is a connection change, not a Dag rewrite. Most connections
-use the generic ``pydanticai`` type, but Azure OpenAI, Bedrock, and Vertex AI also have their
-own connection types (``pydanticai_azure``, ``pydanticai_bedrock``, ``pydanticai_vertex``) for
-provider-specific authentication. Existing LangChain
-tools aren't locked out either: pydantic-ai ships ``pydantic_ai.ext.langchain.LangChainToolset``
-upstream, which wraps LangChain tools for a common.ai agent, and the provider's own
-:func:`~airflow.providers.common.ai.toolsets.langchain_bridge.airflow_toolset_to_langchain_tools`
-converts the other way — Airflow-managed toolsets into LangChain tools (see :doc:`toolsets`).
-The AI step is orchestrated by Airflow: the model calls, the agent loop, and any tools
-run in the Airflow worker by default, where they get retries, logging, and observability like
-any other task. The exception is :ref:`SandboxToolset <sandbox-limitations>`, which exists so
-that code the *model* writes runs somewhere else.
-
-Use it when a Dag needs:
-
-* **Generation, classification, summarization, or structured extraction** —
-  :doc:`LLMOperator and @task.llm <operators/llm>`, with Pydantic-typed output pushed to XCom.
-* **Many prompts at half the price** — :doc:`LLMBatchOperator and @task.llm_batch <operators/llm_batch>`
-  submit prompts as one provider batch job (OpenAI or Anthropic), poll in deferrable mode for up to 24
-  hours, re-attach on retry instead of paying twice, and land results as JSONL on object storage.
-* **Branching on a model's decision** — :doc:`LLMBranchOperator <operators/llm_branch>`.
-* **Agents with tools** — :doc:`AgentOperator <operators/agent>` runs a multi-turn agent loop
-  in the worker, calling Airflow-defined :doc:`toolsets <toolsets>` (SQL, hooks, MCP servers,
-  a sandboxed shell and filesystem,
-  :ref:`Agent Skills <agent-skills>`), optionally collapsed into a single sandboxed
-  :ref:`code mode <code-mode>` call, with optional human-in-the-loop review and durable step
-  replay — if the task retries after a failure, completed steps are replayed from cache
-  instead of re-executing. Guardrails from the upstream ``pydantic-ai-shields`` package
-  (``InputGuard``, ``OutputGuard``, ``ToolGuard``, ``CostTracking``) plug into the same agent
-  loop (see :doc:`operators/agent`).
-* **Analyzing files or comparing schemas with an LLM** —
-  :doc:`LLMFileAnalysisOperator <operators/llm_file_analysis>` reads a file (object storage or
-  local) into a prompt; :doc:`LLMSchemaCompareOperator <operators/llm_schema_compare>` diffs
-  schemas across systems and flags drift a plain equality check would miss.
-* **Generating SQL from natural language** —
-  :doc:`LLMSQLQueryOperator <operators/llm_sql>` returns the generated query via XCom for
-  ``SQLExecuteQueryOperator`` or a downstream task to run; it does not execute the query itself.
-* **Document pipelines for RAG** —
-  :doc:`DocumentLoaderOperator <operators/document_loader>` parses files into structured text
-  and metadata, :doc:`LlamaIndexEmbeddingOperator <operators/llamaindex_embedding>` embeds it,
-  and :doc:`LlamaIndexRetrievalOperator <operators/llamaindex_retrieval>` retrieves the closest
-  chunks for an :doc:`LLMOperator <operators/llm>` prompt (see :doc:`operators/index` for the
-  full set).
-
-Use a vendor's own provider instead when the Dag needs that vendor's **native API surface** —
-a service the vendor runs for you, which no vendor-neutral operator wraps:
-
-* :doc:`apache-airflow-providers-openai:index` — the Embeddings and Responses APIs, and Batch
-  jobs built from a pre-uploaded JSONL file of raw request bodies.
-* :doc:`apache-airflow-providers-anthropic:index` — Message Batches built from raw Messages
-  API request bodies (multi-turn, images, tools), and Managed Agents sessions where the agent
-  loop runs on Anthropic's infrastructure rather than in the Airflow worker.
-* :doc:`apache-airflow-providers-cohere:index` — Cohere's own Embed API.
-* :doc:`apache-airflow-providers-google:index` — Vertex AI's Batch Prediction jobs
-  (``CreateBatchPredictionJobOperator``), a managed batch service like OpenAI's Batch API.
-* :doc:`apache-airflow-providers-amazon:index` — Bedrock's Batch Inference
-  (``BedrockBatchInferenceOperator``), and Bedrock AgentCore's managed agent runtime
-  (``BedrockCreateAgentRuntimeOperator`` / ``BedrockInvokeAgentRuntimeOperator``), where the
-  agent loop runs on AWS's infrastructure rather than in the Airflow worker.
+``common.ai`` is built on `pydantic-ai <https://ai.pydantic.dev/>`__: the connection picks the
+model vendor, and Airflow runs the AI step like any other task. :doc:`concepts` explains the
+ideas behind the provider in one page; :doc:`operators/index` lists what each operator is for.
 
 As a rule of thumb: if Airflow should *run* the AI step (and the model should stay
 swappable), use ``common.ai``; if the Dag *submits work to* a vendor-managed service and
@@ -123,28 +65,12 @@ OpenAI, Anthropic, or other pydantic-ai-supported connection:
     :start-after: [START howto_operator_llm_basic]
     :end-before: [END howto_operator_llm_basic]
 
-Choosing extras
-----------------
+Getting started
+---------------
 
-The provider's extras split into a few groups:
-
-* **Model providers** — ``openai``, ``anthropic``, ``google``, ``bedrock``, ``typesafe``:
-  pick the one matching your ``llm_conn_id`` connection. ``typesafe`` differs from the rest
-  in kind: it installs a classifier model that answers typed questions and cannot write
-  text (see :doc:`classifier_models`). Each extra name mirrors the identically named
-  ``pydantic-ai-slim`` optional dependency group; pydantic-ai supports more model providers
-  than these, each under its own extra name, so check the
-  `pydantic-ai install docs <https://ai.pydantic.dev/install/#slim-install>`__ for the full list.
-* **Agent tooling** — ``mcp``, ``skills``, ``code-mode``, ``shields``: MCP servers, Agent
-  Skills, code-mode tool execution, and shield capabilities (input/output guards, tool
-  guards, cost tracking).
-* **Document loading** — ``pdf``, ``docx``, ``avro``, ``parquet``: file formats for
-  document pipelines.
-* **Retrieval / SQL** — ``sql``, ``common.sql``, ``langchain``, ``llamaindex``: RAG and
-  SQL-schema tooling.
-* **Git-backed content** — ``git``: pulling Agent Skills or documents from a git connection.
-
-See the Optional dependencies table below for the exact package each extra installs.
+* :doc:`installation` — which extra to install for your model vendor.
+* :doc:`quickstart` — a connection and a first ``@task.llm`` in three steps.
+* :doc:`concepts` — connections, operators, toolsets, hooks and XCom in one page.
 
 .. toctree::
     :hidden:
@@ -158,28 +84,98 @@ See the Optional dependencies table below for the exact package each extra insta
 .. toctree::
     :hidden:
     :maxdepth: 1
-    :caption: Guides
+    :caption: Getting started
 
+    Installation <installation>
     Quick start <quickstart>
+    Core concepts <concepts>
+    Structured output <structured_output>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Models and providers
+
     Pydantic AI connection <connections/pydantic_ai>
-    Pydantic AI (Azure OpenAI) connection <connections/pydantic_ai_azure>
-    Pydantic AI (AWS Bedrock) connection <connections/pydantic_ai_bedrock>
-    Pydantic AI (Google Vertex AI) connection <connections/pydantic_ai_vertex>
-    MCP connection <connections/mcp>
-    LangChain connection <connections/langchain>
-    LlamaIndex connection <connections/llamaindex>
-    Hooks <hooks/index>
-    Toolsets <toolsets>
-    Sandboxed execution <sandbox>
-    Choosing a toolset <choosing_a_toolset>
-    Operators <operators/index>
-    Examples <examples>
-    Provider fallback <provider_fallback>
-    Retry Policies <retry_policies>
+    Azure OpenAI <connections/pydantic_ai_azure>
+    AWS Bedrock <connections/pydantic_ai_bedrock>
+    Google Vertex AI <connections/pydantic_ai_vertex>
     Self-hosted models <self_hosted_models>
     Classifier models <classifier_models>
-    HITL Review <hitl_review>
+    Provider fallback <provider_fallback>
+    PydanticAIHook <hooks/pydantic_ai>
+    LangChainHook <hooks/langchain>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Operators
+
+    Choosing an operator <operators/index>
+    LLMOperator <operators/llm>
+    LLMBranchOperator <operators/llm_branch>
+    LLMFileAnalysisOperator <operators/llm_file_analysis>
+    LLMSQLQueryOperator <operators/llm_sql>
+    LLMSchemaCompareOperator <operators/llm_schema_compare>
+    LLMBatchOperator <operators/llm_batch>
+    AgentOperator <operators/agent>
+    Approval gates <approval_gates>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Toolsets
+
+    Choosing a toolset <toolsets/index>
+    HookToolset <toolsets/hook>
+    SQLToolset <toolsets/sql>
+    DataFusionToolset <toolsets/datafusion>
+    LoggingToolset <toolsets/logging>
+    MCPToolset <toolsets/mcp>
+    AgentSkillsToolset <toolsets/skills>
+    Managed agent toolsets <toolsets/managed_agent>
+    LangChain bridge <toolsets/langchain>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Running agents
+
+    Message history <message_history>
+    Guardrails <guardrails>
+    Code mode <code_mode>
+    Sandboxed execution <sandbox/index>
+    HITL review <hitl_review>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Document and RAG pipelines
+
+    DocumentLoaderOperator <operators/document_loader>
+    LlamaIndexEmbeddingOperator <operators/llamaindex_embedding>
+    LlamaIndexRetrievalOperator <operators/llamaindex_retrieval>
+    LlamaIndex connection <connections/llamaindex>
+    LlamaIndexHook <hooks/llamaindex>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Reliability and operations
+
+    Durable execution <durable_execution>
+    LLM retry policies <retry_policies>
     Observability <observability>
+    Securing agent tools <agent_security>
+    Troubleshooting <troubleshooting>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Examples
+
+    Examples by scenario <examples>
+    End-to-end pipelines <end_to_end_pipelines>
 
 .. toctree::
     :hidden:
@@ -247,7 +243,7 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=3.0.0``
 ``apache-airflow-providers-common-compat``  ``>=1.15.0``
 ``apache-airflow-providers-standard``       ``>=1.12.1``
-``pydantic-ai-slim``                        ``>=2.23.0``
+``pydantic-ai-slim``                        ``>=2.33.0``
 ==========================================  ==================
 
 Optional cross provider package dependencies
@@ -284,12 +280,12 @@ Install them when installing from PyPI. For example:
 ==============  =======================================================================================================================================
 Extra           Dependencies
 ==============  =======================================================================================================================================
-``anthropic``   ``pydantic-ai-slim[anthropic]>=2.23.0``, ``anthropic>=1.0.0``
-``bedrock``     ``pydantic-ai-slim[bedrock]>=2.23.0``
-``google``      ``pydantic-ai-slim[google]>=2.23.0``
-``openai``      ``pydantic-ai-slim[openai]>=2.23.0``, ``openai>=2.45.0``
+``anthropic``   ``pydantic-ai-slim[anthropic]>=2.33.0``, ``anthropic>=1.0.0``
+``bedrock``     ``pydantic-ai-slim[bedrock]>=2.33.0``
+``google``      ``pydantic-ai-slim[google]>=2.33.0``
+``openai``      ``pydantic-ai-slim[openai]>=2.33.0``, ``openai>=2.47.0``
 ``typesafe``    ``typesafe-sdk>=0.6.0``
-``mcp``         ``pydantic-ai-slim[mcp]>=2.23.0``
+``mcp``         ``pydantic-ai-slim[mcp]>=2.33.0``
 ``modal``       ``modal>=1.5.0``
 ``code-mode``   ``pydantic-ai-harness[codemode]>=0.3.0``
 ``shields``     ``pydantic-ai-shields>=0.3.4``
@@ -299,7 +295,7 @@ Extra           Dependencies
 ``sql``         ``apache-airflow-providers-common-sql>=1.33.0``, ``sqlglot>=30.0.0``
 ``common.sql``  ``apache-airflow-providers-common-sql>=1.33.0``
 ``langchain``   ``langchain>=1.0.0``
-``llamaindex``  ``dataclasses-json>=0.6.7``, ``llama-index-core>=0.13.0``, ``llama-index-embeddings-openai>=0.6.0``, ``llama-index-llms-openai>=0.6.0``
+``llamaindex``  ``dataclasses-json>=0.6.7``, ``llama-index-core>=0.14.5``, ``llama-index-embeddings-openai>=0.6.0``, ``llama-index-llms-openai>=0.6.8``
 ``pdf``         ``pypdf>=4.0.0``
 ``docx``        ``python-docx>=1.0.0``
 ``git``         ``apache-airflow-providers-git``

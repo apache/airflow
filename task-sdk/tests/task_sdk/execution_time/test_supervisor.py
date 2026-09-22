@@ -4703,6 +4703,127 @@ class TestResolveChildTarget:
             supervisor.WatchedSubprocess.start(target=lambda: None, use_exec=True)
 
 
+class TestStartUsesPosixSpawn:
+    """use_exec=True goes through os.posix_spawn, never os.fork -- that's the whole point."""
+
+    def _start(self, mocker, **kwargs):
+        spawn = mocker.patch("airflow.sdk.execution_time.supervisor.os.posix_spawn", return_value=4321)
+        fork = mocker.patch(
+            "airflow.sdk.execution_time.supervisor.os.fork",
+            side_effect=AssertionError("os.fork() must not be called when use_exec=True"),
+        )
+        mocker.patch("airflow.sdk.execution_time.supervisor.psutil.Process")
+        supervisor.WatchedSubprocess.start(
+            id=uuid7(), target=supervisor._subprocess_main, use_exec=True, **kwargs
+        )
+        return spawn, fork
+
+    def test_does_not_call_fork(self, mocker):
+        """The defining property of the fix: no os.fork() call exists on this path at all."""
+        spawn, fork = self._start(mocker)
+        fork.assert_not_called()
+        spawn.assert_called_once()
+
+    def test_spawns_the_bootstrap_with_the_target_env_var(self, mocker):
+        spawn, _ = self._start(mocker)
+        args, kwargs = spawn.call_args
+        path, argv, env = args
+        assert path == sys.executable
+        assert argv == [sys.executable, "-c", supervisor._CHILD_EXEC_BOOTSTRAP]
+        assert env["_AIRFLOW_CHILD_TARGET"] == "airflow.sdk.execution_time.supervisor:_subprocess_main"
+
+    def test_file_actions_dup2_the_four_fds(self, mocker):
+        spawn, _ = self._start(mocker)
+        file_actions = spawn.call_args.kwargs["file_actions"]
+        targets = {new_fd for _, _, new_fd in file_actions}
+        assert targets == {0, 1, 2, 3}
+        assert all(action == os.POSIX_SPAWN_DUP2 for action, _, _ in file_actions)
+
+    def test_setpgroup_passed_when_new_process_group(self, mocker):
+        spawn, _ = self._start(mocker, new_process_group=True)
+        assert spawn.call_args.kwargs["setpgroup"] == 0
+
+    def test_setpgroup_omitted_when_not_new_process_group(self, mocker):
+        spawn, _ = self._start(mocker, new_process_group=False)
+        assert "setpgroup" not in spawn.call_args.kwargs
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="os.fork/os.register_at_fork are POSIX-only")
+    def test_hanging_after_fork_handler_wedges_bare_fork_but_not_posix_spawn(self):
+        """
+        A handler registered via os.register_at_fork(after_in_child=...) that never
+        returns wedges a bare-forked child forever, but does not affect a posix_spawn'd
+        child at all -- posix_spawn never runs it.
+
+        Runs in a disposable subprocess: os.register_at_fork() has no unregister call,
+        so registering a permanently-hanging one here would otherwise poison every later
+        fork in this pytest worker for the rest of the test run.
+        """
+        probe = """
+import os, sys, time
+
+def _hangs_forever():
+    while True:
+        time.sleep(3600)
+
+os.register_at_fork(after_in_child=_hangs_forever)
+
+r, w = os.pipe()
+pid = os.fork()
+if pid == 0:
+    os.write(w, b"unreachable")
+    os._exit(0)
+os.close(w)
+os.set_blocking(r, False)
+deadline = time.monotonic() + 2
+hung = True
+while time.monotonic() < deadline:
+    try:
+        if os.read(r, 1):
+            hung = False
+            break
+    except BlockingIOError:
+        time.sleep(0.01)
+os.close(r)
+os.kill(pid, 9)
+os.waitpid(pid, 0)
+if not hung:
+    print("FAIL: bare fork did not hang despite the handler")
+    sys.exit(1)
+
+r2, w2 = os.pipe()
+os.set_inheritable(w2, True)
+pid2 = os.posix_spawn(
+    sys.executable,
+    [sys.executable, "-c", "print('ok')"],
+    os.environ,
+    file_actions=[(os.POSIX_SPAWN_DUP2, w2, 1)],
+)
+os.close(w2)
+os.set_blocking(r2, False)
+deadline = time.monotonic() + 2
+spawned_ok = False
+while time.monotonic() < deadline:
+    try:
+        data = os.read(r2, 8)
+        if data.strip() == b"ok":
+            spawned_ok = True
+            break
+    except BlockingIOError:
+        time.sleep(0.01)
+os.close(r2)
+os.waitpid(pid2, 0)
+if not spawned_ok:
+    print("FAIL: posix_spawn hung too, despite the same handler still registered")
+    sys.exit(1)
+
+print("PASS")
+"""
+        result = subprocess.run(
+            [sys.executable, "-c", probe], capture_output=True, text=True, timeout=15, check=False
+        )
+        assert result.stdout.strip() == "PASS", f"stdout={result.stdout!r} stderr={result.stderr!r}"
+
+
 @pytest.mark.usefixtures("disable_capturing")
 def test_fork_exec_bootstrap_runs_an_importable_target_end_to_end(
     captured_logs, time_machine, monkeypatch, client_with_ti_start

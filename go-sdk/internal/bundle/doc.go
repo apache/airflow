@@ -15,10 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Package bundlev1 defines the interfaces and types need to be an Airflow Dag Bundle
+// Package bundle defines what the coordinator runtime needs from a bundle:
+// the tasks it looks up and runs, and the Dag and task ids it lists in the manifest.
 //
-// The main entry point should call [bundlev1server/Serve].
-package bundlev1
-
-// We call this package `.../bundle/bundlev1` (duplicating "bundle") so that the uses of it in code are by
-// default clear (bundlev1.BundleMetadata), otherwise `v1` is likely too ambigiuous
+// Package airflow builds both from the task handlers a bundle registers.
+package bundle

@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package bundlev1
+package bundle
 
 import (
 	"context"
@@ -24,7 +24,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/apache/airflow/go-sdk/airflow"
+	"github.com/apache/airflow/go-sdk/internal/contexttest"
 	"github.com/apache/airflow/go-sdk/pkg/binding"
 	"github.com/apache/airflow/go-sdk/pkg/logging"
 	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
@@ -43,6 +43,8 @@ func withTaskClient(ctx context.Context) context.Context {
 	return context.WithValue(ctx, sdkcontext.SdkClientContextKey, sdk.Client(&taskTestClient{}))
 }
 
+func init() { binding.RegisterTaskContext(contexttest.New) }
+
 func TestTaskSuite(t *testing.T) {
 	suite.Run(t, &TaskSuite{})
 }
@@ -53,15 +55,15 @@ func (s *TaskSuite) TestReturnValidation() {
 		errContains string
 	}{
 		"no-ret-values": {
-			func(airflow.Context) {},
+			func(contexttest.Context) {},
 			`func\d+ has 0 return values, must be`,
 		},
 		"too-many-ret-values": {
-			func(airflow.Context) (a, b, c int) { return },
+			func(contexttest.Context) (a, b, c int) { return },
 			`func\d+ has 3 return values, must be`,
 		},
 		"invalid-ret": {
-			func(airflow.Context) (c chan int) { return },
+			func(contexttest.Context) (c chan int) { return },
 			`func\d+ last return value to return error but found chan`,
 		},
 	}
@@ -93,8 +95,8 @@ func (s *TaskSuite) TestExecuteBindsAirflowContext() {
 	}
 	dagRun := sdk.DagRun{DagID: "dag1", RunID: "run1"}
 
-	var got airflow.Context
-	task, err := NewTaskFunction(func(actx airflow.Context) error {
+	var got contexttest.Context
+	task, err := NewTaskFunction(func(actx contexttest.Context) error {
 		got = actx
 		return nil
 	})
@@ -124,7 +126,7 @@ func (s *TaskSuite) TestExecuteBindsDataParameters() {
 	var gotCountry string
 	var gotMeta map[string]any
 	task, err := NewTaskFunction(
-		func(actx airflow.Context, country string, meta map[string]any) error {
+		func(actx contexttest.Context, country string, meta map[string]any) error {
 			gotCountry = country
 			gotMeta = meta
 			return nil
@@ -146,7 +148,9 @@ func (s *TaskSuite) TestExecuteBindsDataParameters() {
 }
 
 func (s *TaskSuite) TestExecuteWithoutSpecFailsForDataParameters() {
-	task, err := NewTaskFunction(func(actx airflow.Context, country string) error { return nil })
+	task, err := NewTaskFunction(
+		func(actx contexttest.Context, country string) error { return nil },
+	)
 	s.Require().NoError(err)
 
 	err = task.Execute(
@@ -158,7 +162,9 @@ func (s *TaskSuite) TestExecuteWithoutSpecFailsForDataParameters() {
 }
 
 func (s *TaskSuite) TestExecuteArityMismatch() {
-	task, err := NewTaskFunction(func(actx airflow.Context, country string) error { return nil })
+	task, err := NewTaskFunction(
+		func(actx contexttest.Context, country string) error { return nil },
+	)
 	s.Require().NoError(err)
 
 	err = task.Execute(
@@ -176,7 +182,7 @@ func (s *TaskSuite) TestExecuteArityMismatch() {
 }
 
 func (s *TaskSuite) TestExecuteRequiresCoordinatorClient() {
-	task, err := NewTaskFunction(func(airflow.Context) error { return nil })
+	task, err := NewTaskFunction(func(contexttest.Context) error { return nil })
 	s.Require().NoError(err)
 
 	err = task.Execute(context.Background(), slog.New(logging.NewTeeLogger()), nil)

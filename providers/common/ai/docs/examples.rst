@@ -164,9 +164,3 @@ Reliability
      - Routing a failure with a model that answers typed questions instead of writing
        text, and escalating when its confidence is low. Source:
        `example_classifier_model.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_classifier_model.py>`__.
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
-
-    end_to_end_pipelines

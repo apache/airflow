@@ -795,7 +795,7 @@ class PydanticAIVertexHook(PydanticAIHook):
         - **extra** JSON::
 
             {
-                "model": "google-cloud:gemini-2.0-flash",
+                "model": "google-cloud:gemini-2.5-flash",
                 "project": "my-gcp-project",
                 "location": "us-central1",
                 "service_account_info": {...},
@@ -820,8 +820,8 @@ class PydanticAIVertexHook(PydanticAIHook):
     works today.
 
     :param llm_conn_id: Airflow connection ID.
-    :param model_id: Model identifier, e.g. ``"google-cloud:gemini-2.0-flash"``. A
-        bare name (e.g. ``"gemini-2.0-flash"``) defaults to Vertex AI; prefix with
+    :param model_id: Model identifier, e.g. ``"google-cloud:gemini-2.5-flash"``. A
+        bare name (e.g. ``"gemini-2.5-flash"``) defaults to Vertex AI; prefix with
         ``google:`` for the Generative Language API.
     """
 
@@ -838,7 +838,7 @@ class PydanticAIVertexHook(PydanticAIHook):
             "relabeling": {},
             "placeholders": {
                 "extra": (
-                    '{"model": "google-cloud:gemini-2.0-flash", '
+                    '{"model": "google-cloud:gemini-2.5-flash", '
                     '"project": "my-project", "location": "us-central1"}'
                     "  — add service_account_info (object) for SA auth;"
                     " omit both to use Application Default Credentials"

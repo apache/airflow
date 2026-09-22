@@ -32,7 +32,7 @@ plan to use, and step 3 below makes a real, billed API call to that provider.
 
 Install the provider together with the extra matching the model SDK you plan
 to use — ``openai``, ``anthropic``, ``google``, or ``bedrock`` (see
-:doc:`index` for the full list of available extras). Replace ``<extra>``
+:doc:`installation` for the full list of available extras). Replace ``<extra>``
 below with the one you need:
 
 .. code-block:: bash
@@ -76,16 +76,16 @@ Structured output
 ^^^^^^^^^^^^^^^^^^
 
 Need typed data instead of a string? Set ``output_type`` to a Pydantic
-``BaseModel`` and the model instance is pushed to XCom unchanged. See the
-"Structured Output" section of the :ref:`howto/operator:llm` guide for the
-full example and its XCom-deserialization requirements.
+``BaseModel`` and the model instance is pushed to XCom unchanged. See
+:doc:`structured_output` for the full example and its XCom-deserialization
+requirements.
 
 Where to go next
 -----------------
 
 - :doc:`operators/index` — the full set of operators and ``@task`` decorators
   (file analysis, SQL, branching, schema comparison).
-- :doc:`toolsets` — give an agent tools built from Airflow hooks, SQL
+- :doc:`toolsets/index` — give an agent tools built from Airflow hooks, SQL
   databases, or MCP servers.
 - :ref:`howto/operator:agent` — run a multi-turn agent that reasons and calls
   tools instead of a single prompt-response call.

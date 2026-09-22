@@ -17,8 +17,8 @@
 
 // Package execution implements the SDK coordinator-protocol runtime
 // (msgpack-over-IPC). When the bundle binary is launched with --comm/--logs by
-// the Airflow supervisor (Python ExecutableCoordinator), bundlev1server.Serve
-// dispatches here.
+// the Airflow supervisor (Python ExecutableCoordinator), the Serve method of
+// airflow.BundleRef dispatches here.
 //
 // The first inbound frame on the comm socket is a StartupDetails message
 // that drives multi-round task execution.
@@ -36,7 +36,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
+	"github.com/apache/airflow/go-sdk/internal/bundle"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 )
 
@@ -73,7 +73,7 @@ const terminalSendTimeout = 30 * time.Second
 // fails closed without needing to send a frame; the post-connect paths below
 // log the reason at Error first so it still reaches the supervisor's log
 // stream over the already-connected logs socket.
-func Serve(provider bundlev1.BundleProvider, commAddr, logsAddr string) error {
+func Serve(b bundle.Bundle, commAddr, logsAddr string) error {
 	if commAddr == "" {
 		return fmt.Errorf("missing --comm=host:port argument")
 	}
@@ -131,15 +131,6 @@ func Serve(provider bundlev1.BundleProvider, commAddr, logsAddr string) error {
 	logHandler.Connect(logsConn)
 	logger.Debug("Connected", "comm", commAddr, "logs", logsAddr)
 
-	// Materialise the bundle (RegisterDags) up front. Both protocol paths
-	// need the registry, and doing it once before the first frame keeps the
-	// dispatcher simple.
-	bundle, err := materialiseBundle(provider)
-	if err != nil {
-		logger.Error("Bundle registration failed", "error", err)
-		return fmt.Errorf("registering dags: %w", err)
-	}
-
 	comm := NewCoordinatorComm(commConn, commConn, logger)
 
 	frame, err := comm.ReadMessage()
@@ -168,7 +159,7 @@ func Serve(provider bundlev1.BundleProvider, commAddr, logsAddr string) error {
 			"dag_id", msg.TI.DagID,
 			"task_id", msg.TI.TaskID,
 		)
-		result := RunTask(ctx, bundle, msg, comm, logger)
+		result := RunTask(ctx, b, msg, comm, logger)
 		// Bound the terminal write so a wedged socket cannot hang shutdown.
 		_ = commConn.SetWriteDeadline(time.Now().Add(terminalSendTimeout))
 		if err := comm.SendRequest(frame.ID, result); err != nil {
@@ -182,12 +173,4 @@ func Serve(provider bundlev1.BundleProvider, commAddr, logsAddr string) error {
 	}
 
 	return nil
-}
-
-func materialiseBundle(provider bundlev1.BundleProvider) (bundlev1.Bundle, error) {
-	reg := bundlev1.New()
-	if err := provider.RegisterDags(reg); err != nil {
-		return nil, err
-	}
-	return reg, nil
 }

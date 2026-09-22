@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
@@ -377,6 +378,30 @@ class TestLLMOperatorConfidenceGate:
         result = make_mock_run_result(output)
         result.response = ModelResponse(parts=[], model_name="jev-1.13.0", provider_details=details)
         return result
+
+    @pytest.mark.parametrize(
+        "context",
+        [
+            pytest.param({}, id="no-task-instance"),
+            pytest.param({"task_instance": {"id": "not-a-ti"}}, id="task-instance-is-a-dict"),
+            pytest.param({"task_instance": None}, id="task-instance-is-none"),
+        ],
+    )
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_hand_built_context_skips_the_decision_push_with_a_warning(
+        self, mock_hook_cls, make_mock_run_result, context, caplog
+    ):
+        """A dict-shaped or missing task instance (old tests, custom runners) must not fail the run."""
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = self._result(make_mock_run_result, Summary(text="t"), None)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=Summary)
+
+        with caplog.at_level(logging.WARNING):
+            output = op.execute(context)
+
+        assert Summary.model_validate(output).text == "t"
+        assert "the decision record was not pushed to XCom" in caplog.text
 
     @pytest.mark.skipif(
         not AIRFLOW_V_3_1_PLUS, reason="a reviewing decision_policy needs the HITL flow, Airflow >= 3.1"
