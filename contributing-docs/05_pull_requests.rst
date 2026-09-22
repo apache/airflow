@@ -486,6 +486,9 @@ field passed as ``timeout`` or ``next_kwargs`` are never rendered and are still 
 the name of a *different* template field is rendered, under that key, but is flagged as well — the
 entry no longer holds the field its key names.
 
+The hook only verifies the operator half of that pair: it cannot tell whether the key is also an
+attribute of the trigger class, so a passing hook is not confirmation that the kwarg will be rendered.
+
 The reason for doing it is that we are working on a cleaning up our code to have
 `prek hook <../scripts/ci/prek/validate_operators_init.py>`_
 that will make sure all the cases where logic (such as validation and complex conversion)

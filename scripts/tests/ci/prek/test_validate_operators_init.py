@@ -207,6 +207,49 @@ class TestConstructorFieldLogic:
                 1,
                 id="positional-trigger-kwargs-are-not-inspected",
             ),
+            pytest.param(
+                "self.foo = foo\nself.start_trigger_args = make_args(trigger_kwargs={'foo': self.foo})",
+                1,
+                id="bare-start-trigger-args-constructor-name-must-match",
+            ),
+            pytest.param(
+                "self.foo = foo\nstart_trigger_args = StartTriggerArgs(trigger_kwargs={'foo': self.foo})",
+                1,
+                id="start-trigger-args-must-be-assigned-to-an-attribute",
+            ),
+            pytest.param(
+                "self.foo = foo\nself._sta = StartTriggerArgs(trigger_kwargs={'foo': self.foo})",
+                1,
+                id="start-trigger-args-attribute-name-must-match",
+            ),
+            pytest.param(
+                "self.foo = foo\n"
+                "self.start_trigger_args = dataclasses.replace(self.other, trigger_kwargs={'foo': self.foo})",
+                1,
+                id="replace-must-copy-start-trigger-args-itself",
+            ),
+            pytest.param(
+                "self.foo = foo\n"
+                "self.start_trigger_args = StartTriggerArgs(trigger_kwargs=OrderedDict(foo=self.foo))",
+                1,
+                id="bare-trigger-kwargs-dict-name-must-match",
+            ),
+            pytest.param(
+                "self.foo = foo\nself.start_trigger_args = replace(trigger_kwargs={'foo': self.foo})",
+                1,
+                id="replace-without-a-positional-argument",
+            ),
+            pytest.param(
+                "self.foo = foo\n"
+                "self.start_trigger_args = a.b.replace(self.start_trigger_args, trigger_kwargs={'foo': self.foo})",
+                1,
+                id="replace-with-a-nested-attribute-qualifier",
+            ),
+            pytest.param(
+                "self.foo = foo\nself.start_trigger_args = BASE_ARGS[self.foo]",
+                1,
+                id="non-call-start-trigger-args-assignment",
+            ),
         ],
     )
     def test_flags_logic_but_not_sanctioned_patterns(self, ctor_body: str, expected: int):

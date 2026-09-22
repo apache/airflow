@@ -341,7 +341,7 @@ def _collect_sanctioned_uses(ctor: ast.FunctionDef, template_fields: list[str]) 
                     # so only a verbatim copy under the field's own name is safe un-rendered.
                     # trigger_cls is a string, so the trigger-attribute half is the author's to keep.
                     for key, item in _iter_trigger_kwargs_items(value):
-                        if key in template_fields and _target_name(item) == key:
+                        if _target_name(item) == key:
                             sanctioned.add(id(item))
         elif isinstance(node, ast.Call) and _is_super_init_call(node):
             for keyword in node.keywords:
@@ -381,8 +381,8 @@ def _is_start_trigger_args_assignment(target: ast.expr, value: ast.Call) -> bool
 
     Matches ``self.start_trigger_args = StartTriggerArgs(...)`` and
     ``self.start_trigger_args = dataclasses.replace(self.start_trigger_args, ...)`` (also a bare
-    ``replace`` or ``copy.replace``). Aliased imports, other module qualifiers, and positional
-    ``StartTriggerArgs`` arguments are deliberately not matched.
+    ``replace`` or ``copy.replace``). Aliased imports and other module qualifiers are deliberately
+    not matched.
 
     :param target: The assignment target.
     :param value: The assigned call.
@@ -405,7 +405,8 @@ def _iter_trigger_kwargs_items(call: ast.Call) -> Iterator[tuple[str | None, ast
     Yield the ``(key, value)`` pairs of a call's ``trigger_kwargs=`` argument.
 
     Supports a ``{...}`` literal and a ``dict(...)`` call; ``**`` unpacking yields a None key.
-    Other keywords (``timeout``, ``next_kwargs``, ...) are never rendered and are not inspected.
+    Only the ``trigger_kwargs=`` keyword is read: other keywords (``timeout``, ``next_kwargs``, ...)
+    are never rendered, and positional arguments are deliberately not matched.
 
     :param call: The call node.
     :return: Iterator over the key/value pairs passed as ``trigger_kwargs``.
