@@ -265,10 +265,7 @@ def test_custom_bundle_provider_resolves_active_and_retired_bundles():
 
     assert manager.get_active_bundle_metadata() == (DagBundleMetadata(name="active-bundle"),)
     assert provider.metadata_requests == 1
-    assert manager.get_bundle_metadata("active-bundle") == DagBundleMetadata(name="active-bundle")
     assert manager.get_all_bundle_names() == ["active-bundle"]
-    with pytest.raises(ValueError, match="'unknown-bundle' is not configured"):
-        manager.get_bundle_metadata("unknown-bundle")
 
     active_bundle = manager.get_bundle("active-bundle")
     retired_bundle = manager.get_bundle(

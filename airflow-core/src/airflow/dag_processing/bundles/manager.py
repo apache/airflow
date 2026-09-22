@@ -599,13 +599,6 @@ class DagBundlesManager(LoggingMixin):
             return LocalDagBundle(name=name, path=path, version=version, version_data=version_data)
         return self._bundle_provider.get_bundle(name=name, version=version, version_data=version_data)
 
-    def get_bundle_metadata(self, name: str) -> DagBundleMetadata:
-        """Get metadata for an active Dag bundle."""
-        for metadata in self.get_active_bundle_metadata():
-            if metadata.name == name:
-                return metadata
-        raise ValueError(f"Requested bundle '{name}' is not configured.")
-
     def get_all_dag_bundles(self) -> Iterable[BaseDagBundle]:
         """
         Get all DAG bundles.
