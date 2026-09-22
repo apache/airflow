@@ -421,7 +421,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "end_date": None,
                 "job_type": "TriggererJob",
                 "state": "running",
-                "team_name": None,
+                "team_names": [],
                 "unixname": getuser(),
             },
             "team_name": None,
