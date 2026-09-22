@@ -206,8 +206,11 @@ Parameters
 ^^^^^^^^^^
 
 - ``db_conn_id``: Airflow connection ID for the database.
-- ``allowed_tables``: Restrict the agent to a fixed set of tables. ``None``
-  (default) exposes all tables in ``schema``. Entries may be schema-qualified
+- ``allowed_tables``: Restrict the agent to a fixed set of tables. Omit the
+  argument (the default) to expose all tables in ``schema``. No value means
+  allow-all: ``None`` and an empty list both raise ``ValueError``, so an allow-list
+  built at runtime that resolves to nothing fails at import instead of silently
+  exposing every table. Entries may be schema-qualified
   (``"SCHEMA.TABLE"``) to span multiple schemas; see above. Matching is
   case-insensitive. When set, the list is enforced on ``query`` and
   ``check_query`` as well as discovery -- every table a query references must be

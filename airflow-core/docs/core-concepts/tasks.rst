@@ -265,6 +265,40 @@ share one policy. Per-index variation is not supported on ``.expand()``, but the
 policy's ``evaluate()`` method receives the exception, ``try_number``, and full
 context, so per-index branching can be done inside the policy if needed.
 
+Chaining policies
+~~~~~~~~~~~~~~~~~
+
+.. versionadded:: 3.4.0
+
+``ChainRetryPolicy`` consults policies in order. The first RETRY or FAIL wins; a
+policy that returns DEFAULT has nothing to add and the next one is asked. When every
+policy returns DEFAULT, the task's own ``retries`` and ``retry_delay`` apply. Every
+policy sees the original task exception.
+
+.. exampleinclude:: /../src/airflow/example_dags/example_retry_policy.py
+    :language: python
+    :start-after: [START retry_policy_chain]
+    :end-before: [END retry_policy_chain]
+
+This is how to put a cheap, deterministic policy in front of a slow or costly one, or
+to give a policy that can fail on its own (one that calls a model, for instance) a
+deterministic floor behind it. The policies need not know about each other, and they can
+come from different packages.
+
+Two consequences of "DEFAULT means next" to keep in mind:
+
+* A ``RetryRule`` with ``action=RetryAction.DEFAULT`` passes control on rather than
+  ending the chain. Its ``retry_delay`` is dropped, as it is on any DEFAULT.
+* An ``ExceptionRetryPolicy`` with ``default=RetryAction.FAIL`` fails every exception
+  its rules do not match, so it ends the chain wherever it sits.
+
+A policy that raises an ordinary exception, or returns something other than a
+``RetryDecision``, is logged and treated as DEFAULT, so one broken policy does not take the
+rules after it down with it. The winning decision's reason names the policy that decided and
+then what the earlier ones said (``HTTPStatusRetryPolicy: HTTP 503 (after ExceptionRetryPolicy:
+no decision)``). On a RETRY that string is the task's ``retry_reason``; on FAIL, or when no
+policy decided, it appears in the task log as the ``Retry policy decision`` line.
+
 Custom retry policies
 ~~~~~~~~~~~~~~~~~~~~~
 
@@ -291,7 +325,7 @@ number, max tries, and the full Airflow context (``dag_run``, ``params``, etc.):
                 status = exception.response.status_code
                 if status == 429:  # rate limited -- honour Retry-After header
                     retry_after = int(exception.response.headers.get("Retry-After", 60))
-                    return RetryDecision.retry(retry_delay=timedelta(seconds=retry_after))
+                    return RetryDecision.retry(delay=timedelta(seconds=retry_after))
                 if 500 <= status < 600:  # server error -- worth retrying
                     return RetryDecision.retry()
                 if 400 <= status < 500:  # client error -- not retryable

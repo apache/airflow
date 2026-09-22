@@ -144,11 +144,12 @@ subqueries and joins.
   something other than a DBAPI cursor — ``ExasolHook`` and its pyexasol
   statement, for instance — fall back to a full fetch. The payload handed to the
   model is still bounded; the transfer is not. See :ref:`bounded-query-results`.
-- Its parser-level closure is opt-in, not the default. ``allowed_tables``
-  defaults to ``None`` and the table walk returns immediately while it is
-  unset, so out of the box the agent reaches every table the connection can
-  see. ``DESCRIBE`` and ``SHOW`` both pass, on dialects that parse them,
-  while ``allowed_tables`` stays unset. Set ``allowed_tables`` and the walk
+- Its parser-level closure is opt-in, not the default. The table walk returns
+  immediately while ``allowed_tables`` is unset, so out of the box the agent
+  reaches every table the connection can see. Only omitting the argument grants
+  that: an explicit ``None`` or empty list is rejected at construction.
+  ``DESCRIBE`` and ``SHOW`` both pass, on dialects that parse them, while
+  ``allowed_tables`` stays unset. Set ``allowed_tables`` and the walk
   turns fail-closed for ``SHOW`` — but not for ``DESCRIBE``: it instead
   becomes an ordinary table reference, allowed only when the table it names
   is on the list. See :ref:`allowed-tables-enforcement` for what else the

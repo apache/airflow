@@ -22,7 +22,7 @@ from urllib.parse import quote
 
 import requests
 
-from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook, _validate_account_component
 
 JsonDict = dict[str, Any]
 JsonList = list[JsonDict]
@@ -39,7 +39,8 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
         if host:
             return f"https://{host}"
 
-        return f"https://{conn_config['account']}.snowflakecomputing.com"
+        account = _validate_account_component(conn_config["account"], "account")
+        return f"https://{account}.snowflakecomputing.com"
 
     def _get_access_token(self) -> str:
         conn_config = self._get_conn_params()

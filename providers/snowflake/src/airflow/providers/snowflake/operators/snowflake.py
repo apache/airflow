@@ -334,7 +334,10 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
     The operator supports the following authentication methods via the Snowflake connection:
 
     - **Key pair**: provide ``private_key_file`` or ``private_key_content`` in the connection extras.
-    - **OAuth**: provide ``refresh_token``, ``client_id``, and ``client_secret`` in the connection extras.
+    - **OAuth**: for the ``refresh_token`` or ``client_credentials`` grant, put the OAuth client ID and
+      client secret in the connection ``login`` and ``password``. To get the token from an Azure
+      connection instead, set ``azure_conn_id``. See
+      :ref:`the Snowflake connection docs <howto/connection:snowflake>`.
     - **Programmatic Access Token (PAT)**: set ``authenticator`` to ``programmatic_access_token`` in
       the connection extras and put the PAT value in the connection ``password`` field.
 
