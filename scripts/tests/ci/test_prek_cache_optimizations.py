@@ -186,7 +186,6 @@ def test_restored_hooks_are_always_validated(sandbox, fake_tools):
         "--skip",
         "view-skill-eval",
     ] in read_commands(fake_tools)
-    assert read_outputs(sandbox)["installation-succeeded"] == "true"
     assert read_outputs(sandbox)["cache-changed"] == "false"
     assert read_outputs(sandbox)["change-detection-uncertain"] == "false"
 
@@ -259,7 +258,6 @@ def test_hook_install_failure_remains_fatal(sandbox, fake_tools):
     )
     assert result.returncode != 0
     assert len([cmd for cmd in read_commands(fake_tools) if cmd[:2] == ["prek", "install-hooks"]]) == 4
-    assert read_outputs(sandbox)["installation-succeeded"] == "false"
 
 
 def test_marker_snapshot_uses_relative_paths_and_exact_contents(tmp_path):

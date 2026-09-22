@@ -146,7 +146,6 @@ runs:
           sleep "${delay}"
         done
         if [[ "${installation_succeeded:-false}" != "true" ]]; then
-          echo "installation-succeeded=false" >> "${GITHUB_OUTPUT}"
           echo "cache-changed=false" >> "${GITHUB_OUTPUT}"
           echo "change-detection-uncertain=${change_detection_uncertain}" >> "${GITHUB_OUTPUT}"
           echo "prek install-hooks failed after ${max_attempts} attempts" >&2
@@ -162,7 +161,6 @@ runs:
             cache_changed=true
           fi
         fi
-        echo "installation-succeeded=true" >> "${GITHUB_OUTPUT}"
         echo "cache-changed=${cache_changed}" >> "${GITHUB_OUTPUT}"
         echo "change-detection-uncertain=${change_detection_uncertain}" >> "${GITHUB_OUTPUT}"
         echo "duration-seconds=$((SECONDS - started_at))" >> "${GITHUB_OUTPUT}"
