@@ -66,6 +66,13 @@ def _dump_inventory_after_spelling_build(app: Sphinx, exception: Exception | Non
     the html builder writes inventories, which used to force the spellcheck run to rebuild every
     package a second time with html. Writing the inventory here lets a spellcheck-only run resolve
     references the same way a docs build does.
+
+    "Successful" means the build ran to completion, not that it passed: under ``-W`` Sphinx (8.1 and
+    9.x) counts warnings and sets a non-zero exit status at the end instead of aborting, so a package
+    with a genuine misspelling or an unresolved reference still reaches this hook with
+    ``exception=None`` and still publishes its complete inventory for the packages that depend on it.
+    Only a build that crashed part-way (``exception`` set) is skipped, because its environment may
+    not hold every document.
     """
     if exception is not None or app.builder.name != "spelling":
         return
