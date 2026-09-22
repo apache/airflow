@@ -18,16 +18,13 @@
  */
 import { useMemo, useState } from "react";
 
-import { Box, Button, Heading, HStack, Text } from "@chakra-ui/react";
+import { Box, Button, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiFileText } from "react-icons/fi";
 
 import { useDeadlinesServiceGetCallbackLogs } from "openapi/queries";
-import type { CallbackState, TaskInstanceState } from "openapi/requests/types.gen";
 
 import { Modal } from "src/system-components";
-
-import { StateBadge } from "src/components/StateBadge";
 
 import { TaskLogContent } from "src/pages/TaskInstance/Logs/TaskLogContent";
 import { parseLogs } from "src/queries/useLogs";
@@ -35,12 +32,11 @@ import { parseStreamingLogContent } from "src/utils/logs";
 
 type CallbackLogViewerProps = {
   readonly callbackId: string;
-  readonly callbackState?: CallbackState | null;
   readonly dagId: string;
   readonly dagRunId: string;
 };
 
-export const CallbackLogViewer = ({ callbackId, callbackState, dagId, dagRunId }: CallbackLogViewerProps) => {
+export const CallbackLogViewer = ({ callbackId, dagId, dagRunId }: CallbackLogViewerProps) => {
   const { t: translate } = useTranslation(["dag", "common"]);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -68,7 +64,8 @@ export const CallbackLogViewer = ({ callbackId, callbackState, dagId, dagRunId }
 
   return (
     <>
-      <Button onClick={() => setIsOpen(true)} size="xs" variant="outline">
+      {/* Sized to sit flush with the adjacent sm Badge (minH 5). */}
+      <Button h="5" onClick={() => setIsOpen(true)} px="1.5" size="2xs" variant="outline">
         <FiFileText />
         {translate("dag:callbackLogs.viewLogs")}
       </Button>
@@ -78,16 +75,7 @@ export const CallbackLogViewer = ({ callbackId, callbackState, dagId, dagRunId }
         open={isOpen}
         scrollBehavior="inside"
         size="xl"
-        title={
-          <HStack gap={2}>
-            <Heading size="sm">{translate("dag:callbackLogs.title")}</Heading>
-            {callbackState === undefined || callbackState === null ? undefined : (
-              <StateBadge size="sm" state={callbackState as TaskInstanceState}>
-                {callbackState}
-              </StateBadge>
-            )}
-          </HStack>
-        }
+        title={translate("dag:callbackLogs.title")}
       >
         {!isLoading && parsedLogs.length === 0 && error === null ? (
           <Text color="fg.muted" fontSize="sm">

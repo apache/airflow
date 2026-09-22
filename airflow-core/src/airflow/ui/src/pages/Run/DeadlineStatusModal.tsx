@@ -150,12 +150,7 @@ export const DeadlineStatusModal = ({
                     </Text>
                   )}
                   {dl.callback_id === undefined || dl.callback_id === null ? undefined : (
-                    <CallbackLogViewer
-                      callbackId={dl.callback_id}
-                      callbackState={dl.callback_state}
-                      dagId={dagId}
-                      dagRunId={dagRunId}
-                    />
+                    <CallbackLogViewer callbackId={dl.callback_id} dagId={dagId} dagRunId={dagRunId} />
                   )}
                 </HStack>
                 {completionRule === undefined ? undefined : (
