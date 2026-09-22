@@ -32,17 +32,17 @@ COMPAT = "apache-airflow-providers-common-compat"
 SQL = "apache-airflow-providers-common-sql"
 
 
-def _pyproject(*dependencies: str) -> str:
+def _pyproject(*dependencies: str, name: str = "apache-airflow-providers-example") -> str:
     lines = "\n".join(f"    {dependency}" for dependency in dependencies)
     return textwrap.dedent(
         """\
         [project]
-        name = "apache-airflow-providers-example"
+        name = "{name}"
         dependencies = [
         {lines}
         ]
         """
-    ).format(lines=lines)
+    ).format(name=name, lines=lines)
 
 
 def _file(yanked: bool = False) -> dict:
@@ -101,7 +101,7 @@ class TestCombinedSpecifier:
             "apache-airflow-providers-openlineage": [f"{COMPAT}>=1.10.0"],
             "apache-airflow-providers-other": [f'{COMPAT}>=5.0.0; extra == "something"'],
         }
-        specifier, requirers = m.combined_specifier(COMPAT, installed)
+        specifier, requirers, unreleased_requirer = m.combined_specifier(COMPAT, installed)
         assert specifier.contains("1.10.0")
         assert not specifier.contains("1.8.0")
         assert specifier.contains("6.0.0")
@@ -109,6 +109,7 @@ class TestCombinedSpecifier:
             "apache-airflow-providers-example (>=1.8.0)",
             "apache-airflow-providers-openlineage (>=1.10.0)",
         ]
+        assert unreleased_requirer is None
 
     def test_skips_unparsable_requirements(self, capsys):
         installed = {
@@ -116,13 +117,31 @@ class TestCombinedSpecifier:
             "apache-airflow-providers-example": [f"{COMPAT}>=1.8.0"],
             "broken-provider": [f"{COMPAT} (>=1.9.0<2)"],
         }
-        specifier, requirers = m.combined_specifier(COMPAT, installed)
+        specifier, requirers, unreleased_requirer = m.combined_specifier(COMPAT, installed)
         assert specifier == SpecifierSet(">=1.8.0")
         assert requirers == ["apache-airflow-providers-example (>=1.8.0)"]
+        assert unreleased_requirer is None
         # Only the entry about the provider being lowered is worth a log line.
         assert capsys.readouterr().err.splitlines() == [
             f"Ignoring unparsable requirement '{COMPAT} (>=1.9.0<2)' of broken-provider"
         ]
+
+    def test_excludes_requirer_that_needs_an_unreleased_release(self):
+        # "fab" declares a numeric floor for logging/tooling purposes, but its own
+        # "# use next version" marker means that floor is not actually sufficient: only the
+        # unreleased workspace version has what it needs. Its bound must not count towards the
+        # intersection, and its name must come back so the caller keeps the workspace version too.
+        installed = {
+            "apache-airflow-providers-example": [f"{COMPAT}>=1.8.0"],
+            "apache-airflow-providers-fab": [f"{COMPAT}>=1.18.0"],
+        }
+        fab_pyproject = _pyproject(f'"{COMPAT}>=1.18.0",  # use next version')
+        specifier, requirers, unreleased_requirer = m.combined_specifier(
+            COMPAT, installed, {"apache-airflow-providers-fab": fab_pyproject}
+        )
+        assert specifier == SpecifierSet(">=1.8.0")
+        assert requirers == ["apache-airflow-providers-example (>=1.8.0)"]
+        assert unreleased_requirer == "apache-airflow-providers-fab"
 
 
 class TestDecide:
@@ -159,6 +178,23 @@ class TestDecide:
         (decision,) = m.decide(text, installed, self._fetch)
         assert decision.pin is None
         assert reason in decision.reason
+
+    def test_keeps_workspace_version_when_another_installed_provider_needs_unreleased_release(self):
+        # Regression test: lowering a provider (e.g. "google") that only requires an old release
+        # of a dependency (e.g. "common-compat") must not pin it to that old release when another
+        # installed provider (e.g. "fab", pulled in as an extra) needs unreleased content from
+        # that same dependency. Its own dependency line has no "# use next version" marker, so
+        # the marker on fab's line is only visible via provider_pyproject_texts.
+        text = _pyproject(f'"{COMPAT}>=1.8.0",')
+        installed = {
+            "apache-airflow-providers-example": [f"{COMPAT}>=1.8.0"],
+            "apache-airflow-providers-fab": [f"{COMPAT}>=1.18.0"],
+        }
+        fab_pyproject = _pyproject(f'"{COMPAT}>=1.18.0",  # use next version')
+        (decision,) = m.decide(text, installed, self._fetch, {"apache-airflow-providers-fab": fab_pyproject})
+        assert decision.pin is None
+        assert "apache-airflow-providers-fab" in decision.reason
+        assert "unreleased" in decision.reason
 
     def test_fetches_releases_only_for_pinnable_dependencies(self):
         text = _pyproject(f'"{COMPAT}>=1.8.0",  # use next version', f'"{SQL}>=1.20.0",')
@@ -220,6 +256,27 @@ class TestDecideUntilStable:
         monkeypatch.setattr(m, "decide", lambda *args: next(flip))
         with pytest.raises(RuntimeError, match="did not settle"):
             m.decide_until_stable("", {}, self._fetch, lambda n, v: [])
+
+
+class TestFindProviderPyprojectTexts:
+    def test_maps_declared_project_name_to_its_own_pyproject_text(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(m, "AIRFLOW_ROOT_PATH", tmp_path)
+        fab_dir = tmp_path / "providers" / "fab"
+        fab_dir.mkdir(parents=True)
+        fab_text = _pyproject(f'"{COMPAT}>=1.18.0",  # use next version', name="apache-airflow-providers-fab")
+        (fab_dir / "pyproject.toml").write_text(fab_text)
+
+        result = m.find_provider_pyproject_texts()
+
+        assert result == {"apache-airflow-providers-fab": fab_text}
+
+    def test_skips_unparsable_pyproject_files(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(m, "AIRFLOW_ROOT_PATH", tmp_path)
+        broken_dir = tmp_path / "providers" / "broken"
+        broken_dir.mkdir(parents=True)
+        (broken_dir / "pyproject.toml").write_text("not [ valid toml")
+
+        assert m.find_provider_pyproject_texts() == {}
 
 
 class TestFetchJson:

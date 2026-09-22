@@ -36,7 +36,11 @@ A dependency keeps its workspace version when:
 
 * its line carries the ``# use next version`` comment (it needs an unreleased version),
 * it declares no lower bound (the lowest release would be arbitrarily old),
-* no final release on PyPI satisfies the requirements (e.g. only a release candidate exists).
+* no final release on PyPI satisfies the requirements (e.g. only a release candidate exists),
+* another installed provider's own pyproject.toml marks *its* dependency on it with
+  ``# use next version``: that provider needs unreleased content the numeric intersection
+  cannot see, so a release chosen to satisfy every requirer's stated bound can still be too
+  old for that one.
 
 It runs in the environment ``uv sync`` just produced, so it only uses the standard library
 and ``packaging``/``tomli``, which ``pytest`` always brings in.
@@ -110,9 +114,19 @@ def has_lower_bound(specifier: SpecifierSet) -> bool:
     return any(spec.operator in LOWER_BOUND_OPERATORS for spec in specifier)
 
 
+def _requirer_needs_unreleased_version(pyproject_text: str, wanted: str) -> bool:
+    """Return whether ``pyproject_text`` marks its own dependency on ``wanted`` unreleased."""
+    return any(
+        canonicalize_name(requirement.name) == wanted and uses_next_version
+        for requirement, uses_next_version in get_cross_provider_requirements(pyproject_text)
+    )
+
+
 def combined_specifier(
-    name: str, installed_requirements: dict[str, list[str]]
-) -> tuple[SpecifierSet, list[str]]:
+    name: str,
+    installed_requirements: dict[str, list[str]],
+    provider_pyproject_texts: dict[str, str] | None = None,
+) -> tuple[SpecifierSet, list[str], str | None]:
     """
     Intersect what every installed distribution requires from ``name``.
 
@@ -120,11 +134,20 @@ def combined_specifier(
     Entries behind an extra (``extra == "..."``) are skipped: the providers pulled in through
     extras are installed distributions themselves, with their own base requirements listed.
 
+    ``provider_pyproject_texts`` maps a provider distribution's name to its own pyproject.toml
+    text. A requirer's declared numeric lower bound on ``name`` is only trustworthy when that
+    requirer's own pyproject.toml does not mark the dependency ``# use next version`` — such a
+    requirer needs unreleased content no PyPI release has yet, so its bound is excluded from the
+    intersection and its name is returned as the third element instead, telling the caller that
+    no release of ``name`` can satisfy every requirer.
+
     Also returns ``distribution (requirement)`` for each requirer, so the log can show which one
     sets the floor when it is higher than the tested provider's own lower bound.
     """
+    provider_pyproject_texts = provider_pyproject_texts or {}
     specifier = SpecifierSet()
     requirers = []
+    unreleased_requirer: str | None = None
     wanted = canonicalize_name(name)
     for distribution, requires in sorted(installed_requirements.items()):
         for entry in requires:
@@ -142,10 +165,14 @@ def combined_specifier(
                 continue
             if requirement.marker and not requirement.marker.evaluate({"extra": ""}):
                 continue
+            requirer_pyproject = provider_pyproject_texts.get(canonicalize_name(distribution))
+            if requirer_pyproject and _requirer_needs_unreleased_version(requirer_pyproject, wanted):
+                unreleased_requirer = distribution
+                continue
             specifier &= requirement.specifier
             if requirement.specifier:
                 requirers.append(f"{distribution} ({requirement.specifier})")
-    return specifier, requirers
+    return specifier, requirers, unreleased_requirer
 
 
 def lowest_final_release(specifier: SpecifierSet, releases: dict[str, list[dict]]) -> Version | None:
@@ -169,6 +196,7 @@ def decide(
     pyproject_text: str,
     installed_requirements: dict[str, list[str]],
     fetch_releases,
+    provider_pyproject_texts: dict[str, str] | None = None,
 ) -> list[Decision]:
     """Decide once, against ``installed_requirements`` as given."""
     decisions = []
@@ -180,7 +208,19 @@ def decide(
         if not has_lower_bound(requirement.specifier):
             decisions.append(Decision(name, None, "no lower bound declared"))
             continue
-        installed_specifier, requirers = combined_specifier(name, installed_requirements)
+        installed_specifier, requirers, unreleased_requirer = combined_specifier(
+            name, installed_requirements, provider_pyproject_texts
+        )
+        if unreleased_requirer:
+            decisions.append(
+                Decision(
+                    name,
+                    None,
+                    f"{unreleased_requirer} needs an unreleased release of '{name}' "
+                    "(marked '# use next version')",
+                )
+            )
+            continue
         specifier = installed_specifier & requirement.specifier
         required_by = f"; required by: {', '.join(requirers)}" if requirers else ""
         version = lowest_final_release(specifier, fetch_releases(name))
@@ -203,6 +243,7 @@ def decide_until_stable(
     installed_requirements: dict[str, list[str]],
     fetch_releases,
     fetch_requires_dist,
+    provider_pyproject_texts: dict[str, str] | None = None,
 ) -> list[Decision]:
     """
     Repeat :func:`decide`, replacing each pinned provider's requirements by those of the pinned release.
@@ -213,7 +254,7 @@ def decide_until_stable(
     requirements = dict(installed_requirements)
     previous_pins: list[str | None] | None = None
     for _ in range(MAX_ITERATIONS):
-        decisions = decide(pyproject_text, requirements, fetch_releases)
+        decisions = decide(pyproject_text, requirements, fetch_releases, provider_pyproject_texts)
         pins = [decision.pin for decision in decisions]
         if pins == previous_pins:
             return decisions
@@ -268,10 +309,33 @@ def get_installed_requirements() -> dict[str, list[str]]:
     }
 
 
+def find_provider_pyproject_texts() -> dict[str, str]:
+    """Map each provider distribution's canonical name to the text of its own pyproject.toml.
+
+    Lets :func:`combined_specifier` tell whether a requirer's declared bound on a dependency is
+    trustworthy, or whether that requirer actually needs unreleased content (marked
+    ``# use next version`` in its own pyproject.toml) that no PyPI release can satisfy.
+    """
+    texts: dict[str, str] = {}
+    for pyproject in (AIRFLOW_ROOT_PATH / "providers").glob("**/pyproject.toml"):
+        text = pyproject.read_text()
+        try:
+            name = tomllib.loads(text).get("project", {}).get("name")
+        except tomllib.TOMLDecodeError:
+            continue
+        if name:
+            texts[canonicalize_name(name)] = text
+    return texts
+
+
 def main(provider_id: str) -> int:
     pyproject = AIRFLOW_ROOT_PATH / "providers" / provider_id.replace(".", "/") / "pyproject.toml"
     decisions = decide_until_stable(
-        pyproject.read_text(), get_installed_requirements(), fetch_pypi_releases, fetch_pypi_requires_dist
+        pyproject.read_text(),
+        get_installed_requirements(),
+        fetch_pypi_releases,
+        fetch_pypi_requires_dist,
+        find_provider_pyproject_texts(),
     )
     for decision in decisions:
         action = f"install {decision.pin}" if decision.pin else "keep workspace version"
