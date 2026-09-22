@@ -49,6 +49,8 @@ class S3ToMySqlOperator(BaseOperator):
     template_fields: Sequence[str] = (
         "s3_source_key",
         "mysql_table",
+        "aws_conn_id",
+        "mysql_conn_id",
     )
     template_ext: Sequence[str] = ()
     ui_color = "#f4a460"

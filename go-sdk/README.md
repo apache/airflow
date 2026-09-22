@@ -74,67 +74,65 @@ known limitation.
 
 ## Authoring a bundle
 
-Implement `bundlev1.BundleProvider`, register your Dags and tasks, and `main` is one line. From
+Build a bundle with `airflow.Bundle()`, register a handler for each task, and call `Serve` last. From
 [`example/bundle/main.go`](./example/bundle/main.go):
 
 ```go
-type myBundle struct{}
-
-var _ v1.BundleProvider = (*myBundle)(nil)
-
-func (m *myBundle) RegisterDags(dagbag v1.Registry) error {
-    simpleDag := dagbag.AddDag("simple_dag")
-    simpleDag.AddTask(extract)
-    simpleDag.AddTask(transform)
-    return nil
-}
-
 func main() {
-    if err := bundlev1server.Serve(&myBundle{}); err != nil {
+    bundle := airflow.Bundle()
+
+    bundle.Register(
+        airflow.TaskHandler("simple_dag", "extract", extract),
+        airflow.TaskHandler("simple_dag", "transform", transform),
+    )
+
+    if err := bundle.Serve(); err != nil {
         log.Fatal(err)
     }
 }
 ```
 
-A task is an ordinary Go function. The runtime inspects its signature and injects arguments by type:
-`sdk.TIRunContext`, `*slog.Logger`, and an `sdk.Client` (or a narrower interface such as
-`sdk.VariableClient`). An optional `(any, error)` return becomes the task's XCom; an `error` return marks
-the task failed.
+`TaskHandler` names the `dag_id` and the `task_id` explicitly; neither is derived from the Go function
+name, so a handler can be called whatever reads best in Go. It checks the signature of the function and
+panics if the check fails, which stops the executable as it starts rather than when the task first runs.
+A package that defines handlers of its own can export them as a `[]airflow.Registerable` for `main` to
+pass on with `bundle.Register(reports.Handlers()...)`.
 
-Any other parameter is a **data parameter**, filled in declaration order from the arguments of the
-Python stub Dag's TaskFlow call. A literal in the Dag file (`transform("uk", ...)`) decodes straight
-into the parameter; an upstream task's output (`transform(..., extract())`) is pulled from that
-task's XCom in the current Dag run. If the argument count doesn't match, or an argument's declared
-type can't fill the Go type, the task fails before its body runs.
+A task is an ordinary Go function whose first parameter is an [`airflow.Context`](#the-task-context).
+An optional `(any, error)` return becomes the task's XCom; an `error` return marks the task failed.
+
+Every parameter after the Context is a **data parameter**, filled in declaration order from the
+arguments of the Python stub Task's TaskFlow call. A literal in the Dag file (`transform("uk", ...)`)
+decodes straight into the parameter; an upstream task's output (`transform(..., extract())`) is
+pulled from that task's XCom in the current Dag run. If the argument count doesn't match, or an
+argument's declared type can't fill the Go type, the task fails before its body runs.
 
 Stub parameters the Dag author left at their Python defaults are the exception: they reach the wire
 but need no Go parameter, so adding a defaulted parameter to a stub doesn't break the Go functions
 already bound to it.
 
 ```go
-func extract(ctx sdk.TIRunContext, client sdk.Client, log *slog.Logger) (any, error) {
-    conn, err := client.GetConnection(ctx, "test_http")
-    // ... do work, honour ctx cancellation ...
+func extract(actx airflow.Context) (any, error) {
+    conn, err := actx.Client().GetConnection(actx, "test_http")
+    // ... do work, honour actx cancellation ...
     return map[string]any{"go_version": runtime.Version()}, nil
 }
 
 // The stub's literal and XCom arguments bind to country and extracted.
-func transform(
-    ctx sdk.TIRunContext, client sdk.VariableClient, log *slog.Logger,
-    country string, extracted map[string]any,
-) error {
-    val, err := client.GetVariable(ctx, "my_variable")
+func transform(actx airflow.Context, country string, extracted map[string]any) error {
+    val, err := actx.Client().GetVariable(actx, "my_variable")
     if err != nil {
         return err
     }
-    log.Info("Obtained variable", "my_variable", val, "country", country)
+    actx.Logger().InfoContext(actx, "Obtained variable", "my_variable", val, "country", country)
     return nil
 }
 ```
 
-Asking for the narrowest interface a task needs (e.g. `sdk.VariableClient` instead of `sdk.Client`) makes
-unit testing easier and documents which Airflow features the task touches. `RegisterDags` is the single
-source of truth for which `dag_id`s and `task_id`s a bundle can run.
+The `Register` calls are the single source of truth for which `dag_id`s and `task_id`s a bundle can run.
+A helper a task calls can still ask for the narrowest interface it needs (e.g. `sdk.VariableClient`
+instead of `sdk.Client`), which documents the Airflow features it touches and lets a test pass a fake;
+a handler itself takes the Context and reaches the client through it.
 
 ### Name-based struct binding
 
@@ -148,8 +146,8 @@ type CombineInput struct {
     Threshold float64
 }
 
-// The stub Dag calls combine(region_code="uk", threshold=0.5).
-func Combine(ctx sdk.TIRunContext, log *slog.Logger, input CombineInput) (any, error) {
+// The Python stub Task calls combine(region_code="uk", threshold=0.5).
+func Combine(actx airflow.Context, input CombineInput) (any, error) {
     return nil, nil
 }
 ```
@@ -169,37 +167,54 @@ data parameters is rejected at registration. A sole struct parameter also falls 
 decoding when it gets exactly one passed argument no field claims, so a task can still take an
 upstream object as a single argument.
 
-### Reading the task runtime context
+### The task context
 
-Declare an `sdk.TIRunContext` parameter on a task to read the identifiers and scheduling timestamps of the
-running task instance and its Dag run -- the Go equivalent of the execution context the Python and Java SDKs
-expose. It is an interface that embeds `context.Context`, so the same `ctx` drives cancellation and client
-calls. The runtime binds it by type, just like the other injected parameters:
+`airflow.Context` is the first parameter of every task handler. Everything Airflow gives the task is a method on it:
+
+| Method | What it returns |
+| --- | --- |
+| `actx.Logger()` | the `*slog.Logger` that writes to the task's Airflow log |
+| `actx.Client()` | the `sdk.Client` for Variables, Connections and XCom |
+| `actx.TaskInstance()` | `DagID`, `RunID`, `TaskID`, `MapIndex` (nil for an unmapped task), `TryNumber` |
+| `actx.DagRun()` | `DagID`, `RunID`, and the `*time.Time` fields `LogicalDate`, `DataIntervalStart`, `DataIntervalEnd` (nil when the run has no such value, e.g. a manual trigger) |
+
+It is itself a `context.Context`, so pass it straight to a client call or to
+`http.NewRequestWithContext`, and select on `actx.Done()`, which fires when the supervisor asks the
+task to stop. Cleanup that must outlive that cancellation runs under `context.WithoutCancel(actx)`.
+A helper typed as a plain `context.Context` recovers the same surface with `airflow.FromContext`.
 
 ```go
-func extract(ctx sdk.TIRunContext, log *slog.Logger) (any, error) {
-    ti := ctx.TaskInstance()
-    log.Info("running",
+func extract(actx airflow.Context) (any, error) {
+    ti := actx.TaskInstance()
+    actx.Logger().InfoContext(actx, "running",
         "dag_id", ti.DagID,
         "run_id", ti.RunID,
         "task_id", ti.TaskID,
         "try_number", ti.TryNumber,
-        "logical_date", ctx.DagRun().LogicalDate,
+        "logical_date", actx.DagRun().LogicalDate,
     )
     return nil, nil
 }
 ```
 
-`ctx.TaskInstance()` returns `DagID`, `RunID`, `TaskID`, `MapIndex` (nil for an unmapped task), and
-`TryNumber`; `ctx.DagRun()` returns `DagID`, `RunID`, and the `*time.Time` fields `LogicalDate`,
-`DataIntervalStart`, and `DataIntervalEnd` (nil when the run has no such value, e.g. a manual trigger).
+`airflow.NewContext` builds one, so a handler is an ordinary function call in a unit test -- see
+[`example/bundle/main_test.go`](./example/bundle/main_test.go):
+
+```go
+actx := airflow.NewContext(
+    context.Background(), slog.Default(), &mockVars{},
+    airflow.TaskInstance{}, airflow.DagRun{},
+)
+err := transform(actx, "uk", map[string]any{"go_version": "go1.24"})
+assert.NoError(t, err)
+```
 
 ### Task logging
 
-In coordinator mode, the injected logger filters records using Airflow's configured `[logging] logging_level` before sending them to the supervisor. Airflow also propagates `[logging] namespace_levels`; use a group-scoped logger to set the namespace:
+In coordinator mode, the logger from `actx.Logger()` filters records using Airflow's configured `[logging] logging_level` before sending them to the supervisor. Airflow also propagates `[logging] namespace_levels`; use a group-scoped logger to set the namespace:
 
 ```go
-databaseLog := log.WithGroup("example.database")
+databaseLog := actx.Logger().WithGroup("example.database")
 databaseLog.Debug("query complete", "rows", 42)
 ```
 

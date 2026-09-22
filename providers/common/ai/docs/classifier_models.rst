@@ -23,8 +23,8 @@ some text and a typed question, and it answers with a value from a set you named
 advance, plus a confidence. Ask it for a string and the request is refused before it
 leaves your process.
 
-TypeSafe's Jev is the one pydantic-ai supports, as the ``typesafe:`` provider. Nothing in
-this provider is specific to it -- it arrives through the same
+`TypeSafe <https://typesafe.ai>`__'s Jev is the one pydantic-ai supports, as the
+``typesafe:`` provider. Nothing in this provider is specific to it -- it arrives through the same
 :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook` as every other
 model, so a model id is the whole integration.
 
@@ -46,7 +46,7 @@ Setup
 
    - **Connection Id**: ``jev_default``
    - **Connection Type**: ``Pydantic AI``
-   - **Password**: your TypeSafe API key
+   - **Password**: your TypeSafe API key, from your `TypeSafe account <https://typesafe.ai>`__
    - **Extra**: ``{"model": "typesafe:jev-1.13.0"}``
 
 Leave **Host** empty unless you are pointing at a proxy; the provider defaults to
@@ -112,14 +112,16 @@ Where it fits in this provider
      - A ``Literal``, ``Enum``, ``bool`` or bounded number works. Describe the field, which
        becomes the question, and describe each option, which is what tells them apart. An
        option with no description is read from its name alone.
-   * - :doc:`LLMRetryPolicy <retry_policies>`
+   * - :doc:`ClassifierRetryPolicy <retry_policies>`
      - Yes
      - The model names one of the policy's ``categories`` and nothing else; retry or
        fail, the delay and the confidence bar come from each category's entry in the
-       worker. Set ``model_id`` and ``min_confidence``, and an unsure answer goes to
-       ``fallback_rules`` and then the task's own retry behaviour, instead of ending the
-       task on the model's say-so. This is the surface where
-       the model's speed and price matter most: it runs on every task failure.
+       worker. Set ``min_confidence`` and an unsure answer goes to ``fallback_policy``
+       (typically an ``LLMRetryPolicy`` on a text model), then ``fallback_rules``, then
+       the task's own retry behaviour, instead of ending the task on the model's say-so.
+       ``LLMRetryPolicy`` itself asks for free text, which a classifier model refuses.
+       This is the surface where the model's speed and price matter most: it runs on
+       every task failure.
    * - Agents with toolsets
      - Partly
      - Which tool the text calls for is itself a pick, so a classifier model can make it.
@@ -140,8 +142,8 @@ and :class:`~airflow.providers.common.ai.operators.llm.LLMOperator` take a
 ``decision_policy`` whose ``min_confidence`` sends an unsure answer to a person, or fails
 the task, before anything downstream runs on it, and record the confidence, the
 probabilities and the bar in the ``decision`` XCom (see :doc:`operators/llm_branch`).
-:doc:`LLMRetryPolicy <retry_policies>` takes the same ``min_confidence`` and hands an unsure
-answer to its deterministic fallback rules. In the branch operator and the retry policy, a
+:doc:`ClassifierRetryPolicy <retry_policies>` takes the same ``min_confidence`` and hands an
+unsure answer to ``fallback_policy``, then its deterministic fallback rules. In the branch operator and the retry policy, a
 per-option bar lets the choice whose wrong pick costs most demand more certainty than the rest.
 
 Outside those, read it yourself. ``AgentOperator`` carries it inside the ``message_history``
@@ -180,7 +182,8 @@ classification that escalates when the confidence is low.
 What it answers badly
 ---------------------
 
-Read `pydantic-ai's model page <https://pydantic.dev/docs/ai/models/typesafe/>`__ before you
+Read `pydantic-ai's model page <https://pydantic.dev/docs/ai/models/typesafe/>`__ and
+`TypeSafe's own documentation <https://docs.typesafe.ai/>`__ before you
 trust a number from one of these models. Two of its failure modes matter more than the
 rest in a Dag:
 

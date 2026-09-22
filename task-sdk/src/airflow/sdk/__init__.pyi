@@ -102,6 +102,7 @@ from airflow.sdk.definitions.partition_mappers.window import (
     YearWindow,
 )
 from airflow.sdk.definitions.retry_policy import (
+    ChainRetryPolicy as ChainRetryPolicy,
     ExceptionRetryPolicy as ExceptionRetryPolicy,
     RetryAction as RetryAction,
     RetryDecision as RetryDecision,
@@ -156,6 +157,7 @@ __all__ = [
     "BaseXCom",
     "BranchMixIn",
     "ChainMapper",
+    "ChainRetryPolicy",
     "Connection",
     "Context",
     "CronDataIntervalTimetable",

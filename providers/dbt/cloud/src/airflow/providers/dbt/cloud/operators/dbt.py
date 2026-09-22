@@ -482,6 +482,7 @@ class DbtCloudListJobsOperator(BaseOperator):
     template_fields = (
         "account_id",
         "project_id",
+        "dbt_cloud_conn_id",
     )
 
     def __init__(
@@ -541,6 +542,7 @@ class DbtCloudListJobRunsOperator(BaseOperator):
         "job_id",
         "order_by",
         "include_related",
+        "dbt_cloud_conn_id",
     )
 
     def __init__(

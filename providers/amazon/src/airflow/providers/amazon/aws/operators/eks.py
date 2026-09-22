@@ -886,7 +886,7 @@ class EksDeleteClusterOperator(AwsBaseOperator[EksHook]):
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         validated_event = validate_execute_complete_event(event)
 
-        if validated_event["status"] == "success":
+        if validated_event["status"] == "deleted":
             self.log.info("Cluster deleted successfully.")
 
 

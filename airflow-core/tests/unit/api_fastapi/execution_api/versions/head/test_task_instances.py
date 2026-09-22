@@ -316,6 +316,7 @@ class TestTIRunState:
             "variables": [],
             "connections": [],
             "xcom_keys_to_clear": [],
+            "multi_team": False,
         }
         # upstream_map_indexes is now computed by Task SDK, not returned by the server in HEAD version
         assert "upstream_map_indexes" not in result
@@ -831,6 +832,7 @@ class TestTIRunState:
             "variables": [],
             "connections": [],
             "xcom_keys_to_clear": [],
+            "multi_team": False,
             "next_method": "execute_complete",
             "next_kwargs": expected_next_kwargs,
             "start_date": None,
@@ -906,6 +908,7 @@ class TestTIRunState:
             "variables": [],
             "connections": [],
             "xcom_keys_to_clear": [],
+            "multi_team": False,
             "next_method": "execute_complete",
             "next_kwargs": expected_next_kwargs,
         }
@@ -1115,6 +1118,46 @@ class TestTIRunState:
         assert dag_run["dag_id"] == ti.dag_id
         assert dag_run["run_id"] == "test"
         assert dag_run["state"] == "running"
+
+    @pytest.mark.parametrize(
+        ("multi_team_enabled", "expected"),
+        [
+            pytest.param("False", False, id="multi-team-disabled"),
+            pytest.param("True", True, id="multi-team-enabled"),
+        ],
+    )
+    def test_ti_run_reports_multi_team(
+        self, client, session, create_task_instance, time_machine, multi_team_enabled, expected
+    ):
+        """The worker cannot read ``core.multi_team`` itself, so the run context carries it."""
+        instant_str = "2024-09-30T12:00:00Z"
+        instant = timezone.parse(instant_str)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_run_reports_multi_team",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=instant,
+            dag_id=str(uuid4()),
+        )
+        session.commit()
+
+        with conf_vars({("core", "multi_team"): multi_team_enabled}):
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "random-hostname",
+                    "unixname": "random-unixname",
+                    "pid": 100,
+                    "start_date": instant_str,
+                },
+            )
+
+        assert response.status_code == 200
+        assert response.json()["multi_team"] is expected
 
     @pytest.mark.parametrize(
         ("multi_team_enabled", "expect_team"),
