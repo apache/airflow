@@ -71,6 +71,7 @@ Getting started
 * :doc:`installation` — which extra to install for your model vendor.
 * :doc:`quickstart` — a connection and a first ``@task.llm`` in three steps.
 * :doc:`concepts` — connections, operators, toolsets, hooks and XCom in one page.
+* :doc:`use_cases/index` — jobs a data team already has, each with the Dag that does it.
 
 .. toctree::
     :hidden:
@@ -90,6 +91,23 @@ Getting started
     Quick start <quickstart>
     Core concepts <concepts>
     Structured output <structured_output>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: What you can build
+
+    Overview <use_cases/index>
+    Triage support tickets <use_cases/triage_support_tickets>
+    Route pipeline failures <use_cases/route_pipeline_failures>
+    Block a load on schema drift <use_cases/gate_loads_on_schema_drift>
+    Explain a revenue anomaly <use_cases/explain_revenue_anomaly>
+    Monthly report from a CSV <use_cases/monthly_report_from_a_csv>
+    Compare 10-K filings <use_cases/compare_10k_filings>
+    Ask questions over PDFs <use_cases/ask_questions_over_pdfs>
+    Weekly status report <use_cases/weekly_status_report>
+    Classify reviews in bulk <use_cases/classify_reviews_in_bulk>
+    Research agent with review <use_cases/research_agent_with_review>
 
 .. toctree::
     :hidden:
@@ -172,16 +190,9 @@ Getting started
 .. toctree::
     :hidden:
     :maxdepth: 1
-    :caption: Examples
-
-    Examples by scenario <examples>
-    End-to-end pipelines <end_to_end_pipelines>
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
     :caption: References
 
+    All example Dags <examples>
     Configuration <configurations-ref>
     Python API <_api/airflow/providers/common/ai/index>
 

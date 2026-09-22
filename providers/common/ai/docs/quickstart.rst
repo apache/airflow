@@ -83,6 +83,7 @@ requirements.
 Where to go next
 -----------------
 
+- :doc:`use_cases/index` — start here for what to build.
 - :doc:`operators/index` — the full set of operators and ``@task`` decorators
   (file analysis, SQL, branching, schema comparison).
 - :doc:`toolsets/index` — give an agent tools built from Airflow hooks, SQL
