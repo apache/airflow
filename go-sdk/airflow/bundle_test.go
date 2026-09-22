@@ -19,6 +19,7 @@ package airflow
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"reflect"
@@ -114,6 +115,27 @@ func TestRegisterRejectsDuplicateTask(t *testing.T) {
 		func() { b.Register(TaskHandler("reports", "transform", noop)) },
 		"the same task_id under another dag_id is a different task",
 	)
+}
+
+func TestRegisterAfterServePanics(t *testing.T) {
+	b := Bundle()
+	b.Register(TaskHandler("py_etl", "transform", noop))
+	require.NoError(t, b.serve([]string{"--airflow-metadata"}, io.Discard))
+
+	assert.PanicsWithValue(t,
+		`airflow.BundleRef.Register: task "load" of Dag "py_etl" was registered after Serve; `+
+			`register every task handler before Serve`,
+		func() { b.Register(TaskHandler("py_etl", "load", noop)) },
+	)
+}
+
+// Serve closes registration whatever the run does, so a bundle that only printed its usage
+// still refuses a late Register.
+func TestRegisterAfterAFailedServePanics(t *testing.T) {
+	b := Bundle()
+	require.NoError(t, b.serve([]string{"--help"}, io.Discard))
+
+	assert.Panics(t, func() { b.Register(TaskHandler("py_etl", "transform", noop)) })
 }
 
 func TestRegisterIsSafeForConcurrentUse(t *testing.T) {
