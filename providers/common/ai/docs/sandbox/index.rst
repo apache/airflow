@@ -385,8 +385,8 @@ is the list to read before designing a Dag around an agent with a sandbox.
 - **A credential cannot come from a connection or a secrets backend**; the spec is
   fixed at parse time, and anything injected is readable by the model.
   :ref:`Credentials <sandbox-credentials>`.
-- **Do not combine with** ``durable=True`` **or** ``enable_hitl_review=True``.
-  Neither is rejected today. :ref:`Lifecycle <sandbox-lifecycle>`.
+- **Cannot be combined with** ``durable=True`` **or** ``enable_hitl_review=True``;
+  ``AgentOperator`` raises. :ref:`Lifecycle <sandbox-lifecycle>`.
 - **A run that outlives** ``sandbox_timeout`` **fails the task.**
   :ref:`Lifecycle <sandbox-lifecycle>`.
 - **The hostname allowlist is a weak control** and refused unless opted into.

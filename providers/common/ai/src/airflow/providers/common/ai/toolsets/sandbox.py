@@ -280,6 +280,16 @@ class SandboxToolset(AbstractToolset[Any]):
             # __aexit__ can destroy a sandbox created during cancellation.
             self._sandbox = await create_task
             raise
+        except SandboxTerminalError:
+            raise
+        except SandboxError as e:
+            # Provisioning takes only the spec, which the model cannot see or change,
+            # so no retry the model makes can turn a failed create into a working
+            # sandbox. Fail the task and let Airflow's retry try the provisioning
+            # again, rather than spending the model's retry budget on it.
+            raise SandboxTerminalError(
+                f"Could not provision a sandbox on backend {self._backend.name!r}: {e}"
+            ) from e
         else:
             self._sandbox = sandbox
             return sandbox

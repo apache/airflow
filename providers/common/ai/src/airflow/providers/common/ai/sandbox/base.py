@@ -36,7 +36,9 @@ class SandboxError(Exception):
     A sandbox operation failed in a way the agent may be able to work around.
 
     The toolset turns this into a ``ModelRetry`` so the model can adjust and try
-    again within the run (a bad path, a command the image cannot run).
+    again within the run (a bad path, a command the image cannot run). Raised
+    from :meth:`SandboxBackend.create` it is treated as terminal instead, since
+    the model cannot influence provisioning.
     """
 
 
@@ -171,6 +173,12 @@ class SandboxBackend(ABC):
         backend cannot enforce, rather than provisioning something weaker than
         was asked for. It is terminal rather than recoverable because it states
         a configuration fact the model cannot see and cannot fix by retrying.
+
+        Every failure raised here is terminal, whichever class carries it. The
+        model has no input into provisioning, so a :class:`SandboxError` from
+        ``create`` is not something it can work around; the toolset re-raises one
+        as :class:`SandboxTerminalError` and fails the task, so Airflow's retry
+        attempts the provisioning again.
         """
 
     @abstractmethod
