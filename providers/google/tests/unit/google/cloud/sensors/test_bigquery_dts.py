@@ -106,3 +106,19 @@ class TestBigQueryDataTransferServiceTransferRunSensor:
         op.expected_statuses = "succeeded"
 
         assert op.poke({}) is True
+
+    @mock.patch(
+        "airflow.providers.google.cloud.sensors.bigquery_dts.BiqQueryDataTransferServiceHook",
+        return_value=MM(get_transfer_run=MM(return_value=MM(state=TransferState.SUCCEEDED))),
+    )
+    def test_poke_raises_value_error_for_invalid_expected_status(self, mock_hook):
+        op = BigQueryDataTransferServiceTransferRunSensor(
+            transfer_config_id=TRANSFER_CONFIG_ID,
+            run_id=RUN_ID,
+            task_id="id",
+            project_id=PROJECT_ID,
+            expected_statuses="SUCCESS",
+        )
+
+        with pytest.raises(ValueError, match="SUCCESS.*Valid statuses.*SUCCEEDED"):
+            op.poke({})

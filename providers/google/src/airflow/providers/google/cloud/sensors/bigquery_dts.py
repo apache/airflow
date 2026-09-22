@@ -110,9 +110,15 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         result = set()
         for state in states:
             if isinstance(state, str):
-                # The proto.Enum type is indexable (via MetaClass and aliased) but MyPy is not able to
-                # infer this https://github.com/python/mypy/issues/8968
-                result.add(TransferState[state.upper()])  # type: ignore[misc]
+                try:
+                    # The proto.Enum type is indexable (via MetaClass and aliased) but MyPy is not able to
+                    # infer this https://github.com/python/mypy/issues/8968
+                    result.add(TransferState[state.upper()])  # type: ignore[misc]
+                except KeyError:
+                    raise ValueError(
+                        f"Invalid expected status {state!r}. "
+                        f"Valid statuses: {sorted(TransferState.__members__)}"
+                    ) from None
             elif isinstance(state, int):
                 result.add(TransferState(state))
             elif isinstance(state, TransferState):
