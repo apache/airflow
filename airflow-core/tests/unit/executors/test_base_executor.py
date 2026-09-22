@@ -106,9 +106,9 @@ def test_get_event_buffer():
     key2 = TaskInstanceKey("my_dag2", "my_task1", date, try_number)
     key3 = TaskInstanceKey("my_dag2", "my_task2", date, try_number)
     state = State.SUCCESS
-    executor.event_buffer[key1] = state, None
-    executor.event_buffer[key2] = state, None
-    executor.event_buffer[key3] = state, None
+    executor.event_buffer[key1] = state, None, None
+    executor.event_buffer[key2] = state, None, None
+    executor.event_buffer[key3] = state, None, None
 
     assert len(executor.get_event_buffer(("my_dag1",))) == 1
     assert len(executor.get_event_buffer()) == 2
@@ -123,8 +123,8 @@ def test_get_event_buffer_always_includes_callback_keys():
     ti_key = TaskInstanceKey("my_dag1", "my_task1", date, 1)
     callback_key = CallbackKey(id="00000000-0000-0000-0000-000000000042")
 
-    executor.event_buffer[ti_key] = State.SUCCESS, None
-    executor.event_buffer[callback_key] = CallbackState.SUCCESS, None
+    executor.event_buffer[ti_key] = State.SUCCESS, None, None
+    executor.event_buffer[callback_key] = CallbackState.SUCCESS, None, None
 
     # Filter for a dag that doesn't match the TI key. Callback should still be included
     result = executor.get_event_buffer(("other_dag",))

@@ -544,7 +544,7 @@ class TestSchedulerJob:
         session.merge(ti1)
         session.commit()
 
-        executor.event_buffer[ti1.key] = State.FAILED, None
+        executor.event_buffer[ti1.key] = State.FAILED, None, None
 
         self.job_runner._process_executor_events(executor=executor, session=session)
         ti1.refresh_from_db(session=session)
@@ -555,7 +555,7 @@ class TestSchedulerJob:
         ti1.state = State.SUCCESS
         session.merge(ti1)
         session.commit()
-        executor.event_buffer[ti1.key] = State.SUCCESS, None
+        executor.event_buffer[ti1.key] = State.SUCCESS, None, None
 
         self.job_runner._process_executor_events(executor=executor, session=session)
         ti1.refresh_from_db(session=session)
@@ -620,7 +620,7 @@ class TestSchedulerJob:
         job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
 
         # Simulate executor reporting task completion (this triggers the bug scenario)
-        executor.event_buffer[ti1.key] = State.SUCCESS, None
+        executor.event_buffer[ti1.key] = State.SUCCESS, None, None
 
         # Process the executor event
         job_runner._process_executor_events(executor=executor, session=session)
@@ -676,7 +676,7 @@ class TestSchedulerJob:
         session.merge(ti1)
         session.commit()
 
-        executor.event_buffer[ti1.key] = State.FAILED, None
+        executor.event_buffer[ti1.key] = State.FAILED, None, None
 
         self.job_runner._process_executor_events(executor=executor, session=session)
         ti1.refresh_from_db(session=session)
@@ -687,7 +687,7 @@ class TestSchedulerJob:
         ti1.state = State.SUCCESS
         session.merge(ti1)
         session.commit()
-        executor.event_buffer[ti1.key] = State.SUCCESS, None
+        executor.event_buffer[ti1.key] = State.SUCCESS, None, None
 
         self.job_runner._process_executor_events(executor=executor, session=session)
         ti1.refresh_from_db(session=session)
@@ -777,7 +777,7 @@ class TestSchedulerJob:
         session.merge(ti1)
         session.commit()
 
-        executor.event_buffer[ti1.key] = State.FAILED, None
+        executor.event_buffer[ti1.key] = State.FAILED, None, None
 
         self.job_runner._process_executor_events(executor=executor, session=session)
         ti1.refresh_from_db()
@@ -858,7 +858,7 @@ class TestSchedulerJob:
         session.merge(ti1)
         session.commit()
 
-        executor.event_buffer[ti1.key] = State.FAILED, None
+        executor.event_buffer[ti1.key] = State.FAILED, None, None
         self.job_runner._process_executor_events(executor=executor, session=session)
         ti1.refresh_from_db()
         assert ti1.state == State.FAILED
@@ -895,7 +895,7 @@ class TestSchedulerJob:
         session.merge(ti1)
         session.commit()
 
-        executor.event_buffer[ti1.key.with_try_number(1)] = State.SUCCESS, None
+        executor.event_buffer[ti1.key.with_try_number(1)] = State.SUCCESS, None, None
 
         with caplog.at_level(logging.WARNING, logger="airflow.jobs.scheduler_job_runner"):
             self.job_runner._process_executor_events(executor=executor, session=session)
@@ -910,7 +910,7 @@ class TestSchedulerJob:
         session.merge(ti1)
         session.commit()
 
-        executor.event_buffer[ti1.key] = State.SUCCESS, None
+        executor.event_buffer[ti1.key] = State.SUCCESS, None, None
 
         self.job_runner._process_executor_events(executor=executor, session=session)
         ti1.refresh_from_db(session=session)
@@ -923,7 +923,7 @@ class TestSchedulerJob:
         session.merge(ti1)
         session.commit()
 
-        executor.event_buffer[ti1.key] = State.SUCCESS, None
+        executor.event_buffer[ti1.key] = State.SUCCESS, None, None
         executor.has_task = mock.MagicMock(return_value=True)
 
         self.job_runner._process_executor_events(executor=executor, session=session)
@@ -969,7 +969,7 @@ class TestSchedulerJob:
         session.merge(ti1)
         session.commit()
 
-        executor.event_buffer[ti1.key] = State.SUCCESS, None
+        executor.event_buffer[ti1.key] = State.SUCCESS, None, None
         executor.has_task = mock.MagicMock(return_value=False)
         mock_stats.incr.reset_mock()
 
@@ -986,7 +986,7 @@ class TestSchedulerJob:
         session.merge(ti1)
         session.commit()
 
-        executor.event_buffer[ti1.key] = State.SUCCESS, None
+        executor.event_buffer[ti1.key] = State.SUCCESS, None, None
         mock_stats.incr.reset_mock()
 
         self.job_runner._process_executor_events(executor=executor, session=session)
@@ -1031,7 +1031,7 @@ class TestSchedulerJob:
         session.merge(ti1)
         session.commit()
 
-        executor.event_buffer[ti1.key] = State.SUCCESS, None
+        executor.event_buffer[ti1.key] = State.SUCCESS, None, None
         executor.has_task = mock.MagicMock(return_value=False)
         mock_stats.incr.reset_mock()
 
@@ -1048,7 +1048,7 @@ class TestSchedulerJob:
         session.merge(ti1)
         session.commit()
 
-        executor.event_buffer[ti1.key] = State.SUCCESS, None
+        executor.event_buffer[ti1.key] = State.SUCCESS, None, None
         mock_stats.incr.reset_mock()
 
         self.job_runner._process_executor_events(executor=executor, session=session)
@@ -1210,7 +1210,7 @@ class TestSchedulerJob:
         session.merge(ti1)
         session.commit()
 
-        executor.event_buffer[ti1.key] = State.FAILED, None
+        executor.event_buffer[ti1.key] = State.FAILED, None, None
 
         # This should not raise DetachedInstanceError
         self.job_runner._process_executor_events(executor=executor, session=session)
@@ -1282,7 +1282,7 @@ class TestSchedulerJob:
         session.merge(ti1)
         session.commit()
 
-        executor.event_buffer[ti1.key] = State.FAILED, None
+        executor.event_buffer[ti1.key] = State.FAILED, None, None
 
         callback = self.job_runner._schedule_dag_run(dr, session)
         session.flush()
@@ -5624,7 +5624,7 @@ class TestSchedulerJob:
         old_ti_id = ti.id
 
         executor = MockExecutor(do_update=False)
-        executor.event_buffer[ti.key] = TaskInstanceState.FAILED, None
+        executor.event_buffer[ti.key] = TaskInstanceState.FAILED, None, None
 
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[executor])
@@ -9747,7 +9747,7 @@ class TestSchedulerJob:
         session.commit()
 
         # Executor reports task finished (FAILED) while TI still QUEUED -> external kill path
-        executor.event_buffer[ti.key] = State.FAILED, None
+        executor.event_buffer[ti.key] = State.FAILED, None, None
 
         self.job_runner._process_executor_events(executor=executor, session=session)
 
@@ -9790,7 +9790,7 @@ class TestSchedulerJob:
         executor = MockExecutor(do_update=False)
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
-        executor.event_buffer[ti.key] = State.FAILED, None
+        executor.event_buffer[ti.key] = State.FAILED, None, None
 
         self.job_runner._process_executor_events(executor=executor, session=session)
 

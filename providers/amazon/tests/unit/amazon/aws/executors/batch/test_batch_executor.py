@@ -1012,6 +1012,8 @@ class TestAwsBatchExecutor:
             # ExecuteTask.make() sources version_data from the run's pinned version.
             task.dag_run.created_dag_version = mock.Mock(version_data=None)
             task.dag_run.context_carrier = {}
+            # Avoid MagicMock for TaskInstanceDTO.workload_run_id (str | None).
+            task.workload_run_id = None
 
             if not AIRFLOW_V_3_0_PLUS:
                 task.command_as_list.return_value = [

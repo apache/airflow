@@ -722,7 +722,7 @@ class TestQueueWorkload:
         executor.sync()
 
         reported_states = TaskInstanceState if isinstance(workload, ExecuteTask) else CallbackState
-        assert executor.get_event_buffer() == {workload.key: (reported_states(reported_state), None)}
+        assert executor.get_event_buffer() == {workload.key: (reported_states(reported_state), None, None)}
 
     def test_sync_keeps_slot_while_worker_claims_job(self):
         executor = EdgeExecutor()
@@ -747,7 +747,7 @@ class TestQueueWorkload:
             session.commit()
         executor.sync()
 
-        assert executor.get_event_buffer() == {workload.ti.key: (TaskInstanceState.RUNNING, None)}
+        assert executor.get_event_buffer() == {workload.ti.key: (TaskInstanceState.RUNNING, None, None)}
 
     def test_sync_reports_job_that_finishes_after_being_marked_removed(self):
         executor = EdgeExecutor()
@@ -764,7 +764,7 @@ class TestQueueWorkload:
                 session.commit()
             executor.sync()
 
-        assert executor.get_event_buffer() == {workload.key: (CallbackState.SUCCESS, None)}
+        assert executor.get_event_buffer() == {workload.key: (CallbackState.SUCCESS, None, None)}
 
     @pytest.mark.parametrize(
         "unhandled_state",
@@ -803,7 +803,7 @@ class TestQueueWorkload:
             session.commit()
         executor.sync()
 
-        assert executor.get_event_buffer() == {workload.key: (TaskInstanceState.RUNNING, None)}
+        assert executor.get_event_buffer() == {workload.key: (TaskInstanceState.RUNNING, None, None)}
 
     @pytest.mark.parametrize(
         "finished_state", [TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.REMOVED]
