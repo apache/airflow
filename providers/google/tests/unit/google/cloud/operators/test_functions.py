@@ -145,6 +145,31 @@ class TestGcfFunctionDeploy:
         mock_hook.assert_not_called()
 
     @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
+    def test_templated_api_version_validates_after_rendering(self, mock_hook):
+        """A templated ``api_version`` must reach ``GcpBodyFieldValidator`` rendered.
+
+        ``sourceRepositoryUrl`` is gated on ``api_version == "v1beta2"`` in
+        ``CLOUD_FUNCTION_VALIDATION``. Building the validator in ``__init__`` pinned it to the
+        un-rendered ``"{{ ... }}"`` string, which matches no gated spec, so every
+        version-specific field was silently skipped and an invalid value passed validation.
+        """
+        body = deepcopy(VALID_BODY)
+        body.pop("sourceArchiveUrl", None)
+        body["sourceRepositoryUrl"] = ""
+        op = CloudFunctionDeployFunctionOperator(
+            project_id=GCP_PROJECT_ID,
+            location=GCP_LOCATION,
+            body=body,
+            api_version="{{ var.value.api_version }}",
+            task_id="id",
+        )
+        # Template rendering replaces the Jinja expression with the resolved value before execute.
+        op.api_version = "v1beta2"
+        with pytest.raises(AirflowException, match="sourceRepositoryUrl"):
+            op.execute(context=mock.MagicMock())
+        mock_hook.return_value.create_new_function.assert_not_called()
+
+    @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
     def test_deploy_execute(self, mock_hook):
         mock_hook.return_value.get_function.side_effect = mock.Mock(
             side_effect=HttpError(resp=MOCK_RESP_404, content=b"not found")
