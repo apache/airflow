@@ -308,4 +308,33 @@ describe("TriggerDAGForm", () => {
     );
     expect(screen.getByLabelText("runId")).toHaveValue("my_custom_run");
   });
+
+  it("hides the recent configuration dropdown when re-triggering with a prior run's config", async () => {
+    const { container } = render(
+      <TriggerDAGForm
+        dagDisplayName="Params Trigger UI"
+        dagId="example_params_trigger_ui"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned={false}
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={vi.fn()}
+        open
+        prefillConfig={{
+          conf: { message: "Original message" },
+          logicalDate: undefined,
+          runId: "manual__test",
+        }}
+      />,
+      { wrapper: Wrapper },
+    );
+
+    await waitFor(() =>
+      expect(container.querySelector<HTMLInputElement>('input[name="element_message"]')?.value).toBe(
+        "Original message",
+      ),
+    );
+    expect(screen.queryByTestId("recent-config-select")).not.toBeInTheDocument();
+  });
 });
