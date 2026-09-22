@@ -19,6 +19,7 @@ from __future__ import annotations
 import builtins
 import importlib
 import json
+import logging
 import sys
 import threading
 
@@ -1050,6 +1051,47 @@ class TestMalformedHelperReply:
             backend.list_directory(handle, "/workspace/missing")
 
         assert "run_command" not in str(caught.value)
+
+
+class TestLivenessProbe:
+    """
+    The probe after a deadline decides whether the handle is kept.
+
+    Only a Modal error is evidence that the sandbox is gone. Anything else raised by the
+    probe says nothing about the sandbox, and the command it follows has already produced
+    its output, so the handle is kept and the result is reported as a plain timeout.
+    """
+
+    def test_a_non_modal_error_in_the_probe_keeps_the_handle(self, backend, fake, caplog):
+        caplog.set_level(logging.DEBUG, logger="airflow.providers.common.ai.sandbox.modal")
+        handle, sandbox = _created(backend, fake)
+        sandbox.process = FakeProcess(returncode=-1)
+        # Let the command through, then fail only the probe that follows it.
+        sandbox.exec_errors = [None, RuntimeError("client hiccup")]
+
+        result = backend.run_command(handle, "sleep 5", timeout=2, max_output_bytes=1024)
+
+        assert result.timed_out is True
+        assert result.sandbox_terminated is False
+        assert "Could not check whether Modal sandbox" in caplog.text
+        # The handle is still cached, so the next command needs no lookup and no create.
+        fake.Sandbox.from_id_error = AssertionError("a kept handle must not be looked up again")
+        sandbox.process = FakeProcess(returncode=0)
+        assert backend.run_command(handle, "true", timeout=2, max_output_bytes=1024).exit_code == 0
+        assert len(fake.Sandbox.by_id) == 1
+
+    def test_a_modal_error_in_the_probe_drops_the_handle(self, backend, fake):
+        handle, sandbox = _created(backend, fake)
+        sandbox.process = FakeProcess(returncode=-1)
+        sandbox.exec_errors = [None, fake.exception.NotFoundError("gone")]
+
+        result = backend.run_command(handle, "sleep 5", timeout=2, max_output_bytes=1024)
+
+        assert result.sandbox_terminated is True
+        # The cached handle is gone, so a later call has to look the sandbox up again.
+        fake.Sandbox.from_id_error = fake.exception.NotFoundError("gone")
+        with pytest.raises(SandboxTerminalError):
+            backend.run_command(handle, "true", timeout=2, max_output_bytes=1024)
 
 
 class TestDestroy:

@@ -239,19 +239,32 @@ lifetime. Human output review is not part of the run: it starts after the agent
 has finished and the sandbox has been destroyed, so a review pause costs no
 sandbox time and keeps no files.
 
+**A failed provisioning fails the task.** The model has no input into ``create``:
+it takes only the spec, which is fixed in the Dag file. So whatever a backend
+raises while provisioning is treated as terminal, even a ``SandboxError`` that
+would have been a model retry from a tool call. The task fails and Airflow's own
+retry attempts the provisioning again, instead of the model spending its retry
+budget on an image tag or a credential it cannot see.
+
 **Nothing survives the run.** A task retry starts from an empty sandbox, and so
-does every other attempt. Two operator features assume otherwise and must not be
-combined with a sandbox today, because neither is rejected:
+does every other attempt. Two operator features assume otherwise, and
+``AgentOperator`` refuses each of them at construction when any toolset, including
+one nested inside ``.prefixed()``, a combined toolset or a ``Toolset`` capability,
+is a ``SandboxToolset``:
 
 - ``durable=True`` caches each tool result and replays it on a retry without
-  calling the backend, so a replayed ``write_file`` reports success while no
-  sandbox exists, and the first call that misses the cache runs against a fresh
-  empty one. The model is handed a filesystem that does not match what it was just
-  told, and nothing raises.
+  calling the backend, so a replayed ``write_file`` would report success while no
+  sandbox exists, and the first call that misses the cache would run against a
+  fresh empty one.
 - ``enable_hitl_review=True`` regenerates after reviewer feedback by starting a
   second agent run, and the first run's sandbox was destroyed when that run ended.
-  The regenerated agent gets an empty sandbox while its own history describes
+  The regenerated agent would get an empty sandbox while its own history describes
   files it wrote earlier.
+
+The two ways out are dropping the flag, or moving the sandbox work into its own
+task and keeping the durable or reviewed agent free of sandbox tools. A toolset
+resolved per run from a callable cannot be inspected when the operator is built,
+so it is the one composition the check does not see.
 
 Cost and operations
 -------------------

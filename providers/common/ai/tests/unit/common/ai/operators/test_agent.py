@@ -37,6 +37,7 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 from pydantic_ai.models.function import AgentInfo, FunctionModel
+from pydantic_ai.toolsets.combined import CombinedToolset
 from pydantic_ai.toolsets.function import FunctionToolset
 from pydantic_ai.usage import RequestUsage, UsageLimits
 
@@ -45,7 +46,9 @@ from airflow.providers.common.ai.durable.caching_toolset import CachingToolset
 from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
 from airflow.providers.common.ai.durable.storage import DurableStorage
 from airflow.providers.common.ai.operators.agent import AgentOperator, HITLReviewLink, _build_code_mode
+from airflow.providers.common.ai.sandbox.base import SandboxBackend
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
+from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
@@ -1210,6 +1213,108 @@ class TestAgentOperatorHITLArgumentChecks:
                 enable_hitl_review=True,
                 **conflicting_kwargs,
             )
+
+
+class _NoopBackend(SandboxBackend):
+    """A backend that is never reached: these tests stop at the operator's constructor."""
+
+    name = "noop"
+
+    def create(self, *, spec=None):
+        raise AssertionError("constructor guards must not provision")
+
+    def run_command(self, sandbox, command, *, timeout, max_output_bytes):
+        raise AssertionError("constructor guards must not run commands")
+
+    def destroy(self, sandbox):
+        pass
+
+
+def _sandbox_toolset():
+    return SandboxToolset(_NoopBackend())
+
+
+class TestAgentOperatorSandboxContinuityGuards:
+    """
+    A sandbox is destroyed when the run ends, so features that replay or rerun against
+    it are refused up front rather than producing answers about files that are gone.
+    """
+
+    @pytest.mark.parametrize(
+        "toolsets",
+        [
+            pytest.param([_sandbox_toolset()], id="direct"),
+            pytest.param([_sandbox_toolset().prefixed("box")], id="prefixed"),
+            pytest.param([_sandbox_toolset().filtered(lambda ctx, tool: True)], id="filtered"),
+            pytest.param([CombinedToolset([FunctionToolset(), _sandbox_toolset()])], id="combined"),
+            pytest.param(
+                [CombinedToolset([FunctionToolset(), _sandbox_toolset().prefixed("a")]).prefixed("b")],
+                id="nested_twice",
+            ),
+        ],
+    )
+    def test_durable_with_a_sandbox_toolset_is_rejected_wherever_it_hides(self, toolsets):
+        with pytest.raises(ValueError, match="durable=True cannot be used with a SandboxToolset"):
+            AgentOperator(task_id="t", prompt="p", llm_conn_id="c", durable=True, toolsets=toolsets)
+
+    def test_durable_with_a_sandbox_in_a_toolset_capability_is_rejected(self):
+        """Tools reaching the agent through ``capabilities=[Toolset(...)]`` are durably cached
+        too, so the same replay-against-nothing applies to them."""
+        with pytest.raises(ValueError, match="durable=True cannot be used with a SandboxToolset"):
+            AgentOperator(
+                task_id="t",
+                prompt="p",
+                llm_conn_id="c",
+                durable=True,
+                agent_params={"capabilities": [Toolset(_sandbox_toolset())]},
+            )
+
+    def test_a_callable_toolset_capability_cannot_be_inspected_and_passes(self):
+        """A factory resolved per run has no concrete toolset to look inside at parse time."""
+        op = AgentOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="c",
+            durable=True,
+            agent_params={"capabilities": [Toolset(lambda ctx: _sandbox_toolset())]},
+        )
+        assert op.durable is True
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+    )
+    def test_hitl_review_with_a_sandbox_toolset_is_rejected(self):
+        with pytest.raises(ValueError, match="enable_hitl_review=True cannot be used with a SandboxToolset"):
+            AgentOperator(
+                task_id="t",
+                prompt="p",
+                llm_conn_id="c",
+                enable_hitl_review=True,
+                toolsets=[_sandbox_toolset().prefixed("box")],
+            )
+
+    def test_the_message_names_the_ways_out(self):
+        with pytest.raises(ValueError, match="Drop durable=True, or move the sandbox work into its own task"):
+            AgentOperator(
+                task_id="t", prompt="p", llm_conn_id="c", durable=True, toolsets=[_sandbox_toolset()]
+            )
+
+    @pytest.mark.parametrize("flag", [{"durable": True}, {"enable_hitl_review": True}])
+    def test_the_flags_stay_usable_without_a_sandbox(self, flag):
+        if "enable_hitl_review" in flag and not AIRFLOW_V_3_1_PLUS:
+            pytest.skip("Human in the loop is only compatible with Airflow >= 3.1.0")
+        op = AgentOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="c",
+            toolsets=[FunctionToolset().prefixed("fn"), CombinedToolset([FunctionToolset()])],
+            **flag,
+        )
+        assert op.toolsets is not None
+
+    def test_a_sandbox_toolset_without_either_flag_is_fine(self):
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="c", toolsets=[_sandbox_toolset()])
+        assert isinstance(op.toolsets[0], SandboxToolset)
 
 
 class TestAgentOperatorRunIdentity:
