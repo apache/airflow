@@ -43,6 +43,11 @@ from airflow.providers.cncf.kubernetes.python_kubernetes_script import (
             "@setup\n@teardown\n@task.kubernetes()\ndef callable():\n    return 1\n",
             "def callable():\n    return 1\n",
         ),
+        (
+            "@before\n@setup\n@teardown(on_failure_fail_dagrun=True)\n"
+            '@task.kubernetes(image=build_image(name="worker"))\n@after\ndef callable():\n    return 1\n',
+            "@before\n@after\ndef callable():\n    return 1\n",
+        ),
     ],
 )
 def test_remove_task_decorator_removes_task_and_lifecycle_decorators(python_source, expected):
