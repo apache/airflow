@@ -26,7 +26,7 @@ from typing import (
 )
 
 from fastapi import HTTPException, Query, status
-from sqlalchemy import and_, or_, true as sql_true
+from sqlalchemy import and_, func, or_, true as sql_true
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.parameters.base import BaseParam
@@ -36,6 +36,7 @@ from airflow.typing_compat import Self
 from airflow.utils.sqlalchemy import apply_regex_query_timeout
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import InstrumentedAttribute
     from sqlalchemy.sql import ColumnElement, Select
 
 
@@ -85,6 +86,26 @@ class _PrefixPatternParam(BaseParam[str], ABC):
         while term and not term[-1].isalnum():
             term = term[:-1]
         return term
+
+    @staticmethod
+    def _build_prefix_range_clauses(
+        column: ColumnElement | InstrumentedAttribute, lower: str, upper: str | None
+    ) -> list[ColumnElement[bool]]:
+        """
+        Return the predicates matching values that start with ``lower`` on ``column``.
+
+        The bounds keep a B-tree index usable but are wider than the prefix: bumping the last
+        character out of the alphanumeric range derives the upper bound from a shorter prefix
+        (``"a9"`` yields ``< "b"``, ``"z"`` yields none at all). The substring equality narrows
+        that back. It is an equality and not ``LIKE 'lower%'`` so it resolves under the same
+        collation as the bounds — ``LIKE`` is case-insensitive on SQLite and MySQL ``_ci``
+        columns, and would keep leaking case variants.
+        """
+        clauses: list[ColumnElement[bool]] = [column >= lower]
+        if upper is not None:
+            clauses.append(column < upper)
+        clauses.append(func.substr(column, 1, len(lower)) == lower)
+        return clauses
 
     @abstractmethod
     def _prefix_clause(self, term: str):
@@ -195,9 +216,7 @@ class _PrefixSearchParam(_PrefixPatternParam):
         if not lower:
             return self.attribute.is_not(None)
         upper = self._prefix_range_upper(term)
-        if upper is None:
-            return self.attribute >= lower
-        return and_(self.attribute >= lower, self.attribute < upper)
+        return and_(*self._build_prefix_range_clauses(self.attribute, lower, upper))
 
     @classmethod
     def depends(cls, *args: Any, **kwargs: Any) -> Self:
@@ -218,27 +237,14 @@ class _TaskDisplayNamePrefixPatternParam(_PrefixPatternParam):
         if not lower:
             return sql_true()
         upper = self._prefix_range_upper(term)
-        if upper is None:
-            return or_(
-                and_(
-                    TaskInstance._task_display_property_value.is_(None),
-                    TaskInstance.task_id >= lower,
-                ),
-                and_(
-                    TaskInstance._task_display_property_value.is_not(None),
-                    TaskInstance._task_display_property_value >= lower,
-                ),
-            )
         return or_(
             and_(
                 TaskInstance._task_display_property_value.is_(None),
-                TaskInstance.task_id >= lower,
-                TaskInstance.task_id < upper,
+                *self._build_prefix_range_clauses(TaskInstance.task_id, lower, upper),
             ),
             and_(
                 TaskInstance._task_display_property_value.is_not(None),
-                TaskInstance._task_display_property_value >= lower,
-                TaskInstance._task_display_property_value < upper,
+                *self._build_prefix_range_clauses(TaskInstance._task_display_property_value, lower, upper),
             ),
         )
 

@@ -35,7 +35,7 @@ Role in a Dag: use ``MCPToolset``, not the hook directly
 
 Most Dags should not instantiate ``MCPHook`` directly. The recommended entry
 point is :class:`~airflow.providers.common.ai.toolsets.mcp.MCPToolset` (see
-:doc:`../toolsets`), which resolves the hook lazily from an Airflow connection
+:doc:`../toolsets/mcp`), which resolves the hook lazily from an Airflow connection
 and manages the underlying session lifecycle for you:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_mcp.py

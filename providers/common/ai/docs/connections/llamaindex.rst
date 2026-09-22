@@ -17,8 +17,8 @@
 
 .. _howto/connection:llamaindex:
 
-LlamaIndex Connection
-======================
+LlamaIndex connection
+=====================
 
 The ``llamaindex`` connection type configures access to LLM and embedding
 providers for `LlamaIndex <https://docs.llamaindex.ai/>`__. It backs

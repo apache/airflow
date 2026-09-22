@@ -17,8 +17,8 @@
 
 .. _howto/operator:llm_file_analysis:
 
-``LLMFileAnalysisOperator`` & ``@task.llm_file_analysis``
-=========================================================
+Analyze files and images: ``LLMFileAnalysisOperator``
+=====================================================
 
 Use :class:`~airflow.providers.common.ai.operators.llm_file_analysis.LLMFileAnalysisOperator`
 or the ``@task.llm_file_analysis`` decorator to analyze files from object storage
