@@ -22,13 +22,14 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 import structlog
+from pydantic_ai.toolsets.combined import CombinedToolset
 from pydantic_ai.toolsets.wrapper import WrapperToolset
 
 from airflow.providers.common.ai.durable.base import DURABLE_KEY_PREFIX
 from airflow.providers.common.ai.durable.fingerprint import fingerprint_tool_call
 
 if TYPE_CHECKING:
-    from pydantic_ai.toolsets.abstract import ToolsetTool
+    from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 
     from airflow.providers.common.ai.durable.base import DurableStorageProtocol
     from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
@@ -70,6 +71,13 @@ class CachingToolset(WrapperToolset[Any]):
         key = f"{DURABLE_KEY_PREFIX}tool_step_{step}"
         fingerprint = fingerprint_tool_call(name, tool_args, ctx.tool_call_id)
 
+        # A toolset may declare that a completed call must not be served from cache, because
+        # the call acted on a system Airflow cannot observe (a managed agent, for instance).
+        # The step still counts so later steps keep their keys.
+        if not _is_replayable(self.wrapped):
+            log.debug("Durable: toolset is not replayable; running the tool", step=step, tool=name)
+            return await self.wrapped.call_tool(name, tool_args, ctx, tool)
+
         found, cached, cached_fingerprint = self.storage.load_tool_result(key)
         if found:
             if cached_fingerprint == fingerprint:
@@ -93,3 +101,22 @@ class CachingToolset(WrapperToolset[Any]):
         self.counter.cached_tool += 1
         log.debug("Durable: cached tool result", step=step, tool=name)
         return result
+
+
+def _is_replayable(toolset: AbstractToolset[Any]) -> bool:
+    """
+    Whether a completed call on ``toolset`` may be served from the cache.
+
+    A toolset opts out by declaring ``replayable = False``. The flag has to be found through
+    pydantic-ai's wrappers, because ``.prefixed()``, ``.filtered()`` and ``CombinedToolset``
+    hand the cache an object that does not carry it: a combined toolset is replayable only when
+    every member is.
+    """
+    declared = getattr(toolset, "replayable", None)
+    if declared is not None:
+        return bool(declared)
+    if isinstance(toolset, CombinedToolset):
+        return all(_is_replayable(member) for member in toolset.toolsets)
+    if isinstance(toolset, WrapperToolset):
+        return _is_replayable(toolset.wrapped)
+    return True

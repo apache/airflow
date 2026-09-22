@@ -83,6 +83,30 @@ The same operation can be performed in the deferrable mode.
     :start-after: [START how_to_cloud_vertex_ai_run_query_job_operator_deferrable]
     :end-before: [END how_to_cloud_vertex_ai_run_query_job_operator_deferrable]
 
+To let an agent running under Common AI's ``AgentOperator`` consult an Agent Engine as one of
+its tools, use
+:class:`~airflow.providers.google.cloud.hooks.vertex_ai.managed_agent.AgentEngineManagedAgentHook`.
+It implements the Common AI managed-agent contract over ``query_reasoning_engine``, so
+``hook.agent(resource_name)`` can be passed to a ``ManagedAgentToolset`` or combined with agents
+on other clouds in a ``FailoverManagedAgentClient``. The hook needs the ``common.ai`` extra of
+this provider, which installs ``apache-airflow-providers-common-ai`` and therefore requires
+Airflow 3. The agent is the engine's full resource name,
+``projects/P/locations/L/reasoningEngines/ID``, so one hook reaches engines in several projects
+and regions. A prompt is sent under ``input_key`` (``input`` by default) to ``class_method``
+(``query`` by default); a mapping output with a string ``output`` field is the answer text, and
+any other output is returned as JSON. Query *jobs* remain the domain of ``RunQueryJobOperator``,
+which can defer.
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.toolsets import ManagedAgentToolset
+    from airflow.providers.google.cloud.hooks.vertex_ai.managed_agent import AgentEngineManagedAgentHook
+
+    analyst = AgentEngineManagedAgentHook(gcp_conn_id="google_cloud_default").agent(
+        "projects/my-project/locations/us-central1/reasoningEngines/1234567890"
+    )
+    toolset = ManagedAgentToolset(analyst, tool_name="ask_analyst", description="Answers revenue questions.")
+
 To update an Agent Engine you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.agent_engine.UpdateAgentEngineOperator`.
 

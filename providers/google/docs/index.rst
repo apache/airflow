@@ -213,6 +213,7 @@ Dependent package                                                               
 `apache-airflow-providers-apache-beam <https://airflow.apache.org/docs/apache-airflow-providers-apache-beam>`_            ``apache.beam``
 `apache-airflow-providers-apache-cassandra <https://airflow.apache.org/docs/apache-airflow-providers-apache-cassandra>`_  ``apache.cassandra``
 `apache-airflow-providers-cncf-kubernetes <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes>`_    ``cncf.kubernetes``
+`apache-airflow-providers-common-ai <https://airflow.apache.org/docs/apache-airflow-providers-common-ai>`_                ``common.ai``
 `apache-airflow-providers-common-messaging <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging>`_  ``common.messaging``
 `apache-airflow-providers-facebook <https://airflow.apache.org/docs/apache-airflow-providers-facebook>`_                  ``facebook``
 `apache-airflow-providers-http <https://airflow.apache.org/docs/apache-airflow-providers-http>`_                          ``http``
@@ -266,6 +267,7 @@ Extra                 Dependencies
 ``trino``             ``apache-airflow-providers-trino``
 ``http``              ``apache-airflow-providers-http``
 ``standard``          ``apache-airflow-providers-standard``
+``common.ai``         ``apache-airflow-providers-common-ai>=0.9.0``
 ``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
 ====================  ====================================================
 

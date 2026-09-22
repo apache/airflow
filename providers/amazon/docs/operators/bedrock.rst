@@ -110,6 +110,45 @@ through ``botocore_config``.
     :start-after: [START howto_operator_bedrock_invoke_agent_runtime]
     :end-before: [END howto_operator_bedrock_invoke_agent_runtime]
 
+.. _howto/hook:BedrockAgentCoreManagedAgentHook:
+
+Consult an Amazon Bedrock AgentCore Runtime from a Common AI agent
+==================================================================
+
+To let an agent running under Common AI's ``AgentOperator`` consult an AgentCore Runtime as one
+of its tools, use
+:class:`~airflow.providers.amazon.aws.hooks.bedrock_managed_agent.BedrockAgentCoreManagedAgentHook`.
+It implements the Common AI managed-agent contract, so ``hook.agent(runtime_arn)`` can be passed
+to a ``ManagedAgentToolset`` or combined with agents on other clouds in a
+``FailoverManagedAgentClient``. The hook needs the ``common.ai`` extra of this provider, which
+installs ``apache-airflow-providers-common-ai`` and therefore requires Airflow 3.
+
+The agent is the runtime ARN and the session is AgentCore's ``runtimeSessionId``, which the
+service requires to be 33 to 256 characters long. A prompt is
+sent as ``{"prompt": ...}`` in an ``application/json`` payload; the container behind the
+runtime defines the response shape, so pass ``text_key`` when you know which field holds the
+answer. The hook disables botocore retries unless the connection or caller configured them,
+because an invocation's effects are unknown, and raises a terminal error for non-JSON responses
+or bodies over the size limit rather than returning something misleading.
+
+.. code-block:: python
+
+    from airflow.providers.amazon.aws.hooks.bedrock_managed_agent import BedrockAgentCoreManagedAgentHook
+    from airflow.providers.common.ai.toolsets import ManagedAgentToolset
+
+    claims = BedrockAgentCoreManagedAgentHook(aws_conn_id="aws_default", region_name="us-east-1").agent(
+        "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/claims"
+    )
+    toolset = ManagedAgentToolset(
+        claims,
+        tool_name="ask_claims_agent",
+        description="Reviews an insurance claim and returns a coverage determination.",
+    )
+
+For long-running invocations run as a pipeline step in their own right, use
+:class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockInvokeAgentRuntimeOperator`
+instead; a toolset call blocks a worker thread for the duration of the call.
+
 .. _howto/operator:BedrockDeleteAgentRuntimeOperator:
 
 Delete an Amazon Bedrock AgentCore Runtime

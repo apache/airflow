@@ -149,6 +149,9 @@ dependencies = [
 "standard" = [
     "apache-airflow-providers-standard"
 ]
+"common.ai" = [
+    "apache-airflow-providers-common-ai>=0.9.0",  # use next version
+]
 "common.messaging" = [
     "apache-airflow-providers-common-messaging>=2.0.0"
 ]
@@ -163,6 +166,7 @@ dev = [
     "apache-airflow-devel-common",
     "apache-airflow-providers-apache-hive",
     "apache-airflow-providers-cncf-kubernetes",
+    "apache-airflow-providers-common-ai",
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-messaging",
     "apache-airflow-providers-common-sql",

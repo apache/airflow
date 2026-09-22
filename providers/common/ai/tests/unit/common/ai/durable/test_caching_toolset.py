@@ -179,3 +179,48 @@ class TestSharedCounter:
         assert model_keys == [f"{P}model_step_0", f"{P}model_step_2"]
         assert tool_keys == [f"{P}tool_step_1"]
         assert counter.total_steps == 3
+
+
+class TestCachingToolsetReplayable:
+    @pytest.mark.asyncio
+    async def test_a_non_replayable_toolset_is_never_served_from_cache(
+        self, mock_toolset, mock_storage, counter
+    ):
+        # A managed agent may have acted on a system Airflow cannot observe, so its toolset
+        # declares replayable=False and a cached answer must not stand in for a fresh call.
+        mock_toolset.replayable = False
+        mock_storage.load_tool_result.return_value = (
+            True,
+            "stale cached result",
+            fingerprint_tool_call("t", {}, "call_1"),
+        )
+        caching = CachingToolset(wrapped=mock_toolset, storage=mock_storage, counter=counter)
+
+        result = await caching.call_tool("t", {}, ctx_for(), tool=MagicMock())
+
+        assert result == "fresh result"
+        mock_toolset.call_tool.assert_awaited_once()
+        mock_storage.load_tool_result.assert_not_called()
+        mock_storage.save_tool_result.assert_not_called()
+        assert counter.replayed_tool == 0
+        # The step is still consumed so later steps keep their keys.
+        assert counter.next_step() == 1
+
+    @pytest.mark.asyncio
+    async def test_the_flag_is_found_through_prefixed_and_combined_wrappers(self, mock_storage, counter):
+        # ``.prefixed()`` and ``CombinedToolset`` do not carry the attribute; the cache must look through them.
+        from pydantic_ai.toolsets.combined import CombinedToolset
+        from pydantic_ai.toolsets.function import FunctionToolset
+
+        managed = FunctionToolset()
+        managed.replayable = False  # type: ignore[attr-defined]
+        wrapped = CombinedToolset([FunctionToolset(), managed.prefixed("claims")])
+        mock_storage.load_tool_result.return_value = (True, "stale", fingerprint_tool_call("t", {}, "call_1"))
+        caching = CachingToolset(wrapped=wrapped, storage=mock_storage, counter=counter)
+
+        with patch.object(CombinedToolset, "call_tool", autospec=True, return_value="fresh") as call_tool:
+            result = await caching.call_tool("t", {}, ctx_for(), tool=MagicMock())
+
+        assert result == "fresh"
+        call_tool.assert_awaited_once()
+        mock_storage.load_tool_result.assert_not_called()
