@@ -266,7 +266,9 @@ const TriggerDAGForm = ({
             <Spacer />
           </>
         ) : undefined}
-        <RecentConfigSelect dagId={dagId} onSelectConf={applyRecentConf} open={open} />
+        {prefillConfig ? undefined : (
+          <RecentConfigSelect dagId={dagId} onSelectConf={applyRecentConf} open={open} />
+        )}
         <ConfigForm
           control={control}
           errors={errors}
