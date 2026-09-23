@@ -10,7 +10,7 @@ airflow-core/src/airflow/dag_processing/manager.py::4
 airflow-core/src/airflow/dag_processing/processor.py::13
 airflow-core/src/airflow/exceptions.py::1
 airflow-core/src/airflow/executors/base_executor.py::3
-airflow-core/src/airflow/jobs/triggerer_job_runner.py::18
+airflow-core/src/airflow/jobs/triggerer_job_runner.py::19
 airflow-core/src/airflow/models/__init__.py::5
 airflow-core/src/airflow/models/asset.py::2
 airflow-core/src/airflow/models/connection.py::5

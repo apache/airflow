@@ -46,7 +46,7 @@ if TYPE_CHECKING:
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.definitions.context import Context
-    from airflow.sdk.execution_time.context import AssetStateStoreAccessors
+    from airflow.sdk.execution_time.context import AssetStateStoreAccessors, TaskStateStoreAccessor
     from airflow.serialization.serialized_objects import SerializedBaseOperator
     from airflow.triggers.shared_stream import SharedStreamProducer
 
@@ -88,6 +88,9 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
     # ``CallbackTrigger`` set this in their ``__init__``, see `trigger_queue_inherited_from_task`.
     # Declared as a class attribute since many provider triggers don't call ``super().__init__()``.
     queue: str | None = None
+
+    # Injected by the triggerer before run() is called, scoped to the task instance that deferred
+    task_state_store: TaskStateStoreAccessor | None = None
 
     def __init__(self, **kwargs):
         super().__init__()

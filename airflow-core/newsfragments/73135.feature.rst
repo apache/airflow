@@ -1,0 +1,1 @@
+Triggers of deferred tasks can now read and write their task instance's task state store via ``self.task_state_store``.

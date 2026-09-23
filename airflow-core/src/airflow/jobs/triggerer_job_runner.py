@@ -65,11 +65,13 @@ from airflow.sdk.execution_time.comms import (
     AssetStateStoreResult,
     ClearAssetStateStoreByName,
     ClearAssetStateStoreByUri,
+    ClearTaskStateStore,
     CommsDecoder,
     ConnectionResult,
     DagRunStateResult,
     DeleteAssetStateStoreByName,
     DeleteAssetStateStoreByUri,
+    DeleteTaskStateStore,
     DeleteVariable,
     DeleteXCom,
     DRCount,
@@ -82,6 +84,7 @@ from airflow.sdk.execution_time.comms import (
     GetHITLDetailResponse,
     GetPreviousTI,
     GetTaskStates,
+    GetTaskStateStore,
     GetTICount,
     GetVariable,
     GetVariableKeys,
@@ -91,8 +94,10 @@ from airflow.sdk.execution_time.comms import (
     PutVariable,
     SetAssetStateStoreByName,
     SetAssetStateStoreByUri,
+    SetTaskStateStore,
     SetXCom,
     TaskStatesResult,
+    TaskStateStoreResult,
     TICount,
     UpdateHITLDetail,
     VariableKeysResult,
@@ -101,12 +106,14 @@ from airflow.sdk.execution_time.comms import (
     _new_encoder,
     _RequestFrame,
 )
-from airflow.sdk.execution_time.context import AssetStateStoreAccessors
+from airflow.sdk.execution_time.context import AssetStateStoreAccessors, TaskStateStoreAccessor
 from airflow.sdk.execution_time.request_handlers import (
     handle_clear_asset_state_store_by_name,
     handle_clear_asset_state_store_by_uri,
+    handle_clear_task_state_store,
     handle_delete_asset_state_store_by_name,
     handle_delete_asset_state_store_by_uri,
+    handle_delete_task_state_store,
     handle_delete_variable,
     handle_delete_xcom,
     handle_get_asset_state_store_by_name,
@@ -115,6 +122,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_get_dag_run_state,
     handle_get_dr_count,
     handle_get_previous_ti,
+    handle_get_task_state_store,
     handle_get_task_states,
     handle_get_ti_count,
     handle_get_variable,
@@ -124,10 +132,12 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_put_variable,
     handle_set_asset_state_store_by_name,
     handle_set_asset_state_store_by_uri,
+    handle_set_task_state_store,
     handle_set_xcom,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffered_socket_reader
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+from airflow.sdk.state import TaskScope
 from airflow.serialization.serialized_objects import DagSerialization
 from airflow.triggers.base import BaseEventTrigger, BaseTrigger, DiscrimatedTriggerEvent, TriggerEvent
 from airflow.triggers.shared_stream import SharedStreamManager
@@ -372,6 +382,7 @@ ToTriggerRunner = Annotated[
     | TICount
     | TaskStatesResult
     | AssetStateStoreResult
+    | TaskStateStoreResult
     | HITLDetailResponseResult
     | ErrorResponse
     | OKResponse,
@@ -403,6 +414,10 @@ ToTriggerSupervisor = Annotated[
     | GetAssetStateStoreByUri
     | SetAssetStateStoreByName
     | SetAssetStateStoreByUri
+    | ClearTaskStateStore
+    | DeleteTaskStateStore
+    | GetTaskStateStore
+    | SetTaskStateStore
     | GetDagRunState
     | GetDRCount
     | GetPreviousTI
@@ -681,6 +696,17 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             resp = OKResponse(ok=True)
         elif isinstance(msg, SetAssetStateStoreByUri):
             handle_set_asset_state_store_by_uri(self.client, msg)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, ClearTaskStateStore):
+            handle_clear_task_state_store(self.client, msg)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, DeleteTaskStateStore):
+            handle_delete_task_state_store(self.client, msg)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, GetTaskStateStore):
+            resp, dump_opts = handle_get_task_state_store(self.client, msg)
+        elif isinstance(msg, SetTaskStateStore):
+            handle_set_task_state_store(self.client, msg)
             resp = OKResponse(ok=True)
         else:
             raise ValueError(f"Unknown message type {type(msg)}")
@@ -1399,6 +1425,18 @@ class TriggerRunner:
                         trigger_instance.task_instance = runtime_ti
                     else:
                         trigger_instance.task_instance = ti
+
+                    # Pass the task_state_store through to the Trigger so it can be used in the Trigger
+                    trigger_instance.task_state_store = TaskStateStoreAccessor(
+                        ti_id=ti.id,
+                        scope=TaskScope(
+                            dag_id=ti.dag_id,
+                            run_id=ti.run_id,
+                            task_id=ti.task_id,
+                            map_index=ti.map_index,
+                        ),
+                    )
+
                 else:
                     trigger_name = f"ID {trigger_id}"
                     trigger_instance = trigger_class(**deserialised_kwargs)

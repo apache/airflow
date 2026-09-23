@@ -37,6 +37,7 @@ from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
     DagRunStateResponse,
     TaskStatesResponse,
+    TaskStateStoreResponse,
     VariableResponse,
     XComResponse,
     XComSequenceIndexResponse,
@@ -46,10 +47,12 @@ from airflow.sdk.execution_time.comms import (
     AssetStateStoreResult,
     ClearAssetStateStoreByName,
     ClearAssetStateStoreByUri,
+    ClearTaskStateStore,
     ConnectionResult,
     DagRunStateResult,
     DeleteAssetStateStoreByName,
     DeleteAssetStateStoreByUri,
+    DeleteTaskStateStore,
     DeleteVariable,
     DeleteXCom,
     GetAssetStateStoreByName,
@@ -60,6 +63,7 @@ from airflow.sdk.execution_time.comms import (
     GetPreviousDagRun,
     GetPreviousTI,
     GetTaskStates,
+    GetTaskStateStore,
     GetTICount,
     GetVariable,
     GetVariableKeys,
@@ -72,8 +76,10 @@ from airflow.sdk.execution_time.comms import (
     PutVariable,
     SetAssetStateStoreByName,
     SetAssetStateStoreByUri,
+    SetTaskStateStore,
     SetXCom,
     TaskStatesResult,
+    TaskStateStoreResult,
     VariableKeysResult,
     VariableResult,
     XComResult,
@@ -284,6 +290,38 @@ def handle_get_xcom(client: Client, msg: GetXCom) -> tuple[BaseModel | None, dic
         xcom_result = XComResult.from_xcom_response(xcom)
         return xcom_result, {"exclude_unset": True}
     return xcom, {}
+
+
+def handle_get_task_state_store(
+    client: Client, msg: GetTaskStateStore
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    task_state = client.task_state_store.get(msg.ti_id, msg.key)
+
+    if isinstance(task_state, TaskStateStoreResponse):
+        return TaskStateStoreResult.from_task_state_store_response(task_state), {}
+
+    return task_state, {}
+
+
+def handle_set_task_state_store(
+    client: Client, msg: SetTaskStateStore
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    client.task_state_store.set(msg.ti_id, msg.key, msg.value, expires_at=msg.expires_at)
+    return None, {}
+
+
+def handle_delete_task_state_store(
+    client: Client, msg: DeleteTaskStateStore
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    client.task_state_store.delete(msg.ti_id, msg.key)
+    return None, {}
+
+
+def handle_clear_task_state_store(
+    client: Client, msg: ClearTaskStateStore
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    client.task_state_store.clear(msg.ti_id)
+    return None, {}
 
 
 def handle_get_asset_state_store_by_name(
