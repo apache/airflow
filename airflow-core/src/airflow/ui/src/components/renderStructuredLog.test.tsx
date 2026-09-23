@@ -26,6 +26,23 @@ import { renderStructuredLog, renderTIContextPreamble, tiContextFields } from ".
 
 const translate = (key: string) => key;
 
+const renderWithLevel = (showLogLevel: boolean) => {
+  const result = renderStructuredLog({
+    index: 0,
+    logLink: "",
+    logMessage: {
+      event: "Task started",
+      level: "info",
+      timestamp: "2026-01-01T00:00:00Z",
+    },
+    renderingMode: "jsx",
+    showLogLevel,
+    translate: translate as never,
+  });
+
+  return render(<Wrapper>{result}</Wrapper>);
+};
+
 describe("tiContextFields", () => {
   it("contains the six fields bound via bind_contextvars", () => {
     expect(tiContextFields).toEqual(
@@ -77,23 +94,6 @@ describe("renderStructuredLog — traceback frame highlighting", () => {
 });
 
 describe("renderStructuredLog — log level visibility", () => {
-  const renderWithLevel = (showLogLevel: boolean) => {
-    const result = renderStructuredLog({
-      index: 0,
-      logLink: "",
-      logMessage: {
-        event: "Task started",
-        level: "info",
-        timestamp: "2026-01-01T00:00:00Z",
-      },
-      renderingMode: "jsx",
-      showLogLevel,
-      translate: translate as never,
-    });
-
-    return render(<Wrapper>{result}</Wrapper>);
-  };
-
   it("renders the level when showLogLevel is true", () => {
     renderWithLevel(true);
 
