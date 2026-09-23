@@ -20,9 +20,12 @@ import { useEffect, useRef } from "react";
 
 import { Box, HStack, Text } from "@chakra-ui/react";
 import { CreatableSelect, Select as ReactSelect, type SelectInstance } from "chakra-react-select";
+import { LuRegex } from "react-icons/lu";
 
+import { AdvancedSearchToggle } from "src/components/AdvancedSearchToggle";
 import { MatchModeToggle } from "src/components/MatchModeToggle";
 
+import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { useMatchMode } from "src/hooks/useMatchMode";
 
 import { FilterPill } from "../FilterPill";
@@ -60,9 +63,12 @@ export const MultiSelectPill = ({
   options,
 }: Props) => {
   const { mode, setMode } = useMatchMode(filter.config.matchModeKey);
+  const advanced = useAdvancedSearch(filter.config.key);
   const values = Array.isArray(filter.value) ? filter.value : [];
   const SelectComponent = filter.config.isCreatable === true ? CreatableSelect : ReactSelect;
   const showMatchMode = filter.config.matchModeKey !== undefined && values.length >= 2;
+  const showAdvancedToggle = filter.config.supportsAdvancedSearch === true;
+  const isAdvanced = showAdvancedToggle && advanced.enabled;
   const selectRef = useRef<SelectInstance<SelectOption, true> | null>(null);
 
   // The editor only mounts when editing begins, so the caret belongs in the select from the
@@ -80,6 +86,7 @@ export const MultiSelectPill = ({
       // Each value is its own node so the collapsed chip stays queryable by value.
       displayValue={
         <HStack display="inline-flex" gap={1}>
+          {isAdvanced ? <LuRegex aria-label="match anywhere" /> : undefined}
           {mode === "all" && values.length >= 2 ? (
             <Box as="span" color="fg.muted" fontSize="xs">
               {`(${mode})`}
@@ -170,6 +177,9 @@ export const MultiSelectPill = ({
               value={values.map((value) => ({ label: value, value }))}
             />
           </Box>
+          {showAdvancedToggle ? (
+            <AdvancedSearchToggle enabled={advanced.enabled} onToggle={advanced.onToggle} variant="addon" />
+          ) : undefined}
           {showMatchMode ? <MatchModeToggle mode={mode} onModeChange={setMode} /> : undefined}
         </Box>
       )}
