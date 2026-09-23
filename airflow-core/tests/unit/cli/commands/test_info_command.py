@@ -21,6 +21,7 @@ import importlib
 import logging
 import os
 from io import StringIO
+from unittest import mock
 
 import pytest
 
@@ -72,6 +73,42 @@ class TestPiiAnonymizer:
     )
     def test_should_remove_pii_from_url(self, before, after):
         assert after == self.instance.process_url(before)
+
+    @pytest.mark.parametrize(
+        ("username", "home", "before", "after"),
+        [
+            (
+                "lite",
+                "/home/lite",
+                "sqlite:////home/lite/airflow.db",
+                "sqlite:///${HOME}/airflow.db",
+            ),
+            (
+                "db",
+                "/home/db",
+                "duckdb:////home/db/wh.duckdb",
+                "duckdb:///${HOME}/wh.duck${USER}",
+            ),
+            (
+                "AVA",
+                "/home/AVA",
+                "NOT AVAILABLE",
+                "NOT AVAILABLE",
+            ),
+        ],
+    )
+    @mock.patch("airflow.cli.commands.info_command.os.path.expanduser", autospec=True)
+    @mock.patch("airflow.cli.commands.info_command.getuser", autospec=True)
+    def test_should_leave_scheme_out_of_path_masking(
+        self, mock_getuser, mock_expanduser, username, home, before, after
+    ):
+        # The scheme of a netloc-less URL must stay out of reach of the unanchored
+        # username substitution: a user named "lite" must not turn "sqlite:" into
+        # "sq${USER}:". Anything before the first colon is exempt from masking,
+        # which also keeps non-URL fallback values like "NOT AVAILABLE" intact.
+        mock_getuser.return_value = username
+        mock_expanduser.return_value = home
+        assert after == info_command.PiiAnonymizer().process_url(before)
 
 
 class TestAirflowInfo:
