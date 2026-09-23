@@ -397,6 +397,51 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
             return anchors.pop()
         return None
 
+    def suggest_partition_key(self, now: DateTime) -> str | None:
+        """
+        Suggest a partition key for the period containing *now*, purely from the asset mappers.
+
+        This is a **guess**, not a derivation: it asks every asset (and asset
+        ref) reachable from ``asset_condition`` for the downstream key of the
+        period that contains *now* — ``mapper.format(mapper.normalize(now))`` —
+        and returns it only when every mapper that can answer agrees on the same
+        key. It does not consult any actual asset events or ``DagRun`` history,
+        so it can suggest a value even for a Dag that has never run.
+
+        Only mappers exposing both a callable ``normalize`` and ``format``
+        (duck-typed, not ``isinstance``) can answer; enumerated against the
+        current ``airflow.partition_mappers`` set:
+
+        - Can answer: the ``_BaseTemporalMapper`` family — ``StartOfHourMapper``,
+          ``StartOfDayMapper``, ``StartOfWeekMapper``, ``StartOfMonthMapper``,
+          ``StartOfQuarterMapper``, ``StartOfYearMapper``.
+        - Cannot answer (no purely time-based guess to offer): ``RollupMapper``,
+          ``FanOutMapper``, ``ChainMapper``, ``ProductMapper``, ``IdentityMapper``,
+          ``FixedKeyMapper``, ``AllowedKeyMapper``.
+
+        Zero mappers able to answer, or answers that disagree, both return
+        ``None`` — same convention as :meth:`_decode_partition_date`.
+        """
+        keys: set[str] = set()
+        for unique_key, _ in self.asset_condition.iter_assets():
+            mapper = self.get_partition_mapper(name=unique_key.name, uri=unique_key.uri)
+            key = _suggest_partition_key_with(mapper, now)
+            if key is not None:
+                keys.add(key)
+        for s_asset_ref in self.asset_condition.iter_asset_refs():
+            if isinstance(s_asset_ref, SerializedAssetNameRef):
+                mapper = self.get_partition_mapper(name=s_asset_ref.name)
+            elif isinstance(s_asset_ref, SerializedAssetUriRef):
+                mapper = self.get_partition_mapper(uri=s_asset_ref.uri)
+            else:
+                continue
+            key = _suggest_partition_key_with(mapper, now)
+            if key is not None:
+                keys.add(key)
+        if len(keys) == 1:
+            return keys.pop()
+        return None
+
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.serialized_objects import encode_asset_like
 
@@ -426,3 +471,30 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
             },
         )
         return timetable
+
+
+def _suggest_partition_key_with(mapper: PartitionMapper, now: DateTime) -> str | None:
+    """
+    Return *mapper*'s guess for the downstream key of the period containing *now*, or ``None``.
+
+    Duck-types on ``normalize``/``format`` (mirrors the ``format`` check in
+    :func:`~airflow.partition_mappers.temporal._format_with`) rather than
+    ``isinstance``, so any mapper — builtin or third-party — that exposes both
+    callables participates. A mapper that raises (e.g. a misconfigured format)
+    must not turn a manual-trigger modal into a 500: the exception is logged
+    and swallowed, same handling as
+    :func:`~airflow.api_fastapi.core_api.routes.ui.partitioned_dag_runs._resolve_rollup_status`.
+    """
+    normalize = getattr(mapper, "normalize", None)
+    format_ = getattr(mapper, "format", None)
+    if not callable(normalize) or not callable(format_):
+        return None
+    try:
+        return format_(normalize(now))
+    except Exception:
+        log.warning(
+            "Failed to suggest partition key from mapper; ignoring",
+            mapper=type(mapper).__name__,
+            exc_info=True,
+        )
+        return None
