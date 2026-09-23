@@ -39,11 +39,15 @@ back to a DB-backed path otherwise.
 
 from __future__ import annotations
 
+import importlib
 import json
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from types import ModuleType
+
+    import httpx2
 
     from airflow.sdk.api.client import Client
     from airflow.sdk.execution_time.supervisor import TaskRunResult
@@ -55,27 +59,42 @@ if TYPE_CHECKING:
 _XCOM_PATH_PARTS = 5  # /xcoms/{dag_id}/{run_id}/{task_id}/{key}
 
 
+def _resolve_sdk_httpx() -> ModuleType:
+    """Return the httpx package the *installed* Task SDK ``Client`` subclasses.
+
+    Compat jobs pair this helper with a released SDK still on ``httpx``. A transport from the
+    wrong package trips httpx's own stream-type assertion.
+    """
+    from airflow.sdk.api.client import Client
+
+    for base in Client.__mro__:
+        root = base.__module__.partition(".")[0]
+        if root in ("httpx", "httpx2"):
+            return importlib.import_module(root)
+    raise RuntimeError("Task SDK Client is built on neither httpx nor httpx2")
+
+
 def _remembering_handler(store: dict, run_context_json: bytes) -> Callable:
     """A dry-run transport handler: valid run-context + XCom round-trip from ``store``, else no-op."""
-    import httpx
+    httpx_impl = _resolve_sdk_httpx()
 
     from airflow.sdk.api.client import noop_handler
 
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx2.Request) -> httpx2.Response:
         path = request.url.path
         if path.startswith("/task-instances/") and path.endswith("/run"):
-            return httpx.Response(200, content=run_context_json)
+            return httpx_impl.Response(200, content=run_context_json)
         parts = path.strip("/").split("/")
         if len(parts) == _XCOM_PATH_PARTS and parts[0] == "xcoms":
             dag_id, run_id, task_id, key = parts[1:]
             sig = (dag_id, run_id, task_id, key)
             if request.method == "POST":
                 store[sig] = json.loads(request.content)
-                return httpx.Response(201, json={"ok": True})
+                return httpx_impl.Response(201, json={"ok": True})
             if request.method == "GET":
                 if sig in store:
-                    return httpx.Response(200, json={"key": key, "value": store[sig]})
-                return httpx.Response(404, json={"detail": "XCom not found"})
+                    return httpx_impl.Response(200, json={"key": key, "value": store[sig]})
+                return httpx_impl.Response(404, json={"detail": "XCom not found"})
         return noop_handler(request)
 
     return handler
@@ -87,7 +106,7 @@ def build_in_memory_client(ti_context) -> Client:
     ``ti_context`` (a ``TIRunContext``) is replayed for the task-start request. Pushed XCom
     values are exposed as ``client.pushed_xcoms`` keyed by ``(dag_id, run_id, task_id, key)``.
     """
-    import httpx
+    httpx_impl = _resolve_sdk_httpx()
 
     from airflow.sdk.api.client import Client
 
@@ -96,7 +115,9 @@ def build_in_memory_client(ti_context) -> Client:
         base_url=None,
         dry_run=True,
         token="",
-        transport=httpx.MockTransport(_remembering_handler(store, ti_context.model_dump_json().encode())),
+        transport=httpx_impl.MockTransport(
+            _remembering_handler(store, ti_context.model_dump_json().encode())
+        ),
     )
     client.pushed_xcoms = store  # type: ignore[attr-defined]
     return client
