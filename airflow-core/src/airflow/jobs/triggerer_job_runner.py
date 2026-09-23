@@ -519,8 +519,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     # FinishedTriggers message
     cancelling_triggers: set[int] = attrs.field(factory=set, init=False)
 
-    # Like cancelling_triggers, but for triggers reassigned to another triggerer (see update_triggers);
-    # the async process drops these without invoking on_kill()
     releasing_triggers: set[int] = attrs.field(factory=set, init=False)
 
     # A list of RunTrigger workloads to send to the async process when it next checks in. We can't send it
@@ -1021,14 +1019,9 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             self.creating_triggers.extend(workloads_to_create)
 
         if cancel_trigger_ids:
-            # A trigger leaves our assignment list for one of two reasons, and only the DB can tell
-            # them apart:
-            #   - The row is gone: the task instance is no longer deferred on it, because a user
-            #     cleared or marked it, or the scheduler timed the deferral out. The runner cancels
-            #     with the user-action message and run_trigger() decides whether on_kill() applies.
-            #   - The row still exists but points at another triggerer: our heartbeat lapsed and
-            #     Trigger.assign_unassigned handed the trigger over. The new owner is polling the
-            #     remote work, so the runner must drop it locally *without* on_kill().
+            # Only the DB tells the two cases apart: a gone row means the task left the
+            # deferred state (user action), a surviving row means assign_unassigned handed
+            # the trigger to a triggerer that is now polling the remote work.
             assignments = self.fetch_trigger_assignments(cancel_trigger_ids)
             if assignments:
                 log.info(
@@ -1485,13 +1478,7 @@ class TriggerRunner:
             )
 
     async def cancel_triggers(self):
-        """
-        Drain the to_cancel and to_release queues and cancel the matching trigger tasks.
-
-        The cancel message tells run_trigger() whether on_kill() applies: ``to_cancel`` holds
-        triggers whose row is gone, ``to_release`` holds triggers reassigned to another
-        triggerer. See TriggerRunnerSupervisor.update_triggers for how the split is made.
-        """
+        """Drain to_cancel and to_release; the cancel message tells run_trigger() if on_kill() applies."""
         for queue, cancel_msg in (
             (self.to_cancel, _USER_ACTION_CANCEL_MSG),
             (self.to_release, _REASSIGNED_CANCEL_MSG),

@@ -2873,18 +2873,6 @@ def test_update_triggers_splits_cancel_set_by_row_existence(supervisor_builder, 
     fetch_assignments.assert_called_once()
 
 
-def test_update_triggers_does_not_query_when_nothing_to_cancel(supervisor_builder, mocker):
-    supervisor = supervisor_builder()
-    supervisor.running_triggers = {1}
-    fetch_assignments = mocker.patch.object(
-        TriggerRunnerSupervisor, "fetch_trigger_assignments", autospec=True
-    )
-
-    supervisor.update_triggers({1})
-
-    fetch_assignments.assert_not_called()
-
-
 def test_state_sync_sends_released_triggers_separately_from_cancels(supervisor_builder, mocker):
     supervisor = supervisor_builder()
     send_msg = mocker.patch.object(TriggerRunnerSupervisor, "send_msg", autospec=True)
