@@ -223,12 +223,22 @@ class DataFusionEngine(LoggingMixin):
                 credentials = {"account": self._resolve_wasb_account(conn.host, conn.login)}
                 tenant_id = extra_dejson.get("tenant_id")
                 sas_token = extra_dejson.get("sas_token")
-                if tenant_id and conn.login and conn.password:
-                    # client_id/client_secret/tenant_id must all be set together, or not at all --
-                    # DataFusion's binding panics on a partial combination.
+                explicit_credential = False
+                if tenant_id:
+                    if not conn.login or not conn.password:
+                        # Falling through instead of raising would silently authenticate with a
+                        # different identity than the one requested (ambient auth, or the client
+                        # secret sent as a shared key) -- DataFusion's binding also panics on a
+                        # partial client_id/client_secret/tenant_id combination.
+                        missing = "login (client_id)" if not conn.login else "password (client_secret)"
+                        raise ValueError(
+                            f"Connection extra 'tenant_id' is set for DataFusion Azure Blob Storage "
+                            f"service-principal auth, but {missing} is not."
+                        )
                     credentials.update(
                         {"client_id": conn.login, "client_secret": conn.password, "tenant_id": tenant_id}
                     )
+                    explicit_credential = True
                 elif sas_token:
                     if sas_token.startswith("http"):
                         raise ValueError(
@@ -236,12 +246,43 @@ class DataFusionEngine(LoggingMixin):
                             "access; provide the SAS token as a query string instead."
                         )
                     credentials["sas_query_pairs"] = parse_qsl(sas_token.lstrip("?"))
+                    explicit_credential = True
                 else:
-                    credentials["access_key"] = (
+                    access_key = (
                         conn.password
                         or extra_dejson.get("shared_access_key")
                         or extra_dejson.get("account_key")
                     )
+                    if access_key:
+                        credentials["access_key"] = access_key
+                        explicit_credential = True
+
+                if explicit_credential:
+                    # DataFusion's binding always calls MicrosoftAzureBuilder::from_env() before
+                    # overlaying these credentials, and object_store checks an environment-derived
+                    # access key or workload-identity triple before the client secret or SAS query
+                    # pairs set here -- so any of these worker env vars would silently win over the
+                    # connection's credential. The binding has no way to skip from_env(), so this can
+                    # only be caught, not fixed, on the Python side.
+                    conflicting_env_vars = [
+                        var
+                        for var in (
+                            "AZURE_FEDERATED_TOKEN_FILE",
+                            "AZURE_STORAGE_ACCOUNT_KEY",
+                            "AZURE_STORAGE_ACCESS_KEY",
+                            "AZURE_STORAGE_SAS_KEY",
+                            "AZURE_STORAGE_TOKEN",
+                        )
+                        if os.environ.get(var)
+                    ]
+                    if conflicting_env_vars:
+                        raise ValueError(
+                            f"Worker environment variable(s) {', '.join(conflicting_env_vars)} would "
+                            "silently take precedence over this connection's explicit credential in "
+                            "DataFusion's Azure Blob Storage binding. Unset them on the worker, or "
+                            "remove the explicit credential from this connection to rely on the "
+                            "environment instead."
+                        )
                 credentials = self._remove_none_values(credentials)
 
             case _:
@@ -253,18 +294,28 @@ class DataFusionEngine(LoggingMixin):
         """Filter out None values from the dictionary."""
         return {k: v for k, v in params.items() if v is not None}
 
-    @staticmethod
-    def _resolve_wasb_account(host: str | None, login: str | None) -> str:
+    _AZURE_PUBLIC_SUFFIX = ".blob.core.windows.net"
+
+    @classmethod
+    def _resolve_wasb_account(cls, host: str | None, login: str | None) -> str | None:
         """
         Return the storage account name the way WasbHook resolves it.
 
         From ``host`` when set (its netloc's first label), falling back to ``login`` only when
         ``host`` is empty -- login holds the service-principal client_id in that auth mode, not
-        the account name. Reimplemented locally rather than importing
+        the account name. Returns ``None`` when neither is set, so the binding falls back to
+        ``AZURE_STORAGE_ACCOUNT_NAME`` instead of targeting the literal string ``"None"``.
+        Reimplemented locally rather than importing
         ``airflow.providers.microsoft.azure.utils.parse_blob_account_url``, to avoid pulling the
         microsoft-azure provider's full Azure SDK dependency stack into common-sql for one string
         operation that only needs the stdlib.
+
+        Only the public ``*.blob.core.windows.net`` cloud is supported: DataFusion's Azure binding
+        takes no endpoint override, so a sovereign-cloud or emulator host would otherwise be
+        silently misrouted to the public account of the same name.
         """
+        if not host and not login:
+            return None
         netloc = urlsplit(host if host else f"https://{login}.blob.core.windows.net/").netloc
         if not netloc:
             # No scheme was given (e.g. a bare DNS name); urlsplit put it all in the path instead.
@@ -272,6 +323,13 @@ class DataFusionEngine(LoggingMixin):
         if "." not in netloc:
             # Only an Active Directory ID was given, not a full URL or DNS name.
             netloc = f"{login}.blob.core.windows.net"
+        if not netloc.endswith(cls._AZURE_PUBLIC_SUFFIX):
+            raise ValueError(
+                f"Connection host {host!r} does not resolve to the public {cls._AZURE_PUBLIC_SUFFIX} "
+                "cloud, which is the only one DataFusion's Azure Blob Storage binding can target (it "
+                "has no endpoint override). Sovereign clouds and the Azurite emulator are not "
+                "supported; set the AZURE_STORAGE_ENDPOINT environment variable instead."
+            )
         # Azure storage account names are capped at 24 characters.
         return netloc.split(".", 1)[0][:24]
 

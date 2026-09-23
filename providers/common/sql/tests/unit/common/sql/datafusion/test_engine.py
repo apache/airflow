@@ -461,21 +461,63 @@ class TestDataFusionEngine:
         }
         assert extra_config == {}
 
-    def test_get_credentials_azure_tenant_id_without_login_falls_back(self):
-        """A partial service-principal config (tenant_id alone) must not be forwarded --
-        DataFusion's binding panics on a partial client_id/client_secret/tenant_id combination."""
+    @pytest.mark.parametrize(
+        ("login", "password", "missing"),
+        [
+            (None, "client-secret", "login"),
+            ("client-id", None, "password"),
+            (None, None, "login"),
+        ],
+    )
+    def test_get_credentials_azure_partial_service_principal_raises(self, login, password, missing):
+        """A partial service-principal config must raise, not silently authenticate with a
+        different identity (ambient auth, or the client secret sent as a shared key) --
+        DataFusion's binding also panics on a partial client_id/client_secret/tenant_id
+        combination."""
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.host = None
+        mock_conn.login = login
+        mock_conn.password = password
+        mock_conn.extra_dejson = {"tenant_id": "tenant-id"}
+        engine = DataFusionEngine()
+
+        with pytest.raises(ValueError, match=f"{missing}.*is not"):
+            engine._get_credentials(mock_conn)
+
+    def test_get_credentials_azure_fully_empty_connection_omits_account(self):
+        """Neither host nor login set (the shape of the ``wasb_default`` connection ``airflow
+        db`` creates) must drop `account` entirely, not send the literal string 'None' --
+        the binding then falls back to AZURE_STORAGE_ACCOUNT_NAME."""
         mock_conn = MagicMock()
         mock_conn.conn_type = "wasb"
         mock_conn.host = None
         mock_conn.login = None
         mock_conn.password = None
-        mock_conn.extra_dejson = {"tenant_id": "tenant-id"}
+        mock_conn.extra_dejson = {}
         engine = DataFusionEngine()
 
         credentials, extra_config = engine._get_credentials(mock_conn)
 
-        assert "tenant_id" not in credentials
-        assert "client_id" not in credentials
+        assert credentials == {}
+        assert extra_config == {}
+
+    def test_get_credentials_azure_sas_token_takes_priority_over_shared_access_key(self):
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.host = None
+        mock_conn.login = "myaccount"
+        mock_conn.password = None
+        mock_conn.extra_dejson = {
+            "sas_token": "?sv=2020-08-04&sp=rl&sig=abc",
+            "shared_access_key": "extra-key",
+        }
+        engine = DataFusionEngine()
+
+        credentials, extra_config = engine._get_credentials(mock_conn)
+
+        assert "sas_query_pairs" in credentials
+        assert "access_key" not in credentials
 
     def test_get_credentials_azure_with_sas_token(self):
         mock_conn = MagicMock()
@@ -533,6 +575,80 @@ class TestDataFusionEngine:
 
         with pytest.raises(ValueError, match="URL-form `sas_token` is not supported"):
             engine._get_credentials(mock_conn)
+
+    @pytest.mark.parametrize(
+        "env_var",
+        [
+            "AZURE_FEDERATED_TOKEN_FILE",
+            "AZURE_STORAGE_ACCOUNT_KEY",
+            "AZURE_STORAGE_ACCESS_KEY",
+            "AZURE_STORAGE_SAS_KEY",
+            "AZURE_STORAGE_TOKEN",
+        ],
+    )
+    def test_get_credentials_azure_rejects_when_env_would_outrank_explicit_credential(
+        self, env_var, monkeypatch
+    ):
+        """DataFusion's binding always reads these AZURE_* vars via from_env() before overlaying
+        an explicit credential, and object_store checks the env-derived slots before the
+        connection's SAS/client-secret slots -- so any of these would silently win."""
+        monkeypatch.setenv(env_var, "some-value")
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.host = None
+        mock_conn.login = "myaccount"
+        mock_conn.password = None
+        mock_conn.extra_dejson = {"sas_token": "?sv=2020-08-04&sp=rl&sig=abc"}
+        engine = DataFusionEngine()
+
+        with pytest.raises(ValueError, match=env_var):
+            engine._get_credentials(mock_conn)
+
+    def test_get_credentials_azure_env_precedence_guard_ignores_pure_ambient_auth(self, monkeypatch):
+        """The guard only fires for an explicit connection credential -- a connection with none
+        at all is meant to rely on the environment, so the same env vars must not raise here."""
+        monkeypatch.setenv("AZURE_STORAGE_ACCOUNT_KEY", "some-value")
+        mock_conn = MagicMock()
+        mock_conn.conn_type = "wasb"
+        mock_conn.host = None
+        mock_conn.login = "myaccount"
+        mock_conn.password = None
+        mock_conn.extra_dejson = {}
+        engine = DataFusionEngine()
+
+        credentials, extra_config = engine._get_credentials(mock_conn)
+
+        assert credentials == {"account": "myaccount"}
+        assert extra_config == {}
+
+    @pytest.mark.parametrize(
+        ("host", "login", "expected"),
+        [
+            ("myaccount.blob.core.windows.net", None, "myaccount"),
+            ("https://myaccount.blob.core.windows.net/container/path", None, "myaccount"),
+            (None, "myaccount", "myaccount"),
+            ("justanadid", "myaccount", "myaccount"),
+            ("a" * 40 + ".blob.core.windows.net", "x", "a" * 24),
+            (None, None, None),
+        ],
+    )
+    def test_resolve_wasb_account(self, host, login, expected):
+        assert DataFusionEngine._resolve_wasb_account(host, login) == expected
+
+    @pytest.mark.parametrize(
+        "host",
+        [
+            "myaccount.blob.core.chinacloudapi.cn",
+            "myaccount.blob.core.usgovcloudapi.net",
+            "http://127.0.0.1:10000/devstoreaccount1",
+        ],
+    )
+    def test_resolve_wasb_account_rejects_non_public_cloud_hosts(self, host):
+        """The binding has no endpoint override, so a sovereign-cloud or emulator host would
+        otherwise be silently misrouted to the public *.blob.core.windows.net account of the
+        same name."""
+        with pytest.raises(ValueError, match="does not resolve to the public"):
+            DataFusionEngine._resolve_wasb_account(host, None)
 
     def test_get_credentials_unknown_type(self):
         mock_conn = MagicMock()
