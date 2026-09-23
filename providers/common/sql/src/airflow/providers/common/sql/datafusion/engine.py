@@ -162,6 +162,14 @@ class DataFusionEngine(LoggingMixin):
                 return extra_dejson[field_name]
             return extra_dejson.get(f"extra__google_cloud_platform__{field_name}")
 
+        def _get_wasb_extra_field(extra_dejson: dict[str, Any], field_name: str) -> Any:
+            # Older Airflow connection UIs wrote custom extra fields as
+            # extra__wasb__<field_name> instead of the bare key; WasbHook still reads that
+            # legacy spelling as a fallback, so this must too.
+            if field_name in extra_dejson:
+                return extra_dejson[field_name]
+            return extra_dejson.get(f"extra__wasb__{field_name}")
+
         match conn.conn_type:
             case "aws":
                 try:
@@ -212,7 +220,7 @@ class DataFusionEngine(LoggingMixin):
                     "managed_identity_client_id",
                     "workload_identity_tenant_id",
                 ):
-                    if extra_dejson.get(unsupported_field):
+                    if _get_wasb_extra_field(extra_dejson, unsupported_field):
                         raise ValueError(
                             f"Connection field {unsupported_field!r} is not supported for DataFusion "
                             "Azure Blob Storage access; only tenant_id+login+password (service "
@@ -221,8 +229,8 @@ class DataFusionEngine(LoggingMixin):
                             "identity, or az login) are used."
                         )
                 credentials = {"account": self._resolve_wasb_account(conn.host, conn.login)}
-                tenant_id = extra_dejson.get("tenant_id")
-                sas_token = extra_dejson.get("sas_token")
+                tenant_id = _get_wasb_extra_field(extra_dejson, "tenant_id")
+                sas_token = _get_wasb_extra_field(extra_dejson, "sas_token")
                 explicit_credential = False
                 if tenant_id:
                     if not conn.login or not conn.password:
@@ -250,8 +258,8 @@ class DataFusionEngine(LoggingMixin):
                 else:
                     access_key = (
                         conn.password
-                        or extra_dejson.get("shared_access_key")
-                        or extra_dejson.get("account_key")
+                        or _get_wasb_extra_field(extra_dejson, "shared_access_key")
+                        or _get_wasb_extra_field(extra_dejson, "account_key")
                     )
                     if access_key:
                         credentials["access_key"] = access_key
