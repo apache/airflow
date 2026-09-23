@@ -361,7 +361,7 @@ class BuilderProcessor : AbstractProcessor() {
       val paramType = TypeName.get(param.type)
       if (param.isTaskInput) {
         executeSpec.addStatement(
-          $$"$T $L = $T.bindInput(client, $T.class)",
+          $$"$T $L = $T.bindInput(context, client, $T.class)",
           paramType,
           param.local,
           ARG_VALUES_TYPE,

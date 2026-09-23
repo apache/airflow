@@ -171,6 +171,7 @@ class TaskDef(
   }
 
   internal val configValues = linkedMapOf<String, Any>()
+  internal val inputs = mutableListOf<Arg<*>>()
   internal val upstreams = linkedSetOf<TaskDef>()
   internal var owner: DagDef? = null
 

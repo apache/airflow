@@ -22,6 +22,7 @@
 package org.apache.airflow.sdk
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -112,6 +113,54 @@ internal class InputTaskTest {
     val input = requireNotNull(task.received)
     assertEquals("emea", input.region)
     assertEquals(0.5, input.threshold)
+  }
+
+  @Test
+  @DisplayName("Should decode a TaskInput wholesale from its wired input when no bindings arrive")
+  fun shouldDecodeTaskInputFromWiredInput() {
+    // A native Dag has no stub call site, so there are no argument names to
+    // match fields against: the input the Dag wired to this task decodes into
+    // the whole TaskInput at once.
+    val context = contextWiredWith(listOf(LiteralArg(mapOf("region" to "emea", "threshold" to 0.5))))
+    val (client, _) = clientWith(null)
+    val task = Summarize()
+
+    task.execute(context, client)
+
+    val input = requireNotNull(task.received)
+    assertEquals("emea", input.region)
+    assertEquals(0.5, input.threshold)
+  }
+
+  @Test
+  @DisplayName("Should fail when the input wired to a TaskInput resolves to nothing")
+  fun shouldRejectNullWiredTaskInput() {
+    val context = contextWiredWith(listOf(LiteralArg<Map<String, Any?>>(null)))
+    val (client, _) = clientWith(null)
+
+    val error =
+      assertThrows(MissingXComException::class.java) { Summarize().execute(context, client) }
+
+    assertEquals(
+      "Input 'SummaryInput' is wired to a null literal, so there is nothing to bind.",
+      error.message,
+    )
+  }
+
+  @Test
+  @DisplayName("Should still match a TaskInput by name when the stub call bound no arguments")
+  fun shouldBindTaskInputWhenStubBoundNothing() {
+    // No bindings and no wired inputs: the name-matching path still owns this,
+    // so the fields take their defaults rather than the whole-input decode a
+    // wired TaskInput gets.
+    val (client, _) = clientWith(null)
+    val task = Summarize()
+
+    task.execute(taskContext(), client)
+
+    val input = requireNotNull(task.received)
+    assertNull(input.region)
+    assertEquals(0.0, input.threshold)
   }
 
   @Test

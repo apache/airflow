@@ -23,9 +23,13 @@ package org.apache.airflow.sdk.internal
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.json.JsonMapper
+import org.apache.airflow.sdk.Arg
 import org.apache.airflow.sdk.Client
+import org.apache.airflow.sdk.Context
+import org.apache.airflow.sdk.LiteralArg
 import org.apache.airflow.sdk.MissingXComException
 import org.apache.airflow.sdk.TaskInput
+import org.apache.airflow.sdk.TaskRef
 import org.apache.airflow.sdk.execution.ArgBinding
 import org.apache.airflow.sdk.execution.Logger
 import java.lang.reflect.Field
@@ -42,6 +46,11 @@ import java.lang.reflect.Type
  * graph the scheduler ordered the run by. Flat data parameters resolve the
  * binding at their position (through [TaskArgs]); [TaskInput] fields resolve
  * bindings by name.
+ *
+ * A natively authored Dag has no stub call site, so the supervisor sends no
+ * bindings for it and the inputs the Dag itself wired stand in. When the
+ * supervisor sends bindings they are used for every parameter; the Dag's own
+ * inputs are read only when it sends none.
  */
 object ArgValues {
   private val mapper: ObjectMapper = JsonMapper.builder().build().findAndRegisterModules()
@@ -68,9 +77,17 @@ object ArgValues {
    */
   @JvmStatic
   fun <I : TaskInput> bindInput(
+    context: Context,
     client: Client,
     type: Class<I>,
   ): I {
+    // Runtime bindings carry argument names to match fields against. A wired
+    // input carries none, so it decodes into the whole input at once -- which
+    // is well defined because a TaskInput is a task's only data parameter.
+    wiredInputs(context, client)?.let { wired ->
+      return decode(resolveWired(wired[0], client), type) as I?
+        ?: throw missingInput(wired[0], type.simpleName)
+    }
     val input = newInput(type)
     val arguments = ArgIndex(client.argBindings)
     val unfilled = mutableListOf<String>()
@@ -146,6 +163,66 @@ object ArgValues {
     binding: ArgBinding,
     type: Type,
   ): Any? = decode(client.resolveBinding(binding), type)
+
+  /**
+   * Resolves the wired input at a data parameter's position into [type],
+   * passing null through.
+   */
+  internal fun valueWired(
+    input: Arg<*>,
+    client: Client,
+    type: Type,
+  ): Any? = decode(resolveWired(input, client), type)
+
+  /**
+   * The inputs the Dag wired for this task, or null when the run's arguments
+   * come from the stub call site. A task with no wired inputs reads the
+   * bindings, so a stub call that bound nothing keeps its own diagnostics.
+   */
+  internal fun wiredInputs(
+    context: Context,
+    client: Client,
+  ): List<Arg<*>>? = if (client.argBindings.isEmpty()) context.taskDef?.inputs?.takeIf { it.isNotEmpty() } else null
+
+  /**
+   * The failure for a wired argument that resolved to nothing where a value is
+   * required, naming [target] — the position of the parameter it feeds.
+   */
+  internal fun missingWired(
+    input: Arg<*>,
+    target: String,
+  ): MissingXComException =
+    when (input) {
+      is TaskRef<*> -> MissingXComException(input.def.id, target)
+      else ->
+        MissingXComException(
+          "Task parameter '$target' is wired to a null literal, but has a primitive type that cannot " +
+            "be null; declare a boxed type (e.g. Integer instead of int) to receive null.",
+        )
+    }
+
+  /** The failure for a wired input that resolved to nothing for a [TaskInput]. */
+  private fun missingInput(
+    input: Arg<*>,
+    target: String,
+  ): MissingXComException =
+    when (input) {
+      is TaskRef<*> ->
+        MissingXComException(
+          "Input '$target' requires an XCom from task '${input.def.id}', but none was pushed.",
+        )
+      else -> MissingXComException("Input '$target' is wired to a null literal, so there is nothing to bind.")
+    }
+
+  private fun resolveWired(
+    input: Arg<*>,
+    client: Client,
+  ): Any? =
+    when (input) {
+      is TaskRef<*> -> client.getXCom(taskId = input.def.id)
+      is LiteralArg<*> -> input.value
+      else -> null
+    }
 
   /**
    * Builds the failure for a binding that resolved to nothing where a value is
