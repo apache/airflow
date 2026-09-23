@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import inspect
 import json
+import re
 import shlex
 from functools import cached_property
 from unittest.mock import Mock
@@ -62,6 +63,7 @@ def _mock_selective_checks(**flags: object) -> Mock:
         setattr(sc, flag, False)
     sc.skip_providers_tests = True
     sc.skip_prek_hooks = "identity"
+    sc.shared_distributions_as_json = "[]"
     sc.default_python_version = DEFAULT_PYTHON_MAJOR_MINOR_VERSION
     for flag, value in flags.items():
         setattr(sc, flag, value)
@@ -75,16 +77,27 @@ def test_each_flag_maps_to_its_commands(flag: str):
     )
     commands = [item["command"] for item in result["items"]]
     assert commands == [
-        "SKIP=identity prek run --all-files",
+        "SKIP=identity prek run --from-ref main --to-ref HEAD",
         *(command for _, command, _ in FLAG_COMMANDS[flag]),
     ]
 
 
 @pytest.mark.parametrize(
-    ("basic_checks_only", "expected"),
+    ("basic_checks_only", "full", "expected"),
     [
-        (False, ("prek", "SKIP=identity prek run --all-files", "breeze")),
+        (False, False, ("prek", "SKIP=identity prek run --from-ref main --to-ref HEAD", "breeze")),
+        (False, True, ("prek", "SKIP=identity prek run --all-files", "breeze")),
         (
+            True,
+            False,
+            (
+                "prek",
+                "SKIP_BREEZE_PREK_HOOKS=true SKIP=identity prek run --from-ref main --to-ref HEAD",
+                "host",
+            ),
+        ),
+        (
+            True,
             True,
             (
                 "prek",
@@ -94,9 +107,15 @@ def test_each_flag_maps_to_its_commands(flag: str):
         ),
     ],
 )
-def test_prek_command_follows_basic_checks_only(basic_checks_only: bool, expected: tuple[str, str, str]):
+def test_prek_command_follows_basic_checks_only_and_full(
+    basic_checks_only: bool, full: bool, expected: tuple[str, str, str]
+):
     result = build_local_verification_plan(
-        _mock_selective_checks(basic_checks_only=basic_checks_only), (), "main", full_tests_needed=False
+        _mock_selective_checks(basic_checks_only=basic_checks_only),
+        (),
+        "main",
+        full_tests_needed=False,
+        full=full,
     )
     prek = result["items"][0]
     assert (prek["kind"], prek["command"], prek["runs_in"]) == expected
@@ -107,7 +126,7 @@ def test_docs_only_change_mirrors_the_ci_cell():
     sc = _selective_checks(files)
     result = build_local_verification_plan(sc, files, "main", full_tests_needed=False)
     assert [item["command"] for item in result["items"]] == [
-        f"SKIP={sc.skip_prek_hooks} prek run --all-files",
+        f"SKIP={sc.skip_prek_hooks} prek run --from-ref main --to-ref HEAD",
         "breeze build-docs apache-airflow",
     ]
 
@@ -225,8 +244,9 @@ def test_full_plan_adds_the_jobs_ci_runs_on_every_pr():
     sc = _selective_checks(files)
     lean = build_local_verification_plan(sc, files, "main", full_tests_needed=False)["items"]
     full = build_local_verification_plan(sc, files, "main", full_tests_needed=False, full=True)["items"]
-    assert [i["command"] for i in full] == [
-        *(i["command"] for i in lean),
+    assert full[0]["command"] == f"SKIP={sc.skip_prek_hooks} prek run --all-files"
+    assert [i["command"] for i in full[1:]] == [
+        *(i["command"] for i in lean[1:]),
         "cd dev/breeze && uv run --locked pytest",
         "for d in "
         + " ".join(sorted(json.loads(sc.shared_distributions_as_json)))
@@ -240,3 +260,16 @@ def test_full_plan_does_not_duplicate_breeze_tests_for_a_breeze_change():
         _selective_checks(files), files, "main", full_tests_needed=True, full=True
     )
     assert [i["command"] for i in full["items"]].count("cd dev/breeze && uv run --locked pytest") == 1
+
+
+def test_manual_stage_hooks_in_the_mapping_are_the_ones_ci_runs():
+    workflow = (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "ci-amd.yml").read_text()
+    hooks = [
+        hook
+        for commands in FLAG_COMMANDS.values()
+        for _, command, _ in commands
+        for hook in re.findall(r"prek run --stage manual (\S+)", command)
+    ]
+    assert hooks
+    for hook in hooks:
+        assert f"--stage manual {hook} " in workflow, hook

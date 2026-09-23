@@ -335,7 +335,8 @@ Each row says what kind of check it is, whether it runs on the host or needs Doc
 CI image (``breeze``), and the exact command. Jobs CI runs on every PR regardless of the change
 (breeze's own unit tests, the shared distributions) only show up with ``--full``. The translation
 check is never listed: CI runs it with ``|| true``, so it cannot fail a PR.
-Use ``--json`` for machine-readable output with the same fields.
+Use ``--json`` for machine-readable output with the same fields. The ``prek`` row uses
+``--from-ref`` by default, the scope AGENTS.md recommends; ``--full`` shows CI's ``--all-files`` form.
 
 When a change touches CI tooling or dependency files, selective checks make CI run the full suite.
 The default list leaves that expansion out and only shows what the changed files match themselves,

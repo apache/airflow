@@ -115,7 +115,7 @@ code review checklist in [`.github/instructions/code-review.instructions.md`](..
    and fix any failures. The skipped hooks start long-running local servers or provision the
    opt-in Codex environment rather than run checks that complete.
 6. Run relevant individual tests and confirm they pass.
-7. Find which tests to run for the changes with selective-checks and run those tests in parallel to confirm they pass and check for CI-specific issues.
+7. Run `breeze verify` and execute every command it lists. The list comes from the same selective-checks logic CI uses. `breeze verify --full` shows everything CI runs for the default matrix cell, including the full suite CI adds when a change touches CI tooling or dependency files. Confirm the commands pass and check for CI-specific issues.
 8. Check for security issues — no secrets, no injection vulnerabilities, no unsafe patterns.
 
 Before pushing, always rebase your branch onto the latest target branch (usually `main`)

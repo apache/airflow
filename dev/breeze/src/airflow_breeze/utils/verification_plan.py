@@ -84,11 +84,21 @@ NOT_RUNNABLE_LOCALLY: frozenset[str] = frozenset(
 )
 
 
-def build_prek_item(sc: SelectiveChecks, base_ref: str) -> VerificationItem:
+def build_prek_item(sc: SelectiveChecks, base_ref: str, *, full: bool) -> VerificationItem:
+    from_ref = f"prek run --from-ref {shlex.quote(base_ref)} --to-ref HEAD"
     if sc.basic_checks_only:
-        command = f"SKIP_BREEZE_PREK_HOOKS=true SKIP={sc.skip_prek_hooks} prek run --from-ref {shlex.quote(base_ref)} --to-ref HEAD"
-        return VerificationItem("prek", command, "host")
-    return VerificationItem("prek", f"SKIP={sc.skip_prek_hooks} prek run --all-files", "breeze")
+        return VerificationItem(
+            "prek", f"SKIP_BREEZE_PREK_HOOKS=true SKIP={sc.skip_prek_hooks} {from_ref}", "host"
+        )
+    # CI's static-checks job runs every file, because a non-basic change can affect hooks that
+    # read files outside the diff. Locally the diff is the practical scope, as AGENTS.md advises.
+    return VerificationItem(
+        "prek",
+        f"SKIP={sc.skip_prek_hooks} prek run --all-files"
+        if full
+        else f"SKIP={sc.skip_prek_hooks} {from_ref}",
+        "breeze",
+    )
 
 
 def build_unit_test_items(group: str, test_types_json: str | None) -> list[VerificationItem]:
@@ -125,7 +135,7 @@ def build_local_verification_plan(
     full_tests_needed: bool,
     full: bool = False,
 ) -> dict[str, Any]:
-    items = [build_prek_item(sc, base_ref)]
+    items = [build_prek_item(sc, base_ref, full=full)]
     if sc.run_unit_tests:
         items += build_unit_test_items("core", sc.core_test_types_list_as_strings_in_json)
     if not sc.skip_providers_tests:
@@ -142,14 +152,14 @@ def build_local_verification_plan(
         breeze_tests = VerificationItem("unit", "cd dev/breeze && uv run --locked pytest", "host")
         if breeze_tests not in items:
             items.append(breeze_tests)
-        dists = " ".join(sorted(json.loads(sc.shared_distributions_as_json)))
-        items.append(
-            VerificationItem(
-                "unit",
-                f"for d in {dists}; do (cd shared/$d && uv run --group dev pytest) || exit 1; done",
-                "host",
+        if dists := " ".join(sorted(json.loads(sc.shared_distributions_as_json))):
+            items.append(
+                VerificationItem(
+                    "unit",
+                    f"for d in {dists}; do (cd shared/$d && uv run --group dev pytest) || exit 1; done",
+                    "host",
+                )
             )
-        )
     return {
         "base_ref": base_ref,
         "default_python_version": sc.default_python_version,
