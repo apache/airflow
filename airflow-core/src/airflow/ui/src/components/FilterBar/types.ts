@@ -48,9 +48,9 @@ export type FilterConfig = {
   readonly options?: Array<{ label: ReactNode | string; value: string }>;
   readonly placeholder?: string;
   readonly startKey?: string;
-  // Set on text filters whose API endpoint exposes both ``*_pattern`` (substring)
+  // Set on filters whose API endpoint exposes both ``*_pattern`` (substring)
   // and ``*_prefix_pattern`` (prefix) variants. The pill renders a toggle that
-  // controls which one the consuming page uses, via ``useAdvancedSearch``.
+  // controls which one the consuming query uses, via ``useAdvancedSearch``.
   readonly supportsAdvancedSearch?: boolean;
   readonly type: "boolean" | "date" | "daterange" | "multiselect" | "number" | "select" | "text";
 };
